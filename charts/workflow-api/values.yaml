@@ -9,14 +9,3 @@ logLevel: Debug
 
 connectionStrings:
  appInsights: ""
- 
-azure:
-  keyvaultName: keyvaultName
-  resourceGroup: resourceGroupName
-  subscriptionId: subscriptionId
-  tenantId: tenantId
-  clientId: clientId
-  identityName: identityName
-  secrets:
-   - name: dn2-db-password
-     key: DatabasePassword
