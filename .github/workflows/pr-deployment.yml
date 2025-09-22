@@ -1,4 +1,4 @@
-name: create environment
+name: pr - build and deploy
 
 on:
   pull_request:
