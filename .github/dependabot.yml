@@ -10,19 +10,7 @@ updates:
       - dependency-name: "Microsoft.*"
         update-types: [ "version-update:semver-major" ]
   - package-ecosystem: docker
-    directory: "/UvA.DataNose.BatchToolWorker"
-    schedule:
-      interval: daily
-      time: "04:30"
-      timezone: "Europe/Amsterdam"
-  - package-ecosystem: docker
-    directory: "/UvA.DataNose.OnderwijsHubListener"
-    schedule:
-      interval: daily
-      time: "04:30"
-      timezone: "Europe/Amsterdam"
-  - package-ecosystem: docker
-    directory: "/UvA.DataNose.WebAPI"
+    directory: "/UvA.Workflow.Api"
     schedule:
       interval: daily
       time: "04:30"
