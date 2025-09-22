@@ -19,7 +19,7 @@ spec:
           image: "{{ .Values.repo }}/workflow-api:{{ .Values.tag }}"
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8080
           env:
             - name: WORKFLOW_API_VERSION
               value: "{{ .Chart.AppVersion }}"
