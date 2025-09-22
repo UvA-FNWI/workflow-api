@@ -28,7 +28,7 @@ spec:
               service:
                 name: workflow-api
                 port:
-                  number: 8080
+                  number: 80
     {{- if .Values.secondaryHostname }}
     - host: "{{ .Values.secondaryHostname }}"
       http:
