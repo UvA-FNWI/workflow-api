@@ -1,0 +1,68 @@
+name: Assign Dependabot PRs
+
+on:
+    pull_request:
+        types:
+            - opened
+jobs:
+    assign-dependabot-pr:
+        runs-on: self-hosted
+
+        permissions:
+            pull-requests: write
+
+        steps:
+            - name: Check if Dependabot PR
+              id: check_dependabot
+              run: |
+                  if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
+                    echo "is_dependabot=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "is_dependabot=false" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Randomly assign a user and request review
+              if: steps.check_dependabot.outputs.is_dependabot == 'true'
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  ASSIGNEES: "goomens,annesnour03"
+              run: |
+                  # Convert multi-line env var to array
+                  IFS=',' read -r -a USERS <<< "$ASSIGNEES"
+
+                  # Validate we have users to assign
+                  if [ ${#USERS[@]} -eq 0 ]; then
+                    echo "Error: No users defined for assignment"
+                    exit 1
+                  fi
+
+                  # Select a random user
+                  RANDOM_USER=${USERS[$RANDOM % ${#USERS[@]}]}
+
+                  echo "Selected assignee: $RANDOM_USER"
+
+                  # Assign the PR using GitHub API
+                  curl -X POST \
+                    -H "Authorization: token $GITHUB_TOKEN" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/assignees" \
+                    -d "{\"assignees\":[\"$RANDOM_USER\"]}"
+
+                  if [ $? -ne 0 ]; then
+                    echo "Failed to assign PR"
+                    exit 1
+                  fi
+
+                  # Request review from the same user
+                  curl -X POST \
+                    -H "Authorization: token $GITHUB_TOKEN" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
+                    -d "{\"reviewers\":[\"$RANDOM_USER\"]}"
+
+                  if [ $? -eq 0 ]; then
+                    echo "Successfully requested review from $RANDOM_USER"
+                  else
+                    echo "Failed to request review"
+                    exit 1
+                  fi

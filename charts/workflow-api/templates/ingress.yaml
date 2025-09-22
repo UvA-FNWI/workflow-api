@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workflow-api-ingress
+  namespace: "{{ .Release.Namespace }}"
+  annotations:
+    kubernetes.io/ingress.class: "{{ .Values.ingressClass }}"
+    nginx.ingress.kubernetes.io/proxy-body-size: 5m
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "Strict-Transport-Security: 'max-age=31536000; includeSubDomains' always"; # HSTS
+spec:
+  tls:
+    - hosts:
+        - "{{ .Values.hostname }}"
+    {{- if .Values.secondaryHostname }}
+    - hosts:
+        - "{{ .Values.secondaryHostname }}"
+      secretName: ingress-tls-csi-workflow-api
+    {{- end}}
+  rules:
+    - host: "{{ .Values.hostname }}"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: workflow-api
+                port:
+                  number: 80
+    {{- if .Values.secondaryHostname }}
+    - host: "{{ .Values.secondaryHostname }}"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: workflow-api
+                port:
+                  number: 80
+    {{- end}}

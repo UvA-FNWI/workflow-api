@@ -1,0 +1,6 @@
+apiVersion: v2
+name: workflow-api-pr
+description: PR Api backend for UvA Workflow
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

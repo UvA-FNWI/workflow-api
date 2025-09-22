@@ -1,0 +1,11 @@
+hostname: workflow-api.local
+ingressClass: nginx
+repo: datanosecr.azurecr.io
+apiTag: latest
+webTag: latest
+certificateName: datanose-nl
+environment: Test
+contentSecurityPolicy: "default-src 'self'"
+logLevel: Debug
+
+connectionStrings:

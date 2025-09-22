@@ -1,0 +1,33 @@
+name: create environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  build:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: self-hosted
+    environment:
+      name: pr-${{ github.event.number }}
+      url: https://workflow-api-pr-${{ github.event.number }}.datanose.nl/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        
+      - name: Build and deploy
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          UPDATER_SECRET: ${{ secrets.UPDATER_SECRET_DN }}
+        run: |
+          set -euxo pipefail
+          TAG="pr-${PR_NUMBER}"
+          docker build -f UvA.DataNose.WebAPI/Dockerfile -t "datanosecr.azurecr.io/workflow-api:${TAG}" .
+          docker push "datanosecr.azurecr.io/workflow-api:${TAG}"
+          VERSION=$(date "+1.0.%Y%m%d%H%M%S")
+          helm package --version "${VERSION}" --app-version "${VERSION}" charts/workflow-api-pr
+          helm push "workflow-api-pr-${VERSION}.tgz" oci://datanosecr.azurecr.io/helm
+          curl --fail --no-progress-meter "https://workflow-api--tst.datanose.nl/gitops-updater?name=workflow-api-pr&secret=${UPDATER_SECRET}&version=${VERSION}&id=${PR_NUMBER}"

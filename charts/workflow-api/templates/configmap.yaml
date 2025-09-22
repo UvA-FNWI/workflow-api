@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-api-config
+  namespace: "{{ .Release.Namespace }}"
+data:
+  DOTNET_ENVIRONMENT: "{{ .Values.environment }}"
+  APPLICATIONINSIGHTS_CONNECTION_STRING: "{{ .Values.connectionStrings.appInsights }}"
+ 
+  Serilog__MinimumLevel__Override__Uva.DataNose: "{{ .Values.logLevel }}"

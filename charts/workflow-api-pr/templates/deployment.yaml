@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-api
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  selector:
+    matchLabels:
+      app: workflow-api
+  replicas: 1
+  revisionHistoryLimit: 3
+  template:
+    metadata:
+      labels:
+        app: workflow-api
+    spec:
+      containers:
+        - name: workflow-api
+          image: "{{ .Values.repo }}/workflow-api:{{ .Values.apiTag }}"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+            - name: WORKFLOW_API_VERSION
+              value: "{{ .Chart.AppVersion }}"
+          envFrom:
+            - configMapRef:
+                name: workflow-api-config
+            - secretRef:
+                name: workflow-api-secret
+          {{- if .Values.azure }}
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/etc/secrets"
+              readOnly: true
+          {{- end }}
+ 
+      {{- if .Values.azure }}
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "workflow-api-secretproviderclass"
+      {{- end }}

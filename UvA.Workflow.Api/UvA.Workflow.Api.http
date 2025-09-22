@@ -1,0 +1,6 @@
+@UvA.Workflow.Api_HostAddress = http://localhost:5124
+
+GET {{UvA.Workflow.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
