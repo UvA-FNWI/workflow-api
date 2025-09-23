@@ -13,11 +13,6 @@ spec:
   tls:
     - hosts:
         - "{{ .Values.hostname }}"
-    {{- if .Values.secondaryHostname }}
-    - hosts:
-        - "{{ .Values.secondaryHostname }}"
-      secretName: ingress-tls-csi-workflow-api
-    {{- end}}
   rules:
     - host: "{{ .Values.hostname }}"
       http:
@@ -29,15 +24,4 @@ spec:
                 name: workflow-api
                 port:
                   number: 80
-    {{- if .Values.secondaryHostname }}
-    - host: "{{ .Values.secondaryHostname }}"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: workflow-api
-                port:
-                  number: 80
-    {{- end}}
+  
