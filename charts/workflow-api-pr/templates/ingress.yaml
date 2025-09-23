@@ -17,14 +17,7 @@ spec:
     - host: "{{ .Values.hostname }}"
       http:
         paths:
-          - path: /swagger
-            pathType: Prefix
-            backend:
-              service:
-                name: workflow-api
-                port:
-                  number: 80
-          - path: /api
+          - path: /
             pathType: Prefix
             backend:
               service:

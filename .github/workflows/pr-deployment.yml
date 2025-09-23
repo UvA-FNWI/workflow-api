@@ -3,6 +3,7 @@ name: Build and deploy - PR
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch: {}
 
 jobs:
   build:
@@ -25,7 +26,7 @@ jobs:
         run: |
           set -euxo pipefail
           TAG="pr-${PR_NUMBER}"
-          docker build -f UvA.DataNose.WebAPI/Dockerfile -t "datanosecr.azurecr.io/workflow-api:${TAG}" .
+          docker build -f UvA.Workflow.Api/Dockerfile -t "datanosecr.azurecr.io/workflow-api:${TAG}" .
           docker push "datanosecr.azurecr.io/workflow-api:${TAG}"
           VERSION=$(date "+1.0.%Y%m%d%H%M%S")
           helm package --version "${VERSION}" --app-version "${VERSION}" charts/workflow-api-pr
