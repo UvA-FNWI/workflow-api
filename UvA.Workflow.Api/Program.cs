@@ -24,7 +24,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 //if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi("swagger/v1/swagger.json");
+    app.MapOpenApi();
     app.UseSwaggerUI(c =>
     {
         // if (app.Environment.IsDevOrTest())
@@ -32,7 +32,7 @@ var app = builder.Build();
         //     c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
         //     c.OAuthUsePkce();
         // }
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Workflow API V1");
+        c.SwaggerEndpoint("/openapi/v1.json", "Workflow API v1");
         c.DisplayRequestDuration();
     });
 }
