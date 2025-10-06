@@ -1,0 +1,22 @@
+name: Handling
+condition:
+  value:
+    property: Decision
+    equal: =Approve
+
+actions:
+  - roles: [Submitter]
+    type: Submit
+    form: Report
+  - roles: [Submitter, Admin]
+    type: CreateRelatedInstance
+    property: Invoices
+  - roles: [Admin]
+    type: Execute
+    name: Close
+    label: Close request
+    triggers:
+      - event: Close
+        
+ends:
+  event: Close

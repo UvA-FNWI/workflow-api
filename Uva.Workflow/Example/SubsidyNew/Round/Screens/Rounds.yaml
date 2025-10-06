@@ -1,0 +1,7 @@
+name: Rounds
+entityType: Round
+columns:
+  - title: Round
+    property: Name
+    link: true
+  - property: Deadline

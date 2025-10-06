@@ -1,0 +1,95 @@
+properties:
+  Submitter:
+    type: User!
+  
+  Title:
+    type: String!
+  ContactName:
+    type: String
+    text: Contact name
+  ContactEmail:
+    type: String
+    text: Contact email
+  Place:
+    type: String!
+    text: Location of the event
+    shortText: Location
+  Date:
+    type: Date!
+    text: Start date of the event
+    shortText: Start date
+  EndDate:
+    type: Date!
+    text: End date of the event
+    shortText: End date
+    validation:
+      message: End date should be after start date
+      value:
+        property: EndDate
+        greaterThanOrEqual: Date
+  Description:
+    type: String!
+    text: Short description of the event (max 100 words)
+    shortText: Description
+    multiline: true
+  Amount:
+    type: Currency!
+    text: Requested amount of financial support
+    shortText: Amount
+  Participants:
+    type: String!
+    text: Expected number of participants
+    description: Enter 0 if not applicable
+  Speakers:
+    type: String
+    text: Main speakers, if known
+    shortText: Main speakers
+    multiline: true
+  
+  Application:
+    type: File!
+  Budget:
+    type: File!
+    description: Upload a budget for the event, preferably in the form of a table with expenditure and income
+  
+  Round:
+    type: Round
+    kind: Hidden
+    hideInResults: true
+  TotalPaid:
+    type: "[Currency]"
+    hideInResults: true
+    
+  DecisionComment:
+    type: String
+    multiline: true
+  Decision:
+    type: Decision!
+    values:
+      Approve: {}
+      Reject: {}
+      Postpone: {}
+  DecisionAmount:
+    type: Currency!
+    condition:
+      value:
+        property: Decision
+        equal: =Approve
+        
+  Report:
+    text: Upload your report here
+    type: File
+    
+  Comments:
+    type: "[Comment]"
+    
+  Invoices:
+    type: "[Invoice]"
+    
+  ClosureStatus:
+    type: ClosureStatus
+    values:
+      Withdrawn: {}
+      Canceled: {}
+      Closed: {}
+      

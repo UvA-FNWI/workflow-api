@@ -1,0 +1,8 @@
+name: Decision
+
+pages:
+  Page:
+    questions:
+      - DecisionComment
+      - Decision
+      - DecisionAmount

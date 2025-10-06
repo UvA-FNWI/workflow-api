@@ -1,0 +1,22 @@
+name: Approval
+condition:
+  event: Payment
+actions:
+  - type: Edit
+    form: Payment
+    roles: [Admin]
+  - type: Execute
+    label: Approve payment
+    roles: [Admin]
+    triggers:
+      - sendMail:
+          to: Submitter
+          template: PaymentApproved
+      - setProperty:
+          target: Invoice.Request
+          property: Request.TotalPaid
+          value: sumInvoices()
+      - event: PaymentApproved
+
+ends:
+  event: PaymentApproved

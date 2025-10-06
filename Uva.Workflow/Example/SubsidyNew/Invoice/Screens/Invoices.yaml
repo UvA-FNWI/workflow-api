@@ -1,0 +1,22 @@
+name: Invoices
+entityType: Invoice
+columns:
+  - title: Request number
+    property: Invoice.Request.Id
+    displayType: ExportOnly
+  - title: Number
+    property: Invoice.Number
+  - title: Request
+    property: Invoice.Request
+    link: true
+  - title: Name beneficiary
+    property: Invoice.Name
+    link: true
+  - endDate: Start
+  - currentStep: true
+    filterType: Pick
+    default: Draft
+  - title: Amount paid
+    property: Payment.Amount
+  - title: Payment date
+    property: Payment.Date

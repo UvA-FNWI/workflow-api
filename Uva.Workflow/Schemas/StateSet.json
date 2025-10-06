@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "StateSet",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "states": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/State"
+      }
+    }
+  },
+  "definitions": {
+    "State": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "name": {
+          "type": "string"
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "phase": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "displayName": {
+          "$ref": "#/definitions/BilingualString"
+        },
+        "entity": {
+          "$ref": "#/definitions/State2"
+        }
+      }
+    },
+    "BilingualString": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "State2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 255
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+name: Start
+actions:
+  - roles: [Submitter]
+    form: Invoice
+    type: Submit
+    
+ends:
+  event: Invoice

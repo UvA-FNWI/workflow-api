@@ -1,0 +1,10 @@
+name: Upload
+title: Upload final version
+
+actions:
+  - roles: [Student]
+    type: Submit
+    form: Upload
+
+ends:
+  event: Upload

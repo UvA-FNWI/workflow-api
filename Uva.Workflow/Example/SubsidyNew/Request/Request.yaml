@@ -1,0 +1,23 @@
+name: Request
+index: 1
+titlePlural: Requests
+instanceTitle: '{{ Title }} ({{ Id }})'
+headerFields:
+  - property: Round.Name
+    title: Round
+  - property: CurrentStep
+    title: Step
+  - value: '{{ Id }}'
+    title: Number
+  - value: '{{ Submitter.DisplayName }} ({{ Submitter.Email }})'
+    title: Contact
+  - property: Decision
+    title: Decision
+
+steps:
+  - Start
+  - Pending
+  - Decision
+  - SendLetter
+  - Handling
+  - Closed

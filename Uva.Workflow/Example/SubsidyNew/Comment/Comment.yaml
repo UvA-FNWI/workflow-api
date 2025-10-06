@@ -1,0 +1,31 @@
+name: Comment
+title: Comment
+titlePlural: Comments
+properties:
+  User:
+    type: User!
+    kind: Hidden
+  
+  Comment:
+    type: String
+    multiline: true
+  Advice:
+    type: Enum
+    values:
+      Approve: {}
+      Reject: {}
+      Postpone: {}
+      Discuss: {}
+  Amount:
+    type: Currency
+    
+actions:
+  - type: View
+    form: Comment
+    roles: [BoardMember]
+  - type: Submit
+    form: Comment
+    roles: [User]
+  - type: Edit
+    form: Comment
+    roles: [User]

@@ -1,0 +1,11 @@
+name: Projects
+entityType: Project
+columns:
+  - property: Title
+    link: true
+    default: No title
+  - property: StartEvent
+  - property: Student.DisplayName
+  - currentStep: true
+    filterType: Pick
+    default: Draft

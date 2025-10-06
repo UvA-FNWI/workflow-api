@@ -1,0 +1,15 @@
+name: Pending
+actions:
+  - type: Edit
+    form: Request
+    roles: [Submitter]
+  - type: Execute
+    label: Withdraw request
+    triggers:
+      - setProperty:
+          property: ClosureStatus
+          value: =Withdrawn
+    
+    
+ends:
+  date: Round.Deadline

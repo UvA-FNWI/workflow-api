@@ -1,4 +1,5 @@
 using Serilog;
+using UvA.Workflow.Api.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,10 @@ builder.Host.UseSerilog((context, services, configuration) =>
     //.WriteTo.ApplicationInsights(services.GetRequiredService<TelemetryConfiguration>(), TelemetryConverter.Traces);
 });
 
+
+var config = builder.Configuration;
+config.AddJsonFile("appsettings.local.json", true, true);
+builder.Services.AddWorkflow(config);
 builder.Services.AddControllers();
 
 // Add services to the container.

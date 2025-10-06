@@ -1,0 +1,9 @@
+values:
+  Good:
+    value: 10
+  Sufficient:
+    value: 6
+  Insufficient:
+    value: 4
+  Bad:
+    value: 1

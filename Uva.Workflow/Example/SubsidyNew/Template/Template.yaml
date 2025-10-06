@@ -1,0 +1,72 @@
+name: Template
+index: 4
+titlePlural: Templates
+instanceTitle: '{{ Name }}'
+actions:
+  - roles: [Admin]
+    type: View
+    form: Template
+  - roles: [Admin]
+    type: Edit
+    form: Template
+
+properties:
+  Key:
+    type: String!
+  Name:
+    type: String!
+  Subject:
+    type: String
+  Content:
+    type: String!
+    multiline: true
+    
+seedData:
+  matchBy: Key
+  data:
+    - Key: Accept
+      Name: Acceptance letter
+    - Key: DecisionMail
+      Name: Decision email
+      Subject: Decision Compositio Mathematica funding request C{{ Id }}
+      Content: |
+        Dear {{ Submitter.DisplayName }},
+
+        Please see attachment for the decision letter regarding your funding request C{{ Id }}.
+
+        Best regards,
+        Charlene Kalle (secretary of the Foundation Compositio Mathematica)
+    - Key: PaymentApproved
+      Name: Payment approved mail
+      Subject: Payment Compositio Mathematica funding request C{{ Id }}
+      Content: |
+        Dear {{ Submitter.DisplayName }},
+
+        The invoice for your funding request C{{ Id }} has now been paid.
+
+        Best regards,
+        Charlene Kalle (secretary of the Foundation Compositio Mathematica)
+    - Key: InvoiceRejected
+      Name: Invoice rejected mail
+      Subject: Invoice rejected for Compositio Mathematica funding request C{{ Id }}
+      Content: |
+        Dear {{ Submitter.DisplayName }},
+
+        The invoice for your funding request C{{ Id }} has been rejected. Please resubmit the invoice. 
+
+        Best regards,
+        Charlene Kalle (secretary of the Foundation Compositio Mathematica)
+    - Key: RejectMail
+      Name: Request rejected mail
+      Subject: Decision Compositio Mathematica funding request C{{ Id }}
+      Content: |
+        Dear {{ Submitter.DisplayName }},
+
+
+        Due to the overwhelming number of funding requests that we have received, the Foundation Compositio Mathematica unfortunately cannot honour your request for the {{ Request.Title }}.
+
+        If you have any questions, feel free to respond to this message.
+
+
+        Best regards,
+        Charlene Kalle (secretary of the Foundation Compositio Mathematica)

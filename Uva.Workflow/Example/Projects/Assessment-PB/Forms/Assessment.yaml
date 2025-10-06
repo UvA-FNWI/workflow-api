@@ -1,0 +1,17 @@
+name: Assessment
+
+pages:
+  Report:
+    questions:
+      - Structure
+      - Polishing
+      - Nose
+  Presentation:
+    questions:
+      - Loudness
+      - Style
+      - Contents
+  Practical:
+    questions:
+      - Bananas
+    sources: [AssessmentSupervisor]

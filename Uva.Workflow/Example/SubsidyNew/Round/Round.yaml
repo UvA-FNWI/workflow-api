@@ -1,0 +1,23 @@
+name: Round
+index: 3
+titlePlural: Rounds
+instanceTitle: '{{ Name }}'
+
+properties:
+  Name:
+    type: String!
+  Deadline:
+    type: Date!
+    
+actions:
+  - type: CreateInstance
+    roles: [Admin]
+  - type: Submit
+    form: Round
+    roles: [Admin]
+  - type: Edit
+    form: Round
+    roles: [Admin]
+  - type: View
+    form: Round
+    roles: [BoardMember]

@@ -1,0 +1,15 @@
+name: AssessmentReviewer
+title: Assessment by reviewer
+
+actions:
+  - roles: [Reviewer]
+    type: Submit
+    label: Assess final version (reviewer)
+    form: AssessmentReviewer
+
+properties:
+  AssessmentReviewer:
+    type: Assessment!
+
+ends:
+  event: AssessmentReviewer

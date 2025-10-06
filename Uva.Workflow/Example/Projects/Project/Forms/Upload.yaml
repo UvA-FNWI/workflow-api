@@ -1,0 +1,7 @@
+name: Upload
+
+pages:
+  Upload:
+    questions:
+      - Title
+      - Report
