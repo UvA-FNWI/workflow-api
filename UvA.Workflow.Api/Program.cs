@@ -41,7 +41,6 @@ var app = builder.Build();
         //     c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
         //     c.OAuthUsePkce();
         // }
-        c.RoutePrefix = string.Empty;
         c.SwaggerEndpoint("/openapi/v1.json", "Workflow API v1");
         c.DisplayRequestDuration();
     });

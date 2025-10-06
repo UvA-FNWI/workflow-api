@@ -34,6 +34,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ContextService>();
         services.AddScoped<InstanceService>();
         services.AddScoped<RightsService>();
+        services.AddScoped<TriggerService>();
+
+        services.AddScoped<IMailService, DummyMailService>();
 
         services.AddSingleton(
             new ModelParser("/Users/annesnegmel-din/code/work/workflow-api/Uva.Workflow/Example/Projects"));

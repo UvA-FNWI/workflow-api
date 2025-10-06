@@ -6,7 +6,8 @@ public class SubmissionsController(
     WorkflowInstanceService workflowInstanceService,
     ModelService modelService,
     FileService fileService,
-    ContextService contextService) : ControllerBase
+    ContextService contextService,
+    TriggerService triggerService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName)
@@ -65,11 +66,7 @@ public class SubmissionsController(
             return Ok(new SubmitSubmissionResult(submissionDto, null, validationErrors, false));
         }
 
-        // Record submission event
-        instance.RecordEvent(formName);
-
-        // TODO: Run triggers when trigger service is available
-        // await triggerService.RunTriggers(instance, [new Trigger { Event = formName }, ..form.OnSubmit]);
+        await triggerService.RunTriggers(instance, [new Trigger { Event = formName }, ..form.OnSubmit]);
 
         // Save the updated instance
         await contextService.UpdateCurrentStep(instance);

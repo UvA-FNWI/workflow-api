@@ -4,6 +4,7 @@ namespace Uva.Workflow.Services;
 
 public class InstanceService(
     WorkflowInstanceService workflowInstanceService,
+    IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     RightsService rightsService)
 {
@@ -89,4 +90,11 @@ public class InstanceService(
 
         return await workflowInstanceService.CreateAsync(entityType, initialProperties: initialProperties);
     }
+    public Task SaveValue(WorkflowInstance instance, string? part1, string part2)
+        => workflowInstanceRepository.UpdateFieldsAsync(instance.Id,
+            Builders<WorkflowInstance>.Update.Set(part1 == null 
+                    ? (i => i.Properties[part2]) 
+                    : (i => i.Properties[part1][part2]),
+                instance.GetProperty(part1, part2)));
+ 
 }

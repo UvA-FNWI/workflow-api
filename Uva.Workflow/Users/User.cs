@@ -1,4 +1,5 @@
 using MongoDB.Bson.Serialization.Attributes;
+using Uva.Workflow.Services;
 
 namespace Uva.Workflow.Users;
 
@@ -30,8 +31,3 @@ public class User
 /// Represents an external user reference.
 /// </summary>
 public record ExternalUser(string ExternalId, string DisplayName, string Email);
-
-/// <summary>
-/// Represents a mail recipient.
-/// </summary>
-public record MailRecipient(string Email, string DisplayName);
