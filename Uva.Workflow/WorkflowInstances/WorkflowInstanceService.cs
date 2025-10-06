@@ -1,6 +1,4 @@
-using MongoDB.Bson;
 using System.Linq.Expressions;
-using MongoDB.Driver;
 
 namespace Uva.Workflow.WorkflowInstances;
 
@@ -51,7 +49,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
         var instance = await GetByIdAsync(id);
         if (instance == null)
             throw new KeyNotFoundException($"WorkflowInstance with ID '{id}' not found");
-        
+
         return instance;
     }
 
@@ -80,11 +78,12 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     /// <summary>
     /// Updates a property on a workflow instance using type-safe expressions
     /// </summary>
-    public async Task UpdateFieldAsync<TField>(string instanceId, Expression<Func<WorkflowInstance, TField>> field, TField value)
+    public async Task UpdateFieldAsync<TField>(string instanceId, Expression<Func<WorkflowInstance, TField>> field,
+        TField value)
     {
         if (string.IsNullOrWhiteSpace(instanceId))
             throw new ArgumentException("InstanceId is required", nameof(instanceId));
-        
+
         if (field == null)
             throw new ArgumentNullException(nameof(field));
 
@@ -98,7 +97,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     {
         if (string.IsNullOrWhiteSpace(instanceId))
             throw new ArgumentException("InstanceId is required", nameof(instanceId));
-        
+
         if (updateDefinition == null)
             throw new ArgumentNullException(nameof(updateDefinition));
 
@@ -167,7 +166,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     {
         if (string.IsNullOrWhiteSpace(instanceId))
             throw new ArgumentException("InstanceId is required", nameof(instanceId));
-        
+
         if (expression == null)
             throw new ArgumentNullException(nameof(expression));
 
@@ -182,7 +181,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     {
         if (predicate == null)
             throw new ArgumentNullException(nameof(predicate));
-        
+
         if (project == null)
             throw new ArgumentNullException(nameof(project));
 
@@ -197,7 +196,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     {
         if (string.IsNullOrWhiteSpace(entityType))
             throw new ArgumentException("EntityType is required", nameof(entityType));
-        
+
         if (projection == null)
             throw new ArgumentNullException(nameof(projection));
 
@@ -212,7 +211,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     {
         if (string.IsNullOrWhiteSpace(parentId))
             throw new ArgumentException("ParentId is required", nameof(parentId));
-        
+
         if (projection == null)
             throw new ArgumentNullException(nameof(projection));
 
@@ -227,7 +226,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     {
         if (ids == null || ids.Length == 0)
             throw new ArgumentException("Ids are required", nameof(ids));
-        
+
         if (projection == null)
             throw new ArgumentNullException(nameof(projection));
 

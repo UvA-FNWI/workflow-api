@@ -1,5 +1,3 @@
-using Uva.Workflow.Users;
-
 namespace UvA.Workflow.Api.Features.Users.Dtos;
 
 /// <summary>

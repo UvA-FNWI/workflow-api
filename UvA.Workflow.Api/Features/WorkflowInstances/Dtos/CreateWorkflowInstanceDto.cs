@@ -1,5 +1,3 @@
-using MongoDB.Bson;
-
 namespace UvA.Workflow.Api.Features.WorkflowInstances.Dtos;
 
 public record CreateWorkflowInstanceDto(

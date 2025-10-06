@@ -1,16 +1,11 @@
 using System.Collections;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using Uva.Workflow.Services;
-using Uva.Workflow.Users;
-using Uva.Workflow.WorkflowInstances;
 
 namespace Uva.Workflow.Entities.Domain;
 
 public class ObjectContext(Dictionary<Lookup, object?> values)
 {
     public Dictionary<Lookup, object?> Values { get; } = values;
-    
+
     public object? Get(Lookup path)
     {
         if (path == "now")
@@ -25,7 +20,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
                 return null;
             var type = res.GetType();
             if (type.IsArray)
-                res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s)).ToArray();
+                res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s))
+                    .ToArray();
             else
                 res = res.GetType().GetProperty(part)?.GetValue(res);
         }
@@ -36,7 +32,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
     {
         var dict = instance.Properties.ToDictionary(
-            p => (Lookup) p.Key,
+            p => (Lookup)p.Key,
             p => GetValue(p.Value, modelService.GetQuestion(instance, p.Key))
         );
         dict.Add("Id", instance.Id);
@@ -48,7 +44,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
     public static object? GetValue(BsonValue? answer, Question question)
         => GetValue(answer, question.DataType, question);
-    
+
     public static object? GetValue(BsonValue? answer, DataType type, Question? question = null)
         => type switch
         {
@@ -57,7 +53,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.Int => answer.AsInt32,
             DataType.Double => answer.AsDouble,
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
-            DataType.User when question!.IsArray => answer.AsBsonArray.Select(u => BsonSerializer.Deserialize<User>(u.AsBsonDocument)).ToArray(),
+            DataType.User when question!.IsArray => answer.AsBsonArray
+                .Select(u => BsonSerializer.Deserialize<User>(u.AsBsonDocument)).ToArray(),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<StoredFile>(answer.AsBsonDocument),

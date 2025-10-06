@@ -1,8 +1,7 @@
 using System.Collections;
-using Uva.Workflow.Entities.Domain;
-using Uva.Workflow.Services;
 
 namespace Uva.Workflow.Expressions;
+
 public record Expression
 {
     public virtual object? Execute(ObjectContext context)
@@ -20,10 +19,10 @@ public record Expression
             _ => throw new NotImplementedException()
         };
     }
-    
+
     private static readonly Dictionary<string, Function> Functions = new()
     {
-        ["addDays"] = new Function<DateTime?, int, DateTime?>((d,i) => d?.AddDays(i)),
+        ["addDays"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(i)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
@@ -78,7 +77,9 @@ public record Operator(OperatorType Type, Expression Left, Expression Right) : E
 public record Identifier(string Text) : Expression;
 
 public record Number(int Value) : Expression;
+
 public record Boolean(bool Value) : Expression;
+
 public record Text(string Value) : Expression;
 
 public record Index(Expression Expression, Expression Key) : Expression;

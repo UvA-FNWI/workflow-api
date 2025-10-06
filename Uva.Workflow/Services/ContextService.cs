@@ -1,11 +1,9 @@
-using MongoDB.Driver;
-using Uva.Workflow.Entities.Domain;
-using Uva.Workflow.Entities.Domain.Conditions;
-using Uva.Workflow.WorkflowInstances;
-
 namespace Uva.Workflow.Services;
 
-public class ContextService(ModelService modelService, InstanceService instanceService, WorkflowInstanceService workflowInstanceService)
+public class ContextService(
+    ModelService modelService,
+    InstanceService instanceService,
+    WorkflowInstanceService workflowInstanceService)
 {
     public async Task UpdateCurrentStep(WorkflowInstance instance)
     {
@@ -21,15 +19,15 @@ public class ContextService(ModelService modelService, InstanceService instanceS
                 break;
             }
         }
-        
+
         if (instance.CurrentStep != targetStep)
         {
             instance.CurrentStep = targetStep;
             if (!string.IsNullOrEmpty(instance.Id))
-                await workflowInstanceService.UpdateFieldAsync(instance.Id,i => i.CurrentStep, targetStep ?? "");
+                await workflowInstanceService.UpdateFieldAsync(instance.Id, i => i.CurrentStep, targetStep ?? "");
         }
     }
-    
+
     public async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts, IEnumerable<Lookup> properties)
     {
         var groups = properties

@@ -13,7 +13,7 @@ public static class DataExtensions
 
     public static string Coalesce(this string? left, string right)
         => string.IsNullOrEmpty(left) ? right : left;
-    
+
     /// <summary>
     /// Converts a list of objects to a separated string
     /// </summary>
@@ -46,9 +46,10 @@ public static class DataExtensions
             else if (count != list.Count())
                 builder.Append(separator);
         }
+
         return builder.ToString();
     }
-    
-    private static readonly JsonSerializerOptions Options = new() {PropertyNamingPolicy = JsonNamingPolicy.CamelCase};
+
+    private static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     public static string Serialize<T>(this T obj) => JsonSerializer.Serialize(obj, Options);
 }

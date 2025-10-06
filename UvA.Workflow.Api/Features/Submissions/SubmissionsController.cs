@@ -1,13 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson.Serialization;
-using UvA.Workflow.Api.Features.Submissions.Dtos;
-using UvA.Workflow.Api.Features.WorkflowInstances.Dtos;
-using Uva.Workflow.Entities.Domain;
-using Uva.Workflow.Entities.Domain.Conditions;
-using Uva.Workflow.Services;
-using Uva.Workflow.Users;
-using Uva.Workflow.WorkflowInstances;
-
 namespace UvA.Workflow.Api.Features.Submissions;
 
 [ApiController]
@@ -53,7 +43,7 @@ public class SubmissionsController(
 
         // Validate required fields
         var missing = form.Questions
-            .Where(q => q.IsRequired && !instance.HasAnswer(q.Name) 
+            .Where(q => q.IsRequired && !instance.HasAnswer(q.Name)
                                      && q.Condition.IsMet(context))
             .Select(q => new InvalidQuestion(q.Name, new BilingualString("Required field", "Verplicht veld")))
             .ToArray();
@@ -70,7 +60,7 @@ public class SubmissionsController(
 
         if (validationErrors.Any())
         {
-            var submissionDto = SubmissionDto.FromEntity(instance, form, sub, 
+            var submissionDto = SubmissionDto.FromEntity(instance, form, sub,
                 modelService.GetQuestionStatus(instance, form, true), fileService);
             return Ok(new SubmitSubmissionResult(submissionDto, null, validationErrors, false));
         }
@@ -84,11 +74,10 @@ public class SubmissionsController(
         // Save the updated instance
         await contextService.UpdateCurrentStep(instance);
 
-                var finalSubmissionDto = SubmissionDto.FromEntity(instance, form, instance.Events[formName], 
+        var finalSubmissionDto = SubmissionDto.FromEntity(instance, form, instance.Events[formName],
             modelService.GetQuestionStatus(instance, form, true), fileService);
         var updatedInstanceDto = WorkflowInstanceDto.From(instance);
 
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
     }
-    
 }

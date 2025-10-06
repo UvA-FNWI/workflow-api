@@ -60,8 +60,8 @@ public class ExpressionParser
 
     private List<string> Tokenize(string exp)
     {
-        var chars = new List<char>  { ',', '(', ')', '[', ']' };
-        var operatorChars = new List<char> {'<', '>', '='};
+        var chars = new List<char> { ',', '(', ')', '[', ']' };
+        var operatorChars = new List<char> { '<', '>', '=' };
         var tokens = new List<string>();
         int start = 0;
         for (var i = 0; i < exp.Length; i++)
@@ -72,11 +72,12 @@ public class ExpressionParser
                 if (i - start > 0)
                     tokens.Add(exp.Substring(start, i - start).Trim());
                 var length = isOperator ? 2 : 1;
-                tokens.Add(exp[i..(i+length)]);
+                tokens.Add(exp[i..(i + length)]);
                 start = i + length;
                 i += length - 1;
             }
         }
+
         if (start < exp.Length)
             tokens.Add(exp.Substring(start));
 
@@ -84,7 +85,7 @@ public class ExpressionParser
     }
 
     private static readonly ConcurrentDictionary<string, Expression> Cache = new();
-    
+
     [return: NotNullIfNotNull(nameof(exp))]
     public static Expression? Parse(string? exp)
     {

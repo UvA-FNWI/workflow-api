@@ -1,5 +1,3 @@
-using Uva.Workflow.Entities.Domain;
-
 namespace UvA.Workflow.Api.Features.EntityTypes.Dtos;
 
 public record EntityTypeDto(

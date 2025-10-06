@@ -1,8 +1,4 @@
-using System.Text.Json.Serialization;
 using Uva.Workflow.Expressions;
-using Uva.Workflow.Services;
-using Uva.Workflow.Tools;
-using YamlDotNet.Serialization;
 
 namespace Uva.Workflow.Entities.Domain.Conditions;
 
@@ -14,18 +10,16 @@ public class Condition
     public EventCondition? Event { get; set; }
     public Date? Date { get; set; }
     public string? Name { get; set; }
-    
+
     public BilingualString? Message { get; set; }
-    
-    [JsonIgnore]
-    [YamlIgnore]
-    public Condition? NamedCondition { get; set; } 
-    
+
+    [JsonIgnore] [YamlIgnore] public Condition? NamedCondition { get; set; }
+
     public ConditionPart Part => Value ?? Logical ?? Date ?? Event ?? NamedCondition?.Part!;
 
     public IEnumerable<Lookup> Properties => Part?.Properties ?? [];
 
-    public static implicit operator Condition(string name) => new() {Name = name};
+    public static implicit operator Condition(string name) => new() { Name = name };
 }
 
 public abstract class ConditionPart
@@ -47,7 +41,7 @@ public class Date : ConditionPart
         return date != null && date.Value <= DateTime.Now;
     }
 
-    public static implicit operator Date(string s) => new Date {Source = s};
+    public static implicit operator Date(string s) => new Date { Source = s };
 }
 
 public class EventCondition : ConditionPart
@@ -57,10 +51,14 @@ public class EventCondition : ConditionPart
     public override bool IsMet(ObjectContext context)
         => context.Get(Id + "Event") != null;
 
-    public static implicit operator EventCondition(string s) => new() {Id = s};
+    public static implicit operator EventCondition(string s) => new() { Id = s };
 }
 
-public enum LogicalOperator { And, Or }
+public enum LogicalOperator
+{
+    And,
+    Or
+}
 
 public class Logical : ConditionPart
 {
@@ -91,8 +89,10 @@ public class Value : ConditionPart
     private Expression? GreaterThanExpression => ExpressionParser.Parse(GreaterThan);
     public string? GreaterThanOrEqual { get; set; }
     private Expression? GreaterThanOrEqualExpression => ExpressionParser.Parse(GreaterThanOrEqual);
-    
-    public override Lookup[] Dependants => [Property, 
+
+    public override Lookup[] Dependants =>
+    [
+        Property,
         ..EqualExpression?.Properties ?? [],
         ..LessThanExpression?.Properties ?? [],
         ..GreaterThanExpression?.Properties ?? [],
@@ -110,7 +110,7 @@ public class Value : ConditionPart
         if (EqualExpression != null)
             return Equals(EqualExpression.Execute(context), prop);
         if (LessThanExpression != null)
-            return (prop as IComparable)?.CompareTo(LessThanExpression.Execute(context)) < 0; 
+            return (prop as IComparable)?.CompareTo(LessThanExpression.Execute(context)) < 0;
         if (GreaterThanExpression != null)
             return (prop as IComparable)?.CompareTo(GreaterThanExpression.Execute(context)) > 0;
         if (GreaterThanOrEqualExpression != null)

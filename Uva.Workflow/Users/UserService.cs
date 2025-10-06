@@ -32,4 +32,3 @@ public class UserService(IUserRepository userRepository)
     public Task<User?> GetByIdAsync(string id)
         => userRepository.GetByIdAsync(id);
 }
-

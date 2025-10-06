@@ -15,4 +15,3 @@ public interface IUserRepository
     Task<User?> GetByExternalIdAsync(string externalId);
     Task<IEnumerable<User>> GetByIdsAsync(IReadOnlyList<string> ids);
 }
-

@@ -1,6 +1,3 @@
-using Uva.Workflow.Entities.Domain.Conditions;
-using Uva.Workflow.WorkflowInstances;
-
 namespace Uva.Workflow.Entities.Domain;
 
 public class ModelService(ModelParser parser)
@@ -8,12 +5,12 @@ public class ModelService(ModelParser parser)
     public Dictionary<string, EntityType> EntityTypes => parser.EntityTypes;
     public Dictionary<string, Role> Roles => parser.Roles;
 
-    public Form GetForm(WorkflowInstance instance, string formName) 
+    public Form GetForm(WorkflowInstance instance, string formName)
         => EntityTypes[instance.EntityType].Forms[formName];
 
     public IEnumerable<Form> GetForms(WorkflowInstance instance, string formName)
         => EntityTypes[instance.EntityType].Forms.Values.Where(f => f.Name == formName || f.TargetFormName == formName);
-    
+
     public Question GetQuestion(WorkflowInstance instance, params string?[] parts)
     {
         var type = EntityTypes[instance.EntityType];
@@ -23,17 +20,18 @@ public class ModelService(ModelParser parser)
     }
 
     public ObjectContext CreateContext(WorkflowInstance instance)
-        => ObjectContext.Create(instance, this); 
-    
-    public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form, bool canViewHidden,
+        => ObjectContext.Create(instance, this);
+
+    public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
+        bool canViewHidden,
         IEnumerable<Question>? questions = null)
     {
         var context = CreateContext(instance);
         return (questions ?? (form.TargetForm ?? form).Questions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Kind != QuestionKind.Hidden || canViewHidden),
-                q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name) 
-                    ? null 
+                q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name)
+                    ? null
                     : q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde"),
                 q.Values?.Where(v => v.Value.Condition.IsMet(context)).Select(v => v.Key).ToArray()
             ));

@@ -1,6 +1,4 @@
-using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Driver;
 
 namespace Uva.Workflow.Users;
 
@@ -91,9 +89,8 @@ internal class UserDocument
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
     public ObjectId Id { get; set; }
-    
+
     public string ExternalId { get; set; } = null!;
     public string DisplayName { get; set; } = null!;
     public string Email { get; set; } = null!;
 }
-

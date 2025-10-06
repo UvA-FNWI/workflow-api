@@ -1,4 +1,3 @@
-using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace Uva.Workflow.Users;
@@ -8,10 +7,10 @@ namespace Uva.Workflow.Users;
 /// </summary>
 public class User
 {
-    
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = null!;
+
     public string ExternalId { get; set; } = null!;
     public string DisplayName { get; set; } = null!;
     public string Email { get; set; } = null!;
@@ -36,4 +35,3 @@ public record ExternalUser(string ExternalId, string DisplayName, string Email);
 /// Represents a mail recipient.
 /// </summary>
 public record MailRecipient(string Email, string DisplayName);
-

@@ -1,4 +1,3 @@
-
 namespace Uva.Workflow.Entities.Domain;
 
 public class Screen
@@ -32,6 +31,6 @@ public class Column : Field
     public FilterType FilterType { get; set; }
     public DisplayType DisplayType { get; set; }
     public SortDirection? DefaultSort { get; set; }
-    
+
     public bool Link { get; set; }
 }

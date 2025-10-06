@@ -1,15 +1,12 @@
-using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using MongoDB.Driver;
 using MongoDB.Driver.GridFS;
-using UvA.Workflow.Api.Infrastructure.Database;
+using UvA.Workflow.Infrastructure.Database;
 
-namespace UvA.Workflow.Api.Infrastructure.Persistence;
+namespace UvA.Workflow.Infrastructure.Persistence;
 
 public class FileClient
 {
     private readonly GridFSBucket _bucket;
-    
+
     public FileClient(IOptions<MongoOptions> options)
     {
         var mongoClient = new MongoClient(options.Value.ConnectionString);
@@ -21,5 +18,5 @@ public class FileClient
         => _bucket.UploadFromBytesAsync(fileName, contents);
 
     public Task<byte[]> GetFile(string fileId)
-        => _bucket.DownloadAsBytesAsync( new ObjectId(fileId));
+        => _bucket.DownloadAsBytesAsync(new ObjectId(fileId));
 }

@@ -1,8 +1,3 @@
-using Uva.Workflow.Entities.Domain.Conditions;
-using Uva.Workflow.Services;
-using Uva.Workflow.WorkflowInstances;
-using YamlDotNet.Serialization;
-
 namespace Uva.Workflow.Entities.Domain;
 
 public class Step
@@ -11,12 +6,10 @@ public class Step
     public BilingualString? Title { get; set; }
     public BilingualString DisplayTitle => Title ?? Name;
 
-    [YamlMember(Alias = "children")]
-    public string[] ChildNames { get; set; } = [];
+    [YamlMember(Alias = "children")] public string[] ChildNames { get; set; } = [];
 
-    [YamlIgnore]
-    public Step[] Children { get; set; } = [];
-    
+    [YamlIgnore] public Step[] Children { get; set; } = [];
+
     public Condition? Condition { get; set; }
     public List<Action> Actions { get; set; } = [];
     public Condition? Ends { get; set; }
@@ -47,7 +40,7 @@ public class Step
 
         return null;
     }
-    
+
     public bool HasEnded(ObjectContext context)
     {
         if (Ends != null)

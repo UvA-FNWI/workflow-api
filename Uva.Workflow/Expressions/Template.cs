@@ -1,22 +1,22 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using Uva.Workflow.Entities.Domain;
-using Uva.Workflow.Services;
 
 namespace Uva.Workflow.Expressions;
 
 public partial record Template : Expression
 {
     private record Part();
+
     private record Value(Expression Content) : Part;
+
     private record Text(string Content) : Part;
-        
+
     public override Lookup[] Properties { get; }
     private readonly List<Part> _parts = [];
 
     public static Template? Create(string? source)
-        => source == null ? null : new(source); 
-    
+        => source == null ? null : new(source);
+
     public Template(string template)
     {
         var matches = TemplateExpression().Matches(template);
@@ -29,6 +29,7 @@ public partial record Template : Expression
             _parts.Add(new Value(ExpressionParser.Parse(match.Value[2..^2].Trim())));
             i = match.Index + match.Length;
         }
+
         _parts.Add(new Text(template[i..]));
         Properties = _parts.Where(p => p is Value).Cast<Value>().SelectMany(v => v.Content.Properties).ToArray();
     }

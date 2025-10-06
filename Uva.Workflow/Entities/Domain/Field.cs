@@ -1,6 +1,4 @@
 using Uva.Workflow.Expressions;
-using Uva.Workflow.Services;
-using YamlDotNet.Serialization;
 
 namespace Uva.Workflow.Entities.Domain;
 
@@ -10,8 +8,9 @@ public class Field
     public string? Value { get; set; }
     public string? Href { get; set; }
 
-    public BilingualString DisplayTitle => Title ?? Question?.ShortDisplayName ?? Event?.Name ?? (CurrentStep ? "Step" : "Field"); 
-    
+    public BilingualString DisplayTitle =>
+        Title ?? Question?.ShortDisplayName ?? Event?.Name ?? (CurrentStep ? "Step" : "Field");
+
     private string? ComputedProperty => CurrentStep ? "CurrentStep" : Property;
 
     private Template? _valueTemplate, _linkTemplate;
@@ -20,17 +19,18 @@ public class Field
     private Expression? _propertyExpression;
     public Expression? PropertyExpression => _propertyExpression ??= ExpressionParser.Parse(ComputedProperty);
     public BilingualString? Title { get; set; } = null!;
-    
+
     public string? Default { get; set; }
-    
+
     [YamlIgnore] public Question? Question { get; set; }
     [YamlIgnore] public EventDefinition? Event { get; set; }
-    
-    
+
+
     public string? EndDate { get; set; }
     public bool CurrentStep { get; set; }
 
-    public Lookup[] Properties => [
+    public Lookup[] Properties =>
+    [
         ..PropertyExpression?.Properties ?? [],
         ..ValueTemplate?.Properties ?? [],
         ..LinkTemplate?.Properties ?? [],

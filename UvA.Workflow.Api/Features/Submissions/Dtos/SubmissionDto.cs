@@ -1,11 +1,3 @@
-using MongoDB.Bson;
-using UvA.Workflow.Api.Features.WorkflowInstances.Dtos;
-using Uva.Workflow.Entities.Domain;
-using Uva.Workflow.Services;
-using Uva.Workflow.Tools;
-using Uva.Workflow.Users;
-using Uva.Workflow.WorkflowInstances;
-
 namespace UvA.Workflow.Api.Features.Submissions.Dtos;
 
 public record AnswerFile(string Id, string Name, string? Url);

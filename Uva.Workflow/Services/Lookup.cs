@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Uva.Workflow.Expressions;
 
 namespace Uva.Workflow.Services;
 
@@ -15,4 +14,4 @@ public record PropertyLookup(string Property) : Lookup
     public override string ToString() => Property;
 }
 
-public record ComplexLookup(string Function, params Expression[] Arguments) : Lookup;
+public record ComplexLookup(string Function, params Expressions.Expression[] Arguments) : Lookup;

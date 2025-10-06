@@ -1,7 +1,3 @@
-using System.Text.Json.Serialization;
-using Uva.Workflow.Entities.Domain.Conditions;
-using YamlDotNet.Serialization;
-
 namespace Uva.Workflow.Entities.Domain;
 
 public enum QuestionKind
@@ -31,19 +27,16 @@ public class Question
     public bool Multiline { get; set; }
     public string? Default { get; set; }
     public string? ReplacedBy { get; set; }
-    
-    [YamlIgnore]
-    [JsonIgnore]
-    public EntityType ParentType { get; set; } = null!;
-    
-    [YamlIgnore]
-    [JsonIgnore]
-    public EntityType? EntityType { get; set; }
+
+    [YamlIgnore] [JsonIgnore] public EntityType ParentType { get; set; } = null!;
+
+    [YamlIgnore] [JsonIgnore] public EntityType? EntityType { get; set; }
 
     public string UnderlyingType => Type.TrimEnd('!', ']').TrimStart('[');
 
     public bool IsRequired => Type.EndsWith('!');
     public bool IsArray => Type.StartsWith('[');
+
     public DataType DataType => UnderlyingType switch
     {
         "String" => DataType.String,
@@ -59,22 +52,22 @@ public class Question
         _ when Values != null => DataType.Choice,
         _ => throw new ArgumentException("Invalid type")
     };
-    
+
     public Condition? Condition { get; set; }
     public Condition? Validation { get; set; }
-    
+
     [JsonIgnore]
     [YamlIgnore]
     public IEnumerable<Condition> Conditions =>
         (Values?.Values.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Where(c => c != null)!;
-    
+
     public List<Question> DependentQuestions { get; } = [];
-    
+
     public Trigger[] OnSave { get; set; } = [];
     public bool IsContext { get; set; }
     public bool AllowAttachments { get; set; }
     public bool HideInResults { get; set; }
-    
+
     public TableSettings? Table { get; set; }
 }
 
@@ -83,9 +76,8 @@ public class TableSettings
     [JsonPropertyName("form")]
     [YamlMember(Alias = "form")]
     public string FormReference { get; set; } = null!;
-    [YamlIgnore]
-    [JsonIgnore]
-    public Form Form { get; set; } = null!;
+
+    [YamlIgnore] [JsonIgnore] public Form Form { get; set; } = null!;
     public TableLayout Layout { get; set; }
 }
 
@@ -101,8 +93,8 @@ public class Choice
     public BilingualString? Text { get; set; }
     public BilingualString? Description { get; set; }
     public double? Value { get; set; }
-    
+
     public Condition? Condition { get; set; }
-    
-    public static implicit operator Choice(string value) => new Choice {Text = value};
+
+    public static implicit operator Choice(string value) => new Choice { Text = value };
 }

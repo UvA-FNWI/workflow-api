@@ -1,7 +1,4 @@
-using Uva.Workflow.Entities.Domain.Conditions;
 using Uva.Workflow.Expressions;
-using Uva.Workflow.Services;
-using YamlDotNet.Serialization;
 
 namespace Uva.Workflow.Entities.Domain;
 
@@ -16,7 +13,8 @@ public class Trigger
     public string? Event { get; set; }
     public string? UndoEvent { get; set; }
 
-    public IEnumerable<Lookup?> Properties => [
+    public IEnumerable<Lookup?> Properties =>
+    [
         ..Condition?.Properties ?? [],
         ..SendMail?.SubjectTemplate?.Properties ?? [],
         ..SendMail?.BodyTemplate?.Properties ?? [],
@@ -49,8 +47,7 @@ public class SendMessage
     public string? ToAddress { get; set; }
     public string? Subject { get; set; }
     public string? Body { get; set; }
-    [YamlMember(Alias = "template")]
-    public string? TemplateKey { get; set; }
+    [YamlMember(Alias = "template")] public string? TemplateKey { get; set; }
     public bool SendAsMail { get; set; }
     public bool SendAutomatically { get; set; }
     public Attachment[] Attachments { get; set; } = [];

@@ -1,5 +1,7 @@
 # JSON schemas
+
 This folder contains JSON schemas for the various YAML files. They can be generated with `NJsonSchema`:
+
 ```csharp
 var generator = new JsonSchemaGenerator(new SystemTextJsonSchemaGeneratorSettings
 {

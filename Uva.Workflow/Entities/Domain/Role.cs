@@ -1,7 +1,3 @@
-using System.Text.Json.Serialization;
-using Uva.Workflow.Entities.Domain.Conditions;
-using YamlDotNet.Serialization;
-
 namespace Uva.Workflow.Entities.Domain;
 
 public class Role
@@ -47,7 +43,7 @@ public class Action
     public const string All = "<All>";
 
     public string? Name { get; set; }
-    
+
     public BilingualString? Label { get; set; }
     public string[] Roles { get; set; } = [];
 
@@ -55,18 +51,20 @@ public class Action
     public string[] Forms { get; set; } = [];
     public string[] AllForms => Form != null ? Forms.Append(Form).ToArray() : Forms;
     public string[] Collections { get; set; } = [];
-    
-    
+
+
     public string? Question { get; set; }
+
     [YamlMember(Alias = "entity")]
     [JsonPropertyName("entity")]
     public string? EntityType { get; set; }
+
     public RoleAction Type { get; set; }
     public Condition? Condition { get; set; }
     public Trigger[] Triggers { get; set; } = [];
     public string[] Steps { get; set; } = [];
     public string? Property { get; set; }
-    
+
     public string? UserProperty { get; set; }
     public int? Limit { get; set; }
 
@@ -75,6 +73,6 @@ public class Action
 
     public bool MatchesCollection(string property)
         => Collections.Contains(property);
-    
+
     public Action Clone() => (Action)MemberwiseClone();
 }

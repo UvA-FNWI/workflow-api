@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
-using Uva.Workflow.Entities.Domain;
 using UvA.Workflow.Api.Features.EntityTypes.Dtos;
 
 namespace UvA.Workflow.Api.Features.EntityTypes;

@@ -1,9 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
-using UvA.Workflow.Api.Features.WorkflowInstances.Dtos;
-using Uva.Workflow.WorkflowInstances;
-
 namespace UvA.Workflow.Api.Features.WorkflowInstances;
 
     [ApiController]

@@ -5,7 +5,7 @@ public partial class ModelParser
     private void ApplyInheritance(EntityType target, EntityType source)
     {
         target.Parent = source;
-        
+
         foreach (var sourceForm in source.Forms)
         {
             if (target.Forms.TryGetValue(sourceForm.Key, out var targetForm))
@@ -13,7 +13,7 @@ public partial class ModelParser
             else
                 target.Forms.Add(sourceForm.Key, sourceForm.Value);
         }
-        
+
         foreach (var property in source.Properties.Where(p => !target.Properties.ContainsKey(p.Key)))
             target.Properties.Add(property.Key, property.Value);
 
@@ -24,13 +24,13 @@ public partial class ModelParser
             else
                 target.AllSteps.Add(sourceStep.Key, sourceStep.Value);
         }
-        
+
         foreach (var ev in source.Events)
             target.Events.Add(ev.Key, ev.Value);
-        
+
         foreach (var screen in source.Screens)
             target.Screens.Add(screen.Key, screen.Value);
-        
+
         foreach (var role in Roles.Values)
         foreach (var action in role.Actions.Where(a => a.EntityType == source.Name).ToArray())
         {
@@ -50,11 +50,9 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
-        
     }
 
     private void ApplyInheritance(Step target, Step source)
     {
-        
     }
 }

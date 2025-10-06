@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Api.Infrastructure.Database;
+namespace UvA.Workflow.Infrastructure.Database;
 
 public class MongoOptions
 {

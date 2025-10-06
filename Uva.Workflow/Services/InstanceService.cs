@@ -1,17 +1,17 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using Uva.Workflow.Entities.Domain;
-using Uva.Workflow.Users;
-using Uva.Workflow.WorkflowInstances;
 using Action = Uva.Workflow.Entities.Domain.Action;
 
 namespace Uva.Workflow.Services;
 
-public class InstanceService(WorkflowInstanceService workflowInstanceService, ModelService modelService, RightsService rightsService)
+public class InstanceService(
+    WorkflowInstanceService workflowInstanceService,
+    ModelService modelService,
+    RightsService rightsService)
 {
     public Task<WorkflowInstance> Get(string instanceId) => workflowInstanceService.GetAsync(instanceId, i => i);
-    public Task<List<WorkflowInstance>> GetAll(string entityType) => workflowInstanceService.GetAllAsync(t => t.EntityType == entityType);
-    
+
+    public Task<List<WorkflowInstance>> GetAll(string entityType) =>
+        workflowInstanceService.GetAllAsync(t => t.EntityType == entityType);
+
     public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties)
     {
         var projection = properties.ToDictionary(p => p.Name, p => $"$Properties.{p.Name}");
@@ -20,7 +20,7 @@ public class InstanceService(WorkflowInstanceService workflowInstanceService, Mo
         return res.ToDictionary(r => r["_id"].ToString()!, r => new ObjectContext(
             properties.ToDictionary(p => (Lookup)p.Name, p => ObjectContext.GetValue(r[p.Name], p))
         ));
-    }    
+    }
 
     public async Task<List<ObjectContext>> GetScreen(string entityType, Screen screen, string? sourceInstanceId = null)
     {
@@ -63,7 +63,7 @@ public class InstanceService(WorkflowInstanceService workflowInstanceService, Mo
         var userId = await rightsService.GetUserId();
         return users.Count(u => u.Id == userId) < action.Limit.Value;
     }
-    
+
     public Task<string> GetEntityType(string instanceId)
         => workflowInstanceService.GetAsync(instanceId, i => i.EntityType);
 
@@ -76,7 +76,7 @@ public class InstanceService(WorkflowInstanceService workflowInstanceService, Mo
     public async Task<WorkflowInstance> CreateInstance(string entityType, string? userProperty)
     {
         Dictionary<string, BsonValue>? initialProperties = null;
-        
+
         if (userProperty != null)
         {
             var user = (await rightsService.GetUser()).ToBsonDocument();
