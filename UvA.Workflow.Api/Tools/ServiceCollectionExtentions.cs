@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<WorkflowInstanceService>();
         services.AddScoped<UserService>();
+        services.AddScoped<IUserService, MockUserService>();
         services.AddSingleton<ModelService>();
 
         services.AddScoped<FileClient>();

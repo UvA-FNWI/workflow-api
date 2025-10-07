@@ -1,24 +1,98 @@
+using Action = Uva.Workflow.Entities.Domain.Action;
+using System.Security.Claims;
+
 namespace Uva.Workflow.Services;
 
-public class RightsService
+public class RightsService(
+    ModelService modelService, 
+    IUserService userService, 
+    UserCacheService userCacheService)
 {
-    private readonly ExternalUser _user = new ExternalUser("1", "User 1", "1@invalid.invalid");
+    private readonly ClaimsPrincipal _principal = new(); // Mock for now
 
-    public Task<ExternalUser> GetUser() => Task.FromResult(_user);
+    public async Task<GlobalRole[]> GetGlobalRoles() => 
+        (await userService.GetRoles(_principal))
+        .Append(new GlobalRole("Registered"))
+        .ToArray();
 
-    public Task<string> GetUserId()
+    public async Task<User?> GetUser()
     {
-        return Task.FromResult(_user.Id); // Hardcode for now
+        var extUser = userService.GetUserInfo(_principal);
+        if (extUser == null)
+            return null;
+        return await userCacheService.GetUser(extUser);
     }
 
-    public Task<bool> Can(WorkflowInstance instance, RoleAction action, string? formName = null)
+    public async Task<string?> GetUserId()
     {
-        return action switch
-        {
-            RoleAction.Edit => Task.FromResult(true),
-            RoleAction.Submit => Task.FromResult(true),
-            RoleAction.ViewHidden => Task.FromResult(true),
-            _ => Task.FromResult(false)
-        };
+        var user = await GetUser();
+        return user?.Id;
+    }
+
+    public async Task<Action[]> GetAllowedActions(string? entityType, params RoleAction[] actions)
+        => (await GetGlobalRoles())
+            .Select(r => modelService.Roles.GetValueOrDefault(r.RoleName))
+            .Where(r => r != null)
+            .SelectMany(r => r!.Actions
+                .Where(a => (a.Condition == null || a.Condition.IsMet(new ObjectContext(new())))
+                          && actions.Contains(a.Type) 
+                          && (a.EntityType == null || a.EntityType == entityType?.Split('/')[0])
+                ))
+            .ToArray();
+
+    private async Task<Role?[]> GetInstanceRoles(WorkflowInstance instance)
+    {
+        var userId = await GetUserId();
+        if (userId == null) return [];
+        
+        return modelService.EntityTypes[instance.EntityType].Properties.Values
+            .Where(p => p.DataType == DataType.User)
+            .Select(p => new {p.Name, Value = instance.Properties.GetValueOrDefault(p.Name)})
+            .Where(p => p.Value != null)
+            .Where(p => p.Value switch
+            {
+                BsonDocument d => BsonSerializer.Deserialize<User>(d).Id == userId,
+                BsonArray a => a.Any(v =>
+                    v is BsonDocument d && BsonSerializer.Deserialize<User>(d).Id == userId),
+                _ => false
+            })
+            .Select(p => modelService.Roles.GetValueOrDefault(p.Name))
+            .ToArray();
+    }
+
+    public async Task<Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
+        => (await GetGlobalRoles())
+            .Select(r => modelService.Roles.GetValueOrDefault(r.RoleName))
+            .Concat(await GetInstanceRoles(instance))
+            .Where(r => r != null)
+            .SelectMany(r => r!.Actions
+                .Where(a => (a.Condition == null || a.Condition.IsMet(modelService.CreateContext(instance)))
+                            && actions.Contains(a.Type) 
+                            && (a.Steps.Length == 0 || a.Steps.Intersect(modelService.GetActiveSteps(instance)).Any())
+                            && (a.EntityType == null || a.EntityType == instance.EntityType)
+                ))
+            .Distinct()
+            .ToArray();
+
+    public async Task<bool> CanAny(string? entityType, params RoleAction[] actions)
+        => (await GetAllowedActions(entityType, actions)).Any();
+
+    public async Task<Action[]> GetAllowedFormActions(WorkflowInstance instance, string form,
+        params RoleAction[] actions)
+    {
+        var allowed = await GetAllowedActions(instance, actions);
+        return allowed.Where(f => f.MatchesForm(form)).ToArray();
+    }
+
+    public async Task<bool> Can(WorkflowInstance instance, RoleAction action, string? form = null)
+    {
+        var actions = await GetAllowedActions(instance, action);
+        return actions.Any(f => form == null || f.MatchesForm(form));
+    }
+
+    public async Task<bool> CanViewCollection(WorkflowInstance instance, string collection)
+    {
+        var actions = await GetAllowedActions(instance, RoleAction.View);
+        return actions.Any(f => f.MatchesCollection(collection));
     }
 }
