@@ -14,7 +14,7 @@ public class SubmissionsController(
     InstanceService instanceService,
     RightsService rightsService,
     FileClient fileClient,
-    AnswerConversionService answerConversionService, HttpClient client) : ControllerBase
+    AnswerConversionService answerConversionService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName)
@@ -23,7 +23,7 @@ public class SubmissionsController(
         var inst = await workflowInstanceService.GetByIdAsync(instanceId);
         if (inst == null)
             return ErrorCode.WorkflowInstancesNotFound;
-        
+
         var formModel = modelService.GetForm(inst, formName);
         var sub = inst.Events.GetValueOrDefault(formName);
 
@@ -98,7 +98,7 @@ public class SubmissionsController(
         var form = modelService.GetForm(instance, request.SubmissionId);
 
         // Check authorization
-        if (!await rightsService.Can(instance, submission?.Date != null ? RoleAction.Edit : RoleAction.Submit,
+        if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Edit : RoleAction.Submit,
                 form.Name))
             return ErrorCode.GeneralForbidden;
 

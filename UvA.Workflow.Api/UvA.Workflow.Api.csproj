@@ -31,8 +31,6 @@
 
     <ItemGroup>
         <Folder Include="Features\Users\"/>
-        <Folder Include="Features\WorkflowInstances\Infrastructure\"/>
-        <Folder Include="Infrastructure\"/>
     </ItemGroup>
 
 </Project>
