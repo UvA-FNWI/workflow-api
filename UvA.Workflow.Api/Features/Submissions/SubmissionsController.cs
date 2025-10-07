@@ -22,7 +22,7 @@ public class SubmissionsController(
         // Get the instance
         var inst = await workflowInstanceService.GetByIdAsync(instanceId);
         if (inst == null)
-            return ErrorCode.SubmissionsInstanceNotFound;
+            return ErrorCode.WorkflowInstancesNotFound;
         
         var formModel = modelService.GetForm(inst, formName);
         var sub = inst.Events.GetValueOrDefault(formName);
@@ -38,7 +38,7 @@ public class SubmissionsController(
         // Get the instance
         var instance = await workflowInstanceService.GetByIdAsync(instanceId);
         if (instance == null)
-            return ErrorCode.SubmissionsInstanceNotFound;
+            return ErrorCode.WorkflowInstancesNotFound;
 
         var sub = instance.Events.GetValueOrDefault(formName);
 
@@ -91,7 +91,7 @@ public class SubmissionsController(
         // Get the workflow instance
         var instance = await instanceService.Get(request.InstanceId);
         if (instance == null)
-            return ErrorCode.SubmissionsInstanceNotFound;
+            return ErrorCode.WorkflowInstancesNotFound;
 
         // Get the submission
         var submission = instance.Events.GetValueOrDefault(request.SubmissionId);
@@ -100,7 +100,7 @@ public class SubmissionsController(
         // Check authorization
         if (!await rightsService.Can(instance, submission?.Date != null ? RoleAction.Edit : RoleAction.Submit,
                 form.Name))
-            return ErrorCode.SubmissionsUnauthorized;
+            return ErrorCode.GeneralForbidden;
 
         // Get the question
         var question = modelService.GetQuestion(instance, form.Property, request.Answer.QuestionName);

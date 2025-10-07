@@ -15,12 +15,14 @@ public class ActionsController(
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input)
     {
         var instance = await instanceService.Get(input.InstanceId);
+        if (instance == null)
+            return ErrorCode.WorkflowInstancesNotFound;
         
         switch (input.Type)
         {
             case ActionType.DeleteInstance:
                 if (!await rightsService.Can(instance, RoleAction.Submit))
-                    return ErrorCode.ActionsNotPermitted;
+                    return ErrorCode.GeneralForbidden;
                 // TODO: delete it
                 break;
             
@@ -31,7 +33,7 @@ public class ActionsController(
                 var actions = await rightsService.GetAllowedActions(instance, RoleAction.Execute);
                 var action = actions.FirstOrDefault(a => a.Name == input.Name);
                 if (action == null)
-                    return ErrorCode.ActionsNotPermitted;
+                    return ErrorCode.GeneralForbidden;
                 
                 await triggerService.RunTriggers(instance, action.Triggers, input.Mail);
                 await contextService.UpdateCurrentStep(instance);

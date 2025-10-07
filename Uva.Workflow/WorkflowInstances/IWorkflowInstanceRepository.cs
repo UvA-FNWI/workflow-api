@@ -21,9 +21,9 @@ public interface IWorkflowInstanceRepository
 
     // Advanced query methods
     Task<List<WorkflowInstance>> GetAllAsync(Expression<Func<WorkflowInstance, bool>> expression);
-    Task<T> GetAsync<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression);
+    Task<T?> GetAsync<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression);
 
-    Task<T> GetAsync<T>(Expression<Func<WorkflowInstance, bool>> predicate,
+    Task<T?> GetAsync<T>(Expression<Func<WorkflowInstance, bool>> predicate,
         Expression<Func<WorkflowInstance, T>> project);
 
     Task<List<Dictionary<string, BsonValue>>> GetAllByTypeAsync(string entityType,

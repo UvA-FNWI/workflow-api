@@ -162,7 +162,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     /// <summary>
     /// Gets a projected result from a workflow instance by ID
     /// </summary>
-    public async Task<T> GetAsync<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression)
+    public async Task<T?> GetAsync<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression)
     {
         if (string.IsNullOrWhiteSpace(instanceId))
             throw new ArgumentException("InstanceId is required", nameof(instanceId));
@@ -176,7 +176,7 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     /// <summary>
     /// Gets a projected result from workflow instances matching the predicate
     /// </summary>
-    public async Task<T> GetAsync<T>(Expression<Func<WorkflowInstance, bool>> predicate,
+    public async Task<T?> GetAsync<T>(Expression<Func<WorkflowInstance, bool>> predicate,
         Expression<Func<WorkflowInstance, T>> project)
     {
         if (predicate == null)

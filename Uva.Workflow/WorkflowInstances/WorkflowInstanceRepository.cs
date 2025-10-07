@@ -78,14 +78,14 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         return await _collection.Find(expression).ToListAsync();
     }
 
-    public async Task<T> GetAsync<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression)
+    public async Task<T?> GetAsync<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression)
     {
         var projection = Builders<WorkflowInstance>.Projection.Expression(expression);
         var filter = Builders<WorkflowInstance>.Filter.Eq(p => p.Id, instanceId);
         return await _collection.Find(filter).Project(projection).FirstOrDefaultAsync();
     }
 
-    public async Task<T> GetAsync<T>(Expression<Func<WorkflowInstance, bool>> predicate,
+    public async Task<T?> GetAsync<T>(Expression<Func<WorkflowInstance, bool>> predicate,
         Expression<Func<WorkflowInstance, T>> project)
     {
         var projection = Builders<WorkflowInstance>.Projection.Expression(project);

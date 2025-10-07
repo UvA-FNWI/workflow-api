@@ -4,12 +4,6 @@ namespace UvA.Workflow.Api.Exceptions;
 
 public partial class ErrorCode
 {
-    public static readonly ErrorCode SubmissionsInstanceNotFound = new(
-        nameof(SubmissionsInstanceNotFound),
-        "Workflow instance not found",
-        HttpStatusCode.NotFound
-    );
-
     public static readonly ErrorCode SubmissionsAlreadySubmitted = new(
         nameof(SubmissionsAlreadySubmitted),
         "Submission already submitted",
@@ -26,12 +20,6 @@ public partial class ErrorCode
         nameof(SubmissionsQuestionNotFound),
         "Question not found",
         HttpStatusCode.NotFound
-    );
-
-    public static readonly ErrorCode SubmissionsUnauthorized = new(
-        nameof(SubmissionsUnauthorized),
-        "Not authorized to modify submission",
-        HttpStatusCode.Forbidden
     );
 
     public static readonly ErrorCode SubmissionsSaveAnswerFailed = new(

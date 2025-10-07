@@ -8,7 +8,7 @@ public class InstanceService(
     ModelService modelService,
     RightsService rightsService)
 {
-    public Task<WorkflowInstance> Get(string instanceId) => workflowInstanceService.GetAsync(instanceId, i => i);
+    public Task<WorkflowInstance?> Get(string instanceId) => workflowInstanceService.GetAsync(instanceId, i => i);
 
     public Task<List<WorkflowInstance>> GetAll(string entityType) =>
         workflowInstanceService.GetAllAsync(t => t.EntityType == entityType);
@@ -65,7 +65,7 @@ public class InstanceService(
         return users.Count(u => u.Id == userId) < action.Limit.Value;
     }
 
-    public Task<string> GetEntityType(string instanceId)
+    public Task<string?> GetEntityType(string instanceId)
         => workflowInstanceService.GetAsync(instanceId, i => i.EntityType);
 
     public async Task UpdateEvent(WorkflowInstance instance, string eventId)
