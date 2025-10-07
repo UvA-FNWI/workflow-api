@@ -12,6 +12,7 @@ public record Answer(
     string? Text = null,
     DateTime? DateTime = null,
     double? Number = null,
+    ExternalUser? User = null,
     AnswerFile[]? Files = null,
     string[]? VisibleChoices = null
 ) : Value(Text, DateTime, Number, Files)
@@ -52,7 +53,7 @@ public record Answer(
         if (question.DataType == DataType.User)
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Text: (ObjectContext.GetValue(answer, question) as User)?.ToExternalUser().Serialize());
+                User: (ObjectContext.GetValue(answer, question) as User)?.ToExternalUser());
 
         if (question.DataType == DataType.File)
         {

@@ -30,4 +30,4 @@ public class User
 /// <summary>
 /// Represents an external user reference.
 /// </summary>
-public record ExternalUser(string ExternalId, string DisplayName, string Email);
+public record ExternalUser(string Id, string DisplayName, string Email);

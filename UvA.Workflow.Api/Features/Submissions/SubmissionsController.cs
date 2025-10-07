@@ -1,3 +1,5 @@
+using UvA.Workflow.Infrastructure.Persistence;
+
 namespace UvA.Workflow.Api.Features.Submissions;
 
 [ApiController]
@@ -7,7 +9,11 @@ public class SubmissionsController(
     ModelService modelService,
     FileService fileService,
     ContextService contextService,
-    TriggerService triggerService) : ControllerBase
+    TriggerService triggerService,
+    InstanceService instanceService,
+    RightsService rightsService,
+    FileClient fileClient,
+    AnswerConversionService answerConversionService, HttpClient client) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName)
@@ -77,4 +83,77 @@ public class SubmissionsController(
 
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
     }
+
+    [HttpPost("save-answer")]
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer([FromBody] SaveAnswerRequest request)
+    {
+        try
+        {
+            // Get the workflow instance
+            var instance = await instanceService.Get(request.InstanceId);
+            if (instance == null)
+                return NotFound(new { error = $"WorkflowInstance with ID '{request.InstanceId}' not found" });
+
+            // Get the submission
+            var submission = instance.Events.GetValueOrDefault(request.SubmissionId);
+            var form = modelService.GetForm(instance, request.SubmissionId);
+
+            // Check authorization
+            if (!await rightsService.Can(instance, submission?.Date != null ? RoleAction.Edit : RoleAction.Submit,
+                    form.Name))
+                return Forbid("Not authorized");
+
+            // Get the question
+            var question = modelService.GetQuestion(instance, form.Property, request.Answer.QuestionName);
+            if (question == null)
+                return BadRequest(new { error = "Question not found" });
+
+            // Get current answer
+            var currentAnswer = instance.GetProperty(form.Property, request.Answer.QuestionName);
+
+            // Convert new answer to BsonValue
+            var newAnswer = await answerConversionService.ConvertToValueAsync(request.Answer, question);
+
+            // Handle file upload if present
+            if (request.Answer.File != null)
+            {
+                var fileInfo = await GetFileInfo(request.Answer.File);
+                var fileId = await fileClient.StoreFile(fileInfo.FileName, fileInfo.Content);
+                newAnswer = new StoredFile(fileInfo.FileName, fileId.ToString()).ToBsonDocument();
+            }
+
+            // Save if value changed
+            if (newAnswer != currentAnswer)
+            {
+                instance.SetProperty(newAnswer, form.Property, request.Answer.QuestionName);
+                await instanceService.SaveValue(instance, form.Property, question.Name);
+            }
+
+            // Get questions to update (including dependent questions)
+            var questionsToUpdate = question.DependentQuestions.Append(question).Distinct().ToArray();
+
+            // Check if user can view hidden fields
+            var canViewHidden = await rightsService.Can(instance, RoleAction.ViewHidden, form.Name);
+            var updates = modelService.GetQuestionStatus(instance, form, canViewHidden, questionsToUpdate);
+
+            // Build response
+            var answers = Answer.FromEntities(instance, form.TargetForm ?? form, updates);
+            var updatedSubmission = SubmissionDto.FromEntity(instance, form, submission);
+
+            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new SaveAnswerResponse(false, [], null!, ex.Message));
+        }
+    }
+
+    private static async Task<FileInfo> GetFileInfo(IFormFile file)
+    {
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        return new FileInfo(file.FileName, ms.ToArray());
+    }
+
+    private record FileInfo(string FileName, byte[] Content);
 }
