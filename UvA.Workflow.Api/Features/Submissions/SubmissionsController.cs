@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Exceptions;
 using UvA.Workflow.Infrastructure.Persistence;
 
 namespace UvA.Workflow.Api.Features.Submissions;
@@ -21,9 +22,9 @@ public class SubmissionsController(
         // Get the instance
         var inst = await workflowInstanceService.GetByIdAsync(instanceId);
         if (inst == null)
-            return NotFound(new { error = $"WorkflowInstance with ID '{instanceId}' not found" });
+            return ErrorCode.SubmissionsInstanceNotFound;
+        
         var formModel = modelService.GetForm(inst, formName);
-
         var sub = inst.Events.GetValueOrDefault(formName);
 
         return SubmissionDto.FromEntity(inst, formModel, sub, modelService.GetQuestionStatus(inst, formModel, true),
@@ -37,13 +38,13 @@ public class SubmissionsController(
         // Get the instance
         var instance = await workflowInstanceService.GetByIdAsync(instanceId);
         if (instance == null)
-            return NotFound(new { error = $"WorkflowInstance with ID '{instanceId}' not found" });
+            return ErrorCode.SubmissionsInstanceNotFound;
 
         var sub = instance.Events.GetValueOrDefault(formName);
 
         // Check if already submitted
         if (sub?.Date != null)
-            return BadRequest(new { error = "Already submitted" });
+            return ErrorCode.SubmissionsAlreadySubmitted;
 
         var form = modelService.GetForm(instance, formName);
         var context = modelService.CreateContext(instance);
@@ -87,65 +88,58 @@ public class SubmissionsController(
     [HttpPost("save-answer")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer([FromBody] SaveAnswerRequest request)
     {
-        try
+        // Get the workflow instance
+        var instance = await instanceService.Get(request.InstanceId);
+        if (instance == null)
+            return ErrorCode.SubmissionsInstanceNotFound;
+
+        // Get the submission
+        var submission = instance.Events.GetValueOrDefault(request.SubmissionId);
+        var form = modelService.GetForm(instance, request.SubmissionId);
+
+        // Check authorization
+        if (!await rightsService.Can(instance, submission?.Date != null ? RoleAction.Edit : RoleAction.Submit,
+                form.Name))
+            return ErrorCode.SubmissionsUnauthorized;
+
+        // Get the question
+        var question = modelService.GetQuestion(instance, form.Property, request.Answer.QuestionName);
+        if (question == null)
+            return ErrorCode.SubmissionsQuestionNotFound;
+
+        // Get current answer
+        var currentAnswer = instance.GetProperty(form.Property, request.Answer.QuestionName);
+
+        // Convert new answer to BsonValue
+        var newAnswer = await answerConversionService.ConvertToValueAsync(request.Answer, question);
+
+        // Handle file upload if present
+        if (request.Answer.File != null)
         {
-            // Get the workflow instance
-            var instance = await instanceService.Get(request.InstanceId);
-            if (instance == null)
-                return NotFound(new { error = $"WorkflowInstance with ID '{request.InstanceId}' not found" });
-
-            // Get the submission
-            var submission = instance.Events.GetValueOrDefault(request.SubmissionId);
-            var form = modelService.GetForm(instance, request.SubmissionId);
-
-            // Check authorization
-            if (!await rightsService.Can(instance, submission?.Date != null ? RoleAction.Edit : RoleAction.Submit,
-                    form.Name))
-                return Forbid("Not authorized");
-
-            // Get the question
-            var question = modelService.GetQuestion(instance, form.Property, request.Answer.QuestionName);
-            if (question == null)
-                return BadRequest(new { error = "Question not found" });
-
-            // Get current answer
-            var currentAnswer = instance.GetProperty(form.Property, request.Answer.QuestionName);
-
-            // Convert new answer to BsonValue
-            var newAnswer = await answerConversionService.ConvertToValueAsync(request.Answer, question);
-
-            // Handle file upload if present
-            if (request.Answer.File != null)
-            {
-                var fileInfo = await GetFileInfo(request.Answer.File);
-                var fileId = await fileClient.StoreFile(fileInfo.FileName, fileInfo.Content);
-                newAnswer = new StoredFile(fileInfo.FileName, fileId.ToString()).ToBsonDocument();
-            }
-
-            // Save if value changed
-            if (newAnswer != currentAnswer)
-            {
-                instance.SetProperty(newAnswer, form.Property, request.Answer.QuestionName);
-                await instanceService.SaveValue(instance, form.Property, question.Name);
-            }
-
-            // Get questions to update (including dependent questions)
-            var questionsToUpdate = question.DependentQuestions.Append(question).Distinct().ToArray();
-
-            // Check if user can view hidden fields
-            var canViewHidden = await rightsService.Can(instance, RoleAction.ViewHidden, form.Name);
-            var updates = modelService.GetQuestionStatus(instance, form, canViewHidden, questionsToUpdate);
-
-            // Build response
-            var answers = Answer.FromEntities(instance, form.TargetForm ?? form, updates);
-            var updatedSubmission = SubmissionDto.FromEntity(instance, form, submission);
-
-            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
+            var fileInfo = await GetFileInfo(request.Answer.File);
+            var fileId = await fileClient.StoreFile(fileInfo.FileName, fileInfo.Content);
+            newAnswer = new StoredFile(fileInfo.FileName, fileId.ToString()).ToBsonDocument();
         }
-        catch (Exception ex)
+
+        // Save if value changed
+        if (newAnswer != currentAnswer)
         {
-            return BadRequest(new SaveAnswerResponse(false, [], null!, ex.Message));
+            instance.SetProperty(newAnswer, form.Property, request.Answer.QuestionName);
+            await instanceService.SaveValue(instance, form.Property, question.Name);
         }
+
+        // Get questions to update (including dependent questions)
+        var questionsToUpdate = question.DependentQuestions.Append(question).Distinct().ToArray();
+
+        // Check if user can view hidden fields
+        var canViewHidden = await rightsService.Can(instance, RoleAction.ViewHidden, form.Name);
+        var updates = modelService.GetQuestionStatus(instance, form, canViewHidden, questionsToUpdate);
+
+        // Build response
+        var answers = Answer.FromEntities(instance, form.TargetForm ?? form, updates);
+        var updatedSubmission = SubmissionDto.FromEntity(instance, form, submission);
+
+        return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
     }
 
     private static async Task<FileInfo> GetFileInfo(IFormFile file)

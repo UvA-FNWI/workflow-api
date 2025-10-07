@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Exceptions;
 using UvA.Workflow.Api.Features.Actions.Dtos;
 
 namespace UvA.Workflow.Api.Features.Actions;
@@ -13,42 +14,33 @@ public class ActionsController(
     [HttpPost("execute")]
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input)
     {
-        try
+        var instance = await instanceService.Get(input.InstanceId);
+        
+        switch (input.Type)
         {
-            var instance = await instanceService.Get(input.InstanceId);
+            case ActionType.DeleteInstance:
+                if (!await rightsService.Can(instance, RoleAction.Submit))
+                    return ErrorCode.ActionsNotPermitted;
+                // TODO: delete it
+                break;
             
-            switch (input.Type)
-            {
-                case ActionType.DeleteInstance:
-                    if (!await rightsService.Can(instance, RoleAction.Submit))
-                        return Forbid("Not permitted");
-                    // TODO: delete it
-                    break;
+            case ActionType.Execute:
+                if (input.Name == null)
+                    return ErrorCode.ActionsNameRequired;
                 
-                case ActionType.Execute:
-                    if (input.Name == null)
-                        return BadRequest(new { error = "Name is required" });
-                    var actions = await rightsService.GetAllowedActions(instance, RoleAction.Execute);
-                    var action = actions.FirstOrDefault(a => a.Name == input.Name);
-                    if (action == null)
-                        return Forbid("Not permitted");
-                    await triggerService.RunTriggers(instance, action.Triggers, input.Mail);
-                    await contextService.UpdateCurrentStep(instance);
-                    break;
-            }
-            
-            return Ok(new ExecuteActionPayloadDto(
-                input.Type,
-                input.Type == ActionType.DeleteInstance ? null : WorkflowInstanceDto.From(instance)
-            ));
+                var actions = await rightsService.GetAllowedActions(instance, RoleAction.Execute);
+                var action = actions.FirstOrDefault(a => a.Name == input.Name);
+                if (action == null)
+                    return ErrorCode.ActionsNotPermitted;
+                
+                await triggerService.RunTriggers(instance, action.Triggers, input.Mail);
+                await contextService.UpdateCurrentStep(instance);
+                break;
         }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        
+        return Ok(new ExecuteActionPayloadDto(
+            input.Type,
+            input.Type == ActionType.DeleteInstance ? null : WorkflowInstanceDto.From(instance)
+        ));
     }
 }

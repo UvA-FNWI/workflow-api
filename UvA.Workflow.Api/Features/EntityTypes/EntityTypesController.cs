@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Exceptions;
 using UvA.Workflow.Api.Features.EntityTypes.Dtos;
 
 namespace UvA.Workflow.Api.Features.EntityTypes;
@@ -34,9 +35,7 @@ public class EntityTypesController(ModelService modelService) : ControllerBase
     public ActionResult<EntityTypeDto> GetByName(string name)
     {
         if (!modelService.EntityTypes.TryGetValue(name, out var entityType))
-        {
-            return NotFound(new { error = $"EntityType with name '{name}' not found" });
-        }
+            return ErrorCode.EntityTypesNotFound;
 
         var dto = MapToDto(entityType);
         return Ok(dto);

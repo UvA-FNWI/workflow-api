@@ -1,3 +1,5 @@
+using UvA.Workflow.Api.Exceptions;
+
 namespace UvA.Workflow.Api.Features.WorkflowInstances;
 
     [ApiController]
@@ -9,53 +11,31 @@ namespace UvA.Workflow.Api.Features.WorkflowInstances;
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
         [FromBody] CreateWorkflowInstanceDto dto)
     {
-        try
-        {
-            var instance = await service.CreateAsync(
-                dto.EntityType,
-                dto.Variant,
-                dto.ParentId,
-                dto.InitialProperties?.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToBsonValue(v.Value))
-            );
+        var instance = await service.CreateAsync(
+            dto.EntityType,
+            dto.Variant,
+            dto.ParentId,
+            dto.InitialProperties?.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToBsonValue(v.Value))
+        );
 
-            var result = WorkflowInstanceDto.From(instance);
-            return CreatedAtAction(nameof(GetById), new { id = instance.Id }, result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var result = WorkflowInstanceDto.From(instance);
+        return CreatedAtAction(nameof(GetById), new { id = instance.Id }, result);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id)
     {
-        try
-        {
-            var instance = await service.GetByIdAsync(id);
+        var instance = await service.GetByIdAsync(id);
+        if (instance == null)
+            return ErrorCode.WorkflowInstancesNotFound;
 
-            if (instance == null)
-                return NotFound(new { error = $"WorkflowInstance with ID '{id}' not found" });
-
-            return Ok(WorkflowInstanceDto.From(instance));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        return Ok(WorkflowInstanceDto.From(instance));
     }
 
     [HttpGet("instances/{entityType}")]
     public async Task<ActionResult<IEnumerable<WorkflowInstanceDto>>> GetInstances(string entityType)
     {
-        try
-        {
-            var instances = await service.GetByEntityTypeAsync(entityType);
-            return Ok(instances.Select(WorkflowInstanceDto.From));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var instances = await service.GetByEntityTypeAsync(entityType);
+        return Ok(instances.Select(WorkflowInstanceDto.From));
     }
 }

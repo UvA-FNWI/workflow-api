@@ -1,4 +1,5 @@
 using Serilog;
+using UvA.Workflow.Api.Exceptions;
 using UvA.Workflow.Api.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,8 @@ var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflow(config);
 builder.Services.AddControllers();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -31,6 +34,8 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
 //if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
