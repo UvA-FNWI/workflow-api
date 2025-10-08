@@ -1,4 +1,4 @@
-namespace Uva.Workflow.Services;
+namespace UvA.Workflow.Services;
 
 public class ContextService(
     ModelService modelService,

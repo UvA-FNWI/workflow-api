@@ -1,4 +1,4 @@
-namespace Uva.Workflow.Entities.Domain.Conditions;
+namespace UvA.Workflow.Entities.Domain.Conditions;
 
 public static class ConditionExtensions
 {

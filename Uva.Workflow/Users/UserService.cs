@@ -1,4 +1,4 @@
-namespace Uva.Workflow.Users;
+namespace UvA.Workflow.Users;
 
 public class UserService(IUserRepository userRepository)
 {

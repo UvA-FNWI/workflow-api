@@ -1,6 +1,4 @@
-using Uva.Workflow.Services;
-
-namespace Uva.Workflow.Entities.Domain;
+namespace UvA.Workflow.Entities.Domain;
 
 public enum ActionType
 {

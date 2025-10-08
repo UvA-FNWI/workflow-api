@@ -1,6 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Uva.Workflow.WorkflowInstances;
+namespace UvA.Workflow.WorkflowInstances;
 
 /// <summary>
 /// Represents a workflow instance - the core domain entity.

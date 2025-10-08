@@ -14,12 +14,12 @@ public partial class ErrorCode : ActionResult
     /// Gets the unique key for this error code (used by frontend)
     /// </summary>
     public string Code { get; }
-    
+
     /// <summary>
     /// Gets the error message
     /// </summary>
     public string Message { get; }
-    
+
     /// <summary>
     /// Gets the HTTP status code to return for this error
     /// </summary>

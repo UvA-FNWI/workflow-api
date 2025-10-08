@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-namespace Uva.Workflow.WorkflowInstances;
+namespace UvA.Workflow.WorkflowInstances;
 
 /// <summary>
 /// Repository contract for WorkflowInstance persistence.

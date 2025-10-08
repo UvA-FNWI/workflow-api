@@ -1,6 +1,6 @@
-using Uva.Workflow.Expressions;
+using UvA.Workflow.Expressions;
 
-namespace Uva.Workflow.Entities.Domain.Conditions;
+namespace UvA.Workflow.Entities.Domain.Conditions;
 
 public class Condition
 {

@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace Uva.Workflow.Entities.Domain;
+namespace UvA.Workflow.Entities.Domain;
 
 public class ObjectContext(Dictionary<Lookup, object?> values)
 {

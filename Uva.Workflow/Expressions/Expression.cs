@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace Uva.Workflow.Expressions;
+namespace UvA.Workflow.Expressions;
 
 public record Expression
 {

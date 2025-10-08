@@ -1,7 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
-using Uva.Workflow.Services;
 
-namespace Uva.Workflow.Users;
+namespace UvA.Workflow.Users;
 
 /// <summary>
 /// Represents a user in the workflow system.

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace Uva.Workflow.Users;
+namespace UvA.Workflow.Users;
 
 public interface IUserService
 {

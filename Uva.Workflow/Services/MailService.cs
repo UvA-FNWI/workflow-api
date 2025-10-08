@@ -1,9 +1,6 @@
-using Uva.Workflow.Entities.Domain;
-using Uva.Workflow.Expressions;
-using Uva.Workflow.Users;
-using Uva.Workflow.WorkflowInstances;
+using UvA.Workflow.Expressions;
 
-namespace Uva.Workflow.Services;
+namespace UvA.Workflow.Services;
 
 public interface IMailService
 {
@@ -14,7 +11,8 @@ public class DummyMailService : IMailService
 {
     public Task Send(MailMessage mail)
     {
-        Console.WriteLine($"Sending mail to {mail.To.ToSeparatedString(t => t.MailAddress)}: {mail.Subject}\n{mail.Body}");
+        Console.WriteLine(
+            $"Sending mail to {mail.To.ToSeparatedString(t => t.MailAddress)}: {mail.Subject}\n{mail.Body}");
         return Task.CompletedTask;
     }
 }
@@ -53,7 +51,7 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
     {
         To = To.ToList()
     };
-    
+
     private static Task<(string? Subject, string Content)> GenerateTemplate(string templateKey,
         WorkflowInstance instance, ModelService modelService, ObjectContext context)
     {

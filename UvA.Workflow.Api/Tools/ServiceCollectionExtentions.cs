@@ -42,7 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMailService, DummyMailService>();
 
         services.AddSingleton(
-            new ModelParser("/Users/annesnegmel-din/code/work/workflow-api/Uva.Workflow/Example/Projects"));
+            new ModelParser("/Users/annesnegmel-din/code/work/workflow-api/UvA.Workflow/Example/Projects"));
 
 
         return services;

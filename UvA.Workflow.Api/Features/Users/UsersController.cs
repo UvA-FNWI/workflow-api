@@ -1,8 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using UvA.Workflow.Api.Exceptions;
 using UvA.Workflow.Api.Extensions;
-using UvA.Workflow.Api.Features.Users.Dtos;
-using Uva.Workflow.Users;
 
 namespace UvA.Workflow.Api.Features.Users;
 

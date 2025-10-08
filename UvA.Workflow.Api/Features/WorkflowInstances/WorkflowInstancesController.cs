@@ -3,9 +3,8 @@ using UvA.Workflow.Api.Extensions;
 
 namespace UvA.Workflow.Api.Features.WorkflowInstances;
 
-    public class WorkflowInstancesController(WorkflowInstanceService service) : ApiControllerBase
-    {
-
+public class WorkflowInstancesController(WorkflowInstanceService service) : ApiControllerBase
+{
     [HttpPost]
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
         [FromBody] CreateWorkflowInstanceDto dto)

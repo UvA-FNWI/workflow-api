@@ -71,7 +71,9 @@ public record Answer(
             validationError,
             answer?.IsString == true || answer?.IsBsonDocument == true ? answer.ToString() : null,
             answer?.IsBsonDateTime == true ? answer.ToLocalTime() : null,
-            (answer?.IsDouble == true || answer?.IsInt32 == true) ? answer.ToDouble() : null // TODO fix int handling properly
+            (answer?.IsDouble == true || answer?.IsInt32 == true)
+                ? answer.ToDouble()
+                : null // TODO fix int handling properly
         );
     }
 

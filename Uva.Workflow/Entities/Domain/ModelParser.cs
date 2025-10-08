@@ -1,7 +1,7 @@
 using YamlDotNet.Serialization.NamingConventions;
 using Path = System.IO.Path;
 
-namespace Uva.Workflow.Entities.Domain;
+namespace UvA.Workflow.Entities.Domain;
 
 public partial class ModelParser
 {

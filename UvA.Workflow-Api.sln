@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Uva.Workflow", "Uva.Workflow\Uva.Workflow.csproj", "{7E12D98F-16FF-4FEC-A7AA-7A116B5F94E5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UvA.Workflow", "UvA.Workflow\UvA.Workflow.csproj", "{7E12D98F-16FF-4FEC-A7AA-7A116B5F94E5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UvA.Workflow.Api", "UvA.Workflow.Api\UvA.Workflow.Api.csproj", "{7073C5C6-600A-4424-B1A4-7A3BCCB3C4AD}"
 EndProject

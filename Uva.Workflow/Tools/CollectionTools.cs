@@ -1,4 +1,4 @@
-namespace Uva.Workflow.Tools;
+namespace UvA.Workflow.Tools;
 
 public static class CollectionTools
 {

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using UvA.Workflow.Infrastructure.Persistence;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Uva.Workflow.Services;
+namespace UvA.Workflow.Services;
 
 public class FileService(IConfiguration config, FileClient client)
 {

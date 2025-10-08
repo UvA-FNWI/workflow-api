@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Uva.Workflow\Uva.Workflow.csproj"/>
+        <ProjectReference Include="..\UvA.Workflow\UvA.Workflow.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

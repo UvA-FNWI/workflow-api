@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace Uva.Workflow.Tools;
+namespace UvA.Workflow.Tools;
 
 public static class DataExtensions
 {

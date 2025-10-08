@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Uva.Workflow.Expressions;
+namespace UvA.Workflow.Expressions;
 
 public class ExpressionParser
 {

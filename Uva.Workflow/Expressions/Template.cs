@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Uva.Workflow.Expressions;
+namespace UvA.Workflow.Expressions;
 
 public partial record Template : Expression
 {

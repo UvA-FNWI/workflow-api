@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-namespace Uva.Workflow.WorkflowInstances;
+namespace UvA.Workflow.WorkflowInstances;
 
 /// <summary>
 /// MongoDB implementation of the IWorkflowInstanceRepository contract.

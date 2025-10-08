@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Uva.Workflow.Services;
+namespace UvA.Workflow.Services;
 
 public record AnswerInput(
     string QuestionName,

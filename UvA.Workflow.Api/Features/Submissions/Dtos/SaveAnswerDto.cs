@@ -1,6 +1,6 @@
 namespace UvA.Workflow.Api.Features.Submissions.Dtos;
 
-  public record FileUpload(
+public record FileUpload(
     string FileName,
     string ContentBase64);
 

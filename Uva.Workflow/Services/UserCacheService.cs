@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace Uva.Workflow.Services;
+namespace UvA.Workflow.Services;
 
 public class UserCacheService(UserService userService)
 {
@@ -14,9 +14,9 @@ public class UserCacheService(UserService userService)
         var user = GetUser(extUser.Id);
         if (user != null)
             return user;
-        
+
         user = await userService.GetByExternalIdAsync(extUser.Id)
-               ?? new User {ExternalId = extUser.Id, DisplayName = extUser.DisplayName, Email = extUser.Email};
+               ?? new User { ExternalId = extUser.Id, DisplayName = extUser.DisplayName, Email = extUser.Email };
         if (user.Id == null!)
             await userService.CreateAsync(user);
         else if (user.DisplayName != extUser.DisplayName || user.Email != extUser.Email)

@@ -1,14 +1,14 @@
 using System.Security.Claims;
 
-namespace Uva.Workflow.Users;
+namespace UvA.Workflow.Users;
 
 public class MockUserService : IUserService
 {
     public Task<GlobalRole[]> GetRoles(ClaimsPrincipal principal)
     {
         return Task.FromResult<GlobalRole[]>([
-            new GlobalRole("Coordinator"), 
-            new GlobalRole("SuperAdmin"), 
+            new GlobalRole("Coordinator"),
+            new GlobalRole("SuperAdmin"),
             new GlobalRole("Admin")
         ]);
     }

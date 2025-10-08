@@ -1,4 +1,4 @@
-namespace Uva.Workflow.Services;
+namespace UvA.Workflow.Services;
 
 public class TriggerService(InstanceService instanceService, ModelService modelService, IMailService mailService)
 {
@@ -18,7 +18,7 @@ public class TriggerService(InstanceService instanceService, ModelService modelS
     {
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
-        
+
         mail ??= (await Mail.FromModel(instance, sendMail, modelService))!.ToMailMessage();
         // TODO: sendAsMail vs message
         await mailService.Send(mail);
@@ -35,7 +35,7 @@ public class TriggerService(InstanceService instanceService, ModelService modelS
     private async Task Event(WorkflowInstance instance, string eventName)
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
-        ev ??= instance.Events[eventName] = new InstanceEvent {Id = eventName};
+        ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
         ev.Date = DateTime.Now;
         await instanceService.UpdateEvent(instance, ev.Id);
     }

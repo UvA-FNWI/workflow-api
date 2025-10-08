@@ -1,4 +1,4 @@
-namespace Uva.Workflow.Users;
+namespace UvA.Workflow.Users;
 
 /// <summary>
 /// Repository contract for User persistence.

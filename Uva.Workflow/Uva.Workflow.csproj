@@ -4,6 +4,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <RootNamespace>Uva.Workflow</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -15,7 +16,7 @@
 
     <ItemGroup>
         <Reference Include="Microsoft.AspNetCore.Http.Features">
-          <HintPath>..\..\..\..\.dotnet\shared\Microsoft.AspNetCore.App\9.0.0\Microsoft.AspNetCore.Http.Features.dll</HintPath>
+            <HintPath>..\..\..\..\.dotnet\shared\Microsoft.AspNetCore.App\9.0.0\Microsoft.AspNetCore.Http.Features.dll</HintPath>
         </Reference>
         <Reference Include="Microsoft.AspNetCore.StaticFiles">
             <HintPath>..\..\..\..\.dotnet\shared\Microsoft.AspNetCore.App\9.0.0\Microsoft.AspNetCore.StaticFiles.dll</HintPath>

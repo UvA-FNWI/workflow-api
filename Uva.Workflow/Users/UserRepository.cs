@@ -1,6 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Uva.Workflow.Users;
+namespace UvA.Workflow.Users;
 
 /// <summary>
 /// MongoDB implementation of the IUserRepository contract.

@@ -1,6 +1,6 @@
-using Action = Uva.Workflow.Entities.Domain.Action;
+using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
-namespace Uva.Workflow.Services;
+namespace UvA.Workflow.Services;
 
 public class InstanceService(
     WorkflowInstanceService workflowInstanceService,
@@ -48,7 +48,7 @@ public class InstanceService(
         });
     }
 
-    public async Task<bool> CheckLimit(WorkflowInstance instance, Action action)
+    public async Task<bool> CheckLimit(WorkflowInstance instance, Domain_Action action)
     {
         if (action.UserProperty == null || action.Limit == null)
             return true;
@@ -90,11 +90,11 @@ public class InstanceService(
 
         return await workflowInstanceService.CreateAsync(entityType, initialProperties: initialProperties);
     }
+
     public Task SaveValue(WorkflowInstance instance, string? part1, string part2)
         => workflowInstanceRepository.UpdateFieldsAsync(instance.Id,
-            Builders<WorkflowInstance>.Update.Set(part1 == null 
-                    ? (i => i.Properties[part2]) 
+            Builders<WorkflowInstance>.Update.Set(part1 == null
+                    ? (i => i.Properties[part2])
                     : (i => i.Properties[part1][part2]),
                 instance.GetProperty(part1, part2)));
- 
 }
