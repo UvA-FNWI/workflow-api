@@ -9,10 +9,11 @@ public class WorkflowInstancesController(
 {
     [HttpPost]
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
-        [FromBody] CreateWorkflowInstanceDto dto)
+        [FromBody] CreateWorkflowInstanceDto dto, CancellationToken ct)
     {
-        var instance = await service.CreateAsync(
+        var instance = await service.Create(
             dto.EntityType,
+            ct,
             dto.Variant,
             dto.ParentId,
             dto.InitialProperties?.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToBsonValue(v.Value))
@@ -23,9 +24,9 @@ public class WorkflowInstancesController(
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id)
+    public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id, CancellationToken ct)
     {
-        var instance = await repository.GetByIdAsync(id);
+        var instance = await repository.GetById(id, ct);
         if (instance == null)
             return ErrorCode.WorkflowInstancesNotFound;
 
@@ -33,9 +34,9 @@ public class WorkflowInstancesController(
     }
 
     [HttpGet("instances/{entityType}")]
-    public async Task<ActionResult<IEnumerable<WorkflowInstanceDto>>> GetInstances(string entityType)
+    public async Task<ActionResult<IEnumerable<WorkflowInstanceDto>>> GetInstances(string entityType, CancellationToken ct)
     {
-        var instances = await repository.GetByEntityTypeAsync(entityType);
+        var instances = await repository.GetByEntityType(entityType, ct);
         return Ok(instances.Select(WorkflowInstanceDto.From));
     }
 }

@@ -8,17 +8,17 @@ public class InstanceService(
     ModelService modelService,
     RightsService rightsService)
 {
-    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties)
+    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties, CancellationToken ct)
     {
         var projection = properties.ToDictionary(p => p.Name, p => $"$Properties.{p.Name}");
 
-        var res = await workflowInstanceRepository.GetAllByIdAsync(ids, projection);
+        var res = await workflowInstanceRepository.GetAllById(ids, projection, ct);
         return res.ToDictionary(r => r["_id"].ToString()!, r => new ObjectContext(
             properties.ToDictionary(p => (Lookup)p.Name, p => ObjectContext.GetValue(r[p.Name], p))
         ));
     }
 
-    public async Task<List<ObjectContext>> GetScreen(string entityType, Screen screen, string? sourceInstanceId = null)
+    public async Task<List<ObjectContext>> GetScreen(string entityType, Screen screen, CancellationToken ct, string? sourceInstanceId = null)
     {
         var entity = modelService.EntityTypes[entityType];
         var props = screen.Columns.SelectMany(c => c.Properties).ToArray();
@@ -28,8 +28,8 @@ public class InstanceService(
             .ToDictionary(p => p, p => entity.GetKey(p));
 
         var res = sourceInstanceId != null
-            ? await workflowInstanceRepository.GetAllByParentIdAsync(sourceInstanceId, projection)
-            : await workflowInstanceRepository.GetAllByTypeAsync(entityType, projection);
+            ? await workflowInstanceRepository.GetAllByParentId(sourceInstanceId, projection, ct)
+            : await workflowInstanceRepository.GetAllByType(entityType, projection, ct);
         return res.ConvertAll(r =>
         {
             var dict = projection.Keys
@@ -43,15 +43,15 @@ public class InstanceService(
         });
     }
 
-    public async Task<bool> CheckLimit(WorkflowInstance instance, Domain_Action action)
+    public async Task<bool> CheckLimit(WorkflowInstance instance, Domain_Action action, CancellationToken ct)
     {
         if (action.UserProperty == null || action.Limit == null)
             return true;
         var property = action.UserProperty;
-        var results = await workflowInstanceRepository.GetAllByParentIdAsync(instance.Id, new()
+        var results = await workflowInstanceRepository.GetAllByParentId(instance.Id, new()
         {
             [property] = $"$Properties.{property}"
-        });
+        }, ct);
         var users = results
             .Select(r => r.GetValueOrDefault(property))
             .Where(r => r?.IsBsonNull == false)
@@ -60,13 +60,13 @@ public class InstanceService(
         return users.Count(u => u.Id == userId) < action.Limit.Value;
     }
 
-    public async Task UpdateEvent(WorkflowInstance instance, string eventId)
+    public async Task UpdateEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
     {
         instance.RecordEvent(eventId);
-        await workflowInstanceRepository.UpdateAsync(instance);
+        await workflowInstanceRepository.Update(instance, ct);
     }
 
-    public async Task<WorkflowInstance> CreateInstance(string entityType, string? userProperty)
+    public async Task<WorkflowInstance> CreateInstance(string entityType, string? userProperty, CancellationToken ct)
     {
         Dictionary<string, BsonValue>? initialProperties = null;
 
@@ -80,13 +80,13 @@ public class InstanceService(
             };
         }
 
-        return await workflowInstanceService.CreateAsync(entityType, initialProperties: initialProperties);
+        return await workflowInstanceService.Create(entityType, ct, initialProperties: initialProperties);
     }
 
-    public Task SaveValue(WorkflowInstance instance, string? part1, string part2)
-        => workflowInstanceRepository.UpdateFieldsAsync(instance.Id,
+    public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
+        => workflowInstanceRepository.UpdateFields(instance.Id,
             Builders<WorkflowInstance>.Update.Set(part1 == null
                     ? (i => i.Properties[part2])
                     : (i => i.Properties[part1][part2]),
-                instance.GetProperty(part1, part2)));
+                instance.GetProperty(part1, part2)), ct);
 }

@@ -9,32 +9,32 @@ namespace UvA.Workflow.WorkflowInstances;
 public interface IWorkflowInstanceRepository
 {
     // Core CRUD
-    Task CreateAsync(WorkflowInstance instance);
-    Task<WorkflowInstance?> GetByIdAsync(string id);
-    Task UpdateAsync(WorkflowInstance instance);
-    Task DeleteAsync(string id);
+    Task Create(WorkflowInstance instance, CancellationToken ct);
+    Task<WorkflowInstance?> GetById(string id, CancellationToken ct);
+    Task Update(WorkflowInstance instance, CancellationToken ct);
+    Task Delete(string id, CancellationToken ct);
 
     // Query operations
-    Task<IEnumerable<WorkflowInstance>> GetByIdsAsync(IEnumerable<string> ids);
-    Task<IEnumerable<WorkflowInstance>> GetByEntityTypeAsync(string entityType);
-    Task<IEnumerable<WorkflowInstance>> GetByParentIdAsync(string parentId);
+    Task<IEnumerable<WorkflowInstance>> GetByIds(IEnumerable<string> ids, CancellationToken ct);
+    Task<IEnumerable<WorkflowInstance>> GetByEntityType(string entityType, CancellationToken ct);
+    Task<IEnumerable<WorkflowInstance>> GetByParentId(string parentId, CancellationToken ct);
 
     // Advanced query methods
-    Task<List<WorkflowInstance>> GetAllAsync(Expression<Func<WorkflowInstance, bool>> expression);
-    Task<T?> GetAsync<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression);
+    Task<List<WorkflowInstance>> GetAll(Expression<Func<WorkflowInstance, bool>> expression, CancellationToken ct);
+    Task<T?> Get<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression, CancellationToken ct);
 
-    Task<T?> GetAsync<T>(Expression<Func<WorkflowInstance, bool>> predicate,
-        Expression<Func<WorkflowInstance, T>> project);
+    Task<T?> Get<T>(Expression<Func<WorkflowInstance, bool>> predicate,
+        Expression<Func<WorkflowInstance, T>> project, CancellationToken ct);
 
-    Task<List<Dictionary<string, BsonValue>>> GetAllByTypeAsync(string entityType,
-        Dictionary<string, string> projection);
+    Task<List<Dictionary<string, BsonValue>>> GetAllByType(string entityType,
+        Dictionary<string, string> projection, CancellationToken ct);
 
-    Task<List<Dictionary<string, BsonValue>>> GetAllByParentIdAsync(string parentId,
-        Dictionary<string, string> projection);
+    Task<List<Dictionary<string, BsonValue>>> GetAllByParentId(string parentId,
+        Dictionary<string, string> projection, CancellationToken ct);
 
-    Task<List<Dictionary<string, BsonValue>>> GetAllByIdAsync(string[] ids, Dictionary<string, string> projection);
+    Task<List<Dictionary<string, BsonValue>>> GetAllById(string[] ids, Dictionary<string, string> projection, CancellationToken ct);
 
     // Type-safe update methods
-    Task UpdateFieldAsync<TField>(string instanceId, Expression<Func<WorkflowInstance, TField>> field, TField value);
-    Task UpdateFieldsAsync(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition);
+    Task UpdateField<TField>(string instanceId, Expression<Func<WorkflowInstance, TField>> field, TField value, CancellationToken ct);
+    Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct);
 }

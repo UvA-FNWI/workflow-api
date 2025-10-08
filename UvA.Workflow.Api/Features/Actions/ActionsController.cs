@@ -11,9 +11,9 @@ public class ActionsController(
     ContextService contextService) : ApiControllerBase
 {
     [HttpPost]
-    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input)
+    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input, CancellationToken ct)
     {
-        var instance = await workflowInstanceRepository.GetByIdAsync(input.InstanceId);
+        var instance = await workflowInstanceRepository.GetById(input.InstanceId, ct);
         if (instance == null)
             return ErrorCode.WorkflowInstancesNotFound;
 
@@ -34,8 +34,8 @@ public class ActionsController(
                 if (action == null)
                     return ErrorCode.GeneralForbidden;
 
-                await triggerService.RunTriggers(instance, action.Triggers, input.Mail);
-                await contextService.UpdateCurrentStep(instance);
+                await triggerService.RunTriggers(instance, action.Triggers, ct, input.Mail);
+                await contextService.UpdateCurrentStep(instance, ct);
                 break;
         }
 

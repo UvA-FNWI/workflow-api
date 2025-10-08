@@ -16,10 +16,10 @@ public class SubmissionsController(
     AnswerConversionService answerConversionService) : ApiControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName)
+    public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName, CancellationToken ct)
     {
         // Get the instance
-        var inst = await workflowInstanceRepository.GetByIdAsync(instanceId);
+        var inst = await workflowInstanceRepository.GetById(instanceId, ct);
         if (inst == null)
             return ErrorCode.WorkflowInstancesNotFound;
 
@@ -32,10 +32,10 @@ public class SubmissionsController(
     }
 
     [HttpPost]
-    public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string formName)
+    public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string formName, CancellationToken ct)
     {
         // Get the instance
-        var instance = await workflowInstanceRepository.GetByIdAsync(instanceId);
+        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
             return ErrorCode.WorkflowInstancesNotFound;
 
@@ -72,10 +72,10 @@ public class SubmissionsController(
             return Ok(new SubmitSubmissionResult(submissionDto, null, validationErrors, false));
         }
 
-        await triggerService.RunTriggers(instance, [new Trigger { Event = formName }, ..form.OnSubmit]);
+        await triggerService.RunTriggers(instance, [new Trigger { Event = formName }, ..form.OnSubmit], ct);
 
         // Save the updated instance
-        await contextService.UpdateCurrentStep(instance);
+        await contextService.UpdateCurrentStep(instance, ct);
 
         var finalSubmissionDto = SubmissionDto.FromEntity(instance, form, instance.Events[formName],
             modelService.GetQuestionStatus(instance, form, true), fileService);
@@ -85,10 +85,10 @@ public class SubmissionsController(
     }
 
     [HttpPost]
-    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer([FromBody] SaveAnswerRequest request)
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer([FromBody] SaveAnswerRequest request, CancellationToken ct)
     {
         // Get the workflow instance
-        var instance = await workflowInstanceRepository.GetByIdAsync(request.InstanceId);
+        var instance = await workflowInstanceRepository.GetById(request.InstanceId, ct);
         if (instance == null)
             return ErrorCode.WorkflowInstancesNotFound;
 
@@ -110,7 +110,7 @@ public class SubmissionsController(
         var currentAnswer = instance.GetProperty(form.Property, request.Answer.QuestionName);
 
         // Convert new answer to BsonValue
-        var newAnswer = await answerConversionService.ConvertToValueAsync(request.Answer, question);
+        var newAnswer = await answerConversionService.ConvertToValue(request.Answer, question, ct);
 
         // Handle file upload if present
         if (request.Answer.File != null)
@@ -124,7 +124,7 @@ public class SubmissionsController(
         if (newAnswer != currentAnswer)
         {
             instance.SetProperty(newAnswer, form.Property, request.Answer.QuestionName);
-            await instanceService.SaveValue(instance, form.Property, question.Name);
+            await instanceService.SaveValue(instance, form.Property, question.Name, ct);
         }
 
         // Get questions to update (including dependent questions)

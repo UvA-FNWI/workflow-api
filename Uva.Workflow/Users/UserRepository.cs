@@ -10,24 +10,24 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 {
     private readonly IMongoCollection<UserDocument> _collection = database.GetCollection<UserDocument>("users");
 
-    public async Task CreateAsync(User user)
+    public async Task Create(User user, CancellationToken ct)
     {
         var document = MapToDocument(user);
-        await _collection.InsertOneAsync(document);
+        await _collection.InsertOneAsync(document, cancellationToken: ct);
         user.Id = document.Id.ToString(); // Update with generated ID
     }
 
-    public async Task<User?> GetByIdAsync(string id)
+    public async Task<User?> GetById(string id, CancellationToken ct)
     {
         if (!ObjectId.TryParse(id, out var objectId))
             return null;
 
         var filter = Builders<UserDocument>.Filter.Eq("_id", objectId);
-        var document = await _collection.Find(filter).FirstOrDefaultAsync();
+        var document = await _collection.Find(filter).FirstOrDefaultAsync(ct);
         return document != null ? MapToDomain(document) : null;
     }
 
-    public async Task UpdateAsync(User user)
+    public async Task Update(User user, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var objectId))
             throw new ArgumentException("Invalid user ID", nameof(user.Id));
@@ -36,17 +36,17 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         document.Id = objectId;
 
         var filter = Builders<UserDocument>.Filter.Eq("_id", objectId);
-        await _collection.ReplaceOneAsync(filter, document);
+        await _collection.ReplaceOneAsync(filter, document, cancellationToken: ct);
     }
 
-    public async Task<User?> GetByExternalIdAsync(string externalId)
+    public async Task<User?> GetByExternalId(string externalId, CancellationToken ct)
     {
         var filter = Builders<UserDocument>.Filter.Eq(x => x.ExternalId, externalId);
-        var document = await _collection.Find(filter).FirstOrDefaultAsync();
+        var document = await _collection.Find(filter).FirstOrDefaultAsync(ct);
         return document != null ? MapToDomain(document) : null;
     }
 
-    public async Task<IEnumerable<User>> GetByIdsAsync(IReadOnlyList<string> ids)
+    public async Task<IEnumerable<User>> GetByIds(IReadOnlyList<string> ids, CancellationToken ct)
     {
         var objectIds = ids
             .Select(id => ObjectId.TryParse(id, out var oid) ? oid : (ObjectId?)null)
@@ -55,7 +55,7 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
             .ToList();
 
         var filter = Builders<UserDocument>.Filter.In("_id", objectIds);
-        var documents = await _collection.Find(filter).ToListAsync();
+        var documents = await _collection.Find(filter).ToListAsync(ct);
         return documents.Select(MapToDomain);
     }
 

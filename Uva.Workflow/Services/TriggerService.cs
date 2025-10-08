@@ -2,19 +2,19 @@ namespace UvA.Workflow.Services;
 
 public class TriggerService(InstanceService instanceService, ModelService modelService, IMailService mailService)
 {
-    public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, MailMessage? mail = null)
+    public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, CancellationToken ct, MailMessage? mail = null)
     {
         var context = modelService.CreateContext(instance);
         foreach (var trigger in triggers.Where(t => t.Condition.IsMet(context)))
         {
-            if (trigger.Event != null) await Event(instance, trigger.Event);
-            if (trigger.UndoEvent != null) await UndoEvent(instance, trigger.UndoEvent);
-            if (trigger.SendMail != null) await SendMail(instance, trigger.SendMail, mail);
-            if (trigger.SetProperty != null) await SetProperty(instance, trigger.SetProperty);
+            if (trigger.Event != null) await Event(instance, trigger.Event, ct);
+            if (trigger.UndoEvent != null) await UndoEvent(instance, trigger.UndoEvent, ct);
+            if (trigger.SendMail != null) await SendMail(instance, trigger.SendMail, ct, mail);
+            if (trigger.SetProperty != null) await SetProperty(instance, trigger.SetProperty, ct);
         }
     }
 
-    private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, MailMessage? mail = null)
+    private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct, MailMessage? mail = null)
     {
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
@@ -24,26 +24,26 @@ public class TriggerService(InstanceService instanceService, ModelService modelS
         await mailService.Send(mail);
     }
 
-    private async Task UndoEvent(WorkflowInstance instance, string eventName)
+    private async Task UndoEvent(WorkflowInstance instance, string eventName, CancellationToken ct)
     {
         if (!instance.Events.TryGetValue(eventName, out var ev))
             return;
         ev.Date = null;
-        await instanceService.UpdateEvent(instance, ev.Id);
+        await instanceService.UpdateEvent(instance, ev.Id, ct);
     }
 
-    private async Task Event(WorkflowInstance instance, string eventName)
+    private async Task Event(WorkflowInstance instance, string eventName, CancellationToken ct)
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
         ev.Date = DateTime.Now;
-        await instanceService.UpdateEvent(instance, ev.Id);
+        await instanceService.UpdateEvent(instance, ev.Id, ct);
     }
 
-    private async Task SetProperty(WorkflowInstance instance, SetProperty setProperty)
+    private async Task SetProperty(WorkflowInstance instance, SetProperty setProperty, CancellationToken ct)
     {
         instance.Properties[setProperty.Property] =
             setProperty.ValueExpression.Execute(modelService.CreateContext(instance)).ToBsonDocument();
-        await instanceService.SaveValue(instance, null, setProperty.Property);
+        await instanceService.SaveValue(instance, null, setProperty.Property, ct);
     }
 }

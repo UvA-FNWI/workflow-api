@@ -6,7 +6,7 @@ namespace UvA.Workflow.Api.Features.Users;
 public class UsersController(IUserRepository userRepository) : ApiControllerBase
 {
     [HttpPost]
-    public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto)
+    public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
     {
         var user = new User
         {
@@ -15,16 +15,16 @@ public class UsersController(IUserRepository userRepository) : ApiControllerBase
             Email = dto.Email
         };
 
-        await userRepository.CreateAsync(user);
+        await userRepository.Create(user, ct);
         var userDto = UserDto.From(user);
 
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, userDto);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<UserDto>> GetById(string id)
+    public async Task<ActionResult<UserDto>> GetById(string id, CancellationToken ct)
     {
-        var user = await userRepository.GetByIdAsync(id);
+        var user = await userRepository.GetById(id, ct);
         if (user == null)
             return ErrorCode.UsersNotFound;
 

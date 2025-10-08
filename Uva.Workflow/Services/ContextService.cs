@@ -5,11 +5,11 @@ public class ContextService(
     InstanceService instanceService,
     IWorkflowInstanceRepository workflowInstanceRepository)
 {
-    public async Task UpdateCurrentStep(WorkflowInstance instance)
+    public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var entityType = modelService.EntityTypes[instance.EntityType];
         var context = modelService.CreateContext(instance);
-        await Enrich(entityType, [context], entityType.Steps.SelectMany(s => s.Lookups));
+        await Enrich(entityType, [context], entityType.Steps.SelectMany(s => s.Lookups), ct);
         string? targetStep = null;
         foreach (var step in entityType.Steps)
         {
@@ -24,11 +24,11 @@ public class ContextService(
         {
             instance.CurrentStep = targetStep;
             if (!string.IsNullOrEmpty(instance.Id))
-                await workflowInstanceRepository.UpdateFieldAsync(instance.Id, i => i.CurrentStep, targetStep ?? "");
+                await workflowInstanceRepository.UpdateField(instance.Id, i => i.CurrentStep, targetStep ?? "", ct);
         }
     }
 
-    public async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts, IEnumerable<Lookup> properties)
+    public async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts, IEnumerable<Lookup> properties, CancellationToken ct)
     {
         var groups = properties
             .Where(p => p is PropertyLookup)
@@ -44,7 +44,7 @@ public class ContextService(
             var ids = contexts.ToDictionary(c => c, c => c.Get(referenceGroup.Key) as string);
             var targetType = entityType.Properties[referenceGroup.Key].EntityType!;
             var props = referenceGroup.Select(p => targetType.Properties[p.Parts[1]]).ToArray();
-            var results = await instanceService.GetProperties(ids.Values.Where(i => i != null).ToArray()!, props);
+            var results = await instanceService.GetProperties(ids.Values.Where(i => i != null).ToArray()!, props, ct);
             foreach (var context in contexts)
             {
                 var id = ids[context];

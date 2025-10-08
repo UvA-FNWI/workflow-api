@@ -15,12 +15,12 @@ public class RightsService(
         .Append(new GlobalRole("Registered"))
         .ToArray();
 
-    public async Task<User?> GetUser()
+    public async Task<User?> GetUser(CancellationToken ct = default)
     {
         var extUser = userService.GetUserInfo(_principal);
         if (extUser == null)
             return null;
-        return await userCacheService.GetUser(extUser);
+        return await userCacheService.GetUser(extUser, ct);
     }
 
     public async Task<string?> GetUserId()

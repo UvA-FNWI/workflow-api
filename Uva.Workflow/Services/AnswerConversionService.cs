@@ -22,8 +22,9 @@ public class AnswerConversionService(UserCacheService userCacheService)
     /// </summary>
     /// <param name="answerInput">The object containing the answers for the given question</param>
     /// <param name="question">The question definition containing data type information</param>
+    /// <param name="ct">Cancellation token</param>
     /// <returns>BsonValue representation of the answer</returns>
-    public async Task<BsonValue> ConvertToValueAsync(AnswerInput answerInput, Question question)
+    public async Task<BsonValue> ConvertToValue(AnswerInput answerInput, Question question, CancellationToken ct)
     {
         return question.DataType switch
         {
@@ -34,8 +35,8 @@ public class AnswerConversionService(UserCacheService userCacheService)
             _ when answerInput.Text is null => BsonNull.Value,
             DataType.Currency when answerInput.Number is not null => new CurrencyAmount(answerInput.Text,
                 answerInput.Number.Value).ToBsonDocument(),
-            DataType.User when question.IsArray => await ConvertUserArrayAsync(answerInput.Text),
-            DataType.User => await ConvertUserAsync(answerInput.User),
+            DataType.User when question.IsArray => await ConvertUserArray(answerInput.Text, ct),
+            DataType.User => await ConvertUser(answerInput.User, ct),
             _ => throw new NotImplementedException(
                 $"Data type {question.DataType} is not supported for question '{answerInput.QuestionName}'")
         };
@@ -44,12 +45,12 @@ public class AnswerConversionService(UserCacheService userCacheService)
     /// <summary>
     /// Converts a single user to BsonValue using the user cache service.
     /// </summary>
-    private async Task<BsonValue> ConvertUserAsync(ExternalUser? externalUser)
+    private async Task<BsonValue> ConvertUser(ExternalUser? externalUser, CancellationToken ct)
     {
         if (externalUser == null)
             return BsonNull.Value;
 
-        var user = await userCacheService.GetUser(externalUser);
+        var user = await userCacheService.GetUser(externalUser, ct);
         return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
     }
 
@@ -57,7 +58,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
     /// Handles user array conversion. Currently returns empty string as per original implementation.
     /// TODO: Implement proper user array handling
     /// </summary>
-    private Task<BsonValue> ConvertUserArrayAsync(string? text)
+    private Task<BsonValue> ConvertUserArray(string? text, CancellationToken ct)
     {
         // TODO: Implement proper user array conversion
         // This matches the current behavior in the original code

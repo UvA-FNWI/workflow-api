@@ -7,11 +7,11 @@ namespace UvA.Workflow.Users;
 public interface IUserRepository
 {
     // Core CRUD
-    Task CreateAsync(User user);
-    Task<User?> GetByIdAsync(string id);
-    Task UpdateAsync(User user);
+    Task Create(User user, CancellationToken ct);
+    Task<User?> GetById(string id, CancellationToken ct);
+    Task Update(User user, CancellationToken ct);
 
     // Query operations
-    Task<User?> GetByExternalIdAsync(string externalId);
-    Task<IEnumerable<User>> GetByIdsAsync(IReadOnlyList<string> ids);
+    Task<User?> GetByExternalId(string externalId, CancellationToken ct);
+    Task<IEnumerable<User>> GetByIds(IReadOnlyList<string> ids, CancellationToken ct);
 }
