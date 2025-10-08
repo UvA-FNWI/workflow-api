@@ -5,7 +5,7 @@ using UvA.Workflow.Api.Features.Actions.Dtos;
 namespace UvA.Workflow.Api.Features.Actions;
 
 public class ActionsController(
-    InstanceService instanceService,
+    IWorkflowInstanceRepository workflowInstanceRepository,
     RightsService rightsService,
     TriggerService triggerService,
     ContextService contextService) : ApiControllerBase
@@ -13,7 +13,7 @@ public class ActionsController(
     [HttpPost]
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input)
     {
-        var instance = await instanceService.Get(input.InstanceId);
+        var instance = await workflowInstanceRepository.GetByIdAsync(input.InstanceId);
         if (instance == null)
             return ErrorCode.WorkflowInstancesNotFound;
 

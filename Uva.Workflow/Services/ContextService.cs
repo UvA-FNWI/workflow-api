@@ -3,7 +3,7 @@ namespace UvA.Workflow.Services;
 public class ContextService(
     ModelService modelService,
     InstanceService instanceService,
-    WorkflowInstanceService workflowInstanceService)
+    IWorkflowInstanceRepository workflowInstanceRepository)
 {
     public async Task UpdateCurrentStep(WorkflowInstance instance)
     {
@@ -24,7 +24,7 @@ public class ContextService(
         {
             instance.CurrentStep = targetStep;
             if (!string.IsNullOrEmpty(instance.Id))
-                await workflowInstanceService.UpdateFieldAsync(instance.Id, i => i.CurrentStep, targetStep ?? "");
+                await workflowInstanceRepository.UpdateFieldAsync(instance.Id, i => i.CurrentStep, targetStep ?? "");
         }
     }
 

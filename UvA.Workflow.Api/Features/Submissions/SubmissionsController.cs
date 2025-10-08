@@ -5,7 +5,7 @@ using UvA.Workflow.Infrastructure.Persistence;
 namespace UvA.Workflow.Api.Features.Submissions;
 
 public class SubmissionsController(
-    WorkflowInstanceService workflowInstanceService,
+    IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     FileService fileService,
     ContextService contextService,
@@ -19,7 +19,7 @@ public class SubmissionsController(
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName)
     {
         // Get the instance
-        var inst = await workflowInstanceService.GetByIdAsync(instanceId);
+        var inst = await workflowInstanceRepository.GetByIdAsync(instanceId);
         if (inst == null)
             return ErrorCode.WorkflowInstancesNotFound;
 
@@ -35,7 +35,7 @@ public class SubmissionsController(
     public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string formName)
     {
         // Get the instance
-        var instance = await workflowInstanceService.GetByIdAsync(instanceId);
+        var instance = await workflowInstanceRepository.GetByIdAsync(instanceId);
         if (instance == null)
             return ErrorCode.WorkflowInstancesNotFound;
 
@@ -88,7 +88,7 @@ public class SubmissionsController(
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer([FromBody] SaveAnswerRequest request)
     {
         // Get the workflow instance
-        var instance = await instanceService.Get(request.InstanceId);
+        var instance = await workflowInstanceRepository.GetByIdAsync(request.InstanceId);
         if (instance == null)
             return ErrorCode.WorkflowInstancesNotFound;
 

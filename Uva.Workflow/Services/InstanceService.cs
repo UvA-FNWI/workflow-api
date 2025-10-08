@@ -8,16 +8,11 @@ public class InstanceService(
     ModelService modelService,
     RightsService rightsService)
 {
-    public Task<WorkflowInstance?> Get(string instanceId) => workflowInstanceService.GetAsync(instanceId, i => i);
-
-    public Task<List<WorkflowInstance>> GetAll(string entityType) =>
-        workflowInstanceService.GetAllAsync(t => t.EntityType == entityType);
-
     public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties)
     {
         var projection = properties.ToDictionary(p => p.Name, p => $"$Properties.{p.Name}");
 
-        var res = await workflowInstanceService.GetAllByIdAsync(ids, projection);
+        var res = await workflowInstanceRepository.GetAllByIdAsync(ids, projection);
         return res.ToDictionary(r => r["_id"].ToString()!, r => new ObjectContext(
             properties.ToDictionary(p => (Lookup)p.Name, p => ObjectContext.GetValue(r[p.Name], p))
         ));
@@ -33,8 +28,8 @@ public class InstanceService(
             .ToDictionary(p => p, p => entity.GetKey(p));
 
         var res = sourceInstanceId != null
-            ? await workflowInstanceService.GetAllByParentIdAsync(sourceInstanceId, projection)
-            : await workflowInstanceService.GetAllByTypeAsync(entityType, projection);
+            ? await workflowInstanceRepository.GetAllByParentIdAsync(sourceInstanceId, projection)
+            : await workflowInstanceRepository.GetAllByTypeAsync(entityType, projection);
         return res.ConvertAll(r =>
         {
             var dict = projection.Keys
@@ -53,7 +48,7 @@ public class InstanceService(
         if (action.UserProperty == null || action.Limit == null)
             return true;
         var property = action.UserProperty;
-        var results = await workflowInstanceService.GetAllByParentIdAsync(instance.Id, new()
+        var results = await workflowInstanceRepository.GetAllByParentIdAsync(instance.Id, new()
         {
             [property] = $"$Properties.{property}"
         });
@@ -65,13 +60,10 @@ public class InstanceService(
         return users.Count(u => u.Id == userId) < action.Limit.Value;
     }
 
-    public Task<string?> GetEntityType(string instanceId)
-        => workflowInstanceService.GetAsync(instanceId, i => i.EntityType);
-
     public async Task UpdateEvent(WorkflowInstance instance, string eventId)
     {
         instance.RecordEvent(eventId);
-        await workflowInstanceService.UpdateAsync(instance);
+        await workflowInstanceRepository.UpdateAsync(instance);
     }
 
     public async Task<WorkflowInstance> CreateInstance(string entityType, string? userProperty)

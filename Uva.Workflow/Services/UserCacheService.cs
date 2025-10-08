@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace UvA.Workflow.Services;
 
-public class UserCacheService(UserService userService)
+public class UserCacheService(IUserRepository userRepository)
 {
     private readonly ConcurrentDictionary<string, User> _dictionary = new();
 
@@ -15,15 +15,15 @@ public class UserCacheService(UserService userService)
         if (user != null)
             return user;
 
-        user = await userService.GetByExternalIdAsync(extUser.Id)
+        user = await userRepository.GetByExternalIdAsync(extUser.Id)
                ?? new User { ExternalId = extUser.Id, DisplayName = extUser.DisplayName, Email = extUser.Email };
         if (user.Id == null!)
-            await userService.CreateAsync(user);
+            await userRepository.CreateAsync(user);
         else if (user.DisplayName != extUser.DisplayName || user.Email != extUser.Email)
         {
             user.Email = extUser.Email;
             user.DisplayName = extUser.DisplayName;
-            await userService.UpdateAsync(user);
+            await userRepository.UpdateAsync(user);
         }
 
         AddUser(extUser.Id, user);
