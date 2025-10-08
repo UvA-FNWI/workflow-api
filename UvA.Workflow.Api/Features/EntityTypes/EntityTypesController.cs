@@ -1,11 +1,10 @@
 using UvA.Workflow.Api.Exceptions;
+using UvA.Workflow.Api.Extensions;
 using UvA.Workflow.Api.Features.EntityTypes.Dtos;
 
 namespace UvA.Workflow.Api.Features.EntityTypes;
 
-[ApiController]
-[Route("api/entity-types")]
-public class EntityTypesController(ModelService modelService) : ControllerBase
+public class EntityTypesController(ModelService modelService) : ApiControllerBase
 {
     private static EntityTypeDto MapToDto(EntityType entityType)
     {

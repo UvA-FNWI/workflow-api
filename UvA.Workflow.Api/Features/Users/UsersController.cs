@@ -1,14 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using UvA.Workflow.Api.Exceptions;
+using UvA.Workflow.Api.Extensions;
 using UvA.Workflow.Api.Features.Users.Dtos;
 using Uva.Workflow.Users;
 
-using UvA.Workflow.Api.Exceptions;
-
 namespace UvA.Workflow.Api.Features.Users;
 
-[ApiController]
-[Route("api/users")]
-public class UsersController(UserService userService) : ControllerBase
+public class UsersController(UserService userService) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto)

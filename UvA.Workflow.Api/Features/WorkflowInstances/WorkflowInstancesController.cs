@@ -1,10 +1,9 @@
 using UvA.Workflow.Api.Exceptions;
+using UvA.Workflow.Api.Extensions;
 
 namespace UvA.Workflow.Api.Features.WorkflowInstances;
 
-    [ApiController]
-    [Route("api/workflow-instances")]
-    public class WorkflowInstancesController(WorkflowInstanceService service) : ControllerBase
+    public class WorkflowInstancesController(WorkflowInstanceService service) : ApiControllerBase
     {
 
     [HttpPost]

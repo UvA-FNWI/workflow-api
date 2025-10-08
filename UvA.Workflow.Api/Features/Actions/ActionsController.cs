@@ -1,17 +1,16 @@
 using UvA.Workflow.Api.Exceptions;
+using UvA.Workflow.Api.Extensions;
 using UvA.Workflow.Api.Features.Actions.Dtos;
 
 namespace UvA.Workflow.Api.Features.Actions;
 
-[ApiController]
-[Route("api/actions")]
 public class ActionsController(
     InstanceService instanceService,
     RightsService rightsService,
     TriggerService triggerService,
-    ContextService contextService) : ControllerBase
+    ContextService contextService) : ApiControllerBase
 {
-    [HttpPost("execute")]
+    [HttpPost]
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input)
     {
         var instance = await instanceService.Get(input.InstanceId);

@@ -1,10 +1,9 @@
 using UvA.Workflow.Api.Exceptions;
+using UvA.Workflow.Api.Extensions;
 using UvA.Workflow.Infrastructure.Persistence;
 
 namespace UvA.Workflow.Api.Features.Submissions;
 
-[ApiController]
-[Route("api/submissions")]
 public class SubmissionsController(
     WorkflowInstanceService workflowInstanceService,
     ModelService modelService,
@@ -14,7 +13,7 @@ public class SubmissionsController(
     InstanceService instanceService,
     RightsService rightsService,
     FileClient fileClient,
-    AnswerConversionService answerConversionService) : ControllerBase
+    AnswerConversionService answerConversionService) : ApiControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName)
@@ -85,7 +84,7 @@ public class SubmissionsController(
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
     }
 
-    [HttpPost("save-answer")]
+    [HttpPost]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer([FromBody] SaveAnswerRequest request)
     {
         // Get the workflow instance
