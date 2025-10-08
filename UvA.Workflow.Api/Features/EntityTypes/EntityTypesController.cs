@@ -34,7 +34,7 @@ public class EntityTypesController(ModelService modelService) : ApiControllerBas
     public ActionResult<EntityTypeDto> GetByName(string name)
     {
         if (!modelService.EntityTypes.TryGetValue(name, out var entityType))
-            return ErrorCode.EntityTypesNotFound;
+            return ErrorCode.EntityTypeNotFound;
 
         var dto = MapToDto(entityType);
         return Ok(dto);
