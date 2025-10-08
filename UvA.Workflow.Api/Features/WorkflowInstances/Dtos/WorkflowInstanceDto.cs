@@ -3,7 +3,6 @@ namespace UvA.Workflow.Api.Features.WorkflowInstances.Dtos;
 public record WorkflowInstanceDto(
     string Id,
     string EntityType,
-    string? Variant,
     string? CurrentStep,
     Dictionary<string, object> Properties,
     Dictionary<string, InstanceEventDto> Events,
@@ -18,7 +17,6 @@ public record WorkflowInstanceDto(
         return new WorkflowInstanceDto(
             instance.Id,
             instance.EntityType,
-            instance.Variant,
             instance.CurrentStep,
             instance.Properties.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToDotNetValue(v.Value)),
             instance.Events.ToDictionary(

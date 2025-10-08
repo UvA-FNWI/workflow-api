@@ -13,14 +13,12 @@ public class WorkflowInstance
     public string Id { get; set; } = null!;
 
     public string EntityType { get; set; } = null!;
-    public string? Variant { get; set; }
     public string? CurrentStep { get; set; }
 
     // public List<LogEntry> LogEntries { get; set; } = [];
     public Dictionary<string, BsonValue> Properties { get; set; } = null!;
     public Dictionary<string, InstanceEvent> Events { get; set; } = null!;
 
-    [BsonIgnore] public string VariantEntityType => Variant == null ? EntityType : $"{EntityType}/{Variant}";
 
     public string? ParentId { get; set; }
 

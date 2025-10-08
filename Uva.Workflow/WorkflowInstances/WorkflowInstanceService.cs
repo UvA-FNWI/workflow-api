@@ -8,7 +8,6 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
     public async Task<WorkflowInstance> Create(
         string entityType,
         CancellationToken ct,
-        string? variant = null,
         string? parentId = null,
         Dictionary<string, BsonValue>? initialProperties = null)
     {
@@ -18,7 +17,6 @@ public class WorkflowInstanceService(IWorkflowInstanceRepository repository)
         var instance = new WorkflowInstance
         {
             EntityType = entityType,
-            Variant = variant,
             ParentId = parentId,
             Properties = initialProperties ?? new Dictionary<string, BsonValue>(),
             Events = new Dictionary<string, InstanceEvent>()

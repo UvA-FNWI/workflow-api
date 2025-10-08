@@ -14,7 +14,6 @@ public class WorkflowInstancesController(
         var instance = await service.Create(
             dto.EntityType,
             ct,
-            dto.Variant,
             dto.ParentId,
             dto.InitialProperties?.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToBsonValue(v.Value))
         );
