@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace UvA.Workflow.Api.Features.Submissions.Dtos;
 
 public record AnswerFile(string Id, string Name, string? Url);
@@ -9,13 +11,10 @@ public record Answer(
     string EntityType,
     bool IsVisible,
     BilingualString? ValidationError = null,
-    string? Text = null,
-    DateTime? DateTime = null,
-    double? Number = null,
-    ExternalUser? User = null,
+    JsonElement? Value = null,
     AnswerFile[]? Files = null,
     string[]? VisibleChoices = null
-) : Value(Text, DateTime, Number, Files)
+)
 {
     public static Answer[] FromEntities(WorkflowInstance inst, Form form,
         Dictionary<string, QuestionStatus> questions, FileService? fileService = null)
@@ -36,45 +35,48 @@ public record Answer(
         var entityType = form.ActualForm.EntityType.Name;
         var question = form.ActualForm.EntityType.Properties[questionName];
 
-        if (question.DataType == DataType.Currency) // TODO: this is an odd one
+        if (question.DataType == DataType.Currency)
         {
             var value = ObjectContext.GetValue(answer, question) as CurrencyAmount;
+            var currencyObj = new { currency = value?.Currency, amount = value?.Amount };
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Text: value?.Currency, Number: value?.Amount);
+                Value: value == null ? null : JsonSerializer.SerializeToElement(currencyObj));
         }
 
         if (question.DataType == DataType.User && question.IsArray)
+        {
+            var users = (ObjectContext.GetValue(answer, question) as User[])?.Select(u => u.ToExternalUser()).ToArray();
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Text: (ObjectContext.GetValue(answer, question) as User[])?.Select(u => u.ToExternalUser())
-                .Serialize());
+                Value: users == null ? null : JsonSerializer.SerializeToElement(users));
+        }
 
         if (question.DataType == DataType.User)
+        {
+            var user = (ObjectContext.GetValue(answer, question) as User)?.ToExternalUser();
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                User: (ObjectContext.GetValue(answer, question) as User)?.ToExternalUser());
+                Value: user == null ? null : JsonSerializer.SerializeToElement(user));
+        }
 
         if (question.DataType == DataType.File)
         {
             var value = ObjectContext.GetValue(answer, question) as StoredFile;
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Text: value?.FileName,
+                Value: value?.FileName == null ? null : JsonSerializer.SerializeToElement(value.FileName),
                 Files: value == null
                     ? []
                     : [new AnswerFile(value.Id.ToString(), value.FileName, fileService?.GenerateUrl(value))]
             );
         }
 
+        // Handle remaining types: String, DateTime, Date, Int, Double, Choice, Reference
+        var convertedValue = ObjectContext.GetValue(answer, question);
         return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
             validationError,
-            answer?.IsString == true || answer?.IsBsonDocument == true ? answer.ToString() : null,
-            answer?.IsBsonDateTime == true ? answer.ToLocalTime() : null,
-            (answer?.IsDouble == true || answer?.IsInt32 == true)
-                ? answer.ToDouble()
-                : null // TODO fix int handling properly
-        );
+            Value: convertedValue == null ? null : JsonSerializer.SerializeToElement(convertedValue));
     }
 
     // public Question GetQuestion(ModelService modelService)
@@ -85,25 +87,35 @@ public record Answer(
 }
 
 public record Value(
-    string? Text = null,
-    DateTime? DateTime = null,
-    double? Number = null,
-    AnswerFile[]? Files = null,
-    BilingualString? LocalText = null,
-    string? Href = null
+    JsonElement? Data = null,
+    AnswerFile[]? Files = null
 )
 {
-    public static Value FromObject(object? value) => value switch
+    public static Value FromObject(object? obj) => new(
+        Data: obj == null ? null : JsonSerializer.SerializeToElement(obj)
+    );
+
+    // Helper methods to extract typed values (requires Question.DataType for type safety)
+    public string? AsString() => Data?.ValueKind == JsonValueKind.String ? Data.Value.GetString() : null;
+
+    public DateTime? AsDateTime() =>
+        Data?.ValueKind == JsonValueKind.String && DateTime.TryParse(Data.Value.GetString(), out var dt) ? dt : null;
+
+    public double? AsNumber() => Data?.ValueKind == JsonValueKind.Number ? Data.Value.GetDouble() : null;
+    public int? AsInt() => Data?.ValueKind == JsonValueKind.Number ? Data.Value.GetInt32() : null;
+
+    public T? As<T>() where T : class
     {
-        string s => new Value(s),
-        DateTime d => new Value(DateTime: d),
-        CurrencyAmount c => new Value(Text: c.Currency, Number: c.Amount),
-        double d => new Value(Number: d),
-        int i => new Value(Number: i),
-        BilingualString s => new Value(LocalText: s),
-        object[] arr => new Value(arr.Serialize()),
-        _ => new Value()
-    };
+        if (Data == null) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<T>(Data.Value);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
 
 public record SubmissionDto(

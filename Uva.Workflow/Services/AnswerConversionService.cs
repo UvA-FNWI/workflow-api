@@ -1,14 +1,12 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 
 namespace UvA.Workflow.Services;
 
 public record AnswerInput(
     string QuestionName,
-    string? Text = null,
-    DateTime? DateTime = null,
-    double? Number = null,
+    JsonElement? Value = null,
     IFormFile? File = null,
-    ExternalUser? User = null,
     int? DeleteFileId = null);
 
 /// <summary>
@@ -26,42 +24,102 @@ public class AnswerConversionService(UserCacheService userCacheService)
     /// <returns>BsonValue representation of the answer</returns>
     public async Task<BsonValue> ConvertToValue(AnswerInput answerInput, Question question, CancellationToken ct)
     {
+        if (answerInput.Value == null)
+            return BsonNull.Value;
+
+        var value = answerInput.Value.Value;
+
         return question.DataType switch
         {
-            DataType.String or DataType.Choice or DataType.Reference => answerInput.Text,
-            DataType.Double => answerInput.Number,
-            DataType.Int => Convert.ToInt32(answerInput.Number),
-            DataType.DateTime or DataType.Date => answerInput.DateTime,
-            _ when answerInput.Text is null => BsonNull.Value,
-            DataType.Currency when answerInput.Number is not null => new CurrencyAmount(answerInput.Text,
-                answerInput.Number.Value).ToBsonDocument(),
-            DataType.User when question.IsArray => await ConvertUserArray(answerInput.Text, ct),
-            DataType.User => await ConvertUser(answerInput.User, ct),
+            DataType.String or DataType.Choice or DataType.Reference =>
+                value.ValueKind == JsonValueKind.String ? value.GetString() : BsonNull.Value,
+
+            DataType.Double =>
+                value.ValueKind == JsonValueKind.Number ? value.GetDouble() : BsonNull.Value,
+
+            DataType.Int =>
+                value.ValueKind == JsonValueKind.Number ? value.GetInt32() : BsonNull.Value,
+
+            DataType.DateTime or DataType.Date =>
+                value.ValueKind == JsonValueKind.String && DateTime.TryParse(value.GetString(), out var dt)
+                    ? dt
+                    : BsonNull.Value,
+
+            DataType.Currency => await ConvertCurrency(value, ct),
+
+            DataType.User when question.IsArray => await ConvertUserArray(value, ct),
+
+            DataType.User => await ConvertUser(value, ct),
+
             _ => throw new NotImplementedException(
                 $"Data type {question.DataType} is not supported for question '{answerInput.QuestionName}'")
         };
     }
 
     /// <summary>
-    /// Converts a single user to BsonValue using the user cache service.
+    /// Converts Currency from JsonElement to BsonValue
     /// </summary>
-    private async Task<BsonValue> ConvertUser(ExternalUser? externalUser, CancellationToken ct)
+    private Task<BsonValue> ConvertCurrency(JsonElement value, CancellationToken ct)
     {
-        if (externalUser == null)
-            return BsonNull.Value;
+        try
+        {
+            var currency = value.GetProperty("currency").GetString();
+            var amount = value.GetProperty("amount").GetDouble();
 
-        var user = await userCacheService.GetUser(externalUser, ct);
-        return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
+            if (currency == null)
+                return Task.FromResult<BsonValue>(BsonNull.Value);
+
+            return Task.FromResult<BsonValue>(new CurrencyAmount(currency, amount).ToBsonDocument());
+        }
+        catch
+        {
+            return Task.FromResult<BsonValue>(BsonNull.Value);
+        }
     }
 
     /// <summary>
-    /// Handles user array conversion. Currently returns empty string as per original implementation.
-    /// TODO: Implement proper user array handling
+    /// Converts a single user to BsonValue using the user cache service.
     /// </summary>
-    private Task<BsonValue> ConvertUserArray(string? text, CancellationToken ct)
+    private async Task<BsonValue> ConvertUser(JsonElement value, CancellationToken ct)
     {
-        // TODO: Implement proper user array conversion
-        // This matches the current behavior in the original code
-        return Task.FromResult<BsonValue>("");
+        try
+        {
+            var externalUser = value.Deserialize<ExternalUser>();
+            if (externalUser == null)
+                return BsonNull.Value;
+
+            var user = await userCacheService.GetUser(externalUser, ct);
+            return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
+        }
+        catch
+        {
+            return BsonNull.Value;
+        }
+    }
+
+    /// <summary>
+    /// Handles user array conversion.
+    /// </summary>
+    private async Task<BsonValue> ConvertUserArray(JsonElement value, CancellationToken ct)
+    {
+        try
+        {
+            var externalUsers = value.Deserialize<ExternalUser[]>();
+            if (externalUsers == null || externalUsers.Length == 0)
+                return BsonNull.Value;
+
+            var users = new List<BsonDocument>();
+            foreach (var externalUser in externalUsers)
+            {
+                var user = await userCacheService.GetUser(externalUser, ct);
+                users.Add(user.ToBsonDocument());
+            }
+
+            return new BsonArray(users);
+        }
+        catch
+        {
+            return BsonNull.Value;
+        }
     }
 }
