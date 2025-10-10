@@ -8,6 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
+        <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.3.0" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.9" />
         <PackageReference Include="MongoDB.Bson" Version="3.5.0"/>
         <PackageReference Include="MongoDB.Driver" Version="3.5.0"/>
         <PackageReference Include="YamlDotNet" Version="16.3.0"/>
@@ -30,6 +34,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Infrastructure\"/>
+      <Compile Remove="Example\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Example\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Example\**" />
     </ItemGroup>
 </Project>

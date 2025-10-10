@@ -1,6 +1,5 @@
 using Serilog;
-using UvA.Workflow.Api.Exceptions;
-using UvA.Workflow.Api.Tools;
+using UvA.Workflow.Api.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
