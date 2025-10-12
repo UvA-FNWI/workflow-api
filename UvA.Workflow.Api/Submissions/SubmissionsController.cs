@@ -100,7 +100,7 @@ public class SubmissionsController(
         var form = modelService.GetForm(instance, submissionId);
 
         // Check authorization
-        if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Edit : RoleAction.Submit,
+        if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Submit : RoleAction.Edit,
                 form.Name))
             return Forbidden();
 
