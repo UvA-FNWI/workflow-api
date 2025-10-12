@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 namespace UvA.Workflow.Api.Actions;
@@ -8,7 +9,8 @@ public class ActionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     RightsService rightsService,
     TriggerService triggerService,
-    ContextService contextService) : ApiControllerBase
+    ContextService contextService,
+    WorkflowInstanceDtoService dtoService) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input, CancellationToken ct)
@@ -41,7 +43,7 @@ public class ActionsController(
 
         return Ok(new ExecuteActionPayloadDto(
             input.Type,
-            input.Type == ActionType.DeleteInstance ? null : WorkflowInstanceDto.Create(instance)
+            input.Type == ActionType.DeleteInstance ? null : await dtoService.Create(instance, ct)
         ));
     }
 }

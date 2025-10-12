@@ -5,24 +5,11 @@ namespace UvA.Workflow.Api.EntityTypes;
 
 public class EntityTypesController(ModelService modelService) : ApiControllerBase
 {
-    private static EntityTypeDto MapToDto(EntityType entityType)
-    {
-        return new EntityTypeDto(
-            entityType.Name,
-            entityType.Title,
-            entityType.TitlePlural,
-            entityType.Index,
-            entityType.IsAlwaysVisible,
-            entityType.InheritsFrom,
-            entityType.IsEmbedded
-        );
-    }
-
     [HttpGet]
     public ActionResult<IEnumerable<EntityTypeDto>> GetAll()
     {
         var entityTypes = modelService.EntityTypes.Values
-            .Select(MapToDto)
+            .Select(EntityTypeDto.Create)
             .OrderBy(et => et.Index ?? int.MaxValue)
             .ThenBy(et => et.Name);
 
@@ -35,7 +22,7 @@ public class EntityTypesController(ModelService modelService) : ApiControllerBas
         if (!modelService.EntityTypes.TryGetValue(name, out var entityType))
             return NotFound("EntityTypeNotFound", $"Entity type '{name}' not found.");
 
-        var dto = MapToDto(entityType);
+        var dto = EntityTypeDto.Create(entityType);
         return Ok(dto);
     }
 }

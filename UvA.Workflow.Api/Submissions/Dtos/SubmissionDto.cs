@@ -42,7 +42,7 @@ public record Answer(
             var currencyObj = new { currency = value?.Currency, amount = value?.Amount };
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Value: value == null ? null : JsonSerializer.SerializeToElement(currencyObj));
+                Value: value == null ? null : JsonSerializer.SerializeToElement(currencyObj, AnswerConversionService.Options));
         }
 
         if (question.DataType == DataType.User && question.IsArray)
@@ -50,7 +50,7 @@ public record Answer(
             var users = (ObjectContext.GetValue(answer, question) as User[])?.Select(u => u.ToExternalUser()).ToArray();
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Value: users == null ? null : JsonSerializer.SerializeToElement(users));
+                Value: users == null ? null : JsonSerializer.SerializeToElement(users, AnswerConversionService.Options));
         }
 
         if (question.DataType == DataType.User)
@@ -58,7 +58,7 @@ public record Answer(
             var user = (ObjectContext.GetValue(answer, question) as User)?.ToExternalUser();
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Value: user == null ? null : JsonSerializer.SerializeToElement(user));
+                Value: user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options));
         }
 
         if (question.DataType == DataType.File)
@@ -125,7 +125,7 @@ public record SubmissionDto(
     string InstanceId,
     Answer[] Answers,
     DateTime? DateSubmitted,
-    WorkflowInstanceDto WorkflowInstance)
+    FormDto Form)
 {
     public static SubmissionDto FromEntity(WorkflowInstance inst,
         Form form,
@@ -138,7 +138,7 @@ public record SubmissionDto(
             inst.Id,
             shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds, fileService),
             sub?.Date,
-            WorkflowInstanceDto.Create(inst)
+            FormDto.Create(form)
         );
 }
 

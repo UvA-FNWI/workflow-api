@@ -5,20 +5,33 @@ namespace UvA.Workflow.Api.WorkflowInstances;
 
 public class WorkflowInstancesController(
     WorkflowInstanceService service,
+    RightsService rightsService,
+    ContextService contextService,
+    WorkflowInstanceDtoService dtoService,
     IWorkflowInstanceRepository repository) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
-        [FromBody] CreateWorkflowInstanceDto dto, CancellationToken ct)
+        [FromBody] CreateWorkflowInstanceDto input, CancellationToken ct)
     {
+        var actions = input.ParentId == null 
+            ? await rightsService.GetAllowedActions(input.EntityType, RoleAction.CreateInstance) 
+            : [];
+        if (actions.Length == 0)
+            return Forbid();
+        
         var instance = await service.Create(
-            dto.EntityType,
+            input.EntityType,
             ct,
-            dto.ParentId,
-            dto.InitialProperties?.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToBsonValue(v.Value))
+            actions.First().UserProperty,
+            input.ParentId,
+            input.InitialProperties?.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToBsonValue(v.Value))
         );
-
-        var result = WorkflowInstanceDto.Create(instance);
+        
+        await contextService.UpdateCurrentStep(instance, ct);
+        
+        var result = await dtoService.Create(instance, ct);
+        
         return CreatedAtAction(nameof(GetById), new { id = instance.Id }, result);
     }
 
@@ -28,14 +41,16 @@ public class WorkflowInstancesController(
         var instance = await repository.GetById(id, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
-
-        return Ok(WorkflowInstanceDto.Create(instance));
+        
+        var result = await dtoService.Create(instance, ct);
+        
+        return Ok(result);
     }
 
     [HttpGet("instances/{entityType}")]
-    public async Task<ActionResult<IEnumerable<WorkflowInstanceDto>>> GetInstances(string entityType, CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<WorkflowInstanceBasicDto>>> GetInstances(string entityType, CancellationToken ct)
     {
         var instances = await repository.GetByEntityType(entityType, ct);
-        return Ok(instances.Select(WorkflowInstanceDto.Create));
+        return Ok(instances.Select(i => new WorkflowInstanceBasicDto(i.Id, i.CurrentStep)));
     }
 }

@@ -41,7 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMailService, DummyMailService>();
 
         services.AddSingleton(
-            new ModelParser("/Users/annesnegmel-din/code/work/workflow-api/UvA.Workflow/Example/Projects"));
+            new ModelParser(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects")));
 
 
         return services;

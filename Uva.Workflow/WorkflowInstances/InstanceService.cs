@@ -3,7 +3,6 @@ using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 namespace UvA.Workflow.Services;
 
 public class InstanceService(
-    WorkflowInstanceService workflowInstanceService,
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     RightsService rightsService)
@@ -66,27 +65,50 @@ public class InstanceService(
         await workflowInstanceRepository.Update(instance, ct);
     }
 
-    public async Task<WorkflowInstance> CreateInstance(string entityType, string? userProperty, CancellationToken ct)
-    {
-        Dictionary<string, BsonValue>? initialProperties = null;
-
-        if (userProperty != null)
-        {
-            var user = (await rightsService.GetUser()).ToBsonDocument();
-            var property = modelService.EntityTypes[entityType].Properties[userProperty];
-            initialProperties = new Dictionary<string, BsonValue>
-            {
-                [userProperty] = property.IsArray ? new BsonArray { user } : user
-            };
-        }
-
-        return await workflowInstanceService.Create(entityType, ct, initialProperties: initialProperties);
-    }
-
     public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
         => workflowInstanceRepository.UpdateFields(instance.Id,
             Builders<WorkflowInstance>.Update.Set(part1 == null
                     ? (i => i.Properties[part2])
                     : (i => i.Properties[part1][part2]),
                 instance.GetProperty(part1, part2)), ct);
+    
+    public record AllowedAction(Domain_Action Action, Form? Form = null, Mail? Mail = null, EntityType? EntityType = null);
+
+    public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
+    {
+        var allowed = await rightsService.GetAllowedActions(instance, 
+            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
+        
+        var actions = new List<AllowedAction>();
+        
+        // Submittable forms
+        actions.AddRange(allowed
+            .Where(a => a.Type == RoleAction.Submit)
+            .SelectMany(a => a.AllForms.Select(f => new { Action = a, Form = f }))
+            .Where(f => instance.Events.GetValueOrDefault(f.Form)?.Date == null)
+            .Distinct()
+            .Select(f => new AllowedAction(f.Action, modelService.GetForm(instance, f.Form)))
+        );
+        
+        // Create related entities
+        var related = allowed
+            .Where(a => a.Type == RoleAction.CreateRelatedInstance)
+            .DistinctBy(a => a.Property);
+        
+        foreach (var rel in related)
+            if (await CheckLimit(instance, rel, ct))
+                actions.Add(new AllowedAction(rel,
+                    EntityType: modelService.GetQuestion(instance, rel.Property!).EntityType));
+        
+        // Executable actions
+        foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
+            actions.Add(new AllowedAction(a,
+                Mail: await Mail.FromModel(
+                    instance,
+                    a.Triggers.FirstOrDefault(t => 
+                        t.SendMail != null && t.Condition.IsMet(modelService.CreateContext(instance)))?.SendMail,
+                    modelService)));
+
+        return actions;
+    }
 }

@@ -3,7 +3,7 @@ using System.Net;
 namespace UvA.Workflow.Api.Infrastructure;
 
 [ApiController]
-[Route("[controller]/[action]")]
+[Route("[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {
     protected ObjectResult BadRequest(string code, string message, object? details = null) =>
