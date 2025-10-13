@@ -1,5 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Diagnostics;
+using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Infrastructure.Database;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -17,6 +19,7 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
 
         var (statusCode, code, message) = exception switch
         {
+            WorkflowException wfe => (HttpStatusCode.InternalServerError, wfe.Code, wfe.Message),
             KeyNotFoundException => (HttpStatusCode.NotFound, "NotFound", "Resource not found"),
             ArgumentException => (HttpStatusCode.BadRequest, "InvalidInput", "Invalid input provided"),
             UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Unauthorized", "Unauthorized access"),
