@@ -1,0 +1,76 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UvA.Workflow", "UvA.Workflow\UvA.Workflow.csproj", "{7E12D98F-16FF-4FEC-A7AA-7A116B5F94E5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UvA.Workflow.Api", "UvA.Workflow.Api\UvA.Workflow.Api.csproj", "{7073C5C6-600A-4424-B1A4-7A3BCCB3C4AD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{D1238BC6-64A3-4534-9AC7-4A2B773843CB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflow-api", "workflow-api", "{C6F1D196-B19A-4B74-BCC0-98CEC1C3E85F}"
+	ProjectSection(SolutionItems) = preProject
+		Deployment\workflow-api\Chart.yaml = Deployment\workflow-api\Chart.yaml
+		Deployment\workflow-api\values.yaml = Deployment\workflow-api\values.yaml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflow-api-pr", "workflow-api-pr", "{26FBBA8A-BC18-49DF-9944-C77A9A7CBE0D}"
+	ProjectSection(SolutionItems) = preProject
+		Deployment\workflow-api-pr\Chart.yaml = Deployment\workflow-api-pr\Chart.yaml
+		Deployment\workflow-api-pr\values.yaml = Deployment\workflow-api-pr\values.yaml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "templates", "templates", "{39C9E552-FB6B-40DD-987C-C8887BF1851F}"
+	ProjectSection(SolutionItems) = preProject
+		Deployment\workflow-api\templates\deployment.yaml = Deployment\workflow-api\templates\deployment.yaml
+		Deployment\workflow-api\templates\ingress.yaml = Deployment\workflow-api\templates\ingress.yaml
+		Deployment\workflow-api\templates\service.yaml = Deployment\workflow-api\templates\service.yaml
+		Deployment\workflow-api\templates\secretproviderclass.yaml = Deployment\workflow-api\templates\secretproviderclass.yaml
+		Deployment\workflow-api\templates\configmap.yaml = Deployment\workflow-api\templates\configmap.yaml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "templates", "templates", "{868DAEAC-7292-491A-B261-0BC002BD17C8}"
+	ProjectSection(SolutionItems) = preProject
+		Deployment\workflow-api-pr\templates\service.yaml = Deployment\workflow-api-pr\templates\service.yaml
+		Deployment\workflow-api-pr\templates\secretproviderclass.yaml = Deployment\workflow-api-pr\templates\secretproviderclass.yaml
+		Deployment\workflow-api-pr\templates\ingress.yaml = Deployment\workflow-api-pr\templates\ingress.yaml
+		Deployment\workflow-api-pr\templates\deployment.yaml = Deployment\workflow-api-pr\templates\deployment.yaml
+		Deployment\workflow-api-pr\templates\configmap-api.yaml = Deployment\workflow-api-pr\templates\configmap-api.yaml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Schemas", "Schemas", "{E8643B35-4149-4BA5-9830-C5A14ACDC091}"
+	ProjectSection(SolutionItems) = preProject
+		Schemas\StateSet.json = Schemas\StateSet.json
+		Schemas\Screen.json = Schemas\Screen.json
+		Schemas\Role.json = Schemas\Role.json
+		Schemas\README.md = Schemas\README.md
+		Schemas\Form.json = Schemas\Form.json
+		Schemas\EntityType.json = Schemas\EntityType.json
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{B3F76F3A-798B-4E00-A750-F220702E3140}"
+	ProjectSection(SolutionItems) = preProject
+		.dockerignore = .dockerignore
+		.gitignore = .gitignore
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7E12D98F-16FF-4FEC-A7AA-7A116B5F94E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E12D98F-16FF-4FEC-A7AA-7A116B5F94E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E12D98F-16FF-4FEC-A7AA-7A116B5F94E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E12D98F-16FF-4FEC-A7AA-7A116B5F94E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7073C5C6-600A-4424-B1A4-7A3BCCB3C4AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7073C5C6-600A-4424-B1A4-7A3BCCB3C4AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7073C5C6-600A-4424-B1A4-7A3BCCB3C4AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7073C5C6-600A-4424-B1A4-7A3BCCB3C4AD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C6F1D196-B19A-4B74-BCC0-98CEC1C3E85F} = {D1238BC6-64A3-4534-9AC7-4A2B773843CB}
+		{26FBBA8A-BC18-49DF-9944-C77A9A7CBE0D} = {D1238BC6-64A3-4534-9AC7-4A2B773843CB}
+		{39C9E552-FB6B-40DD-987C-C8887BF1851F} = {C6F1D196-B19A-4B74-BCC0-98CEC1C3E85F}
+		{868DAEAC-7292-491A-B261-0BC002BD17C8} = {26FBBA8A-BC18-49DF-9944-C77A9A7CBE0D}
+	EndGlobalSection
+EndGlobal

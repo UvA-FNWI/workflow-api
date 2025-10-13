@@ -1,4 +1,9 @@
+using System.Text.Json.Serialization;
 using Serilog;
+using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.WorkflowInstances;
+
+string corsPolicyName = "_CorsPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,12 +13,39 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .ReadFrom.Configuration(context.Configuration)
         .Enrich.FromLogContext()
         .Enrich.WithProperty("ApplicationName", "Workflow-Api")
-        .WriteTo.Debug(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{user.id}] {Message:lj}{NewLine}{Exception}")
-        .WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{user.id}] {Message:lj}{NewLine}{Exception}");
+        .WriteTo.Debug(
+            outputTemplate:
+            "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{user.id}] {Message:lj}{NewLine}{Exception}")
+        .WriteTo.Console(
+            outputTemplate:
+            "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{user.id}] {Message:lj}{NewLine}{Exception}");
     //.WriteTo.ApplicationInsights(services.GetRequiredService<TelemetryConfiguration>(), TelemetryConverter.Traces);
 });
 
-builder.Services.AddControllers();
+
+var config = builder.Configuration;
+config.AddJsonFile("appsettings.local.json", true, true);
+builder.Services.AddWorkflow(config);
+builder.Services.AddScoped<WorkflowInstanceDtoService>();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(opts => opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(corsPolicyName,
+        cb =>
+        {
+            cb.SetIsOriginAllowedToAllowWildcardSubdomains()
+                .WithOrigins(config["AllowedOrigin"]!)
+                .AllowAnyMethod()
+                .AllowCredentials()
+                .AllowAnyHeader()
+                .WithExposedHeaders("Content-Disposition");
+        });
+});
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -22,6 +54,10 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
+app.UseCors(corsPolicyName);
+
 //if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -32,7 +68,6 @@ var app = builder.Build();
         //     c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
         //     c.OAuthUsePkce();
         // }
-        c.RoutePrefix = string.Empty;
         c.SwaggerEndpoint("/openapi/v1.json", "Workflow API v1");
         c.DisplayRequestDuration();
     });
@@ -40,4 +75,3 @@ var app = builder.Build();
 
 app.MapControllers();
 app.Run();
-

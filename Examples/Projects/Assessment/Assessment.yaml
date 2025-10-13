@@ -1,0 +1,4 @@
+# yaml-language-server: $schema=/Users/annesnegmel-din/code/work/workflow-api/Uva.Workflow/Schemas/EntityType.json
+name: Assessment
+isEmbedded: true
+

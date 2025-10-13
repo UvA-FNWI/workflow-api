@@ -1,0 +1,692 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Role",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "oldName": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "shortName": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "title": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
+    "inheritFrom": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Action"
+      }
+    },
+    "assignable": {
+      "type": "boolean"
+    },
+    "notifications": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/NotificationType"
+      }
+    },
+    "displayTitle": {
+      "$ref": "#/definitions/BilingualString"
+    }
+  },
+  "definitions": {
+    "BilingualString": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "Action": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "form": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "question": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "entity": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "type": {
+          "$ref": "#/definitions/RoleAction"
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "transition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Transition"
+            }
+          ]
+        }
+      }
+    },
+    "RoleAction": {
+      "type": "string",
+      "description": "",
+      "x-enumNames": [
+        "View",
+        "Submit",
+        "Edit",
+        "Undo",
+        "ViewAdminTools",
+        "Execute",
+        "ViewHidden",
+        "ViewUsers",
+        "ViewStates",
+        "Delete",
+        "AddInstanceMessage",
+        "ViewAnswerMessages",
+        "AssignMessages",
+        "CreateInstance",
+        "CreateRelatedInstance"
+      ],
+      "enum": [
+        "View",
+        "Submit",
+        "Edit",
+        "Undo",
+        "ViewAdminTools",
+        "Execute",
+        "ViewHidden",
+        "ViewUsers",
+        "ViewStates",
+        "Delete",
+        "AddInstanceMessage",
+        "ViewAnswerMessages",
+        "AssignMessages",
+        "CreateInstance",
+        "CreateRelatedInstance"
+      ]
+    },
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Value"
+            }
+          ]
+        },
+        "state": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/StateCondition"
+            }
+          ]
+        },
+        "logical": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Logical"
+            }
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "message": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "part": {
+          "$ref": "#/definitions/ConditionPart"
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Lookup"
+          }
+        }
+      }
+    },
+    "Value": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ConditionPart"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "property": {
+              "type": "string"
+            },
+            "equal": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "lessThan": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "greaterThan": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "greaterThanOrEqual": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "dependants": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Lookup"
+              }
+            },
+            "properties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Lookup"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Lookup": {
+      "type": "object",
+      "x-abstract": true,
+      "additionalProperties": false
+    },
+    "ConditionPart": {
+      "type": "object",
+      "x-abstract": true,
+      "additionalProperties": false,
+      "properties": {
+        "dependants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Lookup"
+          }
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Lookup"
+          }
+        }
+      }
+    },
+    "StateCondition": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ConditionPart"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "equal": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "notEqual": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "properties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Lookup"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Logical": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ConditionPart"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "operator": {
+              "$ref": "#/definitions/LogicalOperator"
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Condition"
+              }
+            },
+            "dependants": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Lookup"
+              }
+            },
+            "properties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Lookup"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "LogicalOperator": {
+      "type": "string",
+      "description": "",
+      "x-enumNames": [
+        "And",
+        "Or"
+      ],
+      "enum": [
+        "And",
+        "Or"
+      ]
+    },
+    "Transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "from": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "to": {
+          "type": "string"
+        },
+        "phase": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "fromAny": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Trigger"
+          }
+        }
+      }
+    },
+    "Trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "createForm": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "sendMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
+        "editRole": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/EditRole"
+            }
+          ]
+        },
+        "http": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Http"
+            }
+          ]
+        },
+        "assignTo": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/AssignTo"
+            }
+          ]
+        },
+        "setProperty": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/SetProperty"
+            }
+          ]
+        },
+        "unsubmit": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/Lookup"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "SendMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "toAddress": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "subject": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "body": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "templateKey": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "sendAsMail": {
+          "type": "boolean"
+        },
+        "sendAutomatically": {
+          "type": "boolean"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Attachment"
+          }
+        },
+        "subjectTemplate": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Template"
+            }
+          ]
+        },
+        "bodyTemplate": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Template"
+            }
+          ]
+        },
+        "toAddressTemplate": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Template"
+            }
+          ]
+        }
+      }
+    },
+    "Attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template": {
+          "type": "string"
+        }
+      }
+    },
+    "Template": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/Expression"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "properties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Lookup"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Lookup"
+          }
+        }
+      }
+    },
+    "EditRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "Http": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "urlTemplate": {
+          "$ref": "#/definitions/Template"
+        }
+      }
+    },
+    "AssignTo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "SetProperty": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "property": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "valueExpression": {
+          "$ref": "#/definitions/Expression"
+        }
+      }
+    },
+    "NotificationType": {
+      "type": "string",
+      "description": "",
+      "x-enumNames": [
+        "NewInstanceMessage"
+      ],
+      "enum": [
+        "NewInstanceMessage"
+      ]
+    }
+  }
+}

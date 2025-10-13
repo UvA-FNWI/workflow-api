@@ -1,0 +1,38 @@
+name: Assessment-PB
+inheritsFrom: Assessment
+
+properties:
+  Structure:
+    type: FourPoint!
+  Polishing:
+    type: FourPoint!
+  Nose:
+    type: FourPoint!
+
+  Loudness:
+    type: FourPoint!
+  Style:
+    type: FourPoint!
+  Contents:
+    type: FourPoint!
+
+  Bananas:
+    type: FourPoint!
+
+results:
+  - title: Report
+    questions:
+      - Structure
+      - Polishing
+      - Nose
+    weight: 70
+  - title: Presentation
+    questions:
+      - Loudness
+      - Style
+      - Contents
+    weight: 20
+  - title: Practical work
+    questions:
+      - Bananas
+    weight: 10

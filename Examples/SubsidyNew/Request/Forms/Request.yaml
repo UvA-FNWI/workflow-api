@@ -1,0 +1,26 @@
+name: Request
+
+pages:
+  Page:
+    title: Request for support
+    introduction: |
+      Please note that we receive many more applications than we can fund.
+      Therefore, we ask you to explain in your application why funds from the Foundation Compositio Mathematica are necessary for your activity.
+      Also, the budget should at least mention the total amount of money that you need for the activity and what it is spent on, the (expected) contributions from other sources and it should mention what the money from the Foundation Compositio Mathematica will be used for.
+    questions:
+      - Title
+      - Round
+      - Place
+      - Date
+      - EndDate
+      - Description
+      - Amount
+      - Participants
+      - Speakers
+      - Application
+      - Budget
+
+onSubmit:
+  - setProperty:
+      property: Request.Round
+      value: last(Round)

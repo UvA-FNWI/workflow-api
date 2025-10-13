@@ -1,0 +1,13 @@
+name: ApprovalCoordinator
+title: Approval (coordinator)
+
+actions:
+  - roles: [Coordinator]
+    type: Execute
+    label: Approve (coordinator)
+    name: ApproveCoordinator
+    triggers:
+      - event: CoordinatorApproved
+
+ends:
+  event: CoordinatorApproved

@@ -1,0 +1,16 @@
+name: Invoices
+relation: Request
+columns:
+  - title: Number
+    property: Invoice.Number
+  - title: Name beneficiary
+    property: Invoice.Name
+    link: true
+  - endDate: Start
+  - currentStep: true
+    filterType: Pick
+    default: Draft
+  - title: Amount paid
+    property: Payment.Amount
+  - title: Payment date
+    property: Payment.Date

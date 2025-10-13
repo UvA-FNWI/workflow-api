@@ -1,0 +1,8 @@
+name: Closed
+actions:
+  - roles: [ Admin ]
+    type: Execute
+    name: Reopen
+    label: Reopen request
+    triggers:
+      - undoEvent: Close

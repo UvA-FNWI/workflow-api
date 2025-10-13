@@ -1,0 +1,24 @@
+name: Default
+entityType: Request
+columns:
+  - title: Number
+    property: Id
+    defaultSort: Ascending
+  - property: Round.Name
+    title: Round
+  - property: Title
+    link: true
+    default: No title
+  - property: RequestEvent
+  - currentStep: true
+    filterType: Pick
+    default: Draft
+  - property: Decision
+    filterType: Pick
+  - property: Amount
+    title: Amount requested
+    displayType: ExportOnly
+  - property: DecisionAmount
+    title: Amount awarded
+  - property: TotalPaid
+    title: Amount paid

@@ -1,0 +1,6 @@
+name: Templates
+entityType: Template
+columns:
+  - title: Name
+    property: Name
+    link: true

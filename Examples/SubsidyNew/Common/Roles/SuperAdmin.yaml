@@ -1,0 +1,6 @@
+name: SuperAdmin
+title: SuperAdmin
+inheritFrom: [Admin, BoardMember]
+actions:
+  - type: ViewAdminTools
+  - type: ViewAnswerMessages

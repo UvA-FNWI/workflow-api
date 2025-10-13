@@ -1,0 +1,16 @@
+actions:
+  - roles: [Student, Supervisor, Coordinator]
+    type: View
+    forms: [Start, Upload, Proposal]
+  - roles: [Registered]
+    type: CreateInstance
+    userProperty: Student
+  - roles: [Coordinator]
+    type: Edit
+    forms: [Start]
+  - roles: [Supervisor, Coordinator]
+    type: View
+    forms: [AssessmentSupervisor]
+  - roles: [Reviewer, Coordinator]
+    type: View
+    forms: [AssessmentReviewer]

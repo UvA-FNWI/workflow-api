@@ -1,0 +1,15 @@
+name: AssessmentSupervisor
+title: Assessment by supervisor
+
+actions:
+  - roles: [Supervisor]
+    type: Submit
+    label: Assess final version (supervisor)
+    form: AssessmentSupervisor
+
+properties:
+  AssessmentSupervisor:
+    type: Assessment!
+
+ends:
+  event: AssessmentSupervisor

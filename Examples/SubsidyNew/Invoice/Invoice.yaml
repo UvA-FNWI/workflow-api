@@ -1,0 +1,84 @@
+name: Invoice
+index: 2
+titlePlural: Invoices
+instanceTitle: 'Invoice ({{ Invoice.Name }})'
+headerFields:
+  - property: Invoice.Request
+    title: Request
+    href: '/instances/{{ Invoice.Request.Id }}'
+  - property: Invoice.Number
+    title: Number
+
+properties:
+  Number:
+    type: String
+  Request:
+    type: Request!
+  Invoice:
+    type: File!
+  Name:
+    text: Name beneficiary (such as university X)
+    type: String!
+  Description:
+    text: Required information for payment description (such as reference number, invoice number and/or contact person)
+    type: String
+  HasIBAN:
+    text: Does the beneficiary have an IBAN?
+    type: YesNo!
+    layout: RadioList
+    values:
+      Yes: {}
+      No: {}
+  IBAN:
+    text: IBAN beneficiary
+    type: String!
+    condition:
+      value:
+        property: HasIBAN
+        equal: =Yes
+  Address:
+    text: Address beneficiary, including country
+    type: String!
+    condition: NoIBAN
+  BankName:
+    text: Name bank
+    type: String!
+    condition: NoIBAN
+  BankAddress:
+    text: Address bank
+    type: String!
+    condition: NoIBAN
+  BIC:
+    text: SWIFT code/BIC
+    type: String!
+    condition: NoIBAN
+  Account:
+    text: Account number
+    type: String!
+    condition: NoIBAN
+    
+  PaymentAmount:
+    type: Currency!
+  PaymentDate:
+    type: Date!
+
+steps:
+  - Start
+  - Handling
+  - Approval
+
+actions:
+  - roles: [Submitter, BoardMember]
+    type: View
+    form: Invoice
+  - roles: [Admin]
+    type: View
+    form: Payment
+  - type: Execute
+    label: Reject invoice
+    roles: [Admin]
+    triggers:
+      - sendMail:
+          to: Submitter
+          template: InvoiceRejected
+      - event: LetterSent

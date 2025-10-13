@@ -1,0 +1,29 @@
+name: Invoice
+title: Invoice details
+    
+pages:
+  Page:
+    title: Submit invoice
+    questions:
+      - Invoice
+      - Name
+      - Description
+      - HasIBAN
+      - IBAN
+      - Address
+      - BankName
+      - BankAddress
+      - BIC
+      - Account
+
+onSubmit:
+  - setProperty: 
+      property: Invoice.Number
+      value: generateInvoiceNumber(Invoice.Request.Id)
+  - sendMail:
+      toAddress: rvl@math.leidenuniv.nl
+      sendAutomatically: true
+      sendAsMail: true
+      subject: New invoice {{ Invoice.Number }} for C{{ Invoice.Request.Id }}
+      body: |
+        A new invoice has been uploaded for request C{{Invoice.Request.Id}}. You can view the invoice at {{ Link }}.

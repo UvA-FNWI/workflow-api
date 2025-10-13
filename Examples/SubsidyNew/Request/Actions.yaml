@@ -1,0 +1,38 @@
+actions:
+  - roles: [Registered]
+    type: CreateInstance
+    userProperty: Submitter
+  - roles: [Submitter, BoardMember]
+    type: View
+    forms: [Request, Report]
+    collections: [Invoices]
+  - roles: [BoardMember]
+    type: Edit
+    form: Request
+  - roles: [BoardMember]
+    type: View
+    forms: [Decision]
+    collections: [Comments]
+  - roles: [Admin]
+    type: ViewHidden
+    form: Request
+  - roles: [Submitter, BoardMember]
+    type: AddInstanceMessage
+  - roles: [ BoardMember ]
+    type: CreateRelatedInstance
+    property: Comments
+    userProperty: User
+    limit: 1
+  - roles: [BoardMember]
+    type: ViewStates
+  - roles: [BoardMember]
+    type: AssignMessages
+  - roles: [Admin]
+    label: Cancel request
+    type: Execute
+    steps: [Pending, Decision]
+    triggers:
+      - setProperty:
+          property: ClosureStatus
+          value: =Canceled
+    

@@ -1,0 +1,21 @@
+name: LimitedMember
+title: Board member (limited)
+actions:
+  - type: View
+    form: Request
+  - type: View
+    form: Decision
+  - type: View
+    form: Invoice
+  - type: View
+    form: Report
+  - type: Submit
+    form: Comment
+  - type: Edit
+    form: Comment
+  - type: View
+    form: Comment
+  - type: ViewStates
+  - type: AddInstanceMessage
+    entity: Request
+              

@@ -1,0 +1,30 @@
+name: SendLetter
+actions:
+  - type: Edit
+    roles: [BoardMember]
+    form: Decision
+  - type: Execute
+    label: Send letter
+    name: SendLetter
+    roles: [Admin]
+    triggers:
+      - sendMail:
+          to: Submitter
+          template: RejectMail
+        condition:
+          value:
+            property: Decision
+            equal: =Reject
+      - sendMail:
+          to: Submitter
+          attachments:
+            - template: Accept
+          template: DecisionMail
+        condition:
+          value:
+            property: Decision
+            equal: =Approve
+      - event: LetterSent
+
+ends:
+  event: LetterSent

@@ -1,0 +1,9 @@
+name: Start
+
+actions:
+  - roles: [Student]
+    type: Submit
+    form: Start
+
+ends:
+  event: Start

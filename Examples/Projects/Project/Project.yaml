@@ -1,0 +1,14 @@
+name: Project
+titlePlural: Projects
+
+headerFields:
+  - property: Title
+  - property: Student.DisplayName
+    title: Student
+  - currentStep: true
+
+steps:
+  - Start
+  - Upload
+  - Assessment
+  - Publication

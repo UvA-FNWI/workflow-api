@@ -1,0 +1,13 @@
+global using MongoDB.Bson;
+global using MongoDB.Driver;
+global using MongoDB.Bson.Serialization;
+global using YamlDotNet.Serialization;
+global using UvA.Workflow.Entities.Domain;
+global using UvA.Workflow.Entities.Domain.Conditions;
+global using UvA.Workflow.WorkflowInstances;
+global using UvA.Workflow.Services;
+global using UvA.Workflow.Users;
+global using UvA.Workflow.Tools;
+global using System.Text.Json.Serialization;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.Options;

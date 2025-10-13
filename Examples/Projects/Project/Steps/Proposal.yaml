@@ -1,0 +1,15 @@
+name: Proposal
+title: Research proposal
+
+actions:
+  - roles: [Student]
+    type: Submit
+    form: Proposal
+
+properties:
+  Proposal:
+    text: Upload your proposal
+    type: File!
+
+ends:
+  event: Proposal

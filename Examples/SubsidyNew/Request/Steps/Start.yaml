@@ -1,0 +1,8 @@
+name: Start
+actions:
+  - type: Submit
+    form: Request
+    roles: [Submitter]
+    
+ends:
+  event: Request

@@ -1,0 +1,10 @@
+name: Project-PB
+title: Project (PB)
+titlePlural: Projects (PB)
+inheritsFrom: Project
+
+properties:
+  AssessmentReviewer:
+    type: Assessment-PB!
+  AssessmentSupervisor:
+    type: Assessment-PB!

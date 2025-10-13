@@ -1,0 +1,10 @@
+name: Rejected
+condition:
+  not: true
+  event: Payment
+actions:
+  - type: Execute
+    label: Restore invoice
+    roles: [Admin]
+    triggers:
+      - undoEvent: Payment
