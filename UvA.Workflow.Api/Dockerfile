@@ -7,7 +7,7 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["UvA.Workflow.Api/UvA.Workflow.Api.csproj", "UvA.Workflow.Api/"]
-COPY ["Uva.Workflow/Uva.Workflow.csproj", "Uva.Workflow/"]
+COPY ["UvA.Workflow/UvA.Workflow.csproj", "UvA.Workflow/"]
 RUN dotnet restore "UvA.Workflow.Api/UvA.Workflow.Api.csproj"
 COPY . .
 WORKDIR "/src/UvA.Workflow.Api"
