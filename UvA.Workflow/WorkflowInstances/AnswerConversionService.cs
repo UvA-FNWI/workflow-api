@@ -15,6 +15,8 @@ public record AnswerInput(
 /// </summary>
 public class AnswerConversionService(UserCacheService userCacheService)
 {
+    public static readonly JsonSerializerOptions Options = new() {PropertyNamingPolicy = JsonNamingPolicy.CamelCase};
+    
     /// <summary>
     /// Converts an answer input to a BsonValue based on the question's data type.
     /// </summary>
@@ -84,7 +86,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
     {
         try
         {
-            var externalUser = value.Deserialize<ExternalUser>();
+            var externalUser = value.Deserialize<ExternalUser>(Options);
             if (externalUser == null)
                 return BsonNull.Value;
 
@@ -104,7 +106,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
     {
         try
         {
-            var externalUsers = value.Deserialize<ExternalUser[]>();
+            var externalUsers = value.Deserialize<ExternalUser[]>(Options);
             if (externalUsers == null || externalUsers.Length == 0)
                 return BsonNull.Value;
 

@@ -3,7 +3,7 @@ using UvA.Workflow.Api.Users.Dtos;
 
 namespace UvA.Workflow.Api.Users;
 
-public class UsersController(IUserRepository userRepository) : ApiControllerBase
+public class UsersController(IUserService userService, IUserRepository userRepository) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
@@ -16,7 +16,7 @@ public class UsersController(IUserRepository userRepository) : ApiControllerBase
         };
 
         await userRepository.Create(user, ct);
-        var userDto = UserDto.From(user);
+        var userDto = UserDto.Create(user);
 
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, userDto);
     }
@@ -28,6 +28,12 @@ public class UsersController(IUserRepository userRepository) : ApiControllerBase
         if (user == null)
             return UserNotFound;
 
-        return Ok(UserDto.From(user));
+        return Ok(UserDto.Create(user));
+    }
+
+    [HttpGet("find")]
+    public async Task<ActionResult<IEnumerable<ExternalUser>>> Find(string query, CancellationToken ct)
+    {
+        return Ok(await userService.FindUsers(query, ct));
     }
 }

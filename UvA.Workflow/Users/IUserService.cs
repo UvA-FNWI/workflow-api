@@ -6,4 +6,5 @@ public interface IUserService
 {
     Task<GlobalRole[]> GetRoles(ClaimsPrincipal principal);
     ExternalUser? GetUserInfo(ClaimsPrincipal principal);
+    Task<IEnumerable<ExternalUser>> FindUsers(string query, CancellationToken cancellationToken);
 }

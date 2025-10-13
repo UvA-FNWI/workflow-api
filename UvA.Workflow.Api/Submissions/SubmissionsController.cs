@@ -1,6 +1,6 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
-using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Infrastructure.Persistence;
 
 namespace UvA.Workflow.Api.Submissions;
@@ -14,39 +14,40 @@ public class SubmissionsController(
     InstanceService instanceService,
     RightsService rightsService,
     FileClient fileClient,
+    WorkflowInstanceDtoService dtoService,
     AnswerConversionService answerConversionService) : ApiControllerBase
 {
-    [HttpGet]
-    public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string formName, CancellationToken ct)
+    [HttpGet("{instanceId}/{submissionId}")]
+    public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId, CancellationToken ct)
     {
         // Get the instance
         var inst = await workflowInstanceRepository.GetById(instanceId, ct);
         if (inst == null)
             return WorkflowInstanceNotFound;
 
-        var formModel = modelService.GetForm(inst, formName);
-        var sub = inst.Events.GetValueOrDefault(formName);
+        var formModel = modelService.GetForm(inst, submissionId);
+        var sub = inst.Events.GetValueOrDefault(submissionId);
 
         return SubmissionDto.FromEntity(inst, formModel, sub, modelService.GetQuestionStatus(inst, formModel, true),
             fileService
         );
     }
 
-    [HttpPost]
-    public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string formName, CancellationToken ct)
+    [HttpPost("{instanceId}/{submissionId}")]
+    public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string submissionId, CancellationToken ct)
     {
         // Get the instance
         var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        var sub = instance.Events.GetValueOrDefault(formName);
+        var sub = instance.Events.GetValueOrDefault(submissionId);
 
         // Check if already submitted
         if (sub?.Date != null)
             return BadRequest("SubmissionsAlreadySubmitted", "Submission already submitted");
     
-        var form = modelService.GetForm(instance, formName);
+        var form = modelService.GetForm(instance, submissionId);
         var context = modelService.CreateContext(instance);
 
         // Validate required fields
@@ -73,50 +74,51 @@ public class SubmissionsController(
             return Ok(new SubmitSubmissionResult(submissionDto, null, validationErrors, false));
         }
 
-        await triggerService.RunTriggers(instance, [new Trigger { Event = formName }, ..form.OnSubmit], ct);
+        await triggerService.RunTriggers(instance, [new Trigger { Event = submissionId }, ..form.OnSubmit], ct);
 
         // Save the updated instance
         await contextService.UpdateCurrentStep(instance, ct);
 
-        var finalSubmissionDto = SubmissionDto.FromEntity(instance, form, instance.Events[formName],
+        var finalSubmissionDto = SubmissionDto.FromEntity(instance, form, instance.Events[submissionId],
             modelService.GetQuestionStatus(instance, form, true), fileService);
-        var updatedInstanceDto = WorkflowInstanceDto.Create(instance);
+        var updatedInstanceDto = await dtoService.Create(instance, ct);
 
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
     }
 
-    [HttpPost]
-    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer([FromBody] SaveAnswerRequest request, CancellationToken ct)
+    [HttpPatch("{instanceId}/{submissionId}")]
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
+        [FromBody] AnswerInput input, CancellationToken ct)
     {
         // Get the workflow instance
-        var instance = await workflowInstanceRepository.GetById(request.InstanceId, ct);
+        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
 
         // Get the submission
-        var submission = instance.Events.GetValueOrDefault(request.SubmissionId);
-        var form = modelService.GetForm(instance, request.SubmissionId);
+        var submission = instance.Events.GetValueOrDefault(submissionId);
+        var form = modelService.GetForm(instance, submissionId);
 
         // Check authorization
-        if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Edit : RoleAction.Submit,
+        if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Submit : RoleAction.Edit,
                 form.Name))
             return Forbidden();
 
         // Get the question
-        var question = modelService.GetQuestion(instance, form.Property, request.Answer.QuestionName);
+        var question = modelService.GetQuestion(instance, form.Property, input.QuestionName);
         if (question == null)
             return NotFound("SubmissionsQuestionNotFound", "Question not found");
 
         // Get current answer
-        var currentAnswer = instance.GetProperty(form.Property, request.Answer.QuestionName);
+        var currentAnswer = instance.GetProperty(form.Property, input.QuestionName);
 
         // Convert new answer to BsonValue
-        var newAnswer = await answerConversionService.ConvertToValue(request.Answer, question, ct);
+        var newAnswer = await answerConversionService.ConvertToValue(input, question, ct);
 
         // Handle file upload if present
-        if (request.Answer.File != null)
+        if (input.File != null)
         {
-            var fileInfo = await GetFileInfo(request.Answer.File);
+            var fileInfo = await GetFileInfo(input.File);
             var fileId = await fileClient.StoreFile(fileInfo.FileName, fileInfo.Content);
             newAnswer = new StoredFile(fileInfo.FileName, fileId.ToString()).ToBsonDocument();
         }
@@ -124,7 +126,7 @@ public class SubmissionsController(
         // Save if value changed
         if (newAnswer != currentAnswer)
         {
-            instance.SetProperty(newAnswer, form.Property, request.Answer.QuestionName);
+            instance.SetProperty(newAnswer, form.Property, input.QuestionName);
             await instanceService.SaveValue(instance, form.Property, question.Name, ct);
         }
 

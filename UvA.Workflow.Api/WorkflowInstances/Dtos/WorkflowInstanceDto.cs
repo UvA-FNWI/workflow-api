@@ -1,31 +1,67 @@
+using UvA.Workflow.Api.Actions.Dtos;
+using UvA.Workflow.Api.EntityTypes.Dtos;
+using UvA.Workflow.Api.Submissions.Dtos;
+
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
+
+public record WorkflowInstanceBasicDto(
+    string Id,
+    string? CurrentStep
+);
+
 
 public record WorkflowInstanceDto(
     string Id,
-    string EntityType,
+    EntityTypeDto EntityType,
     string? CurrentStep,
     Dictionary<string, object> Properties,
     Dictionary<string, InstanceEventDto> Events,
-    string? ParentId
+    string? ParentId,
+    ActionDto[] Actions,
+    FieldDto[] Fields,
+    StepDto[] Steps,
+    SubmissionDto[] Submissions,
+    RoleAction[] Permissions
+);
+
+public record FieldDto();
+
+public record StepDto();
+
+public record ActionDto(
+    ActionType Type,
+    BilingualString Title,
+    string? Form = null,
+    string? Name = null,
+    string? UserId = null,
+    Mail? Mail = null,
+    string? Property = null
 )
 {
-    /// <summary>
-    /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
-    /// </summary>
-    public static WorkflowInstanceDto Create(WorkflowInstance instance)
-    {
-        return new WorkflowInstanceDto(
-            instance.Id,
-            instance.EntityType,
-            instance.CurrentStep,
-            instance.Properties.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToDotNetValue(v.Value)),
-            instance.Events.ToDictionary(
-                kvp => kvp.Key,
-                kvp => InstanceEventDto.Create(kvp.Value)
+    public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
+    public static ActionDto Create(InstanceService.AllowedAction action) =>
+        action.Action.Type switch
+        {
+            RoleAction.CreateRelatedInstance => new(
+                ActionType.CreateInstance, 
+                action.Action.Label ?? Add(action.EntityType?.DisplayTitle ?? "form"),
+                Form: action.Action.Property
             ),
-            instance.ParentId
-        );
-    }
+            RoleAction.Execute => new(
+                ActionType.Execute,
+                action.Action.Label ?? action.Action.Name ?? "Action",
+                Name: action.Action.Name,
+                Mail: action.Mail
+            ),
+            RoleAction.Submit => new(
+                ActionType.SubmitForm,
+                action.Action.Label ?? Add(action.Form?.Name ?? "form"),
+                Form: action.Action.Name ?? action.Form?.Name
+            ),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    
+    private static BilingualString Add(BilingualString target) => new($"Add {target.En.ToLower()}", $"{target.Nl} toevoegen");
 }
 
 public record InstanceEventDto(

@@ -13,7 +13,7 @@ public record UserDto(
     /// <summary>
     /// Creates a UserDto from a User domain entity
     /// </summary>
-    public static UserDto From(User user)
+    public static UserDto Create(User user)
     {
         return new UserDto(
             user.Id,

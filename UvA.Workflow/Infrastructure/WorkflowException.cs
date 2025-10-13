@@ -12,12 +12,4 @@ public class WorkflowException: Exception
         Code = code;
         Details = details;
     }
-    
-    protected WorkflowException(System.Runtime.Serialization.SerializationInfo info,
-        System.Runtime.Serialization.StreamingContext context)
-        : base(info, context)
-    {
-        Code = info.GetString(nameof(Code)) ?? string.Empty;
-        Details = info.GetValue(nameof(Details), typeof(object));
-    }
 }

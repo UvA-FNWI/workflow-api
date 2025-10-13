@@ -1,5 +1,9 @@
+using System.Text.Json.Serialization;
 using Serilog;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.WorkflowInstances;
+
+string corsPolicyName = "_CorsPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,9 +26,26 @@ builder.Host.UseSerilog((context, services, configuration) =>
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflow(config);
-builder.Services.AddControllers();
+builder.Services.AddScoped<WorkflowInstanceDtoService>();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(opts => opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(corsPolicyName,
+        cb =>
+        {
+            cb.SetIsOriginAllowedToAllowWildcardSubdomains()
+                .WithOrigins(config["AllowedOrigin"]!)
+                .AllowAnyMethod()
+                .AllowCredentials()
+                .AllowAnyHeader()
+                .WithExposedHeaders("Content-Disposition");
+        });
+});
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -34,6 +55,8 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
+
+app.UseCors(corsPolicyName);
 
 //if (app.Environment.IsDevelopment())
 {
