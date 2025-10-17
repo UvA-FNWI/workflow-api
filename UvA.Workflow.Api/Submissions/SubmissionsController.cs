@@ -46,7 +46,7 @@ public class SubmissionsController(
         // Check if already submitted
         if (sub?.Date != null)
             return BadRequest("SubmissionsAlreadySubmitted", "Submission already submitted");
-    
+
         var form = modelService.GetForm(instance, submissionId);
         var context = modelService.CreateContext(instance);
 
@@ -86,8 +86,8 @@ public class SubmissionsController(
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
     }
 
-    [HttpPatch("{instanceId}/{submissionId}")]
-    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
+    [HttpPost("{instanceId}/{submissionId}/{questionName}")]
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,string questionName,
         [FromBody] AnswerInput input, CancellationToken ct)
     {
         // Get the workflow instance
@@ -98,35 +98,26 @@ public class SubmissionsController(
         // Get the submission
         var submission = instance.Events.GetValueOrDefault(submissionId);
         var form = modelService.GetForm(instance, submissionId);
-
         // Check authorization
         if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Submit : RoleAction.Edit,
                 form.Name))
             return Forbidden();
 
         // Get the question
-        var question = modelService.GetQuestion(instance, form.Property, input.QuestionName);
+        var question = modelService.GetQuestion(instance, form.Property, questionName);
         if (question == null)
             return NotFound("SubmissionsQuestionNotFound", "Question not found");
 
         // Get current answer
-        var currentAnswer = instance.GetProperty(form.Property, input.QuestionName);
+        var currentAnswer = instance.GetProperty(form.Property, questionName);
 
         // Convert new answer to BsonValue
         var newAnswer = await answerConversionService.ConvertToValue(input, question, ct);
 
-        // Handle file upload if present
-        if (input.File != null)
-        {
-            var fileInfo = await GetFileInfo(input.File);
-            var fileId = await fileClient.StoreFile(fileInfo.FileName, fileInfo.Content);
-            newAnswer = new StoredFile(fileInfo.FileName, fileId.ToString()).ToBsonDocument();
-        }
-
         // Save if value changed
         if (newAnswer != currentAnswer)
         {
-            instance.SetProperty(newAnswer, form.Property, input.QuestionName);
+            instance.SetProperty(newAnswer, form.Property, questionName);
             await instanceService.SaveValue(instance, form.Property, question.Name, ct);
         }
 
@@ -144,12 +135,60 @@ public class SubmissionsController(
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
     }
 
-    private static async Task<FileInfo> GetFileInfo(IFormFile file)
+    [HttpPost("{instanceId}/{submissionId}/{questionName}/files")]
+    [Consumes("multipart/form-data")]
+    [Produces("application/json")]
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswerFile(string instanceId, string submissionId,string questionName,
+        [FromForm] IFormFile[] files, CancellationToken ct)
+    {
+        if (files.Length < 1)
+            return BadRequest("SubmissionsNoFile", "No file provided");
+        
+        // Get the workflow instance
+        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        // Get the submission
+        var submission = instance.Events.GetValueOrDefault(submissionId);
+        var form = modelService.GetForm(instance, submissionId);
+        // Check authorization
+        if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Submit : RoleAction.Edit, form.Name))
+            return Forbidden();
+
+        // Get the question
+        var question = modelService.GetQuestion(instance, form.Property, questionName);
+        if (question == null)
+            return NotFound("SubmissionsQuestionNotFound", "Question not found");
+
+        BsonDocument value;
+        if (files.Length == 1)
+        {
+            var fileInfo = await StoreFile(files[0]);
+            value = fileInfo.ToBsonDocument();
+        }
+        else
+        {
+            var fileInfos = new List<StoredFileInfo>();
+            foreach(var file in files)
+            {
+                var fileInfo = await StoreFile(file);
+                fileInfos.Add(fileInfo);
+            }
+            value = fileInfos.ToBsonDocument();
+        }
+        instance.SetProperty(value, form.Property, questionName);
+        
+        
+        await instanceService.SaveValue(instance, form.Property, question.Name, ct);
+        return Ok(new SaveAnswerFileResponse(true));
+    }
+
+    private async Task<StoredFileInfo> StoreFile(IFormFile file)
     {
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
-        return new FileInfo(file.FileName, ms.ToArray());
+        var fileId = await fileClient.StoreFile(file.FileName, ms.ToArray());
+        return new StoredFileInfo(file.FileName, fileId.ToString());
     }
-
-    private record FileInfo(string FileName, byte[] Content);
 }

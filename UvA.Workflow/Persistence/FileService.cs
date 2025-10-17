@@ -11,8 +11,8 @@ public class FileService(IConfiguration config, FileClient client)
     private readonly SymmetricSecurityKey _signingKey = new(Encoding.ASCII.GetBytes(config["FileKey"]!));
     private readonly string _appUrl = config["AppUrl"]!;
 
-    public string GenerateUrl(StoredFile file)
-        => $"{_appUrl}/WorkflowFile/Answer/{file.Id}/{file.FileName}?verifier={GenerateVerifier(file.Id.ToString())}";
+    public string GenerateUrl(StoredFileInfo fileInfo)
+        => $"{_appUrl}/WorkflowFile/Answer/{fileInfo.Id}/{fileInfo.FileName}?verifier={GenerateVerifier(fileInfo.Id.ToString())}";
 
     public string GenerateUrl(Form form, string id)
     {

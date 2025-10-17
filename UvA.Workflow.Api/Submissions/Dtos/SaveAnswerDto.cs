@@ -14,3 +14,7 @@ public record SaveAnswerResponse(
     Answer[] Answers,
     SubmissionDto Submission,
     string? ErrorMessage = null);
+    
+public record SaveAnswerFileResponse(
+    bool Success,
+    string? ErrorMessage = null);    

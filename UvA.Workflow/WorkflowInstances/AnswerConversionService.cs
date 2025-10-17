@@ -4,9 +4,7 @@ using Microsoft.AspNetCore.Http;
 namespace UvA.Workflow.Services;
 
 public record AnswerInput(
-    string QuestionName,
     JsonElement? Value = null,
-    IFormFile? File = null,
     int? DeleteFileId = null);
 
 /// <summary>
@@ -54,7 +52,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
             DataType.User => await ConvertUser(value, ct),
 
             _ => throw new NotImplementedException(
-                $"Data type {question.DataType} is not supported for question '{answerInput.QuestionName}'")
+                $"Data type {question.DataType} is not supported for question '{question.DisplayName}'")
         };
     }
 

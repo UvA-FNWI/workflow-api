@@ -63,7 +63,7 @@ public record Answer(
 
         if (question.DataType == DataType.File)
         {
-            var value = ObjectContext.GetValue(answer, question) as StoredFile;
+            var value = ObjectContext.GetValue(answer, question) as StoredFileInfo;
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
                 Value: value?.FileName == null ? null : JsonSerializer.SerializeToElement(value.FileName),
