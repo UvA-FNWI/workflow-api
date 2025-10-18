@@ -125,7 +125,8 @@ public record SubmissionDto(
     string InstanceId,
     Answer[] Answers,
     DateTime? DateSubmitted,
-    FormDto Form)
+    FormDto Form,
+    RoleAction[] Permissions)
 {
     public static SubmissionDto FromEntity(WorkflowInstance inst,
         Form form,
@@ -138,7 +139,8 @@ public record SubmissionDto(
             inst.Id,
             shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds, fileService),
             sub?.Date,
-            FormDto.Create(form)
+            FormDto.Create(form),
+            [] // TODO: set permissions
         );
 }
 
