@@ -14,7 +14,7 @@ public class Step
     public List<Action> Actions { get; set; } = [];
     public Condition? Ends { get; set; }
 
-    public Dictionary<string, Question> Properties = new();
+    public Dictionary<string, Question> Properties { get; set; } = new();
 
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>

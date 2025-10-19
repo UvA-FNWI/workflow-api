@@ -14,84 +14,88 @@
           "type": "null"
         },
         {
-          "$ref": "#/definitions/BilingualString"
+          "description": "Localized title of the entity type",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         }
       ]
     },
     "titlePlural": {
-      "$ref": "#/definitions/BilingualString"
-    },
-    "displayTitle": {
-      "$ref": "#/definitions/BilingualString"
+      "description": "Localized plural of the entity type title",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
     },
     "index": {
       "type": [
         "integer",
         "null"
       ],
-      "format": "int32"
+      "description": "Integer indicating the tab order in the instance page"
     },
     "isAlwaysVisible": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Always show this entity type to the user, even if the user has no rights"
     },
     "inheritsFrom": {
       "type": [
         "null",
         "string"
-      ]
+      ],
+      "description": "Name of the entity type this type inherits from"
     },
     "instanceTitle": {
       "type": [
         "null",
         "string"
-      ]
-    },
-    "instanceTitleTemplate": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "$ref": "#/definitions/Template"
-        }
-      ]
+      ],
+      "description": "Template for the title of an instance"
     },
     "properties": {
       "type": "object",
+      "description": "Dictionary of properties for this entity type",
       "additionalProperties": {
         "$ref": "#/definitions/Question"
       }
     },
     "events": {
       "type": "object",
+      "description": "Dictionary of event definitions for this entity type",
       "additionalProperties": {
         "$ref": "#/definitions/EventDefinition"
       }
     },
     "actions": {
       "type": "array",
+      "description": "List of actions for this entity type",
       "items": {
         "$ref": "#/definitions/Action"
       }
     },
     "steps": {
       "type": "array",
+      "description": "List of step names for this entity type",
       "items": {
         "type": "string"
       }
     },
-    "seedData": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "$ref": "#/definitions/SeedData"
-        }
-      ]
-    },
     "headerFields": {
       "type": "array",
+      "description": "List of header fields for this entity type",
       "items": {
         "$ref": "#/definitions/Field"
       }
@@ -101,15 +105,14 @@
         "array",
         "null"
       ],
+      "description": "List of computed results for this entity type",
       "items": {
         "$ref": "#/definitions/Result"
       }
     },
     "isEmbedded": {
-      "type": "boolean"
-    },
-    "modelParser": {
-      "$ref": "#/definitions/ModelParser"
+      "type": "boolean",
+      "description": "Indicated whether this entity type is stored as an embedded document in the parent instance"
     }
   },
   "definitions": {
@@ -122,42 +125,6 @@
         },
         "nl": {
           "type": "string"
-        }
-      }
-    },
-    "Template": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Expression"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "Lookup": {
-      "type": "object",
-      "x-abstract": true,
-      "additionalProperties": false
-    },
-    "Expression": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
         }
       }
     },
@@ -174,15 +141,19 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
-        },
-        "displayName": {
-          "$ref": "#/definitions/BilingualString"
-        },
-        "shortDisplayName": {
-          "$ref": "#/definitions/BilingualString"
         },
         "kind": {
           "$ref": "#/definitions/QuestionKind"
@@ -196,7 +167,17 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
         },
@@ -218,7 +199,17 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
         },
@@ -236,18 +227,6 @@
             "null",
             "string"
           ]
-        },
-        "underlyingType": {
-          "type": "string"
-        },
-        "isRequired": {
-          "type": "boolean"
-        },
-        "isArray": {
-          "type": "boolean"
-        },
-        "dataType": {
-          "$ref": "#/definitions/DataType"
         },
         "condition": {
           "oneOf": [
@@ -268,12 +247,6 @@
               "$ref": "#/definitions/Condition"
             }
           ]
-        },
-        "dependentQuestions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Question"
-          }
         },
         "onSave": {
           "type": "array",
@@ -304,11 +277,6 @@
     },
     "QuestionKind": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "Normal",
-        "Hidden"
-      ],
       "enum": [
         "Normal",
         "Hidden"
@@ -316,11 +284,6 @@
     },
     "QuestionLayout": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "Standard",
-        "RadioList"
-      ],
       "enum": [
         "Standard",
         "RadioList"
@@ -339,7 +302,17 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
         },
@@ -349,7 +322,17 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
         },
@@ -357,8 +340,7 @@
           "type": [
             "null",
             "number"
-          ],
-          "format": "double"
+          ]
         },
         "condition": {
           "oneOf": [
@@ -405,7 +387,17 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/EventCondition"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EventCondition"
+                }
+              ]
             }
           ]
         },
@@ -431,205 +423,94 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
-        },
-        "part": {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
         }
       }
     },
     "Value": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "property": {
-              "type": "string"
-            },
-            "equal": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "lessThan": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "greaterThan": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "greaterThanOrEqual": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "dependants": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "ConditionPart": {
       "type": "object",
-      "x-abstract": true,
       "additionalProperties": false,
       "properties": {
-        "dependants": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
+        "property": {
+          "type": "string"
         },
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
+        "equal": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "lessThan": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "greaterThan": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "greaterThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ]
         }
       }
     },
     "Logical": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "$ref": "#/definitions/LogicalOperator"
         },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "operator": {
-              "$ref": "#/definitions/LogicalOperator"
-            },
-            "children": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Condition"
-              }
-            },
-            "dependants": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
           }
         }
-      ]
+      }
     },
     "LogicalOperator": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "And",
-        "Or"
-      ],
       "enum": [
         "And",
         "Or"
       ]
     },
     "EventCondition": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string"
-            }
-          }
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
         }
-      ]
+      }
     },
     "Date": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "source": {
-              "type": "string"
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string"
         }
-      ]
-    },
-    "DataType": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "String",
-        "Date",
-        "DateTime",
-        "Choice",
-        "Double",
-        "File",
-        "User",
-        "Currency",
-        "Table",
-        "Reference",
-        "Int"
-      ],
-      "enum": [
-        "String",
-        "Date",
-        "DateTime",
-        "Choice",
-        "Double",
-        "File",
-        "User",
-        "Currency",
-        "Table",
-        "Reference",
-        "Int"
-      ]
+      }
     },
     "Trigger": {
       "type": "object",
@@ -686,19 +567,6 @@
             "null",
             "string"
           ]
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/definitions/Lookup"
-              }
-            ]
-          }
         }
       }
     },
@@ -730,7 +598,7 @@
             "string"
           ]
         },
-        "templateKey": {
+        "template": {
           "type": [
             "null",
             "string"
@@ -747,36 +615,6 @@
           "items": {
             "$ref": "#/definitions/Attachment"
           }
-        },
-        "subjectTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "bodyTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "toAddressTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
         }
       }
     },
@@ -795,9 +633,6 @@
       "properties": {
         "url": {
           "type": "string"
-        },
-        "urlTemplate": {
-          "$ref": "#/definitions/Template"
         }
       }
     },
@@ -816,9 +651,6 @@
         },
         "value": {
           "type": "string"
-        },
-        "valueExpression": {
-          "$ref": "#/definitions/Expression"
         }
       }
     },
@@ -836,11 +668,6 @@
     },
     "TableLayout": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "InlineEditing",
-        "Modal"
-      ],
       "enum": [
         "InlineEditing",
         "Modal"
@@ -851,7 +678,8 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Name of the event"
         }
       }
     },
@@ -871,7 +699,17 @@
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
         },
@@ -888,12 +726,6 @@
           ]
         },
         "forms": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "allForms": {
           "type": "array",
           "items": {
             "type": "string"
@@ -958,31 +790,12 @@
           "type": [
             "integer",
             "null"
-          ],
-          "format": "int32"
+          ]
         }
       }
     },
     "RoleAction": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "View",
-        "Submit",
-        "Edit",
-        "Undo",
-        "ViewAdminTools",
-        "Execute",
-        "ViewHidden",
-        "ViewUsers",
-        "ViewStates",
-        "Delete",
-        "AddInstanceMessage",
-        "ViewAnswerMessages",
-        "AssignMessages",
-        "CreateInstance",
-        "CreateRelatedInstance"
-      ],
       "enum": [
         "View",
         "Submit",
@@ -1000,24 +813,6 @@
         "CreateInstance",
         "CreateRelatedInstance"
       ]
-    },
-    "SeedData": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "matchBy": {
-          "type": "string"
-        },
-        "data": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        }
-      }
     },
     "Field": {
       "type": "object",
@@ -1041,46 +836,23 @@
             "string"
           ]
         },
-        "displayTitle": {
-          "$ref": "#/definitions/BilingualString"
-        },
-        "valueTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "linkTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "propertyExpression": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Expression"
-            }
-          ]
-        },
         "title": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
         },
@@ -1088,26 +860,6 @@
           "type": [
             "null",
             "string"
-          ]
-        },
-        "question": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Question"
-            }
-          ]
-        },
-        "event": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/EventDefinition"
-            }
           ]
         },
         "endDate": {
@@ -1118,12 +870,6 @@
         },
         "currentStep": {
           "type": "boolean"
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
         }
       }
     },
@@ -1132,7 +878,14 @@
       "additionalProperties": false,
       "properties": {
         "title": {
-          "$ref": "#/definitions/BilingualString"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         },
         "questions": {
           "type": "array",
@@ -1141,93 +894,9 @@
           }
         },
         "weight": {
-          "type": "number",
-          "format": "double"
+          "type": "number"
         }
       }
-    },
-    "ModelParser": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "roles": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Role"
-          }
-        },
-        "entityTypes": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#"
-          }
-        }
-      }
-    },
-    "Role": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "oldName": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "shortName": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "title": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "inheritFrom": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "actions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Action"
-          }
-        },
-        "assignable": {
-          "type": "boolean"
-        },
-        "notifications": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/NotificationType"
-          }
-        },
-        "displayTitle": {
-          "$ref": "#/definitions/BilingualString"
-        }
-      }
-    },
-    "NotificationType": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "NewInstanceMessage"
-      ],
-      "enum": [
-        "NewInstanceMessage"
-      ]
     }
   }
 }

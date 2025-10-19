@@ -28,77 +28,28 @@
   },
   "definitions": {
     "Column": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Field"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "filterType": {
-              "$ref": "#/definitions/FilterType"
-            },
-            "displayType": {
-              "$ref": "#/definitions/DisplayType"
-            },
-            "defaultSort": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/definitions/SortDirection"
-                }
-              ]
-            },
-            "link": {
-              "type": "boolean"
-            }
-          }
-        }
-      ]
-    },
-    "FilterType": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "None",
-        "Pick"
-      ],
-      "enum": [
-        "None",
-        "Pick"
-      ]
-    },
-    "DisplayType": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "Normal",
-        "ExportOnly"
-      ],
-      "enum": [
-        "Normal",
-        "ExportOnly"
-      ]
-    },
-    "SortDirection": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "Ascending",
-        "Descending"
-      ],
-      "enum": [
-        "Ascending",
-        "Descending"
-      ]
-    },
-    "Field": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "filterType": {
+          "$ref": "#/definitions/FilterType"
+        },
+        "displayType": {
+          "$ref": "#/definitions/DisplayType"
+        },
+        "defaultSort": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/SortDirection"
+            }
+          ]
+        },
+        "link": {
+          "type": "boolean"
+        },
         "property": {
           "type": [
             "null",
@@ -117,46 +68,23 @@
             "string"
           ]
         },
-        "displayTitle": {
-          "$ref": "#/definitions/BilingualString"
-        },
-        "valueTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "linkTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "propertyExpression": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Expression"
-            }
-          ]
-        },
         "title": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "#/definitions/BilingualString"
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
             }
           ]
         },
@@ -164,26 +92,6 @@
           "type": [
             "null",
             "string"
-          ]
-        },
-        "question": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Question"
-            }
-          ]
-        },
-        "event": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/EventDefinition"
-            }
           ]
         },
         "endDate": {
@@ -194,14 +102,29 @@
         },
         "currentStep": {
           "type": "boolean"
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
         }
       }
+    },
+    "FilterType": {
+      "type": "string",
+      "enum": [
+        "None",
+        "Pick"
+      ]
+    },
+    "DisplayType": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "ExportOnly"
+      ]
+    },
+    "SortDirection": {
+      "type": "string",
+      "enum": [
+        "Ascending",
+        "Descending"
+      ]
     },
     "BilingualString": {
       "type": "object",
@@ -211,736 +134,6 @@
           "type": "string"
         },
         "nl": {
-          "type": "string"
-        }
-      }
-    },
-    "Template": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Expression"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "Lookup": {
-      "type": "object",
-      "x-abstract": true,
-      "additionalProperties": false
-    },
-    "Expression": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
-        }
-      }
-    },
-    "Question": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "text": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "displayName": {
-          "$ref": "#/definitions/BilingualString"
-        },
-        "shortDisplayName": {
-          "$ref": "#/definitions/BilingualString"
-        },
-        "kind": {
-          "$ref": "#/definitions/QuestionKind"
-        },
-        "layout": {
-          "$ref": "#/definitions/QuestionLayout"
-        },
-        "shortText": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "type": {
-          "type": "string"
-        },
-        "values": {
-          "type": [
-            "null",
-            "object"
-          ],
-          "additionalProperties": {
-            "$ref": "#/definitions/Choice"
-          }
-        },
-        "description": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "multiline": {
-          "type": "boolean"
-        },
-        "default": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "replacedBy": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "underlyingType": {
-          "type": "string"
-        },
-        "isRequired": {
-          "type": "boolean"
-        },
-        "isArray": {
-          "type": "boolean"
-        },
-        "dataType": {
-          "$ref": "#/definitions/DataType"
-        },
-        "condition": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
-        "validation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
-        "dependentQuestions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Question"
-          }
-        },
-        "onSave": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Trigger"
-          }
-        },
-        "isContext": {
-          "type": "boolean"
-        },
-        "allowAttachments": {
-          "type": "boolean"
-        },
-        "hideInResults": {
-          "type": "boolean"
-        },
-        "table": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/TableSettings"
-            }
-          ]
-        }
-      }
-    },
-    "QuestionKind": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "Normal",
-        "Hidden"
-      ],
-      "enum": [
-        "Normal",
-        "Hidden"
-      ]
-    },
-    "QuestionLayout": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "Standard",
-        "RadioList"
-      ],
-      "enum": [
-        "Standard",
-        "RadioList"
-      ]
-    },
-    "Choice": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "text": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "description": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "value": {
-          "type": [
-            "null",
-            "number"
-          ],
-          "format": "double"
-        },
-        "condition": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        }
-      }
-    },
-    "Condition": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "not": {
-          "type": "boolean"
-        },
-        "value": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Value"
-            }
-          ]
-        },
-        "logical": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Logical"
-            }
-          ]
-        },
-        "event": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/EventCondition"
-            }
-          ]
-        },
-        "date": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Date"
-            }
-          ]
-        },
-        "name": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "message": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "part": {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
-        }
-      }
-    },
-    "Value": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "property": {
-              "type": "string"
-            },
-            "equal": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "lessThan": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "greaterThan": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "greaterThanOrEqual": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "dependants": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "ConditionPart": {
-      "type": "object",
-      "x-abstract": true,
-      "additionalProperties": false,
-      "properties": {
-        "dependants": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
-        }
-      }
-    },
-    "Logical": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "operator": {
-              "$ref": "#/definitions/LogicalOperator"
-            },
-            "children": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Condition"
-              }
-            },
-            "dependants": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "LogicalOperator": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "And",
-        "Or"
-      ],
-      "enum": [
-        "And",
-        "Or"
-      ]
-    },
-    "EventCondition": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string"
-            }
-          }
-        }
-      ]
-    },
-    "Date": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "source": {
-              "type": "string"
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "DataType": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "String",
-        "Date",
-        "DateTime",
-        "Choice",
-        "Double",
-        "File",
-        "User",
-        "Currency",
-        "Table",
-        "Reference",
-        "Int"
-      ],
-      "enum": [
-        "String",
-        "Date",
-        "DateTime",
-        "Choice",
-        "Double",
-        "File",
-        "User",
-        "Currency",
-        "Table",
-        "Reference",
-        "Int"
-      ]
-    },
-    "Trigger": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "condition": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
-        "sendMail": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/SendMessage"
-            }
-          ]
-        },
-        "http": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Http"
-            }
-          ]
-        },
-        "setProperty": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/SetProperty"
-            }
-          ]
-        },
-        "event": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "undoEvent": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/definitions/Lookup"
-              }
-            ]
-          }
-        }
-      }
-    },
-    "SendMessage": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "to": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "toAddress": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "subject": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "body": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "templateKey": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "sendAsMail": {
-          "type": "boolean"
-        },
-        "sendAutomatically": {
-          "type": "boolean"
-        },
-        "attachments": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Attachment"
-          }
-        },
-        "subjectTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "bodyTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "toAddressTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        }
-      }
-    },
-    "Attachment": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "template": {
-          "type": "string"
-        }
-      }
-    },
-    "Http": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "url": {
-          "type": "string"
-        },
-        "urlTemplate": {
-          "$ref": "#/definitions/Template"
-        }
-      }
-    },
-    "SetProperty": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "target": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "property": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        },
-        "valueExpression": {
-          "$ref": "#/definitions/Expression"
-        }
-      }
-    },
-    "TableSettings": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "form": {
-          "type": "string"
-        },
-        "layout": {
-          "$ref": "#/definitions/TableLayout"
-        }
-      }
-    },
-    "TableLayout": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "InlineEditing",
-        "Modal"
-      ],
-      "enum": [
-        "InlineEditing",
-        "Modal"
-      ]
-    },
-    "EventDefinition": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
           "type": "string"
         }
       }
