@@ -4,6 +4,9 @@ namespace UvA.Workflow.Entities.Domain;
 
 public class EntityType
 {
+    /// <summary>
+    /// Short internal name of the entity type
+    /// </summary>
     public string Name { get; set; } = null!;
     public BilingualString? Title { get; set; }
     public BilingualString TitlePlural { get; set; } = null!;

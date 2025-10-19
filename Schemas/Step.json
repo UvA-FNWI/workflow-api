@@ -1,23 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "Role",
+  "title": "Step",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "name": {
       "type": "string"
-    },
-    "oldName": {
-      "type": [
-        "null",
-        "string"
-      ]
-    },
-    "shortName": {
-      "type": [
-        "null",
-        "string"
-      ]
     },
     "title": {
       "oneOf": [
@@ -29,11 +17,30 @@
         }
       ]
     },
-    "inheritFrom": {
+    "displayTitle": {
+      "$ref": "#/definitions/BilingualString"
+    },
+    "childNames": {
       "type": "array",
       "items": {
         "type": "string"
       }
+    },
+    "children": {
+      "type": "array",
+      "items": {
+        "$ref": "#"
+      }
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
     },
     "actions": {
       "type": "array",
@@ -41,17 +48,27 @@
         "$ref": "#/definitions/Action"
       }
     },
-    "assignable": {
-      "type": "boolean"
+    "ends": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
     },
-    "notifications": {
+    "lookups": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/NotificationType"
+        "$ref": "#/definitions/Lookup"
       }
     },
-    "displayTitle": {
-      "$ref": "#/definitions/BilingualString"
+    "endEvent": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   },
   "definitions": {
@@ -66,152 +83,6 @@
           "type": "string"
         }
       }
-    },
-    "Action": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "label": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "roles": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "form": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "forms": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "allForms": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "collections": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "question": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "entity": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "type": {
-          "$ref": "#/definitions/RoleAction"
-        },
-        "condition": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
-        "triggers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Trigger"
-          }
-        },
-        "steps": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "property": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "userProperty": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "limit": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        }
-      }
-    },
-    "RoleAction": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "View",
-        "Submit",
-        "Edit",
-        "Undo",
-        "ViewAdminTools",
-        "Execute",
-        "ViewHidden",
-        "ViewUsers",
-        "ViewStates",
-        "Delete",
-        "AddInstanceMessage",
-        "ViewAnswerMessages",
-        "AssignMessages",
-        "CreateInstance",
-        "CreateRelatedInstance"
-      ],
-      "enum": [
-        "View",
-        "Submit",
-        "Edit",
-        "Undo",
-        "ViewAdminTools",
-        "Execute",
-        "ViewHidden",
-        "ViewUsers",
-        "ViewStates",
-        "Delete",
-        "AddInstanceMessage",
-        "ViewAnswerMessages",
-        "AssignMessages",
-        "CreateInstance",
-        "CreateRelatedInstance"
-      ]
     },
     "Condition": {
       "type": "object",
@@ -447,6 +318,152 @@
         }
       ]
     },
+    "Action": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "form": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "forms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allForms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "question": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "entity": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "type": {
+          "$ref": "#/definitions/RoleAction"
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Trigger"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "property": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "userProperty": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "limit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      }
+    },
+    "RoleAction": {
+      "type": "string",
+      "description": "",
+      "x-enumNames": [
+        "View",
+        "Submit",
+        "Edit",
+        "Undo",
+        "ViewAdminTools",
+        "Execute",
+        "ViewHidden",
+        "ViewUsers",
+        "ViewStates",
+        "Delete",
+        "AddInstanceMessage",
+        "ViewAnswerMessages",
+        "AssignMessages",
+        "CreateInstance",
+        "CreateRelatedInstance"
+      ],
+      "enum": [
+        "View",
+        "Submit",
+        "Edit",
+        "Undo",
+        "ViewAdminTools",
+        "Execute",
+        "ViewHidden",
+        "ViewUsers",
+        "ViewStates",
+        "Delete",
+        "AddInstanceMessage",
+        "ViewAnswerMessages",
+        "AssignMessages",
+        "CreateInstance",
+        "CreateRelatedInstance"
+      ]
+    },
     "Trigger": {
       "type": "object",
       "additionalProperties": false,
@@ -668,16 +685,6 @@
           "$ref": "#/definitions/Expression"
         }
       }
-    },
-    "NotificationType": {
-      "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "NewInstanceMessage"
-      ],
-      "enum": [
-        "NewInstanceMessage"
-      ]
     }
   }
 }
