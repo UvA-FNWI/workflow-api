@@ -58,6 +58,10 @@ app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
 
+app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser( 
+    new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
+));
+
 //if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

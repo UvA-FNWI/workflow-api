@@ -1,3 +1,4 @@
+using YamlDotNet.Core;
 using YamlDotNet.Serialization.NamingConventions;
 using Path = System.IO.Path;
 
@@ -5,35 +6,32 @@ namespace UvA.Workflow.Entities.Domain;
 
 public partial class ModelParser
 {
+    private readonly IContentProvider _contentProvider;
+
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
-
-    private readonly string _rootPath;
-
+    
     public Dictionary<string, Role> Roles { get; }
     public Dictionary<string, EntityType> EntityTypes { get; } = new();
     private Dictionary<string, ValueSet> ValueSets { get; }
     private Dictionary<string, Condition> NamedConditions { get; }
 
-    public ModelParser(string rootPath)
+    public ModelParser(IContentProvider contentProvider)
     {
-        _rootPath = rootPath;
-
+        _contentProvider = contentProvider;
         Roles = Read<Role>();
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
-        var entities = Directory.GetDirectories(rootPath)
-            .Where(d => !Path.GetFileName(d).StartsWith('.'))
+        var entities = _contentProvider.GetFolders() 
             .Where(d => Path.GetFileName(d) != "Common")
             .Select(d => Parse<EntityType>(Path.Combine(d, $"{Path.GetFileName(d)}.yaml")))
             .OrderBy(e => e.InheritsFrom != null);
 
         foreach (var entity in entities)
         {
-            var folder = Path.Combine(_rootPath, entity.Name);
-            foreach (var file in Directory.GetFiles(folder, "*.yaml")
+            foreach (var file in contentProvider.GetFiles(entity.Name)
                          .Where(f => Path.GetFileNameWithoutExtension(f) != entity.Name))
             {
                 var content = Parse<EntityType>(file);
@@ -41,11 +39,11 @@ public partial class ModelParser
                 if (content.Actions.Count > 0) entity.Actions = content.Actions;
             }
 
-            entity.Forms = Read<Form>(folder);
-            entity.Screens = Read<Screen>(folder);
-            entity.AllSteps = Read<Step>(folder);
+            entity.Forms = Read<Form>(entity.Name);
+            entity.Screens = Read<Screen>(entity.Name);
+            entity.AllSteps = Read<Step>(entity.Name);
 
-            foreach (var entry in Read<Condition>(folder))
+            foreach (var entry in Read<Condition>(entity.Name))
                 NamedConditions.Add(entry.Key, entry.Value);
 
             if (entity.InheritsFrom != null)
@@ -222,28 +220,25 @@ public partial class ModelParser
     {
         try
         {
-            return _deserializer.Deserialize<T>(File.ReadAllText(file));
+            return _deserializer.Deserialize<T>(_contentProvider.GetFile(file));
         }
-        catch (Exception ex)
+        catch (YamlException ex)
         {
-            throw new Exception($"Failed to parse {file}: {ex.Message}");
+            throw new Exception($"Failed to parse {file}:{ex.Start.Line}:{ex.Start.Column}. {ex.Message}");
         }
     }
 
 
     private Dictionary<string, T> Read<T>(string? root = null)
     {
-        root ??= $"{_rootPath}/Common";
+        root ??= "Common";
         var name = typeof(T).Name;
         var folder = name switch
         {
             _ when name.StartsWith("Variant") => name.Replace("Variant", "") + "s",
             _ => name + "s"
         };
-        if (!Directory.Exists($"{root}/{folder}"))
-            return new();
-        return Directory
-            .GetFiles($"{root}/{folder}", "*.yaml")
+        return _contentProvider.GetFiles($"{root}/{folder}")
             .ToDictionary(
                 f => Path.GetFileNameWithoutExtension(f),
                 f => Parse<T>(f)

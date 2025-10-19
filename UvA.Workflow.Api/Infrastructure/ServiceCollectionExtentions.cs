@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<WorkflowInstanceService>();
         services.AddScoped<IUserService, MockUserService>();
-        services.AddSingleton<ModelService>();
+        services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
         services.AddScoped<FileClient>();
         services.AddScoped<FileService>();
@@ -40,9 +40,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IMailService, DummyMailService>();
 
-        services.AddSingleton(
-            new ModelParser(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects")));
-
+        services.AddSingleton<ModelServiceResolver>();
 
         return services;
     }
