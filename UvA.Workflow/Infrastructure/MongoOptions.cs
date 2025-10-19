@@ -8,5 +8,5 @@ public class MongoOptions
     public string Password { get; set;} = null!;
     public int Port { get; set; } = 27017;
     
-    public string ConnectionString => $"mongodb://{Username}:{Password}@{Host}:{Port}/";
+    public string ConnectionString => $"mongodb://{Username}:{Password}@{Host}:{Port}/{(Host != "localhost" ? "?tls=true" : "")}";
 }
