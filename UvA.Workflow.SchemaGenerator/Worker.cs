@@ -1,11 +1,9 @@
-using NJsonSchema;
-using NJsonSchema.Generation.TypeMappers;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.SchemaGenerator.Generation;
 
 namespace UvA.Workflow.SchemaGenerator;
 
-public class Worker(ILogger<Worker> logger, IHostApplicationLifetime lifetime) : BackgroundService
+public class Worker(IHostApplicationLifetime lifetime) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -13,7 +11,17 @@ public class Worker(ILogger<Worker> logger, IHostApplicationLifetime lifetime) :
         await reader.Load(stoppingToken);
         var generator = new Generator(reader);
 
-        foreach (var type in new[] {typeof(EntityType), typeof(Form), typeof(Screen), typeof(Role), typeof(Step)})
+        Type[] types =
+        [
+            typeof(EntityType),
+            typeof(Form),
+            typeof(Screen),
+            typeof(Role),
+            typeof(Step),
+            typeof(ValueSet)
+        ];
+        
+        foreach (var type in types)
         {
             var schema = generator.Generate(type).ToJson();
             await File.WriteAllTextAsync($"../Schemas/{type.Name}.json", schema, stoppingToken);
@@ -21,15 +29,4 @@ public class Worker(ILogger<Worker> logger, IHostApplicationLifetime lifetime) :
 
         lifetime.StopApplication();
     }
-}
-
-class TestTypeMapper : ITypeMapper
-{
-    public void GenerateSchema(JsonSchema schema, TypeMapperContext context)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Type MappedType { get; }
-    public bool UseReference { get; }
 }

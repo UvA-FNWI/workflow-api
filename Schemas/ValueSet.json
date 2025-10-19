@@ -1,0 +1,251 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "ValueSet",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "values": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Choice"
+      }
+    }
+  },
+  "definitions": {
+    "Choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
+            }
+          ]
+        },
+        "description": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        }
+      }
+    },
+    "BilingualString": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "type": "boolean"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Value"
+            }
+          ]
+        },
+        "logical": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Logical"
+            }
+          ]
+        },
+        "event": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EventCondition"
+                }
+              ]
+            }
+          ]
+        },
+        "date": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "message": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/BilingualString"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "Value": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "property": {
+          "type": "string"
+        },
+        "equal": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "lessThan": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "greaterThan": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "greaterThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "Logical": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "$ref": "#/definitions/LogicalOperator"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          }
+        }
+      }
+    },
+    "LogicalOperator": {
+      "type": "string",
+      "enum": [
+        "And",
+        "Or"
+      ]
+    },
+    "EventCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "Date": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
