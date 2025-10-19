@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMongoDatabase>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<MongoOptions>>().Value;
-            var client = new MongoClient($"mongodb://{options.Username}:{options.Password}@{options.Host}:{options.Port}/");
+            var client = new MongoClient(options.ConnectionString);
             return client.GetDatabase(options.Database);
         });
 
