@@ -8,6 +8,8 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
+allowedOrigins: "http://localhost:5173"
+
 mongo:
   username: username
   database: workflow

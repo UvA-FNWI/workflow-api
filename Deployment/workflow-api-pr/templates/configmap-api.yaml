@@ -7,6 +7,8 @@ data:
   DOTNET_ENVIRONMENT: "{{ .Values.environment }}"
 
   Serilog__MinimumLevel__Override__Uva.DataNose: "{{ .Values.logLevel }}"
+  
+  AllowedOrigins: "{{ .Values.allowedOrigins }}"
 
   Mongo__Username: "{{ .Values.mongo.username }}"
   Mongo__Database: "{{ .Values.mongo.database }}"
