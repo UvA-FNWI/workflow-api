@@ -26,13 +26,13 @@ public partial class ModelParser
 
         var entities = _contentProvider.GetFolders() 
             .Where(d => Path.GetFileName(d) != "Common")
-            .Select(d => Parse<EntityType>(Path.Combine(d, $"{Path.GetFileName(d)}.yaml")))
+            .Select(d => Parse<EntityType>(Path.Combine(d, "Entity.yaml")))
             .OrderBy(e => e.InheritsFrom != null);
 
         foreach (var entity in entities)
         {
             foreach (var file in contentProvider.GetFiles(entity.Name)
-                         .Where(f => Path.GetFileNameWithoutExtension(f) != entity.Name))
+                         .Where(f => Path.GetFileNameWithoutExtension(f) != "Entity.yaml"))
             {
                 var content = Parse<EntityType>(file);
                 if (content.Properties.Count > 0) entity.Properties = content.Properties;
