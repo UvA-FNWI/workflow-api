@@ -7,5 +7,19 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
-connectionStrings:
- appInsights: ""
+mongo:
+  username: username
+  database: workflow
+  host: host
+  port: 27017
+
+azure:
+  keyvaultName: keyvaultName
+  resourceGroup: resourceGroupName
+  subscriptionId: subscriptionId
+  tenantId: tenantId
+  clientId: clientId
+  identityName: identityName
+  secrets:
+    - name: workflow-db-password
+      key: DatabasePassword
