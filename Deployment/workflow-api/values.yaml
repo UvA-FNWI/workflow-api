@@ -24,4 +24,4 @@ azure:
   identityName: identityName
   secrets:
     - name: workflow-db-password
-      key: DatabasePassword
+      key: Mongo__Password
