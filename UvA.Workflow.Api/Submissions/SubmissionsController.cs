@@ -1,10 +1,7 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Infrastructure.Persistence;
-using ZstdSharp.Unsafe;
 
 namespace UvA.Workflow.Api.Submissions;
 
@@ -169,12 +166,16 @@ public class SubmissionsController(
                 {
                     await fileClient.DeleteFile(fileId);
                     array.Remove(file);
+                    instance.SetProperty(array, form.Property, questionName);
                     break;
                 }
         }
         else
         {
-            await fileClient.DeleteFile(value["Id"].AsString);
+            var id = value["Id"].AsString;
+            if(id != fileId)
+                return NotFound();
+            await fileClient.DeleteFile(id);
             instance.ClearProperty(questionName);
         }
         await instanceService.SaveValue(instance, form.Property, question.Name, ct);
