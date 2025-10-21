@@ -50,6 +50,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
             DataType.User when question.IsArray => await ConvertUserArray(value, ct),
 
             DataType.User => await ConvertUser(value, ct),
+            
 
             _ => throw new NotImplementedException(
                 $"Data type {question.DataType} is not supported for question '{question.DisplayName}'")

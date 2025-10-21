@@ -1,7 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Infrastructure.Persistence;
+using ZstdSharp.Unsafe;
 
 namespace UvA.Workflow.Api.Submissions;
 
@@ -90,39 +93,24 @@ public class SubmissionsController(
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,string questionName,
         [FromBody] AnswerInput input, CancellationToken ct)
     {
-        // Get the workflow instance
-        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
-        if (instance == null)
-            return WorkflowInstanceNotFound;
-
-        // Get the submission
-        var submission = instance.Events.GetValueOrDefault(submissionId);
-        var form = modelService.GetForm(instance, submissionId);
-        // Check authorization
-        if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Submit : RoleAction.Edit,
-                form.Name))
-            return Forbidden();
-
-        // Get the question
-        var question = modelService.GetQuestion(instance, form.Property, questionName);
-        if (question == null)
-            return NotFound("SubmissionsQuestionNotFound", "Question not found");
-
+        var (instance, submission, form, question, error) = await GetQuestionContext(instanceId, submissionId, questionName, ct);
+        if (error is not null) return error;
+        
         // Get current answer
-        var currentAnswer = instance.GetProperty(form.Property, questionName);
+        var currentAnswer = instance!.GetProperty(form!.Property, questionName);
 
         // Convert new answer to BsonValue
-        var newAnswer = await answerConversionService.ConvertToValue(input, question, ct);
+        var newAnswer = await answerConversionService.ConvertToValue(input, question!, ct);
 
         // Save if value changed
         if (newAnswer != currentAnswer)
         {
             instance.SetProperty(newAnswer, form.Property, questionName);
-            await instanceService.SaveValue(instance, form.Property, question.Name, ct);
+            await instanceService.SaveValue(instance, form.Property, question!.Name, ct);
         }
 
         // Get questions to update (including dependent questions)
-        var questionsToUpdate = question.DependentQuestions.Append(question).Distinct().ToArray();
+        var questionsToUpdate = question!.DependentQuestions.Append(question).Distinct().ToArray();
 
         // Check if user can view hidden fields
         var canViewHidden = await rightsService.Can(instance, RoleAction.ViewHidden, form.Name);
@@ -133,58 +121,104 @@ public class SubmissionsController(
         var updatedSubmission = SubmissionDto.FromEntity(instance, form, submission);
 
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
+        
     }
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}/files")]
     [Consumes("multipart/form-data")]
     [Produces("application/json")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswerFile(string instanceId, string submissionId,string questionName,
-        [FromForm] IFormFile[] files, CancellationToken ct)
+        [FromForm] IFormFile file, CancellationToken ct)
     {
-        if (files.Length < 1)
-            return BadRequest("SubmissionsNoFile", "No file provided");
+        var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, questionName, ct);
+        if (error is not null) return error;
         
+        var fileInfo = SaveToObjectStore(file);
+    
+        var value = instance!.GetProperty(form!.Property, questionName);
+        if (question!.IsArray)
+        {
+            var array = value as BsonArray ?? [];
+            array.Add(fileInfo.ToBsonDocument());
+            value = array;
+        }
+        else
+        {
+            value = fileInfo.ToBsonDocument();
+        }
+        instance.SetProperty(value, form.Property, questionName);
+    
+        await instanceService.SaveValue(instance, form.Property, question.Name, ct);
+        return Ok(new SaveAnswerFileResponse(true));
+        
+    }
+    
+    [HttpDelete("{instanceId}/{submissionId}/{questionName}/files/{fileId}")]
+    public async Task<IActionResult> DeleteAnswerFile(string instanceId, string submissionId,string questionName, string fileId, CancellationToken ct)
+    {
+        var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, questionName, ct);
+        if (error is not null) return error;
+        
+        var value = instance!.GetProperty(form!.Property, questionName);
+        if (value == null) return NotFound();
+        if (question!.IsArray)
+        {
+            var array = value as BsonArray ?? [];
+            foreach(var file in array)
+                if (file["Id"].AsString == fileId)
+                {
+                    await fileClient.DeleteFile(fileId);
+                    array.Remove(file);
+                    break;
+                }
+        }
+        else
+        {
+            await fileClient.DeleteFile(value["Id"].AsString);
+            instance.ClearProperty(questionName);
+        }
+        await instanceService.SaveValue(instance, form.Property, question.Name, ct);
+        return Ok(new SaveAnswerFileResponse(true));
+    }
+
+
+    /// <summary>
+    /// Retrieves the workflow instance, submission, form, and question based on the provided identifiers
+    /// and validates their existence and authorization while checking for potential errors.
+    /// </summary>
+    /// <param name="instanceId">The identifier of the workflow instance.</param>
+    /// <param name="submissionId">The identifier of the specific submission.</param>
+    /// <param name="questionName">The name of the question to retrieve within the form.</param>
+    /// <param name="ct">A token used to cancel the operation.</param>
+    /// <returns>
+    /// A tuple containing the workflow instance, submission, form, and question if successful, or an error result
+    /// if any of the entities cannot be retrieved or authorization fails.
+    /// </returns>
+    private async Task<(WorkflowInstance? instance, InstanceEvent? submission, Form? form, Question? question, ActionResult? error)> GetQuestionContext(string instanceId, string submissionId, string questionName, CancellationToken ct)
+    {
         // Get the workflow instance
         var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
-            return WorkflowInstanceNotFound;
+            return Err(WorkflowInstanceNotFound);
 
         // Get the submission
         var submission = instance.Events.GetValueOrDefault(submissionId);
         var form = modelService.GetForm(instance, submissionId);
         // Check authorization
         if (!await rightsService.Can(instance, submission?.Date == null ? RoleAction.Submit : RoleAction.Edit, form.Name))
-            return Forbidden();
+            return Err(Forbidden());
 
         // Get the question
         var question = modelService.GetQuestion(instance, form.Property, questionName);
         if (question == null)
-            return NotFound("SubmissionsQuestionNotFound", "Question not found");
+            return Err(NotFound("SubmissionsQuestionNotFound", "Question not found"));
 
-        BsonDocument value;
-        if (files.Length == 1)
-        {
-            var fileInfo = await StoreFile(files[0]);
-            value = fileInfo.ToBsonDocument();
-        }
-        else
-        {
-            var fileInfos = new List<StoredFileInfo>();
-            foreach(var file in files)
-            {
-                var fileInfo = await StoreFile(file);
-                fileInfos.Add(fileInfo);
-            }
-            value = fileInfos.ToBsonDocument();
-        }
-        instance.SetProperty(value, form.Property, questionName);
-        
-        
-        await instanceService.SaveValue(instance, form.Property, question.Name, ct);
-        return Ok(new SaveAnswerFileResponse(true));
+        return (instance, submission, form, question, null);
+
+        (WorkflowInstance? instance, InstanceEvent? submission, Form? form, Question? question, ActionResult? error) Err(ActionResult err) => (null, null, null, null, err);
     }
 
-    private async Task<StoredFileInfo> StoreFile(IFormFile file)
+    private async Task<StoredFileInfo> SaveToObjectStore(IFormFile file)
     {
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);

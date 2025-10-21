@@ -19,4 +19,7 @@ public class FileClient
 
     public Task<byte[]> GetFile(string fileId)
         => _bucket.DownloadAsBytesAsync(new ObjectId(fileId));
+    
+    public Task DeleteFile(string fileId)
+        => _bucket.DeleteAsync(new ObjectId(fileId));
 }
