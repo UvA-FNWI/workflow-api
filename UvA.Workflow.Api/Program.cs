@@ -25,6 +25,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
+
 builder.Services.AddWorkflow(config);
 builder.Services.AddScoped<WorkflowInstanceDtoService>();
 builder.Services
@@ -39,7 +40,7 @@ builder.Services.AddCors(options =>
         cb =>
         {
             cb.SetIsOriginAllowedToAllowWildcardSubdomains()
-                .WithOrigins(config["AllowedOrigin"]!)
+                .WithOrigins(config["AllowedOrigins"]!.Split(','))
                 .AllowAnyMethod()
                 .AllowCredentials()
                 .AllowAnyHeader()
