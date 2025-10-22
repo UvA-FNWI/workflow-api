@@ -10,7 +10,7 @@ public class FileClient
     public FileClient(IOptions<MongoOptions> options)
     {
         var mongoClient = new MongoClient(options.Value.ConnectionString);
-        var database = mongoClient.GetDatabase(options.Value.DatabaseName);
+        var database = mongoClient.GetDatabase(options.Value.Database);
         _bucket = new GridFSBucket(database);
     }
 
