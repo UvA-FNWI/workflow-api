@@ -5,6 +5,14 @@ using UvA.Workflow.Infrastructure.Persistence;
 
 namespace UvA.Workflow.Api.Submissions;
 
+public record AnswerFileInput(
+    [FromForm] string QuestionName,
+    [FromForm] IFormFile File
+);
+
+public record AnswerDeleteInput(string QuestionName, string FileId);
+    
+
 public class SubmissionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
@@ -86,15 +94,15 @@ public class SubmissionsController(
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
     }
 
-    [HttpPost("{instanceId}/{submissionId}/{questionName}")]
-    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,string questionName,
+    [HttpPatch("{instanceId}/{submissionId}")]
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
         [FromBody] AnswerInput input, CancellationToken ct)
     {
-        var (instance, submission, form, question, error) = await GetQuestionContext(instanceId, submissionId, questionName, ct);
+        var (instance, submission, form, question, error) = await GetQuestionContext(instanceId, submissionId, input.QuestionName, ct);
         if (error is not null) return error;
         
         // Get current answer
-        var currentAnswer = instance!.GetProperty(form!.Property, questionName);
+        var currentAnswer = instance!.GetProperty(form!.Property, input.QuestionName);
 
         // Convert new answer to BsonValue
         var newAnswer = await answerConversionService.ConvertToValue(input, question!, ct);
@@ -102,7 +110,7 @@ public class SubmissionsController(
         // Save if value changed
         if (newAnswer != currentAnswer)
         {
-            instance.SetProperty(newAnswer, form.Property, questionName);
+            instance.SetProperty(newAnswer, form.Property, input.QuestionName);
             await instanceService.SaveValue(instance, form.Property, question!.Name, ct);
         }
 
@@ -121,62 +129,67 @@ public class SubmissionsController(
         
     }
 
-    [HttpPost("{instanceId}/{submissionId}/{questionName}/files")]
+    [HttpPost("{instanceId}/{submissionId}/file")]
     [Consumes("multipart/form-data")]
     [Produces("application/json")]
-    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswerFile(string instanceId, string submissionId,string questionName,
-        [FromForm] IFormFile file, CancellationToken ct)
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswerFile(string instanceId, string submissionId,[FromForm] AnswerFileInput input, CancellationToken ct)
     {
-        var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, questionName, ct);
+        var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, input.QuestionName, ct);
         if (error is not null) return error;
         
-        var fileInfo = SaveToObjectStore(file);
+        var fileInfo = await SaveToObjectStore(input.File);
+        string? idOldFile = null;
     
-        var value = instance!.GetProperty(form!.Property, questionName);
+        var value = instance!.GetProperty(form!.Property, input.QuestionName);
         if (question!.IsArray)
         {
             var array = value as BsonArray ?? [];
             array.Add(fileInfo.ToBsonDocument());
-            value = array;
+            instance.SetProperty(array, form.Property, input.QuestionName);
         }
         else
         {
-            value = fileInfo.ToBsonDocument();
+            instance.SetProperty(fileInfo.ToBsonDocument(), form.Property, input.QuestionName);
+            idOldFile = value?["_id"].AsString;
         }
-        instance.SetProperty(value, form.Property, questionName);
     
         await instanceService.SaveValue(instance, form.Property, question.Name, ct);
-        return Ok(new SaveAnswerFileResponse(true));
         
+        if (idOldFile != null)
+        {
+            // Delete old file
+            await fileClient.DeleteFile(idOldFile);
+        }
+        return Ok(new SaveAnswerFileResponse(true));
     }
     
-    [HttpDelete("{instanceId}/{submissionId}/{questionName}/files/{fileId}")]
-    public async Task<IActionResult> DeleteAnswerFile(string instanceId, string submissionId,string questionName, string fileId, CancellationToken ct)
+    [HttpDelete("{instanceId}/{submissionId}/file")]
+    public async Task<IActionResult> DeleteAnswerFile(string instanceId, string submissionId,[FromBody]AnswerDeleteInput input, CancellationToken ct)
     {
-        var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, questionName, ct);
+        var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, input.QuestionName, ct);
         if (error is not null) return error;
         
-        var value = instance!.GetProperty(form!.Property, questionName);
+        var value = instance!.GetProperty(form!.Property, input.QuestionName);
         if (value == null) return NotFound();
         if (question!.IsArray)
         {
             var array = value as BsonArray ?? [];
             foreach(var file in array)
-                if (file["Id"].AsString == fileId)
+                if (file["_id"].AsString == input.FileId)
                 {
-                    await fileClient.DeleteFile(fileId);
+                    await fileClient.DeleteFile(input.FileId);
                     array.Remove(file);
-                    instance.SetProperty(array, form.Property, questionName);
+                    instance.SetProperty(array, form.Property, input.QuestionName);
                     break;
                 }
         }
         else
         {
-            var id = value["Id"].AsString;
-            if(id != fileId)
+            var id = value["_id"].AsString;
+            if(id != input.FileId)
                 return NotFound();
             await fileClient.DeleteFile(id);
-            instance.ClearProperty(questionName);
+            instance.ClearProperty(input.QuestionName);
         }
         await instanceService.SaveValue(instance, form.Property, question.Name, ct);
         return Ok(new SaveAnswerFileResponse(true));

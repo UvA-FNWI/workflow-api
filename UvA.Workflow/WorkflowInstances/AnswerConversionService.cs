@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 namespace UvA.Workflow.Services;
 
 public record AnswerInput(
+    string QuestionName,
     JsonElement? Value = null,
     int? DeleteFileId = null);
 
