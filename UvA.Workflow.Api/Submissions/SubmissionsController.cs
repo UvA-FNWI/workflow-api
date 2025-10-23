@@ -1,3 +1,5 @@
+using MongoDB.Driver.GridFS;
+using Serilog;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
@@ -11,7 +13,6 @@ public record AnswerFileInput(
 );
 
 public record AnswerDeleteInput(string QuestionName, string FileId);
-    
 
 public class SubmissionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
@@ -100,7 +101,7 @@ public class SubmissionsController(
     {
         var (instance, submission, form, question, error) = await GetQuestionContext(instanceId, submissionId, input.QuestionName, ct);
         if (error is not null) return error;
-        
+
         // Get current answer
         var currentAnswer = instance!.GetProperty(form!.Property, input.QuestionName);
 
@@ -126,20 +127,20 @@ public class SubmissionsController(
         var updatedSubmission = SubmissionDto.FromEntity(instance, form, submission);
 
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
-        
     }
 
     [HttpPost("{instanceId}/{submissionId}/file")]
     [Consumes("multipart/form-data")]
     [Produces("application/json")]
-    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswerFile(string instanceId, string submissionId,[FromForm] AnswerFileInput input, CancellationToken ct)
+    public async Task<ActionResult<SaveAnswerResponse>> SaveAnswerFile(string instanceId, string submissionId, [FromForm] AnswerFileInput input,
+        CancellationToken ct)
     {
         var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, input.QuestionName, ct);
         if (error is not null) return error;
-        
+
         var fileInfo = await SaveToObjectStore(input.File);
         string? idOldFile = null;
-    
+
         var value = instance!.GetProperty(form!.Property, input.QuestionName);
         if (question!.IsArray)
         {
@@ -152,46 +153,56 @@ public class SubmissionsController(
             instance.SetProperty(fileInfo.ToBsonDocument(), form.Property, input.QuestionName);
             idOldFile = value?["_id"].AsString;
         }
-    
+
         await instanceService.SaveValue(instance, form.Property, question.Name, ct);
-        
+
         if (idOldFile != null)
         {
-            // Delete old file
-            await fileClient.DeleteFile(idOldFile);
+            await fileClient.TryDeleteFile(idOldFile);
         }
+
         return Ok(new SaveAnswerFileResponse(true));
     }
-    
+
     [HttpDelete("{instanceId}/{submissionId}/file")]
-    public async Task<IActionResult> DeleteAnswerFile(string instanceId, string submissionId,[FromBody]AnswerDeleteInput input, CancellationToken ct)
+    public async Task<IActionResult> DeleteAnswerFile(string instanceId, string submissionId, [FromBody] AnswerDeleteInput input, CancellationToken ct)
     {
         var (instance, _, form, question, error) = await GetQuestionContext(instanceId, submissionId, input.QuestionName, ct);
         if (error is not null) return error;
-        
+
+
         var value = instance!.GetProperty(form!.Property, input.QuestionName);
         if (value == null) return NotFound();
+
         if (question!.IsArray)
         {
             var array = value as BsonArray ?? [];
-            foreach(var file in array)
-                if (file["_id"].AsString == input.FileId)
-                {
-                    await fileClient.DeleteFile(input.FileId);
-                    array.Remove(file);
-                    instance.SetProperty(array, form.Property, input.QuestionName);
-                    break;
-                }
+            var fileRef = array.FirstOrDefault(a => a["_id"].AsString == input.FileId);
+            if (fileRef == null)
+            {
+                Log.Error("File {FileId} not found in array", input.FileId);
+                return NotFound();
+            }
+
+            await fileClient.TryDeleteFile(input.FileId);
+            array.Remove(fileRef);
+            instance.SetProperty(array, form.Property, input.QuestionName);
+            await instanceService.SaveValue(instance, form.Property, question.Name, ct);
         }
         else
         {
             var id = value["_id"].AsString;
-            if(id != input.FileId)
+            if (id != input.FileId)
+            {
+                Log.Error("File {FileId} not found in object or data store", input.FileId);
                 return NotFound();
-            await fileClient.DeleteFile(id);
-            instance.ClearProperty(input.QuestionName);
+            }
+
+            await instanceService.UnsetValue(instance, form.Property, question.Name, ct);
+            instance.ClearProperty(question.Name);
+            await fileClient.TryDeleteFile(input.FileId);
         }
-        await instanceService.SaveValue(instance, form.Property, question.Name, ct);
+
         return Ok(new SaveAnswerFileResponse(true));
     }
 
@@ -208,7 +219,8 @@ public class SubmissionsController(
     /// A tuple containing the workflow instance, submission, form, and question if successful, or an error result
     /// if any of the entities cannot be retrieved or authorization fails.
     /// </returns>
-    private async Task<(WorkflowInstance? instance, InstanceEvent? submission, Form? form, Question? question, ActionResult? error)> GetQuestionContext(string instanceId, string submissionId, string questionName, CancellationToken ct)
+    private async Task<(WorkflowInstance? instance, InstanceEvent? submission, Form? form, Question? question, ActionResult? error)> GetQuestionContext(
+        string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
         // Get the workflow instance
         var instance = await workflowInstanceRepository.GetById(instanceId, ct);
@@ -229,7 +241,8 @@ public class SubmissionsController(
 
         return (instance, submission, form, question, null);
 
-        (WorkflowInstance? instance, InstanceEvent? submission, Form? form, Question? question, ActionResult? error) Err(ActionResult err) => (null, null, null, null, err);
+        (WorkflowInstance? instance, InstanceEvent? submission, Form? form, Question? question, ActionResult? error) Err(ActionResult err) =>
+            (null, null, null, null, err);
     }
 
     private async Task<StoredFileInfo> SaveToObjectStore(IFormFile file)

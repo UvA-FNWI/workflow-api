@@ -72,6 +72,12 @@ public class InstanceService(
                     : (i => i.Properties[part1][part2]),
                 instance.GetProperty(part1, part2)), ct);
     
+    public Task UnsetValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
+        => workflowInstanceRepository.UpdateFields(instance.Id,
+            Builders<WorkflowInstance>.Update.Unset(part1 == null
+                ? (i => i.Properties[part2])
+                : (i => i.Properties[part1][part2])),ct);
+    
     public record AllowedAction(Domain_Action Action, Form? Form = null, Mail? Mail = null, EntityType? EntityType = null);
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
