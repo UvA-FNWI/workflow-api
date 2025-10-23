@@ -4,8 +4,7 @@ using Microsoft.AspNetCore.Http;
 namespace UvA.Workflow.Services;
 
 public record AnswerInput(
-    string QuestionName,
-    JsonElement? Value = null,
+    JsonElement? Value,
     int? DeleteFileId = null);
 
 /// <summary>
@@ -29,7 +28,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
             return BsonNull.Value;
 
         var value = answerInput.Value.Value;
-
+        
         return question.DataType switch
         {
             DataType.String or DataType.Choice or DataType.Reference =>
