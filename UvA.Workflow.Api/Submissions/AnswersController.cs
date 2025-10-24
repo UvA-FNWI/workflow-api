@@ -5,12 +5,6 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions;
 
-public class SaveAnswerFileRequest
-{
-    [FromForm]
-    public required IFormFile File { get; set; }
-}
-
 public class AnswersController(AnswerService answerService, RightsService rightsService, ArtifactTokenService artifactTokenService, SubmissionDtoFactory submissionDtoFactory) : ApiControllerBase
 {
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
