@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Serilog;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -26,7 +27,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflow(config);
-builder.Services.AddScoped<DtoFactory>();
+builder.Services.AddScoped<WorkflowInstanceDtoFactory>();
 builder.Services
     .AddControllers()
     .AddJsonOptions(opts =>

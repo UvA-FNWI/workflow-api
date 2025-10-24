@@ -1,14 +1,13 @@
 using UvA.Workflow.Api.EntityTypes.Dtos;
-using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-namespace UvA.Workflow.Api.WorkflowInstances;
+namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-public class DtoFactory(InstanceService instanceService, ModelService modelService)
+public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelService modelService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
     /// </summary>
-    public async Task<WorkflowInstanceDto> CreateWorkflowInstanceDto(WorkflowInstance instance, CancellationToken ct)
+    public async Task<WorkflowInstanceDto> Create(WorkflowInstance instance, CancellationToken ct)
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         

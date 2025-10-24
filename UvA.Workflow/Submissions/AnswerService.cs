@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Serilog;
-using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Persistence;
 

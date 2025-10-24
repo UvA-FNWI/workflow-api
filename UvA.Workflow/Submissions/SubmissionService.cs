@@ -1,6 +1,6 @@
 using UvA.Workflow.Infrastructure;
 
-namespace UvA.Workflow.Api.Submissions;
+namespace UvA.Workflow.Submissions;
 
 public record SubmissionContext(WorkflowInstance Instance, InstanceEvent? Submission, Form Form, string SubmissionId);
 

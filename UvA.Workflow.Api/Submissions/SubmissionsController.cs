@@ -1,13 +1,14 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
-using UvA.Workflow.Api.WorkflowInstances;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions;
 
 public class SubmissionsController(
     ModelService modelService,
     SubmissionService submissionService,
-    DtoFactory dtoFactory) : ApiControllerBase
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId, CancellationToken ct)
@@ -33,7 +34,7 @@ public class SubmissionsController(
 
         var finalSubmissionDto = SubmissionDto.Create(instance, form, instance.Events[submissionId],
             modelService.GetQuestionStatus(instance, form, true));
-        var updatedInstanceDto = await dtoFactory.CreateWorkflowInstanceDto(instance, ct);
+        var updatedInstanceDto = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
     }
