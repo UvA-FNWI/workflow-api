@@ -116,8 +116,6 @@ public record StateLogEntry(string State, DateTime Date, string? UserId);
 
 public record CurrencyAmount(string Currency, double Amount);
 
-public record StoredFile(string FileName, string Id);
-
 public enum MessageKind
 {
     Normal,

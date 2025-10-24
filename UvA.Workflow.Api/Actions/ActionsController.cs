@@ -10,7 +10,7 @@ public class ActionsController(
     RightsService rightsService,
     TriggerService triggerService,
     ContextService contextService,
-    WorkflowInstanceDtoService dtoService) : ApiControllerBase
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input, CancellationToken ct)
@@ -43,7 +43,7 @@ public class ActionsController(
 
         return Ok(new ExecuteActionPayloadDto(
             input.Type,
-            input.Type == ActionType.DeleteInstance ? null : await dtoService.Create(instance, ct)
+            input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct)
         ));
     }
 }

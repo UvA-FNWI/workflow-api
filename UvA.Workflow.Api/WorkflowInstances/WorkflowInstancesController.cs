@@ -7,7 +7,7 @@ public class WorkflowInstancesController(
     WorkflowInstanceService service,
     RightsService rightsService,
     ContextService contextService,
-    WorkflowInstanceDtoService dtoService,
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
     IWorkflowInstanceRepository repository) : ApiControllerBase
 {
     [HttpPost]
@@ -30,7 +30,7 @@ public class WorkflowInstancesController(
         
         await contextService.UpdateCurrentStep(instance, ct);
         
-        var result = await dtoService.Create(instance, ct);
+        var result = await workflowInstanceDtoFactory.Create(instance, ct);
         
         return CreatedAtAction(nameof(GetById), new { id = instance.Id }, result);
     }
@@ -42,7 +42,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
         
-        var result = await dtoService.Create(instance, ct);
+        var result = await workflowInstanceDtoFactory.Create(instance, ct);
         
         return Ok(result);
     }

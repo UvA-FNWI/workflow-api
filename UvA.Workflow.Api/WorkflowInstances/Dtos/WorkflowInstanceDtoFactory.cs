@@ -1,11 +1,10 @@
 using UvA.Workflow.Api.EntityTypes.Dtos;
 using UvA.Workflow.Api.Submissions.Dtos;
-using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-namespace UvA.Workflow.Api.WorkflowInstances;
+namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-public class WorkflowInstanceDtoService(InstanceService instanceService, ModelService modelService,
-    FileService fileService)
+public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelService modelService,
+    SubmissionDtoFactory submissionDtoFactory)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -26,7 +25,7 @@ public class WorkflowInstanceDtoService(InstanceService instanceService, ModelSe
             [],
             entityType.Steps.Select(s => StepDto.Create(s, instance)).ToArray(),
             submissions
-                .Select(s => SubmissionDto.FromEntity(instance, s.Form, s.Event, s.QuestionStatus, fileService))
+                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus))
                 .ToArray(),
             []
         );

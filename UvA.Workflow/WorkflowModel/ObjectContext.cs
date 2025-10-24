@@ -1,4 +1,5 @@
 using System.Collections;
+using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Entities.Domain;
 
@@ -57,7 +58,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
                 .Select(u => BsonSerializer.Deserialize<User>(u.AsBsonDocument)).ToArray(),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
-            DataType.File => BsonSerializer.Deserialize<StoredFile>(answer.AsBsonDocument),
+            DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
             _ when question!.IsArray => answer.AsBsonArray.Select(r => r.AsString).ToArray(),
             DataType.Reference when question.EntityType!.IsEmbedded => answer.AsBsonDocument,
             DataType.Reference => answer.AsString,
