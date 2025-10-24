@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Submissions;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
@@ -33,6 +34,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ArtifactService>();
         services.AddScoped<AnswerService>();
         services.AddScoped<SubmissionService>();
+        services.AddScoped<ArtifactTokenService>();
+        services.AddScoped<SubmissionDtoFactory>();
+        services.AddScoped<AnswerDtoFactory>();
 
         services.AddScoped<ContextService>();
         services.AddScoped<InstanceService>();

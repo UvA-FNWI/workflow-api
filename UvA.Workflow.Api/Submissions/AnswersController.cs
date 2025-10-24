@@ -11,7 +11,7 @@ public class SaveAnswerFileRequest
     public required IFormFile File { get; set; }
 }
 
-public class AnswersController(AnswerService answerService, RightsService rightsService) : ApiControllerBase
+public class AnswersController(AnswerService answerService, RightsService rightsService, ArtifactTokenService artifactTokenService, SubmissionDtoFactory submissionDtoFactory) : ApiControllerBase
 {
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,string questionName,
@@ -20,8 +20,7 @@ public class AnswersController(AnswerService answerService, RightsService rights
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
         var answers = await answerService.SaveAnswer(context, input.Value, ct);
-        var updatedSubmission = SubmissionDto.Create(context.Instance,context.Form, context.Submission);
-
+        var updatedSubmission = submissionDtoFactory.Create(context.Instance,context.Form, context.Submission);
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
     }
 
@@ -48,8 +47,15 @@ public class AnswersController(AnswerService answerService, RightsService rights
     }
     
     [HttpGet("{instanceId}/{submissionId}/{questionName}/artifacts/{artifactId}")]
-    public async Task<IActionResult> GetAnswerFile(string instanceId, string submissionId, string questionName, string artifactId, CancellationToken ct)
+    public async Task<IActionResult> GetAnswerFile(string instanceId, string submissionId, string questionName, 
+        string artifactId,[FromQuery] string token, CancellationToken ct)
     {
+        if (!await artifactTokenService.ValidateAccessToken(artifactId, token))
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
+            return Unauthorized();
+        }
+
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         var file = await answerService.GetArtifact(context, artifactId, ct);
         if(file == null) return NotFound();

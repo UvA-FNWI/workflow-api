@@ -8,13 +8,14 @@ namespace UvA.Workflow.Api.Submissions;
 public class SubmissionsController(
     ModelService modelService,
     SubmissionService submissionService,
+    SubmissionDtoFactory submissionDtoFactory,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId, CancellationToken ct)
     {
         var (instance, submission, form, _ ) = await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
-        var dto = SubmissionDto.Create(instance, form, submission, modelService.GetQuestionStatus(instance, form, true));
+        var dto = submissionDtoFactory.Create(instance, form, submission, modelService.GetQuestionStatus(instance, form, true));
         return Ok(dto);
     }
 
@@ -27,12 +28,12 @@ public class SubmissionsController(
         
         if (!result.Success)
         {
-            var submissionDto = SubmissionDto.Create(instance, form, sub,
+            var submissionDto = submissionDtoFactory.Create(instance, form, sub,
                 modelService.GetQuestionStatus(instance, form, true));
             return Ok(new SubmitSubmissionResult(submissionDto, null, result.Errors, false));
         }
 
-        var finalSubmissionDto = SubmissionDto.Create(instance, form, instance.Events[submissionId],
+        var finalSubmissionDto = submissionDtoFactory.Create(instance, form, instance.Events[submissionId],
             modelService.GetQuestionStatus(instance, form, true));
         var updatedInstanceDto = await workflowInstanceDtoFactory.Create(instance, ct);
 

@@ -1,4 +1,4 @@
-using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
@@ -7,28 +7,24 @@ public record SubmissionDto(
     string Id,
     string FormName,
     string InstanceId,
-    Answer[] Answers,
+    AnswerDto[] Answers,
     DateTime? DateSubmitted,
-    FormDto Form)
+    FormDto Form);
+
+public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService)
 {
-    public static SubmissionDto Create(WorkflowInstance inst,
-        Form form,
-        InstanceEvent? sub,
-        Dictionary<string, QuestionStatus>? shownQuestionIds = null
-    )
-        => new(form.Name,
+    private readonly AnswerDtoFactory answerDtoFactory = new(artifactTokenService);
+
+    public SubmissionDto Create(WorkflowInstance inst, Form form, InstanceEvent? submission,
+        Dictionary<string, QuestionStatus>? shownQuestionIds = null)
+    {
+        var answers = shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds);
+        return new(form.Name,
             form.Name,
             inst.Id,
-            shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds),
-            sub?.Date,
+            answers.Select(a => answerDtoFactory.Create(a)).ToArray(),
+            submission?.Date,
             FormDto.Create(form)
         );
+    }
 }
-
-
-
-public record SubmitSubmissionResult(
-    SubmissionDto Submission,
-    WorkflowInstanceDto? UpdatedInstance = null,
-    InvalidQuestion[]? ValidationErrors = null,
-    bool Success = true);
