@@ -26,8 +26,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: workflow-api-config
-{{/*            - secretRef:*/}}
-{{/*                name: workflow-api-secret*/}}
+            - secretRef:
+                name: workflow-api-secret
           {{- if .Values.azure }}
           volumeMounts:
             - name: secrets-store-inline
