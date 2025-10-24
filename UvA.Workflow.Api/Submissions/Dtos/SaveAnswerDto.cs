@@ -1,3 +1,5 @@
+using UvA.Workflow.Submissions;
+
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
 public record FileUpload(

@@ -3,12 +3,12 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
 
-public class WorkflowInstanceDtoService(InstanceService instanceService, ModelService modelService)
+public class DtoFactory(InstanceService instanceService, ModelService modelService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
     /// </summary>
-    public async Task<WorkflowInstanceDto> Create(WorkflowInstance instance, CancellationToken ct)
+    public async Task<WorkflowInstanceDto> CreateWorkflowInstanceDto(WorkflowInstance instance, CancellationToken ct)
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         

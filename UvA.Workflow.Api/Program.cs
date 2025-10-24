@@ -26,10 +26,14 @@ builder.Host.UseSerilog((context, services, configuration) =>
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflow(config);
-builder.Services.AddScoped<WorkflowInstanceDtoService>();
+builder.Services.AddScoped<DtoFactory>();
 builder.Services
     .AddControllers()
-    .AddJsonOptions(opts => opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        opts.JsonSerializerOptions.Converters.Add(new ObjectIdJsonConverter());
+    });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
