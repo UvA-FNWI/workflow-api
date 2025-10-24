@@ -9,7 +9,8 @@ public record SubmissionDto(
     string InstanceId,
     AnswerDto[] Answers,
     DateTime? DateSubmitted,
-    FormDto Form);
+    FormDto Form,
+    RoleAction[] Permissions);
 
 public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService)
 {
@@ -24,7 +25,8 @@ public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService)
             inst.Id,
             answers.Select(a => answerDtoFactory.Create(a)).ToArray(),
             submission?.Date,
-            FormDto.Create(form)
+            FormDto.Create(form),
+            [] // TODO: set permissions
         );
     }
 }

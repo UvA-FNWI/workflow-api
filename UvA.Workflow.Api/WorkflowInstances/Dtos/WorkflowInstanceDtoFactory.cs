@@ -1,8 +1,10 @@
 using UvA.Workflow.Api.EntityTypes.Dtos;
+using UvA.Workflow.Api.Submissions.Dtos;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelService modelService)
+public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelService modelService,
+    SubmissionDtoFactory submissionDtoFactory)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -10,21 +12,21 @@ public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelSe
     public async Task<WorkflowInstanceDto> Create(WorkflowInstance instance, CancellationToken ct)
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
+        var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
+        var entityType = modelService.EntityTypes[instance.EntityType];
         
         return new WorkflowInstanceDto(
             instance.Id,
+            entityType.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
             EntityTypeDto.Create(modelService.EntityTypes[instance.EntityType]),
             instance.CurrentStep,
-            instance.Properties.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToDotNetValue(v.Value)),
-            instance.Events.ToDictionary(
-                kvp => kvp.Key,
-                kvp => InstanceEventDto.Create(kvp.Value)
-            ),
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             [],
-            [],
-            [],
+            entityType.Steps.Select(s => StepDto.Create(s, instance)).ToArray(),
+            submissions
+                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus))
+                .ToArray(),
             []
         );
     }
