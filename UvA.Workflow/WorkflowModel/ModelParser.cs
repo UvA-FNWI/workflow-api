@@ -92,7 +92,12 @@ public partial class ModelParser
     {
         role.Actions = role.Actions.Union(role.InheritFrom.SelectMany(r => Roles[r].Actions)).ToList();
         foreach (var act in role.Actions)
+        {
             PreProcess(act.Triggers);
+            
+            if (act.Form != null && act.EntityType != null && !EntityTypes[act.EntityType].Forms.ContainsKey(act.Form))
+                throw new Exception($"${role.Name}: form {act.Form} not found for entity {act.EntityType}");
+        }
     }
 
     private void PreProcess(ValueSet set)

@@ -2,9 +2,8 @@ namespace UvA.Workflow.Entities.Domain;
 
 public enum StepHierarchyMode
 {
-    Parallel,
     Sequential,
-    Cycle
+    Parallel
 }
 
 public class Step
