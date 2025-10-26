@@ -92,7 +92,7 @@ public class Generator(DocumentationReader documentationReader)
         return prop;
     }
     
-    private JsonSchema Null => new JsonSchema {Type = JsonObjectType.Null};
+    private JsonSchema Null => new() {Type = JsonObjectType.Null};
     
     private JsonSchemaProperty ToProperty(PropertyInfo property)
     {
@@ -123,6 +123,12 @@ public class Generator(DocumentationReader documentationReader)
                 Type = JsonObjectType.Object,
                 AdditionalPropertiesSchema = GetReference(targetType.GenericTypeArguments[1])
             },
+            // Get derived types
+            {Name: "LayoutOptions"} => CreateOneOf(System.Reflection.Assembly
+                .GetAssembly(targetType)?.GetTypes()
+                .Where(type => type.IsSubclassOf(targetType))
+                .Select(GetReference)
+                .ToArray() ?? []),
             {IsClass: true, Name: not "String"} or { IsEnum: true } => new JsonSchemaProperty {Reference = Get(targetType)},
             _ => new JsonSchemaProperty
             {

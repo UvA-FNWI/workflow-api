@@ -133,7 +133,8 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Internal name of the question"
         },
         "text": {
           "oneOf": [
@@ -141,6 +142,7 @@
               "type": "null"
             },
             {
+              "description": "Localized text of the question",
               "oneOf": [
                 {
                   "type": "null"
@@ -156,10 +158,19 @@
           ]
         },
         "kind": {
+          "description": "Set if this question is hidden from users without extra permissions",
           "$ref": "#/definitions/QuestionKind"
         },
         "layout": {
-          "$ref": "#/definitions/QuestionLayout"
+          "description": "Specific layout options for the data type",
+          "oneOf": [
+            {
+              "$ref": "#/definitions/ChoiceLayoutOptions"
+            },
+            {
+              "$ref": "#/definitions/StringLayoutOptions"
+            }
+          ]
         },
         "shortText": {
           "oneOf": [
@@ -167,6 +178,7 @@
               "type": "null"
             },
             {
+              "description": "Localized short question text to shown in results",
               "oneOf": [
                 {
                   "type": "null"
@@ -182,13 +194,15 @@
           ]
         },
         "type": {
-          "type": "string"
+          "type": "string",
+          "description": "Data type of the question. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
         },
         "values": {
           "type": [
             "null",
             "object"
           ],
+          "description": "Values for a choice question.",
           "additionalProperties": {
             "$ref": "#/definitions/Choice"
           }
@@ -199,6 +213,7 @@
               "type": "null"
             },
             {
+              "description": "Localized extended description text for the question.",
               "oneOf": [
                 {
                   "type": "null"
@@ -213,27 +228,13 @@
             }
           ]
         },
-        "multiline": {
-          "type": "boolean"
-        },
-        "default": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "replacedBy": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
         "condition": {
           "oneOf": [
             {
               "type": "null"
             },
             {
+              "description": "Condition that determines if the question should be shown",
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -244,24 +245,21 @@
               "type": "null"
             },
             {
+              "description": "Condition that determines if the value is valid",
               "$ref": "#/definitions/Condition"
             }
           ]
         },
         "onSave": {
           "type": "array",
+          "description": "Trigger that is run whenever a value is changed for this property",
           "items": {
             "$ref": "#/definitions/Trigger"
           }
         },
-        "isContext": {
-          "type": "boolean"
-        },
-        "allowAttachments": {
-          "type": "boolean"
-        },
         "hideInResults": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Determines if the question should be hidden in the results table"
         },
         "table": {
           "oneOf": [
@@ -282,12 +280,36 @@
         "Hidden"
       ]
     },
-    "QuestionLayout": {
+    "ChoiceLayoutOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Set if the question should be shown as dropdown or radio list",
+          "$ref": "#/definitions/ChoiceLayoutType"
+        }
+      }
+    },
+    "ChoiceLayoutType": {
       "type": "string",
       "enum": [
-        "Standard",
+        "Dropdown",
         "RadioList"
       ]
+    },
+    "StringLayoutOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "multiline": {
+          "type": "boolean",
+          "description": "Set if the question should be a multiline text field"
+        },
+        "allowAttachments": {
+          "type": "boolean",
+          "description": "Set if the text field should allow attachments"
+        }
+      }
     },
     "Choice": {
       "type": "object",

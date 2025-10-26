@@ -6,31 +6,85 @@ public enum QuestionKind
     Hidden
 }
 
-public enum QuestionLayout
+public enum ChoiceLayoutType
 {
-    Standard,
+    Dropdown,
     RadioList
+}
+
+public class LayoutOptions;
+
+public class ChoiceLayoutOptions : LayoutOptions
+{
+    /// <summary>
+    /// Set if the question should be shown as dropdown or radio list
+    /// </summary>
+    public ChoiceLayoutType Type { get; set; }
+}
+
+public class StringLayoutOptions : LayoutOptions
+{
+    /// <summary>
+    /// Set if the question should be a multiline text field
+    /// </summary>
+    public bool Multiline { get; set; }
+    
+    /// <summary>
+    /// Set if the text field should allow attachments 
+    /// </summary>
+    public bool AllowAttachments { get; set; }
 }
 
 public class Question
 {
+    /// <summary>
+    /// Internal name of the question
+    /// </summary>
     public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// Localized text of the question
+    /// </summary>
     public BilingualString? Text { get; set; }
+    
     public BilingualString DisplayName => Text ?? Name;
     public BilingualString ShortDisplayName => ShortText ?? Text ?? Name;
+    
+    /// <summary>
+    /// Set if this question is hidden from users without extra permissions
+    /// </summary>
     public QuestionKind Kind { get; set; }
-    public QuestionLayout Layout { get; set; }
+
+    /// <summary>
+    /// Specific layout options for the data type
+    /// </summary>
+    public LayoutOptions Layout { get; set; } = null!;
+    
+    /// <summary>
+    /// Localized short question text to shown in results  
+    /// </summary>
     public BilingualString? ShortText { get; set; }
+    
+    /// <summary>
+    /// Data type of the question. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,
+    /// or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate
+    /// a required value.
+    /// </summary>
     public string Type { get; set; } = null!;
+    
+    /// <summary>
+    /// Values for a choice question.
+    /// </summary>
     public Dictionary<string, Choice>? Values { get; set; }
+    
+    /// <summary>
+    /// Localized extended description text for the question.
+    /// </summary>
     public BilingualString? Description { get; set; }
-    public bool Multiline { get; set; }
-    public string? Default { get; set; }
-    public string? ReplacedBy { get; set; }
+    
+    [YamlIgnore] public EntityType ParentType { get; set; } = null!;
 
-    [YamlIgnore] [JsonIgnore] public EntityType ParentType { get; set; } = null!;
-
-    [YamlIgnore] [JsonIgnore] public EntityType? EntityType { get; set; }
+    [YamlIgnore] public EntityType? EntityType { get; set; }
 
     public string UnderlyingType => Type.TrimEnd('!', ']').TrimStart('[');
 
@@ -53,19 +107,30 @@ public class Question
         _ => throw new ArgumentException("Invalid type")
     };
 
+    /// <summary>
+    /// Condition that determines if the question should be shown
+    /// </summary>
     public Condition? Condition { get; set; }
+    
+    /// <summary>
+    /// Condition that determines if the value is valid 
+    /// </summary>
     public Condition? Validation { get; set; }
-
-    [JsonIgnore]
+    
     [YamlIgnore]
     public IEnumerable<Condition> Conditions =>
         (Values?.Values.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Where(c => c != null)!;
 
     public List<Question> DependentQuestions { get; } = [];
 
+    /// <summary>
+    /// Trigger that is run whenever a value is changed for this property
+    /// </summary>
     public Trigger[] OnSave { get; set; } = [];
-    public bool IsContext { get; set; }
-    public bool AllowAttachments { get; set; }
+    
+    /// <summary>
+    /// Determines if the question should be hidden in the results table
+    /// </summary>
     public bool HideInResults { get; set; }
 
     public TableSettings? Table { get; set; }
@@ -73,11 +138,10 @@ public class Question
 
 public class TableSettings
 {
-    [JsonPropertyName("form")]
     [YamlMember(Alias = "form")]
     public string FormReference { get; set; } = null!;
 
-    [YamlIgnore] [JsonIgnore] public Form Form { get; set; } = null!;
+    [YamlIgnore] public Form Form { get; set; } = null!;
     public TableLayout Layout { get; set; }
 }
 

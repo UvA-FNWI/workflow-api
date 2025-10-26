@@ -2,6 +2,9 @@ using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.Entities.Domain;
 
+/// <summary>
+/// Represents a type of object ("entity") in the workflow system
+/// </summary>
 public class EntityType
 {
     /// <summary>
@@ -63,7 +66,6 @@ public class EntityType
     /// List of step names for this entity type
     /// </summary>
     [YamlMember(Alias = "steps")]
-    [JsonPropertyName("steps")]
     public List<string> StepNames { get; set; } = [];
     
     /// <summary>
@@ -83,11 +85,11 @@ public class EntityType
 
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
 
-    [JsonIgnore] [YamlIgnore] public Dictionary<string, Form> Forms { get; set; } = null!;
-    [JsonIgnore] [YamlIgnore] public Dictionary<string, Step> AllSteps { get; set; } = null!;
-    [JsonIgnore] [YamlIgnore] public Dictionary<string, Screen> Screens { get; set; } = null!;
-    [JsonIgnore] [YamlIgnore] public List<Step> Steps { get; set; } = [];
-    [JsonIgnore] [YamlIgnore] public EntityType? Parent { get; set; }
+    [YamlIgnore] public Dictionary<string, Form> Forms { get; set; } = null!;
+    [YamlIgnore] public Dictionary<string, Step> AllSteps { get; set; } = null!;
+    [YamlIgnore] public Dictionary<string, Screen> Screens { get; set; } = null!;
+    [YamlIgnore] public List<Step> Steps { get; set; } = [];
+    [YamlIgnore] public EntityType? Parent { get; set; }
 
     public DataType GetDataType(string property)
     {
