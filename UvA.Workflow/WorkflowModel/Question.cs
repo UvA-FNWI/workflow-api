@@ -157,11 +157,30 @@ public enum TableLayout
 
 public class Choice
 {
+    /// <summary>
+    /// Internal name of the choice
+    /// </summary>
+    [YamlIgnore]
     public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// Localized text of the choice
+    /// </summary>
     public BilingualString? Text { get; set; }
+    
+    /// <summary>
+    /// Localized extended description text for the choice
+    /// </summary>
     public BilingualString? Description { get; set; }
+    
+    /// <summary>
+    /// Numeric value of the choice
+    /// </summary>
     public double? Value { get; set; }
 
+    /// <summary>
+    /// Condition that determines if the choice should be shown
+    /// </summary>
     public Condition? Condition { get; set; }
 
     public static implicit operator Choice(string value) => new Choice { Text = value };

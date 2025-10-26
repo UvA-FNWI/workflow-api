@@ -88,14 +88,9 @@
     "Page": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
-        "name": {
-          "type": "string"
-        },
         "title": {
+          "description": "Localized title of the page",
           "oneOf": [
             {
               "type": "null"
@@ -109,6 +104,7 @@
           ]
         },
         "introduction": {
+          "description": "Localized introduction text to show at the start of the page",
           "oneOf": [
             {
               "type": "null"
@@ -122,10 +118,12 @@
           ]
         },
         "layout": {
+          "description": "Layout of the page. Condensed will show the questions in a table",
           "$ref": "#/definitions/PageLayout"
         },
         "questions": {
           "type": "array",
+          "description": "Question names to include in the page",
           "items": {
             "type": "string"
           }
@@ -135,6 +133,7 @@
             "array",
             "null"
           ],
+          "description": "If set, this page is included only when editing a matching property",
           "items": {
             "type": "string"
           }

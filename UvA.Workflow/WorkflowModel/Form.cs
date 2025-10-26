@@ -14,16 +14,38 @@ public enum FormLayout
 
 public class Page
 {
+    /// <summary>
+    /// Internal name of the page
+    /// </summary>
+    [YamlIgnore]
     public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// Localized title of the page
+    /// </summary>
     public BilingualString? Title { get; set; }
+    
+    /// <summary>
+    /// Localized introduction text to show at the start of the page
+    /// </summary>
     public BilingualString? Introduction { get; set; }
+    
+    /// <summary>
+    /// Layout of the page. Condensed will show the questions in a table
+    /// </summary>
     public PageLayout Layout { get; set; }
 
+    /// <summary>
+    /// Question names to include in the page
+    /// </summary>
     [YamlMember(Alias = "questions")]
     public string[] QuestionNames { get; set; } = [];
 
-    [JsonIgnore] [YamlIgnore] public Question[] Questions { get; set; } = [];
+    [YamlIgnore] public Question[] Questions { get; set; } = [];
 
+    /// <summary>
+    /// If set, this page is included only when editing a matching property
+    /// </summary>
     public string[]? Sources { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;

@@ -296,14 +296,9 @@
     "Choice": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
-        "name": {
-          "type": "string"
-        },
         "text": {
+          "description": "Localized text of the choice",
           "oneOf": [
             {
               "type": "null"
@@ -317,6 +312,7 @@
           ]
         },
         "description": {
+          "description": "Localized extended description text for the choice",
           "oneOf": [
             {
               "type": "null"
@@ -333,7 +329,8 @@
           "type": [
             "null",
             "number"
-          ]
+          ],
+          "description": "Numeric value of the choice"
         },
         "condition": {
           "oneOf": [
@@ -341,6 +338,7 @@
               "type": "null"
             },
             {
+              "description": "Condition that determines if the choice should be shown",
               "$ref": "#/definitions/Condition"
             }
           ]
