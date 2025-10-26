@@ -19,6 +19,9 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
 
         var (statusCode, code, message) = exception switch
         {
+            EntityNotFoundException enf => (HttpStatusCode.NotFound, enf.Code, enf.Message),
+            ForbiddenWorkflowActionException fwae => (HttpStatusCode.Forbidden, fwae.Code, fwae.Message),
+            InvalidWorkflowStateException iwse => (HttpStatusCode.UnprocessableEntity, iwse.Code, iwse.Message),
             WorkflowException wfe => (HttpStatusCode.InternalServerError, wfe.Code, wfe.Message),
             KeyNotFoundException => (HttpStatusCode.NotFound, "NotFound", "Resource not found"),
             ArgumentException => (HttpStatusCode.BadRequest, "InvalidInput", "Invalid input provided"),
