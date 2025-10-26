@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
         {
             var options = provider.GetRequiredService<IOptions<MongoOptions>>().Value;
             var client = new MongoClient(options.ConnectionString);
-            return client.GetDatabase(options.DatabaseName);
+            return client.GetDatabase(options.Database);
         });
 
         // Register repositories - organized by domain feature
