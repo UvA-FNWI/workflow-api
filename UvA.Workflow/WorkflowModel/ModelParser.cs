@@ -125,6 +125,9 @@ public partial class ModelParser
         if (form is { Property: not null, TargetFormName: not null })
             form.TargetForm = EntityTypes[entityType.Properties[form.Property].UnderlyingType]
                 .Forms[form.TargetFormName];
+        
+        if (form.Questions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
+            throw new Exception($"Form {form.Name} has multiple questions with the same name");
 
         PreProcess(form.OnSubmit);
         PreProcess(form.OnSave);
