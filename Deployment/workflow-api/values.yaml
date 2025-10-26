@@ -7,5 +7,21 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
-connectionStrings:
- appInsights: ""
+allowedOrigins: "http://localhost:5173"
+
+mongo:
+  username: username
+  database: workflow
+  host: host
+  port: 27017
+
+azure:
+  keyvaultName: keyvaultName
+  resourceGroup: resourceGroupName
+  subscriptionId: subscriptionId
+  tenantId: tenantId
+  clientId: clientId
+  identityName: identityName
+  secrets:
+    - name: workflow-db-password
+      key: Mongo__Password
