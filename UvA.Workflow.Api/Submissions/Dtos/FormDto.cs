@@ -55,7 +55,7 @@ public record QuestionDto(
     string? EntityType,
     BilingualString? Description,
     BilingualString? ShortText,
-    LayoutOptions Layout,
+    Dictionary<string, object>? Layout,
     TableSettingsDto? TableSettings,
     bool HideInResults)
 {

@@ -3,6 +3,9 @@
   "title": "Screen",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "name"
+  ],
   "properties": {
     "name": {
       "type": "string"
@@ -74,17 +77,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -129,6 +125,10 @@
     "BilingualString": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
       "properties": {
         "en": {
           "type": "string"

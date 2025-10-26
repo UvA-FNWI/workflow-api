@@ -3,6 +3,9 @@
   "title": "Role",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "name"
+  ],
   "properties": {
     "name": {
       "type": "string"
@@ -25,17 +28,10 @@
           "type": "null"
         },
         {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
         }
       ]
     },
@@ -65,6 +61,10 @@
     "BilingualString": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
       "properties": {
         "en": {
           "type": "string"
@@ -90,17 +90,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -238,17 +231,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/EventCondition"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EventCondition"
             }
           ]
         },
@@ -274,17 +260,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         }
@@ -293,6 +272,9 @@
     "Value": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "property"
+      ],
       "properties": {
         "property": {
           "type": "string"
@@ -348,6 +330,9 @@
     "EventCondition": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string"
@@ -357,6 +342,9 @@
     "Date": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "source"
+      ],
       "properties": {
         "source": {
           "type": "string"
@@ -472,6 +460,9 @@
     "Attachment": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "template"
+      ],
       "properties": {
         "template": {
           "type": "string"
@@ -481,6 +472,9 @@
     "Http": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "url"
+      ],
       "properties": {
         "url": {
           "type": "string"
@@ -490,6 +484,10 @@
     "SetProperty": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "property",
+        "value"
+      ],
       "properties": {
         "target": {
           "type": [

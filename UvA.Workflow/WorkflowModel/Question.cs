@@ -40,6 +40,7 @@ public class Question
     /// <summary>
     /// Internal name of the question
     /// </summary>
+    [YamlIgnore]
     public string Name { get; set; } = null!;
     
     /// <summary>
@@ -58,7 +59,10 @@ public class Question
     /// <summary>
     /// Specific layout options for the data type
     /// </summary>
-    public LayoutOptions Layout { get; set; } = null!;
+    /// <remarks>
+    /// This is strongly typed in the yaml schema and in the frontend, but not in the backend since we don't use it
+    /// </remarks>
+    public Dictionary<string, object>? Layout { get; set; }
     
     /// <summary>
     /// Localized short question text to shown in results  

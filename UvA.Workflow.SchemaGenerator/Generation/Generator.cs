@@ -46,10 +46,23 @@ public class Generator(DocumentationReader documentationReader)
             _schemas.Add(type, schema);
 
             foreach (var property in GetProperties(type))
-                schema.Properties.Add(property.Key, property.Value);
+            {
+                schema.Properties.Add(property.Key, ToProperty(property.Value));
+                if (IsRequired(property.Value))
+                    schema.RequiredProperties.Add(property.Key);
+            }
         }
 
         return schema;
+    }
+    
+    private bool IsRequired(PropertyInfo property)
+    {
+        var isNullable = _nullabilityInfoContext.Create(property).WriteState == NullabilityState.Nullable;
+        return !isNullable && property.PropertyType is {IsEnum: false, IsArray: false}
+                           && property.PropertyType != typeof(bool)
+                           && property.PropertyType.Name != "List`1"
+                           && property.PropertyType.Name != "Dictionary`2";
     }
 
     private string GetName(PropertyInfo property)
@@ -58,11 +71,11 @@ public class Generator(DocumentationReader documentationReader)
         return attribute?.Alias ?? $"{property.Name[..1].ToLower()}{property.Name[1..]}";
     }
     
-    private Dictionary<string, JsonSchemaProperty> GetProperties(Type type)
+    private Dictionary<string, PropertyInfo> GetProperties(Type type)
         => type.GetProperties()
             .Where(p => p.GetCustomAttribute<YamlIgnoreAttribute>() == null)
             .Where(p => p.SetMethod != null)
-            .ToDictionary(GetName, ToProperty);
+            .ToDictionary(GetName, p => p);
 
     private static readonly Dictionary<Type, JsonObjectType> TypeMapping = new()
     {
@@ -118,17 +131,18 @@ public class Generator(DocumentationReader documentationReader)
                     : targetType.GenericTypeArguments[0]
                 )
             },
+            // Make LayoutOptions strongly typed in the schema even though it isn't in the backend
+            {Name: "Dictionary`2"} when property.Name == "Layout" => CreateOneOf(System.Reflection.Assembly
+                .GetAssembly(typeof(LayoutOptions))?.GetTypes()
+                .Where(type => type.IsSubclassOf(typeof(LayoutOptions)))
+                .Select(GetReference)
+                .Append(Null)
+                .ToArray() ?? [Null]),
             {Name: "Dictionary`2"} => new JsonSchemaProperty
             {
                 Type = JsonObjectType.Object,
                 AdditionalPropertiesSchema = GetReference(targetType.GenericTypeArguments[1])
             },
-            // Get derived types
-            {Name: "LayoutOptions"} => CreateOneOf(System.Reflection.Assembly
-                .GetAssembly(targetType)?.GetTypes()
-                .Where(type => type.IsSubclassOf(targetType))
-                .Select(GetReference)
-                .ToArray() ?? []),
             {IsClass: true, Name: not "String"} or { IsEnum: true } => new JsonSchemaProperty {Reference = Get(targetType)},
             _ => new JsonSchemaProperty
             {
@@ -138,10 +152,10 @@ public class Generator(DocumentationReader documentationReader)
 
         basicProp.Description = documentationReader.GetSummary(property);
         
-        if (!isNullable)
+        if (!isNullable || basicProp.OneOf.Any())
             return basicProp;
 
-        if (basicProp.Reference == null && !basicProp.OneOf.Any())
+        if (basicProp.Reference == null)
         {
             basicProp.Type |= JsonObjectType.Null;
             return basicProp;

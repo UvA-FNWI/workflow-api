@@ -3,32 +3,35 @@
   "title": "Step",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "name"
+  ],
   "properties": {
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": "Internal name of the step"
     },
     "title": {
+      "description": "Localized title of the step as shown to user",
       "oneOf": [
         {
           "type": "null"
         },
         {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
         }
       ]
     },
+    "hierarchyMode": {
+      "description": "Determines how the child steps of this step are handled",
+      "$ref": "#/definitions/StepHierarchyMode"
+    },
     "children": {
       "type": "array",
+      "description": "Child steps of this step",
       "items": {
         "type": "string"
       }
@@ -39,12 +42,14 @@
           "type": "null"
         },
         {
+          "description": "Condition requires for this step to start",
           "$ref": "#/definitions/Condition"
         }
       ]
     },
     "actions": {
       "type": "array",
+      "description": "Actions that are possible while this step is active",
       "items": {
         "$ref": "#/definitions/Action"
       }
@@ -55,12 +60,14 @@
           "type": "null"
         },
         {
+          "description": "Condition that determines when the step ends",
           "$ref": "#/definitions/Condition"
         }
       ]
     },
     "properties": {
       "type": "object",
+      "description": "Properties related to this step. These will become properties of the corresponding entity",
       "additionalProperties": {
         "$ref": "#/definitions/Question"
       }
@@ -70,6 +77,10 @@
     "BilingualString": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
       "properties": {
         "en": {
           "type": "string"
@@ -78,6 +89,14 @@
           "type": "string"
         }
       }
+    },
+    "StepHierarchyMode": {
+      "type": "string",
+      "enum": [
+        "Parallel",
+        "Sequential",
+        "Cycle"
+      ]
     },
     "Condition": {
       "type": "object",
@@ -112,17 +131,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/EventCondition"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EventCondition"
             }
           ]
         },
@@ -148,17 +160,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         }
@@ -167,6 +172,9 @@
     "Value": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "property"
+      ],
       "properties": {
         "property": {
           "type": "string"
@@ -222,6 +230,9 @@
     "EventCondition": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "type": "string"
@@ -231,6 +242,9 @@
     "Date": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "source"
+      ],
       "properties": {
         "source": {
           "type": "string"
@@ -253,17 +267,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -477,6 +484,9 @@
     "Attachment": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "template"
+      ],
       "properties": {
         "template": {
           "type": "string"
@@ -486,6 +496,9 @@
     "Http": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "url"
+      ],
       "properties": {
         "url": {
           "type": "string"
@@ -495,6 +508,10 @@
     "SetProperty": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "property",
+        "value"
+      ],
       "properties": {
         "target": {
           "type": [
@@ -513,29 +530,21 @@
     "Question": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "type"
+      ],
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "Internal name of the question"
-        },
         "text": {
+          "description": "Localized text of the question",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Localized text of the question",
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -551,27 +560,23 @@
             },
             {
               "$ref": "#/definitions/StringLayoutOptions"
+            },
+            {
+              "type": "null"
             }
           ]
         },
         "shortText": {
+          "description": "Localized short question text to shown in results",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Localized short question text to shown in results",
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -590,23 +595,16 @@
           }
         },
         "description": {
+          "description": "Localized extended description text for the question.",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Localized extended description text for the question.",
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -696,6 +694,9 @@
     "Choice": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "type": "string"
@@ -706,17 +707,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -726,17 +720,10 @@
               "type": "null"
             },
             {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/BilingualString"
-                }
-              ]
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         },
@@ -761,6 +748,9 @@
     "TableSettings": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "form"
+      ],
       "properties": {
         "form": {
           "type": "string"
