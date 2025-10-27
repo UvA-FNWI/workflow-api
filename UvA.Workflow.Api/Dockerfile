@@ -20,4 +20,5 @@ RUN dotnet publish "./UvA.Workflow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY Examples /Examples
 ENTRYPOINT ["dotnet", "UvA.Workflow.Api.dll"]
