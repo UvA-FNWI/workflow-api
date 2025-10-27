@@ -12,10 +12,9 @@ public record WorkflowInstanceBasicDto(
 
 public record WorkflowInstanceDto(
     string Id,
+    string? Title,
     EntityTypeDto EntityType,
     string? CurrentStep,
-    Dictionary<string, object> Properties,
-    Dictionary<string, InstanceEventDto> Events,
     string? ParentId,
     ActionDto[] Actions,
     FieldDto[] Fields,
@@ -26,7 +25,17 @@ public record WorkflowInstanceDto(
 
 public record FieldDto();
 
-public record StepDto();
+public record StepDto(string Id, BilingualString Title, string? Event, DateTime? DateCompleted, StepDto[]? Children)
+{
+    public static StepDto Create(Step step, WorkflowInstance instance)
+        => new(
+            step.Name,
+            step.DisplayTitle,
+            step.EndEvent,
+            step.GetEndDate(instance),
+            step.Children.Length != 0 ? step.Children.Select(s => Create(s, instance)).ToArray() : null
+        );
+}
 
 public record ActionDto(
     ActionType Type,

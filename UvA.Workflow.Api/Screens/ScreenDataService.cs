@@ -15,12 +15,10 @@ public class ScreenDataService(
 
         // Build projection based on screen columns
         var projection = BuildProjection(screen, entityType);
-
-        // Get data from MongoDB using projection
         var rawData = await repository.GetAllByType(entityType, projection, ct);
 
         // Process the data and apply templates/expressions
-        var columns = screen.Columns.Select((column, index) => ScreenColumnDto.Create(column, index)).ToArray();
+        var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
         var rows = ProcessRows(rawData, screen, entityType, columns);
 
         return ScreenDataDto.Create(screen, columns, rows);
@@ -110,7 +108,7 @@ public class ScreenDataService(
             for (int i = 0; i < screen.Columns.Length; i++)
             {
                 var column = screen.Columns[i];
-                var columnId = columns[i].Id; // Use the generated column ID
+                var columnId = columns[i].Id;
                 var value = ProcessColumnValue(rawRow, column, entityType, id);
                 processedValues[columnId] = value;
             }

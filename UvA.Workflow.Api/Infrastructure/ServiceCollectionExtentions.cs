@@ -1,6 +1,8 @@
-using UvA.Workflow.Infrastructure.Database;
-using UvA.Workflow.Infrastructure.Persistence;
 using UvA.Workflow.Api.Screens;
+using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Infrastructure.Database;
+using UvA.Workflow.Persistence;
+using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -29,8 +31,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserService, MockUserService>();
         services.AddSingleton<ModelService>();
 
-        services.AddScoped<FileClient>();
-        services.AddScoped<FileService>();
+        services.AddScoped<ArtifactService>();
+        services.AddScoped<AnswerService>();
+        services.AddScoped<SubmissionService>();
+        services.AddScoped<ArtifactTokenService>();
+        services.AddScoped<SubmissionDtoFactory>();
+        services.AddScoped<AnswerDtoFactory>();
 
         services.AddScoped<ContextService>();
         services.AddScoped<InstanceService>();
