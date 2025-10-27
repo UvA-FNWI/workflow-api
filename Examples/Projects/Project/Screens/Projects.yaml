@@ -1,11 +1,15 @@
 name: Projects
 entityType: Project
 columns:
+  - title: 
+      en: ha
+      nl: bla
+    value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
+    defaultSort: "Descending"
   - property: Title
     link: true
     default: No title
   - property: StartEvent
-  - property: Student.DisplayName
   - currentStep: true
     filterType: Pick
     default: Draft
