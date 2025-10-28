@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Screens.Dtos;
+using UvA.Workflow.Tools;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -145,7 +146,7 @@ public class ScreenDataService(
             var value = GetNestedPropertyValue(rawRow, column.Property);
             if (value != null && !value.IsBsonNull)
             {
-                return ConvertBsonValueToObject(value);
+                return BsonConversionTools.ConvertBasicBsonValue(value);
             }
         }
 
@@ -207,24 +208,4 @@ public class ScreenDataService(
         return current;
     }
 
-    private object? ConvertBsonValueToObject(BsonValue bsonValue)
-    {
-        return bsonValue.BsonType switch
-        {
-            BsonType.String => bsonValue.AsString,
-            BsonType.Int32 => bsonValue.AsInt32,
-            BsonType.Int64 => bsonValue.AsInt64,
-            BsonType.Double => bsonValue.AsDouble,
-            BsonType.Boolean => bsonValue.AsBoolean,
-            BsonType.DateTime => bsonValue.ToUniversalTime(),
-            BsonType.ObjectId => bsonValue.AsObjectId.ToString(),
-            BsonType.Null => null,
-            BsonType.Document => bsonValue.AsBsonDocument.ToDictionary(
-                kvp => kvp.Name,
-                kvp => ConvertBsonValueToObject(kvp.Value)
-            ),
-            BsonType.Array => bsonValue.AsBsonArray.Select(ConvertBsonValueToObject).ToArray(),
-            _ => bsonValue.ToString()
-        };
-    }
 }
