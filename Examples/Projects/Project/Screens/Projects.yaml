@@ -2,8 +2,8 @@ name: Projects
 entityType: Project
 columns:
   - title: 
-      en: ha
-      nl: bla
+      en: Summary
+      nl: Samenvatting
     value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
     defaultSort: "Descending"
   - property: Title
