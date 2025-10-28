@@ -184,28 +184,17 @@ public class ScreenDataService(
     private BsonValue? GetNestedPropertyValue(Dictionary<string, BsonValue> data, string propertyPath)
     {
         var parts = propertyPath.Split('.');
-
-        // For a property like "Student.DisplayName", we need to look in the "Student" key first
         var rootProperty = parts[0];
-        if (!data.TryGetValue(rootProperty, out var current))
+        
+        if (!data.TryGetValue(rootProperty, out var rootValue))
             return null;
 
-        // Navigate through the nested properties
-        foreach (var part in parts.Skip(1))
-        {
-            if (current?.IsBsonDocument == true)
-            {
-                var doc = current.AsBsonDocument;
-                if (!doc.TryGetValue(part, out current))
-                    return null;
-            }
-            else
-            {
-                return null;
-            }
-        }
+        // If only one part, return the root value
+        if (parts.Length == 1)
+            return rootValue;
 
-        return current;
+        // Use shared utility to navigate the remaining path
+        return BsonConversionTools.NavigateNestedBsonValue(rootValue, parts.Skip(1));
     }
 
 }
