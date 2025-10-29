@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Serilog;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -26,10 +27,13 @@ builder.Host.UseSerilog((context, services, configuration) =>
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflow(config);
-builder.Services.AddScoped<WorkflowInstanceDtoService>();
+builder.Services.AddScoped<WorkflowInstanceDtoFactory>();
 builder.Services
     .AddControllers()
-    .AddJsonOptions(opts => opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -39,7 +43,7 @@ builder.Services.AddCors(options =>
         cb =>
         {
             cb.SetIsOriginAllowedToAllowWildcardSubdomains()
-                .WithOrigins(config["AllowedOrigin"]!)
+                .WithOrigins(config["AllowedOrigins"]!.Split(','))
                 .AllowAnyMethod()
                 .AllowCredentials()
                 .AllowAnyHeader()

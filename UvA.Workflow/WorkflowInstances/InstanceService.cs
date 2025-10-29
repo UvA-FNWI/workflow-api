@@ -72,6 +72,12 @@ public class InstanceService(
                     : (i => i.Properties[part1][part2]),
                 instance.GetProperty(part1, part2)), ct);
     
+    public Task UnsetValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
+        => workflowInstanceRepository.UpdateFields(instance.Id,
+            Builders<WorkflowInstance>.Update.Unset(part1 == null
+                ? (i => i.Properties[part2])
+                : (i => i.Properties[part1][part2])),ct);
+    
     public record AllowedAction(Domain_Action Action, Form? Form = null, Mail? Mail = null, EntityType? EntityType = null);
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
@@ -110,5 +116,25 @@ public class InstanceService(
                     modelService)));
 
         return actions;
+    }
+
+    public record AllowedSubmission(InstanceEvent Event, Form Form, Dictionary<string, QuestionStatus> QuestionStatus);
+    
+    public async Task<IEnumerable<AllowedSubmission>> GetAllowedSubmissions(WorkflowInstance instance, CancellationToken ct)
+    {
+        var allowed = await rightsService.GetAllowedActions(instance, RoleAction.View);
+        var allowedHidden = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden);
+        
+        var forms = allowed.SelectMany(a => a.AllForms).Distinct()
+            .ToDictionary(f => f, f => modelService.GetForm(instance, f));
+        var hiddenForms = allowedHidden.SelectMany(a => a.AllForms).Distinct().ToList();
+        
+        var subs = instance.Events
+            .Select(e => e.Value)
+            .Where(s => forms.ContainsKey(s.Id))
+            .OrderBy(s => s.Date)
+            .ToList();
+        return subs.Select(s => new AllowedSubmission(s, forms[s.Id],
+            modelService.GetQuestionStatus(instance, forms[s.Id], hiddenForms.Contains(s.Id))));
     }
 }
