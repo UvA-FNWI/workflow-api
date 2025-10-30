@@ -52,4 +52,11 @@ public static class DataExtensions
 
     private static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     public static string Serialize<T>(this T obj) => JsonSerializer.Serialize(obj, Options);
+
+    public static string? GetStringValue(this Dictionary<string, BsonValue> dict, string key)
+    {
+        return dict.TryGetValue(key, out var value) && !value.IsBsonNull
+            ? value.AsString
+            : null;
+    }
 }
