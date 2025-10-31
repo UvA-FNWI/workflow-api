@@ -3,6 +3,9 @@
   "title": "Role",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "name"
+  ],
   "properties": {
     "name": {
       "type": "string"
@@ -23,6 +26,9 @@
       "oneOf": [
         {
           "type": "null"
+        },
+        {
+          "type": "string"
         },
         {
           "$ref": "#/definitions/BilingualString"
@@ -49,15 +55,16 @@
       "items": {
         "$ref": "#/definitions/NotificationType"
       }
-    },
-    "displayTitle": {
-      "$ref": "#/definitions/BilingualString"
     }
   },
   "definitions": {
     "BilingualString": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
       "properties": {
         "en": {
           "type": "string"
@@ -71,11 +78,48 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "form": {
           "type": [
             "null",
             "string"
           ]
+        },
+        "forms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "question": {
           "type": [
@@ -102,38 +146,40 @@
             }
           ]
         },
-        "transition": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Transition"
-            }
+        "triggers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Trigger"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "property": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "userProperty": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "limit": {
+          "type": [
+            "integer",
+            "null"
           ]
         }
       }
     },
     "RoleAction": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "View",
-        "Submit",
-        "Edit",
-        "Undo",
-        "ViewAdminTools",
-        "Execute",
-        "ViewHidden",
-        "ViewUsers",
-        "ViewStates",
-        "Delete",
-        "AddInstanceMessage",
-        "ViewAnswerMessages",
-        "AssignMessages",
-        "CreateInstance",
-        "CreateRelatedInstance"
-      ],
       "enum": [
         "View",
         "Submit",
@@ -156,6 +202,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "not": {
+          "type": "boolean"
+        },
         "value": {
           "oneOf": [
             {
@@ -166,16 +215,6 @@
             }
           ]
         },
-        "state": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/StateCondition"
-            }
-          ]
-        },
         "logical": {
           "oneOf": [
             {
@@ -183,6 +222,29 @@
             },
             {
               "$ref": "#/definitions/Logical"
+            }
+          ]
+        },
+        "event": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EventCondition"
+            }
+          ]
+        },
+        "date": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Date"
             }
           ]
         },
@@ -198,217 +260,94 @@
               "type": "null"
             },
             {
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/BilingualString"
             }
           ]
-        },
-        "part": {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
         }
       }
     },
     "Value": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "property"
+      ],
+      "properties": {
+        "property": {
+          "type": "string"
         },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "property": {
-              "type": "string"
-            },
-            "equal": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "lessThan": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "greaterThan": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "greaterThanOrEqual": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "dependants": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
+        "equal": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "lessThan": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "greaterThan": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "greaterThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ]
         }
-      ]
+      }
     },
-    "Lookup": {
+    "Logical": {
       "type": "object",
-      "x-abstract": true,
-      "additionalProperties": false
-    },
-    "ConditionPart": {
-      "type": "object",
-      "x-abstract": true,
       "additionalProperties": false,
       "properties": {
-        "dependants": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
+        "operator": {
+          "$ref": "#/definitions/LogicalOperator"
         },
-        "properties": {
+        "children": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/Lookup"
+            "$ref": "#/definitions/Condition"
           }
         }
       }
     },
-    "StateCondition": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "equal": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "notEqual": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "Logical": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ConditionPart"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "operator": {
-              "$ref": "#/definitions/LogicalOperator"
-            },
-            "children": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Condition"
-              }
-            },
-            "dependants": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            },
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
     "LogicalOperator": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "And",
-        "Or"
-      ],
       "enum": [
         "And",
         "Or"
       ]
     },
-    "Transition": {
+    "EventCondition": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "id"
+      ],
       "properties": {
-        "name": {
+        "id": {
           "type": "string"
-        },
-        "label": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "from": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "to": {
+        }
+      }
+    },
+    "Date": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
           "type": "string"
-        },
-        "phase": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "fromAny": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "triggers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Trigger"
-          }
         }
       }
     },
@@ -416,12 +355,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "createForm": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
         "condition": {
           "oneOf": [
             {
@@ -442,16 +375,6 @@
             }
           ]
         },
-        "editRole": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/EditRole"
-            }
-          ]
-        },
         "http": {
           "oneOf": [
             {
@@ -459,16 +382,6 @@
             },
             {
               "$ref": "#/definitions/Http"
-            }
-          ]
-        },
-        "assignTo": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/AssignTo"
             }
           ]
         },
@@ -482,24 +395,17 @@
             }
           ]
         },
-        "unsubmit": {
+        "event": {
           "type": [
             "null",
             "string"
           ]
         },
-        "properties": {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/definitions/Lookup"
-              }
-            ]
-          }
+        "undoEvent": {
+          "type": [
+            "null",
+            "string"
+          ]
         }
       }
     },
@@ -531,7 +437,7 @@
             "string"
           ]
         },
-        "templateKey": {
+        "template": {
           "type": [
             "null",
             "string"
@@ -548,87 +454,17 @@
           "items": {
             "$ref": "#/definitions/Attachment"
           }
-        },
-        "subjectTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "bodyTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
-        },
-        "toAddressTemplate": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/Template"
-            }
-          ]
         }
       }
     },
     "Attachment": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "template"
+      ],
       "properties": {
         "template": {
-          "type": "string"
-        }
-      }
-    },
-    "Template": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Expression"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "properties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Lookup"
-              }
-            }
-          }
-        }
-      ]
-    },
-    "Expression": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "properties": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Lookup"
-          }
-        }
-      }
-    },
-    "EditRole": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "role": {
-          "type": "string"
-        },
-        "source": {
           "type": "string"
         }
       }
@@ -636,30 +472,22 @@
     "Http": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "url"
+      ],
       "properties": {
         "url": {
           "type": "string"
-        },
-        "urlTemplate": {
-          "$ref": "#/definitions/Template"
-        }
-      }
-    },
-    "AssignTo": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "role": {
-          "type": [
-            "null",
-            "string"
-          ]
         }
       }
     },
     "SetProperty": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "property",
+        "value"
+      ],
       "properties": {
         "target": {
           "type": [
@@ -672,18 +500,11 @@
         },
         "value": {
           "type": "string"
-        },
-        "valueExpression": {
-          "$ref": "#/definitions/Expression"
         }
       }
     },
     "NotificationType": {
       "type": "string",
-      "description": "",
-      "x-enumNames": [
-        "NewInstanceMessage"
-      ],
       "enum": [
         "NewInstanceMessage"
       ]

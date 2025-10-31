@@ -46,6 +46,9 @@ public class Date : ConditionPart
 
 public class EventCondition : ConditionPart
 {
+    /// <summary>
+    /// Id of the event to check for
+    /// </summary>
     public string Id { get; set; } = null!;
 
     public override bool IsMet(ObjectContext context)

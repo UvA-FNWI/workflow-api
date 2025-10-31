@@ -56,7 +56,6 @@ public class Action
     public string? Question { get; set; }
 
     [YamlMember(Alias = "entity")]
-    [JsonPropertyName("entity")]
     public string? EntityType { get; set; }
 
     public RoleAction Type { get; set; }

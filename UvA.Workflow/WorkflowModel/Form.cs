@@ -14,17 +14,38 @@ public enum FormLayout
 
 public class Page
 {
+    /// <summary>
+    /// Internal name of the page
+    /// </summary>
+    [YamlIgnore]
     public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// Localized title of the page
+    /// </summary>
     public BilingualString? Title { get; set; }
+    
+    /// <summary>
+    /// Localized introduction text to show at the start of the page
+    /// </summary>
     public BilingualString? Introduction { get; set; }
+    
+    /// <summary>
+    /// Layout of the page. Condensed will show the questions in a table
+    /// </summary>
     public PageLayout Layout { get; set; }
 
+    /// <summary>
+    /// Question names to include in the page
+    /// </summary>
     [YamlMember(Alias = "questions")]
-    [JsonPropertyName("questions")]
     public string[] QuestionNames { get; set; } = [];
 
-    [JsonIgnore] [YamlIgnore] public Question[] Questions { get; set; } = [];
+    [YamlIgnore] public Question[] Questions { get; set; } = [];
 
+    /// <summary>
+    /// If set, this page is included only when editing a matching property
+    /// </summary>
     public string[]? Sources { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;
@@ -32,21 +53,32 @@ public class Page
 
 public class Form
 {
+    /// <summary>
+    /// Internal name of the form
+    /// </summary>
     public string Name { get; set; } = null!;
-    [YamlIgnore] public string? VariantName { get; set; }
+    
+    /// <summary>
+    /// Bilingual title of the form
+    /// </summary>
     public BilingualString? Title { get; set; }
     public BilingualString DisplayName => Title ?? Name;
     public FormLayout Layout { get; set; }
 
+    /// <summary>
+    /// Target reference property. Set this to use the form to update the properties of the referenced entity
+    /// </summary>
     public string? Property { get; set; }
 
+    /// <summary>
+    /// To be used in combination with Property. The name of a form for the referenced entity type
+    /// </summary>
     [YamlMember(Alias = "targetForm")]
-    [JsonPropertyName("targetForm")]
     public string? TargetFormName { get; set; }
 
-    [JsonIgnore] [YamlIgnore] public Form? TargetForm { get; set; }
+    [YamlIgnore] public Form? TargetForm { get; set; }
 
-    [YamlIgnore] public Form ActualForm => TargetForm ?? this;
+    public Form ActualForm => TargetForm ?? this;
 
     public Dictionary<string, Page> Pages { get; set; } = new();
 
