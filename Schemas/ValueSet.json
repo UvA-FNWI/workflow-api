@@ -218,7 +218,15 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Id of the event to check for"
+        },
+        "notBefore": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If set, the event should not have occurred before this event"
         }
       }
     },

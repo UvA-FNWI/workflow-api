@@ -26,6 +26,7 @@
       ]
     },
     "layout": {
+      "description": "Sets whether this form shows as multi-page layout with navigation bor or shows all pages at once",
       "$ref": "#/definitions/FormLayout"
     },
     "property": {
@@ -44,18 +45,21 @@
     },
     "pages": {
       "type": "object",
+      "description": "Dictionary of pages of this form",
       "additionalProperties": {
         "$ref": "#/definitions/Page"
       }
     },
     "onSubmit": {
       "type": "array",
+      "description": "Triggers to run when the form is submitted",
       "items": {
         "$ref": "#/definitions/Trigger"
       }
     },
     "onSave": {
       "type": "array",
+      "description": "Triggers to run when a change is made in the form",
       "items": {
         "$ref": "#/definitions/Trigger"
       }
@@ -157,6 +161,7 @@
               "type": "null"
             },
             {
+              "description": "Condition that determines if this trigger is active",
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -167,6 +172,7 @@
               "type": "null"
             },
             {
+              "description": "Send an email",
               "$ref": "#/definitions/SendMessage"
             }
           ]
@@ -177,6 +183,7 @@
               "type": "null"
             },
             {
+              "description": "Do an http call to an external service",
               "$ref": "#/definitions/Http"
             }
           ]
@@ -187,6 +194,7 @@
               "type": "null"
             },
             {
+              "description": "Set a property on the current instance",
               "$ref": "#/definitions/SetProperty"
             }
           ]
@@ -195,13 +203,15 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Complete an event"
         },
         "undoEvent": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Undo an event"
         }
       }
     },
@@ -342,7 +352,15 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Id of the event to check for"
+        },
+        "notBefore": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If set, the event should not have occurred before this event"
         }
       }
     },
@@ -426,7 +444,8 @@
       ],
       "properties": {
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "Template for the url to call"
         }
       }
     },
@@ -438,17 +457,13 @@
         "value"
       ],
       "properties": {
-        "target": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
         "property": {
-          "type": "string"
+          "type": "string",
+          "description": "Target property name"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "description": "Expression that determines the value of the property"
         }
       }
     }

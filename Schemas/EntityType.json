@@ -249,6 +249,7 @@
               "type": "null"
             },
             {
+              "description": "Configure table for the Table data type",
               "$ref": "#/definitions/TableSettings"
             }
           ]
@@ -482,7 +483,15 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Id of the event to check for"
+        },
+        "notBefore": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If set, the event should not have occurred before this event"
         }
       }
     },
@@ -508,6 +517,7 @@
               "type": "null"
             },
             {
+              "description": "Condition that determines if this trigger is active",
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -518,6 +528,7 @@
               "type": "null"
             },
             {
+              "description": "Send an email",
               "$ref": "#/definitions/SendMessage"
             }
           ]
@@ -528,6 +539,7 @@
               "type": "null"
             },
             {
+              "description": "Do an http call to an external service",
               "$ref": "#/definitions/Http"
             }
           ]
@@ -538,6 +550,7 @@
               "type": "null"
             },
             {
+              "description": "Set a property on the current instance",
               "$ref": "#/definitions/SetProperty"
             }
           ]
@@ -546,13 +559,15 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Complete an event"
         },
         "undoEvent": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Undo an event"
         }
       }
     },
@@ -624,7 +639,8 @@
       ],
       "properties": {
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "Template for the url to call"
         }
       }
     },
@@ -636,17 +652,13 @@
         "value"
       ],
       "properties": {
-        "target": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
         "property": {
-          "type": "string"
+          "type": "string",
+          "description": "Target property name"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "description": "Expression that determines the value of the property"
         }
       }
     },
@@ -693,9 +705,11 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Internal name of the action"
         },
         "label": {
+          "description": "Localized label of the action as shown in the user interface",
           "oneOf": [
             {
               "type": "null"
@@ -710,6 +724,7 @@
         },
         "roles": {
           "type": "array",
+          "description": "List of roles that can perform this action",
           "items": {
             "type": "string"
           }
@@ -718,16 +733,19 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target form for View / Submit / Edit actions"
         },
         "forms": {
           "type": "array",
+          "description": "List of target forms for View / Submit / Edit actions",
           "items": {
             "type": "string"
           }
         },
         "collections": {
           "type": "array",
+          "description": "List of target collections for ??? (not yet implemented)",
           "items": {
             "type": "string"
           }
@@ -736,15 +754,18 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target question for the view hidden question action"
         },
         "entity": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Entity type this action applies to"
         },
         "type": {
+          "description": "Type of action",
           "$ref": "#/definitions/RoleAction"
         },
         "condition": {
@@ -753,18 +774,21 @@
               "type": "null"
             },
             {
+              "description": "Condition that determines whether the action is permitted",
               "$ref": "#/definitions/Condition"
             }
           ]
         },
         "triggers": {
           "type": "array",
+          "description": "List of triggers to run for an Execute action",
           "items": {
             "$ref": "#/definitions/Trigger"
           }
         },
         "steps": {
           "type": "array",
+          "description": "List of steps during which this action is permitted",
           "items": {
             "type": "string"
           }
@@ -773,19 +797,22 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target property for the CreateRelatedInstance action"
         },
         "userProperty": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Weird thing, maybe we should get rid of this?"
         },
         "limit": {
           "type": [
             "integer",
             "null"
-          ]
+          ],
+          "description": "Weird thing, maybe we should get rid of this?"
         }
       }
     },
@@ -817,19 +844,29 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Property this field refers to"
         },
         "value": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Custom value template"
         },
         "href": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Url the field should refer to"
+        },
+        "default": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Default value to use if the target is empty"
         },
         "title": {
           "oneOf": [
@@ -844,20 +881,16 @@
             }
           ]
         },
-        "default": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
         "endDate": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target step the field should show the end date of"
         },
         "currentStep": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "If true, display the current step in this field"
         }
       }
     },
@@ -870,6 +903,7 @@
       ],
       "properties": {
         "title": {
+          "description": "Localized title of this result shown to the user",
           "oneOf": [
             {
               "type": "string"
@@ -881,12 +915,14 @@
         },
         "questions": {
           "type": "array",
+          "description": "List of questions that are included in this result entry",
           "items": {
             "type": "string"
           }
         },
         "weight": {
-          "type": "number"
+          "type": "number",
+          "description": "Weight of this result entry"
         }
       }
     }

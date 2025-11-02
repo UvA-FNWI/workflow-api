@@ -93,9 +93,8 @@
     "StepHierarchyMode": {
       "type": "string",
       "enum": [
-        "Parallel",
         "Sequential",
-        "Cycle"
+        "Parallel"
       ]
     },
     "Condition": {
@@ -235,7 +234,15 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Id of the event to check for"
+        },
+        "notBefore": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If set, the event should not have occurred before this event"
         }
       }
     },
@@ -259,9 +266,11 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Internal name of the action"
         },
         "label": {
+          "description": "Localized label of the action as shown in the user interface",
           "oneOf": [
             {
               "type": "null"
@@ -276,6 +285,7 @@
         },
         "roles": {
           "type": "array",
+          "description": "List of roles that can perform this action",
           "items": {
             "type": "string"
           }
@@ -284,16 +294,19 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target form for View / Submit / Edit actions"
         },
         "forms": {
           "type": "array",
+          "description": "List of target forms for View / Submit / Edit actions",
           "items": {
             "type": "string"
           }
         },
         "collections": {
           "type": "array",
+          "description": "List of target collections for ??? (not yet implemented)",
           "items": {
             "type": "string"
           }
@@ -302,15 +315,18 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target question for the view hidden question action"
         },
         "entity": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Entity type this action applies to"
         },
         "type": {
+          "description": "Type of action",
           "$ref": "#/definitions/RoleAction"
         },
         "condition": {
@@ -319,18 +335,21 @@
               "type": "null"
             },
             {
+              "description": "Condition that determines whether the action is permitted",
               "$ref": "#/definitions/Condition"
             }
           ]
         },
         "triggers": {
           "type": "array",
+          "description": "List of triggers to run for an Execute action",
           "items": {
             "$ref": "#/definitions/Trigger"
           }
         },
         "steps": {
           "type": "array",
+          "description": "List of steps during which this action is permitted",
           "items": {
             "type": "string"
           }
@@ -339,19 +358,22 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target property for the CreateRelatedInstance action"
         },
         "userProperty": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Weird thing, maybe we should get rid of this?"
         },
         "limit": {
           "type": [
             "integer",
             "null"
-          ]
+          ],
+          "description": "Weird thing, maybe we should get rid of this?"
         }
       }
     },
@@ -385,6 +407,7 @@
               "type": "null"
             },
             {
+              "description": "Condition that determines if this trigger is active",
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -395,6 +418,7 @@
               "type": "null"
             },
             {
+              "description": "Send an email",
               "$ref": "#/definitions/SendMessage"
             }
           ]
@@ -405,6 +429,7 @@
               "type": "null"
             },
             {
+              "description": "Do an http call to an external service",
               "$ref": "#/definitions/Http"
             }
           ]
@@ -415,6 +440,7 @@
               "type": "null"
             },
             {
+              "description": "Set a property on the current instance",
               "$ref": "#/definitions/SetProperty"
             }
           ]
@@ -423,13 +449,15 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Complete an event"
         },
         "undoEvent": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Undo an event"
         }
       }
     },
@@ -501,7 +529,8 @@
       ],
       "properties": {
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "Template for the url to call"
         }
       }
     },
@@ -513,17 +542,13 @@
         "value"
       ],
       "properties": {
-        "target": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
         "property": {
-          "type": "string"
+          "type": "string",
+          "description": "Target property name"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "description": "Expression that determines the value of the property"
         }
       }
     },
@@ -647,6 +672,7 @@
               "type": "null"
             },
             {
+              "description": "Configure table for the Table data type",
               "$ref": "#/definitions/TableSettings"
             }
           ]

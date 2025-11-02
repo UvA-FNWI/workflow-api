@@ -8,16 +8,19 @@
   ],
   "properties": {
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": "Internal name of the screen"
     },
     "entityType": {
       "type": [
         "null",
         "string"
-      ]
+      ],
+      "description": "EntityType this screen is used for"
     },
     "columns": {
       "type": "array",
+      "description": "List of columns to display on this screen",
       "items": {
         "$ref": "#/definitions/Column"
       }
@@ -26,7 +29,8 @@
       "type": [
         "null",
         "string"
-      ]
+      ],
+      "description": "Relation this screen is used for"
     }
   },
   "definitions": {
@@ -35,9 +39,11 @@
       "additionalProperties": false,
       "properties": {
         "filterType": {
+          "description": "Determines whether this column can be used for filtering",
           "$ref": "#/definitions/FilterType"
         },
         "displayType": {
+          "description": "Determines whether this column is visible in the user interface or only in the export",
           "$ref": "#/definitions/DisplayType"
         },
         "defaultSort": {
@@ -46,30 +52,42 @@
               "type": "null"
             },
             {
+              "description": "Sets a default sort direction for this column",
               "$ref": "#/definitions/SortDirection"
             }
           ]
         },
         "link": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "If true, this column becomes a link to the instance"
         },
         "property": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Property this field refers to"
         },
         "value": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Custom value template"
         },
         "href": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Url the field should refer to"
+        },
+        "default": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Default value to use if the target is empty"
         },
         "title": {
           "oneOf": [
@@ -84,20 +102,16 @@
             }
           ]
         },
-        "default": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
         "endDate": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Target step the field should show the end date of"
         },
         "currentStep": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "If true, display the current step in this field"
         }
       }
     },

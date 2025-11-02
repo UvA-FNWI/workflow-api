@@ -137,6 +137,9 @@ public class Question
     /// </summary>
     public bool HideInResults { get; set; }
 
+    /// <summary>
+    /// Configure table for the Table data type
+    /// </summary>
     public TableSettings? Table { get; set; }
 }
 

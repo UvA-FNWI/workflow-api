@@ -63,6 +63,10 @@ public class Form
     /// </summary>
     public BilingualString? Title { get; set; }
     public BilingualString DisplayName => Title ?? Name;
+    
+    /// <summary>
+    /// Sets whether this form shows as multi-page layout with navigation bor or shows all pages at once
+    /// </summary>
     public FormLayout Layout { get; set; }
 
     /// <summary>
@@ -80,11 +84,21 @@ public class Form
 
     public Form ActualForm => TargetForm ?? this;
 
+    /// <summary>
+    /// Dictionary of pages of this form
+    /// </summary>
     public Dictionary<string, Page> Pages { get; set; } = new();
 
     [YamlIgnore] public EntityType EntityType { get; set; } = null!;
 
+    /// <summary>
+    /// Triggers to run when the form is submitted
+    /// </summary>
     public Trigger[] OnSubmit { get; set; } = [];
+    /// <summary>
+    /// Triggers to run when a change is made in the form
+    /// </summary>
     public Trigger[] OnSave { get; set; } = [];
+    
     public IEnumerable<Question> Questions => Pages.Values.SelectMany(p => p.Questions);
 }
