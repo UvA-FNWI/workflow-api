@@ -1,0 +1,15 @@
+name: Cleanup PR deployment
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+
+jobs:
+  cleanup:
+    runs-on: self-hosted
+    steps:
+      - name: Cleanup PR deployment
+        run: |
+          curl "https://api-v2-tst.datanose.nl/gitops-updater?name=workflow-api-pr&secret=${{ secrets.UPDATER_SECRET_DN }}&version=delete&id=${{ github.event.pull_request.number }}"
