@@ -23,10 +23,12 @@ public record ScreenColumnDto(
     FilterType FilterType,
     DisplayType DisplayType,
     UvA.Workflow.Entities.Domain.SortDirection? DefaultSort,
-    bool Link)
+    bool Link,
+    DataType DataType)
 {
     public static ScreenColumnDto Create(Column column, int id)
     {
+        var dataType = GetDataType(column);
         return new ScreenColumnDto(
             id,
             column.DisplayTitle,
@@ -34,7 +36,30 @@ public record ScreenColumnDto(
             column.FilterType,
             column.DisplayType,
             column.DefaultSort,
-            column.Link);
+            column.Link,
+            dataType);
+    }
+
+    private static DataType GetDataType(Column column)
+    {
+        // Value templates are always text
+        if (column.ValueTemplate != null)
+            return DataType.String;
+
+        // CurrentStep is always string
+        if (column.CurrentStep)
+            return DataType.String;
+
+        // Event columns are DateTime
+        if (column.Property != null && column.Property.EndsWith("Event"))
+            return DataType.DateTime;
+
+        // Use the underlying question's data type if available
+        if (column.Question != null)
+            return column.Question.DataType;
+
+        // Default to string for anything else
+        return DataType.String;
     }
 }
 
