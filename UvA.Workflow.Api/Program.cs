@@ -30,10 +30,7 @@ builder.Services.AddWorkflow(config);
 builder.Services.AddScoped<WorkflowInstanceDtoFactory>();
 builder.Services
     .AddControllers()
-    .AddJsonOptions(opts =>
-    {
-        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
+    .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 

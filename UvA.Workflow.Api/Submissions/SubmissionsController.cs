@@ -12,20 +12,24 @@ public class SubmissionsController(
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
-    public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId, CancellationToken ct)
+    public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId,
+        CancellationToken ct)
     {
-        var (instance, submission, form, _ ) = await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
-        var dto = submissionDtoFactory.Create(instance, form, submission, modelService.GetQuestionStatus(instance, form, true));
+        var (instance, submission, form, _) =
+            await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
+        var dto = submissionDtoFactory.Create(instance, form, submission,
+            modelService.GetQuestionStatus(instance, form, true));
         return Ok(dto);
     }
 
     [HttpPost("{instanceId}/{submissionId}")]
-    public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string submissionId, CancellationToken ct)
+    public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string submissionId,
+        CancellationToken ct)
     {
         var context = await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
         var (instance, sub, form, _) = context;
         var result = await submissionService.SubmitSubmission(context, ct);
-        
+
         if (!result.Success)
         {
             var submissionDto = submissionDtoFactory.Create(instance, form, sub,

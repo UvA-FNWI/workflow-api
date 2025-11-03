@@ -10,7 +10,7 @@ public class MockUserService : IUserService
         new ExternalUser("2", "User 2", "2@invalid.invalid"),
         new ExternalUser("3", "User 3", "3@invalid.invalid")
     ];
-    
+
     public Task<GlobalRole[]> GetRoles(ClaimsPrincipal principal)
     {
         return Task.FromResult<GlobalRole[]>([
@@ -21,7 +21,8 @@ public class MockUserService : IUserService
     }
 
     public ExternalUser GetUserInfo(ClaimsPrincipal principal) => DummyUsers.First();
-    
-    public Task<IEnumerable<ExternalUser>> FindUsers(string query, CancellationToken cancellationToken) 
-        => Task.FromResult(DummyUsers.Where(u => u.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase)));
+
+    public Task<IEnumerable<ExternalUser>> FindUsers(string query, CancellationToken cancellationToken)
+        => Task.FromResult(DummyUsers.Where(u =>
+            u.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase)));
 }

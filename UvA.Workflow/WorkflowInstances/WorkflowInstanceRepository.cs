@@ -73,12 +73,14 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         return documents;
     }
 
-    public async Task<List<WorkflowInstance>> GetAll(Expression<Func<WorkflowInstance, bool>> expression, CancellationToken ct)
+    public async Task<List<WorkflowInstance>> GetAll(Expression<Func<WorkflowInstance, bool>> expression,
+        CancellationToken ct)
     {
         return await _collection.Find(expression).ToListAsync(ct);
     }
 
-    public async Task<T?> Get<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression, CancellationToken ct)
+    public async Task<T?> Get<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression,
+        CancellationToken ct)
     {
         var projection = Builders<WorkflowInstance>.Projection.Expression(expression);
         var filter = Builders<WorkflowInstance>.Filter.Eq(p => p.Id, instanceId);
@@ -142,7 +144,8 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         await _collection.UpdateOneAsync(filter, update, cancellationToken: ct);
     }
 
-    public async Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct)
+    public async Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition,
+        CancellationToken ct)
     {
         if (!ObjectId.TryParse(instanceId, out var objectId))
             throw new ArgumentException("Invalid instance ID", nameof(instanceId));

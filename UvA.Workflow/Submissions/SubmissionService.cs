@@ -10,35 +10,38 @@ public record InvalidQuestion(
     string QuestionName,
     BilingualString ValidationMessage);
 
-public class SubmissionService( IWorkflowInstanceRepository workflowInstanceRepository,
+public class SubmissionService(
+    IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     ContextService contextService,
     TriggerService triggerService)
 {
-    public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId, CancellationToken ct)
+    public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
+        CancellationToken ct)
     {
         // Get the workflow instance
         var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
-            throw new EntityNotFoundException("WorkflowInstance",instanceId);
+            throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
         // Get the submission
         var submission = instance.Events.GetValueOrDefault(submissionId);
-        
+
         var form = modelService.GetForm(instance, submissionId);
         if (form == null)
-            throw new EntityNotFoundException("Form",$"instanceId:{instanceId},submission:{submissionId}");
-        
+            throw new EntityNotFoundException("Form", $"instanceId:{instanceId},submission:{submissionId}");
+
         return new SubmissionContext(instance, submission, form, submissionId);
     }
-    
+
     public async Task<SubmissionResult> SubmitSubmission(SubmissionContext context, CancellationToken ct)
     {
         var (instance, submission, form, submissionId) = context;
-        
+
         // Check if already submitted
         if (submission?.Date != null)
-            throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted", "Submission already submitted");
+            throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
+                "Submission already submitted");
 
         var objectContext = modelService.CreateContext(instance);
 
@@ -61,13 +64,13 @@ public class SubmissionService( IWorkflowInstanceRepository workflowInstanceRepo
 
         if (validationErrors.Any())
         {
-            return new SubmissionResult(false,validationErrors);
+            return new SubmissionResult(false, validationErrors);
         }
 
         await triggerService.RunTriggers(instance, [new Trigger { Event = submissionId }, ..form.OnSubmit], ct);
 
         // Save the updated instance
         await contextService.UpdateCurrentStep(instance, ct);
-        return new SubmissionResult(true,[]);
+        return new SubmissionResult(true, []);
     }
 }

@@ -31,7 +31,7 @@ public class ArtifactTokenService(IConfiguration config)
 
     public async Task<bool> ValidateAccessToken(string artifactId, string token)
     {
-        if (string.IsNullOrWhiteSpace(token) || 
+        if (string.IsNullOrWhiteSpace(token) ||
             string.IsNullOrWhiteSpace(artifactId))
             return false;
         var handler = new JwtSecurityTokenHandler();

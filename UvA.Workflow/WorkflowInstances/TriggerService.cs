@@ -2,7 +2,8 @@ namespace UvA.Workflow.Services;
 
 public class TriggerService(InstanceService instanceService, ModelService modelService, IMailService mailService)
 {
-    public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, CancellationToken ct, MailMessage? mail = null)
+    public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, CancellationToken ct,
+        MailMessage? mail = null)
     {
         var context = modelService.CreateContext(instance);
         foreach (var trigger in triggers.Where(t => t.Condition.IsMet(context)))
@@ -14,7 +15,8 @@ public class TriggerService(InstanceService instanceService, ModelService modelS
         }
     }
 
-    private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct, MailMessage? mail = null)
+    private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
+        MailMessage? mail = null)
     {
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");

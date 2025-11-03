@@ -3,7 +3,9 @@ using UvA.Workflow.Api.Submissions.Dtos;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelService modelService,
+public class WorkflowInstanceDtoFactory(
+    InstanceService instanceService,
+    ModelService modelService,
     SubmissionDtoFactory submissionDtoFactory)
 {
     /// <summary>
@@ -14,7 +16,7 @@ public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelSe
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var entityType = modelService.EntityTypes[instance.EntityType];
-        
+
         return new WorkflowInstanceDto(
             instance.Id,
             entityType.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),

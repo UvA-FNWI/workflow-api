@@ -28,7 +28,8 @@ public class ContextService(
         }
     }
 
-    public async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts, IEnumerable<Lookup> properties, CancellationToken ct)
+    public async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts, IEnumerable<Lookup> properties,
+        CancellationToken ct)
     {
         var groups = properties
             .Where(p => p is PropertyLookup)
