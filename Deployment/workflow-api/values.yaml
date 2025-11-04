@@ -11,7 +11,7 @@ allowedOrigins: "http://localhost:5173"
 
 surfconext:
   baseUrl: https://connect.test.surfconext.nl
-  clientId: v2-tst-datanose.nl
+  clientId: v2-tst.datanose.nl
 
 mongo:
   username: username
