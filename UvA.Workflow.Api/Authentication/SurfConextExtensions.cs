@@ -19,9 +19,9 @@ public static class SurfConextExtensions
 
         services.AddHttpClient<SurfConextAuthenticationHandler>(client =>
         {
-            client.BaseAddress = new Uri(options.IntrospectUrl!);
+            client.BaseAddress = new Uri(options.BaseUrl!);
             client.DefaultRequestHeaders.Add("Authorization",
-                $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes($"{options.ClientId}:{options.Authorization}"))}");
+                $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes($"{options.ClientId}:{options.ClientSecret}"))}");
         });
                 
         services.AddAuthentication(authOptions =>
@@ -90,15 +90,6 @@ public static class SurfConextExtensions
                 []);
 
             c.AddSecurityRequirement(securityRequirement);
-
-            c.CustomSchemaIds(x =>
-            {
-                var name = x.FullName;
-                var parts = name!.Split(".");
-                if (parts.Length > 3 && parts[0].ToLower() == "uva" && parts[1].ToLower() == "datanose")
-                    return parts[2] + "." + parts.Last();
-                return name;
-            });
         });
 
         return services;

@@ -10,6 +10,9 @@ data:
 
   AllowedOrigins: "{{ .Values.allowedOrigins }}"
   
+  SurfConext__BaseUrl: "{{ .Values.surfconext.baseUrl }}"
+  SurfConext__ClientId: "{{ .Values.surfconext.clientId }}"
+    
   Mongo__Username: "{{ .Values.mongo.username }}"
   Mongo__Database: "{{ .Values.mongo.database }}"
   Mongo__Host: "{{ .Values.mongo.host }}"

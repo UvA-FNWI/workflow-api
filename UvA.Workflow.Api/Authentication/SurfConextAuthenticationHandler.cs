@@ -89,8 +89,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
     private async Task<IntrospectionResponse?> ValidateSurfBearerToken(string token)
     {
         // call to SurfConext to verify token
-        var response = await httpClient.PostAsync(
-            "",
+        var response = await httpClient.PostAsync("/oidc/introspect",
             new FormUrlEncodedContent(new[] { new KeyValuePair<string?, string?>("token", token) })
         );
 
@@ -121,7 +120,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         var claims = new List<Claim>();
 
         if (!string.IsNullOrWhiteSpace(r.Sub))
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, r.Sub));
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, UvaClaimTypes.UvanetId));
 
         if (!string.IsNullOrWhiteSpace(r.Email))
             claims.Add(new Claim(ClaimTypes.Email, r.Email));
@@ -133,7 +132,9 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
             claims.Add(new Claim("client_id", r.ClientId));
 
         if (r.Uids is { Length: > 0 } && !string.IsNullOrWhiteSpace(r.Uids[0]))
-            claims.Add(new Claim(ClaimTypes.Name, r.Uids[0]));
+        {
+            claims.Add(new Claim(UvaClaimTypes.UvanetId, r.Uids[0]));
+        }
 
         if (!string.IsNullOrWhiteSpace(r.Acr))
             claims.Add(new Claim("acr", r.Acr));

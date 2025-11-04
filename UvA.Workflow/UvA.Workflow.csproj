@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>UvA.Workflow</RootNamespace>
+        <UserSecretsId>6b8144c6-a5ac-4938-9213-57c2d3f195bc</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
