@@ -8,7 +8,4 @@ public class SurfConextOptions : AuthenticationSchemeOptions
     public string? BaseUrl { get; set; }
     public string? ClientId { get; set; }
     public string? ClientSecret { get; set; }
-    
-    public bool IsValid() => 
-        !string.IsNullOrEmpty(BaseUrl) && !string.IsNullOrEmpty(ClientSecret) && !string.IsNullOrEmpty(ClientId);
 }

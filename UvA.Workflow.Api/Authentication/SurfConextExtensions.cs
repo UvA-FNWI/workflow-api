@@ -12,8 +12,13 @@ public static class SurfConextExtensions
         services.AddMemoryCache();
         
         var options=config.GetSection(SurfConextOptions.Section).Get<SurfConextOptions>();
-        if (options == null || !options.IsValid())
-            throw new InvalidOperationException("Missing or invalid SurfConextOptions");
+        
+        if (string.IsNullOrEmpty(options?.BaseUrl))
+            throw new InvalidOperationException("Missing SurfConextOptions.BaseUrl");
+        if (string.IsNullOrEmpty(options.ClientId))
+            throw new InvalidOperationException("Missing SurfConextOptions.ClientId");
+        if (string.IsNullOrEmpty(options.ClientSecret))
+            throw new InvalidOperationException("Missing SurfConextOptions.ClientSecret");
         
         services.Configure<SurfConextOptions>(config.GetSection(SurfConextOptions.Section));
 
