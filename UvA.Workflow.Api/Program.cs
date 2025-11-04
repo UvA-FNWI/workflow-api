@@ -71,7 +71,7 @@ app.UseSwaggerUI(c =>
 {
     if (app.Environment.IsDevOrTest())
     {
-        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
+        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "api-v2-tst.datanose.nl");
         c.OAuthUsePkce();
     }
     c.SwaggerEndpoint("v1/swagger.json", "Workflow API v1");
