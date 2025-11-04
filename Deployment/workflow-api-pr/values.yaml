@@ -10,7 +10,7 @@ logLevel: Debug
 
 allowedOrigins: "http://localhost:5173"
 
-surfConext:
+surfconext:
   baseUrl: https://connect.test.surfconext.nl
   clientId: datanose-api.local
 
