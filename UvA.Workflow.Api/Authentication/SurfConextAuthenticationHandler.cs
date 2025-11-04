@@ -120,7 +120,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         var claims = new List<Claim>();
 
         if (!string.IsNullOrWhiteSpace(r.Sub))
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, UvaClaimTypes.UvanetId));
+            claims.Add(new Claim("sub", r.Sub));
 
         if (!string.IsNullOrWhiteSpace(r.Email))
             claims.Add(new Claim(ClaimTypes.Email, r.Email));
@@ -133,6 +133,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
 
         if (r.Uids is { Length: > 0 } && !string.IsNullOrWhiteSpace(r.Uids[0]))
         {
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, r.Uids[0]));
             claims.Add(new Claim(UvaClaimTypes.UvanetId, r.Uids[0]));
         }
 
@@ -160,7 +161,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         if (r.UpdatedAt.HasValue)
             claims.Add(new Claim("updated_at", r.UpdatedAt.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
 
-        var identity = new ClaimsIdentity(claims, authenticationType: Scheme);
+        var identity = new ClaimsIdentity(claims, Scheme, UvaClaimTypes.UvanetId, ClaimTypes.Role);
         return new ClaimsPrincipal(identity);
     }
 }
