@@ -13,6 +13,7 @@ allowedOrigins: "http://localhost:5173"
 surfconext:
   baseUrl: https://connect.test.surfconext.nl
   clientId: datanose-api.local
+  authority: https://auth-pr.datanose.nl
 
 mongo:
   username: username
