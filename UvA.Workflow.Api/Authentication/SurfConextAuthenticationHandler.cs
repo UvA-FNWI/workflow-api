@@ -96,7 +96,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         var content = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
         {
-            Logger.LogError("Token validation failed: SurfConext returned status {Code}: {Response}", response.StatusCode, content);
+            Logger.LogError("Token validation failed: SurfConext returned status {Code}: {Response}, ClientId:{ClientId}, Secret:{ClientSecret}", response.StatusCode, content, OptionsMonitor.CurrentValue.ClientId, OptionsMonitor.CurrentValue.ClientSecret?[..4] );
             Context.Items[SURFCONEXT_ERROR] =
                 $"Token validation failed: SurfConext returned status {response.StatusCode}, check the logs for details";
             return null;

@@ -1,6 +1,7 @@
 
 using System.Text;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using UvA.Workflow.Api.Infrastructure;
 
 namespace UvA.Workflow.Api.Authentication;
@@ -27,6 +28,7 @@ public static class SurfConextExtensions
             client.BaseAddress = new Uri(options.BaseUrl!);
             client.DefaultRequestHeaders.Add("Authorization",
                 $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes($"{options.ClientId}:{options.ClientSecret}"))}");
+            Log.Information("SurfConext authentication configured, ClientId:{ClientId}, ClientSecret:{ClientSecret}...",options.ClientId,options.ClientSecret?[..4]);
         });
                 
         services.AddAuthentication(authOptions =>
