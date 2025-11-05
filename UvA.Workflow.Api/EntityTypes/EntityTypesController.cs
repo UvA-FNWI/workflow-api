@@ -9,6 +9,7 @@ public class EntityTypesController(ModelService modelService) : ApiControllerBas
     public ActionResult<IEnumerable<EntityTypeDto>> GetAll()
     {
         var entityTypes = modelService.EntityTypes.Values
+            .Where(t => t.Screens.Any())
             .Select(EntityTypeDto.Create)
             .OrderBy(et => et.Index ?? int.MaxValue)
             .ThenBy(et => et.Name);
