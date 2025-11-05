@@ -1,0 +1,49 @@
+name: SubjectFeedback
+title:
+  nl: Beoordelen voorstel
+  en: Assessment of proposal
+
+actions:
+- name: Approve
+  type: Execute
+  roles: [Coordinator]
+  label:
+    en: Approve
+    nl: Goedkeuren
+  triggers:
+    - event: ApproveSubject
+- name: Reject
+  type: Submit
+  form: RejectSubject
+  roles: [Coordinator]
+  label:
+    en: Reject
+    nl: Afkeuren
+
+properties:
+  SubjectRejectTarget:
+    type: "[RejectOption]!"
+    text: 
+      nl: Wat keur je af?
+      en: Which part are you rejecting?
+    values:
+      Contents:
+        text:
+          en: Contents
+          nl: Inhoud
+      Staff:
+        text:
+          en: Staff
+          nl: Medewerkers
+      Planning:
+        text: Planning      
+  SubjectRejectReason:
+    type: String!
+    text:
+      nl: Licht toe, wees daarbij zo specifiek mogelijk
+      en: Please explain, be as specific as possible
+    layout:
+      multiline: true
+
+ends: 
+  event: RejectSubject

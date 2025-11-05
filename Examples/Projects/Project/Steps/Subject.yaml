@@ -1,0 +1,13 @@
+name: Subject
+title:
+  nl: Onderwerp
+  en: Subject
+
+hierarchyMode: Cycle
+
+children:
+  - Start
+  - SubjectFeedback
+
+ends:
+  event: ApproveSubject
