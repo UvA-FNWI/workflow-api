@@ -31,7 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserService, MockUserService>();
         services.AddSingleton<ModelService>();
 
-        services.AddScoped<ArtifactService>();
+        services.AddScoped<IArtifactService,ArtifactService>();
         services.AddScoped<AnswerService>();
         services.AddScoped<SubmissionService>();
         services.AddScoped<ArtifactTokenService>();
