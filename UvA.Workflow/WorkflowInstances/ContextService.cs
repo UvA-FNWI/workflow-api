@@ -24,7 +24,7 @@ public class ContextService(
         {
             instance.CurrentStep = targetStep;
             if (!string.IsNullOrEmpty(instance.Id))
-                await workflowInstanceRepository.UpdateField(instance.Id, i => i.CurrentStep, targetStep ?? "", ct);
+                await workflowInstanceRepository.UpdateField(instance.Id, i => i.CurrentStep, targetStep, ct);
         }
     }
 

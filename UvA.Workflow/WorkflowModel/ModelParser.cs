@@ -96,7 +96,7 @@ public partial class ModelParser
             PreProcess(act.Triggers);
             
             if (act.Form != null && act.EntityType != null && !EntityTypes[act.EntityType].Forms.ContainsKey(act.Form))
-                throw new Exception($"${role.Name}: form {act.Form} not found for entity {act.EntityType}");
+                throw new Exception($"{role.Name}: form {act.Form} not found for entity {act.EntityType}");
         }
     }
 
