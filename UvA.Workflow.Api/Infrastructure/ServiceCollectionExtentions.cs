@@ -1,4 +1,4 @@
-using UvA.Workflow.Api.Submissions;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Persistence;
@@ -48,6 +48,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMailService, DummyMailService>();
 
         services.AddSingleton<ModelServiceResolver>();
+        services.AddScoped<ScreenDataService>();
 
         return services;
     }
