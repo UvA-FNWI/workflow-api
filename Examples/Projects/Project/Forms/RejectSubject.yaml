@@ -1,0 +1,15 @@
+name: RejectSubject
+title:
+  en: Reject subject
+  nl: Onderwerp afkeuren
+pages:
+  Reject:
+    title:
+      en: Reject subject
+      nl: Onderwerp afkeuren
+    introduction:
+      nl: Je wilt het onderwerp van {{ Student.DisplayName }} afkeuren
+      en: You want to reject the subject of {{ Student.DisplayName }}
+    questions:
+    - SubjectRejectTarget
+    - SubjectRejectReason
