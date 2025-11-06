@@ -35,6 +35,9 @@ public class StringLayoutOptions : LayoutOptions
     public bool AllowAttachments { get; set; }
 }
 
+/// <summary>
+/// Represents a property of an entity type (which can also be used as a question in a form)
+/// </summary>
 public class Question
 {
     /// <summary>

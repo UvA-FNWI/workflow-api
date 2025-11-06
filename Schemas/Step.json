@@ -554,6 +554,7 @@
     },
     "Question": {
       "type": "object",
+      "description": "Represents a property of an entity type (which can also be used as a question in a form)",
       "additionalProperties": false,
       "required": [
         "type"

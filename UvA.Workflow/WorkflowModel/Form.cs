@@ -12,6 +12,9 @@ public enum FormLayout
     SinglePage
 }
 
+/// <summary>
+/// Represents a page in a form
+/// </summary>
 public class Page
 {
     /// <summary>

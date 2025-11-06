@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "EntityType",
   "type": "object",
+  "description": "Represents a type of object (\"entity\") in the workflow system",
   "additionalProperties": false,
   "required": [
     "name",
@@ -131,6 +132,7 @@
     },
     "Question": {
       "type": "object",
+      "description": "Represents a property of an entity type (which can also be used as a question in a form)",
       "additionalProperties": false,
       "required": [
         "type"

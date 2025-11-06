@@ -59,6 +59,16 @@ public class DocumentationReader
             .FirstOrDefault(x => x.Name == $"P:{property.DeclaringType?.FullName}.{property.Name}")?
             .Summary.Trim();
     }
+    
+    public string? GetSummary(Type type)
+    {
+        if (_documentation == null)
+            throw new InvalidOperationException("Documentation not loaded");
+
+        return _documentation.Members.Member
+            .FirstOrDefault(x => x.Name == $"T:{type.FullName}")?
+            .Summary.Trim();
+    }
 }
 
 [XmlRoot(ElementName = "assembly")]

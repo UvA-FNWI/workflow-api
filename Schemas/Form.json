@@ -91,6 +91,7 @@
     },
     "Page": {
       "type": "object",
+      "description": "Represents a page in a form",
       "additionalProperties": false,
       "properties": {
         "title": {
