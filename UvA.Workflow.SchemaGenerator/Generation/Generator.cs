@@ -42,7 +42,8 @@ public class Generator(DocumentationReader documentationReader)
             {
                 Type = JsonObjectType.Object,
                 AllowAdditionalProperties = false,
-                Description = documentationReader.GetSummary(type)
+                Description = documentationReader.GetSummary(type),
+                Title = type.Name
             };
             _schemas.Add(type, schema);
 

@@ -115,6 +115,7 @@
   },
   "definitions": {
     "BilingualString": {
+      "title": "BilingualString",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -131,6 +132,7 @@
       }
     },
     "Question": {
+      "title": "Question",
       "type": "object",
       "description": "Represents a property of an entity type (which can also be used as a question in a form)",
       "additionalProperties": false,
@@ -266,6 +268,7 @@
       ]
     },
     "ChoiceLayoutOptions": {
+      "title": "ChoiceLayoutOptions",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -283,6 +286,7 @@
       ]
     },
     "StringLayoutOptions": {
+      "title": "StringLayoutOptions",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -297,6 +301,7 @@
       }
     },
     "Choice": {
+      "title": "Choice",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -349,6 +354,7 @@
       }
     },
     "Condition": {
+      "title": "Condition",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -420,6 +426,7 @@
       }
     },
     "Value": {
+      "title": "Value",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -456,6 +463,7 @@
       }
     },
     "Logical": {
+      "title": "Logical",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -478,6 +486,7 @@
       ]
     },
     "EventCondition": {
+      "title": "EventCondition",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -498,6 +507,7 @@
       }
     },
     "Date": {
+      "title": "Date",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -510,6 +520,7 @@
       }
     },
     "Trigger": {
+      "title": "Trigger",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -574,6 +585,7 @@
       }
     },
     "SendMessage": {
+      "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -622,6 +634,7 @@
       }
     },
     "Attachment": {
+      "title": "Attachment",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -634,6 +647,7 @@
       }
     },
     "Http": {
+      "title": "Http",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -647,6 +661,7 @@
       }
     },
     "SetProperty": {
+      "title": "SetProperty",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -665,6 +680,7 @@
       }
     },
     "TableSettings": {
+      "title": "TableSettings",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -687,6 +703,7 @@
       ]
     },
     "EventDefinition": {
+      "title": "EventDefinition",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -700,6 +717,7 @@
       }
     },
     "Action": {
+      "title": "Action",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -839,6 +857,7 @@
       ]
     },
     "Field": {
+      "title": "Field",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -897,6 +916,7 @@
       }
     },
     "Result": {
+      "title": "Result",
       "type": "object",
       "additionalProperties": false,
       "required": [

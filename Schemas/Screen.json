@@ -35,6 +35,7 @@
   },
   "definitions": {
     "Column": {
+      "title": "Column",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -137,6 +138,7 @@
       ]
     },
     "BilingualString": {
+      "title": "BilingualString",
       "type": "object",
       "additionalProperties": false,
       "required": [

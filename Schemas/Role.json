@@ -42,6 +42,7 @@
   },
   "definitions": {
     "BilingualString": {
+      "title": "BilingualString",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -58,6 +59,7 @@
       }
     },
     "Action": {
+      "title": "Action",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -197,6 +199,7 @@
       ]
     },
     "Condition": {
+      "title": "Condition",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -268,6 +271,7 @@
       }
     },
     "Value": {
+      "title": "Value",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -304,6 +308,7 @@
       }
     },
     "Logical": {
+      "title": "Logical",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -326,6 +331,7 @@
       ]
     },
     "EventCondition": {
+      "title": "EventCondition",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -346,6 +352,7 @@
       }
     },
     "Date": {
+      "title": "Date",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -358,6 +365,7 @@
       }
     },
     "Trigger": {
+      "title": "Trigger",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -422,6 +430,7 @@
       }
     },
     "SendMessage": {
+      "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -470,6 +479,7 @@
       }
     },
     "Attachment": {
+      "title": "Attachment",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -482,6 +492,7 @@
       }
     },
     "Http": {
+      "title": "Http",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -495,6 +506,7 @@
       }
     },
     "SetProperty": {
+      "title": "SetProperty",
       "type": "object",
       "additionalProperties": false,
       "required": [
