@@ -1,0 +1,29 @@
+name: Request
+titlePlural:
+  en: Requests
+  nl: Aanvraag
+title:
+  en: Request
+  nl: Aanvraag
+instanceTitle: "{{ Title }}"
+
+properties:
+  Submitter:
+    type: User!
+
+  Title:
+    type: String!
+    text:
+      en: Title
+      nl: Titel
+
+steps:
+  - Start
+
+actions:
+  - form: Base
+    roles: [Submitter]
+    type: View
+  - roles: [Registered]
+    type: CreateInstance
+    userProperty: Submitter

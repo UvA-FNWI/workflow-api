@@ -1,0 +1,21 @@
+type: RequestType!
+text:
+  en: What do you want to request?
+  nl: Wat wil je aanvragen?
+description:
+  en: Indicate the type of request you want to submit
+  nl: Geef aan welk type aanvraag je wilt indienen
+shortText:
+  en: Request type
+  nl: Type aanvraag
+values:
+  Donkey:
+    text:
+      en: A donkey
+      nl: Een ezel
+  Exemption:
+    text:
+      en: An exemption
+      nl: Een vrijstelling
+layout:
+  type: RadioList
