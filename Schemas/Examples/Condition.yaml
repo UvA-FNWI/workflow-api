@@ -1,0 +1,6 @@
+equal:
+  property: Type
+  value: =Rhino
+message:
+  en: Type should be equal to Rhino
+  nl: Type moet gelijk zijn aan Rhino

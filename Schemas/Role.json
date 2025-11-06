@@ -201,10 +201,12 @@
     "Condition": {
       "title": "Condition",
       "type": "object",
+      "description": "Represents a logical condition",
       "additionalProperties": false,
       "properties": {
         "not": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "If true, this condition is inverted"
         },
         "value": {
           "oneOf": [
@@ -212,6 +214,7 @@
               "type": "null"
             },
             {
+              "description": "Compare property values",
               "$ref": "#/definitions/Value"
             }
           ]
@@ -222,11 +225,13 @@
               "type": "null"
             },
             {
+              "description": "For and/or constructs",
               "$ref": "#/definitions/Logical"
             }
           ]
         },
         "event": {
+          "description": "Check if an event has occurred",
           "oneOf": [
             {
               "type": "null"
@@ -245,6 +250,7 @@
               "type": "null"
             },
             {
+              "description": "Check if a date has passed",
               "$ref": "#/definitions/Date"
             }
           ]
@@ -253,9 +259,11 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Use a named reusable condition"
         },
         "message": {
+          "description": "Message that is shown then the condition is not, for use in form validation",
           "oneOf": [
             {
               "type": "null"
@@ -273,37 +281,43 @@
     "Value": {
       "title": "Value",
       "type": "object",
+      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix the value with an equals sign to indicate a literal value)",
       "additionalProperties": false,
       "required": [
         "property"
       ],
       "properties": {
         "property": {
-          "type": "string"
+          "type": "string",
+          "description": "Target property"
         },
         "equal": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign"
         },
         "lessThan": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign"
         },
         "greaterThan": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign"
         },
         "greaterThanOrEqual": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
         }
       }
     },
