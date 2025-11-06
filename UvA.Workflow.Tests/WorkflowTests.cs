@@ -12,7 +12,7 @@ using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests;
 
-public class UnitTest1
+public class WorkflowTests
 {
     Mock<IWorkflowInstanceRepository> repoMock;
     Mock<IUserService> userServiceMock;
@@ -31,7 +31,7 @@ public class UnitTest1
     AnswerConversionService answerConversionService;
     CancellationToken ct = new CancellationTokenSource().Token;
 
-    public UnitTest1()
+    public WorkflowTests()
     {
         // Mocks
         repoMock = new Mock<IWorkflowInstanceRepository>();
