@@ -1,4 +1,4 @@
-using UvA.Workflow.Api.Submissions;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Persistence;
@@ -46,6 +46,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AnswerConversionService>();
 
         services.AddScoped<IMailService, DummyMailService>();
+
+        services.AddScoped<ScreenDataService>();
 
         services.AddSingleton(
             new ModelParser(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects")));

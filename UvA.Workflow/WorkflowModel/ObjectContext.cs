@@ -1,5 +1,6 @@
 using System.Collections;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.Tools;
 
 namespace UvA.Workflow.Entities.Domain;
 
@@ -47,21 +48,24 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         => GetValue(answer, question.DataType, question);
 
     public static object? GetValue(BsonValue? answer, DataType type, Question? question = null)
-        => type switch
+    {
+        if (answer is null or BsonNull) return null;
+
+        return type switch
         {
-            _ when answer is null or BsonNull => null,
-            DataType.String or DataType.Choice => answer.ToString(),
-            DataType.Int => answer.AsInt32,
-            DataType.Double => answer.AsDouble,
-            DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.User when question!.IsArray => answer.AsBsonArray
                 .Select(u => BsonSerializer.Deserialize<User>(u.AsBsonDocument)).ToArray(),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
-            _ when question!.IsArray => answer.AsBsonArray.Select(r => r.AsString).ToArray(),
-            DataType.Reference when question.EntityType!.IsEmbedded => answer.AsBsonDocument,
+            DataType.Reference when question?.EntityType?.IsEmbedded == true => answer.AsBsonDocument,
             DataType.Reference => answer.AsString,
+            DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
+            DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
+            DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
+            DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),
+            _ when question!.IsArray => answer.AsBsonArray.Select(r => r.AsString).ToArray(),
             _ => throw new NotImplementedException()
         };
+    }
 }
