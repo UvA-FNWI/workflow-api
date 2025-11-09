@@ -1,7 +1,9 @@
+using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Caching.Memory;
 using Serilog;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 string corsPolicyName = "_CorsPolicy";
@@ -37,6 +39,8 @@ builder.Services
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+builder.Services.AddSurfConextAuthentication(builder.Environment, builder.Configuration);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(corsPolicyName,
@@ -62,20 +66,17 @@ app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
 
-//if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.MapOpenApi();
-    app.UseSwaggerUI(c =>
+    if (app.Environment.IsDevOrTest())
     {
-        // if (app.Environment.IsDevOrTest())
-        // {
-        //     c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
-        //     c.OAuthUsePkce();
-        // }
-        c.SwaggerEndpoint("/openapi/v1.json", "Workflow API v1");
-        c.DisplayRequestDuration();
-    });
-}
+        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
+        c.OAuthUsePkce();
+    }
+    c.SwaggerEndpoint("v1/swagger.json", "Workflow API v1");
+    c.DisplayRequestDuration();
+});
 
 app.MapControllers();
 app.Run();
