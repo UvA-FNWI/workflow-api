@@ -11,7 +11,7 @@ public class AnswerService(
     ModelService modelService,
     InstanceService instanceService,
     RightsService rightsService,
-    ArtifactService artifactService,
+    IArtifactService artifactService,
     AnswerConversionService answerConversionService)
 {
     public async Task<QuestionContext> GetQuestionContext(
