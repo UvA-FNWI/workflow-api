@@ -39,7 +39,7 @@ public class ModelService(ModelParser parser)
 
     public string[] GetActiveSteps(WorkflowInstance instance)
     {
-        if (instance.CurrentStep == null)
+        if (string.IsNullOrEmpty(instance.CurrentStep))
             return [];
         var step = EntityTypes[instance.EntityType].AllSteps[instance.CurrentStep];
         var context = CreateContext(instance);

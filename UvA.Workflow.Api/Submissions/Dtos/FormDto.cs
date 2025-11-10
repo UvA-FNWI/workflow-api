@@ -53,11 +53,9 @@ public record QuestionDto(
     bool IsArray,
     ChoiceDto[]? Choices,
     string? EntityType,
-    bool Multiline,
     BilingualString? Description,
     BilingualString? ShortText,
-    QuestionLayout Layout,
-    bool AllowAttachments,
+    Dictionary<string, object>? Layout,
     TableSettingsDto? TableSettings,
     bool HideInResults)
 {
@@ -68,10 +66,9 @@ public record QuestionDto(
         question.DataType, question.IsRequired, question.IsArray,
         question.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
         question.EntityType?.Name,
-        question.Multiline, question.Description,
+        question.Description,
         question.ShortDisplayName,
         question.Layout,
-        question.AllowAttachments,
         question.Table == null ? null : TableSettingsDto.Create(question.Table),
         question.HideInResults
     );
