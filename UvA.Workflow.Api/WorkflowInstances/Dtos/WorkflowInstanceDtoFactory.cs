@@ -6,8 +6,8 @@ namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 public class WorkflowInstanceDtoFactory(
     InstanceService instanceService,
     ModelService modelService,
-    SubmissionDtoFactory submissionDtoFactory
-        RightsService rightsService)
+    SubmissionDtoFactory submissionDtoFactory,
+    RightsService rightsService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
