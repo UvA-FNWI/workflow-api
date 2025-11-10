@@ -1,0 +1,12 @@
+name: Start
+title:
+  en: Submission of request
+  nl: Indienen aanvraag
+
+actions:
+  - roles: [Submitter]
+    type: Submit
+    form: Base
+
+ends:
+  event: Base

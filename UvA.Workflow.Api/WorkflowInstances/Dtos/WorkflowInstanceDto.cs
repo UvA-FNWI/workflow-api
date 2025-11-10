@@ -65,7 +65,7 @@ public record ActionDto(
             RoleAction.Submit => new(
                 ActionType.SubmitForm,
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
-                Form: action.Action.Name ?? action.Form?.Name
+                Form: action.Form?.Name
             ),
             _ => throw new ArgumentOutOfRangeException()
         };

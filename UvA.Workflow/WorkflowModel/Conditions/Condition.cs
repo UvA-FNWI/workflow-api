@@ -2,15 +2,40 @@ using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.Entities.Domain.Conditions;
 
+/// <summary>
+/// Represents a logical condition
+/// </summary>
 public class Condition
 {
+    /// <summary>
+    /// If true, this condition is inverted
+    /// </summary>
     public bool Not { get; set; }
+    
+    /// <summary>
+    /// Compare property values
+    /// </summary>
     public Value? Value { get; set; }
+    /// <summary>
+    /// For and/or constructs
+    /// </summary>
     public Logical? Logical { get; set; }
+    /// <summary>
+    /// Check if an event has occurred
+    /// </summary>
     public EventCondition? Event { get; set; }
+    /// <summary>
+    /// Check if a date has passed
+    /// </summary>
     public Date? Date { get; set; }
+    /// <summary>
+    /// Use a named reusable condition
+    /// </summary>
     public string? Name { get; set; }
 
+    /// <summary>
+    /// Message that is shown then the condition is not, for use in form validation
+    /// </summary>
     public BilingualString? Message { get; set; }
 
     [JsonIgnore] [YamlIgnore] public Condition? NamedCondition { get; set; }
@@ -46,10 +71,22 @@ public class Date : ConditionPart
 
 public class EventCondition : ConditionPart
 {
+    /// <summary>
+    /// Id of the event to check for
+    /// </summary>
     public string Id { get; set; } = null!;
 
+    /// <summary>
+    /// If set, the event should not have occurred before this event
+    /// </summary>
+    public string? NotBefore { get; set; } = null!;
+
     public override bool IsMet(ObjectContext context)
-        => context.Get(Id + "Event") != null;
+    {
+        var date = context.Get(Id + "Event") as DateTime?;
+        var notBeforeDate = context.Get(NotBefore + "Event") as DateTime?;
+        return date != null && (notBeforeDate == null || date >= notBeforeDate);
+    }
 
     public static implicit operator EventCondition(string s) => new() { Id = s };
 }
@@ -77,16 +114,39 @@ public class Logical : ConditionPart
         };
 }
 
+/// <summary>
+/// Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value
+/// (prefix the value with an equals sign to indicate a literal value)
+/// </summary>
 public class Value : ConditionPart
 {
+    /// <summary>
+    /// Target property
+    /// </summary>
     public string Property { get; set; } = null!;
     private Expression PropertyExpression => ExpressionParser.Parse(Property);
+    
+    /// <summary>
+    /// Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign 
+    /// </summary>
     public string? Equal { get; set; }
     private Expression? EqualExpression => ExpressionParser.Parse(Equal);
+    
+    /// <summary>
+    /// Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign 
+    /// </summary>
     public string? LessThan { get; set; }
     private Expression? LessThanExpression => ExpressionParser.Parse(LessThan);
+    
+    /// <summary>
+    /// Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign 
+    /// </summary>
     public string? GreaterThan { get; set; }
     private Expression? GreaterThanExpression => ExpressionParser.Parse(GreaterThan);
+    
+    /// <summary>
+    /// Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign 
+    /// </summary>
     public string? GreaterThanOrEqual { get; set; }
     private Expression? GreaterThanOrEqualExpression => ExpressionParser.Parse(GreaterThanOrEqual);
 

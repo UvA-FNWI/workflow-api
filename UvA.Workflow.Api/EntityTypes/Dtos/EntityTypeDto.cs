@@ -7,7 +7,8 @@ public record EntityTypeDto(
     int? Index,
     bool IsAlwaysVisible,
     string? InheritsFrom,
-    bool IsEmbedded
+    bool IsEmbedded,
+    string[] Screens
 )
 {
     public static EntityTypeDto Create(EntityType entityType)
@@ -19,7 +20,8 @@ public record EntityTypeDto(
             entityType.Index,
             entityType.IsAlwaysVisible,
             entityType.InheritsFrom,
-            entityType.IsEmbedded
+            entityType.IsEmbedded,
+            entityType.Screens.Keys.ToArray()
         );
     }
 }

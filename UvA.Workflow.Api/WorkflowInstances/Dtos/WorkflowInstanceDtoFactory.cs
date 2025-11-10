@@ -6,7 +6,8 @@ namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 public class WorkflowInstanceDtoFactory(
     InstanceService instanceService,
     ModelService modelService,
-    SubmissionDtoFactory submissionDtoFactory)
+    SubmissionDtoFactory submissionDtoFactory
+    RightsService rightsService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -16,7 +17,8 @@ public class WorkflowInstanceDtoFactory(
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var entityType = modelService.EntityTypes[instance.EntityType];
-
+        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools); 
+        
         return new WorkflowInstanceDto(
             instance.Id,
             entityType.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -29,7 +31,7 @@ public class WorkflowInstanceDtoFactory(
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus))
                 .ToArray(),
-            []
+            permissions.Select(a => a.Type).Distinct().ToArray()
         );
     }
 }
