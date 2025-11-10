@@ -8,15 +8,17 @@ public class Field
     /// Property this field refers to
     /// </summary>
     public string? Property { get; set; }
+
     /// <summary>
     /// Custom value template
     /// </summary>
     public string? Value { get; set; }
+
     /// <summary>
     /// Url the field should refer to
     /// </summary>
     public string? Href { get; set; }
-    
+
     /// <summary>
     /// Default value to use if the target is empty
     /// </summary>
@@ -33,7 +35,7 @@ public class Field
     private Expression? _propertyExpression;
     public Expression? PropertyExpression => _propertyExpression ??= ExpressionParser.Parse(ComputedProperty);
     public BilingualString? Title { get; set; } = null!;
-    
+
 
     [YamlIgnore] public Question? Question { get; set; }
     [YamlIgnore] public EventDefinition? Event { get; set; }
@@ -43,6 +45,7 @@ public class Field
     /// Target step the field should show the end date of
     /// </summary>
     public string? EndDate { get; set; }
+
     /// <summary>
     /// If true, display the current step in this field
     /// </summary>

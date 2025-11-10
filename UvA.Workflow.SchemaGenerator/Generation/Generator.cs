@@ -13,14 +13,14 @@ public class Generator(DocumentationReader documentationReader)
     public JsonSchema Generate(Type type)
     {
         _schemas.Clear();
-        
+
         var schema = Get(type);
         schema.Title = type.Name;
         foreach (var entry in _schemas.Where(s => s.Key != type))
             schema.Definitions.Add(entry.Key.Name, entry.Value);
         return schema;
     }
-    
+
     private JsonSchema Get(Type type)
     {
         if (_schemas.TryGetValue(type, out var schema))
@@ -57,11 +57,11 @@ public class Generator(DocumentationReader documentationReader)
 
         return schema;
     }
-    
+
     private bool IsRequired(PropertyInfo property)
     {
         var isNullable = _nullabilityInfoContext.Create(property).WriteState == NullabilityState.Nullable;
-        return !isNullable && property.PropertyType is {IsEnum: false, IsArray: false}
+        return !isNullable && property.PropertyType is { IsEnum: false, IsArray: false }
                            && property.PropertyType != typeof(bool)
                            && property.PropertyType.Name != "List`1"
                            && property.PropertyType.Name != "Dictionary`2";
@@ -72,7 +72,7 @@ public class Generator(DocumentationReader documentationReader)
         var attribute = property.GetCustomAttribute<YamlMemberAttribute>();
         return attribute?.Alias ?? $"{property.Name[..1].ToLower()}{property.Name[1..]}";
     }
-    
+
     private Dictionary<string, PropertyInfo> GetProperties(Type type)
         => type.GetProperties()
             .Where(p => p.GetCustomAttribute<YamlIgnoreAttribute>() == null)
@@ -106,46 +106,47 @@ public class Generator(DocumentationReader documentationReader)
             prop.OneOf.Add(schema!);
         return prop;
     }
-    
-    private JsonSchema Null => new() {Type = JsonObjectType.Null};
-    
+
+    private JsonSchema Null => new() { Type = JsonObjectType.Null };
+
     private JsonSchemaProperty ToProperty(PropertyInfo property)
     {
         var targetType = property.PropertyType.Name == "Nullable`1"
             ? property.PropertyType.GenericTypeArguments[0]
             : property.PropertyType;
-        
+
         var isNullable = _nullabilityInfoContext.Create(property).WriteState == NullabilityState.Nullable;
-        
+
         var basicProp = targetType switch
         {
             // types that are compatible with string
-            {Name: "BilingualString" or "EventCondition"} => CreateOneOf(
+            { Name: "BilingualString" or "EventCondition" } => CreateOneOf(
                 isNullable ? Null : null,
-                new JsonSchema {Type = JsonObjectType.String},
+                new JsonSchema { Type = JsonObjectType.String },
                 new JsonSchemaProperty { Reference = Get(targetType) }
             ),
-            {IsArray: true} or {Name: "List`1"} => new JsonSchemaProperty
+            { IsArray: true } or { Name: "List`1" } => new JsonSchemaProperty
             {
-                Type = JsonObjectType.Array, 
-                Item = GetReference(targetType.IsArray 
-                    ? targetType.GetElementType()! 
+                Type = JsonObjectType.Array,
+                Item = GetReference(targetType.IsArray
+                    ? targetType.GetElementType()!
                     : targetType.GenericTypeArguments[0]
                 )
             },
             // Make LayoutOptions strongly typed in the schema even though it isn't in the backend
-            {Name: "Dictionary`2"} when property.Name == "Layout" => CreateOneOf(System.Reflection.Assembly
+            { Name: "Dictionary`2" } when property.Name == "Layout" => CreateOneOf(System.Reflection.Assembly
                 .GetAssembly(typeof(LayoutOptions))?.GetTypes()
                 .Where(type => type.IsSubclassOf(typeof(LayoutOptions)))
                 .Select(GetReference)
                 .Append(Null)
                 .ToArray() ?? [Null]),
-            {Name: "Dictionary`2"} => new JsonSchemaProperty
+            { Name: "Dictionary`2" } => new JsonSchemaProperty
             {
                 Type = JsonObjectType.Object,
                 AdditionalPropertiesSchema = GetReference(targetType.GenericTypeArguments[1])
             },
-            {IsClass: true, Name: not "String"} or { IsEnum: true } => new JsonSchemaProperty {Reference = Get(targetType)},
+            { IsClass: true, Name: not "String" } or { IsEnum: true } => new JsonSchemaProperty
+                { Reference = Get(targetType) },
             _ => new JsonSchemaProperty
             {
                 Type = TypeMapping.GetValueOrDefault(targetType, JsonObjectType.Object)
@@ -153,7 +154,7 @@ public class Generator(DocumentationReader documentationReader)
         };
 
         basicProp.Description = documentationReader.GetSummary(property);
-        
+
         if (!isNullable || basicProp.OneOf.Any())
             return basicProp;
 

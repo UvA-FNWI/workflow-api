@@ -2,7 +2,8 @@ using UvA.Workflow.Api.Infrastructure;
 
 namespace UvA.Workflow.Api.Versions;
 
-public class VersionsController(ModelServiceResolver modelServiceResolver, ILogger<VersionsController> logger) : ApiControllerBase
+public class VersionsController(ModelServiceResolver modelServiceResolver, ILogger<VersionsController> logger)
+    : ApiControllerBase
 {
     [HttpPost("{version}")]
     public ActionResult CreateVersion(string version, [FromBody] Dictionary<string, string> files)
@@ -17,10 +18,11 @@ public class VersionsController(ModelServiceResolver modelServiceResolver, ILogg
             logger.LogError(ex, "Error parsing model for version {Version}", version);
             return BadRequest(ex.Message);
         }
+
         modelServiceResolver.AddOrUpdate(version, parser);
         return Ok();
     }
-    
+
     [HttpGet]
     public ActionResult<IEnumerable<string>> GetVersions() => Ok(modelServiceResolver.Versions);
 }

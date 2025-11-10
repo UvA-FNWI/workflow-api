@@ -32,11 +32,13 @@ public class DictionaryProvider(Dictionary<string, string> content) : IContentPr
 /// <param name="rootPath">Folder to load from</param>
 public class FileSystemProvider(string rootPath) : IContentProvider
 {
-    public IEnumerable<string> GetFolders() 
+    public IEnumerable<string> GetFolders()
         => Directory.GetDirectories(rootPath).Where(d => !Path.GetFileName(d).StartsWith('.'));
 
-    public IEnumerable<string> GetFiles(string folder) 
-        => Directory.Exists(Path.Combine(rootPath, folder)) ? Directory.GetFiles(Path.Combine(rootPath, folder), "*.yaml") : [];
+    public IEnumerable<string> GetFiles(string folder)
+        => Directory.Exists(Path.Combine(rootPath, folder))
+            ? Directory.GetFiles(Path.Combine(rootPath, folder), "*.yaml")
+            : [];
 
     public string GetFile(string file) => File.ReadAllText(file);
 }

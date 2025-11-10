@@ -59,7 +59,7 @@ app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
 
-app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser( 
+app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser(
     new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
 ));
 

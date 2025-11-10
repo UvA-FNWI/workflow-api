@@ -8,19 +8,20 @@ namespace UvA.Workflow.SchemaGenerator.Generation;
 public class DocumentationReader
 {
     private DocumentationModel? _documentation;
-    
+
     public async Task Load(CancellationToken cancellationToken)
     {
         XmlSerializer serializer = new XmlSerializer(typeof(DocumentationModel));
-        var docFilePath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!,
+        var docFilePath = Path.Combine(
+            Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!,
             "UvA.Workflow.xml");
         var docText = await File.ReadAllTextAsync(docFilePath, cancellationToken);
         docText = ConvertInlineXmlDocTagsToHtml(docText);
-        
+
         using var reader = new StringReader(docText);
         _documentation = (DocumentationModel?)serializer.Deserialize(reader);
     }
-    
+
     private static string ConvertInlineXmlDocTagsToHtml(string input)
     {
         // <c>code</c> -> HTML encoded <code>code</code>
@@ -40,7 +41,7 @@ public class DocumentationReader
             @"<para>(.*?)</para>",
             match => WebUtility.HtmlEncode($"<p>{match.Groups[1].Value}</p>"),
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        
+
         // <see cref=".." /> -> HTML encoded <p>text</p>
         input = Regex.Replace(input,
             @"<(see|paramref) (.*?)/>",
@@ -59,7 +60,7 @@ public class DocumentationReader
             .FirstOrDefault(x => x.Name == $"P:{property.DeclaringType?.FullName}.{property.Name}")?
             .Summary.Trim();
     }
-    
+
     public string? GetSummary(Type type)
     {
         if (_documentation == null)
@@ -74,55 +75,43 @@ public class DocumentationReader
 [XmlRoot(ElementName = "assembly")]
 public class Assembly
 {
-    [XmlElement(ElementName = "name")]
-    public string Name { get; set; } = null!;
+    [XmlElement(ElementName = "name")] public string Name { get; set; } = null!;
 }
 
 [XmlRoot(ElementName = "member")]
 public class Member
 {
-    [XmlElement(ElementName = "summary")]
-    public string Summary { get; set; } = null!;
+    [XmlElement(ElementName = "summary")] public string Summary { get; set; } = null!;
 
-    [XmlAttribute(AttributeName = "name")]
-    public string Name { get; set; } = null!;
+    [XmlAttribute(AttributeName = "name")] public string Name { get; set; } = null!;
 
-    [XmlText]
-    public string Text { get; set; } = null!;
+    [XmlText] public string Text { get; set; } = null!;
 
-    [XmlElement(ElementName = "returns")]
-    public object Returns { get; set; } = null!;
+    [XmlElement(ElementName = "returns")] public object Returns { get; set; } = null!;
 
-    [XmlElement(ElementName = "param")]
-    public List<Param> Parameters { get; set; } = null!;
+    [XmlElement(ElementName = "param")] public List<Param> Parameters { get; set; } = null!;
 }
 
 [XmlRoot(ElementName = "param")]
 public class Param
 {
-    [XmlAttribute(AttributeName = "name")]
-    public string Name { get; set; } = null!;
+    [XmlAttribute(AttributeName = "name")] public string Name { get; set; } = null!;
 
-    [XmlText]
-    public string Text { get; set; } = null!;
+    [XmlText] public string Text { get; set; } = null!;
 
-    [XmlElement(ElementName = "c")]
-    public bool C { get; set; }
+    [XmlElement(ElementName = "c")] public bool C { get; set; }
 }
 
 [XmlRoot(ElementName = "members")]
 public class Members
 {
-    [XmlElement(ElementName = "member")]
-    public List<Member> Member { get; set; } = null!;
+    [XmlElement(ElementName = "member")] public List<Member> Member { get; set; } = null!;
 }
 
 [XmlRoot(ElementName = "doc")]
 public class DocumentationModel
 {
-    [XmlElement(ElementName = "assembly")]
-    public Assembly Assembly { get; set; } = null!;
+    [XmlElement(ElementName = "assembly")] public Assembly Assembly { get; set; } = null!;
 
-    [XmlElement(ElementName = "members")]
-    public Members Members { get; set; } = null!;
+    [XmlElement(ElementName = "members")] public Members Members { get; set; } = null!;
 }

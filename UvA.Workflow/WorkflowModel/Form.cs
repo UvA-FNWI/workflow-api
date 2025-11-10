@@ -22,17 +22,17 @@ public class Page
     /// </summary>
     [YamlIgnore]
     public string Name { get; set; } = null!;
-    
+
     /// <summary>
     /// Localized title of the page
     /// </summary>
     public BilingualString? Title { get; set; }
-    
+
     /// <summary>
     /// Localized introduction text to show at the start of the page
     /// </summary>
     public BilingualString? Introduction { get; set; }
-    
+
     /// <summary>
     /// Layout of the page. Condensed will show the questions in a table
     /// </summary>
@@ -60,13 +60,14 @@ public class Form
     /// Internal name of the form
     /// </summary>
     public string Name { get; set; } = null!;
-    
+
     /// <summary>
     /// Bilingual title of the form
     /// </summary>
     public BilingualString? Title { get; set; }
+
     public BilingualString DisplayName => Title ?? Name;
-    
+
     /// <summary>
     /// Sets whether this form shows as multi-page layout with navigation bor or shows all pages at once
     /// </summary>
@@ -98,10 +99,11 @@ public class Form
     /// Triggers to run when the form is submitted
     /// </summary>
     public Trigger[] OnSubmit { get; set; } = [];
+
     /// <summary>
     /// Triggers to run when a change is made in the form
     /// </summary>
     public Trigger[] OnSave { get; set; } = [];
-    
+
     public IEnumerable<Question> Questions => Pages.Values.SelectMany(p => p.Questions);
 }

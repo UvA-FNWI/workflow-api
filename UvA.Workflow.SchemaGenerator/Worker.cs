@@ -20,7 +20,7 @@ public class Worker(IHostApplicationLifetime lifetime) : BackgroundService
             typeof(Step),
             typeof(ValueSet)
         ];
-        
+
         foreach (var type in types)
         {
             var schema = generator.Generate(type).ToJson();

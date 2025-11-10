@@ -8,7 +8,7 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
     private readonly Dictionary<string, ModelParser> _parsers = new();
 
     public IEnumerable<string> Versions => _parsers.Keys;
-    
+
     public void AddOrUpdate(string version, ModelParser parser)
         => _parsers[version] = parser;
 

@@ -6,6 +6,7 @@ public class Screen
     /// Internal name of the screen
     /// </summary>
     public string Name { get; set; } = null!;
+
     /// <summary>
     /// EntityType this screen is used for
     /// </summary>
@@ -15,6 +16,7 @@ public class Screen
     /// List of columns to display on this screen
     /// </summary>
     public Column[] Columns { get; set; } = null!;
+
     /// <summary>
     /// Relation this screen is used for
     /// </summary>
@@ -45,10 +47,12 @@ public class Column : Field
     /// Determines whether this column can be used for filtering
     /// </summary>
     public FilterType FilterType { get; set; }
+
     /// <summary>
     /// Determines whether this column is visible in the user interface or only in the export 
     /// </summary>
     public DisplayType DisplayType { get; set; }
+
     /// <summary>
     /// Sets a default sort direction for this column
     /// </summary>
