@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 using Serilog;
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.DataNose;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -36,6 +36,8 @@ builder.Services
     });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+
+builder.Services.AddDataNoseApiClient(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {

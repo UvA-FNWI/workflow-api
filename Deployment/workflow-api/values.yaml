@@ -9,6 +9,9 @@ logLevel: Debug
 
 allowedOrigins: "http://localhost:5173"
 
+datanoseApi:
+  baseAddress: https://v2-tst.datanose.nl/
+
 mongo:
   username: username
   database: workflow
@@ -25,3 +28,5 @@ azure:
   secrets:
     - name: workflow-db-password
       key: Mongo__Password
+    - name: dn2-api-key
+      key: DataNoseApi__ApiKey
