@@ -11,23 +11,27 @@ public class Condition
     /// If true, this condition is inverted
     /// </summary>
     public bool Not { get; set; }
-    
+
     /// <summary>
     /// Compare property values
     /// </summary>
     public Value? Value { get; set; }
+
     /// <summary>
     /// For and/or constructs
     /// </summary>
     public Logical? Logical { get; set; }
+
     /// <summary>
     /// Check if an event has occurred
     /// </summary>
     public EventCondition? Event { get; set; }
+
     /// <summary>
     /// Check if a date has passed
     /// </summary>
     public Date? Date { get; set; }
+
     /// <summary>
     /// Use a named reusable condition
     /// </summary>
@@ -124,30 +128,35 @@ public class Value : ConditionPart
     /// Target property
     /// </summary>
     public string Property { get; set; } = null!;
+
     private Expression PropertyExpression => ExpressionParser.Parse(Property);
-    
+
     /// <summary>
     /// Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign 
     /// </summary>
     public string? Equal { get; set; }
+
     private Expression? EqualExpression => ExpressionParser.Parse(Equal);
-    
+
     /// <summary>
     /// Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign 
     /// </summary>
     public string? LessThan { get; set; }
+
     private Expression? LessThanExpression => ExpressionParser.Parse(LessThan);
-    
+
     /// <summary>
     /// Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign 
     /// </summary>
     public string? GreaterThan { get; set; }
+
     private Expression? GreaterThanExpression => ExpressionParser.Parse(GreaterThan);
-    
+
     /// <summary>
     /// Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign 
     /// </summary>
     public string? GreaterThanOrEqual { get; set; }
+
     private Expression? GreaterThanOrEqualExpression => ExpressionParser.Parse(GreaterThanOrEqual);
 
     public override Lookup[] Dependants =>

@@ -10,22 +10,27 @@ public class Trigger
     /// Condition that determines if this trigger is active
     /// </summary>
     public Condition? Condition { get; set; }
+
     /// <summary>
     /// Send an email
     /// </summary>
     public SendMessage? SendMail { get; set; }
+
     /// <summary>
     /// Do an http call to an external service
     /// </summary>
     public Http? Http { get; set; }
+
     /// <summary>
     /// Set a property on the current instance
     /// </summary>
     public SetProperty? SetProperty { get; set; }
+
     /// <summary>
     /// Complete an event
     /// </summary>
     public string? Event { get; set; }
+
     /// <summary>
     /// Undo an event
     /// </summary>
@@ -49,6 +54,7 @@ public class SetProperty
     /// Target property name
     /// </summary>
     public string Property { get; set; } = null!;
+
     /// <summary>
     /// Expression that determines the value of the property
     /// </summary>
@@ -63,6 +69,7 @@ public class Http
     /// Template for the url to call
     /// </summary>
     public string Url { get; set; } = null!;
+
     private Template? _urlTemplate;
     public Template UrlTemplate => _urlTemplate ??= new Template(Url);
 }
@@ -73,8 +80,7 @@ public class SendMessage
     public string? ToAddress { get; set; }
     public string? Subject { get; set; }
     public string? Body { get; set; }
-    [YamlMember(Alias = "template")]
-    public string? TemplateKey { get; set; }
+    [YamlMember(Alias = "template")] public string? TemplateKey { get; set; }
     public bool SendAsMail { get; set; }
     public bool SendAutomatically { get; set; }
     public Attachment[] Attachments { get; set; } = [];

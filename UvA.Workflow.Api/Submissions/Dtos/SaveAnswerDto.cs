@@ -10,10 +10,9 @@ public record SaveAnswerResponse(
 
 public class SaveAnswerFileRequest
 {
-    [FromForm]
-    public required IFormFile File { get; set; }
+    [FromForm] public required IFormFile File { get; set; }
 }
-    
+
 public record SaveAnswerFileResponse(
     bool Success,
-    string? ErrorMessage = null);    
+    string? ErrorMessage = null);

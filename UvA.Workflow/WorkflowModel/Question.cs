@@ -28,7 +28,7 @@ public class StringLayoutOptions : LayoutOptions
     /// Set if the question should be a multiline text field
     /// </summary>
     public bool Multiline { get; set; }
-    
+
     /// <summary>
     /// Set if the text field should allow attachments 
     /// </summary>
@@ -45,15 +45,15 @@ public class Question
     /// </summary>
     [YamlIgnore]
     public string Name { get; set; } = null!;
-    
+
     /// <summary>
     /// Localized text of the question
     /// </summary>
     public BilingualString? Text { get; set; }
-    
+
     public BilingualString DisplayName => Text ?? Name;
     public BilingualString ShortDisplayName => ShortText ?? Text ?? Name;
-    
+
     /// <summary>
     /// Set if this question is hidden from users without extra permissions
     /// </summary>
@@ -66,29 +66,29 @@ public class Question
     /// This is strongly typed in the yaml schema and in the frontend, but not in the backend since we don't use it
     /// </remarks>
     public Dictionary<string, object>? Layout { get; set; }
-    
+
     /// <summary>
     /// Localized short question text to shown in results  
     /// </summary>
     public BilingualString? ShortText { get; set; }
-    
+
     /// <summary>
     /// Data type of the question. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,
     /// or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate
     /// a required value.
     /// </summary>
     public string Type { get; set; } = null!;
-    
+
     /// <summary>
     /// Values for a choice question.
     /// </summary>
     public Dictionary<string, Choice>? Values { get; set; }
-    
+
     /// <summary>
     /// Localized extended description text for the question.
     /// </summary>
     public BilingualString? Description { get; set; }
-    
+
     [YamlIgnore] public EntityType ParentType { get; set; } = null!;
 
     [YamlIgnore] public EntityType? EntityType { get; set; }
@@ -118,12 +118,12 @@ public class Question
     /// Condition that determines if the question should be shown
     /// </summary>
     public Condition? Condition { get; set; }
-    
+
     /// <summary>
     /// Condition that determines if the value is valid 
     /// </summary>
     public Condition? Validation { get; set; }
-    
+
     [YamlIgnore]
     public IEnumerable<Condition> Conditions =>
         (Values?.Values.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Where(c => c != null)!;
@@ -134,7 +134,7 @@ public class Question
     /// Trigger that is run whenever a value is changed for this property
     /// </summary>
     public Trigger[] OnSave { get; set; } = [];
-    
+
     /// <summary>
     /// Determines if the question should be hidden in the results table
     /// </summary>
@@ -148,8 +148,7 @@ public class Question
 
 public class TableSettings
 {
-    [YamlMember(Alias = "form")]
-    public string FormReference { get; set; } = null!;
+    [YamlMember(Alias = "form")] public string FormReference { get; set; } = null!;
 
     [YamlIgnore] public Form Form { get; set; } = null!;
     public TableLayout Layout { get; set; }
@@ -168,17 +167,17 @@ public class Choice
     /// </summary>
     [YamlIgnore]
     public string Name { get; set; } = null!;
-    
+
     /// <summary>
     /// Localized text of the choice
     /// </summary>
     public BilingualString? Text { get; set; }
-    
+
     /// <summary>
     /// Localized extended description text for the choice
     /// </summary>
     public BilingualString? Description { get; set; }
-    
+
     /// <summary>
     /// Numeric value of the choice
     /// </summary>

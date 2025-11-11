@@ -3,8 +3,11 @@ using UvA.Workflow.Api.Submissions.Dtos;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelService modelService,
-    SubmissionDtoFactory submissionDtoFactory, RightsService rightsService)
+public class WorkflowInstanceDtoFactory(
+    InstanceService instanceService,
+    ModelService modelService,
+    SubmissionDtoFactory submissionDtoFactory,
+    RightsService rightsService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -14,8 +17,8 @@ public class WorkflowInstanceDtoFactory(InstanceService instanceService, ModelSe
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var entityType = modelService.EntityTypes[instance.EntityType];
-        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools); 
-        
+        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools);
+
         return new WorkflowInstanceDto(
             instance.Id,
             entityType.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),

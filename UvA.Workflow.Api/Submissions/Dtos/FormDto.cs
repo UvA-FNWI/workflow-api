@@ -19,7 +19,7 @@ public record FormDto(
         return new FormDto(
             form.Name,
             form.Title ?? form.Name,
-            filteredPages.Select((p,i) => PageDto.Create(i, p, p.Questions.Select(q => questions[q]))).ToArray(),
+            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Questions.Select(q => questions[q]))).ToArray(),
             form.Layout,
             form.EntityType.Results != null
         );
@@ -35,8 +35,8 @@ public record PageDto(
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions)
-        => new (
-            index, 
+        => new(
+            index,
             page.DisplayTitle,
             page.Introduction,
             page.Layout,

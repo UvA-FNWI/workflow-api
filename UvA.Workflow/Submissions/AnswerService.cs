@@ -6,6 +6,7 @@ using UvA.Workflow.Persistence;
 namespace UvA.Workflow.Submissions;
 
 public record QuestionContext(WorkflowInstance Instance, InstanceEvent? Submission, Form Form, Question Question);
+
 public class AnswerService(
     SubmissionService submissionService,
     ModelService modelService,
@@ -17,20 +18,21 @@ public class AnswerService(
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
-        var (instance, submission, form, _ ) = await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
-        
+        var (instance, submission, form, _) =
+            await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
+
         // Get the question
         var question = modelService.GetQuestion(instance, form.Property, questionName);
         if (question == null)
             throw new EntityNotFoundException("Question", questionName);
 
-        return new QuestionContext(instance, submission,  form, question);
+        return new QuestionContext(instance, submission, form, question);
     }
-    
-   public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
+
+    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
     {
         var (instance, submission, form, question) = context;
-        
+
         // Get current answer
         var currentAnswer = instance.GetProperty(form!.Property, question.Name);
 
@@ -52,21 +54,21 @@ public class AnswerService(
         var updates = modelService.GetQuestionStatus(instance, form, canViewHidden, questionsToUpdate);
 
         // Build response
-       return Answer.Create(instance, form.TargetForm ?? form, updates);
+        return Answer.Create(instance, form.TargetForm ?? form, updates);
     }
 
     public async Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct)
     {
         var artifactObjectId = new ObjectId(artifactId);
-        
+
         var (instance, _, form, question) = context;
-        
+
         var value = instance!.GetProperty(form!.Property, question.Name);
         if (value == null) return null;
         if (question.IsArray)
         {
             var array = value as BsonArray ?? [];
-            if(array.All(a => a["_id"].AsString != artifactId)) return null;
+            if (array.All(a => a["_id"].AsString != artifactId)) return null;
         }
         else
         {
@@ -79,7 +81,7 @@ public class AnswerService(
     public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents, CancellationToken ct)
     {
         var (instance, _, form, question) = context;
-        
+
         var artifactInfo = await artifactService.SaveArtifact(artifactName, contents);
         ObjectId? oidOldArtifact = null;
 
@@ -108,9 +110,9 @@ public class AnswerService(
     {
         var artifactObjectId = new ObjectId(artifactId);
         var (instance, _, form, question) = context;
-        
+
         var value = instance!.GetProperty(form.Property, question.Name);
-        if (value == null) 
+        if (value == null)
             throw new EntityNotFoundException("Artifact", "Artifact not found");
 
         if (question.IsArray)

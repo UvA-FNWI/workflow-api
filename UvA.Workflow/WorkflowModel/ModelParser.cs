@@ -11,7 +11,7 @@ public partial class ModelParser
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
-    
+
     public Dictionary<string, Role> Roles { get; }
     public Dictionary<string, EntityType> EntityTypes { get; } = new();
     private Dictionary<string, ValueSet> ValueSets { get; }
@@ -24,7 +24,7 @@ public partial class ModelParser
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
-        var entities = _contentProvider.GetFolders() 
+        var entities = _contentProvider.GetFolders()
             .Where(d => Path.GetFileName(d) != "Common")
             .Select(d => Parse<EntityType>(Path.Combine(d, "Entity.yaml")))
             .OrderBy(e => e.InheritsFrom != null);
@@ -94,7 +94,7 @@ public partial class ModelParser
         foreach (var act in role.Actions)
         {
             PreProcess(act.Triggers);
-            
+
             if (act.Form != null && act.EntityType != null && !EntityTypes[act.EntityType].Forms.ContainsKey(act.Form))
                 throw new Exception($"{role.Name}: form {act.Form} not found for entity {act.EntityType}");
         }
@@ -130,7 +130,7 @@ public partial class ModelParser
         if (form is { Property: not null, TargetFormName: not null })
             form.TargetForm = EntityTypes[entityType.Properties[form.Property].UnderlyingType]
                 .Forms[form.TargetFormName];
-        
+
         if (form.Questions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
             throw new Exception($"Form {form.Name} has multiple questions with the same name");
 

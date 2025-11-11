@@ -11,29 +11,29 @@ public class EntityType
     /// Short internal name of the entity type
     /// </summary>
     public string Name { get; set; } = null!;
-    
+
     /// <summary>
     /// Localized title of the entity type
     /// </summary>
     public BilingualString? Title { get; set; }
-    
+
     /// <summary>
     /// Localized plural of the entity type title
     /// </summary>
     public BilingualString TitlePlural { get; set; } = null!;
-    
+
     public BilingualString DisplayTitle => Title ?? Name;
-    
+
     /// <summary>
     /// Integer indicating the tab order in the instance page
     /// </summary>
     public int? Index { get; set; }
-    
+
     /// <summary>
     /// Always show this entity type to the user, even if the user has no rights 
     /// </summary>
     public bool IsAlwaysVisible { get; set; }
-    
+
     /// <summary>
     /// Name of the entity type this type inherits from
     /// </summary>
@@ -43,7 +43,7 @@ public class EntityType
     /// Template for the title of an instance
     /// </summary>
     public string? InstanceTitle { get; set; }
-    
+
     private Template? _instanceTitleTemplate;
     public Template? InstanceTitleTemplate => _instanceTitleTemplate ??= Template.Create(InstanceTitle);
 
@@ -51,7 +51,7 @@ public class EntityType
     /// Dictionary of properties for this entity type
     /// </summary>
     public Dictionary<string, Question> Properties { get; set; } = new();
-    
+
     /// <summary>
     /// Dictionary of event definitions for this entity type
     /// </summary>
@@ -67,17 +67,17 @@ public class EntityType
     /// </summary>
     [YamlMember(Alias = "steps")]
     public List<string> StepNames { get; set; } = [];
-    
+
     /// <summary>
     /// List of header fields for this entity type
     /// </summary>
     public Field[] HeaderFields { get; set; } = [];
-    
+
     /// <summary>
     /// List of computed results for this entity type
     /// </summary>
     public Result[]? Results { get; set; }
-    
+
     /// <summary>
     /// Indicated whether this entity type is stored as an embedded document in the parent instance
     /// </summary>

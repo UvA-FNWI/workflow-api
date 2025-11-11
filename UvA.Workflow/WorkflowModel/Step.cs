@@ -12,23 +12,24 @@ public class Step
     /// Internal name of the step
     /// </summary>
     public string Name { get; set; } = null!;
-    
+
     /// <summary>
     /// Localized title of the step as shown to user
     /// </summary>
     public BilingualString? Title { get; set; }
-    
+
     public BilingualString DisplayTitle => Title ?? Name;
 
     /// <summary>
     /// Determines how the child steps of this step are handled
     /// </summary>
-    public StepHierarchyMode HierarchyMode { get; set; }    
-    
+    public StepHierarchyMode HierarchyMode { get; set; }
+
     /// <summary>
     /// Child steps of this step
     /// </summary>
-    [YamlMember(Alias = "children")] public string[] ChildNames { get; set; } = [];
+    [YamlMember(Alias = "children")]
+    public string[] ChildNames { get; set; } = [];
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
 
@@ -36,12 +37,12 @@ public class Step
     /// Condition requires for this step to start
     /// </summary>
     public Condition? Condition { get; set; }
-    
+
     /// <summary>
     /// Actions that are possible while this step is active
     /// </summary>
     public List<Action> Actions { get; set; } = [];
-    
+
     /// <summary>
     /// Condition that determines when the step ends 
     /// </summary>

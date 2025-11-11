@@ -6,14 +6,17 @@ public class Role
     /// Internal name of this role
     /// </summary>
     public string Name { get; set; } = null!;
+
     /// <summary>
     /// Localized title of the role shown to the user
     /// </summary>
     public BilingualString? Title { get; set; }
+
     /// <summary>
     /// List of roles to inherit actions from 
     /// </summary>
     public string[] InheritFrom { get; set; } = [];
+
     /// <summary>
     /// List of global actions for this role
     /// </summary>
@@ -59,6 +62,7 @@ public class Action
     /// Localized label of the action as shown in the user interface
     /// </summary>
     public BilingualString? Label { get; set; }
+
     /// <summary>
     /// List of roles that can perform this action
     /// </summary>
@@ -68,12 +72,14 @@ public class Action
     /// Target form for View / Submit / Edit actions
     /// </summary>
     public string? Form { get; set; }
+
     /// <summary>
     /// List of target forms for View / Submit / Edit actions  
     /// </summary>
     public string[] Forms { get; set; } = [];
+
     public string[] AllForms => Form != null ? Forms.Append(Form).ToArray() : Forms;
-    
+
     /// <summary>
     /// List of target collections for ??? (not yet implemented)
     /// </summary>
@@ -94,18 +100,22 @@ public class Action
     /// Type of action
     /// </summary>
     public RoleAction Type { get; set; }
+
     /// <summary>
     /// Condition that determines whether the action is permitted
     /// </summary>
     public Condition? Condition { get; set; }
+
     /// <summary>
     /// List of triggers to run for an Execute action
     /// </summary>
     public Trigger[] Triggers { get; set; } = [];
+
     /// <summary>
     /// List of steps during which this action is permitted 
     /// </summary>
     public string[] Steps { get; set; } = [];
+
     /// <summary>
     /// Target property for the CreateRelatedInstance action
     /// </summary>
@@ -115,6 +125,7 @@ public class Action
     /// Weird thing, maybe we should get rid of this?
     /// </summary>
     public string? UserProperty { get; set; }
+
     /// <summary>
     /// Weird thing, maybe we should get rid of this?
     /// </summary>
