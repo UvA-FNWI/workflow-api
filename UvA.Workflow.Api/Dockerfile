@@ -5,6 +5,7 @@ EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
+ENV HUSKY=0
 WORKDIR /src
 COPY ["UvA.Workflow.Api/UvA.Workflow.Api.csproj", "UvA.Workflow.Api/"]
 COPY ["UvA.Workflow/UvA.Workflow.csproj", "UvA.Workflow/"]
