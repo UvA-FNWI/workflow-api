@@ -11,7 +11,7 @@ logLevel: Debug
 allowedOrigins: "http://localhost:5173"
 
 datanoseApi:
-  baseAddress: https://v2-tst.datanose.nl/
+  baseAddress: https://api-v2-tst.datanose.nl/
 
 mongo:
   username: username
