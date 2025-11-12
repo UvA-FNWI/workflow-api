@@ -28,7 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddScoped<WorkflowInstanceService>();
-        services.AddScoped<IUserService, MockUserService>();
+        services.AddScoped<IUserService, UserService>();
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
         services.AddScoped<ArtifactService>();

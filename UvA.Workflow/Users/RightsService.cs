@@ -17,9 +17,7 @@ public class RightsService(
 
     public async Task<User?> GetUser(CancellationToken ct = default)
     {
-        var extUser = userService.GetUserInfo(_principal);
-        if (extUser == null)
-            return null;
+        var extUser = await userService.GetUserInfo(_principal, ct);
         return await userCacheService.GetUser(extUser, ct);
     }
 
