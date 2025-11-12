@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
 
@@ -36,17 +35,5 @@ public class UsersController(IUserService userService, IUserRepository userRepos
     public async Task<ActionResult<IEnumerable<ExternalUser>>> Find(string query, CancellationToken ct)
     {
         return Ok(await userService.FindUsers(query, ct));
-    }
-    
-    [HttpGet("roles")]
-    public async Task<ActionResult<IEnumerable<string>>> Roles(string uid, CancellationToken ct)
-    {
-        var claims = new[]
-        {
-            new Claim("urn:uvanetid", uid)
-        };
-
-        var x = new ClaimsPrincipal(new ClaimsIdentity(claims));
-        return Ok(await userService.GetRoles(x,ct));
     }
 }
