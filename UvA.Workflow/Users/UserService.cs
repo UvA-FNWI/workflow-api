@@ -21,5 +21,5 @@ public class UserService(IDataNoseApiClient dataNoseApiClient) : IUserService
     }
 
     public async Task<IEnumerable<ExternalUser>> FindUsers(string query, CancellationToken ct)
-    => await dataNoseApiClient.SearchPeople(query, ct);
+        => await dataNoseApiClient.SearchPeople(query, ct);
 }
