@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using UvA.Workflow.Infrastructure;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.Services;
@@ -88,6 +89,12 @@ public class RightsService(
     {
         var actions = await GetAllowedActions(instance, action);
         return actions.Any(f => form == null || f.MatchesForm(form));
+    }
+
+    public async Task EnsureAuthorizedForAction(WorkflowInstance instance, RoleAction action, string? form = null)
+    {
+        if (!await Can(instance, action, form))
+            throw new ForbiddenWorkflowActionException(instance.Id, action, form);
     }
 
     public async Task<bool> CanViewCollection(WorkflowInstance instance, string collection)
