@@ -9,5 +9,4 @@ public static class HostEnvironmentExtentions
 
     public static bool IsStagingOrAcceptance(this IWebHostEnvironment environment)
         => environment.IsStaging() || environment.IsEnvironment("Acceptance");
-
 }

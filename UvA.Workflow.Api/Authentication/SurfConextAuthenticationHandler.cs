@@ -15,11 +15,11 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
     /// implements the behavior of the SurfConext scheme to authenticate users.
     /// </summary>
     public SurfConextAuthenticationHandler(
-        IOptionsMonitor<SurfConextOptions> options, 
-        ILoggerFactory logger, 
-        UrlEncoder encoder, 
+        IOptionsMonitor<SurfConextOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder,
         HttpClient httpClient,
-        IMemoryCache cache) 
+        IMemoryCache cache)
         : base(options, logger, encoder)
     {
         this.httpClient = httpClient;
@@ -41,17 +41,17 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
             return AuthenticateResult.NoResult();
 
         var authorizationHeader = Context.Request.Headers["Authorization"].ToString();
-        if (string.IsNullOrEmpty(authorizationHeader)) 
+        if (string.IsNullOrEmpty(authorizationHeader))
             return AuthenticateResult.Fail("missing Authorization header");
 
         var authHeaderParts = authorizationHeader.Split(' ');
         if (authHeaderParts.Length < 2 ||
-            authHeaderParts[0] != "Bearer") 
+            authHeaderParts[0] != "Bearer")
             return AuthenticateResult.Fail("invalid Authorization header");
 
         var bearerToken = authHeaderParts[1].Trim();
         var cacheKey = $"bt_{bearerToken}";
-        
+
         if (cache.TryGetValue(cacheKey, out ClaimsPrincipal? cachedPrincipal))
             return AuthenticateResult.Success(new AuthenticationTicket(cachedPrincipal!, Scheme));
 
@@ -63,15 +63,15 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
             return AuthenticateResult.Fail("inactive token");
 
         var principal = CreateClaimsPrincipal(introspectionResponse);
-        cache.Set(cacheKey, principal, 
+        cache.Set(cacheKey, principal,
             new MemoryCacheEntryOptions
             {
                 SlidingExpiration = TimeSpan.FromMinutes(CacheExpirationMinutes)
             });
-        
+
         return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme));
     }
-    
+
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
     {
         Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -90,13 +90,16 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
     {
         // call to SurfConext to verify token
         var response = await httpClient.PostAsync("/oidc/introspect",
-            new FormUrlEncodedContent(new[] { new KeyValuePair<string?, string?>("token", token) })
+            new FormUrlEncodedContent([new KeyValuePair<string?, string?>("token", token)])
         );
 
         var content = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
         {
-            Logger.LogError("Token validation failed: SurfConext returned status {Code}: {Response}, ClientId:{ClientId}, Secret:{ClientSecret}", response.StatusCode, content, OptionsMonitor.CurrentValue.ClientId, OptionsMonitor.CurrentValue.ClientSecret?[..4] );
+            Logger.LogError(
+                "Token validation failed: SurfConext returned status {Code}: {Response}, ClientId:{ClientId}, Secret:{ClientSecret}",
+                response.StatusCode, content, OptionsMonitor.CurrentValue.ClientId,
+                OptionsMonitor.CurrentValue.ClientSecret?[..4]);
             Context.Items[SURFCONEXT_ERROR] =
                 $"Token validation failed: SurfConext returned status {response.StatusCode}, check the logs for details";
             return null;
@@ -114,7 +117,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
             return null;
         }
     }
-    
+
     private static ClaimsPrincipal CreateClaimsPrincipal(IntrospectionResponse r)
     {
         var claims = new List<Claim>();
@@ -159,7 +162,8 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
             claims.Add(new Claim("exp", r.Exp.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
 
         if (r.UpdatedAt.HasValue)
-            claims.Add(new Claim("updated_at", r.UpdatedAt.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            claims.Add(new Claim("updated_at",
+                r.UpdatedAt.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
 
         var identity = new ClaimsIdentity(claims, Scheme, UvaClaimTypes.UvanetId, ClaimTypes.Role);
         return new ClaimsPrincipal(identity);

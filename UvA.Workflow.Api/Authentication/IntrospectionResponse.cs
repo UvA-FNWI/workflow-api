@@ -22,5 +22,3 @@ public sealed record IntrospectionResponse(
     [property: JsonPropertyName("updated_at")]
     long? UpdatedAt
 );
-
-

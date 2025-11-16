@@ -1,4 +1,3 @@
-
 using System.Text;
 using Microsoft.OpenApi.Models;
 using UvA.Workflow.Api.Infrastructure;
@@ -7,19 +6,20 @@ namespace UvA.Workflow.Api.Authentication;
 
 public static class SurfConextExtensions
 {
-    public static IServiceCollection AddSurfConextAuthentication(this IServiceCollection services,IWebHostEnvironment environment, IConfiguration config)
+    public static IServiceCollection AddSurfConextAuthentication(this IServiceCollection services,
+        IWebHostEnvironment environment, IConfiguration config)
     {
         services.AddMemoryCache();
-        
-        var options=config.GetSection(SurfConextOptions.Section).Get<SurfConextOptions>();
-        
+
+        var options = config.GetSection(SurfConextOptions.Section).Get<SurfConextOptions>();
+
         if (string.IsNullOrEmpty(options?.BaseUrl))
             throw new InvalidOperationException("Missing SurfConextOptions.BaseUrl");
         if (string.IsNullOrEmpty(options.ClientId))
             throw new InvalidOperationException("Missing SurfConextOptions.ClientId");
         if (string.IsNullOrEmpty(options.ClientSecret))
             throw new InvalidOperationException("Missing SurfConextOptions.ClientSecret");
-        
+
         services.Configure<SurfConextOptions>(config.GetSection(SurfConextOptions.Section));
 
         services.AddHttpClient<SurfConextAuthenticationHandler>(client =>
@@ -28,12 +28,12 @@ public static class SurfConextExtensions
             client.DefaultRequestHeaders.Add("Authorization",
                 $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes($"{options.ClientId}:{options.ClientSecret}"))}");
         });
-                
+
         services.AddAuthentication(authOptions =>
         {
             authOptions.AddScheme<SurfConextAuthenticationHandler>(SurfConextAuthenticationHandler.Scheme, null);
         });
-        
+
         services.AddSwaggerGen(c =>
         {
             if (environment.IsDevOrTest()) // OIDC (SURFconext) authentication
