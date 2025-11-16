@@ -1,6 +1,6 @@
 namespace UvA.Workflow.Api.Infrastructure;
 
-public static class HostEnvironmentExtentions
+public static class HostEnvironmentExtensions
 {
     public static bool EnableExperimentalFeatures(this IHostEnvironment env) => !env.IsProduction();
 
