@@ -27,10 +27,12 @@ public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
         if (answer.Files != null && answer.Files.Length != 0)
         {
             files = answer.Files
-                .Select(f => new ArtifactReference(f.Id.ToString(), f.Name,WebUtility.UrlEncode(artifactTokenService.CreateAccessToken(f))))
+                .Select(f => new ArtifactReference(f.Id.ToString(), f.Name,
+                    WebUtility.UrlEncode(artifactTokenService.CreateAccessToken(f))))
                 .ToArray();
         }
-        return new AnswerDto(answer.Id, answer.QuestionName, answer.FormName, answer.EntityType, answer.IsVisible, answer.ValidationError, answer.Value, files, answer.VisibleChoices);
+
+        return new AnswerDto(answer.Id, answer.QuestionName, answer.FormName, answer.EntityType, answer.IsVisible,
+            answer.ValidationError, answer.Value, files, answer.VisibleChoices);
     }
-        
 }

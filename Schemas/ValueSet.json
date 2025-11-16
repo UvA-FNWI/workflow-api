@@ -1,0 +1,267 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "ValueSet",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "values": {
+      "type": "object",
+      "description": "Dictionary of choices within this value set",
+      "additionalProperties": {
+        "$ref": "#/definitions/Choice"
+      }
+    }
+  },
+  "definitions": {
+    "Choice": {
+      "title": "Choice",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "description": "Localized text of the choice",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "description": {
+          "description": "Localized extended description text for the choice",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "Numeric value of the choice"
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Condition that determines if the choice should be shown",
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        }
+      }
+    },
+    "BilingualString": {
+      "title": "BilingualString",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "Condition": {
+      "title": "Condition",
+      "type": "object",
+      "description": "Represents a logical condition",
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "type": "boolean",
+          "description": "If true, this condition is inverted"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Compare property values",
+              "$ref": "#/definitions/Value"
+            }
+          ]
+        },
+        "logical": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "For and/or constructs",
+              "$ref": "#/definitions/Logical"
+            }
+          ]
+        },
+        "event": {
+          "description": "Check if an event has occurred",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EventCondition"
+            }
+          ]
+        },
+        "date": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a date has passed",
+              "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Use a named reusable condition"
+        },
+        "message": {
+          "description": "Message that is shown then the condition is not, for use in form validation",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "Value": {
+      "title": "Value",
+      "type": "object",
+      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix the value with an equals sign to indicate a literal value)",
+      "additionalProperties": false,
+      "required": [
+        "property"
+      ],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "Target property"
+        },
+        "equal": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "lessThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "greaterThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "greaterThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+        }
+      }
+    },
+    "Logical": {
+      "title": "Logical",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "$ref": "#/definitions/LogicalOperator"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          }
+        }
+      }
+    },
+    "LogicalOperator": {
+      "type": "string",
+      "enum": [
+        "And",
+        "Or"
+      ]
+    },
+    "EventCondition": {
+      "title": "EventCondition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Id of the event to check for"
+        },
+        "notBefore": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If set, the event should not have occurred before this event"
+        }
+      }
+    },
+    "Date": {
+      "title": "Date",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

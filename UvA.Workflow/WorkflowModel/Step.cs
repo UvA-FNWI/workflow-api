@@ -1,22 +1,58 @@
 namespace UvA.Workflow.Entities.Domain;
 
+public enum StepHierarchyMode
+{
+    Sequential,
+    Parallel
+}
+
 public class Step
 {
+    /// <summary>
+    /// Internal name of the step
+    /// </summary>
     public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// Localized title of the step as shown to user
+    /// </summary>
     public BilingualString? Title { get; set; }
+
     public BilingualString DisplayTitle => Title ?? Name;
 
-    [YamlMember(Alias = "children")] public string[] ChildNames { get; set; } = [];
+    /// <summary>
+    /// Determines how the child steps of this step are handled
+    /// </summary>
+    public StepHierarchyMode HierarchyMode { get; set; }
+
+    /// <summary>
+    /// Child steps of this step
+    /// </summary>
+    [YamlMember(Alias = "children")]
+    public string[] ChildNames { get; set; } = [];
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
 
+    /// <summary>
+    /// Condition requires for this step to start
+    /// </summary>
     public Condition? Condition { get; set; }
+
+    /// <summary>
+    /// Actions that are possible while this step is active
+    /// </summary>
     public List<Action> Actions { get; set; } = [];
+
+    /// <summary>
+    /// Condition that determines when the step ends 
+    /// </summary>
     public Condition? Ends { get; set; }
 
-    public Dictionary<string, Question> Properties = new();
+    /// <summary>
+    /// Properties related to this step. These will become properties of the corresponding entity 
+    /// </summary>
+    public Dictionary<string, Question> Properties { get; set; } = new();
 
-    [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>
     [
         ..Ends?.Properties ?? [],
@@ -24,7 +60,7 @@ public class Step
         ..Children.SelectMany(c => c.Lookups)
     ];
 
-    [YamlIgnore] public string? EndEvent => Ends?.Event?.Id;
+    public string? EndEvent => Ends?.Event?.Id;
 
     public DateTime? GetEndDate(WorkflowInstance instance)
     {

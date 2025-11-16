@@ -13,8 +13,8 @@ public record AnswerInput(
 /// </summary>
 public class AnswerConversionService(UserCacheService userCacheService)
 {
-    public static readonly JsonSerializerOptions Options = new() {PropertyNamingPolicy = JsonNamingPolicy.CamelCase};
-    
+    public static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     /// <summary>
     /// Converts an answer input to a BsonValue based on the question's data type.
     /// </summary>
@@ -28,7 +28,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
             return BsonNull.Value;
 
         var value = answerInput.Value.Value;
-        
+
         return question.DataType switch
         {
             DataType.String or DataType.Choice or DataType.Reference =>
@@ -50,7 +50,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
             DataType.User when question.IsArray => await ConvertUserArray(value, ct),
 
             DataType.User => await ConvertUser(value, ct),
-            
+
 
             _ => throw new NotImplementedException(
                 $"Data type {question.DataType} is not supported for question '{question.DisplayName}'")

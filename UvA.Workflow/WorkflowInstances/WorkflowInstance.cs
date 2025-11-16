@@ -1,4 +1,5 @@
 using MongoDB.Bson.Serialization.Attributes;
+using UvA.Workflow.Tools;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -28,12 +29,13 @@ public class WorkflowInstance
     public BsonValue? GetProperty(params string?[] parts)
     {
         string[] relevantParts = parts.Where(p => p != null).ToArray()!;
-        var value = Properties.GetValueOrDefault(relevantParts[0]);
-        foreach (var part in relevantParts.Skip(1))
-            value = value?.IsBsonDocument == true && value.AsBsonDocument.TryGetValue(part, out var newValue)
-                ? newValue
-                : null;
-        return value;
+        if (relevantParts.Length == 0) return null;
+
+        var rootValue = Properties.GetValueOrDefault(relevantParts[0]);
+        if (relevantParts.Length == 1)
+            return rootValue;
+
+        return BsonConversionTools.NavigateNestedBsonValue(rootValue, relevantParts.Skip(1));
     }
 
     public void SetProperty(BsonValue value, params string?[] parts)

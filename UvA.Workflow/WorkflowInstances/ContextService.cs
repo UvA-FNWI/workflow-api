@@ -24,11 +24,12 @@ public class ContextService(
         {
             instance.CurrentStep = targetStep;
             if (!string.IsNullOrEmpty(instance.Id))
-                await workflowInstanceRepository.UpdateField(instance.Id, i => i.CurrentStep, targetStep ?? "", ct);
+                await workflowInstanceRepository.UpdateField(instance.Id, i => i.CurrentStep, targetStep, ct);
         }
     }
 
-    public async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts, IEnumerable<Lookup> properties, CancellationToken ct)
+    public async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts, IEnumerable<Lookup> properties,
+        CancellationToken ct)
     {
         var groups = properties
             .Where(p => p is PropertyLookup)

@@ -32,10 +32,7 @@ builder.Services.AddWorkflow(config);
 builder.Services.AddScoped<WorkflowInstanceDtoFactory>();
 builder.Services
     .AddControllers()
-    .AddJsonOptions(opts =>
-    {
-        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
+    .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -65,6 +62,10 @@ var app = builder.Build();
 app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
+
+app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser(
+    new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
+));
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

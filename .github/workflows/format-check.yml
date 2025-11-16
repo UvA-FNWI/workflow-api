@@ -1,0 +1,49 @@
+name: Format Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  build:
+    runs-on: self-hosted
+    env:
+      DOTNET_INSTALL_DIR: "./.dotnet"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 9.x
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+      - name: Get changed C# files
+        id: changed-cs-files
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
+        with:
+          files: "**/*.cs"
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Check formatting
+        if: steps.changed-cs-files.outputs.any_changed == 'true'
+        env:
+          CHANGED_CS_FILES: ${{ steps.changed-cs-files.outputs.all_changed_files }}
+        run: |
+          echo "Checking formatting for changed files:"
+          echo "$CHANGED_CS_FILES"
+
+          # Run cleanup in "check mode"
+          dotnet jb cleanupcode --include='**/*.cs' --no-build $CHANGED_CS_FILES
+
+          # Check if cleanup modified anything
+          if ! git diff --quiet; then
+            echo "❌ Some files are not properly formatted."
+            git diff --name-only
+            exit 1
+          else
+            echo "✅ All changed files are styled correctly."
+          fi

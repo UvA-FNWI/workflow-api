@@ -19,7 +19,7 @@ public record FormDto(
         return new FormDto(
             form.Name,
             form.Title ?? form.Name,
-            filteredPages.Select((p,i) => PageDto.Create(i, p, p.Questions.Select(q => questions[q]))).ToArray(),
+            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Questions.Select(q => questions[q]))).ToArray(),
             form.Layout,
             form.EntityType.Results != null
         );
@@ -35,8 +35,8 @@ public record PageDto(
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions)
-        => new (
-            index, 
+        => new(
+            index,
             page.DisplayTitle,
             page.Introduction,
             page.Layout,
@@ -53,11 +53,9 @@ public record QuestionDto(
     bool IsArray,
     ChoiceDto[]? Choices,
     string? EntityType,
-    bool Multiline,
     BilingualString? Description,
     BilingualString? ShortText,
-    QuestionLayout Layout,
-    bool AllowAttachments,
+    Dictionary<string, object>? Layout,
     TableSettingsDto? TableSettings,
     bool HideInResults)
 {
@@ -68,10 +66,9 @@ public record QuestionDto(
         question.DataType, question.IsRequired, question.IsArray,
         question.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
         question.EntityType?.Name,
-        question.Multiline, question.Description,
+        question.Description,
         question.ShortDisplayName,
         question.Layout,
-        question.AllowAttachments,
         question.Table == null ? null : TableSettingsDto.Create(question.Table),
         question.HideInResults
     );

@@ -1,4 +1,4 @@
-using UvA.Workflow.Api.Submissions;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Persistence;
@@ -29,7 +29,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<WorkflowInstanceService>();
         services.AddScoped<IUserService, MockUserService>();
-        services.AddSingleton<ModelService>();
+        services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
         services.AddScoped<ArtifactService>();
         services.AddScoped<AnswerService>();
@@ -47,9 +47,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IMailService, DummyMailService>();
 
-        services.AddSingleton(
-            new ModelParser(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects")));
-
+        services.AddSingleton<ModelServiceResolver>();
+        services.AddScoped<ScreenDataService>();
 
         return services;
     }

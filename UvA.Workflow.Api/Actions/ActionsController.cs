@@ -13,7 +13,8 @@ public class ActionsController(
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
     [HttpPost]
-    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input, CancellationToken ct)
+    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input,
+        CancellationToken ct)
     {
         var instance = await workflowInstanceRepository.GetById(input.InstanceId, ct);
         if (instance == null)
