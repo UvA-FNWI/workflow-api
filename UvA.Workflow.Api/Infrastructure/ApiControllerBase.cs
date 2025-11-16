@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace UvA.Workflow.Api.Infrastructure;
 
 [ApiController]
-//[Authorize]
+[Authorize]
 [Route("[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {
