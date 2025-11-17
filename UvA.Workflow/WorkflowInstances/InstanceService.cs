@@ -84,7 +84,7 @@ public class InstanceService(
         // TODO: needs to be updated to remove the most recent event with the specified eventId once multiple events of same id per workflowinstance is implemented
         if (instance.Events.Remove(eventId))
         {
-            await workflowInstanceRepository.Update(instance, ct);
+            await workflowInstanceRepository.DeleteField(instance.Id, i => i.Events[eventId], ct);
         }
         else
             throw new EntityNotFoundException(nameof(InstanceEvent), eventId);
