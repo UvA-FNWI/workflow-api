@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.Services;
@@ -6,18 +7,28 @@ namespace UvA.Workflow.Services;
 public class RightsService(
     ModelService modelService,
     IUserService userService,
-    UserCacheService userCacheService)
+    UserCacheService userCacheService,
+    IHttpContextAccessor httpContextAccessor)
 {
-    private readonly ClaimsPrincipal _principal = new(); // Mock for now
+    private ClaimsPrincipal GetPrincipal()
+    {
+        var principal = httpContextAccessor.HttpContext.User;
+        if (principal?.Identity is not { IsAuthenticated: true })
+        {
+            throw new UnauthorizedAccessException("Not logged in");
+        }
+
+        return principal;
+    }
 
     public async Task<GlobalRole[]> GetGlobalRoles() =>
-        (await userService.GetRoles(_principal))
+        (await userService.GetRoles(GetPrincipal()))
         .Append(new GlobalRole("Registered"))
         .ToArray();
 
     public async Task<User?> GetUser(CancellationToken ct = default)
     {
-        var extUser = await userService.GetUserInfo(_principal, ct);
+        var extUser = await userService.GetUserInfo(GetPrincipal(), ct);
         return await userCacheService.GetUser(extUser, ct);
     }
 
