@@ -30,6 +30,9 @@
         <Reference Include="Microsoft.AspNetCore.StaticFiles">
             <HintPath>..\..\..\..\.dotnet\shared\Microsoft.AspNetCore.App\9.0.0\Microsoft.AspNetCore.StaticFiles.dll</HintPath>
         </Reference>
+        <Reference Include="Microsoft.Extensions.Caching.Abstractions">
+          <HintPath>..\..\..\..\..\usr\local\share\dotnet\shared\Microsoft.AspNetCore.App\9.0.0\Microsoft.Extensions.Caching.Abstractions.dll</HintPath>
+        </Reference>
         <Reference Include="Microsoft.Extensions.Configuration.Abstractions">
             <HintPath>..\..\..\..\.dotnet\shared\Microsoft.AspNetCore.App\9.0.0\Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
         </Reference>

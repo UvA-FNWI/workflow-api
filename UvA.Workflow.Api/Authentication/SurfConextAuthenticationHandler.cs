@@ -136,7 +136,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
 
         if (r.Uids is { Length: > 0 } && !string.IsNullOrWhiteSpace(r.Uids[0]))
         {
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, r.Uids[0]));
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, UvaClaimTypes.UvanetId));
             claims.Add(new Claim(UvaClaimTypes.UvanetId, r.Uids[0]));
         }
 

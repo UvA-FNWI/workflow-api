@@ -25,4 +25,9 @@ public class MockUserService : IUserService
     public Task<IEnumerable<ExternalUser>> FindUsers(string query, CancellationToken cancellationToken)
         => Task.FromResult(DummyUsers.Where(u =>
             u.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase)));
+
+    public Task<User?> GetCurrentUser(CancellationToken ct) => Task.FromResult(DummyUsers.Select(eu => new User
+    {
+        DisplayName = eu.DisplayName, Id = ObjectId.GenerateNewId().ToString(), Email = eu.Email, ExternalId = eu.Id
+    }).FirstOrDefault());
 }

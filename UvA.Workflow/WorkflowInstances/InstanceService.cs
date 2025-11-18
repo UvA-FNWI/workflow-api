@@ -61,10 +61,10 @@ public class InstanceService(
         return users.Count(u => u.Id == userId) < action.Limit.Value;
     }
 
-    public async Task UpdateEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
+    public async Task UpdateEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct)
     {
-        instance.RecordEvent(eventId);
-        await workflowInstanceRepository.Update(instance, ct);
+        var newEvent = instance.RecordEvent(eventId);
+        await workflowInstanceRepository.AddOrUpdateEvent(instance, newEvent, user, ct);
     }
 
     public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
