@@ -31,7 +31,8 @@ public static class SurfConextExtensions
 
         services.AddAuthentication(authOptions =>
         {
-            authOptions.AddScheme<SurfConextAuthenticationHandler>(SurfConextAuthenticationHandler.Scheme, null);
+            authOptions.AddScheme<SurfConextAuthenticationHandler>(SurfConextAuthenticationHandler.SchemeName,
+                null);
         });
 
         services.AddSwaggerGen(c =>
