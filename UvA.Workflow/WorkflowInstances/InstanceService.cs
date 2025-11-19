@@ -60,7 +60,7 @@ public class InstanceService(
             .Where(r => r?.IsBsonNull == false)
             .Select(r => BsonSerializer.Deserialize<User>(r!.AsBsonDocument));
         var user = await userService.GetCurrentUser(ct);
-        return users.Count(u => u.Id == user.Id) < action.Limit.Value;
+        return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
     }
 
     public async Task UpdateEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
