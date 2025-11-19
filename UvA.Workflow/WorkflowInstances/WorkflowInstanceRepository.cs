@@ -164,7 +164,22 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         var filter = Builders<WorkflowInstance>.Filter.Eq(i => i.Id, instance.Id);
         var update = Builders<WorkflowInstance>.Update
             .Set(i => i.Events[newEvent.Id], newEvent);
-        await instanceCollection.UpdateOneAsync(filter, update, cancellationToken: ct);
+
+        // Use FindOneAndUpdate to apply the change AND return the state Before the change
+        var options = new FindOneAndUpdateOptions<WorkflowInstance>
+        {
+            ReturnDocument = ReturnDocument.Before,
+            // Optional: Optimize by only retrieving the Events field
+            Projection = Builders<WorkflowInstance>.Projection.Include(i => i.Events)
+        };
+
+        var originalDoc =
+            await instanceCollection.FindOneAndUpdateAsync(filter, update, options, cancellationToken: ct);
+
+        // Determine operation type by checking if the key existed previously
+        var wasUpdated = originalDoc != null &&
+                         originalDoc.Events != null &&
+                         originalDoc.Events.ContainsKey(newEvent.Id);
 
         // Also add the event to the event log collection
         var logEntry = new InstanceEventLogEntry
@@ -172,7 +187,8 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             WorkflowInstanceId = instance.Id,
             EventId = newEvent.Id,
             Date = newEvent.Date ?? DateTime.UtcNow,
-            InitiatedBy = user.Id
+            InitiatedBy = user.Id,
+            Operation = wasUpdated ? "update" : "insert"
         };
         await eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
     }

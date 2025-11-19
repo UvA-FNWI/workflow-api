@@ -21,4 +21,6 @@ public class InstanceEventLogEntry
     [BsonElement("Date")]
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime Date { get; set; }
+
+    [BsonElement("Operation")] public string Operation { get; set; } = null!;
 }
