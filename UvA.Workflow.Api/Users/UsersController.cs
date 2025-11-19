@@ -10,7 +10,7 @@ public class UsersController(IUserService userService, IUserRepository userRepos
     {
         var user = new User
         {
-            ExternalId = dto.ExternalId,
+            UserName = dto.ExternalId,
             DisplayName = dto.DisplayName,
             Email = dto.Email
         };

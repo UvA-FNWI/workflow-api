@@ -11,7 +11,8 @@ public class User
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = null!;
 
-    public string ExternalId { get; set; } = null!;
+    //TODO: Consider using a different field name for external ID
+    [BsonElement("ExternalId")] public string UserName { get; set; } = null!;
     public string DisplayName { get; set; } = null!;
     public string Email { get; set; } = null!;
 
@@ -23,10 +24,10 @@ public class User
     /// <summary>
     /// Creates an ExternalUser representation from this User.
     /// </summary>
-    public ExternalUser ToExternalUser() => new(ExternalId, DisplayName, Email);
+    public ExternalUser ToExternalUser() => new(UserName, DisplayName, Email);
 }
 
 /// <summary>
 /// Represents an external user reference.
 /// </summary>
-public record ExternalUser(string Id, string DisplayName, string Email);
+public record ExternalUser(string UserName, string DisplayName, string Email);

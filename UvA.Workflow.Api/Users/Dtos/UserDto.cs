@@ -17,7 +17,7 @@ public record UserDto(
     {
         return new UserDto(
             user.Id,
-            user.ExternalId,
+            user.UserName,
             user.DisplayName,
             user.Email
         );

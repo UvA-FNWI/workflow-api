@@ -11,7 +11,7 @@ public record AnswerInput(
 /// Service responsible for converting answer input data to BsonValue based on question data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
-public class AnswerConversionService(UserCacheService userCacheService)
+public class AnswerConversionService(IUserService userService)
 {
     public static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -89,7 +89,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
             if (externalUser == null)
                 return BsonNull.Value;
 
-            var user = await userCacheService.GetUser(externalUser, ct);
+            var user = await userService.GetUser(externalUser.UserName, ct);
             return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
         }
         catch
@@ -112,7 +112,7 @@ public class AnswerConversionService(UserCacheService userCacheService)
             var users = new List<BsonDocument>();
             foreach (var externalUser in externalUsers)
             {
-                var user = await userCacheService.GetUser(externalUser, ct);
+                var user = await userService.GetUser(externalUser.UserName, ct);
                 users.Add(user.ToBsonDocument());
             }
 

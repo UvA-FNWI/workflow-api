@@ -4,6 +4,7 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 namespace UvA.Workflow.Api.WorkflowInstances;
 
 public class WorkflowInstancesController(
+    IUserService userService,
     WorkflowInstanceService service,
     RightsService rightsService,
     ContextService contextService,
@@ -14,6 +15,8 @@ public class WorkflowInstancesController(
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
         [FromBody] CreateWorkflowInstanceDto input, CancellationToken ct)
     {
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null) return Unauthorized();
         var actions = input.ParentId == null
             ? await rightsService.GetAllowedActions(input.EntityType, RoleAction.CreateInstance)
             : [];
@@ -22,6 +25,7 @@ public class WorkflowInstancesController(
 
         var instance = await service.Create(
             input.EntityType,
+            user,
             ct,
             actions.First().UserProperty,
             input.ParentId,

@@ -41,7 +41,7 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 
     public async Task<User?> GetByExternalId(string externalId, CancellationToken ct)
     {
-        var filter = Builders<UserDocument>.Filter.Eq(x => x.ExternalId, externalId);
+        var filter = Builders<UserDocument>.Filter.Eq(x => x.UserName, externalId);
         var document = await _collection.Find(filter).FirstOrDefaultAsync(ct);
         return document != null ? MapToDomain(document) : null;
     }
@@ -65,7 +65,7 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         return new UserDocument
         {
             Id = string.IsNullOrEmpty(domain.Id) ? ObjectId.Empty : ObjectId.Parse(domain.Id),
-            ExternalId = domain.ExternalId,
+            UserName = domain.UserName,
             DisplayName = domain.DisplayName,
             Email = domain.Email
         };
@@ -76,7 +76,7 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         return new User
         {
             Id = document.Id.ToString(),
-            ExternalId = document.ExternalId,
+            UserName = document.UserName,
             DisplayName = document.DisplayName,
             Email = document.Email
         };
@@ -90,7 +90,8 @@ internal class UserDocument
     [BsonRepresentation(BsonType.ObjectId)]
     public ObjectId Id { get; set; }
 
-    public string ExternalId { get; set; } = null!;
+    //TODO: Consider using a different field name for external ID
+    [BsonElement("ExternalId")] public string UserName { get; set; } = null!;
     public string DisplayName { get; set; } = null!;
     public string Email { get; set; } = null!;
 }
