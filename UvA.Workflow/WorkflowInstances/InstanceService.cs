@@ -1,7 +1,7 @@
 using UvA.Workflow.Infrastructure;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
-namespace UvA.Workflow.Services;
+namespace UvA.Workflow.WorkflowInstances;
 
 public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
@@ -69,22 +69,23 @@ public class InstanceService(
     }
 
     /// <summary>
-    /// Deletes a specific event from the given workflow instance based on the provided event ID.
+    /// Deletes a specific event from the provided workflow instance based on the given event ID.
     /// </summary>
     /// <param name="instance">The workflow instance from which the event will be deleted.</param>
     /// <param name="eventId">The unique identifier of the event to be deleted.</param>
+    /// <param name="user">The user performing the delete action.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
     /// <exception cref="EntityNotFoundException">
     /// Thrown when the specified event ID is not found within the workflow instance.
     /// </exception>
-    public async Task DeleteEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
+    public async Task DeleteEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
 
-        // TODO: needs to be updated to remove the most recent event with the specified eventId once multiple events of same id per workflowinstance is implemented
-        if (instance.Events.Remove(eventId))
+        if (instance.Events.TryGetValue(eventId, out InstanceEvent? instanceEvent))
         {
-            await workflowInstanceRepository.DeleteField(instance.Id, i => i.Events[eventId], ct);
+            await workflowInstanceRepository.DeleteEvent(instance, instanceEvent, user, ct);
+            instance.Events.Remove(eventId);
         }
         else
             throw new EntityNotFoundException(nameof(InstanceEvent), eventId);

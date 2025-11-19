@@ -42,4 +42,14 @@ public interface IWorkflowInstanceRepository
     Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct);
     Task DeleteField(string instanceId, Expression<Func<WorkflowInstance, object>> field, CancellationToken ct);
     Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user, CancellationToken ct);
+
+    /// <summary>
+    /// Deletes a specified event from a workflow instance and logs the deletion.
+    /// </summary>
+    /// <param name="instance">The workflow instance from which the event is to be deleted.</param>
+    /// <param name="eventToDelete">The event to remove from the instance.</param>
+    /// <param name="user">The user executing the deletion action.</param>
+    /// <param name="ct">The cancellation token used to observe the operation's cancellation.</param>
+    /// <returns>An asynchronous operation representing the deletion process.</returns>
+    Task DeleteEvent(WorkflowInstance instance, InstanceEvent eventToDelete, User user, CancellationToken ct);
 }

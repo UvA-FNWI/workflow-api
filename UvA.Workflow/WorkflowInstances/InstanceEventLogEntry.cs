@@ -8,19 +8,21 @@ public class InstanceEventLogEntry
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = null!;
 
+    [BsonElement("Timestamp")] public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
     [BsonElement("InstanceId")]
     [BsonRepresentation(BsonType.ObjectId)]
     public string WorkflowInstanceId { get; set; } = null!;
 
     [BsonElement("EventId")] public string EventId { get; set; } = null!;
 
-    [BsonElement("InitiatedBy")]
+    [BsonElement("ExecutedBy")]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string InitiatedBy { get; set; } = null!;
+    public string ExecutedBy { get; set; } = null!;
 
-    [BsonElement("Date")]
+    [BsonElement("EventDate")]
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
-    public DateTime Date { get; set; }
+    public DateTime? EventDate { get; set; }
 
     [BsonElement("Operation")] public string Operation { get; set; } = null!;
 }
