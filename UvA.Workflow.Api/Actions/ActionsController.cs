@@ -1,12 +1,12 @@
 using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 namespace UvA.Workflow.Api.Actions;
 
 public class ActionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
+    IUserService userService,
     RightsService rightsService,
     TriggerService triggerService,
     ContextService contextService,
@@ -16,6 +16,10 @@ public class ActionsController(
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input,
         CancellationToken ct)
     {
+        var currentUser = await userService.GetCurrentUser(ct);
+        if (currentUser == null)
+            return Unauthorized();
+
         var instance = await workflowInstanceRepository.GetById(input.InstanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
@@ -37,7 +41,7 @@ public class ActionsController(
                 if (action == null)
                     return Forbidden();
 
-                await triggerService.RunTriggers(instance, action.Triggers, ct, input.Mail);
+                await triggerService.RunTriggers(instance, action.Triggers, currentUser, ct, input.Mail);
                 await contextService.UpdateCurrentStep(instance, ct);
                 break;
         }

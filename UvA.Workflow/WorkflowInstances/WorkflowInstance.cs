@@ -70,13 +70,15 @@ public class WorkflowInstance
     /// <summary>
     /// Records an event in the workflow
     /// </summary>
-    public void RecordEvent(string eventId, DateTime? date = null)
+    public InstanceEvent RecordEvent(string eventId, DateTime? date = null)
     {
-        Events[eventId] = new InstanceEvent
+        var newEvent = new InstanceEvent
         {
             Id = eventId,
             Date = date ?? DateTime.UtcNow
         };
+        Events[eventId] = newEvent;
+        return newEvent;
     }
 
     /// <summary>

@@ -6,6 +6,7 @@ using UvA.Workflow.Submissions;
 namespace UvA.Workflow.Api.Submissions;
 
 public class SubmissionsController(
+    IUserService userService,
     ModelService modelService,
     SubmissionService submissionService,
     SubmissionDtoFactory submissionDtoFactory,
@@ -26,15 +27,19 @@ public class SubmissionsController(
     public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string submissionId,
         CancellationToken ct)
     {
+        var currentUser = await userService.GetCurrentUser(ct);
+        if (currentUser == null)
+            return Unauthorized();
         var context = await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
         var (instance, sub, form, _) = context;
-        var result = await submissionService.SubmitSubmission(context, ct);
+        var result = await submissionService.SubmitSubmission(context, currentUser, ct);
 
         if (!result.Success)
         {
             var submissionDto = submissionDtoFactory.Create(instance, form, sub,
                 modelService.GetQuestionStatus(instance, form, true));
-            return Ok(new SubmitSubmissionResult(submissionDto, null, result.Errors, false));
+
+            return UnprocessableEntity(new SubmitSubmissionResult(submissionDto, null, result.Errors, false));
         }
 
         var finalSubmissionDto = submissionDtoFactory.Create(instance, form, instance.Events[submissionId],
