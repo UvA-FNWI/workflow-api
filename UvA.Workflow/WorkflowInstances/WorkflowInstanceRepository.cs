@@ -147,6 +147,18 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         await instanceCollection.UpdateOneAsync(filter, update, cancellationToken: ct);
     }
 
+    public async Task DeleteField(string instanceId, Expression<Func<WorkflowInstance, object>> field,
+        CancellationToken ct)
+    {
+        if (!ObjectId.TryParse(instanceId, out var objectId))
+            throw new ArgumentException("Invalid instance ID", nameof(instanceId));
+
+        var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
+        var update = Builders<WorkflowInstance>.Update.Unset(field);
+
+        await _collection.UpdateOneAsync(filter, update, cancellationToken: ct);
+    }
+
     public async Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition,
         CancellationToken ct)
     {
