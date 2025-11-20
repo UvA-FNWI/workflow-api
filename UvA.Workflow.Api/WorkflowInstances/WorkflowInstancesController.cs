@@ -46,6 +46,9 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
+        if (!await rightsService.Can(instance, RoleAction.View))
+            return Forbidden();
+
         var result = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(result);
