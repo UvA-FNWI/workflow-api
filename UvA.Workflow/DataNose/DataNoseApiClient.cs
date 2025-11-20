@@ -36,7 +36,7 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         return dto.Roles.Select(r => r.Name).Distinct();
     }
 
-    public async Task<IEnumerable<ExternalUser>> SearchPeople(string query, CancellationToken ct = default)
+    public async Task<IEnumerable<UserInfo>> SearchPeople(string query, CancellationToken ct = default)
     {
         var url = QueryHelpers.AddQueryString(
             "api/Common/Search/SearchPeople",
@@ -62,7 +62,7 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         return peopleEntries.Where(p =>
                 (!string.IsNullOrEmpty(p.EmployeeUvAnetId) || !string.IsNullOrEmpty(p.StudentId)) &&
                 !string.IsNullOrEmpty(p.Email))
-            .Select(p => new ExternalUser((p.EmployeeUvAnetId ?? p.StudentId)!, p.FullName, p.Email!));
+            .Select(p => new UserInfo((p.EmployeeUvAnetId ?? p.StudentId)!, p.FullName, p.Email!));
     }
 
     #region DTO

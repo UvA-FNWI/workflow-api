@@ -12,7 +12,9 @@ public class UserService(
     : IUserService
 {
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
-    private static string GetUserCacheKey(string userName) => $"user:{userName}";
+    private static TimeSpan RolesCacheExpiration => TimeSpan.FromMinutes(15);
+    private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
+    private static string GetCacheKeyForRoles(string userName) => $"roles:{userName}";
 
     /// <summary>
     /// Retrieves the current authenticated user from the HTTP context or cache. If the user is not present in cache, it retrieves the user from the repository and caches the result for a specified duration.
@@ -28,7 +30,13 @@ public class UserService(
 
 
     public async Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default)
-        => await dataNoseApiClient.GetRolesByUser(user.UserName, ct);
+    {
+        var cacheKey = GetCacheKeyForRoles(user.UserName);
+        if (cache.TryGetValue(cacheKey, out string[]? roles)) return roles!;
+        roles = (await dataNoseApiClient.GetRolesByUser(user.UserName, ct)).ToArray();
+        cache.Set(cacheKey, roles, RolesCacheExpiration);
+        return roles;
+    }
 
     /// <summary>
     /// Retrieves the roles of the current authenticated user. If the user is not authenticated or not found, returns an empty collection.
@@ -41,7 +49,7 @@ public class UserService(
         return user is null ? [] : await GetRoles(user, ct);
     }
 
-    public async Task<IEnumerable<ExternalUser>> FindUsers(string query, CancellationToken ct)
+    public async Task<IEnumerable<UserInfo>> FindUsers(string query, CancellationToken ct)
         => await dataNoseApiClient.SearchPeople(query, ct);
 
     /// <summary>
@@ -56,7 +64,7 @@ public class UserService(
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
     public async Task<User> AddOrUpdateUser(string username, string displayName, string email, CancellationToken ct)
     {
-        var cacheKey = GetUserCacheKey(username);
+        var cacheKey = GetCacheKeyForUser(username);
         if (!cache.TryGetValue(cacheKey, out User? user))
         {
             user = await userRepository.GetByExternalId(username, ct);
@@ -97,7 +105,7 @@ public class UserService(
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     public async Task<User?> GetUser(string username, CancellationToken ct)
     {
-        var cacheKey = GetUserCacheKey(username);
+        var cacheKey = GetCacheKeyForUser(username);
         if (cache.TryGetValue(cacheKey, out User? user)) return user;
         user = await userRepository.GetByExternalId(username, ct);
         if (user != null)

@@ -85,7 +85,7 @@ public class AnswerConversionService(IUserService userService)
     {
         try
         {
-            var externalUser = value.Deserialize<ExternalUser>(Options);
+            var externalUser = value.Deserialize<User>(Options);
             if (externalUser == null)
                 return BsonNull.Value;
 
@@ -105,7 +105,7 @@ public class AnswerConversionService(IUserService userService)
     {
         try
         {
-            var externalUsers = value.Deserialize<ExternalUser[]>(Options);
+            var externalUsers = value.Deserialize<User[]>(Options);
             if (externalUsers == null || externalUsers.Length == 0)
                 return BsonNull.Value;
 

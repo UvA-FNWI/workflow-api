@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using UvA.Workflow.DataNose;
 
 namespace UvA.Workflow.Users;
 
@@ -6,7 +6,7 @@ public interface IUserService
 {
     Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default);
 
-    Task<IEnumerable<ExternalUser>> FindUsers(string query, CancellationToken ct);
+    Task<IEnumerable<UserInfo>> FindUsers(string query, CancellationToken ct);
 
     /// <summary>
     /// Retrieves the current authenticated user from the HTTP context or cache. If the user is not present in cache, it retrieves the user from the repository and caches the result for a specified duration.
@@ -27,7 +27,7 @@ public interface IUserService
     /// <param name="email">A string containing the email address of the user.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
-    Task<User> AddOrUpdateUser(string username, string displayName, string email, CancellationToken ct);
+    Task<User> AddOrUpdateUser(string username, string displayName, string email, CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves a user by their username from the cache, or the user repository if not cached. If the user is found in the repository, it is added to the cache for future requests.
