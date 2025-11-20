@@ -6,9 +6,10 @@ namespace UvA.Workflow.Api.WorkflowInstances;
 public class WorkflowInstancesController(
     WorkflowInstanceService service,
     RightsService rightsService,
-    ContextService contextService,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
-    IWorkflowInstanceRepository repository) : ApiControllerBase
+    IWorkflowInstanceRepository repository,
+    InstanceService instanceService
+) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
@@ -28,7 +29,7 @@ public class WorkflowInstancesController(
             input.InitialProperties?.ToDictionary(k => k.Key, v => BsonTypeMapper.MapToBsonValue(v.Value))
         );
 
-        await contextService.UpdateCurrentStep(instance, ct);
+        await instanceService.UpdateCurrentStep(instance, ct);
 
         var result = await workflowInstanceDtoFactory.Create(instance, ct);
 
