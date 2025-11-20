@@ -9,6 +9,13 @@ public class InstanceService(
     RightsService rightsService
 )
 {
+    /// <summary>
+    /// Populates references in object contexts based on the specified entity type and lookup properties.
+    /// </summary>
+    /// <param name="entityType">The entity type defining the properties to be enriched.</param>
+    /// <param name="contexts">A collection of object contexts whose values will be updated.</param>
+    /// <param name="properties">The set of properties to be used for enrichment.</param>
+    /// <param name="ct">A token to monitor for cancellation requests.</param>
     private async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts,
         IEnumerable<Lookup> properties,
         CancellationToken ct)
