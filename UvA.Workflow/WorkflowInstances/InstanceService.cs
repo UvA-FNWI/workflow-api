@@ -6,7 +6,8 @@ namespace UvA.Workflow.Services;
 public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    RightsService rightsService)
+    RightsService rightsService,
+    ContextService contextService)
 {
     public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties,
         CancellationToken ct)
@@ -85,6 +86,7 @@ public class InstanceService(
         if (instance.Events.Remove(eventId))
         {
             await workflowInstanceRepository.DeleteField(instance.Id, i => i.Events[eventId], ct);
+            await contextService.UpdateCurrentStep(instance, ct);
         }
         else
             throw new EntityNotFoundException(nameof(InstanceEvent), eventId);
