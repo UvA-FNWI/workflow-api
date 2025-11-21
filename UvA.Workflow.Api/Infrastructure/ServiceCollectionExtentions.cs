@@ -38,7 +38,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
 
-        services.AddScoped<ContextService>();
         services.AddScoped<InstanceService>();
         services.AddScoped<RightsService>();
         services.AddScoped<TriggerService>();
