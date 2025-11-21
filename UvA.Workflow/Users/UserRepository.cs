@@ -1,5 +1,3 @@
-using MongoDB.Bson.Serialization.Attributes;
-
 namespace UvA.Workflow.Users;
 
 /// <summary>

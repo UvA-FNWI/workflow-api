@@ -1,10 +1,12 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace UvA.Workflow.Api.Users.Dtos;
 
 /// <summary>
 /// DTO for creating a new user
 /// </summary>
 public record CreateUserDto(
-    string ExternalId,
-    string DisplayName,
-    string Email
+    [Required] string UserName,
+    [Required] string DisplayName,
+    [Required] [EmailAddress] string Email
 );

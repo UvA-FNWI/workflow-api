@@ -5,7 +5,7 @@ namespace UvA.Workflow.Api.Users.Dtos;
 /// </summary>
 public record UserDto(
     string Id,
-    string ExternalId,
+    string UserName,
     string DisplayName,
     string Email
 )

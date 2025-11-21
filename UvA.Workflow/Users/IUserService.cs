@@ -6,7 +6,7 @@ public interface IUserService
 {
     Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default);
 
-    Task<IEnumerable<UserInfo>> FindUsers(string query, CancellationToken ct);
+    Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct);
 
     /// <summary>
     /// Retrieves the current authenticated user from the HTTP context or cache. If the user is not present in cache, it retrieves the user from the repository and caches the result for a specified duration.

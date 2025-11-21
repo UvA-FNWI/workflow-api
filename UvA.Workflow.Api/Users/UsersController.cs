@@ -11,7 +11,7 @@ public class UsersController(IUserService userService, IUserRepository userRepos
     {
         var user = new User
         {
-            UserName = dto.ExternalId,
+            UserName = dto.UserName,
             DisplayName = dto.DisplayName,
             Email = dto.Email
         };
@@ -33,9 +33,9 @@ public class UsersController(IUserService userService, IUserRepository userRepos
     }
 
     [HttpGet("find")]
-    public async Task<ActionResult<IEnumerable<UserInfoDto>>> Find(string query, CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query, CancellationToken ct)
     {
-        var users = await userService.FindUsers(query, ct);
-        return Ok(users.Select(UserInfoDto.Create));
+        var searchResults = await userService.FindUsers(query, ct);
+        return Ok(searchResults.Select(UserSearchResultDto.Create));
     }
 }

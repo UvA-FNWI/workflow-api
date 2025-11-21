@@ -49,7 +49,7 @@ public class UserService(
         return user is null ? [] : await GetRoles(user, ct);
     }
 
-    public async Task<IEnumerable<UserInfo>> FindUsers(string query, CancellationToken ct)
+    public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct)
         => await dataNoseApiClient.SearchPeople(query, ct);
 
     /// <summary>

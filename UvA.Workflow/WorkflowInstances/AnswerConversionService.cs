@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using UvA.Workflow.DataNose;
 
 namespace UvA.Workflow.Services;
 
@@ -85,11 +86,15 @@ public class AnswerConversionService(IUserService userService)
     {
         try
         {
-            var externalUser = value.Deserialize<User>(Options);
-            if (externalUser == null)
+            var userSearchResult = value.Deserialize<UserSearchResult>(Options);
+            if (userSearchResult == null)
                 return BsonNull.Value;
 
-            var user = await userService.GetUser(externalUser.UserName, ct);
+            // Try to get user or create a new one if it doesn't exist'
+            var user = await userService.GetUser(userSearchResult.UserName, ct);
+            user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
+                userSearchResult.Email, ct);
+
             return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
         }
         catch
