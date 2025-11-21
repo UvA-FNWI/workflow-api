@@ -9,7 +9,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.11"/>
-        <PackageReference Include="NJsonSchema" Version="11.5.1" />
+        <PackageReference Include="NJsonSchema" Version="11.5.2" />
     </ItemGroup>
 
     <ItemGroup>
