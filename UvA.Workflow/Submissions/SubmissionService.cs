@@ -13,8 +13,9 @@ public record InvalidQuestion(
 public class SubmissionService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    ContextService contextService,
-    TriggerService triggerService)
+    TriggerService triggerService,
+    InstanceService instanceService
+)
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
         CancellationToken ct)
@@ -70,7 +71,7 @@ public class SubmissionService(
         await triggerService.RunTriggers(instance, [new Trigger { Event = submissionId }, ..form.OnSubmit], ct);
 
         // Save the updated instance
-        await contextService.UpdateCurrentStep(instance, ct);
+        await instanceService.UpdateCurrentStep(instance, ct);
         return new SubmissionResult(true, []);
     }
 }
