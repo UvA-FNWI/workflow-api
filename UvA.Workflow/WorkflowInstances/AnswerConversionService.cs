@@ -110,14 +110,17 @@ public class AnswerConversionService(IUserService userService)
     {
         try
         {
-            var externalUsers = value.Deserialize<User[]>(Options);
-            if (externalUsers == null || externalUsers.Length == 0)
+            var searchResults = value.Deserialize<UserSearchResult[]>(Options);
+            if (searchResults == null || searchResults.Length == 0)
                 return BsonNull.Value;
 
             var users = new List<BsonDocument>();
-            foreach (var externalUser in externalUsers)
+            foreach (var userSearchResult in searchResults)
             {
-                var user = await userService.GetUser(externalUser.UserName, ct);
+                // Try to get user or create a new one if it doesn't exist'
+                var user = await userService.GetUser(userSearchResult.UserName, ct);
+                user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
+                    userSearchResult.Email, ct);
                 users.Add(user.ToBsonDocument());
             }
 
