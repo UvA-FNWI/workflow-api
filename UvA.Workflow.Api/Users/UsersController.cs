@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.DataNose;
 
 namespace UvA.Workflow.Api.Users;
 
@@ -10,7 +11,7 @@ public class UsersController(IUserService userService, IUserRepository userRepos
     {
         var user = new User
         {
-            ExternalId = dto.ExternalId,
+            UserName = dto.UserName,
             DisplayName = dto.DisplayName,
             Email = dto.Email
         };
@@ -32,8 +33,9 @@ public class UsersController(IUserService userService, IUserRepository userRepos
     }
 
     [HttpGet("find")]
-    public async Task<ActionResult<IEnumerable<ExternalUser>>> Find(string query, CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query, CancellationToken ct)
     {
-        return Ok(await userService.FindUsers(query, ct));
+        var searchResults = await userService.FindUsers(query, ct);
+        return Ok(searchResults.Select(UserSearchResultDto.Create));
     }
 }

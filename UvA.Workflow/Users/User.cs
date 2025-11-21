@@ -11,22 +11,9 @@ public class User
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = null!;
 
-    public string ExternalId { get; set; } = null!;
-    public string DisplayName { get; set; } = null!;
-    public string Email { get; set; } = null!;
+    [BsonElement("UserName")] public string UserName { get; set; } = null!;
 
-    /// <summary>
-    /// Creates a MailRecipient representation from this User.
-    /// </summary>
-    public MailRecipient ToRecipient() => new(Email, DisplayName);
+    [BsonElement("DisplayName")] public string DisplayName { get; set; } = null!;
 
-    /// <summary>
-    /// Creates an ExternalUser representation from this User.
-    /// </summary>
-    public ExternalUser ToExternalUser() => new(ExternalId, DisplayName, Email);
+    [BsonElement("Email")] public string Email { get; set; } = null!;
 }
-
-/// <summary>
-/// Represents an external user reference.
-/// </summary>
-public record ExternalUser(string Id, string DisplayName, string Email);

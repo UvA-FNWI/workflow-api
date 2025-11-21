@@ -8,6 +8,8 @@ data:
 
   Serilog__MinimumLevel__Override__Uva.DataNose: "{{ .Values.logLevel }}"
   
+  DataNoseApi__BaseAddress: "{{ .Values.datanoseApi.baseAddress }}"
+  
   AllowedOrigins: "{{ .Values.allowedOrigins }}"
 
   SurfConext__BaseUrl: "{{ .Values.surfConext.baseUrl }}"

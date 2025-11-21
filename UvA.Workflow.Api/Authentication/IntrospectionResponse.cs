@@ -20,5 +20,6 @@ public sealed record IntrospectionResponse(
     string? TokenType,
     [property: JsonPropertyName("uids")] string[]? Uids,
     [property: JsonPropertyName("updated_at")]
-    long? UpdatedAt
+    long? UpdatedAt,
+    [property: JsonPropertyName("name")] string FullName
 );

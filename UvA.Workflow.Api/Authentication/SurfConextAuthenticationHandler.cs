@@ -19,14 +19,17 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         ILoggerFactory logger,
         UrlEncoder encoder,
         HttpClient httpClient,
+        IUserService userService,
         IMemoryCache cache)
         : base(options, logger, encoder)
     {
         this.httpClient = httpClient;
+        this.userService = userService;
         this.cache = cache;
     }
 
     private readonly HttpClient httpClient;
+    private readonly IUserService userService;
     private readonly IMemoryCache cache;
     private static readonly int CacheExpirationMinutes = 10;
 
@@ -55,19 +58,28 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         if (cache.TryGetValue(cacheKey, out ClaimsPrincipal? cachedPrincipal))
             return AuthenticateResult.Success(new AuthenticationTicket(cachedPrincipal!, Scheme));
 
-        var introspectionResponse = await ValidateSurfBearerToken(bearerToken);
-        if (introspectionResponse == null)
+        var resp = await ValidateSurfBearerToken(bearerToken);
+        if (resp == null)
             return AuthenticateResult.Fail("token validation failed");
 
-        if (!introspectionResponse.Active)
+        if (!resp.Active)
             return AuthenticateResult.Fail("inactive token");
 
-        var principal = CreateClaimsPrincipal(introspectionResponse);
+        if (string.IsNullOrEmpty(resp.FullName) ||
+            string.IsNullOrEmpty(resp.Email))
+            return AuthenticateResult.Fail("missing name or email");
+
+        if (resp.Uids is null || resp.Uids.Length == 0)
+            return AuthenticateResult.Fail("missing uid");
+
+        var principal = CreateClaimsPrincipal(resp);
         cache.Set(cacheKey, principal,
             new MemoryCacheEntryOptions
             {
                 SlidingExpiration = TimeSpan.FromMinutes(CacheExpirationMinutes)
             });
+
+        await userService.AddOrUpdateUser(principal.Identity!.Name!, resp.FullName, resp.Email);
 
         return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme));
     }

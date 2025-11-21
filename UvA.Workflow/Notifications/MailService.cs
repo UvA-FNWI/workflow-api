@@ -19,7 +19,8 @@ public class DummyMailService : IMailService
 
 public record MailRecipient(string MailAddress, string? DisplayName = null)
 {
-    public static MailRecipient FromUser(User user) => new MailRecipient(user.Email, user.DisplayName);
+    public static MailRecipient? FromUser(User? user) =>
+        user == null ? null : new MailRecipient(user.Email, user.DisplayName);
 }
 
 public record MailAttachment(string FileName, byte[] Content);
@@ -32,7 +33,7 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
             return null;
         var context = modelService.CreateContext(inst);
         var recipient = mail.To != null
-            ? (context.Get(mail.To) as User)?.ToRecipient()
+            ? MailRecipient.FromUser(context.Get(mail.To) as User)
             : new MailRecipient(mail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
         var attachment = mail.Attachments.FirstOrDefault();

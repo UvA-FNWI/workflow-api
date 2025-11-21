@@ -2,37 +2,20 @@ using System.Security.Claims;
 using UvA.Workflow.Infrastructure;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
-namespace UvA.Workflow.Services;
+namespace UvA.Workflow.Users;
 
 public class RightsService(
     ModelService modelService,
-    IUserService userService,
-    UserCacheService userCacheService)
+    IUserService userService)
 {
-    private readonly ClaimsPrincipal _principal = new(); // Mock for now
+    public async Task<IEnumerable<string>> GetGlobalRoles() =>
+        (await userService.GetRolesOfCurrentUser()).ToList()
+        .Append("Registered");
 
-    public async Task<GlobalRole[]> GetGlobalRoles() =>
-        (await userService.GetRoles(_principal))
-        .Append(new GlobalRole("Registered"))
-        .ToArray();
-
-    public async Task<User?> GetUser(CancellationToken ct = default)
-    {
-        var extUser = userService.GetUserInfo(_principal);
-        if (extUser == null)
-            return null;
-        return await userCacheService.GetUser(extUser, ct);
-    }
-
-    public async Task<string?> GetUserId()
-    {
-        var user = await GetUser();
-        return user?.Id;
-    }
 
     public async Task<Domain_Action[]> GetAllowedActions(string? entityType, params RoleAction[] actions)
         => (await GetGlobalRoles())
-            .Select(r => modelService.Roles.GetValueOrDefault(r.RoleName))
+            .Select(r => modelService.Roles.GetValueOrDefault(r))
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(new ObjectContext(new())))
@@ -43,8 +26,8 @@ public class RightsService(
 
     private async Task<Role?[]> GetInstanceRoles(WorkflowInstance instance)
     {
-        var userId = await GetUserId();
-        if (userId == null) return [];
+        var user = await userService.GetCurrentUser();
+        if (user == null) return [];
 
         return modelService.EntityTypes[instance.EntityType].Properties.Values
             .Where(p => p.DataType == DataType.User)
@@ -52,9 +35,9 @@ public class RightsService(
             .Where(p => p.Value != null)
             .Where(p => p.Value switch
             {
-                BsonDocument d => BsonSerializer.Deserialize<User>(d).Id == userId,
+                BsonDocument d => BsonSerializer.Deserialize<User>(d).Id == user.Id,
                 BsonArray a => a.Any(v =>
-                    v is BsonDocument d && BsonSerializer.Deserialize<User>(d).Id == userId),
+                    v is BsonDocument d && BsonSerializer.Deserialize<User>(d).Id == user.Id),
                 _ => false
             })
             .Select(p => modelService.Roles.GetValueOrDefault(p.Name))
@@ -62,10 +45,14 @@ public class RightsService(
     }
 
     public async Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
-        => (await GetGlobalRoles())
-            .Select(r => modelService.Roles.GetValueOrDefault(r.RoleName))
-            .Concat(await GetInstanceRoles(instance))
-            .Where(r => r != null)
+    {
+        var globalUserRoles = await GetGlobalRoles();
+        var globalRoles = globalUserRoles.Select(gur => modelService.Roles.GetValueOrDefault(gur)).Where(r => r != null)
+            .ToArray();
+        var instanceRoles = await GetInstanceRoles(instance);
+
+        return globalRoles
+            .Concat(instanceRoles)
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(modelService.CreateContext(instance)))
                             && actions.Contains(a.Type)
@@ -74,6 +61,7 @@ public class RightsService(
                 ))
             .Distinct()
             .ToArray();
+    }
 
     public async Task<bool> CanAny(string? entityType, params RoleAction[] actions)
         => (await GetAllowedActions(entityType, actions)).Any();
