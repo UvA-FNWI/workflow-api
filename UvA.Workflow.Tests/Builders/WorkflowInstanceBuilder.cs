@@ -13,7 +13,8 @@ public class WorkflowInstanceBuilder
     private readonly Dictionary<string, BsonValue> properties = new();
     private readonly Dictionary<string, InstanceEvent> events = new();
 
-    public WorkflowInstanceBuilder With(string? entityType=null, string? currentStep=null, string? parentId=null, string? id=null)
+    public WorkflowInstanceBuilder With(string? entityType = null, string? currentStep = null, string? parentId = null,
+        string? id = null)
     {
         this.id = id;
         this.entityType = entityType;
@@ -47,7 +48,7 @@ public class WorkflowInstanceBuilder
         return this;
     }
 
-    public WorkflowInstanceBuilder WithEvents(params Func<EventBuilder,EventBuilder>[] builders)
+    public WorkflowInstanceBuilder WithEvents(params Func<EventBuilder, EventBuilder>[] builders)
     {
         foreach (var evBuilder in builders)
         {
@@ -55,19 +56,22 @@ public class WorkflowInstanceBuilder
             var instanceEvent = evBuilder(eventBuilder).Build();
             events[instanceEvent.Id] = instanceEvent;
         }
+
         return this;
     }
 
-    public WorkflowInstanceBuilder WithProperties(params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
+    public WorkflowInstanceBuilder WithProperties(
+        params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
     {
         foreach (var (name, builder) in props)
         {
             var propertyBuilder = new PropertyBuilder();
             properties[name] = builder(propertyBuilder);
         }
+
         return this;
     }
-    
+
 
     public WorkflowInstance Build()
     {

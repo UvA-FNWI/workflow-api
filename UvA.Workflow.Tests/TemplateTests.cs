@@ -18,7 +18,7 @@ public class TemplateTests
                                     """);
         Assert.Equal(["Submitter", "Request.Title", "Decision.Comment"], template.Properties.AsSpan());
     }
-    
+
     [Fact]
     public void TestApply()
     {
@@ -29,7 +29,7 @@ public class TemplateTests
             ["b"] = "donkey"
         });
         var result = template.Apply(objectContext);
-        
+
         Assert.Equal("rabbit is a donkey, yes?", result);
     }
 }

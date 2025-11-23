@@ -18,18 +18,18 @@ public class ExpressionTests
         var date = (DateTime)res;
         Assert.Equal(DateTime.Now.AddDays(5).Date, date.Date);
     }
-    
+
     [Fact]
     public void TestIdentifier()
     {
         var exp = ExpressionParser.Parse("Boop.Beep");
-        var context = new ObjectContext(new Dictionary<Lookup, object?>{ ["Boop.Beep"] = 3 });
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Boop.Beep"] = 3 });
 
         var res = exp.Execute(context);
 
         Assert.Equal(3, res);
     }
-    
+
     [Fact]
     public void TestProperties()
     {
@@ -39,7 +39,7 @@ public class ExpressionTests
 
         Assert.Equal(["Boop.Beep", "Oink"], res);
     }
-    
+
     [Fact]
     public void TestCondition()
     {
@@ -48,12 +48,12 @@ public class ExpressionTests
         Assert.IsType<Call>(exp);
 
         var call = (Call)exp;
-        
+
         Assert.Equal(2, call.Arguments.Length);
         Assert.IsType<Operator>(call.Arguments[1]);
 
-        var op = (Operator) call.Arguments[1];
-        
+        var op = (Operator)call.Arguments[1];
+
         Assert.Equal(OperatorType.Equal, op.Type);
         Assert.Equivalent(new Identifier("Beep"), op.Left);
         Assert.Equivalent(new Number(3), op.Right);

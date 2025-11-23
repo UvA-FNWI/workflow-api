@@ -31,7 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
-        services.AddScoped<IArtifactService,ArtifactService>();
+        services.AddScoped<IArtifactService, ArtifactService>();
         services.AddScoped<AnswerService>();
         services.AddScoped<SubmissionService>();
         services.AddScoped<ArtifactTokenService>();

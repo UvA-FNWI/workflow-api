@@ -1,6 +1,7 @@
 using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests;
+
 public class EventBuilder
 {
     private string? id;
@@ -11,7 +12,7 @@ public class EventBuilder
         this.id = id;
         return this;
     }
-    
+
     public EventBuilder AsCompleted(DateTime completionDate)
     {
         date = completionDate;
