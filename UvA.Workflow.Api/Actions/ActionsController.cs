@@ -9,8 +9,9 @@ public class ActionsController(
     IUserService userService,
     RightsService rightsService,
     TriggerService triggerService,
-    ContextService contextService,
-    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
+    InstanceService instanceService
+) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input,
