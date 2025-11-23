@@ -32,9 +32,13 @@ public interface IWorkflowInstanceRepository
     Task<List<Dictionary<string, BsonValue>>> GetAllByParentId(string parentId,
         Dictionary<string, string> projection, CancellationToken ct);
 
-    Task<List<Dictionary<string, BsonValue>>> GetAllById(string[] ids, Dictionary<string, string> projection, CancellationToken ct);
+    Task<List<Dictionary<string, BsonValue>>> GetAllById(string[] ids, Dictionary<string, string> projection,
+        CancellationToken ct);
 
     // Type-safe update methods
-    Task UpdateField<TField>(string instanceId, Expression<Func<WorkflowInstance, TField>> field, TField value, CancellationToken ct);
+    Task UpdateField<TField>(string instanceId, Expression<Func<WorkflowInstance, TField>> field, TField value,
+        CancellationToken ct);
+
     Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct);
+    Task DeleteField(string instanceId, Expression<Func<WorkflowInstance, object>> field, CancellationToken ct);
 }

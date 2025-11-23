@@ -9,11 +9,13 @@ public class ActionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     RightsService rightsService,
     TriggerService triggerService,
-    ContextService contextService,
-    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
+    InstanceService instanceService
+) : ApiControllerBase
 {
     [HttpPost]
-    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input, CancellationToken ct)
+    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input,
+        CancellationToken ct)
     {
         var instance = await workflowInstanceRepository.GetById(input.InstanceId, ct);
         if (instance == null)
@@ -37,7 +39,7 @@ public class ActionsController(
                     return Forbidden();
 
                 await triggerService.RunTriggers(instance, action.Triggers, ct, input.Mail);
-                await contextService.UpdateCurrentStep(instance, ct);
+                await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }
 

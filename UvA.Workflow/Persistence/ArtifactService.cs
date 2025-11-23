@@ -5,6 +5,7 @@ using UvA.Workflow.Infrastructure.Database;
 namespace UvA.Workflow.Persistence;
 
 public record ArtifactInfo(ObjectId Id, string Name);
+
 public record Artifact(ArtifactInfo Info, byte[] Content);
 
 public interface IArtifactService
@@ -49,7 +50,7 @@ public class ArtifactService : IArtifactService
         var id = await bucket.UploadFromBytesAsync(artifactName, contents);
         return new ArtifactInfo(id, artifactName);
     }
-    
+
     public async Task<ArtifactInfo> SaveArtifact(string artifactName, Stream stream)
     {
         byte[] contents;
@@ -61,12 +62,13 @@ public class ArtifactService : IArtifactService
             await stream.CopyToAsync(ms);
             contents = ms.ToArray();
         }
+
         return await SaveArtifact(artifactName, contents);
     }
 
     public async Task<Artifact?> GetArtifact(ObjectId id, CancellationToken ct)
     {
-        var info = await GetArtifactInfo(id,ct);
+        var info = await GetArtifactInfo(id, ct);
         if (info is null) return null;
 
         var bytes = await bucket.DownloadAsBytesAsync(id, cancellationToken: ct);

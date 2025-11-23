@@ -14,8 +14,8 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
     /// <returns>Screen data with columns and rows containing the projected data</returns>
     [HttpGet("{entityType}/{screenName}")]
     public async Task<ActionResult<ScreenDataDto>> GetScreenData(
-        string entityType, 
-        string screenName, 
+        string entityType,
+        string screenName,
         CancellationToken ct)
     {
         try

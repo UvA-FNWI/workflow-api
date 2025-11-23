@@ -41,7 +41,7 @@ public static class BsonConversionTools
     public static BsonValue? NavigateNestedBsonValue(BsonValue? startValue, IEnumerable<string> pathParts)
     {
         var current = startValue;
-        
+
         foreach (var part in pathParts)
         {
             if (current?.IsBsonDocument == true)

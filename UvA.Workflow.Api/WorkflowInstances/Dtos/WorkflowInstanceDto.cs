@@ -9,7 +9,6 @@ public record WorkflowInstanceBasicDto(
     string? CurrentStep
 );
 
-
 public record WorkflowInstanceDto(
     string Id,
     string? Title,
@@ -48,11 +47,12 @@ public record ActionDto(
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
+
     public static ActionDto Create(InstanceService.AllowedAction action) =>
         action.Action.Type switch
         {
             RoleAction.CreateRelatedInstance => new(
-                ActionType.CreateInstance, 
+                ActionType.CreateInstance,
                 action.Action.Label ?? Add(action.EntityType?.DisplayTitle ?? "form"),
                 Form: action.Action.Property
             ),
@@ -65,12 +65,13 @@ public record ActionDto(
             RoleAction.Submit => new(
                 ActionType.SubmitForm,
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
-                Form: action.Action.Name ?? action.Form?.Name
+                Form: action.Form?.Name
             ),
             _ => throw new ArgumentOutOfRangeException()
         };
-    
-    private static BilingualString Add(BilingualString target) => new($"Add {target.En.ToLower()}", $"{target.Nl} toevoegen");
+
+    private static BilingualString Add(BilingualString target) =>
+        new($"Add {target.En.ToLower()}", $"{target.Nl} toevoegen");
 }
 
 public record InstanceEventDto(

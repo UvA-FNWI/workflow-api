@@ -28,8 +28,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddScoped<WorkflowInstanceService>();
-        services.AddScoped<IUserService, MockUserService>();
-        services.AddSingleton<ModelService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
         services.AddScoped<IArtifactService,ArtifactService>();
         services.AddScoped<AnswerService>();
@@ -38,20 +38,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
 
-        services.AddScoped<ContextService>();
         services.AddScoped<InstanceService>();
         services.AddScoped<RightsService>();
         services.AddScoped<TriggerService>();
-        services.AddScoped<UserCacheService>();
         services.AddScoped<AnswerConversionService>();
 
         services.AddScoped<IMailService, DummyMailService>();
 
+        services.AddSingleton<ModelServiceResolver>();
         services.AddScoped<ScreenDataService>();
-
-        services.AddSingleton(
-            new ModelParser(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects")));
-
 
         return services;
     }

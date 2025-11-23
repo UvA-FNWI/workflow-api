@@ -5,7 +5,7 @@ namespace UvA.Workflow.Api.Users.Dtos;
 /// </summary>
 public record UserDto(
     string Id,
-    string ExternalId,
+    string UserName,
     string DisplayName,
     string Email
 )
@@ -17,7 +17,7 @@ public record UserDto(
     {
         return new UserDto(
             user.Id,
-            user.ExternalId,
+            user.UserName,
             user.DisplayName,
             user.Email
         );

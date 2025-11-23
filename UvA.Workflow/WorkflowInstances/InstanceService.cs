@@ -1,3 +1,4 @@
+using UvA.Workflow.Infrastructure;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.Services;
@@ -5,9 +6,80 @@ namespace UvA.Workflow.Services;
 public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    RightsService rightsService)
+    IUserService userService,
+    RightsService rightsService
+)
 {
-    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties, CancellationToken ct)
+    /// <summary>
+    /// Populates references in object contexts based on the specified entity type and lookup properties.
+    /// </summary>
+    /// <param name="entityType">The entity type defining the properties to be enriched.</param>
+    /// <param name="contexts">A collection of object contexts whose values will be updated.</param>
+    /// <param name="properties">The set of properties to be used for enrichment.</param>
+    /// <param name="ct">A token to monitor for cancellation requests.</param>
+    private async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts,
+        IEnumerable<Lookup> properties,
+        CancellationToken ct)
+    {
+        var groups = properties
+            .Where(p => p is PropertyLookup)
+            .Cast<PropertyLookup>()
+            .Distinct()
+            .Where(p => p.Parts.Length > 1)
+            .Where(p => entityType.Properties[p.Parts[0]].DataType == DataType.Reference)
+            .GroupBy(p => p.Parts[0])
+            .ToArray();
+
+        foreach (var referenceGroup in groups)
+        {
+            var ids = contexts.ToDictionary(c => c, c => c.Get(referenceGroup.Key) as string);
+            var targetType = entityType.Properties[referenceGroup.Key].EntityType!;
+            var props = referenceGroup.Select(p => targetType.Properties[p.Parts[1]]).ToArray();
+            var results = await GetProperties(ids.Values.Where(i => i != null).ToArray()!, props, ct);
+            foreach (var context in contexts)
+            {
+                var id = ids[context];
+                var result = results.GetValueOrDefault(id ?? "");
+                if (result == null)
+                    continue;
+                foreach (var reference in referenceGroup)
+                    if (result.Values.TryGetValue(reference.Parts[1], out var value))
+                        context.Values[reference] = value;
+            }
+        }
+
+        foreach (var context in contexts)
+        {
+            if (context.Values.TryGetValue("CurrentStep", out var id) && id is string stepName)
+                context.Values["CurrentStep"] = entityType.AllSteps[stepName].DisplayTitle;
+        }
+    }
+
+    public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
+    {
+        var entityType = modelService.EntityTypes[instance.EntityType];
+        var context = modelService.CreateContext(instance);
+        await Enrich(entityType, [context], entityType.Steps.SelectMany(s => s.Lookups), ct);
+        string? targetStep = null;
+        foreach (var step in entityType.Steps)
+        {
+            if (step.Condition.IsMet(context) && !step.HasEnded(context))
+            {
+                targetStep = step.Name;
+                break;
+            }
+        }
+
+        if (instance.CurrentStep != targetStep)
+        {
+            instance.CurrentStep = targetStep;
+            if (!string.IsNullOrEmpty(instance.Id))
+                await workflowInstanceRepository.UpdateField(instance.Id, i => i.CurrentStep, targetStep, ct);
+        }
+    }
+
+    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties,
+        CancellationToken ct)
     {
         var projection = properties.ToDictionary(p => p.Name, p => $"$Properties.{p.Name}");
 
@@ -17,7 +89,8 @@ public class InstanceService(
         ));
     }
 
-    public async Task<List<ObjectContext>> GetScreen(string entityType, Screen screen, CancellationToken ct, string? sourceInstanceId = null)
+    public async Task<List<ObjectContext>> GetScreen(string entityType, Screen screen, CancellationToken ct,
+        string? sourceInstanceId = null)
     {
         var entity = modelService.EntityTypes[entityType];
         var props = screen.Columns.SelectMany(c => c.Properties).ToArray();
@@ -55,8 +128,8 @@ public class InstanceService(
             .Select(r => r.GetValueOrDefault(property))
             .Where(r => r?.IsBsonNull == false)
             .Select(r => BsonSerializer.Deserialize<User>(r!.AsBsonDocument));
-        var userId = await rightsService.GetUserId();
-        return users.Count(u => u.Id == userId) < action.Limit.Value;
+        var user = await userService.GetCurrentUser(ct);
+        return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
     }
 
     public async Task UpdateEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
@@ -65,28 +138,55 @@ public class InstanceService(
         await workflowInstanceRepository.Update(instance, ct);
     }
 
+    /// <summary>
+    /// Deletes a specific event from the given workflow instance based on the provided event ID.
+    /// </summary>
+    /// <param name="instance">The workflow instance from which the event will be deleted.</param>
+    /// <param name="eventId">The unique identifier of the event to be deleted.</param>
+    /// <param name="ct">A token to monitor for cancellation requests.</param>
+    /// <exception cref="EntityNotFoundException">
+    /// Thrown when the specified event ID is not found within the workflow instance.
+    /// </exception>
+    public async Task DeleteEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
+    {
+        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
+
+        // TODO: needs to be updated to remove the most recent event with the specified eventId once multiple events of same id per workflowinstance is implemented
+        if (instance.Events.Remove(eventId))
+        {
+            await workflowInstanceRepository.DeleteField(instance.Id, i => i.Events[eventId], ct);
+            await UpdateCurrentStep(instance, ct);
+        }
+        else
+            throw new EntityNotFoundException(nameof(InstanceEvent), eventId);
+    }
+
     public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
         => workflowInstanceRepository.UpdateFields(instance.Id,
             Builders<WorkflowInstance>.Update.Set(part1 == null
                     ? (i => i.Properties[part2])
                     : (i => i.Properties[part1][part2]),
                 instance.GetProperty(part1, part2)), ct);
-    
+
     public Task UnsetValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
         => workflowInstanceRepository.UpdateFields(instance.Id,
             Builders<WorkflowInstance>.Update.Unset(part1 == null
                 ? (i => i.Properties[part2])
-                : (i => i.Properties[part1][part2])),ct);
-    
-    public record AllowedAction(Domain_Action Action, Form? Form = null, Mail? Mail = null, EntityType? EntityType = null);
+                : (i => i.Properties[part1][part2])), ct);
+
+    public record AllowedAction(
+        Domain_Action Action,
+        Form? Form = null,
+        Mail? Mail = null,
+        EntityType? EntityType = null);
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
     {
-        var allowed = await rightsService.GetAllowedActions(instance, 
+        var allowed = await rightsService.GetAllowedActions(instance,
             RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
-        
+
         var actions = new List<AllowedAction>();
-        
+
         // Submittable forms
         actions.AddRange(allowed
             .Where(a => a.Type == RoleAction.Submit)
@@ -95,23 +195,23 @@ public class InstanceService(
             .Distinct()
             .Select(f => new AllowedAction(f.Action, modelService.GetForm(instance, f.Form)))
         );
-        
+
         // Create related entities
         var related = allowed
             .Where(a => a.Type == RoleAction.CreateRelatedInstance)
             .DistinctBy(a => a.Property);
-        
+
         foreach (var rel in related)
             if (await CheckLimit(instance, rel, ct))
                 actions.Add(new AllowedAction(rel,
                     EntityType: modelService.GetQuestion(instance, rel.Property!).EntityType));
-        
+
         // Executable actions
         foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
             actions.Add(new AllowedAction(a,
                 Mail: await Mail.FromModel(
                     instance,
-                    a.Triggers.FirstOrDefault(t => 
+                    a.Triggers.FirstOrDefault(t =>
                         t.SendMail != null && t.Condition.IsMet(modelService.CreateContext(instance)))?.SendMail,
                     modelService)));
 
@@ -119,16 +219,17 @@ public class InstanceService(
     }
 
     public record AllowedSubmission(InstanceEvent Event, Form Form, Dictionary<string, QuestionStatus> QuestionStatus);
-    
-    public async Task<IEnumerable<AllowedSubmission>> GetAllowedSubmissions(WorkflowInstance instance, CancellationToken ct)
+
+    public async Task<IEnumerable<AllowedSubmission>> GetAllowedSubmissions(WorkflowInstance instance,
+        CancellationToken ct)
     {
         var allowed = await rightsService.GetAllowedActions(instance, RoleAction.View);
         var allowedHidden = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden);
-        
+
         var forms = allowed.SelectMany(a => a.AllForms).Distinct()
             .ToDictionary(f => f, f => modelService.GetForm(instance, f));
         var hiddenForms = allowedHidden.SelectMany(a => a.AllForms).Distinct().ToList();
-        
+
         var subs = instance.Events
             .Select(e => e.Value)
             .Where(s => forms.ContainsKey(s.Id))

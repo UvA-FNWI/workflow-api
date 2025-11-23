@@ -40,20 +40,24 @@ public record Answer(
             var currencyObj = new { currency = value?.Currency, amount = value?.Amount };
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Value: value == null ? null : JsonSerializer.SerializeToElement(currencyObj, AnswerConversionService.Options));
+                Value: value == null
+                    ? null
+                    : JsonSerializer.SerializeToElement(currencyObj, AnswerConversionService.Options));
         }
 
         if (question.DataType == DataType.User && question.IsArray)
         {
-            var users = (ObjectContext.GetValue(answer, question) as User[])?.Select(u => u.ToExternalUser()).ToArray();
+            var users = ObjectContext.GetValue(answer, question) as User[];
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
-                Value: users == null ? null : JsonSerializer.SerializeToElement(users, AnswerConversionService.Options));
+                Value: users == null
+                    ? null
+                    : JsonSerializer.SerializeToElement(users, AnswerConversionService.Options));
         }
 
         if (question.DataType == DataType.User)
         {
-            var user = (ObjectContext.GetValue(answer, question) as User)?.ToExternalUser();
+            var user = ObjectContext.GetValue(answer, question) as User;
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
                 validationError,
                 Value: user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options));

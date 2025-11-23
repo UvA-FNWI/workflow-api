@@ -1,6 +1,7 @@
 namespace UvA.Workflow.WorkflowInstances;
 
-public class WorkflowInstanceService(RightsService rightsService, ModelService modelService,
+public class WorkflowInstanceService(
+    ModelService modelService,
     IWorkflowInstanceRepository repository)
 {
     /// <summary>
@@ -8,6 +9,7 @@ public class WorkflowInstanceService(RightsService rightsService, ModelService m
     /// </summary>
     public async Task<WorkflowInstance> Create(
         string entityType,
+        User createdBy,
         CancellationToken ct,
         string? userProperty = null,
         string? parentId = null,
@@ -23,14 +25,14 @@ public class WorkflowInstanceService(RightsService rightsService, ModelService m
             Properties = initialProperties ?? new Dictionary<string, BsonValue>(),
             Events = new Dictionary<string, InstanceEvent>()
         };
-        
+
         if (userProperty != null)
         {
-            var user = (await rightsService.GetUser(ct)).ToBsonDocument();
+            var user = createdBy.ToBsonDocument();
             var property = modelService.EntityTypes[entityType].Properties[userProperty];
             instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
         }
-        
+
         await repository.Create(instance, ct);
         return instance;
     }
@@ -49,7 +51,7 @@ public class WorkflowInstanceService(RightsService rightsService, ModelService m
         var instance = await repository.GetById(instanceId, ct);
         if (instance == null)
             throw new ArgumentException("Instance not found", nameof(instanceId));
- 
+
         foreach (var (propertyPath, value) in properties)
         {
             var pathParts = propertyPath.Split('.');
@@ -59,6 +61,4 @@ public class WorkflowInstanceService(RightsService rightsService, ModelService m
 
         await repository.Update(instance, ct);
     }
-    
-    
 }

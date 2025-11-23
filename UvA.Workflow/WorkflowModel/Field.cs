@@ -4,9 +4,25 @@ namespace UvA.Workflow.Entities.Domain;
 
 public class Field
 {
+    /// <summary>
+    /// Property this field refers to
+    /// </summary>
     public string? Property { get; set; }
+
+    /// <summary>
+    /// Custom value template
+    /// </summary>
     public string? Value { get; set; }
+
+    /// <summary>
+    /// Url the field should refer to
+    /// </summary>
     public string? Href { get; set; }
+
+    /// <summary>
+    /// Default value to use if the target is empty
+    /// </summary>
+    public string? Default { get; set; }
 
     public BilingualString DisplayTitle =>
         Title ?? Question?.ShortDisplayName ?? Event?.Name ?? (CurrentStep ? "Step" : "Field");
@@ -20,13 +36,19 @@ public class Field
     public Expression? PropertyExpression => _propertyExpression ??= ExpressionParser.Parse(ComputedProperty);
     public BilingualString? Title { get; set; } = null!;
 
-    public string? Default { get; set; }
 
     [YamlIgnore] public Question? Question { get; set; }
     [YamlIgnore] public EventDefinition? Event { get; set; }
 
 
+    /// <summary>
+    /// Target step the field should show the end date of
+    /// </summary>
     public string? EndDate { get; set; }
+
+    /// <summary>
+    /// If true, display the current step in this field
+    /// </summary>
     public bool CurrentStep { get; set; }
 
     public Lookup[] Properties =>

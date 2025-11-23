@@ -30,7 +30,7 @@ public class WorkflowInstance
     {
         string[] relevantParts = parts.Where(p => p != null).ToArray()!;
         if (relevantParts.Length == 0) return null;
-        
+
         var rootValue = Properties.GetValueOrDefault(relevantParts[0]);
         if (relevantParts.Length == 1)
             return rootValue;

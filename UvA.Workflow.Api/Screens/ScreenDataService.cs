@@ -185,7 +185,7 @@ public class ScreenDataService(
     {
         var parts = propertyPath.Split('.');
         var rootProperty = parts[0];
-        
+
         if (!data.TryGetValue(rootProperty, out var rootValue))
             return null;
 
@@ -196,5 +196,4 @@ public class ScreenDataService(
         // Use shared utility to navigate the remaining path
         return BsonConversionTools.NavigateNestedBsonValue(rootValue, parts.Skip(1));
     }
-
 }

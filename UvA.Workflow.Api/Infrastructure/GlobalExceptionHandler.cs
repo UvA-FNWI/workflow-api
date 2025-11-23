@@ -26,9 +26,9 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
             KeyNotFoundException => (HttpStatusCode.NotFound, "NotFound", "Resource not found"),
             ArgumentException => (HttpStatusCode.BadRequest, "InvalidInput", "Invalid input provided"),
             UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Unauthorized", "Unauthorized access"),
-            _ => (HttpStatusCode.InternalServerError,"Unknown", "An unknown error occurred")
+            _ => (HttpStatusCode.InternalServerError, "Unknown", "An unknown error occurred")
         };
-        
+
         httpContext.Response.Clear();
         httpContext.Response.ContentType = "application/json";
         httpContext.Response.StatusCode = (int)statusCode;
