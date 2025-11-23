@@ -6,6 +6,7 @@ namespace UvA.Workflow.Services;
 public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
+    IUserService userService,
     RightsService rightsService
 )
 {
@@ -127,8 +128,8 @@ public class InstanceService(
             .Select(r => r.GetValueOrDefault(property))
             .Where(r => r?.IsBsonNull == false)
             .Select(r => BsonSerializer.Deserialize<User>(r!.AsBsonDocument));
-        var userId = await rightsService.GetUserId();
-        return users.Count(u => u.Id == userId) < action.Limit.Value;
+        var user = await userService.GetCurrentUser(ct);
+        return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
     }
 
     public async Task UpdateEvent(WorkflowInstance instance, string eventId, CancellationToken ct)

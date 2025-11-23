@@ -1,7 +1,6 @@
 namespace UvA.Workflow.WorkflowInstances;
 
 public class WorkflowInstanceService(
-    RightsService rightsService,
     ModelService modelService,
     IWorkflowInstanceRepository repository)
 {
@@ -10,6 +9,7 @@ public class WorkflowInstanceService(
     /// </summary>
     public async Task<WorkflowInstance> Create(
         string entityType,
+        User createdBy,
         CancellationToken ct,
         string? userProperty = null,
         string? parentId = null,
@@ -28,7 +28,7 @@ public class WorkflowInstanceService(
 
         if (userProperty != null)
         {
-            var user = (await rightsService.GetUser(ct)).ToBsonDocument();
+            var user = createdBy.ToBsonDocument();
             var property = modelService.EntityTypes[entityType].Properties[userProperty];
             instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
         }

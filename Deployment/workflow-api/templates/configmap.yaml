@@ -5,6 +5,8 @@ metadata:
   namespace: "{{ .Release.Namespace }}"
 data:
   DOTNET_ENVIRONMENT: "{{ .Values.environment }}"
+
+  DataNoseApi__BaseAddress: "{{ .Values.datanoseApi.baseAddress }}"
  
   Serilog__MinimumLevel__Override__Uva.DataNose: "{{ .Values.logLevel }}"
 
