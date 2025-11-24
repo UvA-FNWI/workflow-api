@@ -16,15 +16,12 @@ public class WorkflowTests
 {
     Mock<IWorkflowInstanceRepository> repoMock;
     Mock<IUserService> userServiceMock;
-    Mock<IUserRepository> userRepositoryMock;
     Mock<IMailService> mailServiceMock;
     Mock<IArtifactService> artifactServiceMock;
     ModelService modelService;
     RightsService rightsService;
     InstanceService instanceService;
-    ContextService contextService;
     TriggerService triggerService;
-    UserCacheService userCacheService;
     SubmissionService submissionService;
     ModelParser parser;
     AnswerService answerService;
@@ -36,20 +33,18 @@ public class WorkflowTests
         // Mocks
         repoMock = new Mock<IWorkflowInstanceRepository>();
         userServiceMock = new Mock<IUserService>();
-        userRepositoryMock = new Mock<IUserRepository>();
         mailServiceMock = new Mock<IMailService>();
         artifactServiceMock = new Mock<IArtifactService>();
 
         // Services
-        parser = new ModelParser("../../../../Examples/Projects");
-        userCacheService = new UserCacheService(userRepositoryMock.Object);
+        var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
+        parser = new ModelParser(modelProvider);
         modelService = new ModelService(parser);
-        rightsService = new RightsService(modelService, userServiceMock.Object, userCacheService);
-        instanceService = new InstanceService(repoMock.Object, modelService, rightsService);
-        contextService = new ContextService(modelService, instanceService, repoMock.Object);
+        rightsService = new RightsService(modelService, userServiceMock.Object);
+        instanceService = new InstanceService(repoMock.Object, modelService, userServiceMock.Object, rightsService);
         triggerService = new TriggerService(instanceService, modelService, mailServiceMock.Object);
-        submissionService = new SubmissionService(repoMock.Object, modelService, contextService, triggerService);
-        answerConversionService = new AnswerConversionService(userCacheService);
+        submissionService = new SubmissionService(repoMock.Object, modelService, triggerService, instanceService);
+        answerConversionService = new AnswerConversionService(userServiceMock.Object);
         answerService = new AnswerService(submissionService, modelService, instanceService, rightsService,
             artifactServiceMock.Object, answerConversionService);
     }
