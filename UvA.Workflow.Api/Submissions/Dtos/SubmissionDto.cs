@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;

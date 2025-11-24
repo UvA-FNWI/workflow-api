@@ -1,6 +1,12 @@
-namespace UvA.Workflow.Services;
+using UvA.Workflow.Events;
 
-public class TriggerService(InstanceService instanceService, ModelService modelService, IMailService mailService)
+namespace UvA.Workflow.WorkflowInstances;
+
+public class TriggerService(
+    InstanceService instanceService,
+    IInstanceEventService eventService,
+    ModelService modelService,
+    IMailService mailService)
 {
     public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, User user, CancellationToken ct,
         MailMessage? mail = null)
@@ -31,7 +37,7 @@ public class TriggerService(InstanceService instanceService, ModelService modelS
         if (!instance.Events.TryGetValue(eventName, out var ev))
             return;
         ev.Date = null;
-        await instanceService.UpdateEvent(instance, ev.Id, user, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct);
     }
 
     private async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
@@ -39,7 +45,7 @@ public class TriggerService(InstanceService instanceService, ModelService modelS
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
         ev.Date = DateTime.Now;
-        await instanceService.UpdateEvent(instance, ev.Id, user, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct);
     }
 
     private async Task SetProperty(WorkflowInstance instance, SetProperty setProperty, CancellationToken ct)

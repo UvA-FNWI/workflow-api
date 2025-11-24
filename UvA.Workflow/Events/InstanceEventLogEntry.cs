@@ -1,6 +1,17 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace UvA.Workflow.WorkflowInstances;
+namespace UvA.Workflow.Events;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum EventLogOperation
+{
+    [BsonRepresentation(BsonType.String)]
+    Create,
+    [BsonRepresentation(BsonType.String)]
+    Update,
+    [BsonRepresentation(BsonType.String)]
+    Delete
+}
 
 public class InstanceEventLogEntry
 {
@@ -24,5 +35,5 @@ public class InstanceEventLogEntry
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? EventDate { get; set; }
 
-    [BsonElement("Operation")] public string Operation { get; set; } = null!;
+    [BsonElement("Operation")] public EventLogOperation Operation { get; set; }
 }

@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Entities.Domain;
+using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Services;
 using UvA.Workflow.Submissions;
@@ -14,13 +15,15 @@ namespace UvA.Workflow.Tests;
 
 public class WorkflowTests
 {
-    Mock<IWorkflowInstanceRepository> repoMock;
+    Mock<IWorkflowInstanceRepository> instanceRepoMock;
+    Mock<IInstanceEventRepository> eventRepoMock;
     Mock<IUserService> userServiceMock;
     Mock<IMailService> mailServiceMock;
     Mock<IArtifactService> artifactServiceMock;
     ModelService modelService;
     RightsService rightsService;
     InstanceService instanceService;
+    InstanceEventService eventService;
     TriggerService triggerService;
     SubmissionService submissionService;
     ModelParser parser;
@@ -31,7 +34,8 @@ public class WorkflowTests
     public WorkflowTests()
     {
         // Mocks
-        repoMock = new Mock<IWorkflowInstanceRepository>();
+        instanceRepoMock = new Mock<IWorkflowInstanceRepository>();
+        eventRepoMock = new Mock<IInstanceEventRepository>();
         userServiceMock = new Mock<IUserService>();
         mailServiceMock = new Mock<IMailService>();
         artifactServiceMock = new Mock<IArtifactService>();
@@ -41,9 +45,12 @@ public class WorkflowTests
         parser = new ModelParser(modelProvider);
         modelService = new ModelService(parser);
         rightsService = new RightsService(modelService, userServiceMock.Object);
-        instanceService = new InstanceService(repoMock.Object, modelService, userServiceMock.Object, rightsService);
-        triggerService = new TriggerService(instanceService, modelService, mailServiceMock.Object);
-        submissionService = new SubmissionService(repoMock.Object, modelService, triggerService, instanceService);
+        instanceService =
+            new InstanceService(instanceRepoMock.Object, modelService, userServiceMock.Object, rightsService);
+        eventService = new InstanceEventService(eventRepoMock.Object, rightsService, instanceService);
+        triggerService = new TriggerService(instanceService, eventService, modelService, mailServiceMock.Object);
+        submissionService =
+            new SubmissionService(instanceRepoMock.Object, modelService, triggerService, instanceService);
         answerConversionService = new AnswerConversionService(userServiceMock.Object);
         answerService = new AnswerService(submissionService, modelService, instanceService, rightsService,
             artifactServiceMock.Object, answerConversionService);
@@ -87,7 +94,7 @@ public class WorkflowTests
             )
             .Build();
 
-        repoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         JsonElement value = JsonDocument.Parse("\"title\"").RootElement;
 
         // Act
@@ -96,7 +103,7 @@ public class WorkflowTests
 
         // Assert
         Assert.Contains(instance.Properties, p => p.Key == "Title" && p.Value.ToString() == "title");
-        repoMock.Verify(
+        instanceRepoMock.Verify(
             r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -117,7 +124,7 @@ public class WorkflowTests
         await writer.FlushAsync(ct);
         const string fileName = "test.pdf";
 
-        repoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         artifactServiceMock.Setup(a => a.SaveArtifact(fileName, It.IsAny<Stream>()))
             .ReturnsAsync(new ArtifactInfo(ObjectId.GenerateNewId(), fileName));
 
@@ -130,7 +137,7 @@ public class WorkflowTests
         var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
         Assert.Equal(fileName, report.Name);
         artifactServiceMock.Verify(a => a.SaveArtifact(fileName, It.IsAny<Stream>()), Times.Once);
-        repoMock.Verify(
+        instanceRepoMock.Verify(
             r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
     }

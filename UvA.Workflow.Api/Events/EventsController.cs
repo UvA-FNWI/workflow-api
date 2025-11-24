@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Events;
 
 namespace UvA.Workflow.Api.Events;
 
@@ -6,7 +7,7 @@ namespace UvA.Workflow.Api.Events;
 public class EventsController(
     IWorkflowInstanceRepository workflowRepository,
     IUserService userService,
-    InstanceService instanceService)
+    IInstanceEventService eventService)
     : ApiControllerBase
 {
     [HttpDelete]
@@ -20,7 +21,7 @@ public class EventsController(
         var instance = await workflowRepository.GetById(instanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
-        await instanceService.DeleteEvent(instance, eventName, user, ct);
+        await eventService.DeleteEvent(instance, eventName, user, ct);
         return Ok();
     }
 }
