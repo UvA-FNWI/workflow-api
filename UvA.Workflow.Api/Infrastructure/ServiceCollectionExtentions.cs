@@ -28,10 +28,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddScoped<WorkflowInstanceService>();
-        services.AddScoped<IUserService, MockUserService>();
+        services.AddScoped<IUserService, UserService>();
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
-        services.AddScoped<ArtifactService>();
+        services.AddScoped<IArtifactService, ArtifactService>();
         services.AddScoped<AnswerService>();
         services.AddScoped<SubmissionService>();
         services.AddScoped<ArtifactTokenService>();
@@ -41,7 +41,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<InstanceService>();
         services.AddScoped<RightsService>();
         services.AddScoped<TriggerService>();
-        services.AddScoped<UserCacheService>();
         services.AddScoped<AnswerConversionService>();
 
         services.AddScoped<IMailService, DummyMailService>();

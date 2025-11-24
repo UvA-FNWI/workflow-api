@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using UvA.Workflow.DataNose;
 
 namespace UvA.Workflow.Services;
 
@@ -11,7 +12,7 @@ public record AnswerInput(
 /// Service responsible for converting answer input data to BsonValue based on question data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
-public class AnswerConversionService(UserCacheService userCacheService)
+public class AnswerConversionService(IUserService userService)
 {
     public static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -85,11 +86,15 @@ public class AnswerConversionService(UserCacheService userCacheService)
     {
         try
         {
-            var externalUser = value.Deserialize<ExternalUser>(Options);
-            if (externalUser == null)
+            var userSearchResult = value.Deserialize<UserSearchResult>(Options);
+            if (userSearchResult == null)
                 return BsonNull.Value;
 
-            var user = await userCacheService.GetUser(externalUser, ct);
+            // Try to get user or create a new one if it doesn't exist'
+            var user = await userService.GetUser(userSearchResult.UserName, ct);
+            user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
+                userSearchResult.Email, ct);
+
             return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
         }
         catch
@@ -105,14 +110,17 @@ public class AnswerConversionService(UserCacheService userCacheService)
     {
         try
         {
-            var externalUsers = value.Deserialize<ExternalUser[]>(Options);
-            if (externalUsers == null || externalUsers.Length == 0)
+            var searchResults = value.Deserialize<UserSearchResult[]>(Options);
+            if (searchResults == null || searchResults.Length == 0)
                 return BsonNull.Value;
 
             var users = new List<BsonDocument>();
-            foreach (var externalUser in externalUsers)
+            foreach (var userSearchResult in searchResults)
             {
-                var user = await userCacheService.GetUser(externalUser, ct);
+                // Try to get user or create a new one if it doesn't exist'
+                var user = await userService.GetUser(userSearchResult.UserName, ct);
+                user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
+                    userSearchResult.Email, ct);
                 users.Add(user.ToBsonDocument());
             }
 

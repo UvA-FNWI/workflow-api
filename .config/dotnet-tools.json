@@ -3,14 +3,14 @@
   "isRoot": true,
   "tools": {
     "husky": {
-      "version": "0.7.2",
+      "version": "0.8.0",
       "commands": [
         "husky"
       ],
       "rollForward": false
     },
     "jetbrains.resharper.globaltools": {
-      "version": "2025.2.4",
+      "version": "2025.3.0.2",
       "commands": [
         "jb"
       ],

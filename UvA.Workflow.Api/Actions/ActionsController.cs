@@ -43,7 +43,7 @@ public class ActionsController(
                     return Forbidden();
 
                 await triggerService.RunTriggers(instance, action.Triggers, currentUser, ct, input.Mail);
-                await contextService.UpdateCurrentStep(instance, ct);
+                await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }
 

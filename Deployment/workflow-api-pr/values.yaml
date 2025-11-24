@@ -10,6 +10,9 @@ logLevel: Debug
 
 allowedOrigins: "http://localhost:5173"
 
+datanoseApi:
+  baseAddress: https://api-v2-tst.datanose.nl/
+  
 surfConext:
   baseUrl: https://connect.test.surfconext.nl
   clientId: datanose-api.local
@@ -31,5 +34,7 @@ azure:
   secrets:
     - name: workflow-db-password
       key: Mongo__Password
+    - name: dn2-api-key
+      key: DatanoseApi__ApiKey
     - name: workflow-surfconext-client-secret
       key: SurfConext__ClientSecret
