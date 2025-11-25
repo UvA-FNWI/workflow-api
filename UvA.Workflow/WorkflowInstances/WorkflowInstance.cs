@@ -16,6 +16,8 @@ public class WorkflowInstance
     public string EntityType { get; set; } = null!;
     public string? CurrentStep { get; set; }
 
+    public DateTime CreatedOn { get; set; }
+
     // public List<LogEntry> LogEntries { get; set; } = [];
     public Dictionary<string, BsonValue> Properties { get; set; } = null!;
     public Dictionary<string, InstanceEvent> Events { get; set; } = null!;

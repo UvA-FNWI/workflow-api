@@ -33,6 +33,11 @@ public class Condition
     public Date? Date { get; set; }
 
     /// <summary>
+    /// Check if a deadline has passed
+    /// </summary>
+    public Date? Deadline { get; set; }
+
+    /// <summary>
     /// Use a named reusable condition
     /// </summary>
     public string? Name { get; set; }
@@ -44,7 +49,7 @@ public class Condition
 
     [JsonIgnore] [YamlIgnore] public Condition? NamedCondition { get; set; }
 
-    public ConditionPart Part => Value ?? Logical ?? Date ?? Event ?? NamedCondition?.Part!;
+    public ConditionPart Part => Value ?? Logical ?? Date ?? Deadline ?? Event ?? NamedCondition?.Part!;
 
     public IEnumerable<Lookup> Properties => Part?.Properties ?? [];
 

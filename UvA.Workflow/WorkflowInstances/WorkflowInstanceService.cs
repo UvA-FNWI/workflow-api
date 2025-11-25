@@ -22,6 +22,7 @@ public class WorkflowInstanceService(
         {
             EntityType = entityType,
             ParentId = parentId,
+            CreatedOn = DateTime.UtcNow,
             Properties = initialProperties ?? new Dictionary<string, BsonValue>(),
             Events = new Dictionary<string, InstanceEvent>()
         };
