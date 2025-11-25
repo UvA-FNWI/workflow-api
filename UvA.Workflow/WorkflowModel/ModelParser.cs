@@ -116,13 +116,13 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages["Default"] = new Page
             {
-                QuestionNames = entityType.Properties.Values.Select(v => v.Name).ToArray()
+                FieldNames = entityType.Properties.Values.Select(v => v.Name).ToArray()
             };
 
         foreach (var ent in form.Pages)
         {
             ent.Value.Name = ent.Key;
-            ent.Value.Questions = ent.Value.QuestionNames.Select(q => entityType.Properties[q]).ToArray();
+            ent.Value.Fields = ent.Value.FieldNames.Select(q => entityType.Properties[q]).ToArray();
         }
 
         entityType.Events.Add(form.Name, new() { Name = form.Name });

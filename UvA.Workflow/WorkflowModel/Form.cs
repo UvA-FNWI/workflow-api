@@ -41,10 +41,10 @@ public class Page
     /// <summary>
     /// Question names to include in the page
     /// </summary>
-    [YamlMember(Alias = "questions")]
-    public string[] QuestionNames { get; set; } = [];
+    [YamlMember(Alias = "fields")]
+    public string[] FieldNames { get; set; } = [];
 
-    [YamlIgnore] public Question[] Questions { get; set; } = [];
+    [YamlIgnore] public Question[] Fields { get; set; } = [];
 
     /// <summary>
     /// If set, this page is included only when editing a matching property
@@ -105,5 +105,5 @@ public class Form
     /// </summary>
     public Trigger[] OnSave { get; set; } = [];
 
-    public IEnumerable<Question> Questions => Pages.Values.SelectMany(p => p.Questions);
+    public IEnumerable<Question> Questions => Pages.Values.SelectMany(p => p.Fields);
 }

@@ -13,13 +13,13 @@ public record FormDto(
             .Where(p => p.Sources == null || p.Sources.Contains(form.Property))
             .ToArray();
         var questions = filteredPages
-            .SelectMany(p => p.Questions)
+            .SelectMany(p => p.Fields)
             .ToDictionary(q => q, QuestionDto.Create);
         form = form.ActualForm;
         return new FormDto(
             form.Name,
             form.Title ?? form.Name,
-            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Questions.Select(q => questions[q]))).ToArray(),
+            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]))).ToArray(),
             form.Layout,
             form.EntityType.Results != null
         );

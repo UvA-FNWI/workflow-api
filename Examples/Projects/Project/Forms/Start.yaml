@@ -2,7 +2,7 @@ name: Start
 
 pages:
   Start:
-    questions:
+    fields:
       - Title
       - EC
       - Examiner
