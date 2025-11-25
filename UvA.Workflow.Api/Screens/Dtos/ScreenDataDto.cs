@@ -54,7 +54,7 @@ public record ScreenColumnDto(
         if (column.Property != null && column.Property.EndsWith("Event"))
             return DataType.DateTime;
 
-        // Use the underlying question's data type if available
+        // Use the underlying propertyDefinition's data type if available
         if (column.Question != null)
             return column.Question.DataType;
 

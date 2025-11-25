@@ -50,7 +50,7 @@ public class WorkflowDefinition
     /// <summary>
     /// Dictionary of properties for this entity type
     /// </summary>
-    public Dictionary<string, Question> Properties { get; set; } = new();
+    public Dictionary<string, PropertyDefinition> Properties { get; set; } = new();
 
     /// <summary>
     /// Dictionary of event definitions for this entity type

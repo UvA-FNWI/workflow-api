@@ -82,8 +82,8 @@ public record Answer(
             Value: convertedValue == null ? null : JsonSerializer.SerializeToElement(convertedValue));
     }
 
-    // public Question GetQuestion(ModelService modelService)
-    //     => Question.FromModel(modelService.WorkflowDefinitions[WorkflowDefinition].Properties[QuestionName]);
+    // public PropertyDefinition GetQuestion(ModelService modelService)
+    //     => PropertyDefinition.FromModel(modelService.WorkflowDefinitions[WorkflowDefinition].Properties[QuestionName]);
     //
     // public Task<Message[]> GetMessages() // MessagesByObjectIdDataLoader loader
     //     => Task.FromResult<Message[]>([]); // TODO: loader.LoadAsync(new MessageId(TargetType.Answer, Id));

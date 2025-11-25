@@ -79,7 +79,7 @@ public class InstanceService(
         }
     }
 
-    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties,
+    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, PropertyDefinition[] properties,
         CancellationToken ct)
     {
         var projection = properties.ToDictionary(p => p.Name, p => $"$Properties.{p.Name}");

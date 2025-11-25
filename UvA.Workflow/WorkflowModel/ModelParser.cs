@@ -132,7 +132,7 @@ public partial class ModelParser
             form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties[form.Property].UnderlyingType]
                 .Forms[form.TargetFormName];
 
-        if (form.Questions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
+        if (form.PropertyDefinitions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
             throw new Exception($"Form {form.Name} has multiple questions with the same name");
 
         PreProcess(form.OnSubmit);
@@ -186,30 +186,31 @@ public partial class ModelParser
         }
     }
 
-    private Question PreProcess(Question question)
+    private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
     {
-        foreach (var entry in question.Values ?? [])
+        foreach (var entry in propertyDefinition.Values ?? [])
         {
             entry.Value.Name = entry.Key;
             PreProcess(entry.Value);
         }
 
-        if (ValueSets.TryGetValue(question.UnderlyingType, out var set))
-            question.Values = set.Values;
-        if (WorkflowDefinitions.TryGetValue(question.UnderlyingType, out var type))
-            question.WorkflowDefinition = type;
-        PreProcess(question.Condition);
-        PreProcess(question.OnSave);
-        if (question.Table != null)
-            question.Table.Form = question.ParentType.Forms[question.Table.FormReference];
+        if (ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out var set))
+            propertyDefinition.Values = set.Values;
+        if (WorkflowDefinitions.TryGetValue(propertyDefinition.UnderlyingType, out var type))
+            propertyDefinition.WorkflowDefinition = type;
+        PreProcess(propertyDefinition.Condition);
+        PreProcess(propertyDefinition.OnSave);
+        if (propertyDefinition.Table != null)
+            propertyDefinition.Table.Form = propertyDefinition.ParentType.Forms[propertyDefinition.Table.FormReference];
 
-        foreach (var dep in question.Conditions.SelectMany(c => c.Part.Dependants).Distinct())
+        foreach (var dep in propertyDefinition.Conditions.SelectMany(c => c.Part.Dependants).Distinct())
         {
             var depName = dep.ToString().Split('.').Last();
-            question.ParentType.Properties.GetValueOrDefault(depName)?.DependentQuestions.Add(question);
+            propertyDefinition.ParentType.Properties.GetValueOrDefault(depName)?.DependentQuestions
+                .Add(propertyDefinition);
         }
 
-        return question;
+        return propertyDefinition;
     }
 
     private void PreProcess(Condition? condition)

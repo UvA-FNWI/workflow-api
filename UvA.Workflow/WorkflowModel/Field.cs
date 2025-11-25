@@ -37,7 +37,7 @@ public class Field
     public BilingualString? Title { get; set; } = null!;
 
 
-    [YamlIgnore] public Question? Question { get; set; }
+    [YamlIgnore] public PropertyDefinition? Question { get; set; }
     [YamlIgnore] public EventDefinition? Event { get; set; }
 
 

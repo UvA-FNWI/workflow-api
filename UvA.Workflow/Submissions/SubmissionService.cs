@@ -48,14 +48,14 @@ public class SubmissionService(
         var objectContext = modelService.CreateContext(instance);
 
         // Validate required fields
-        var missing = form.Questions
+        var missing = form.PropertyDefinitions
             .Where(q => q.IsRequired && !instance.HasAnswer(q.Name)
                                      && q.Condition.IsMet(objectContext))
             .Select(q => new InvalidQuestion(q.Name, new BilingualString("Required field", "Verplicht veld")))
             .ToArray();
 
         // Validate field validation rules
-        var invalid = form.Questions
+        var invalid = form.PropertyDefinitions
             .Where(q => instance.HasAnswer(q.Name) && !q.Validation.IsMet(objectContext))
             .Select(q => new InvalidQuestion(
                 q.Name,

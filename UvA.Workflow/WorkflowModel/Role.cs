@@ -86,7 +86,7 @@ public class Action
     public string[] Collections { get; set; } = [];
 
     /// <summary>
-    /// Target question for the view hidden question action
+    /// Target propertyDefinition for the view hidden propertyDefinition action
     /// </summary>
     public string? Question { get; set; }
 

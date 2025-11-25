@@ -12,7 +12,7 @@ public class ModelService(ModelParser parser)
         => WorkflowDefinitions[instance.WorkflowDefinition].Forms.Values
             .Where(f => f.Name == formName || f.TargetFormName == formName);
 
-    public Question GetQuestion(WorkflowInstance instance, params string?[] parts)
+    public PropertyDefinition GetQuestion(WorkflowInstance instance, params string?[] parts)
     {
         var type = WorkflowDefinitions[instance.WorkflowDefinition];
         foreach (var part in parts.Take(parts.Length - 1).Where(p => p != null))
@@ -25,12 +25,12 @@ public class ModelService(ModelParser parser)
 
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,
-        IEnumerable<Question>? questions = null)
+        IEnumerable<PropertyDefinition>? questions = null)
     {
         var context = CreateContext(instance);
-        return (questions ?? (form.TargetForm ?? form).Questions)
+        return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
-                q.Condition.IsMet(context) && (q.Kind != QuestionKind.Hidden || canViewHidden),
+                q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden),
                 q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name)
                     ? null
                     : q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde"),

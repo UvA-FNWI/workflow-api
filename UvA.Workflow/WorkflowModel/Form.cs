@@ -39,12 +39,12 @@ public class Page
     public PageLayout Layout { get; set; }
 
     /// <summary>
-    /// Question names to include in the page
+    /// PropertyDefinition names to include in the page
     /// </summary>
     [YamlMember(Alias = "fields")]
     public string[] FieldNames { get; set; } = [];
 
-    [YamlIgnore] public Question[] Fields { get; set; } = [];
+    [YamlIgnore] public PropertyDefinition[] Fields { get; set; } = [];
 
     /// <summary>
     /// If set, this page is included only when editing a matching property
@@ -105,5 +105,5 @@ public class Form
     /// </summary>
     public Trigger[] OnSave { get; set; } = [];
 
-    public IEnumerable<Question> Questions => Pages.Values.SelectMany(p => p.Fields);
+    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.Values.SelectMany(p => p.Fields);
 }

@@ -44,10 +44,10 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         return new ObjectContext(dict);
     }
 
-    public static object? GetValue(BsonValue? answer, Question question)
-        => GetValue(answer, question.DataType, question);
+    public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)
+        => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
 
-    public static object? GetValue(BsonValue? answer, DataType type, Question? question = null)
+    public static object? GetValue(BsonValue? answer, DataType type, PropertyDefinition? question = null)
     {
         if (answer is null or BsonNull) return null;
 

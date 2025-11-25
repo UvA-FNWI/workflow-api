@@ -59,18 +59,18 @@ public record QuestionDto(
     TableSettingsDto? TableSettings,
     bool HideInResults)
 {
-    public static QuestionDto Create(Question question) => new(
-        $"{question.ParentType.Name}_{question.Name}",
-        question.Name,
-        question.DisplayName,
-        question.DataType, question.IsRequired, question.IsArray,
-        question.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
-        question.WorkflowDefinition?.Name,
-        question.Description,
-        question.ShortDisplayName,
-        question.Layout,
-        question.Table == null ? null : TableSettingsDto.Create(question.Table),
-        question.HideInResults
+    public static QuestionDto Create(PropertyDefinition propertyDefinition) => new(
+        $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
+        propertyDefinition.Name,
+        propertyDefinition.DisplayName,
+        propertyDefinition.DataType, propertyDefinition.IsRequired, propertyDefinition.IsArray,
+        propertyDefinition.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
+        propertyDefinition.WorkflowDefinition?.Name,
+        propertyDefinition.Description,
+        propertyDefinition.ShortDisplayName,
+        propertyDefinition.Layout,
+        propertyDefinition.Table == null ? null : TableSettingsDto.Create(propertyDefinition.Table),
+        propertyDefinition.HideInResults
     );
 }
 
