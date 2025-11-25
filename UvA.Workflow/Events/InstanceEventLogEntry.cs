@@ -5,12 +5,9 @@ namespace UvA.Workflow.Events;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EventLogOperation
 {
-    [BsonRepresentation(BsonType.String)]
-    Create,
-    [BsonRepresentation(BsonType.String)]
-    Update,
-    [BsonRepresentation(BsonType.String)]
-    Delete
+    [BsonRepresentation(BsonType.String)] Create,
+    [BsonRepresentation(BsonType.String)] Update,
+    [BsonRepresentation(BsonType.String)] Delete
 }
 
 public class InstanceEventLogEntry
