@@ -11,8 +11,7 @@ public class MockUserService : IUserService
 
     private static readonly IEnumerable<string> Roles = ["Coordinator", "SuperAdmin", "Admin"];
 
-    public Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default) => Task.FromResult(Roles);
 
     public Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken cancellationToken)
         => Task.FromResult(DummyUsers
