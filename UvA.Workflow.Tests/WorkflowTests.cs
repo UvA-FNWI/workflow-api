@@ -61,7 +61,7 @@ public class WorkflowTests
     {
         // Arrange
         var instance = new WorkflowInstanceBuilder()
-            .With(entityType: "Project", currentStep: "Upload")
+            .With(workflowDefinition: "Project", currentStep: "Upload")
             .WithEvents(
                 b => b.WithId("Start").AsCompleted(),
                 b => b.WithId("Upload")
@@ -89,7 +89,7 @@ public class WorkflowTests
     {
         // Arrange
         var instance = new WorkflowInstanceBuilder()
-            .With(entityType: "Project", currentStep: "Upload")
+            .With(workflowDefinition: "Project", currentStep: "Upload")
             .WithEvents(b => b.WithId("Start").AsCompleted()
             )
             .Build();
@@ -113,7 +113,7 @@ public class WorkflowTests
     {
         // Arrange
         var instance = new WorkflowInstanceBuilder()
-            .With(entityType: "Project", currentStep: "Upload")
+            .With(workflowDefinition: "Project", currentStep: "Upload")
             .WithEvents(b => b.WithId("Start").AsCompleted()
             )
             .Build();

@@ -8,9 +8,9 @@ public class Screen
     public string Name { get; set; } = null!;
 
     /// <summary>
-    /// EntityType this screen is used for
+    /// WorkflowDefinition this screen is used for
     /// </summary>
-    public string? EntityType { get; set; }
+    public string? WorkflowDefinition { get; set; }
 
     /// <summary>
     /// List of columns to display on this screen

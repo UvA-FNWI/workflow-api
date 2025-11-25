@@ -93,7 +93,7 @@ public class Form
     /// </summary>
     public Dictionary<string, Page> Pages { get; set; } = new();
 
-    [YamlIgnore] public EntityType EntityType { get; set; } = null!;
+    [YamlIgnore] public WorkflowDefinition WorkflowDefinition { get; set; } = null!;
 
     /// <summary>
     /// Triggers to run when the form is submitted

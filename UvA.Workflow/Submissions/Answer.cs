@@ -7,7 +7,7 @@ public record Answer(
     string Id,
     string QuestionName,
     string FormName,
-    string EntityType,
+    string WorkflowDefinition,
     bool IsVisible,
     BilingualString? ValidationError = null,
     JsonElement? Value = null,
@@ -31,14 +31,14 @@ public record Answer(
         BsonValue? answer = null, bool isVisible = true,
         BilingualString? validationError = null)
     {
-        var entityType = form.ActualForm.EntityType.Name;
-        var question = form.ActualForm.EntityType.Properties[questionName];
+        var workflowDefinition = form.ActualForm.WorkflowDefinition.Name;
+        var question = form.ActualForm.WorkflowDefinition.Properties[questionName];
 
         if (question.DataType == DataType.Currency)
         {
             var value = ObjectContext.GetValue(answer, question) as CurrencyAmount;
             var currencyObj = new { currency = value?.Currency, amount = value?.Amount };
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: value == null
                     ? null
@@ -48,7 +48,7 @@ public record Answer(
         if (question.DataType == DataType.User && question.IsArray)
         {
             var users = ObjectContext.GetValue(answer, question) as User[];
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: users == null
                     ? null
@@ -58,7 +58,7 @@ public record Answer(
         if (question.DataType == DataType.User)
         {
             var user = ObjectContext.GetValue(answer, question) as User;
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options));
         }
@@ -66,7 +66,7 @@ public record Answer(
         if (question.DataType == DataType.File)
         {
             var value = ObjectContext.GetValue(answer, question) as ArtifactInfo;
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: value?.Name == null ? null : JsonSerializer.SerializeToElement(value.Name),
                 Files: value == null
@@ -77,13 +77,13 @@ public record Answer(
 
         // Handle remaining types: String, DateTime, Date, Int, Double, Choice, Reference
         var convertedValue = ObjectContext.GetValue(answer, question);
-        return new Answer($"{form.Name}_{questionName}", questionName, form.Name, entityType, isVisible,
+        return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
             validationError,
             Value: convertedValue == null ? null : JsonSerializer.SerializeToElement(convertedValue));
     }
 
     // public Question GetQuestion(ModelService modelService)
-    //     => Question.FromModel(modelService.EntityTypes[EntityType].Properties[QuestionName]);
+    //     => Question.FromModel(modelService.WorkflowDefinitions[WorkflowDefinition].Properties[QuestionName]);
     //
     // public Task<Message[]> GetMessages() // MessagesByObjectIdDataLoader loader
     //     => Task.FromResult<Message[]>([]); // TODO: loader.LoadAsync(new MessageId(TargetType.Answer, Id));

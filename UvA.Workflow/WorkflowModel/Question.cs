@@ -89,9 +89,9 @@ public class Question
     /// </summary>
     public BilingualString? Description { get; set; }
 
-    [YamlIgnore] public EntityType ParentType { get; set; } = null!;
+    [YamlIgnore] public WorkflowDefinition ParentType { get; set; } = null!;
 
-    [YamlIgnore] public EntityType? EntityType { get; set; }
+    [YamlIgnore] public WorkflowDefinition? WorkflowDefinition { get; set; }
 
     public string UnderlyingType => Type.TrimEnd('!', ']').TrimStart('[');
 
@@ -109,7 +109,7 @@ public class Question
         "User" => DataType.User,
         "Currency" => DataType.Currency,
         "Table" => DataType.Table,
-        _ when EntityType != null => DataType.Reference,
+        _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,
         _ => throw new ArgumentException("Invalid type")
     };

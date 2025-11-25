@@ -5,7 +5,7 @@ namespace UvA.Workflow.Entities.Domain;
 /// <summary>
 /// Represents a type of object ("entity") in the workflow system
 /// </summary>
-public class EntityType
+public class WorkflowDefinition
 {
     /// <summary>
     /// Short internal name of the entity type
@@ -89,7 +89,7 @@ public class EntityType
     [YamlIgnore] public Dictionary<string, Step> AllSteps { get; set; } = null!;
     [YamlIgnore] public Dictionary<string, Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
-    [YamlIgnore] public EntityType? Parent { get; set; }
+    [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
     public DataType GetDataType(string property)
     {

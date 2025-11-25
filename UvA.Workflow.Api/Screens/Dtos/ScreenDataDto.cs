@@ -2,7 +2,7 @@ namespace UvA.Workflow.Api.Screens.Dtos;
 
 public record ScreenDataDto(
     string Name,
-    string EntityType,
+    string WorkflowDefinition,
     ScreenColumnDto[] Columns,
     ScreenRowDto[] Rows)
 {
@@ -10,7 +10,7 @@ public record ScreenDataDto(
     {
         return new ScreenDataDto(
             screen.Name,
-            screen.EntityType ?? "",
+            screen.WorkflowDefinition ?? "",
             columns,
             rows);
     }

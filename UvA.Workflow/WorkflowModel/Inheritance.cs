@@ -2,7 +2,7 @@ namespace UvA.Workflow.Entities.Domain;
 
 public partial class ModelParser
 {
-    private void ApplyInheritance(EntityType target, EntityType source)
+    private void ApplyInheritance(WorkflowDefinition target, WorkflowDefinition source)
     {
         target.Parent = source;
 
@@ -32,10 +32,10 @@ public partial class ModelParser
             target.Screens.Add(screen.Key, screen.Value);
 
         foreach (var role in Roles.Values)
-        foreach (var action in role.Actions.Where(a => a.EntityType == source.Name).ToArray())
+        foreach (var action in role.Actions.Where(a => a.WorkflowDefinition == source.Name).ToArray())
         {
             var newAction = action.Clone();
-            newAction.EntityType = target.Name;
+            newAction.WorkflowDefinition = target.Name;
             role.Actions.Add(newAction);
         }
 

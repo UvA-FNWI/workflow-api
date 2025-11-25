@@ -1,5 +1,5 @@
-using UvA.Workflow.Api.EntityTypes.Dtos;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -16,18 +16,18 @@ public class WorkflowInstanceDtoFactory(
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
-        var entityType = modelService.EntityTypes[instance.EntityType];
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools);
 
         return new WorkflowInstanceDto(
             instance.Id,
-            entityType.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
-            EntityTypeDto.Create(modelService.EntityTypes[instance.EntityType]),
+            workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
+            WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
             instance.CurrentStep,
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             [],
-            entityType.Steps.Select(s => StepDto.Create(s, instance)).ToArray(),
+            workflowDefinition.Steps.Select(s => StepDto.Create(s, instance)).ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus))
                 .ToArray(),

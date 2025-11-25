@@ -21,7 +21,7 @@ public record FormDto(
             form.Title ?? form.Name,
             filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]))).ToArray(),
             form.Layout,
-            form.EntityType.Results != null
+            form.WorkflowDefinition.Results != null
         );
     }
 }
@@ -52,7 +52,7 @@ public record QuestionDto(
     bool IsRequired,
     bool IsArray,
     ChoiceDto[]? Choices,
-    string? EntityType,
+    string? WorkflowDefinition,
     BilingualString? Description,
     BilingualString? ShortText,
     Dictionary<string, object>? Layout,
@@ -65,7 +65,7 @@ public record QuestionDto(
         question.DisplayName,
         question.DataType, question.IsRequired, question.IsArray,
         question.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
-        question.EntityType?.Name,
+        question.WorkflowDefinition?.Name,
         question.Description,
         question.ShortDisplayName,
         question.Layout,

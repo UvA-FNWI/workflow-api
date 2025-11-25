@@ -58,7 +58,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
-            DataType.Reference when question?.EntityType?.IsEmbedded == true => answer.AsBsonDocument,
+            DataType.Reference when question?.WorkflowDefinition?.IsEmbedded == true => answer.AsBsonDocument,
             DataType.Reference => answer.AsString,
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),

@@ -1,5 +1,5 @@
 name: Rounds
-entityType: Round
+workflowDefinition: Round
 columns:
   - title: Round
     property: Name

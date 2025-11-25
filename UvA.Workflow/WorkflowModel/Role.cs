@@ -93,8 +93,8 @@ public class Action
     /// <summary>
     /// Entity type this action applies to
     /// </summary>
-    [YamlMember(Alias = "entity")]
-    public string? EntityType { get; set; }
+    [YamlMember(Alias = "workflowDefinition")]
+    public string? WorkflowDefinition { get; set; }
 
     /// <summary>
     /// Type of action

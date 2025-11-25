@@ -1,5 +1,5 @@
 name: Invoices
-entityType: Invoice
+workflowDefinition: Invoice
 columns:
   - title: Request number
     property: Invoice.Request.Id
