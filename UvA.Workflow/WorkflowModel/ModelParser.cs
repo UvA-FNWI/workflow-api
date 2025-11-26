@@ -139,10 +139,10 @@ public partial class ModelParser
         PreProcess(form.OnSave);
     }
 
-    private void PreProcess(Trigger[] triggers)
+    private void PreProcess(Effect[] effects)
     {
-        foreach (var trigger in triggers)
-            PreProcess(trigger.Condition);
+        foreach (var effect in effects)
+            PreProcess(effect.Condition);
     }
 
     private void PreProcess(WorkflowDefinition workflowDefinition)

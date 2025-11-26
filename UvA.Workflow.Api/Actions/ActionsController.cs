@@ -8,7 +8,7 @@ public class ActionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IUserService userService,
     RightsService rightsService,
-    TriggerService triggerService,
+    EffectService effectService,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
     InstanceService instanceService
 ) : ApiControllerBase
@@ -42,7 +42,7 @@ public class ActionsController(
                 if (action == null)
                     return Forbidden();
 
-                await triggerService.RunTriggers(instance, action.OnAction, currentUser, ct, input.Mail);
+                await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail);
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }

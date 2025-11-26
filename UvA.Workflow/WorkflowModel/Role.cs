@@ -107,9 +107,9 @@ public class Action
     public Condition? Condition { get; set; }
 
     /// <summary>
-    /// List of triggers to run for an Execute action
+    /// List of effects to run for an Execute action
     /// </summary>
-    public Trigger[] OnAction { get; set; } = [];
+    public Effect[] OnAction { get; set; } = [];
 
     /// <summary>
     /// List of steps during which this action is permitted 

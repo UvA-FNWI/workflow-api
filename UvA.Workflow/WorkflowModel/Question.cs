@@ -131,9 +131,9 @@ public class PropertyDefinition
     public List<PropertyDefinition> DependentQuestions { get; } = [];
 
     /// <summary>
-    /// Trigger that is run whenever a value is changed for this property
+    /// Effect that is run whenever a value is changed for this property
     /// </summary>
-    public Trigger[] OnSave { get; set; } = [];
+    public Effect[] OnSave { get; set; } = [];
 
     /// <summary>
     /// Determines if the propertyDefinition should be hidden in the results table

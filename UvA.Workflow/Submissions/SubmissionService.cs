@@ -14,7 +14,7 @@ public record InvalidQuestion(
 public class SubmissionService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    TriggerService triggerService,
+    EffectService effectService,
     InstanceService instanceService
 )
 {
@@ -69,7 +69,7 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors);
         }
 
-        await triggerService.RunTriggers(instance, [new Trigger { Event = submissionId }, ..form.OnSubmit], user, ct);
+        await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct);
 
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);

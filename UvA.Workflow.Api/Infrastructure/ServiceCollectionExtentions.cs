@@ -44,7 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInstanceEventService, InstanceEventService>();
 
         services.AddScoped<RightsService>();
-        services.AddScoped<TriggerService>();
+        services.AddScoped<EffectService>();
         services.AddScoped<AnswerConversionService>();
 
         services.AddScoped<IMailService, DummyMailService>();

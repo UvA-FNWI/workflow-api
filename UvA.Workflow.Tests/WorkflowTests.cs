@@ -24,7 +24,7 @@ public class WorkflowTests
     RightsService rightsService;
     InstanceService instanceService;
     InstanceEventService eventService;
-    TriggerService triggerService;
+    EffectService _effectService;
     SubmissionService submissionService;
     ModelParser parser;
     AnswerService answerService;
@@ -45,12 +45,12 @@ public class WorkflowTests
         parser = new ModelParser(modelProvider);
         modelService = new ModelService(parser);
         rightsService = new RightsService(modelService, userServiceMock.Object);
+        _effectService = new EffectService(instanceService, modelService, mailServiceMock.Object);
         instanceService =
             new InstanceService(instanceRepoMock.Object, modelService, userServiceMock.Object, rightsService);
         eventService = new InstanceEventService(eventRepoMock.Object, rightsService, instanceService);
-        triggerService = new TriggerService(instanceService, eventService, modelService, mailServiceMock.Object);
         submissionService =
-            new SubmissionService(instanceRepoMock.Object, modelService, triggerService, instanceService);
+            new SubmissionService(instanceRepoMock.Object, modelService, _effectService, instanceService);
         answerConversionService = new AnswerConversionService(userServiceMock.Object);
         answerService = new AnswerService(submissionService, modelService, instanceService, rightsService,
             artifactServiceMock.Object, answerConversionService);

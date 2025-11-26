@@ -96,14 +96,14 @@ public class Form
     [YamlIgnore] public WorkflowDefinition WorkflowDefinition { get; set; } = null!;
 
     /// <summary>
-    /// Triggers to run when the form is submitted
+    /// Effect to run when the form is submitted
     /// </summary>
-    public Trigger[] OnSubmit { get; set; } = [];
+    public Effect[] OnSubmit { get; set; } = [];
 
     /// <summary>
-    /// Triggers to run when a change is made in the form
+    /// Effect to run when a change is made in the form
     /// </summary>
-    public Trigger[] OnSave { get; set; } = [];
+    public Effect[] OnSave { get; set; } = [];
 
     public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.Values.SelectMany(p => p.Fields);
 }
