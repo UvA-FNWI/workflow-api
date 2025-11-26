@@ -8,7 +8,7 @@ actions:
   - type: Execute
     label: Approve payment
     roles: [Admin]
-    triggers:
+    onAction:
       - sendMail:
           to: Submitter
           template: PaymentApproved

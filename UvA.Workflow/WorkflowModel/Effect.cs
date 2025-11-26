@@ -4,7 +4,7 @@ namespace UvA.Workflow.Entities.Domain;
 
 public class EndStep;
 
-public class Trigger
+public class Effect
 {
     /// <summary>
     /// Condition that determines if this trigger is active

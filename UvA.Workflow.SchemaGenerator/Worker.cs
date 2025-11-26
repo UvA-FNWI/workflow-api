@@ -13,7 +13,7 @@ public class Worker(IHostApplicationLifetime lifetime) : BackgroundService
 
         Type[] types =
         [
-            typeof(EntityType),
+            typeof(WorkflowDefinition),
             typeof(Form),
             typeof(Screen),
             typeof(Role),

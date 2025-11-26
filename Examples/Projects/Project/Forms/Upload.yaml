@@ -2,6 +2,6 @@ name: Upload
 
 pages:
   Upload:
-    questions:
+    fields:
       - Title
       - Report

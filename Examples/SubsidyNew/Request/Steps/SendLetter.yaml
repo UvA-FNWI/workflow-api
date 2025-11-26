@@ -7,7 +7,7 @@ actions:
     label: Send letter
     name: SendLetter
     roles: [Admin]
-    triggers:
+    onAction:
       - sendMail:
           to: Submitter
           template: RejectMail

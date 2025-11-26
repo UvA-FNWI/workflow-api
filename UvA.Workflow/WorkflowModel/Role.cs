@@ -86,15 +86,15 @@ public class Action
     public string[] Collections { get; set; } = [];
 
     /// <summary>
-    /// Target question for the view hidden question action
+    /// Target propertyDefinition for the view hidden propertyDefinition action
     /// </summary>
-    public string? Question { get; set; }
+    public string? PropertyDefinition { get; set; }
 
     /// <summary>
     /// Entity type this action applies to
     /// </summary>
-    [YamlMember(Alias = "entity")]
-    public string? EntityType { get; set; }
+    [YamlMember(Alias = "workflowDefinition")]
+    public string? WorkflowDefinition { get; set; }
 
     /// <summary>
     /// Type of action
@@ -107,9 +107,9 @@ public class Action
     public Condition? Condition { get; set; }
 
     /// <summary>
-    /// List of triggers to run for an Execute action
+    /// List of effects to run for an Execute action
     /// </summary>
-    public Trigger[] Triggers { get; set; } = [];
+    public Effect[] OnAction { get; set; } = [];
 
     /// <summary>
     /// List of steps during which this action is permitted 

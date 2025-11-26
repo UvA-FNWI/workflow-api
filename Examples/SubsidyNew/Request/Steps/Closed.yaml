@@ -4,5 +4,5 @@ actions:
     type: Execute
     name: Reopen
     label: Reopen request
-    triggers:
+    onAction:
       - undoEvent: Close

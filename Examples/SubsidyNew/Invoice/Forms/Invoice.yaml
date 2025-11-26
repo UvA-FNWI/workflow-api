@@ -4,7 +4,7 @@ title: Invoice details
 pages:
   Page:
     title: Submit invoice
-    questions:
+    fields:
       - Invoice
       - Name
       - Description

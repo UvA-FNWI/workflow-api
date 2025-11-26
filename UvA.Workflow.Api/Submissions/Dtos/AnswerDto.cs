@@ -11,7 +11,7 @@ public record AnswerDto(
     string Id,
     string QuestionName,
     string FormName,
-    string EntityType,
+    string WorkflowDefinition,
     bool IsVisible,
     BilingualString? ValidationError = null,
     JsonElement? Value = null,
@@ -32,7 +32,8 @@ public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
                 .ToArray();
         }
 
-        return new AnswerDto(answer.Id, answer.QuestionName, answer.FormName, answer.EntityType, answer.IsVisible,
+        return new AnswerDto(answer.Id, answer.QuestionName, answer.FormName, answer.WorkflowDefinition,
+            answer.IsVisible,
             answer.ValidationError, answer.Value, files, answer.VisibleChoices);
     }
 }

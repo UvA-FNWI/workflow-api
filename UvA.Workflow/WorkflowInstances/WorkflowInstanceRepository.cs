@@ -59,9 +59,10 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         return documents;
     }
 
-    public async Task<IEnumerable<WorkflowInstance>> GetByEntityType(string entityType, CancellationToken ct)
+    public async Task<IEnumerable<WorkflowInstance>> GetByWorkflowDefinition(string workflowDefinition,
+        CancellationToken ct)
     {
-        var filter = Builders<WorkflowInstance>.Filter.Eq(x => x.EntityType, entityType);
+        var filter = Builders<WorkflowInstance>.Filter.Eq(x => x.WorkflowDefinition, workflowDefinition);
         var documents = await instanceCollection.Find(filter).ToListAsync(ct);
         return documents;
     }
@@ -95,12 +96,12 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         return await instanceCollection.Find(filter).Project(projection).FirstOrDefaultAsync(ct);
     }
 
-    public async Task<List<Dictionary<string, BsonValue>>> GetAllByType(string entityType,
+    public async Task<List<Dictionary<string, BsonValue>>> GetAllByType(string workflowDefinition,
         Dictionary<string, string> projection, CancellationToken ct)
     {
         BsonDocument[] pipeline =
         [
-            new("$match", new BsonDocument { ["EntityType"] = entityType }),
+            new("$match", new BsonDocument { ["WorkflowDefinition"] = workflowDefinition }),
             new("$project", projection.ToBsonDocument())
         ];
 

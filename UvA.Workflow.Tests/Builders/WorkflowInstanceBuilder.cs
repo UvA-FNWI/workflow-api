@@ -7,18 +7,19 @@ namespace UvA.Workflow.Tests;
 public class WorkflowInstanceBuilder
 {
     private string? id;
-    private string? entityType;
+    private string? workflowDefinition;
     private string? currentStep;
     private string? parentId;
 
     private readonly Dictionary<string, BsonValue> properties = new();
     private readonly Dictionary<string, InstanceEvent> events = new();
 
-    public WorkflowInstanceBuilder With(string? entityType = null, string? currentStep = null, string? parentId = null,
+    public WorkflowInstanceBuilder With(string? workflowDefinition = null, string? currentStep = null,
+        string? parentId = null,
         string? id = null)
     {
         this.id = id;
-        this.entityType = entityType;
+        this.workflowDefinition = workflowDefinition;
         this.currentStep = currentStep;
         this.parentId = parentId;
         return this;
@@ -31,9 +32,9 @@ public class WorkflowInstanceBuilder
         return this;
     }
 
-    public WorkflowInstanceBuilder WithEntityType(string entityType)
+    public WorkflowInstanceBuilder WithWorkflowDefinition(string workflowDefinition)
     {
-        this.entityType = entityType;
+        this.workflowDefinition = workflowDefinition;
         return this;
     }
 
@@ -79,7 +80,8 @@ public class WorkflowInstanceBuilder
         return new WorkflowInstance
         {
             Id = id ?? ObjectId.GenerateNewId().ToString()!,
-            EntityType = entityType ?? throw new InvalidOperationException("EntityType must be specified"),
+            WorkflowDefinition = workflowDefinition ??
+                                 throw new InvalidOperationException("WorkflowDefinition must be specified"),
             CurrentStep = currentStep ?? throw new InvalidOperationException("CurrentStep must be specified"),
             ParentId = parentId,
             Properties = new Dictionary<string, BsonValue>(properties),

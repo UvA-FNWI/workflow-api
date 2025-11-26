@@ -56,10 +56,10 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
     private static Task<(string? Subject, string Content)> GenerateTemplate(string templateKey,
         WorkflowInstance instance, ModelService modelService, ObjectContext context)
     {
-        var form = modelService.EntityTypes["Template"].Forms.Single();
+        var form = modelService.WorkflowDefinitions["Template"].Forms.Single();
 
         // var submission = await contextService.DataClient.Get(
-        //     t => t.EntityType == "Template" && t.FormSubmissions[form.Name].Answers["Key"] == templateKey,
+        //     t => t.WorkflowDefinition == "Template" && t.FormSubmissions[form.Name].Answers["Key"] == templateKey,
         //     t => t.FormSubmissions[form.Name]
         // );
 

@@ -39,12 +39,12 @@ public class Page
     public PageLayout Layout { get; set; }
 
     /// <summary>
-    /// Question names to include in the page
+    /// PropertyDefinition names to include in the page
     /// </summary>
-    [YamlMember(Alias = "questions")]
-    public string[] QuestionNames { get; set; } = [];
+    [YamlMember(Alias = "fields")]
+    public string[] FieldNames { get; set; } = [];
 
-    [YamlIgnore] public Question[] Questions { get; set; } = [];
+    [YamlIgnore] public PropertyDefinition[] Fields { get; set; } = [];
 
     /// <summary>
     /// If set, this page is included only when editing a matching property
@@ -93,17 +93,17 @@ public class Form
     /// </summary>
     public Dictionary<string, Page> Pages { get; set; } = new();
 
-    [YamlIgnore] public EntityType EntityType { get; set; } = null!;
+    [YamlIgnore] public WorkflowDefinition WorkflowDefinition { get; set; } = null!;
 
     /// <summary>
-    /// Triggers to run when the form is submitted
+    /// Effect to run when the form is submitted
     /// </summary>
-    public Trigger[] OnSubmit { get; set; } = [];
+    public Effect[] OnSubmit { get; set; } = [];
 
     /// <summary>
-    /// Triggers to run when a change is made in the form
+    /// Effect to run when a change is made in the form
     /// </summary>
-    public Trigger[] OnSave { get; set; } = [];
+    public Effect[] OnSave { get; set; } = [];
 
-    public IEnumerable<Question> Questions => Pages.Values.SelectMany(p => p.Questions);
+    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.Values.SelectMany(p => p.Fields);
 }

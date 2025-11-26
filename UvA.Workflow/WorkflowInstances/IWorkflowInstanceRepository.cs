@@ -16,7 +16,7 @@ public interface IWorkflowInstanceRepository
 
     // Query operations
     Task<IEnumerable<WorkflowInstance>> GetByIds(IEnumerable<string> ids, CancellationToken ct);
-    Task<IEnumerable<WorkflowInstance>> GetByEntityType(string entityType, CancellationToken ct);
+    Task<IEnumerable<WorkflowInstance>> GetByWorkflowDefinition(string workflowDefinition, CancellationToken ct);
     Task<IEnumerable<WorkflowInstance>> GetByParentId(string parentId, CancellationToken ct);
 
     // Advanced query methods
@@ -26,7 +26,7 @@ public interface IWorkflowInstanceRepository
     Task<T?> Get<T>(Expression<Func<WorkflowInstance, bool>> predicate,
         Expression<Func<WorkflowInstance, T>> project, CancellationToken ct);
 
-    Task<List<Dictionary<string, BsonValue>>> GetAllByType(string entityType,
+    Task<List<Dictionary<string, BsonValue>>> GetAllByType(string workflowDefinition,
         Dictionary<string, string> projection, CancellationToken ct);
 
     Task<List<Dictionary<string, BsonValue>>> GetAllByParentId(string parentId,

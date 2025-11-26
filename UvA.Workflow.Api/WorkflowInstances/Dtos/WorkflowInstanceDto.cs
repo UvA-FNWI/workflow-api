@@ -1,6 +1,5 @@
-using UvA.Workflow.Api.Actions.Dtos;
-using UvA.Workflow.Api.EntityTypes.Dtos;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Events;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
@@ -13,7 +12,7 @@ public record WorkflowInstanceBasicDto(
 public record WorkflowInstanceDto(
     string Id,
     string? Title,
-    EntityTypeDto EntityType,
+    WorkflowDefinitionDto WorkflowDefinition,
     string? CurrentStep,
     string? ParentId,
     ActionDto[] Actions,
@@ -54,7 +53,7 @@ public record ActionDto(
         {
             RoleAction.CreateRelatedInstance => new(
                 ActionType.CreateInstance,
-                action.Action.Label ?? Add(action.EntityType?.DisplayTitle ?? "form"),
+                action.Action.Label ?? Add(action.WorkflowDefinition?.DisplayTitle ?? "form"),
                 Form: action.Action.Property
             ),
             RoleAction.Execute => new(

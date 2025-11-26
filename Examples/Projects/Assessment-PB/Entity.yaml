@@ -21,18 +21,18 @@ properties:
 
 results:
   - title: Report
-    questions:
+    fields:
       - Structure
       - Polishing
       - Nose
     weight: 70
   - title: Presentation
-    questions:
+    fields:
       - Loudness
       - Style
       - Contents
     weight: 20
   - title: Practical work
-    questions:
+    fields:
       - Bananas
     weight: 10

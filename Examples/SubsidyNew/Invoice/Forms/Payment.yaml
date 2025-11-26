@@ -2,6 +2,6 @@ name: Payment
   
 pages:
   Page:
-    questions:
+    fields:
       - PaymentAmount
       - PaymentDate

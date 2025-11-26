@@ -10,7 +10,7 @@ public class Result
     /// <summary>
     /// List of questions that are included in this result entry
     /// </summary>
-    public string[] Questions { get; set; } = [];
+    public string[] Fields { get; set; } = [];
 
     /// <summary>
     /// Weight of this result entry

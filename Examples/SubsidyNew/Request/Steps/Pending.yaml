@@ -5,7 +5,7 @@ actions:
     roles: [Submitter]
   - type: Execute
     label: Withdraw request
-    triggers:
+    onAction:
       - setProperty:
           property: ClosureStatus
           value: =Withdrawn

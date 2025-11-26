@@ -51,7 +51,7 @@ public class Step
     /// <summary>
     /// Properties related to this step. These will become properties of the corresponding entity 
     /// </summary>
-    public Dictionary<string, Question> Properties { get; set; } = new();
+    public Dictionary<string, PropertyDefinition> Properties { get; set; } = new();
 
     public IEnumerable<Lookup> Lookups =>
     [

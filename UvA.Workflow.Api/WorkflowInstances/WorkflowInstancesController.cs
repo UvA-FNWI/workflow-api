@@ -19,13 +19,13 @@ public class WorkflowInstancesController(
         var user = await userService.GetCurrentUser(ct);
         if (user == null) return Unauthorized();
         var actions = input.ParentId == null
-            ? await rightsService.GetAllowedActions(input.EntityType, RoleAction.CreateInstance)
+            ? await rightsService.GetAllowedActions(input.WorkflowDefinition, RoleAction.CreateInstance)
             : [];
         if (actions.Length == 0)
             return Forbid();
 
         var instance = await service.Create(
-            input.EntityType,
+            input.WorkflowDefinition,
             user,
             ct,
             actions.First().UserProperty,
@@ -55,11 +55,11 @@ public class WorkflowInstancesController(
         return Ok(result);
     }
 
-    [HttpGet("instances/{entityType}")]
-    public async Task<ActionResult<IEnumerable<WorkflowInstanceBasicDto>>> GetInstances(string entityType,
+    [HttpGet("instances/{workflowDefinition}")]
+    public async Task<ActionResult<IEnumerable<WorkflowInstanceBasicDto>>> GetInstances(string workflowDefinition,
         CancellationToken ct)
     {
-        var instances = await repository.GetByEntityType(entityType, ct);
+        var instances = await repository.GetByWorkflowDefinition(workflowDefinition, ct);
         return Ok(instances.Select(i => new WorkflowInstanceBasicDto(i.Id, i.CurrentStep)));
     }
 }

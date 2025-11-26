@@ -6,7 +6,11 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Submissions;
 
-public record QuestionContext(WorkflowInstance Instance, InstanceEvent? Submission, Form Form, Question Question);
+public record QuestionContext(
+    WorkflowInstance Instance,
+    InstanceEvent? Submission,
+    Form Form,
+    PropertyDefinition PropertyDefinition);
 
 public class AnswerService(
     SubmissionService submissionService,
@@ -22,10 +26,10 @@ public class AnswerService(
         var (instance, submission, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
 
-        // Get the question
+        // Get the propertyDefinition
         var question = modelService.GetQuestion(instance, form.Property, questionName);
         if (question == null)
-            throw new EntityNotFoundException("Question", questionName);
+            throw new EntityNotFoundException("PropertyDefinition", questionName);
 
         return new QuestionContext(instance, submission, form, question);
     }

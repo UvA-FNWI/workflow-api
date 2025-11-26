@@ -2,7 +2,7 @@ name: Decision
 
 pages:
   Page:
-    questions:
+    fields:
       - DecisionComment
       - Decision
       - DecisionAmount

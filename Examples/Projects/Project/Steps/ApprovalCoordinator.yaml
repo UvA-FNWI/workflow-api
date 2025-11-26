@@ -6,7 +6,7 @@ actions:
     type: Execute
     label: Approve (coordinator)
     name: ApproveCoordinator
-    triggers:
+    onAction:
       - event: CoordinatorApproved
 
 ends:

@@ -24,7 +24,7 @@ public class WorkflowTests
     RightsService rightsService;
     InstanceService instanceService;
     InstanceEventService eventService;
-    TriggerService triggerService;
+    EffectService _effectService;
     SubmissionService submissionService;
     ModelParser parser;
     AnswerService answerService;
@@ -48,9 +48,9 @@ public class WorkflowTests
         instanceService =
             new InstanceService(instanceRepoMock.Object, modelService, userServiceMock.Object, rightsService);
         eventService = new InstanceEventService(eventRepoMock.Object, rightsService, instanceService);
-        triggerService = new TriggerService(instanceService, eventService, modelService, mailServiceMock.Object);
+        _effectService = new EffectService(instanceService, eventService, modelService, mailServiceMock.Object);
         submissionService =
-            new SubmissionService(instanceRepoMock.Object, modelService, triggerService, instanceService);
+            new SubmissionService(instanceRepoMock.Object, modelService, _effectService, instanceService);
         answerConversionService = new AnswerConversionService(userServiceMock.Object);
         answerService = new AnswerService(submissionService, modelService, instanceService, rightsService,
             artifactServiceMock.Object, answerConversionService);
@@ -61,7 +61,7 @@ public class WorkflowTests
     {
         // Arrange
         var instance = new WorkflowInstanceBuilder()
-            .With(entityType: "Project", currentStep: "Upload")
+            .With(workflowDefinition: "Project", currentStep: "Upload")
             .WithEvents(
                 b => b.WithId("Start").AsCompleted(),
                 b => b.WithId("Upload")
@@ -89,7 +89,7 @@ public class WorkflowTests
     {
         // Arrange
         var instance = new WorkflowInstanceBuilder()
-            .With(entityType: "Project", currentStep: "Upload")
+            .With(workflowDefinition: "Project", currentStep: "Upload")
             .WithEvents(b => b.WithId("Start").AsCompleted()
             )
             .Build();
@@ -113,7 +113,7 @@ public class WorkflowTests
     {
         // Arrange
         var instance = new WorkflowInstanceBuilder()
-            .With(entityType: "Project", currentStep: "Upload")
+            .With(workflowDefinition: "Project", currentStep: "Upload")
             .WithEvents(b => b.WithId("Start").AsCompleted()
             )
             .Build();

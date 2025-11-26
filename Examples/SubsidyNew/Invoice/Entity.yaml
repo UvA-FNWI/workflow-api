@@ -77,7 +77,7 @@ actions:
   - type: Execute
     label: Reject invoice
     roles: [Admin]
-    triggers:
+    onAction:
       - sendMail:
           to: Submitter
           template: InvoiceRejected

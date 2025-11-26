@@ -8,19 +8,19 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
     /// <summary>
     /// Gets the specific screen for an instance, with column and rows
     /// </summary>
-    /// <param name="entityType">The entity type to get instances for</param>
+    /// <param name="workflowDefinition">The entity type to get instances for</param>
     /// <param name="screenName">The name of the screen configuration to use</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Screen data with columns and rows containing the projected data</returns>
-    [HttpGet("{entityType}/{screenName}")]
+    [HttpGet("{workflowDefinition}/{screenName}")]
     public async Task<ActionResult<ScreenDataDto>> GetScreenData(
-        string entityType,
+        string workflowDefinition,
         string screenName,
         CancellationToken ct)
     {
         try
         {
-            var screenData = await screenDataService.GetScreenData(screenName, entityType, ct);
+            var screenData = await screenDataService.GetScreenData(screenName, workflowDefinition, ct);
             return Ok(screenData);
         }
         catch (ArgumentException ex)
