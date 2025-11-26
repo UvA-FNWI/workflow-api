@@ -42,7 +42,7 @@ public class ActionsController(
                 if (action == null)
                     return Forbidden();
 
-                await triggerService.RunTriggers(instance, action.Triggers, currentUser, ct, input.Mail);
+                await triggerService.RunTriggers(instance, action.OnAction, currentUser, ct, input.Mail);
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }

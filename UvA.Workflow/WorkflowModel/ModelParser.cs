@@ -93,7 +93,7 @@ public partial class ModelParser
         role.Actions = role.Actions.Union(role.InheritFrom.SelectMany(r => Roles[r].Actions)).ToList();
         foreach (var act in role.Actions)
         {
-            PreProcess(act.Triggers);
+            PreProcess(act.OnAction);
 
             if (act.Form != null && act.WorkflowDefinition != null &&
                 !WorkflowDefinitions[act.WorkflowDefinition].Forms.ContainsKey(act.Form))
@@ -168,7 +168,7 @@ public partial class ModelParser
     {
         PreProcess(step.Condition);
         PreProcess(step.Ends);
-        foreach (var ev in step.Actions.SelectMany(a => a.Triggers.Select(t => t.Event)).Where(t => t != null))
+        foreach (var ev in step.Actions.SelectMany(a => a.OnAction.Select(t => t.Event)).Where(t => t != null))
             if (!workflowDefinition.Events.ContainsKey(ev!))
                 workflowDefinition.Events.Add(ev!, new() { Name = ev! });
     }

@@ -5,7 +5,7 @@ actions:
     type: Execute
     label: Confirm thesis publication
     name: Publish
-    triggers:
+    onAction:
       - event: Publish
 
 ends:

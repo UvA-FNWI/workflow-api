@@ -88,7 +88,7 @@ public class Action
     /// <summary>
     /// Target propertyDefinition for the view hidden propertyDefinition action
     /// </summary>
-    public string? Question { get; set; }
+    public string? PropertyDefinition { get; set; }
 
     /// <summary>
     /// Entity type this action applies to
@@ -109,7 +109,7 @@ public class Action
     /// <summary>
     /// List of triggers to run for an Execute action
     /// </summary>
-    public Trigger[] Triggers { get; set; } = [];
+    public Trigger[] OnAction { get; set; } = [];
 
     /// <summary>
     /// List of steps during which this action is permitted 

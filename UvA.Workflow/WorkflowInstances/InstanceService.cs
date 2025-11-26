@@ -183,7 +183,7 @@ public class InstanceService(
             actions.Add(new AllowedAction(a,
                 Mail: await Mail.FromModel(
                     instance,
-                    a.Triggers.FirstOrDefault(t =>
+                    a.OnAction.FirstOrDefault(t =>
                         t.SendMail != null && t.Condition.IsMet(modelService.CreateContext(instance)))?.SendMail,
                     modelService)));
 
