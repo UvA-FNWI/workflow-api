@@ -77,7 +77,7 @@ public class WorkflowInstance
         Events[eventId] = new InstanceEvent
         {
             Id = eventId,
-            Date = date ?? DateTime.UtcNow
+            Date = date ?? DateTime.Now
         };
     }
 
