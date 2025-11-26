@@ -60,7 +60,7 @@ public class WorkflowDefinition
     /// <summary>
     /// List of actions for this entity type
     /// </summary>
-    public List<Action> Actions { get; set; } = [];
+    public List<Action> GlobalActions { get; set; } = [];
 
     /// <summary>
     /// List of step names for this entity type

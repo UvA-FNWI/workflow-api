@@ -36,7 +36,7 @@ public partial class ModelParser
             {
                 var content = Parse<WorkflowDefinition>(file);
                 if (content.Properties.Count > 0) definition.Properties = content.Properties;
-                if (content.Actions.Count > 0) definition.Actions = content.Actions;
+                if (content.GlobalActions.Count > 0) definition.GlobalActions = content.GlobalActions;
             }
 
             definition.Forms = Read<Form>(definition.Name);
@@ -59,7 +59,7 @@ public partial class ModelParser
             foreach (var val in definition.Events)
                 val.Value.Name = val.Key;
 
-            foreach (var action in definition.Actions.Except(definition.Parent?.Actions ?? []))
+            foreach (var action in definition.GlobalActions.Except(definition.Parent?.GlobalActions ?? []))
             {
                 action.WorkflowDefinition = definition.Name;
                 foreach (var role in action.Roles)
