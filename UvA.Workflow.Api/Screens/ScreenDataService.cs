@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Screens.Dtos;
+using UvA.Workflow.Events;
 using UvA.Workflow.Tools;
 
 namespace UvA.Workflow.Api.Screens;

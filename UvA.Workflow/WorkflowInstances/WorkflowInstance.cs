@@ -1,5 +1,5 @@
 using MongoDB.Bson.Serialization.Attributes;
-using UvA.Workflow.Tools;
+using UvA.Workflow.Events;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -70,13 +70,15 @@ public class WorkflowInstance
     /// <summary>
     /// Records an event in the workflow
     /// </summary>
-    public void RecordEvent(string eventId, DateTime? date = null)
+    public InstanceEvent RecordEvent(string eventId, DateTime? date = null)
     {
-        Events[eventId] = new InstanceEvent
+        var newEvent = new InstanceEvent
         {
             Id = eventId,
             Date = date ?? DateTime.UtcNow
         };
+        Events[eventId] = newEvent;
+        return newEvent;
     }
 
     /// <summary>
@@ -106,12 +108,6 @@ public class WorkflowInstance
     {
         return requiredProperties.All(HasAnswer);
     }
-}
-
-public class InstanceEvent
-{
-    public string Id { get; set; } = null!;
-    public DateTime? Date { get; set; }
 }
 
 public record StateLogEntry(string State, DateTime Date, string? UserId);
