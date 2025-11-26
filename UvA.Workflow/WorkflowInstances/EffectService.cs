@@ -40,7 +40,7 @@ public class EffectService(
         await eventService.UpdateEvent(instance, ev.Id, user, ct);
     }
 
-    private async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
+    public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };

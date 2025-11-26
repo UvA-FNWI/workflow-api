@@ -42,6 +42,9 @@ public class ActionsController(
                 if (action == null)
                     return Forbidden();
 
+                // Always log execute events implicitly
+                await effectService.Event(instance, input.Name, ct);
+
                 await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail);
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
