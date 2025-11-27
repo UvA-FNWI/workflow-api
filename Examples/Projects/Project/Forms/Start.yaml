@@ -1,10 +1,25 @@
 name: Start
 
 pages:
-  Start:
+  Contents:
+    title:
+      en: Contents
+      nl: Inhoud
     questions:
       - Title
-      - EC
+      - Subject
+      - Description
+  Staff:
+    title:
+      en: Staff
+      nl: Medewerkers
+    questions:
       - Examiner
       - Reviewer
       - Supervisor
+  Planning:
+    questions:
+      - StartDate
+      - Deadline
+      - EndDate
+      - EC
