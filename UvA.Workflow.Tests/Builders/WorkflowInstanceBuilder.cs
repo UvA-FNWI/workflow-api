@@ -1,4 +1,5 @@
 using MongoDB.Bson;
+using UvA.Workflow.Events;
 using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests;

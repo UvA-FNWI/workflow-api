@@ -1,7 +1,8 @@
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
-namespace UvA.Workflow.Services;
+namespace UvA.Workflow.WorkflowInstances;
 
 public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
@@ -130,35 +131,6 @@ public class InstanceService(
             .Select(r => BsonSerializer.Deserialize<User>(r!.AsBsonDocument));
         var user = await userService.GetCurrentUser(ct);
         return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
-    }
-
-    public async Task UpdateEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
-    {
-        instance.RecordEvent(eventId);
-        await workflowInstanceRepository.Update(instance, ct);
-    }
-
-    /// <summary>
-    /// Deletes a specific event from the given workflow instance based on the provided event ID.
-    /// </summary>
-    /// <param name="instance">The workflow instance from which the event will be deleted.</param>
-    /// <param name="eventId">The unique identifier of the event to be deleted.</param>
-    /// <param name="ct">A token to monitor for cancellation requests.</param>
-    /// <exception cref="EntityNotFoundException">
-    /// Thrown when the specified event ID is not found within the workflow instance.
-    /// </exception>
-    public async Task DeleteEvent(WorkflowInstance instance, string eventId, CancellationToken ct)
-    {
-        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
-
-        // TODO: needs to be updated to remove the most recent event with the specified eventId once multiple events of same id per workflowinstance is implemented
-        if (instance.Events.Remove(eventId))
-        {
-            await workflowInstanceRepository.DeleteField(instance.Id, i => i.Events[eventId], ct);
-            await UpdateCurrentStep(instance, ct);
-        }
-        else
-            throw new EntityNotFoundException(nameof(InstanceEvent), eventId);
     }
 
     public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
