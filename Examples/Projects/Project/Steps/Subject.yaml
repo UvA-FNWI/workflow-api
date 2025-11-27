@@ -3,8 +3,6 @@ title:
   nl: Onderwerp
   en: Subject
 
-hierarchyMode: Cycle
-
 children:
   - Start
   - SubjectFeedback
