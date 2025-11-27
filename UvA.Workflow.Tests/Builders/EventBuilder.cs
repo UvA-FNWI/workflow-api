@@ -39,7 +39,7 @@ public class EventBuilder
     /// <returns>The updated <see cref="EventBuilder"/> instance with the completion date set.</returns>
     public EventBuilder AsCompleted(int daysAgo = 1)
     {
-        date = DateTime.UtcNow.AddDays(daysAgo);
+        date = DateTime.Now.AddDays(daysAgo);
         return this;
     }
 

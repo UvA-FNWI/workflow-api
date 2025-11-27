@@ -60,4 +60,56 @@ public class ExpressionTests
 
         Assert.Single(exp.Properties, p => p is ComplexLookup);
     }
+
+    [Fact]
+    public void TestDate_DaysAfter()
+    {
+        var exp = ExpressionParser.Parse("addDays(now, 5)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>());
+
+        var res = exp.Execute(context);
+
+        Assert.IsType<DateTime>(res);
+        var date = (DateTime)res;
+        Assert.Equal(DateTime.Now.AddDays(5).Date, date.Date);
+    }
+
+    [Fact]
+    public void TestDate_WeeksAfter()
+    {
+        var exp = ExpressionParser.Parse("addWeeks(now, 5)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>());
+
+        var res = exp.Execute(context);
+
+        Assert.IsType<DateTime>(res);
+        var date = (DateTime)res;
+        Assert.Equal(DateTime.Now.AddDays(5 * 7).Date, date.Date);
+    }
+
+    [Fact]
+    public void TestDate_MonthsAfter()
+    {
+        var exp = ExpressionParser.Parse("addMonths(now, 5)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>());
+
+        var res = exp.Execute(context);
+
+        Assert.IsType<DateTime>(res);
+        var date = (DateTime)res;
+        Assert.Equal(DateTime.Now.AddMonths(5).Date, date.Date);
+    }
+
+    [Fact]
+    public void TestDate_CombinedAfter()
+    {
+        var exp = ExpressionParser.Parse("addDays(addMonths(now, 5), 3)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>());
+
+        var res = exp.Execute(context);
+
+        Assert.IsType<DateTime>(res);
+        var date = (DateTime)res;
+        Assert.Equal(DateTime.Now.AddMonths(5).AddDays(3).Date, date.Date);
+    }
 }

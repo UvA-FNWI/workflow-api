@@ -1,3 +1,6 @@
+using UvA.Workflow.Expressions;
+using Date = UvA.Workflow.Entities.Domain.Conditions.Date;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public enum StepHierarchyMode
@@ -75,6 +78,15 @@ public class Step
         }
 
         return null;
+    }
+
+    public DateTime? GetDeadline(WorkflowInstance instance, ModelService modelService)
+    {
+        if (Condition?.Deadline == null)
+            return null;
+        var exp = ExpressionParser.Parse(Condition.Deadline.Source);
+        var context = ObjectContext.Create(instance, modelService);
+        return exp.Execute(context) as DateTime?;
     }
 
     public bool HasEnded(ObjectContext context)

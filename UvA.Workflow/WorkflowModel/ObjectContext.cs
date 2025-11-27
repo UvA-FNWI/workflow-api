@@ -39,6 +39,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         );
         dict.Add("Id", instance.Id);
         dict.Add("CurrentStep", instance.CurrentStep);
+        dict.Add("CreateDate", instance.CreatedOn);
+
         foreach (var ev in instance.Events.Values.Where(e => e.Date != null))
             dict.Add(ev.Id + "Event", ev.Date);
         return new ObjectContext(dict);
