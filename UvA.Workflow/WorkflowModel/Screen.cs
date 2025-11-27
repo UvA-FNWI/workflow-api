@@ -1,6 +1,6 @@
 namespace UvA.Workflow.Entities.Domain;
 
-public class Screen
+public class Screen : INamed
 {
     /// <summary>
     /// Internal name of the screen

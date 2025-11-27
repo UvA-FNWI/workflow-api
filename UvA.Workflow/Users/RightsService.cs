@@ -30,7 +30,7 @@ public class RightsService(
         var user = await userService.GetCurrentUser();
         if (user == null) return [];
 
-        return modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties.Values
+        return modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
             .Where(p => p.DataType == DataType.User)
             .Select(p => new { p.Name, Value = instance.Properties.GetValueOrDefault(p.Name) })
             .Where(p => p.Value != null)

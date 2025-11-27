@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public enum PropertyVisibility
@@ -38,12 +40,11 @@ public class StringLayoutOptions : LayoutOptions
 /// <summary>
 /// Represents a property of an entity type (which can also be used as a propertyDefinition in a form)
 /// </summary>
-public class PropertyDefinition
+public class PropertyDefinition : INamed
 {
     /// <summary>
     /// Internal name of the propertyDefinition
     /// </summary>
-    [YamlIgnore]
     public string Name { get; set; } = null!;
 
     /// <summary>

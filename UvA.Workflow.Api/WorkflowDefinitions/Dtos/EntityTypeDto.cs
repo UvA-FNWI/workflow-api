@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 
 public record WorkflowDefinitionDto(
@@ -21,7 +23,7 @@ public record WorkflowDefinitionDto(
             workflowDefinition.IsAlwaysVisible,
             workflowDefinition.InheritsFrom,
             workflowDefinition.IsEmbedded,
-            workflowDefinition.Screens.Keys.ToArray()
+            workflowDefinition.Screens.Select(s => s.Name).ToArray()
         );
     }
 }

@@ -10,56 +10,56 @@ headerFields:
     title: Number
 
 properties:
-  Number:
+  - name: Number
     type: String
-  Request:
+  - name: Request
     type: Request!
-  Invoice:
+  - name: Invoice
     type: File!
-  Name:
+  - name: Name
     text: Name beneficiary (such as university X)
     type: String!
-  Description:
+  - name: Description
     text: Required information for payment description (such as reference number, invoice number and/or contact person)
     type: String
-  HasIBAN:
+  - name: HasIBAN
     text: Does the beneficiary have an IBAN?
     type: YesNo!
     layout: RadioList
     values:
       Yes: {}
       No: {}
-  IBAN:
+  - name: IBAN
     text: IBAN beneficiary
     type: String!
     condition:
       value:
         property: HasIBAN
         equal: =Yes
-  Address:
+  - name: Address
     text: Address beneficiary, including country
     type: String!
     condition: NoIBAN
-  BankName:
+  - name: BankName
     text: Name bank
     type: String!
     condition: NoIBAN
-  BankAddress:
+  - name: BankAddress
     text: Address bank
     type: String!
     condition: NoIBAN
-  BIC:
+  - name: BIC
     text: SWIFT code/BIC
     type: String!
     condition: NoIBAN
-  Account:
+  - name: Account
     text: Account number
     type: String!
     condition: NoIBAN
     
-  PaymentAmount:
+  - name: PaymentAmount
     type: Currency!
-  PaymentDate:
+  - name: PaymentDate
     type: Date!
 
 steps:

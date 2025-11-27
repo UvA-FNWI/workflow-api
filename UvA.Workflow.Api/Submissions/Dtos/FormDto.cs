@@ -10,7 +10,7 @@ public record FormDto(
     public static FormDto Create(Form form)
     {
         var filteredPages = form.ActualForm.Pages.Values
-            .Where(p => p.Sources == null || p.Sources.Contains(form.Property))
+            .Where(p => p.Sources == null || p.Sources.Contains(form.PropertyName))
             .ToArray();
         var questions = filteredPages
             .SelectMany(p => p.Fields)

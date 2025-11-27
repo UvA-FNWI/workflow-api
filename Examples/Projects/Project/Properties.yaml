@@ -1,17 +1,17 @@
 properties:
-  Title:
+  - name: Title
     type: String!
-  EC:
+  - name: EC
     type: Int!
-  Examiner:
+  - name: Examiner
     type: User!
-  Supervisor:
+  - name: Supervisor
     type: User!
     text: Expected number of participants
     description: Enter 0 if not applicable
-  Reviewer:
+  - name: Reviewer
     type: User!
-  Student:
+  - name: Student
     type: "[User]!"
-  Report:
+  - name: Report
     type: File!

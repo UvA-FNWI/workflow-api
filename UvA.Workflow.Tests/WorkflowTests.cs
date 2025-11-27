@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
+using Serilog;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
@@ -33,6 +34,12 @@ public class WorkflowTests
 
     public WorkflowTests()
     {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .WriteTo.Debug()
+            .CreateLogger();
+
         // Mocks
         instanceRepoMock = new Mock<IWorkflowInstanceRepository>();
         eventRepoMock = new Mock<IInstanceEventRepository>();

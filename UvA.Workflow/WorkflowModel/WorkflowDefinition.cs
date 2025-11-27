@@ -1,11 +1,12 @@
 using UvA.Workflow.Expressions;
+using Action = UvA.Workflow.Entities.Domain.Action;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 /// <summary>
 /// Represents a type of object ("entity") in the workflow system
 /// </summary>
-public class WorkflowDefinition
+public class WorkflowDefinition : INamed
 {
     /// <summary>
     /// Short internal name of the entity type
@@ -50,12 +51,12 @@ public class WorkflowDefinition
     /// <summary>
     /// Dictionary of properties for this entity type
     /// </summary>
-    public Dictionary<string, PropertyDefinition> Properties { get; set; } = new();
+    public List<PropertyDefinition> Properties { get; set; } = new();
 
     /// <summary>
     /// Dictionary of event definitions for this entity type
     /// </summary>
-    public Dictionary<string, EventDefinition> Events { get; set; } = new();
+    public List<EventDefinition> Events { get; set; } = new();
 
     /// <summary>
     /// List of actions for this entity type
@@ -83,11 +84,12 @@ public class WorkflowDefinition
     /// </summary>
     public bool IsEmbedded { get; set; }
 
+
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
 
-    [YamlIgnore] public Dictionary<string, Form> Forms { get; set; } = null!;
-    [YamlIgnore] public Dictionary<string, Step> AllSteps { get; set; } = null!;
-    [YamlIgnore] public Dictionary<string, Screen> Screens { get; set; } = null!;
+    [YamlIgnore] public List<Form> Forms { get; set; } = null!;
+    [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
+    [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
@@ -95,22 +97,22 @@ public class WorkflowDefinition
     {
         if (Properties.TryGetValue(property, out var prop))
             return prop.DataType;
-        if (property.EndsWith("Event") && Events.ContainsKey(property[..^5]))
+        if (property.EndsWith("Event") && Events.Contains(property[..^5]))
             return DataType.DateTime;
         return DataType.String;
     }
 
     public string GetKey(string property)
     {
-        if (Properties.ContainsKey(property))
+        if (Properties.Contains(property))
             return $"$Properties.{property}";
-        if (property.EndsWith("Event") && Events.ContainsKey(property[..^5]))
+        if (property.EndsWith("Event") && Events.Contains(property[..^5]))
             return $"$Events.{property[..^5]}.Date";
         return "$" + property;
     }
 }
 
-public class EventDefinition
+public class EventDefinition : INamed
 {
     /// <summary>
     /// Name of the event

@@ -1,5 +1,6 @@
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.SchemaGenerator.Generation;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.SchemaGenerator;
 

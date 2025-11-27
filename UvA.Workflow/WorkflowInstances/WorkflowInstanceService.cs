@@ -31,7 +31,7 @@ public class WorkflowInstanceService(
         if (userProperty != null)
         {
             var user = createdBy.ToBsonDocument();
-            var property = modelService.WorkflowDefinitions[workflowDefinition].Properties[userProperty];
+            var property = modelService.WorkflowDefinitions[workflowDefinition].Properties.Get(userProperty);
             instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
         }
 

@@ -18,7 +18,7 @@ public record Answer(
     public static Answer[] Create(WorkflowInstance inst, Form form,
         Dictionary<string, QuestionStatus> questions)
         => questions.Select(e => e.Value.IsVisible
-            ? Create(form, e.Key, inst.GetProperty(form.Property, e.Key),
+            ? Create(form, e.Key, inst.GetProperty(form.PropertyName, e.Key),
                     validationError: e.Value.ValidationError)
                 with
                 {
@@ -32,7 +32,7 @@ public record Answer(
         BilingualString? validationError = null)
     {
         var workflowDefinition = form.ActualForm.WorkflowDefinition.Name;
-        var question = form.ActualForm.WorkflowDefinition.Properties[questionName];
+        var question = form.ActualForm.WorkflowDefinition.Properties.Get(questionName);
 
         if (question.DataType == DataType.Currency)
         {

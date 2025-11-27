@@ -1,23 +1,25 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public class ModelService(ModelParser parser)
 {
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => parser.WorkflowDefinitions;
-    public Dictionary<string, Role> Roles => parser.Roles;
+    public Dictionary<string, Role> Roles => parser.Roles.ToDictionary(r => r.Name, r => r);
 
     public Form GetForm(WorkflowInstance instance, string formName)
-        => WorkflowDefinitions[instance.WorkflowDefinition].Forms[formName];
+        => WorkflowDefinitions[instance.WorkflowDefinition].Forms.Get(formName);
 
     public IEnumerable<Form> GetForms(WorkflowInstance instance, string formName)
-        => WorkflowDefinitions[instance.WorkflowDefinition].Forms.Values
+        => WorkflowDefinitions[instance.WorkflowDefinition].Forms
             .Where(f => f.Name == formName || f.TargetFormName == formName);
 
     public PropertyDefinition GetQuestion(WorkflowInstance instance, params string?[] parts)
     {
         var type = WorkflowDefinitions[instance.WorkflowDefinition];
         foreach (var part in parts.Take(parts.Length - 1).Where(p => p != null))
-            type = type.Properties[part!].WorkflowDefinition!;
-        return type.Properties[parts[^1]!];
+            type = type.Properties.Get(part!).WorkflowDefinition!;
+        return type.Properties.Get(parts[^1]!);
     }
 
     public ObjectContext CreateContext(WorkflowInstance instance)
@@ -42,7 +44,7 @@ public class ModelService(ModelParser parser)
     {
         if (string.IsNullOrEmpty(instance.CurrentStep))
             return [];
-        var step = WorkflowDefinitions[instance.WorkflowDefinition].AllSteps[instance.CurrentStep];
+        var step = WorkflowDefinitions[instance.WorkflowDefinition].AllSteps.Get(instance.CurrentStep);
         var context = CreateContext(instance);
         return step.Children
             .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))

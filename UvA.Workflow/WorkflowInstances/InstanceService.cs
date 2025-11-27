@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.WorkflowModel;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
@@ -27,15 +28,15 @@ public class InstanceService(
             .Cast<PropertyLookup>()
             .Distinct()
             .Where(p => p.Parts.Length > 1)
-            .Where(p => workflowDefinition.Properties[p.Parts[0]].DataType == DataType.Reference)
+            .Where(p => workflowDefinition.Properties.Get(p.Parts[0]).DataType == DataType.Reference)
             .GroupBy(p => p.Parts[0])
             .ToArray();
 
         foreach (var referenceGroup in groups)
         {
             var ids = contexts.ToDictionary(c => c, c => c.Get(referenceGroup.Key) as string);
-            var targetType = workflowDefinition.Properties[referenceGroup.Key].WorkflowDefinition!;
-            var props = referenceGroup.Select(p => targetType.Properties[p.Parts[1]]).ToArray();
+            var targetType = workflowDefinition.Properties.Get(referenceGroup.Key).WorkflowDefinition!;
+            var props = referenceGroup.Select(p => targetType.Properties.Get(p.Parts[1])).ToArray();
             var results = await GetProperties(ids.Values.Where(i => i != null).ToArray()!, props, ct);
             foreach (var context in contexts)
             {
@@ -52,7 +53,7 @@ public class InstanceService(
         foreach (var context in contexts)
         {
             if (context.Values.TryGetValue("CurrentStep", out var id) && id is string stepName)
-                context.Values["CurrentStep"] = workflowDefinition.AllSteps[stepName].DisplayTitle;
+                context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
         }
     }
 
@@ -109,7 +110,7 @@ public class InstanceService(
                 .ToDictionary(
                     t => (Lookup)t,
                     t => ObjectContext.GetValue(r.GetValueOrDefault(t), entity.GetDataType(t),
-                        entity.Properties.GetValueOrDefault(t))
+                        entity.Properties.FirstOrDefault(p => p.Name == t))
                 );
             dict["Id"] = r["_id"].ToString();
             return new ObjectContext(dict);

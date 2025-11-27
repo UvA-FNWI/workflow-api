@@ -1,3 +1,5 @@
+using Serilog;
+using UvA.Workflow.WorkflowModel;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization.NamingConventions;
 using Path = System.IO.Path;
@@ -12,17 +14,17 @@ public partial class ModelParser
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
-    public Dictionary<string, Role> Roles { get; }
+    public List<Role> Roles { get; }
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
-    private Dictionary<string, ValueSet> ValueSets { get; }
-    private Dictionary<string, Condition> NamedConditions { get; }
+    private List<ValueSet> ValueSets { get; }
+    private List<NamedCondition> NamedConditions { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
         _contentProvider = contentProvider;
         Roles = Read<Role>();
         ValueSets = Read<ValueSet>();
-        NamedConditions = Read<Condition>();
+        NamedConditions = Read<NamedCondition>();
 
         var definitions = _contentProvider.GetFolders()
             .Where(d => Path.GetFileName(d) != "Common")
@@ -31,10 +33,11 @@ public partial class ModelParser
 
         foreach (var definition in definitions)
         {
+            Log.Debug("Processing definition {Name}", definition.Name);
             foreach (var file in contentProvider.GetFiles(definition.Name)
                          .Where(f => Path.GetFileNameWithoutExtension(f) != "Entity.yaml"))
             {
-                var content = Parse<WorkflowDefinition>(file);
+                var content = Parse<WorkflowDefinition>(file, null);
                 if (content.Properties.Count > 0) definition.Properties = content.Properties;
                 if (content.GlobalActions.Count > 0) definition.GlobalActions = content.GlobalActions;
             }
@@ -43,60 +46,60 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.Name);
             definition.AllSteps = Read<Step>(definition.Name);
 
-            foreach (var entry in Read<Condition>(definition.Name))
-                NamedConditions.Add(entry.Key, entry.Value);
+            foreach (var entry in Read<NamedCondition>(definition.Name))
+                NamedConditions.Add(entry);
 
             if (definition.InheritsFrom != null)
                 ApplyInheritance(definition, WorkflowDefinitions[definition.InheritsFrom]);
 
-            definition.Steps = definition.StepNames.Select(n => definition.AllSteps[n]).ToList();
+            definition.Steps = definition.StepNames.Select(n => definition.AllSteps.Get(n)).ToList();
             WorkflowDefinitions[definition.Name] = definition;
 
-            foreach (var prop in definition.Properties.Where(p => p.Value.UnderlyingType == "User"))
-                if (!Roles.ContainsKey(prop.Key))
-                    Roles[prop.Key] = new Role { Name = prop.Key };
+            foreach (var prop in definition.Properties.Where(p => p.UnderlyingType == "User"))
+                if (!Roles.Contains(prop.Name))
+                    Roles.Add(new Role { Name = prop.Name });
 
             foreach (var val in definition.Events)
-                val.Value.Name = val.Key;
+                val.Name = val.Name;
 
             foreach (var action in definition.GlobalActions.Except(definition.Parent?.GlobalActions ?? []))
             {
                 action.WorkflowDefinition = definition.Name;
                 foreach (var role in action.Roles)
-                    Roles[role].Actions.Add(action);
+                    Roles.Get(role).Actions.Add(action);
             }
 
             foreach (var step in
-                     definition.AllSteps.Values.Except((IEnumerable<Step>?)definition.Parent?.AllSteps.Values ?? []))
+                     definition.AllSteps.Except((IEnumerable<Step>?)definition.Parent?.AllSteps ?? []))
             {
-                step.Children = step.ChildNames.Select(s => definition.AllSteps[s]).ToArray();
+                step.Children = step.ChildNames.Select(s => definition.AllSteps.Get(s)).ToArray();
                 foreach (var action in step.Actions)
                 {
                     action.WorkflowDefinition = definition.Name;
                     action.Steps = [step.Name];
                     foreach (var role in action.Roles)
-                        Roles[role].Actions.Add(action);
+                        Roles.Get(role).Actions.Add(action);
                 }
 
                 foreach (var prop in step.Properties)
-                    definition.Properties.Add(prop.Key, prop.Value);
+                    definition.Properties.Add(prop);
             }
         }
 
-        Roles.Values.ForEach(PreProcess);
-        ValueSets.Values.ForEach(PreProcess);
+        Roles.ForEach(PreProcess);
+        ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
     }
 
     private void PreProcess(Role role)
     {
-        role.Actions = role.Actions.Union(role.InheritFrom.SelectMany(r => Roles[r].Actions)).ToList();
+        role.Actions = role.Actions.Union(role.InheritFrom.SelectMany(r => Roles.Get(r).Actions)).ToList();
         foreach (var act in role.Actions)
         {
             PreProcess(act.OnAction);
 
             if (act.Form != null && act.WorkflowDefinition != null &&
-                !WorkflowDefinitions[act.WorkflowDefinition].Forms.ContainsKey(act.Form))
+                !WorkflowDefinitions[act.WorkflowDefinition].Forms.Contains(act.Form))
                 throw new Exception($"{role.Name}: form {act.Form} not found for entity {act.WorkflowDefinition}");
         }
     }
@@ -117,20 +120,20 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages["Default"] = new Page
             {
-                FieldNames = workflowDefinition.Properties.Values.Select(v => v.Name).ToArray()
+                FieldNames = workflowDefinition.Properties.Select(v => v.Name).ToArray()
             };
 
         foreach (var ent in form.Pages)
         {
             ent.Value.Name = ent.Key;
-            ent.Value.Fields = ent.Value.FieldNames.Select(q => workflowDefinition.Properties[q]).ToArray();
+            ent.Value.Fields = ent.Value.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
         }
 
-        workflowDefinition.Events.Add(form.Name, new() { Name = form.Name });
+        workflowDefinition.Events.Add(new() { Name = form.Name });
 
-        if (form is { Property: not null, TargetFormName: not null })
-            form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties[form.Property].UnderlyingType]
-                .Forms[form.TargetFormName];
+        if (form is { PropertyName: not null, TargetFormName: not null })
+            form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType]
+                .Forms.Get(form.TargetFormName);
 
         if (form.PropertyDefinitions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
             throw new Exception($"Form {form.Name} has multiple questions with the same name");
@@ -149,14 +152,14 @@ public partial class ModelParser
     {
         foreach (var ent in workflowDefinition.Properties)
         {
-            ent.Value.ParentType = workflowDefinition;
-            ent.Value.Name = ent.Key;
-            PreProcess(ent.Value);
+            ent.ParentType = workflowDefinition;
+            ent.Name = ent.Name;
+            PreProcess(ent);
         }
 
-        foreach (var form in workflowDefinition.Forms.Values)
+        foreach (var form in workflowDefinition.Forms)
             PreProcess(form, workflowDefinition);
-        foreach (var screen in workflowDefinition.Screens.Values)
+        foreach (var screen in workflowDefinition.Screens)
             PreProcess(screen, workflowDefinition);
         foreach (var step in workflowDefinition.Steps)
             PreProcess(step, workflowDefinition);
@@ -169,8 +172,8 @@ public partial class ModelParser
         PreProcess(step.Condition);
         PreProcess(step.Ends);
         foreach (var ev in step.Actions.SelectMany(a => a.OnAction.Select(t => t.Event)).Where(t => t != null))
-            if (!workflowDefinition.Events.ContainsKey(ev!))
-                workflowDefinition.Events.Add(ev!, new() { Name = ev! });
+            if (workflowDefinition.Events.All(e => e.Name != ev!))
+                workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
     }
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
@@ -179,9 +182,9 @@ public partial class ModelParser
         {
             if (col.Property != null)
             {
-                col.Question = workflowDefinition.Properties.GetValueOrDefault(col.Property.Split('.')[0]);
+                col.Question = workflowDefinition.Properties.GetOrDefault(col.Property.Split('.')[0]);
                 if (col.Property.EndsWith("Event"))
-                    col.Event = workflowDefinition.Events.GetValueOrDefault(col.Property[..^5]);
+                    col.Event = workflowDefinition.Events.FirstOrDefault(e => e.Name == col.Property[..^5]);
             }
         }
     }
@@ -201,12 +204,13 @@ public partial class ModelParser
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
         if (propertyDefinition.Table != null)
-            propertyDefinition.Table.Form = propertyDefinition.ParentType.Forms[propertyDefinition.Table.FormReference];
+            propertyDefinition.Table.Form =
+                propertyDefinition.ParentType.Forms.Get(propertyDefinition.Table.FormReference);
 
         foreach (var dep in propertyDefinition.Conditions.SelectMany(c => c.Part.Dependants).Distinct())
         {
             var depName = dep.ToString().Split('.').Last();
-            propertyDefinition.ParentType.Properties.GetValueOrDefault(depName)?.DependentQuestions
+            propertyDefinition.ParentType.Properties.GetOrDefault(depName)?.DependentQuestions
                 .Add(propertyDefinition);
         }
 
@@ -216,8 +220,8 @@ public partial class ModelParser
     private void PreProcess(Condition? condition)
     {
         if (condition == null) return;
-        if (condition.Name != null)
-            condition.NamedCondition = NamedConditions[condition.Name];
+        if (condition is NamedCondition named)
+            condition.NamedCondition = NamedConditions.Get(named.Name);
         condition.Logical?.Children.ForEach(PreProcess);
     }
 
@@ -226,11 +230,15 @@ public partial class ModelParser
         PreProcess(choice.Condition);
     }
 
-    private T Parse<T>(string file)
+    private T Parse<T>(string file, string? name = null) where T : class, INamed
     {
         try
         {
-            return _deserializer.Deserialize<T>(_contentProvider.GetFile(file));
+            Log.Debug("Parsing {File} for {Type}", file, typeof(T).Name);
+            var obj = _deserializer.Deserialize<T>(_contentProvider.GetFile(file));
+            if (name is not null)
+                obj.Name = name;
+            return obj;
         }
         catch (YamlException ex)
         {
@@ -238,9 +246,9 @@ public partial class ModelParser
         }
     }
 
-
-    private Dictionary<string, T> Read<T>(string? root = null)
+    private List<T> Read<T>(string? root = null) where T : class, INamed
     {
+        Log.Debug("Reading {Type} from {Root}", typeof(T).Name, root);
         root ??= "Common";
         var name = typeof(T).Name;
         var folder = name switch
@@ -249,9 +257,7 @@ public partial class ModelParser
             _ => name + "s"
         };
         return _contentProvider.GetFiles($"{root}/{folder}")
-            .ToDictionary(
-                f => Path.GetFileNameWithoutExtension(f),
-                f => Parse<T>(f)
-            );
+            .Select(f => Parse<T>(f, Path.GetFileNameWithoutExtension(f)))
+            .ToList();
     }
 }

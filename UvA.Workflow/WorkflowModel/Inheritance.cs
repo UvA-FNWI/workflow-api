@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public partial class ModelParser
@@ -8,30 +10,30 @@ public partial class ModelParser
 
         foreach (var sourceForm in source.Forms)
         {
-            if (target.Forms.TryGetValue(sourceForm.Key, out var targetForm))
-                ApplyInheritance(targetForm, sourceForm.Value);
+            if (target.Forms.TryGetValue(sourceForm.Name, out var targetForm))
+                ApplyInheritance(targetForm, sourceForm);
             else
-                target.Forms.Add(sourceForm.Key, sourceForm.Value);
+                target.Forms.Add(sourceForm);
         }
 
-        foreach (var property in source.Properties.Where(p => !target.Properties.ContainsKey(p.Key)))
-            target.Properties.Add(property.Key, property.Value);
+        foreach (var property in source.Properties.Where(p => !target.Properties.Contains(p.Name)))
+            target.Properties.Add(property);
 
         foreach (var sourceStep in source.AllSteps)
         {
-            if (target.AllSteps.TryGetValue(sourceStep.Key, out var targetStep))
-                ApplyInheritance(targetStep, sourceStep.Value);
+            if (target.AllSteps.TryGetValue(sourceStep.Name, out var targetStep))
+                ApplyInheritance(targetStep, sourceStep);
             else
-                target.AllSteps.Add(sourceStep.Key, sourceStep.Value);
+                target.AllSteps.Add(sourceStep);
         }
 
         foreach (var ev in source.Events)
-            target.Events.Add(ev.Key, ev.Value);
+            target.Events.Add(ev);
 
         foreach (var screen in source.Screens)
-            target.Screens.Add(screen.Key, screen.Value);
+            target.Screens.Add(screen);
 
-        foreach (var role in Roles.Values)
+        foreach (var role in Roles)
         foreach (var action in role.Actions.Where(a => a.WorkflowDefinition == source.Name).ToArray())
         {
             var newAction = action.Clone();

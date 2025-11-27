@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Entities.Domain;
 

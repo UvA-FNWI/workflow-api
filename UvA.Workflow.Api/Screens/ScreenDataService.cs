@@ -1,6 +1,6 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Events;
-using UvA.Workflow.Tools;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -31,7 +31,7 @@ public class ScreenDataService(
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             return null;
 
-        return entity.Screens.GetValueOrDefault(screenName);
+        return entity.Screens.GetOrDefault(screenName);
     }
 
     private Dictionary<string, string> BuildProjection(Screen screen, string workflowDefinition)

@@ -1,6 +1,6 @@
 namespace UvA.Workflow.Entities.Domain;
 
-public class Role
+public class Role : INamed
 {
     /// <summary>
     /// Internal name of this role
@@ -49,14 +49,14 @@ public enum RoleAction
     CreateRelatedInstance
 }
 
-public class Action
+public class Action : INamed
 {
     public const string All = "<All>";
 
     /// <summary>
     /// Internal name of the action
     /// </summary>
-    public string? Name { get; set; }
+    public string Name { get; set; }
 
     /// <summary>
     /// Localized label of the action as shown in the user interface

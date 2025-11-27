@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public enum PageLayout
@@ -54,7 +56,7 @@ public class Page
     public BilingualString DisplayTitle => Title ?? Name;
 }
 
-public class Form
+public class Form : INamed
 {
     /// <summary>
     /// Internal name of the form
@@ -73,10 +75,12 @@ public class Form
     /// </summary>
     public FormLayout Layout { get; set; }
 
+
     /// <summary>
     /// Target reference property. Set this to use the form to update the properties of the referenced entity
     /// </summary>
-    public string? Property { get; set; }
+    [YamlMember(Alias = "property")]
+    public string? PropertyName { get; set; }
 
     /// <summary>
     /// To be used in combination with Property. The name of a form for the referenced entity type

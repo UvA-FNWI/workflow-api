@@ -33,11 +33,6 @@ public class Condition
     public Date? Date { get; set; }
 
     /// <summary>
-    /// Use a named reusable condition
-    /// </summary>
-    public string? Name { get; set; }
-
-    /// <summary>
     /// Message that is shown then the condition is not, for use in form validation
     /// </summary>
     public BilingualString? Message { get; set; }
@@ -47,8 +42,16 @@ public class Condition
     public ConditionPart Part => Value ?? Logical ?? Date ?? Event ?? NamedCondition?.Part!;
 
     public IEnumerable<Lookup> Properties => Part?.Properties ?? [];
+}
 
-    public static implicit operator Condition(string name) => new() { Name = name };
+public class NamedCondition : Condition, INamed
+{
+    /// <summary>
+    /// Use a named reusable condition
+    /// </summary>
+    public string Name { get; set; }
+
+    public static implicit operator NamedCondition(string name) => new() { Name = name };
 }
 
 public abstract class ConditionPart
