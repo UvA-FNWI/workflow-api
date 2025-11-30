@@ -44,7 +44,7 @@ public class WorkflowTests
         var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
         parser = new ModelParser(modelProvider);
         modelService = new ModelService(parser);
-        rightsService = new RightsService(modelService, userServiceMock.Object);
+        rightsService = new RightsService(modelService, userServiceMock.Object, instanceRepoMock.Object);
         instanceService =
             new InstanceService(instanceRepoMock.Object, modelService, userServiceMock.Object, rightsService);
         eventService = new InstanceEventService(eventRepoMock.Object, rightsService, instanceService);

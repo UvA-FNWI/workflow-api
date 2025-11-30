@@ -80,6 +80,7 @@ public class UserService(
     IMemoryCache cache)
     : UserServiceBase(userRepository, cache), IUserService
 {
+    private readonly IMemoryCache cache = cache;
     private static string GetCacheKeyForRoles(string userName) => $"roles:{userName}";
     private static TimeSpan RolesCacheExpiration => TimeSpan.FromMinutes(15);
 
