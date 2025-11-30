@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace UvA.Workflow.Api.Infrastructure;
 
 [ApiController]
-[Authorize]
+//[Authorize] //TODO: enable authentication when UI has SurfConext support
 [Route("[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {
