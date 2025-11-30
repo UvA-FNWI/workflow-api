@@ -89,6 +89,11 @@ public class Question
     /// </summary>
     public BilingualString? Description { get; set; }
 
+    /// <summary>
+    /// To be used for properties that refer to other entities. List of roles that is inherited from the target instance.
+    /// </summary>
+    public string[] InheritRoles = [];
+
     [YamlIgnore] public EntityType ParentType { get; set; } = null!;
 
     [YamlIgnore] public EntityType? EntityType { get; set; }

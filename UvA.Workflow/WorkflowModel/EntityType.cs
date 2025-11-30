@@ -91,6 +91,13 @@ public class EntityType
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public EntityType? Parent { get; set; }
 
+    private static IEnumerable<Step> GetSteps(Step s) =>
+        s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
+            ? s.Children.SelectMany(GetSteps)
+            : [s];
+
+    public IEnumerable<Step> FlattenedSteps => Steps.SelectMany(GetSteps);
+
     public DataType GetDataType(string property)
     {
         if (Properties.TryGetValue(property, out var prop))

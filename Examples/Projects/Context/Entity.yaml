@@ -1,0 +1,19 @@
+name: Context
+titlePlural: Contexts
+
+properties:
+  Name:
+    type: String!
+
+  ExternalId:
+    type: String!
+
+  Type:
+    type: ContextType!
+    values:
+      Course: {}
+      Group: {}
+      Specialisation: {}
+
+  Coordinator:
+    type: "[User]!"

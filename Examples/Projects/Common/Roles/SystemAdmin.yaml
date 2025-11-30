@@ -1,2 +1,7 @@
 name: SystemAdmin
 inheritFrom: [Coordinator]
+actions:
+- type: CreateInstance
+  entity: Context
+- type: CreateInstance
+  entity: Project

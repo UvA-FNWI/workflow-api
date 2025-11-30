@@ -6,7 +6,8 @@ namespace UvA.Workflow.Users;
 
 public class RightsService(
     ModelService modelService,
-    IUserService userService)
+    IUserService userService,
+    IWorkflowInstanceRepository workflowInstanceRepository)
 {
     public async Task<IEnumerable<string>> GetGlobalRoles() =>
         (await userService.GetRolesOfCurrentUser()).ToList()
@@ -24,14 +25,44 @@ public class RightsService(
                 ))
             .ToArray();
 
-    private async Task<Role?[]> GetInstanceRoles(WorkflowInstance instance)
+    private async Task<Role?[]> GetInstanceRoles(WorkflowInstance instance, CancellationToken ct = default)
     {
-        var user = await userService.GetCurrentUser();
+        var user = await userService.GetCurrentUser(ct);
         if (user == null) return [];
 
-        return modelService.EntityTypes[instance.EntityType].Properties.Values
+        // Process inherited roles
+        var properties = modelService.EntityTypes[instance.EntityType].Properties.Values;
+
+        var inheritedRoles = properties
+            .Where(p => p.InheritRoles.Any())
+            .SelectMany(p => p.InheritRoles.Select(r => new
+            {
+                Role = r,
+                EntityType = p.EntityType,
+                InstanceId = instance.Properties.GetValueOrDefault(p.Name)?.ToString()
+            }))
+            .Where(r => r.EntityType != null && !string.IsNullOrEmpty(r.InstanceId))
+            .ToList();
+
+        var inheritedInstances = inheritedRoles.Any()
+            ? (await workflowInstanceRepository.GetAllById(
+                inheritedRoles.Select(r => r.InstanceId!).Distinct().ToArray(),
+                inheritedRoles.Select(r => new { r.Role, Key = r.EntityType!.GetKey(r.Role) }).Distinct()
+                    .ToDictionary(r => r.Role, r => r.Key),
+                ct
+            )).ToDictionary(r => r["_id"].ToString()!)
+            : new();
+
+        var inheritedProperties = inheritedRoles.Select(r => new
+        {
+            Name = r.Role,
+            Value = inheritedInstances.GetValueOrDefault(r.InstanceId!)?.GetValueOrDefault(r.Role)
+        });
+
+        return properties
             .Where(p => p.DataType == DataType.User)
             .Select(p => new { p.Name, Value = instance.Properties.GetValueOrDefault(p.Name) })
+            .Concat(inheritedProperties)
             .Where(p => p.Value != null)
             .Where(p => p.Value switch
             {
