@@ -92,7 +92,7 @@ public class Question
     /// <summary>
     /// To be used for properties that refer to other entities. List of roles that is inherited from the target instance.
     /// </summary>
-    public string[] InheritRoles = [];
+    public string[] InheritRoles { get; set; } = [];
 
     [YamlIgnore] public EntityType ParentType { get; set; } = null!;
 
