@@ -90,10 +90,6 @@ public class Action : INamed
     /// </summary>
     public string? PropertyDefinition { get; set; }
 
-    /// <summary>
-    /// Entity type this action applies to
-    /// </summary>
-    [YamlMember(Alias = "workflowDefinition")]
     public string? WorkflowDefinition { get; set; }
 
     /// <summary>

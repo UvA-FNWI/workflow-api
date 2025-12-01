@@ -17,14 +17,14 @@ public partial class ModelParser
     public List<Role> Roles { get; }
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
     private List<ValueSet> ValueSets { get; }
-    private List<NamedCondition> NamedConditions { get; }
+    private List<Condition> NamedConditions { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
         _contentProvider = contentProvider;
         Roles = Read<Role>();
         ValueSets = Read<ValueSet>();
-        NamedConditions = Read<NamedCondition>();
+        NamedConditions = Read<Condition>();
 
         var definitions = _contentProvider.GetFolders()
             .Where(d => Path.GetFileName(d) != "Common")
