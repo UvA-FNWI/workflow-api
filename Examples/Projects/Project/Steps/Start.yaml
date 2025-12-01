@@ -1,9 +1,35 @@
 name: Start
+title:
+  nl: Indienen voorstel
+  en: Subject proposal
 
 actions:
   - roles: [Student]
     type: Submit
     form: Start
 
+properties:
+  Subject:
+    type: String!
+    text:
+      en: Subject
+      nl: Onderwerp
+    layout:
+      multiline: true
+  Description:
+    type: File!
+    text:
+      en: Project description
+      nl: Projectomschrijving
+
+  Deadline:
+    type: Date!
+    text:
+      en: Important deadline
+      nl: Belangrijke deadline
+
+
 ends:
-  event: Start
+  event:
+    id: Start
+    notBefore: RejectSubject

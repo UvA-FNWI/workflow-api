@@ -1,0 +1,11 @@
+name: Subject
+title:
+  nl: Onderwerp
+  en: Subject
+
+children:
+  - Start
+  - SubjectFeedback
+
+ends:
+  event: ApproveSubject

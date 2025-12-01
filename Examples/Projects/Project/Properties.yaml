@@ -1,17 +1,40 @@
 properties:
-  - name: Title
+  Title:
     type: String!
-  - name: EC
+    text:
+      en: Working title
+      nl: Werktitel
+  EC:
     type: Int!
-  - name: Examiner
+
+  StartDate:
+    type: Date!
+    text:
+      en: Start date
+      nl: Startdatum
+  EndDate:
+    type: Date!
+    text:
+      en: End date
+      nl: Einddatum
+
+  Examiner:
     type: User!
-  - name: Supervisor
+    text: 
+      en: Examiner
+      nl: Examinator
+  Supervisor:
     type: User!
-    text: Expected number of participants
-    description: Enter 0 if not applicable
-  - name: Reviewer
+    text: 
+      en: Supervisor
+      nl: Begeleider
+  Reviewer:
     type: User!
-  - name: Student
+    text: 
+      en: Reviewer
+      nl: Beoordelaar
+  Student:
     type: "[User]!"
-  - name: Report
+
+  Report:
     type: File!
