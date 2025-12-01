@@ -13,12 +13,12 @@ pages:
     title:
       en: Staff
       nl: Medewerkers
-    questions:
+    fields:
       - Examiner
       - Reviewer
       - Supervisor
   Planning:
-    questions:
+    fields:
       - StartDate
       - Deadline
       - EndDate
