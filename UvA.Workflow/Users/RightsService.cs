@@ -34,8 +34,8 @@ public class RightsService(
         var properties = modelService.EntityTypes[instance.EntityType].Properties.Values;
 
         var inheritedRoles = properties
-            .Where(p => p.InheritRoles.Any())
-            .SelectMany(p => p.InheritRoles.Select(r => new
+            .Where(p => p.InheritedRoles.Any())
+            .SelectMany(p => p.InheritedRoles.Select(r => new
             {
                 Role = r,
                 EntityType = p.EntityType,
@@ -44,7 +44,7 @@ public class RightsService(
             .Where(r => r.EntityType != null && !string.IsNullOrEmpty(r.InstanceId))
             .ToList();
 
-        var inheritedInstances = inheritedRoles.Any()
+        var inheritedViaInstances = inheritedRoles.Any()
             ? (await workflowInstanceRepository.GetAllById(
                 inheritedRoles.Select(r => r.InstanceId!).Distinct().ToArray(),
                 inheritedRoles.Select(r => new { r.Role, Key = r.EntityType!.GetKey(r.Role) }).Distinct()
@@ -56,7 +56,7 @@ public class RightsService(
         var inheritedProperties = inheritedRoles.Select(r => new
         {
             Name = r.Role,
-            Value = inheritedInstances.GetValueOrDefault(r.InstanceId!)?.GetValueOrDefault(r.Role)
+            Value = inheritedViaInstances.GetValueOrDefault(r.InstanceId!)?.GetValueOrDefault(r.Role)
         });
 
         return properties
