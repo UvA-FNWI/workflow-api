@@ -16,7 +16,6 @@ actions:
           target: Invoice.Request
           property: Request.TotalPaid
           value: sumInvoices()
-      - event: PaymentApproved
 
 ends:
   event: PaymentApproved

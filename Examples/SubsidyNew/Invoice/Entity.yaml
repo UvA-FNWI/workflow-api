@@ -81,4 +81,3 @@ actions:
       - sendMail:
           to: Submitter
           template: InvoiceRejected
-      - event: LetterSent

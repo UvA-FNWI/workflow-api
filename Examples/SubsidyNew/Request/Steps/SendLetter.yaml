@@ -24,7 +24,7 @@ actions:
           value:
             property: Decision
             equal: =Approve
-      - event: LetterSent
+
 
 ends:
   event: LetterSent
