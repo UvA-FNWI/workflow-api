@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.EntityTypes.Dtos;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Events;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 

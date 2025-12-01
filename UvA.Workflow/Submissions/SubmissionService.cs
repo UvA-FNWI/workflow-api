@@ -1,3 +1,4 @@
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 
 namespace UvA.Workflow.Submissions;
@@ -35,7 +36,7 @@ public class SubmissionService(
         return new SubmissionContext(instance, submission, form, submissionId);
     }
 
-    public async Task<SubmissionResult> SubmitSubmission(SubmissionContext context, CancellationToken ct)
+    public async Task<SubmissionResult> SubmitSubmission(SubmissionContext context, User user, CancellationToken ct)
     {
         var (instance, submission, form, submissionId) = context;
 
@@ -68,7 +69,7 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors);
         }
 
-        await triggerService.RunTriggers(instance, [new Trigger { Event = submissionId }, ..form.OnSubmit], ct);
+        await triggerService.RunTriggers(instance, [new Trigger { Event = submissionId }, ..form.OnSubmit], user, ct);
 
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);

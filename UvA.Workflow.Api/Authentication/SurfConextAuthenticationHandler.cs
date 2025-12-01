@@ -8,8 +8,8 @@ namespace UvA.Workflow.Api.Authentication;
 
 public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextOptions>
 {
-    private const string SURFCONEXT_ERROR = "SurfConextError";
-    public static string Scheme => "SURFconext";
+    private const string SurfconextError = "SurfConextError";
+    public static string SchemeName => "SURFconext";
 
     /// <summary>
     /// implements the behavior of the SurfConext scheme to authenticate users.
@@ -56,7 +56,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         var cacheKey = $"bt_{bearerToken}";
 
         if (cache.TryGetValue(cacheKey, out ClaimsPrincipal? cachedPrincipal))
-            return AuthenticateResult.Success(new AuthenticationTicket(cachedPrincipal!, Scheme));
+            return AuthenticateResult.Success(new AuthenticationTicket(cachedPrincipal!, SchemeName));
 
         var resp = await ValidateSurfBearerToken(bearerToken);
         if (resp == null)
@@ -81,7 +81,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
 
         await userService.AddOrUpdateUser(principal.Identity!.Name!, resp.FullName, resp.Email);
 
-        return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme));
+        return AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName));
     }
 
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
@@ -91,7 +91,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
             {
                 Status = StatusCodes.Status401Unauthorized,
                 Title = "Unauthorized",
-                Detail = Context.Items[SURFCONEXT_ERROR] as string ?? "Unauthorized",
+                Detail = Context.Items[SurfconextError] as string ?? "Unauthorized",
                 Instance = Context.Request.Path.Value
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -112,7 +112,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
                 "Token validation failed: SurfConext returned status {Code}: {Response}, ClientId:{ClientId}, Secret:{ClientSecret}",
                 response.StatusCode, content, OptionsMonitor.CurrentValue.ClientId,
                 OptionsMonitor.CurrentValue.ClientSecret?[..4]);
-            Context.Items[SURFCONEXT_ERROR] =
+            Context.Items[SurfconextError] =
                 $"Token validation failed: SurfConext returned status {response.StatusCode}, check the logs for details";
             return null;
         }
@@ -124,7 +124,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         catch (Exception ex)
         {
             Logger.LogError(ex, "Token validation failed: unable to deserialize response: {Response}", content);
-            Context.Items[SURFCONEXT_ERROR] =
+            Context.Items[SurfconextError] =
                 $"Token validation failed: unable to deserialize response from SurfConext, check the logs for details";
             return null;
         }
@@ -148,7 +148,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
 
         if (r.Uids is { Length: > 0 } && !string.IsNullOrWhiteSpace(r.Uids[0]))
         {
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, r.Uids[0]));
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, UvaClaimTypes.UvanetId));
             claims.Add(new Claim(UvaClaimTypes.UvanetId, r.Uids[0]));
         }
 
@@ -177,7 +177,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
             claims.Add(new Claim("updated_at",
                 r.UpdatedAt.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
 
-        var identity = new ClaimsIdentity(claims, Scheme, UvaClaimTypes.UvanetId, ClaimTypes.Role);
+        var identity = new ClaimsIdentity(claims, SchemeName, UvaClaimTypes.UvanetId, ClaimTypes.Role);
         return new ClaimsPrincipal(identity);
     }
 }

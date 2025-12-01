@@ -8,13 +8,13 @@ namespace UvA.Workflow.WorkflowInstances;
 /// </summary>
 public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInstanceRepository
 {
-    private readonly IMongoCollection<WorkflowInstance> _collection =
+    private readonly IMongoCollection<WorkflowInstance> instanceCollection =
         database.GetCollection<WorkflowInstance>("instances");
 
     public async Task Create(WorkflowInstance instance, CancellationToken ct)
     {
         var document = instance;
-        await _collection.InsertOneAsync(document, cancellationToken: ct);
+        await instanceCollection.InsertOneAsync(document, cancellationToken: ct);
         instance.Id = document.Id; // Update with generated ID
     }
 
@@ -24,7 +24,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             return null;
 
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
-        var instance = await _collection.Find(filter).FirstOrDefaultAsync(ct);
+        var instance = await instanceCollection.Find(filter).FirstOrDefaultAsync(ct);
         return instance;
     }
 
@@ -34,7 +34,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             throw new ArgumentException("Invalid instance ID", nameof(instance.Id));
 
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
-        await _collection.ReplaceOneAsync(filter, instance, cancellationToken: ct);
+        await instanceCollection.ReplaceOneAsync(filter, instance, cancellationToken: ct);
     }
 
     public async Task Delete(string id, CancellationToken ct)
@@ -43,7 +43,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             return;
 
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
-        await _collection.DeleteOneAsync(filter, ct);
+        await instanceCollection.DeleteOneAsync(filter, ct);
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetByIds(IEnumerable<string> ids, CancellationToken ct)
@@ -55,28 +55,28 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             .ToList();
 
         var filter = Builders<WorkflowInstance>.Filter.In("_id", objectIds);
-        var documents = await _collection.Find(filter).ToListAsync(ct);
+        var documents = await instanceCollection.Find(filter).ToListAsync(ct);
         return documents;
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetByEntityType(string entityType, CancellationToken ct)
     {
         var filter = Builders<WorkflowInstance>.Filter.Eq(x => x.EntityType, entityType);
-        var documents = await _collection.Find(filter).ToListAsync(ct);
+        var documents = await instanceCollection.Find(filter).ToListAsync(ct);
         return documents;
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetByParentId(string parentId, CancellationToken ct)
     {
         var filter = Builders<WorkflowInstance>.Filter.Eq(x => x.ParentId, parentId);
-        var documents = await _collection.Find(filter).ToListAsync(ct);
+        var documents = await instanceCollection.Find(filter).ToListAsync(ct);
         return documents;
     }
 
     public async Task<List<WorkflowInstance>> GetAll(Expression<Func<WorkflowInstance, bool>> expression,
         CancellationToken ct)
     {
-        return await _collection.Find(expression).ToListAsync(ct);
+        return await instanceCollection.Find(expression).ToListAsync(ct);
     }
 
     public async Task<T?> Get<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression,
@@ -84,7 +84,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
     {
         var projection = Builders<WorkflowInstance>.Projection.Expression(expression);
         var filter = Builders<WorkflowInstance>.Filter.Eq(p => p.Id, instanceId);
-        return await _collection.Find(filter).Project(projection).FirstOrDefaultAsync(ct);
+        return await instanceCollection.Find(filter).Project(projection).FirstOrDefaultAsync(ct);
     }
 
     public async Task<T?> Get<T>(Expression<Func<WorkflowInstance, bool>> predicate,
@@ -92,7 +92,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
     {
         var projection = Builders<WorkflowInstance>.Projection.Expression(project);
         var filter = Builders<WorkflowInstance>.Filter.Where(predicate);
-        return await _collection.Find(filter).Project(projection).FirstOrDefaultAsync(ct);
+        return await instanceCollection.Find(filter).Project(projection).FirstOrDefaultAsync(ct);
     }
 
     public async Task<List<Dictionary<string, BsonValue>>> GetAllByType(string entityType,
@@ -104,7 +104,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             new("$project", projection.ToBsonDocument())
         ];
 
-        return await _collection.Aggregate<Dictionary<string, BsonValue>>(pipeline).ToListAsync(ct);
+        return await instanceCollection.Aggregate<Dictionary<string, BsonValue>>(pipeline).ToListAsync(ct);
     }
 
     public async Task<List<Dictionary<string, BsonValue>>> GetAllByParentId(string parentId,
@@ -116,7 +116,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             new("$project", projection.ToBsonDocument())
         ];
 
-        return await _collection.Aggregate<Dictionary<string, BsonValue>>(pipeline).ToListAsync(ct);
+        return await instanceCollection.Aggregate<Dictionary<string, BsonValue>>(pipeline).ToListAsync(ct);
     }
 
     public async Task<List<Dictionary<string, BsonValue>>> GetAllById(string[] ids,
@@ -129,7 +129,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             new("$project", projection.ToBsonDocument())
         ];
 
-        return await _collection.Aggregate<Dictionary<string, BsonValue>>(pipeline).ToListAsync(ct);
+        return await instanceCollection.Aggregate<Dictionary<string, BsonValue>>(pipeline).ToListAsync(ct);
     }
 
     public async Task UpdateField<TField>(string instanceId, Expression<Func<WorkflowInstance, TField>> field,
@@ -141,7 +141,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
         var update = Builders<WorkflowInstance>.Update.Set(field, value);
 
-        await _collection.UpdateOneAsync(filter, update, cancellationToken: ct);
+        await instanceCollection.UpdateOneAsync(filter, update, cancellationToken: ct);
     }
 
     public async Task DeleteField(string instanceId, Expression<Func<WorkflowInstance, object>> field,
@@ -153,7 +153,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
         var update = Builders<WorkflowInstance>.Update.Unset(field);
 
-        await _collection.UpdateOneAsync(filter, update, cancellationToken: ct);
+        await instanceCollection.UpdateOneAsync(filter, update, cancellationToken: ct);
     }
 
     public async Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition,
@@ -163,6 +163,6 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             throw new ArgumentException("Invalid instance ID", nameof(instanceId));
 
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
-        await _collection.UpdateOneAsync(filter, updateDefinition, cancellationToken: ct);
+        await instanceCollection.UpdateOneAsync(filter, updateDefinition, cancellationToken: ct);
     }
 }

@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
@@ -26,9 +27,14 @@ public static class ServiceCollectionExtensions
         // Register repositories - organized by domain feature
         services.AddScoped<IWorkflowInstanceRepository, WorkflowInstanceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IInstanceEventRepository, InstanceEventRepository>();
 
         services.AddScoped<WorkflowInstanceService>();
-        services.AddScoped<IUserService, UserService>();
+
+        // TODO: restore actual user service when UI has SurfContext support
+        services.AddScoped<IUserService, MockUserService>();
+        //services.AddScoped<IUserService, MockUserService>();
+
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
         services.AddScoped<IArtifactService, ArtifactService>();
@@ -39,6 +45,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AnswerDtoFactory>();
 
         services.AddScoped<InstanceService>();
+        services.AddScoped<IInstanceEventService, InstanceEventService>();
+
         services.AddScoped<RightsService>();
         services.AddScoped<TriggerService>();
         services.AddScoped<AnswerConversionService>();

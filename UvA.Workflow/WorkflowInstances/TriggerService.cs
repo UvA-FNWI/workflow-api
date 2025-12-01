@@ -1,15 +1,21 @@
-namespace UvA.Workflow.Services;
+using UvA.Workflow.Events;
 
-public class TriggerService(InstanceService instanceService, ModelService modelService, IMailService mailService)
+namespace UvA.Workflow.WorkflowInstances;
+
+public class TriggerService(
+    InstanceService instanceService,
+    IInstanceEventService eventService,
+    ModelService modelService,
+    IMailService mailService)
 {
-    public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, CancellationToken ct,
+    public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, User user, CancellationToken ct,
         MailMessage? mail = null)
     {
         var context = modelService.CreateContext(instance);
         foreach (var trigger in triggers.Where(t => t.Condition.IsMet(context)))
         {
-            if (trigger.Event != null) await Event(instance, trigger.Event, ct);
-            if (trigger.UndoEvent != null) await UndoEvent(instance, trigger.UndoEvent, ct);
+            if (trigger.Event != null) await AddEvent(instance, trigger.Event, user, ct);
+            if (trigger.UndoEvent != null) await UndoEvent(instance, trigger.UndoEvent, user, ct);
             if (trigger.SendMail != null) await SendMail(instance, trigger.SendMail, ct, mail);
             if (trigger.SetProperty != null) await SetProperty(instance, trigger.SetProperty, ct);
         }
@@ -26,20 +32,20 @@ public class TriggerService(InstanceService instanceService, ModelService modelS
         await mailService.Send(mail);
     }
 
-    private async Task UndoEvent(WorkflowInstance instance, string eventName, CancellationToken ct)
+    private async Task UndoEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
     {
         if (!instance.Events.TryGetValue(eventName, out var ev))
             return;
         ev.Date = null;
-        await instanceService.UpdateEvent(instance, ev.Id, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct);
     }
 
-    private async Task Event(WorkflowInstance instance, string eventName, CancellationToken ct)
+    private async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
         ev.Date = DateTime.Now;
-        await instanceService.UpdateEvent(instance, ev.Id, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct);
     }
 
     private async Task SetProperty(WorkflowInstance instance, SetProperty setProperty, CancellationToken ct)
