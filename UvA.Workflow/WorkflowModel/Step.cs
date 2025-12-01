@@ -82,11 +82,23 @@ public class Step
 
     public DateTime? GetDeadline(WorkflowInstance instance, ModelService modelService)
     {
-        if (Condition?.Deadline == null)
-            return null;
-        var exp = ExpressionParser.Parse(Condition.Deadline.Source);
+        if (Condition == null) return null;
+        var deadlineCondition = FindDeadlineCondition(Condition);
+        if (deadlineCondition is null) return null;
         var context = ObjectContext.Create(instance, modelService);
-        return exp.Execute(context) as DateTime?;
+        return deadlineCondition.Evaluate(context);
+
+        // Recursively find deadline condition
+        Deadline? FindDeadlineCondition(Condition condition)
+        {
+            if (condition.Deadline != null) return condition.Deadline;
+            if (condition.Logical is not null)
+            {
+                return condition.Logical.Children.Select(FindDeadlineCondition).FirstOrDefault(d => d != null);
+            }
+
+            return null;
+        }
     }
 
     public bool HasEnded(ObjectContext context)

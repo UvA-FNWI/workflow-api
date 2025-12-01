@@ -35,7 +35,7 @@ public class Condition
     /// <summary>
     /// Check if a deadline has passed
     /// </summary>
-    public Date? Deadline { get; set; }
+    public Deadline? Deadline { get; set; }
 
     /// <summary>
     /// Use a named reusable condition
@@ -76,6 +76,26 @@ public class Date : ConditionPart
     }
 
     public static implicit operator Date(string s) => new Date { Source = s };
+}
+
+public class Deadline : ConditionPart
+{
+    public string ExpressionText { get; set; } = null!;
+
+    private Expression Expression => ExpressionParser.Parse(ExpressionText);
+
+    public DateTime? Evaluate(ObjectContext context)
+        => Expression.Execute(context) as DateTime?;
+
+    public override IEnumerable<Lookup> Properties => Expression.Properties;
+
+    public override bool IsMet(ObjectContext context)
+    {
+        var deadline = Evaluate(context);
+        return deadline != null && deadline.Value <= DateTime.Now;
+    }
+
+    public static implicit operator Deadline(string s) => new() { ExpressionText = s };
 }
 
 public class EventCondition : ConditionPart
