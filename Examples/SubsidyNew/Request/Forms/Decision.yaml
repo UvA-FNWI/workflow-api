@@ -1,7 +1,7 @@
 name: Decision
 
 pages:
-  Page:
+  - name: Page
     fields:
       - DecisionComment
       - Decision

@@ -1,7 +1,7 @@
 name: Upload
 
 pages:
-  Upload:
+  - name: Upload
     fields:
       - Title
       - Report

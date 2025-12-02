@@ -1,6 +1,6 @@
 name: Report
     
 pages:
-  Page:
+  - name: Page
     fields:
       - Report

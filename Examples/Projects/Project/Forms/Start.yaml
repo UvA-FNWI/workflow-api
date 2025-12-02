@@ -1,7 +1,7 @@
 name: Start
 
 pages:
-  Contents:
+  - name: Contents
     title:
       en: Contents
       nl: Inhoud
@@ -9,7 +9,7 @@ pages:
       - Title
       - Subject
       - Description
-  Staff:
+  - name: Staff
     title:
       en: Staff
       nl: Medewerkers
@@ -17,7 +17,7 @@ pages:
       - Examiner
       - Reviewer
       - Supervisor
-  Planning:
+  - name: Planning
     fields:
       - StartDate
       - Deadline

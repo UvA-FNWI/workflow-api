@@ -1,7 +1,7 @@
 name: Request
 
 pages:
-  Page:
+  - name: Page
     title: Request for support
     introduction: |
       Please note that we receive many more applications than we can fund.

@@ -37,7 +37,7 @@ public partial class ModelParser
             foreach (var file in contentProvider.GetFiles(definition.Name)
                          .Where(f => Path.GetFileNameWithoutExtension(f) != "Entity.yaml"))
             {
-                var content = Parse<WorkflowDefinition>(file, null);
+                var content = Parse<WorkflowDefinition>(file);
                 if (content.Properties.Count > 0) definition.Properties = content.Properties;
                 if (content.GlobalActions.Count > 0) definition.GlobalActions = content.GlobalActions;
             }
@@ -46,7 +46,7 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.Name);
             definition.AllSteps = Read<Step>(definition.Name);
 
-            foreach (var entry in Read<NamedCondition>(definition.Name))
+            foreach (var entry in Read<Condition>(definition.Name))
                 NamedConditions.Add(entry);
 
             if (definition.InheritsFrom != null)
@@ -118,15 +118,14 @@ public partial class ModelParser
         form.WorkflowDefinition = workflowDefinition;
 
         if (!form.Pages.Any() && form.TargetFormName == null)
-            form.Pages["Default"] = new Page
+            form.Pages.Add(new Page
             {
                 FieldNames = workflowDefinition.Properties.Select(v => v.Name).ToArray()
-            };
+            });
 
         foreach (var ent in form.Pages)
         {
-            ent.Value.Name = ent.Key;
-            ent.Value.Fields = ent.Value.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
+            ent.Fields = ent.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
@@ -220,8 +219,8 @@ public partial class ModelParser
     private void PreProcess(Condition? condition)
     {
         if (condition == null) return;
-        if (condition is NamedCondition named)
-            condition.NamedCondition = NamedConditions.Get(named.Name);
+        if (condition.Name is not null)
+            condition.NamedCondition = NamedConditions.FirstOrDefault(c => c.Name == condition.Name);
         condition.Logical?.Children.ForEach(PreProcess);
     }
 
@@ -230,14 +229,12 @@ public partial class ModelParser
         PreProcess(choice.Condition);
     }
 
-    private T Parse<T>(string file, string? name = null) where T : class, INamed
+    private T Parse<T>(string file)
     {
         try
         {
             Log.Debug("Parsing {File} for {Type}", file, typeof(T).Name);
             var obj = _deserializer.Deserialize<T>(_contentProvider.GetFile(file));
-            if (name is not null)
-                obj.Name = name;
             return obj;
         }
         catch (YamlException ex)
@@ -246,18 +243,33 @@ public partial class ModelParser
         }
     }
 
-    private List<T> Read<T>(string? root = null) where T : class, INamed
+    private List<T> Read<T>(string? root = null)
     {
         Log.Debug("Reading {Type} from {Root}", typeof(T).Name, root);
         root ??= "Common";
-        var name = typeof(T).Name;
-        var folder = name switch
+
+        var typeName = typeof(T).Name;
+        var folder = typeName switch
         {
-            _ when name.StartsWith("Variant") => name.Replace("Variant", "") + "s",
-            _ => name + "s"
+            _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
+            _ => typeName + "s"
         };
-        return _contentProvider.GetFiles($"{root}/{folder}")
-            .Select(f => Parse<T>(f, Path.GetFileNameWithoutExtension(f)))
-            .ToList();
+        var result = new List<T>();
+        var nameProperty = typeof(T).GetProperty("Name");
+        foreach (var filePath in _contentProvider.GetFiles($"{root}/{folder}"))
+        {
+            var obj = Parse<T>(filePath);
+
+            // If the object has a name property, set it to the entity name
+            if (nameProperty?.PropertyType == typeof(string))
+            {
+                var entityName = Path.GetFileNameWithoutExtension(filePath);
+                nameProperty.SetValue(obj, entityName);
+            }
+
+            result.Add(obj);
+        }
+
+        return result;
     }
 }

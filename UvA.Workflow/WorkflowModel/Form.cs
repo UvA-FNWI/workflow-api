@@ -22,7 +22,6 @@ public class Page
     /// <summary>
     /// Internal name of the page
     /// </summary>
-    [YamlIgnore]
     public string Name { get; set; } = null!;
 
     /// <summary>
@@ -95,7 +94,7 @@ public class Form : INamed
     /// <summary>
     /// Dictionary of pages of this form
     /// </summary>
-    public Dictionary<string, Page> Pages { get; set; } = new();
+    public List<Page> Pages { get; set; } = new();
 
     [YamlIgnore] public WorkflowDefinition WorkflowDefinition { get; set; } = null!;
 
@@ -109,5 +108,5 @@ public class Form : INamed
     /// </summary>
     public Effect[] OnSave { get; set; } = [];
 
-    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.Values.SelectMany(p => p.Fields);
+    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields);
 }

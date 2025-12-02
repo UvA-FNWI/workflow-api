@@ -9,20 +9,20 @@ actions:
     form: Start
 
 properties:
-  Subject:
+  - name: Subject
     type: String!
     text:
       en: Subject
       nl: Onderwerp
     layout:
       multiline: true
-  Description:
+  - name: Description
     type: File!
     text:
       en: Project description
       nl: Projectomschrijving
 
-  Deadline:
+  - name: Deadline
     type: Date!
     text:
       en: Important deadline
