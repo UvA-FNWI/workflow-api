@@ -16,6 +16,8 @@ public class WorkflowInstance
     public string EntityType { get; set; } = null!;
     public string? CurrentStep { get; set; }
 
+    public DateTime CreatedOn { get; set; }
+
     // public List<LogEntry> LogEntries { get; set; } = [];
     public Dictionary<string, BsonValue> Properties { get; set; } = null!;
     public Dictionary<string, InstanceEvent> Events { get; set; } = null!;
@@ -75,7 +77,7 @@ public class WorkflowInstance
         var newEvent = new InstanceEvent
         {
             Id = eventId,
-            Date = date ?? DateTime.UtcNow
+            Date = date ?? DateTime.Now
         };
         Events[eventId] = newEvent;
         return newEvent;
