@@ -56,7 +56,7 @@ public class Action : INamed
     /// <summary>
     /// Internal name of the action
     /// </summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
 
     /// <summary>
     /// Localized label of the action as shown in the user interface
