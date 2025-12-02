@@ -23,6 +23,8 @@ public record Expression
     private static readonly Dictionary<string, Function> Functions = new()
     {
         ["addDays"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(i)),
+        ["addMonths"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddMonths(i)),
+        ["addWeeks"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(7 * i)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),

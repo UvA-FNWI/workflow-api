@@ -27,7 +27,7 @@ public class WorkflowInstanceDtoFactory(
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             [],
-            workflowDefinition.Steps.Select(s => StepDto.Create(s, instance)).ToArray(),
+            workflowDefinition.Steps.Select(s => StepDto.Create(s, instance, modelService)).ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus))
                 .ToArray(),

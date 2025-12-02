@@ -24,15 +24,22 @@ public record WorkflowInstanceDto(
 
 public record FieldDto();
 
-public record StepDto(string Id, BilingualString Title, string? Event, DateTime? DateCompleted, StepDto[]? Children)
+public record StepDto(
+    string Id,
+    BilingualString Title,
+    string? Event,
+    DateTime? DateCompleted,
+    DateTime? Deadline,
+    StepDto[]? Children)
 {
-    public static StepDto Create(Step step, WorkflowInstance instance)
+    public static StepDto Create(Step step, WorkflowInstance instance, ModelService modelService)
         => new(
             step.Name,
             step.DisplayTitle,
             step.EndEvent,
             step.GetEndDate(instance),
-            step.Children.Length != 0 ? step.Children.Select(s => Create(s, instance)).ToArray() : null
+            step.GetDeadline(instance, modelService),
+            step.Children.Length != 0 ? step.Children.Select(s => Create(s, instance, modelService)).ToArray() : null
         );
 }
 

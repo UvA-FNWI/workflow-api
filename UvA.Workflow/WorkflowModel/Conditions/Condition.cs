@@ -36,6 +36,11 @@ public class Condition
     public Date? Date { get; set; }
 
     /// <summary>
+    /// Check if a deadline has passed
+    /// </summary>
+    public Deadline? Deadline { get; set; }
+
+    /// <summary>
     /// Use a named reusable condition
     /// </summary>
     public string? Name { get; set; }
@@ -47,7 +52,7 @@ public class Condition
 
     [JsonIgnore] [YamlIgnore] public Condition? NamedCondition { get; set; }
 
-    public ConditionPart Part => Value ?? Logical ?? Date ?? Event ?? NamedCondition?.Part!;
+    public ConditionPart Part => Value ?? Logical ?? Date ?? Deadline ?? Event ?? NamedCondition?.Part!;
 
     public IEnumerable<Lookup> Properties => Part?.Properties ?? [];
 
@@ -74,6 +79,31 @@ public class Date : ConditionPart
     }
 
     public static implicit operator Date(string s) => new Date { Source = s };
+}
+
+public class Deadline : ConditionPart
+{
+    public string ExpressionText { get; set; } = null!;
+
+    private Expression Expression => ExpressionParser.Parse(ExpressionText);
+
+    public DateTime? Evaluate(ObjectContext context)
+        => Expression.Execute(context) switch
+        {
+            DateTime d => d,
+            string s => DateTime.Parse(s),
+            _ => null
+        };
+
+    public override IEnumerable<Lookup> Properties => Expression.Properties;
+
+    public override bool IsMet(ObjectContext context)
+    {
+        var deadline = Evaluate(context);
+        return deadline != null && deadline.Value > DateTime.Now;
+    }
+
+    public static implicit operator Deadline(string s) => new() { ExpressionText = s };
 }
 
 public class EventCondition : ConditionPart

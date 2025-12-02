@@ -3,6 +3,9 @@ title:
   nl: Indienen voorstel
   en: Subject proposal
 
+condition: 
+  deadline: addMonths(CreateDate, 2)
+    
 actions:
   - roles: [Student]
     type: Submit

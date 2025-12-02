@@ -50,6 +50,8 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, RoleAction.View))
             return Forbidden();
 
+        await instanceService.UpdateCurrentStep(instance, ct);
+
         var result = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(result);

@@ -1,3 +1,6 @@
+using UvA.Workflow.Expressions;
+using Date = UvA.Workflow.Entities.Domain.Conditions.Date;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public enum StepHierarchyMode
@@ -75,6 +78,27 @@ public class Step : INamed
         }
 
         return null;
+    }
+
+    public DateTime? GetDeadline(WorkflowInstance instance, ModelService modelService)
+    {
+        if (Condition == null) return null;
+        var deadlineCondition = FindDeadlineCondition(Condition);
+        if (deadlineCondition is null) return null;
+        var context = ObjectContext.Create(instance, modelService);
+        return deadlineCondition.Evaluate(context);
+
+        // Recursively find deadline condition
+        Deadline? FindDeadlineCondition(Condition condition)
+        {
+            if (condition.Deadline != null) return condition.Deadline;
+            if (condition.Logical is not null)
+            {
+                return condition.Logical.Children.Select(FindDeadlineCondition).FirstOrDefault(d => d != null);
+            }
+
+            return null;
+        }
     }
 
     public bool HasEnded(ObjectContext context)
