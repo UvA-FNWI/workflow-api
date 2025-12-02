@@ -85,14 +85,19 @@ public class Deadline : ConditionPart
     private Expression Expression => ExpressionParser.Parse(ExpressionText);
 
     public DateTime? Evaluate(ObjectContext context)
-        => Expression.Execute(context) as DateTime?;
+        => Expression.Execute(context) switch
+        {
+            DateTime d => d,
+            string s => DateTime.Parse(s),
+            _ => null
+        };
 
     public override IEnumerable<Lookup> Properties => Expression.Properties;
 
     public override bool IsMet(ObjectContext context)
     {
         var deadline = Evaluate(context);
-        return deadline != null && deadline.Value <= DateTime.Now;
+        return deadline != null && deadline.Value > DateTime.Now;
     }
 
     public static implicit operator Deadline(string s) => new() { ExpressionText = s };
