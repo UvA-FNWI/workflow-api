@@ -1,4 +1,8 @@
 properties:
+  Course:
+    type: Context!
+    inheritedRoles: [Coordinator]
+
   Title:
     type: String!
     text:

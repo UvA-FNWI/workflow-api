@@ -38,7 +38,7 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddDataNoseApiClient(builder.Configuration);
-builder.Services.AddSurfConextAuthentication(builder.Environment, builder.Configuration);
+builder.Services.AddWorkflowAuthentication(builder.Environment, builder.Configuration);
 
 builder.Services.AddCors(options =>
 {

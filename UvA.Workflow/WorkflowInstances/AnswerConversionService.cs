@@ -14,7 +14,8 @@ public record AnswerInput(
 /// </summary>
 public class AnswerConversionService(IUserService userService)
 {
-    public static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    public static readonly JsonSerializerOptions Options = new()
+        { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
 
     /// <summary>
     /// Converts an answer input to a BsonValue based on the question's data type.

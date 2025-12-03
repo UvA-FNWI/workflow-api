@@ -1,5 +1,4 @@
 using UvA.Workflow.Events;
-using UvA.Workflow.Infrastructure;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
@@ -62,7 +61,7 @@ public class InstanceService(
         var context = modelService.CreateContext(instance);
         await Enrich(entityType, [context], entityType.Steps.SelectMany(s => s.Lookups), ct);
         string? targetStep = null;
-        foreach (var step in entityType.Steps)
+        foreach (var step in entityType.FlattenedSteps)
         {
             if (step.Condition.IsMet(context) && !step.HasEnded(context))
             {
