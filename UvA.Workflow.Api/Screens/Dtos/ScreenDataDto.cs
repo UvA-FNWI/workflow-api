@@ -55,8 +55,8 @@ public record ScreenColumnDto(
             return DataType.DateTime;
 
         // Use the underlying propertyDefinition's data type if available
-        if (column.Question != null)
-            return column.Question.DataType;
+        if (column.PropertyDefinition != null)
+            return column.PropertyDefinition.DataType;
 
         // Default to string for anything else
         return DataType.String;

@@ -181,7 +181,7 @@ public partial class ModelParser
         {
             if (col.Property != null)
             {
-                col.Question = workflowDefinition.Properties.GetOrDefault(col.Property.Split('.')[0]);
+                col.PropertyDefinition = workflowDefinition.Properties.GetOrDefault(col.Property.Split('.')[0]);
                 if (col.Property.EndsWith("Event"))
                     col.Event = workflowDefinition.Events.FirstOrDefault(e => e.Name == col.Property[..^5]);
             }

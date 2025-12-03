@@ -26,7 +26,7 @@ public class Field
     public string? Default { get; set; }
 
     public BilingualString DisplayTitle =>
-        Title ?? Question?.ShortDisplayName ?? Event?.Name ?? (CurrentStep ? "Step" : "Field");
+        Title ?? PropertyDefinition?.ShortDisplayName ?? Event?.Name ?? (CurrentStep ? "Step" : "Field");
 
     private string? ComputedProperty => CurrentStep ? "CurrentStep" : Property;
 
@@ -38,7 +38,7 @@ public class Field
     public BilingualString? Title { get; set; } = null!;
 
 
-    [YamlIgnore] public PropertyDefinition? Question { get; set; }
+    [YamlIgnore] public PropertyDefinition? PropertyDefinition { get; set; }
     [YamlIgnore] public EventDefinition? Event { get; set; }
 
 
