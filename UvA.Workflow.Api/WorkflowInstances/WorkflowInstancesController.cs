@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -15,6 +17,7 @@ public class WorkflowInstancesController(
     ModelService modelService
 ) : ApiControllerBase
 {
+    //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
     [HttpPost]
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
         [FromBody] CreateWorkflowInstanceDto input, CancellationToken ct)
@@ -74,6 +77,7 @@ public class WorkflowInstancesController(
         return Ok(result);
     }
 
+    //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
     [HttpGet("instances/{entityType}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string entityType,
         [FromQuery] string[] properties, CancellationToken ct)

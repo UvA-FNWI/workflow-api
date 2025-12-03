@@ -9,7 +9,7 @@ namespace UvA.Workflow.Api.Authentication;
 public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextOptions>
 {
     private const string SurfconextError = "SurfConextError";
-    public static string SchemeName => "SURFconext";
+    public const string SchemeName = "SURFconext";
 
     /// <summary>
     /// implements the behavior of the SurfConext scheme to authenticate users.
@@ -18,12 +18,12 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         IOptionsMonitor<SurfConextOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        HttpClient httpClient,
+        IHttpClientFactory httpClientFactory,
         IUserService userService,
         IMemoryCache cache)
         : base(options, logger, encoder)
     {
-        this.httpClient = httpClient;
+        this.httpClient = httpClientFactory.CreateClient(SchemeName);
         this.userService = userService;
         this.cache = cache;
     }
