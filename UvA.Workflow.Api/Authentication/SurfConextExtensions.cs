@@ -1,5 +1,5 @@
 using System.Text;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using UvA.Workflow.Api.Infrastructure;
 
 namespace UvA.Workflow.Api.Authentication;
@@ -70,32 +70,17 @@ public static class SurfConextExtensions
                     Type = SecuritySchemeType.Http,
                 });
 
-            //New code to work with .NET6
-            var securityRequirement = new OpenApiSecurityRequirement();
-            if (environment.IsDevOrTest())
+            c.AddSecurityRequirement(doc =>
             {
-                securityRequirement.Add(new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "OIDC"
-                        }
-                    },
-                    []);
-            }
-
-            securityRequirement.Add(new OpenApiSecurityScheme
+                var securityRequirement = new OpenApiSecurityRequirement();
+                if (environment.IsDevOrTest())
                 {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                []);
+                    securityRequirement.Add(new OpenApiSecuritySchemeReference("OIDC", doc), []);
+                }
 
-            c.AddSecurityRequirement(securityRequirement);
+                securityRequirement.Add(new OpenApiSecuritySchemeReference("Bearer", doc), []);
+                return securityRequirement;
+            });
         });
 
         return services;
