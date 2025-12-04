@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public enum PageLayout
@@ -20,7 +22,6 @@ public class Page
     /// <summary>
     /// Internal name of the page
     /// </summary>
-    [YamlIgnore]
     public string Name { get; set; } = null!;
 
     /// <summary>
@@ -39,12 +40,12 @@ public class Page
     public PageLayout Layout { get; set; }
 
     /// <summary>
-    /// Question names to include in the page
+    /// PropertyDefinition names to include in the page
     /// </summary>
-    [YamlMember(Alias = "questions")]
-    public string[] QuestionNames { get; set; } = [];
+    [YamlMember(Alias = "fields")]
+    public string[] FieldNames { get; set; } = [];
 
-    [YamlIgnore] public Question[] Questions { get; set; } = [];
+    [YamlIgnore] public PropertyDefinition[] Fields { get; set; } = [];
 
     /// <summary>
     /// If set, this page is included only when editing a matching property
@@ -54,7 +55,7 @@ public class Page
     public BilingualString DisplayTitle => Title ?? Name;
 }
 
-public class Form
+public class Form : INamed
 {
     /// <summary>
     /// Internal name of the form
@@ -73,10 +74,12 @@ public class Form
     /// </summary>
     public FormLayout Layout { get; set; }
 
+
     /// <summary>
     /// Target reference property. Set this to use the form to update the properties of the referenced entity
     /// </summary>
-    public string? Property { get; set; }
+    [YamlMember(Alias = "property")]
+    public string? PropertyName { get; set; }
 
     /// <summary>
     /// To be used in combination with Property. The name of a form for the referenced entity type
@@ -91,19 +94,19 @@ public class Form
     /// <summary>
     /// Dictionary of pages of this form
     /// </summary>
-    public Dictionary<string, Page> Pages { get; set; } = new();
+    public List<Page> Pages { get; set; } = new();
 
-    [YamlIgnore] public EntityType EntityType { get; set; } = null!;
-
-    /// <summary>
-    /// Triggers to run when the form is submitted
-    /// </summary>
-    public Trigger[] OnSubmit { get; set; } = [];
+    [YamlIgnore] public WorkflowDefinition WorkflowDefinition { get; set; } = null!;
 
     /// <summary>
-    /// Triggers to run when a change is made in the form
+    /// Effect to run when the form is submitted
     /// </summary>
-    public Trigger[] OnSave { get; set; } = [];
+    public Effect[] OnSubmit { get; set; } = [];
 
-    public IEnumerable<Question> Questions => Pages.Values.SelectMany(p => p.Questions);
+    /// <summary>
+    /// Effect to run when a change is made in the form
+    /// </summary>
+    public Effect[] OnSave { get; set; } = [];
+
+    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields);
 }

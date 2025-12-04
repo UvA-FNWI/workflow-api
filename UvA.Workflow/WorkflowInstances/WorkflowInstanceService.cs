@@ -10,19 +10,19 @@ public class WorkflowInstanceService(
     /// Creates a new workflow instance
     /// </summary>
     public async Task<WorkflowInstance> Create(
-        string entityType,
+        string workflowDefinition,
         User createdBy,
         CancellationToken ct,
         string? userProperty = null,
         string? parentId = null,
         Dictionary<string, BsonValue>? initialProperties = null)
     {
-        if (string.IsNullOrWhiteSpace(entityType))
-            throw new ArgumentException("EntityType is required", nameof(entityType));
+        if (string.IsNullOrWhiteSpace(workflowDefinition))
+            throw new ArgumentException("WorkflowDefinition is required", nameof(workflowDefinition));
 
         var instance = new WorkflowInstance
         {
-            EntityType = entityType,
+            WorkflowDefinition = workflowDefinition,
             ParentId = parentId,
             CreatedOn = DateTime.Now,
             Properties = initialProperties ?? new Dictionary<string, BsonValue>(),
@@ -32,7 +32,7 @@ public class WorkflowInstanceService(
         if (userProperty != null)
         {
             var user = createdBy.ToBsonDocument();
-            var property = modelService.EntityTypes[entityType].Properties[userProperty];
+            var property = modelService.WorkflowDefinitions[workflowDefinition].Properties.Get(userProperty);
             instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
         }
 

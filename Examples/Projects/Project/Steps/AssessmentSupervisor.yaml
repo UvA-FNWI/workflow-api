@@ -8,7 +8,7 @@ actions:
     form: AssessmentSupervisor
 
 properties:
-  AssessmentSupervisor:
+  - name: AssessmentSupervisor
     type: Assessment!
 
 ends:

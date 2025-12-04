@@ -1,6 +1,6 @@
 name: Proposal
 
 pages:
-  Page:
-    questions:
+  - name: Page
+    fields:
       - Proposal

@@ -7,7 +7,7 @@ actions:
     form: Proposal
 
 properties:
-  Proposal:
+  - name: Proposal
     text: Upload your proposal
     type: File!
 

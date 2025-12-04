@@ -8,7 +8,7 @@ actions:
     form: AssessmentReviewer
 
 properties:
-  AssessmentReviewer:
+  - name: AssessmentReviewer
     type: Assessment!
 
 ends:

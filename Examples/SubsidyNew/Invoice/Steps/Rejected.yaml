@@ -6,5 +6,5 @@ actions:
   - type: Execute
     label: Restore invoice
     roles: [Admin]
-    triggers:
+    onAction:
       - undoEvent: Payment

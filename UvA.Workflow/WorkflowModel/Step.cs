@@ -9,7 +9,7 @@ public enum StepHierarchyMode
     Parallel
 }
 
-public class Step
+public class Step : INamed
 {
     /// <summary>
     /// Internal name of the step
@@ -54,7 +54,7 @@ public class Step
     /// <summary>
     /// Properties related to this step. These will become properties of the corresponding entity 
     /// </summary>
-    public Dictionary<string, Question> Properties { get; set; } = new();
+    public List<PropertyDefinition> Properties { get; set; } = new();
 
     public IEnumerable<Lookup> Lookups =>
     [

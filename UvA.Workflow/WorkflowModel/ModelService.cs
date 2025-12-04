@@ -1,22 +1,25 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public class ModelService(ModelParser parser)
 {
-    public Dictionary<string, EntityType> EntityTypes => parser.EntityTypes;
-    public Dictionary<string, Role> Roles => parser.Roles;
+    public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => parser.WorkflowDefinitions;
+    public Dictionary<string, Role> Roles => parser.Roles.ToDictionary(r => r.Name, r => r);
 
     public Form GetForm(WorkflowInstance instance, string formName)
-        => EntityTypes[instance.EntityType].Forms[formName];
+        => WorkflowDefinitions[instance.WorkflowDefinition].Forms.Get(formName);
 
     public IEnumerable<Form> GetForms(WorkflowInstance instance, string formName)
-        => EntityTypes[instance.EntityType].Forms.Values.Where(f => f.Name == formName || f.TargetFormName == formName);
+        => WorkflowDefinitions[instance.WorkflowDefinition].Forms
+            .Where(f => f.Name == formName || f.TargetFormName == formName);
 
-    public Question GetQuestion(WorkflowInstance instance, params string?[] parts)
+    public PropertyDefinition GetQuestion(WorkflowInstance instance, params string?[] parts)
     {
-        var type = EntityTypes[instance.EntityType];
+        var type = WorkflowDefinitions[instance.WorkflowDefinition];
         foreach (var part in parts.Take(parts.Length - 1).Where(p => p != null))
-            type = type.Properties[part!].EntityType!;
-        return type.Properties[parts[^1]!];
+            type = type.Properties.Get(part!).WorkflowDefinition!;
+        return type.Properties.Get(parts[^1]!);
     }
 
     public ObjectContext CreateContext(WorkflowInstance instance)
@@ -24,12 +27,12 @@ public class ModelService(ModelParser parser)
 
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,
-        IEnumerable<Question>? questions = null)
+        IEnumerable<PropertyDefinition>? questions = null)
     {
         var context = CreateContext(instance);
-        return (questions ?? (form.TargetForm ?? form).Questions)
+        return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
-                q.Condition.IsMet(context) && (q.Kind != QuestionKind.Hidden || canViewHidden),
+                q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden),
                 q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name)
                     ? null
                     : q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde"),
@@ -41,7 +44,7 @@ public class ModelService(ModelParser parser)
     {
         if (string.IsNullOrEmpty(instance.CurrentStep))
             return [];
-        var step = EntityTypes[instance.EntityType].AllSteps[instance.CurrentStep];
+        var step = WorkflowDefinitions[instance.WorkflowDefinition].AllSteps.Get(instance.CurrentStep);
         var context = CreateContext(instance);
         return step.Children
             .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))

@@ -4,7 +4,7 @@ titlePlural: Projects (PB)
 inheritsFrom: Project
 
 properties:
-  AssessmentReviewer:
+  - name: AssessmentReviewer
     type: Assessment-PB!
-  AssessmentSupervisor:
+  - name: AssessmentSupervisor
     type: Assessment-PB!

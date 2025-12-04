@@ -10,8 +10,6 @@ actions:
   label:
     en: Approve
     nl: Goedkeuren
-  triggers:
-    - event: ApproveSubject
 - name: Reject
   type: Submit
   form: RejectSubject
@@ -21,7 +19,7 @@ actions:
     nl: Afkeuren
 
 properties:
-  SubjectRejectTarget:
+  - name: SubjectRejectTarget
     type: "[RejectOption]!"
     text: 
       nl: Wat keur je af?
@@ -37,7 +35,7 @@ properties:
           nl: Medewerkers
       Planning:
         text: Planning      
-  SubjectRejectReason:
+  - name: SubjectRejectReason
     type: String!
     text:
       nl: Licht toe, wees daarbij zo specifiek mogelijk

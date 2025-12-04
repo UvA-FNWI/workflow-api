@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.WorkflowModel;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
@@ -14,11 +15,11 @@ public class InstanceService(
     /// <summary>
     /// Populates references in object contexts based on the specified entity type and lookup properties.
     /// </summary>
-    /// <param name="entityType">The entity type defining the properties to be enriched.</param>
+    /// <param name="workflowDefinition">The entity type defining the properties to be enriched.</param>
     /// <param name="contexts">A collection of object contexts whose values will be updated.</param>
     /// <param name="properties">The set of properties to be used for enrichment.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
-    private async Task Enrich(EntityType entityType, ICollection<ObjectContext> contexts,
+    private async Task Enrich(WorkflowDefinition workflowDefinition, ICollection<ObjectContext> contexts,
         IEnumerable<Lookup> properties,
         CancellationToken ct)
     {
@@ -27,15 +28,15 @@ public class InstanceService(
             .Cast<PropertyLookup>()
             .Distinct()
             .Where(p => p.Parts.Length > 1)
-            .Where(p => entityType.Properties[p.Parts[0]].DataType == DataType.Reference)
+            .Where(p => workflowDefinition.Properties.Get(p.Parts[0]).DataType == DataType.Reference)
             .GroupBy(p => p.Parts[0])
             .ToArray();
 
         foreach (var referenceGroup in groups)
         {
             var ids = contexts.ToDictionary(c => c, c => c.Get(referenceGroup.Key) as string);
-            var targetType = entityType.Properties[referenceGroup.Key].EntityType!;
-            var props = referenceGroup.Select(p => targetType.Properties[p.Parts[1]]).ToArray();
+            var targetType = workflowDefinition.Properties.Get(referenceGroup.Key).WorkflowDefinition!;
+            var props = referenceGroup.Select(p => targetType.Properties.Get(p.Parts[1])).ToArray();
             var results = await GetProperties(ids.Values.Where(i => i != null).ToArray()!, props, ct);
             foreach (var context in contexts)
             {
@@ -52,17 +53,17 @@ public class InstanceService(
         foreach (var context in contexts)
         {
             if (context.Values.TryGetValue("CurrentStep", out var id) && id is string stepName)
-                context.Values["CurrentStep"] = entityType.AllSteps[stepName].DisplayTitle;
+                context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
         }
     }
 
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
-        var entityType = modelService.EntityTypes[instance.EntityType];
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
-        await Enrich(entityType, [context], entityType.Steps.SelectMany(s => s.Lookups), ct);
+        await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         string? targetStep = null;
-        foreach (var step in entityType.Steps)
+        foreach (var step in workflowDefinition.Steps)
         {
             if (step.Condition.IsMet(context) && !step.HasEnded(context))
             {
@@ -79,7 +80,7 @@ public class InstanceService(
         }
     }
 
-    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, Question[] properties,
+    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, PropertyDefinition[] properties,
         CancellationToken ct)
     {
         var projection = properties.ToDictionary(p => p.Name, p => $"$Properties.{p.Name}");
@@ -90,10 +91,10 @@ public class InstanceService(
         ));
     }
 
-    public async Task<List<ObjectContext>> GetScreen(string entityType, Screen screen, CancellationToken ct,
+    public async Task<List<ObjectContext>> GetScreen(string workflowDefinition, Screen screen, CancellationToken ct,
         string? sourceInstanceId = null)
     {
-        var entity = modelService.EntityTypes[entityType];
+        var entity = modelService.WorkflowDefinitions[workflowDefinition];
         var props = screen.Columns.SelectMany(c => c.Properties).ToArray();
         var projection = props
             .Select(p => p.ToString().Split('.')[0])
@@ -102,14 +103,14 @@ public class InstanceService(
 
         var res = sourceInstanceId != null
             ? await workflowInstanceRepository.GetAllByParentId(sourceInstanceId, projection, ct)
-            : await workflowInstanceRepository.GetAllByType(entityType, projection, ct);
+            : await workflowInstanceRepository.GetAllByType(workflowDefinition, projection, ct);
         return res.ConvertAll(r =>
         {
             var dict = projection.Keys
                 .ToDictionary(
                     t => (Lookup)t,
                     t => ObjectContext.GetValue(r.GetValueOrDefault(t), entity.GetDataType(t),
-                        entity.Properties.GetValueOrDefault(t))
+                        entity.Properties.FirstOrDefault(p => p.Name == t))
                 );
             dict["Id"] = r["_id"].ToString();
             return new ObjectContext(dict);
@@ -150,7 +151,7 @@ public class InstanceService(
         Domain_Action Action,
         Form? Form = null,
         Mail? Mail = null,
-        EntityType? EntityType = null);
+        WorkflowDefinition? WorkflowDefinition = null);
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
     {
@@ -176,14 +177,14 @@ public class InstanceService(
         foreach (var rel in related)
             if (await CheckLimit(instance, rel, ct))
                 actions.Add(new AllowedAction(rel,
-                    EntityType: modelService.GetQuestion(instance, rel.Property!).EntityType));
+                    WorkflowDefinition: modelService.GetQuestion(instance, rel.Property!).WorkflowDefinition));
 
         // Executable actions
         foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
             actions.Add(new AllowedAction(a,
                 Mail: await Mail.FromModel(
                     instance,
-                    a.Triggers.FirstOrDefault(t =>
+                    a.OnAction.FirstOrDefault(t =>
                         t.SendMail != null && t.Condition.IsMet(modelService.CreateContext(instance)))?.SendMail,
                     modelService)));
 

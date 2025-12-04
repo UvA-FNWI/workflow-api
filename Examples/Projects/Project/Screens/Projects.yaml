@@ -1,5 +1,5 @@
 name: Projects
-entityType: Project
+workflowDefinition: Project
 columns:
   - title: 
       en: Summary

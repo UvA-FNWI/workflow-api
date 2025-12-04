@@ -7,7 +7,7 @@ actions:
     label: Send letter
     name: SendLetter
     roles: [Admin]
-    triggers:
+    onAction:
       - sendMail:
           to: Submitter
           template: RejectMail
@@ -24,7 +24,7 @@ actions:
           value:
             property: Decision
             equal: =Approve
-      - event: LetterSent
+
 
 ends:
   event: LetterSent
