@@ -4,9 +4,9 @@ public class MockUserService : IUserService
 {
     private static readonly IEnumerable<User> DummyUsers =
     [
-        new() { Id = "1", DisplayName = "User 1", Email = "1@invalid.invalid" },
-        new() { Id = "2", DisplayName = "User 2", Email = "2@invalid.invalid" },
-        new() { Id = "3", DisplayName = "User 3", Email = "3@invalid.invalid" }
+        new() { Id = "6931595fc1b5b8e1853a3ddc", DisplayName = "User 1", Email = "1@invalid.invalid" },
+        new() { Id = "6931596cef14fc41fe47ddfb", DisplayName = "User 2", Email = "2@invalid.invalid" },
+        new() { Id = "6931597ac0c4f0d6f248d24e", DisplayName = "User 3", Email = "3@invalid.invalid" }
     ];
 
     private static readonly IEnumerable<string> Roles = ["Coordinator", "SuperAdmin", "Admin"];
