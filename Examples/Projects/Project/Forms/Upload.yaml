@@ -1,4 +1,5 @@
 name: Upload
+step: Upload
 
 pages:
   - name: Upload

@@ -87,6 +87,11 @@ public class Form : INamed
     [YamlMember(Alias = "targetForm")]
     public string? TargetFormName { get; set; }
 
+    /// <summary>
+    /// Step this form belongs to
+    /// </summary>
+    public string? Step { get; set; }
+
     [YamlIgnore] public Form? TargetForm { get; set; }
 
     public Form ActualForm => TargetForm ?? this;
