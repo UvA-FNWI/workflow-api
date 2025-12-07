@@ -33,10 +33,17 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
     {
-        var dict = instance.Properties.ToDictionary(
-            p => (Lookup)p.Key,
-            p => GetValue(p.Value, modelService.GetQuestion(instance, p.Key))
-        );
+        var dict = new Dictionary<Lookup, object?>();
+        foreach (var (k, v) in instance.Properties)
+        {
+            // Only add property values that are present in the workflow definition
+            var propertyDefinition = modelService.GetQuestion(instance, k);
+            if (propertyDefinition != null)
+            {
+                dict.Add(k, GetValue(v, propertyDefinition));
+            }
+        }
+
         dict.Add("Id", instance.Id);
         dict.Add("CurrentStep", instance.CurrentStep);
         dict.Add("CreateDate", instance.CreatedOn);

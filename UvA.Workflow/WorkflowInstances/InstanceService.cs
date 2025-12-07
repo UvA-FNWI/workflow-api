@@ -176,8 +176,13 @@ public class InstanceService(
 
         foreach (var rel in related)
             if (await CheckLimit(instance, rel, ct))
-                actions.Add(new AllowedAction(rel,
-                    WorkflowDefinition: modelService.GetQuestion(instance, rel.Property!).WorkflowDefinition));
+            {
+                var propDef = modelService.GetQuestion(instance, rel.Property!);
+                if (propDef is not null)
+                {
+                    actions.Add(new AllowedAction(rel, WorkflowDefinition: propDef.WorkflowDefinition));
+                }
+            }
 
         // Executable actions
         foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
