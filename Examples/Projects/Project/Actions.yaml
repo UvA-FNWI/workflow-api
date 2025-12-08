@@ -1,6 +1,7 @@
 globalActions:
   - roles: [Student, Supervisor, Coordinator]
     type: View
+    intent: Primary
     forms: [Start, Upload, Proposal]
   - roles: [Registered]
     type: CreateInstance

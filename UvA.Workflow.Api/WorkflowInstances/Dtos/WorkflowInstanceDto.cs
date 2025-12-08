@@ -45,6 +45,7 @@ public record StepDto(
 
 public record ActionDto(
     ActionType Type,
+    ActionIntent Intent,
     BilingualString Title,
     string? Form = null,
     string? Name = null,
@@ -62,17 +63,20 @@ public record ActionDto(
         {
             RoleAction.CreateRelatedInstance => new(
                 ActionType.CreateInstance,
+                action.Action.Intent,
                 action.Action.Label ?? Add(action.WorkflowDefinition?.DisplayTitle ?? "form"),
                 Form: action.Action.Property
             ),
             RoleAction.Execute => new(
                 ActionType.Execute,
+                action.Action.Intent,
                 action.Action.Label ?? action.Action.Name ?? "Action",
                 Name: action.Action.Name,
                 Mail: action.Mail
             ),
             RoleAction.Submit => new(
                 ActionType.SubmitForm,
+                action.Action.Intent,
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
                 Form: action.Form?.Name
             ),
