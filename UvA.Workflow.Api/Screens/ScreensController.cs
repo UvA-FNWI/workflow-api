@@ -35,4 +35,115 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
             );
         }
     }
+
+    [HttpGet("Projects/Overview")]
+    public async Task<ActionResult<GroupedScreenDataDto>> GetProjectsOverview(CancellationToken ct)
+    {
+        try
+        {
+            var screenData = await screenDataService.GetScreenData(
+                "Projects",
+                "Project-AI",
+                ct);
+
+            var grouped = GroupByCurrentStep(screenData);
+            return Ok(grouped);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound("ScreenNotFound", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(
+                detail: ex.Message,
+                title: "Error retrieving screen data"
+            );
+        }
+    }
+
+    private GroupedScreenDataDto GroupByCurrentStep(ScreenDataDto screenData)
+    {
+        const string groupAssignSubject = "assign-subject";
+        const string groupThesisInProgress = "thesis-in-progress";
+        const string groupCompleted = "completed";
+
+        Dictionary<string, string> stepGroupMapping = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // Subject assignment
+            ["Start"] = groupAssignSubject,
+            ["Subject"] = groupAssignSubject,
+            ["SubjectFeedback"] = groupAssignSubject,
+
+            // Thesis in progress
+            ["Proposal"] = groupThesisInProgress,
+            ["Upload"] = groupThesisInProgress,
+            ["Assessment"] = groupThesisInProgress,
+            ["AssessmentReviewer"] = groupThesisInProgress,
+            ["AssessmentSupervisor"] = groupThesisInProgress,
+            ["ApprovalCoordinator"] = groupThesisInProgress,
+
+            // Completed
+            ["Publication"] = groupCompleted
+        };
+
+        var currentStepColumn = screenData.Columns.FirstOrDefault(c => c.IsCurrentStep);
+        if (currentStepColumn is null)
+        {
+            return new GroupedScreenDataDto
+            {
+                ["Ungrouped"] = screenData
+            };
+        }
+
+        var currentStepId = currentStepColumn.Id;
+
+        // Rebuild columns without current step and reindex IDs to keep them compact
+        var columnsWithoutStep = screenData.Columns
+            .Where(c => !c.IsCurrentStep)
+            .Select((c, idx) => c with { Id = idx })
+            .ToArray();
+
+        var idMap = screenData.Columns
+            .Where(c => !c.IsCurrentStep)
+            .Select((c, idx) => (OldId: c.Id, NewId: idx))
+            .ToDictionary(x => x.OldId, x => x.NewId);
+
+        var grouped = new GroupedScreenDataDto();
+
+        foreach (var row in screenData.Rows)
+        {
+            var stepValue = row.Values.TryGetValue(currentStepId, out var stepObj)
+                ? stepObj?.ToString() ?? "Draft"
+                : "Draft";
+
+            var groupName = stepGroupMapping.TryGetValue(stepValue, out var mapped)
+                ? mapped
+                : stepValue;
+
+            var newValues = new Dictionary<int, object?>();
+            foreach (var kvp in row.Values)
+            {
+                if (kvp.Key == currentStepId)
+                    continue;
+
+                if (idMap.TryGetValue(kvp.Key, out var newId))
+                {
+                    newValues[newId] = kvp.Value;
+                }
+            }
+
+            if (!grouped.TryGetValue(groupName, out var groupScreen))
+            {
+                groupScreen = screenData with { Columns = columnsWithoutStep, Rows = [] };
+                grouped[groupName] = groupScreen;
+            }
+
+            var rowsList = grouped[groupName].Rows.ToList();
+            rowsList.Add(row with { Values = newValues });
+            grouped[groupName] = grouped[groupName] with { Rows = rowsList.ToArray() };
+        }
+
+        return grouped;
+    }
 }
