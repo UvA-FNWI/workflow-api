@@ -13,6 +13,7 @@ actions:
 - name: Reject
   type: Submit
   form: RejectSubject
+  intent: Destructive
   roles: [Coordinator]
   label:
     en: Reject

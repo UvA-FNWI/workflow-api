@@ -45,14 +45,14 @@ public record StepDto(
 
 public record ActionDto(
     ActionType Type,
-    ActionIntent Intent,
     BilingualString Title,
     string? Form = null,
     string? Name = null,
     string? UserId = null,
     Mail? Mail = null,
     string? Property = null,
-    string? Step = null
+    string? Step = null,
+    ActionIntent Intent = ActionIntent.Primary
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
@@ -63,26 +63,27 @@ public record ActionDto(
         {
             RoleAction.CreateRelatedInstance => new(
                 ActionType.CreateInstance,
-                action.Action.Intent,
                 action.Action.Label ?? Add(action.WorkflowDefinition?.DisplayTitle ?? "form"),
                 Form: action.Action.Property
             ),
             RoleAction.Execute => new(
                 ActionType.Execute,
-                action.Action.Intent,
                 action.Action.Label ?? action.Action.Name ?? "Action",
                 Name: action.Action.Name,
                 Mail: action.Mail
             ),
             RoleAction.Submit => new(
                 ActionType.SubmitForm,
-                action.Action.Intent,
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
                 Form: action.Form?.Name
             ),
             _ => throw new ArgumentOutOfRangeException()
         };
-        return dto with { Step = action.Action.Steps.Length == 1 ? action.Action.Steps[0] : null };
+        return dto with
+        {
+            Step = action.Action.Steps.Length == 1 ? action.Action.Steps[0] : null,
+            Intent = action.Action.Intent
+        };
     }
 
     private static BilingualString Add(BilingualString target) =>

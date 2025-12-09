@@ -1,0 +1,1005 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "WorkflowDefinition",
+  "type": "object",
+  "description": "Represents a type of object (\"entity\") in the workflow system",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "titlePlural"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Short internal name of the entity type"
+    },
+    "title": {
+      "description": "Localized title of the entity type",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
+    "titlePlural": {
+      "description": "Localized plural of the entity type title",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
+    "index": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Integer indicating the tab order in the instance page"
+    },
+    "isAlwaysVisible": {
+      "type": "boolean",
+      "description": "Always show this entity type to the user, even if the user has no rights"
+    },
+    "inheritsFrom": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Name of the entity type this type inherits from"
+    },
+    "instanceTitle": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Template for the title of an instance"
+    },
+    "properties": {
+      "type": "array",
+      "description": "Dictionary of properties for this entity type",
+      "items": {
+        "$ref": "#/definitions/PropertyDefinition"
+      }
+    },
+    "events": {
+      "type": "array",
+      "description": "Dictionary of event definitions for this entity type",
+      "items": {
+        "$ref": "#/definitions/EventDefinition"
+      }
+    },
+    "globalActions": {
+      "type": "array",
+      "description": "List of actions for this entity type",
+      "items": {
+        "$ref": "#/definitions/Action"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "List of step names for this entity type",
+      "items": {
+        "type": "string"
+      }
+    },
+    "headerFields": {
+      "type": "array",
+      "description": "List of header fields for this entity type",
+      "items": {
+        "$ref": "#/definitions/Field"
+      }
+    },
+    "results": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "List of computed results for this entity type",
+      "items": {
+        "$ref": "#/definitions/Result"
+      }
+    },
+    "isEmbedded": {
+      "type": "boolean",
+      "description": "Indicated whether this entity type is stored as an embedded document in the parent instance"
+    }
+  },
+  "definitions": {
+    "BilingualString": {
+      "title": "BilingualString",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "PropertyDefinition": {
+      "title": "PropertyDefinition",
+      "type": "object",
+      "description": "Represents a property of an entity type (which can also be used as a propertyDefinition in a form)",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the propertyDefinition"
+        },
+        "text": {
+          "description": "Localized text of the propertyDefinition",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "visibility": {
+          "description": "Set if this propertyDefinition is hidden from users without extra permissions",
+          "$ref": "#/definitions/PropertyVisibility"
+        },
+        "layout": {
+          "description": "Specific layout options for the data type",
+          "oneOf": [
+            {
+              "$ref": "#/definitions/ChoiceLayoutOptions"
+            },
+            {
+              "$ref": "#/definitions/StringLayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shortText": {
+          "description": "Localized short propertyDefinition text to shown in results",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "type": {
+          "type": "string",
+          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+        },
+        "values": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "description": "Values for a choice propertyDefinition.",
+          "additionalProperties": {
+            "$ref": "#/definitions/Choice"
+          }
+        },
+        "description": {
+          "description": "Localized extended description text for the propertyDefinition.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Condition that determines if the propertyDefinition should be shown",
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "validation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Condition that determines if the value is valid",
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "onSave": {
+          "type": "array",
+          "description": "Effect that is run whenever a value is changed for this property",
+          "items": {
+            "$ref": "#/definitions/Effect"
+          }
+        },
+        "hideInResults": {
+          "type": "boolean",
+          "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "table": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Configure table for the Table data type",
+              "$ref": "#/definitions/TableSettings"
+            }
+          ]
+        }
+      }
+    },
+    "PropertyVisibility": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "Hidden"
+      ]
+    },
+    "ChoiceLayoutOptions": {
+      "title": "ChoiceLayoutOptions",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Set if the propertyDefinition should be shown as dropdown or radio list",
+          "$ref": "#/definitions/ChoiceLayoutType"
+        }
+      }
+    },
+    "ChoiceLayoutType": {
+      "type": "string",
+      "enum": [
+        "Dropdown",
+        "RadioList"
+      ]
+    },
+    "StringLayoutOptions": {
+      "title": "StringLayoutOptions",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "multiline": {
+          "type": "boolean",
+          "description": "Set if the propertyDefinition should be a multiline text field"
+        },
+        "allowAttachments": {
+          "type": "boolean",
+          "description": "Set if the text field should allow attachments"
+        }
+      }
+    },
+    "Choice": {
+      "title": "Choice",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "description": "Localized text of the choice",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "description": {
+          "description": "Localized extended description text for the choice",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "Numeric value of the choice"
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Condition that determines if the choice should be shown",
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        }
+      }
+    },
+    "Condition": {
+      "title": "Condition",
+      "type": "object",
+      "description": "Represents a logical condition",
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "type": "boolean",
+          "description": "If true, this condition is inverted"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Compare property values",
+              "$ref": "#/definitions/Value"
+            }
+          ]
+        },
+        "logical": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "For and/or constructs",
+              "$ref": "#/definitions/Logical"
+            }
+          ]
+        },
+        "event": {
+          "description": "Check if an event has occurred",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EventCondition"
+            }
+          ]
+        },
+        "date": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a date has passed",
+              "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a deadline has passed",
+              "$ref": "#/definitions/Deadline"
+            }
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Use a named reusable condition"
+        },
+        "message": {
+          "description": "Message that is shown then the condition is not, for use in form validation",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "Value": {
+      "title": "Value",
+      "type": "object",
+      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix the value with an equals sign to indicate a literal value)",
+      "additionalProperties": false,
+      "required": [
+        "property"
+      ],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "Target property"
+        },
+        "equal": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "lessThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "greaterThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "greaterThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+        }
+      }
+    },
+    "Logical": {
+      "title": "Logical",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "$ref": "#/definitions/LogicalOperator"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          }
+        }
+      }
+    },
+    "LogicalOperator": {
+      "type": "string",
+      "enum": [
+        "And",
+        "Or"
+      ]
+    },
+    "EventCondition": {
+      "title": "EventCondition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Id of the event to check for"
+        },
+        "notBefore": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If set, the event should not have occurred before this event"
+        }
+      }
+    },
+    "Date": {
+      "title": "Date",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "Deadline": {
+      "title": "Deadline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionText"
+      ],
+      "properties": {
+        "expressionText": {
+          "type": "string"
+        }
+      }
+    },
+    "Effect": {
+      "title": "Effect",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Condition that determines if this trigger is active",
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "sendMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Send an email",
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
+        "http": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Do an http call to an external service",
+              "$ref": "#/definitions/Http"
+            }
+          ]
+        },
+        "setProperty": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Set a property on the current instance",
+              "$ref": "#/definitions/SetProperty"
+            }
+          ]
+        },
+        "event": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Complete an event"
+        },
+        "undoEvent": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Undo an event"
+        }
+      }
+    },
+    "SendMessage": {
+      "title": "SendMessage",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "toAddress": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "subject": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "body": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "template": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "sendAsMail": {
+          "type": "boolean"
+        },
+        "sendAutomatically": {
+          "type": "boolean"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Attachment"
+          }
+        }
+      }
+    },
+    "Attachment": {
+      "title": "Attachment",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template"
+      ],
+      "properties": {
+        "template": {
+          "type": "string"
+        }
+      }
+    },
+    "Http": {
+      "title": "Http",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Template for the url to call"
+        }
+      }
+    },
+    "SetProperty": {
+      "title": "SetProperty",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "property",
+        "value"
+      ],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "Target property name"
+        },
+        "value": {
+          "type": "string",
+          "description": "Expression that determines the value of the property"
+        }
+      }
+    },
+    "TableSettings": {
+      "title": "TableSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "form"
+      ],
+      "properties": {
+        "form": {
+          "type": "string"
+        },
+        "layout": {
+          "$ref": "#/definitions/TableLayout"
+        }
+      }
+    },
+    "TableLayout": {
+      "type": "string",
+      "enum": [
+        "InlineEditing",
+        "Modal"
+      ]
+    },
+    "EventDefinition": {
+      "title": "EventDefinition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the event"
+        }
+      }
+    },
+    "Action": {
+      "title": "Action",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the action"
+        },
+        "label": {
+          "description": "Localized label of the action as shown in the user interface",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "intent": {
+          "$ref": "#/definitions/ActionIntent"
+        },
+        "roles": {
+          "type": "array",
+          "description": "List of roles that can perform this action",
+          "items": {
+            "type": "string"
+          }
+        },
+        "form": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Target form for View / Submit / Edit actions"
+        },
+        "forms": {
+          "type": "array",
+          "description": "List of target forms for View / Submit / Edit actions",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collections": {
+          "type": "array",
+          "description": "List of target collections for ??? (not yet implemented)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "propertyDefinition": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Target propertyDefinition for the view hidden propertyDefinition action"
+        },
+        "workflowDefinition": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "type": {
+          "description": "Type of action",
+          "$ref": "#/definitions/RoleAction"
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Condition that determines whether the action is permitted",
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "onAction": {
+          "type": "array",
+          "description": "List of effects to run for an Execute action",
+          "items": {
+            "$ref": "#/definitions/Effect"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "description": "List of steps during which this action is permitted",
+          "items": {
+            "type": "string"
+          }
+        },
+        "property": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Target property for the CreateRelatedInstance action"
+        },
+        "userProperty": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Weird thing, maybe we should get rid of this?"
+        },
+        "limit": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Weird thing, maybe we should get rid of this?"
+        }
+      }
+    },
+    "ActionIntent": {
+      "type": "string",
+      "enum": [
+        "Primary",
+        "Secondary",
+        "Destructive"
+      ]
+    },
+    "RoleAction": {
+      "type": "string",
+      "enum": [
+        "View",
+        "Submit",
+        "Edit",
+        "Undo",
+        "ViewAdminTools",
+        "Execute",
+        "ViewHidden",
+        "ViewUsers",
+        "ViewStates",
+        "Delete",
+        "AddInstanceMessage",
+        "ViewAnswerMessages",
+        "AssignMessages",
+        "CreateInstance",
+        "CreateRelatedInstance"
+      ]
+    },
+    "Field": {
+      "title": "Field",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "property": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Property this field refers to"
+        },
+        "value": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Custom value template"
+        },
+        "href": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Url the field should refer to"
+        },
+        "default": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Default value to use if the target is empty"
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "endDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Target step the field should show the end date of"
+        },
+        "currentStep": {
+          "type": "boolean",
+          "description": "If true, display the current step in this field"
+        }
+      }
+    },
+    "Result": {
+      "title": "Result",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "weight"
+      ],
+      "properties": {
+        "title": {
+          "description": "Localized title of this result shown to the user",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "description": "List of questions that are included in this result entry",
+          "items": {
+            "type": "string"
+          }
+        },
+        "weight": {
+          "type": "number",
+          "description": "Weight of this result entry"
+        }
+      }
+    }
+  }
+}
