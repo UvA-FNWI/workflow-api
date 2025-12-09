@@ -66,10 +66,10 @@
       ]
     },
     "properties": {
-      "type": "object",
+      "type": "array",
       "description": "Properties related to this step. These will become properties of the corresponding entity",
-      "additionalProperties": {
-        "$ref": "#/definitions/Question"
+      "items": {
+        "$ref": "#/definitions/PropertyDefinition"
       }
     }
   },
@@ -152,6 +152,17 @@
             {
               "description": "Check if a date has passed",
               "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a deadline has passed",
+              "$ref": "#/definitions/Deadline"
             }
           ]
         },
@@ -278,16 +289,29 @@
         }
       }
     },
+    "Deadline": {
+      "title": "Deadline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionText"
+      ],
+      "properties": {
+        "expressionText": {
+          "type": "string"
+        }
+      }
+    },
     "Action": {
       "title": "Action",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
-          "type": [
-            "null",
-            "string"
-          ],
+          "type": "string",
           "description": "Internal name of the action"
         },
         "label": {
@@ -303,6 +327,9 @@
               "$ref": "#/definitions/BilingualString"
             }
           ]
+        },
+        "intent": {
+          "$ref": "#/definitions/ActionIntent"
         },
         "roles": {
           "type": "array",
@@ -332,19 +359,18 @@
             "type": "string"
           }
         },
-        "question": {
+        "propertyDefinition": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Target question for the view hidden question action"
+          "description": "Target propertyDefinition for the view hidden propertyDefinition action"
         },
-        "entity": {
+        "workflowDefinition": {
           "type": [
             "null",
             "string"
-          ],
-          "description": "Entity type this action applies to"
+          ]
         },
         "type": {
           "description": "Type of action",
@@ -361,11 +387,11 @@
             }
           ]
         },
-        "triggers": {
+        "onAction": {
           "type": "array",
-          "description": "List of triggers to run for an Execute action",
+          "description": "List of effects to run for an Execute action",
           "items": {
-            "$ref": "#/definitions/Trigger"
+            "$ref": "#/definitions/Effect"
           }
         },
         "steps": {
@@ -398,6 +424,14 @@
         }
       }
     },
+    "ActionIntent": {
+      "type": "string",
+      "enum": [
+        "Primary",
+        "Secondary",
+        "Destructive"
+      ]
+    },
     "RoleAction": {
       "type": "string",
       "enum": [
@@ -418,8 +452,8 @@
         "CreateRelatedInstance"
       ]
     },
-    "Trigger": {
-      "title": "Trigger",
+    "Effect": {
+      "title": "Effect",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -578,17 +612,22 @@
         }
       }
     },
-    "Question": {
-      "title": "Question",
+    "PropertyDefinition": {
+      "title": "PropertyDefinition",
       "type": "object",
-      "description": "Represents a property of an entity type (which can also be used as a question in a form)",
+      "description": "Represents a property of an entity type (which can also be used as a propertyDefinition in a form)",
       "additionalProperties": false,
       "required": [
+        "name",
         "type"
       ],
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the propertyDefinition"
+        },
         "text": {
-          "description": "Localized text of the question",
+          "description": "Localized text of the propertyDefinition",
           "oneOf": [
             {
               "type": "null"
@@ -601,9 +640,9 @@
             }
           ]
         },
-        "kind": {
-          "description": "Set if this question is hidden from users without extra permissions",
-          "$ref": "#/definitions/QuestionKind"
+        "visibility": {
+          "description": "Set if this propertyDefinition is hidden from users without extra permissions",
+          "$ref": "#/definitions/PropertyVisibility"
         },
         "layout": {
           "description": "Specific layout options for the data type",
@@ -620,7 +659,7 @@
           ]
         },
         "shortText": {
-          "description": "Localized short question text to shown in results",
+          "description": "Localized short propertyDefinition text to shown in results",
           "oneOf": [
             {
               "type": "null"
@@ -635,20 +674,20 @@
         },
         "type": {
           "type": "string",
-          "description": "Data type of the question. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
         },
         "values": {
           "type": [
             "null",
             "object"
           ],
-          "description": "Values for a choice question.",
+          "description": "Values for a choice propertyDefinition.",
           "additionalProperties": {
             "$ref": "#/definitions/Choice"
           }
         },
         "description": {
-          "description": "Localized extended description text for the question.",
+          "description": "Localized extended description text for the propertyDefinition.",
           "oneOf": [
             {
               "type": "null"
@@ -667,7 +706,7 @@
               "type": "null"
             },
             {
-              "description": "Condition that determines if the question should be shown",
+              "description": "Condition that determines if the propertyDefinition should be shown",
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -685,14 +724,14 @@
         },
         "onSave": {
           "type": "array",
-          "description": "Trigger that is run whenever a value is changed for this property",
+          "description": "Effect that is run whenever a value is changed for this property",
           "items": {
-            "$ref": "#/definitions/Trigger"
+            "$ref": "#/definitions/Effect"
           }
         },
         "hideInResults": {
           "type": "boolean",
-          "description": "Determines if the question should be hidden in the results table"
+          "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
         "table": {
           "oneOf": [
@@ -707,7 +746,7 @@
         }
       }
     },
-    "QuestionKind": {
+    "PropertyVisibility": {
       "type": "string",
       "enum": [
         "Normal",
@@ -720,7 +759,7 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "description": "Set if the question should be shown as dropdown or radio list",
+          "description": "Set if the propertyDefinition should be shown as dropdown or radio list",
           "$ref": "#/definitions/ChoiceLayoutType"
         }
       }
@@ -739,7 +778,7 @@
       "properties": {
         "multiline": {
           "type": "boolean",
-          "description": "Set if the question should be a multiline text field"
+          "description": "Set if the propertyDefinition should be a multiline text field"
         },
         "allowAttachments": {
           "type": "boolean",
