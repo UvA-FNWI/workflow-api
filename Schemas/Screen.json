@@ -11,12 +11,12 @@
       "type": "string",
       "description": "Internal name of the screen"
     },
-    "entityType": {
+    "workflowDefinition": {
       "type": [
         "null",
         "string"
       ],
-      "description": "EntityType this screen is used for"
+      "description": "WorkflowDefinition this screen is used for"
     },
     "columns": {
       "type": "array",

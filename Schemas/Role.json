@@ -62,12 +62,12 @@
       "title": "Action",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
-          "type": [
-            "null",
-            "string"
-          ],
+          "type": "string",
           "description": "Internal name of the action"
         },
         "label": {
@@ -112,19 +112,18 @@
             "type": "string"
           }
         },
-        "question": {
+        "propertyDefinition": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Target question for the view hidden question action"
+          "description": "Target propertyDefinition for the view hidden propertyDefinition action"
         },
-        "entity": {
+        "workflowDefinition": {
           "type": [
             "null",
             "string"
-          ],
-          "description": "Entity type this action applies to"
+          ]
         },
         "type": {
           "description": "Type of action",
@@ -141,11 +140,11 @@
             }
           ]
         },
-        "triggers": {
+        "onAction": {
           "type": "array",
-          "description": "List of triggers to run for an Execute action",
+          "description": "List of effects to run for an Execute action",
           "items": {
-            "$ref": "#/definitions/Trigger"
+            "$ref": "#/definitions/Effect"
           }
         },
         "steps": {
@@ -252,6 +251,17 @@
             {
               "description": "Check if a date has passed",
               "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a deadline has passed",
+              "$ref": "#/definitions/Deadline"
             }
           ]
         },
@@ -378,8 +388,21 @@
         }
       }
     },
-    "Trigger": {
-      "title": "Trigger",
+    "Deadline": {
+      "title": "Deadline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionText"
+      ],
+      "properties": {
+        "expressionText": {
+          "type": "string"
+        }
+      }
+    },
+    "Effect": {
+      "title": "Effect",
       "type": "object",
       "additionalProperties": false,
       "properties": {
