@@ -109,7 +109,7 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
             .Select((c, idx) => (OldId: c.Id, NewId: idx))
             .ToDictionary(x => x.OldId, x => x.NewId);
 
-        var grouped = new GroupedScreenDataDto();
+        var groupedRows = new Dictionary<string, List<ScreenRowDto>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var row in screenData.Rows)
         {
@@ -121,27 +121,28 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
                 ? mapped
                 : stepValue;
 
-            var newValues = new Dictionary<int, object?>();
-            foreach (var kvp in row.Values)
+            if (!groupedRows.TryGetValue(groupName, out var list))
             {
-                if (kvp.Key == currentStepId)
-                    continue;
+                list = [];
+                groupedRows[groupName] = list;
+            }
 
+            var newValues = new Dictionary<int, object?>(row.Values.Count);
+            foreach (var kvp in row.Values.Where(kvp => kvp.Key != currentStepId))
+            {
                 if (idMap.TryGetValue(kvp.Key, out var newId))
                 {
                     newValues[newId] = kvp.Value;
                 }
             }
 
-            if (!grouped.TryGetValue(groupName, out var groupScreen))
-            {
-                groupScreen = screenData with { Columns = columnsWithoutStep, Rows = [] };
-                grouped[groupName] = groupScreen;
-            }
+            list.Add(row with { Values = newValues });
+        }
 
-            var rowsList = grouped[groupName].Rows.ToList();
-            rowsList.Add(row with { Values = newValues });
-            grouped[groupName] = grouped[groupName] with { Rows = rowsList.ToArray() };
+        var grouped = new GroupedScreenDataDto();
+        foreach (var kvp in groupedRows)
+        {
+            grouped[kvp.Key] = screenData with { Columns = columnsWithoutStep, Rows = kvp.Value.ToArray() };
         }
 
         return grouped;
