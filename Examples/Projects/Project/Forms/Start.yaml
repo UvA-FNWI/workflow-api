@@ -1,4 +1,5 @@
 name: Start
+step: Subject
 
 pages:
   - name: Contents

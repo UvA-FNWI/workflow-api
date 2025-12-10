@@ -43,6 +43,13 @@
       ],
       "description": "To be used in combination with Property. The name of a form for the referenced entity type"
     },
+    "step": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Step this form belongs to"
+    },
     "pages": {
       "type": "array",
       "description": "Dictionary of pages of this form",

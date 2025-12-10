@@ -5,7 +5,8 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
-    bool HasResults)
+    bool HasResults,
+    string? Step)
 {
     public static FormDto Create(Form form)
     {
@@ -21,7 +22,8 @@ public record FormDto(
             form.Title ?? form.Name,
             filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]))).ToArray(),
             form.Layout,
-            form.WorkflowDefinition.Results != null
+            form.WorkflowDefinition.Results != null,
+            form.Step
         );
     }
 }
