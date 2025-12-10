@@ -117,6 +117,15 @@ public class Generator(DocumentationReader documentationReader)
 
         var isNullable = _nullabilityInfoContext.Create(property).WriteState == NullabilityState.Nullable;
 
+        if (property.Name == "Icon" && targetType == typeof(string))
+            return CreateOneOf(
+                isNullable ? Null : null,
+                new JsonSchemaProperty
+                {
+                    Type = JsonObjectType.String,
+                    Enumeration = { IconSet.Values }
+                });
+
         var basicProp = targetType switch
         {
             // types that are compatible with string

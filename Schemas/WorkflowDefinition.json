@@ -785,9 +785,6 @@
             }
           ]
         },
-        "intent": {
-          "$ref": "#/definitions/ActionIntent"
-        },
         "roles": {
           "type": "array",
           "description": "List of roles that can perform this action",
@@ -880,14 +877,6 @@
           "description": "Weird thing, maybe we should get rid of this?"
         }
       }
-    },
-    "ActionIntent": {
-      "type": "string",
-      "enum": [
-        "Primary",
-        "Secondary",
-        "Destructive"
-      ]
     },
     "RoleAction": {
       "type": "string",
