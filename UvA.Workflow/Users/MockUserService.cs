@@ -12,7 +12,7 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
         new() { UserName = "3", DisplayName = "User 3", Email = "3@invalid.invalid" }
     ];
 
-    private static readonly IEnumerable<string> Roles = ["Coordinator", "SuperAdmin", "Admin"];
+    private static readonly IEnumerable<string> Roles = ["Coordinator", "Api", "Admin"];
 
     public Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default) => Task.FromResult(Roles);
 
