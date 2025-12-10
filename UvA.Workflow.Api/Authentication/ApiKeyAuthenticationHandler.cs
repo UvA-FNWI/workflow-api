@@ -39,7 +39,7 @@ public class ApiKeyAuthenticationHandler(
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, "ApiKeyUser"),
+            new(ClaimTypes.Name, UserServiceBase.ApiUserName),
             new("auth_scheme", AuthenticationScheme)
         };
         var identity = new ClaimsIdentity(claims, AuthenticationScheme);

@@ -1,4 +1,4 @@
-name: SystemAdmin
+name: Api
 inheritFrom: [Coordinator]
 actions:
 - type: CreateInstance

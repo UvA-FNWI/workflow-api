@@ -10,6 +10,7 @@ public abstract class UserServiceBase(
 {
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
     private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
+    public const string ApiUserName = "__ApiUser";
 
     /// <summary>
     /// Adds a new user or updates an existing user in the repository. If the user does not exist,
@@ -66,7 +67,10 @@ public abstract class UserServiceBase(
     {
         var cacheKey = GetCacheKeyForUser(username);
         if (cache.TryGetValue(cacheKey, out User? user)) return user;
-        user = await userRepository.GetByExternalId(username, ct);
+        if (username == ApiUserName)
+            user = new User { UserName = username, DisplayName = "Api", Email = "api@invalid.uva.nl" };
+        else
+            user = await userRepository.GetByExternalId(username, ct);
         if (user != null)
             cache.Set(cacheKey, user, UserCacheExpiration);
         return user;
@@ -101,7 +105,10 @@ public class UserService(
     {
         var cacheKey = GetCacheKeyForRoles(user.UserName);
         if (cache.TryGetValue(cacheKey, out string[]? roles)) return roles!;
-        roles = (await dataNoseApiClient.GetRolesByUser(user.UserName, ct)).ToArray();
+        if (user.UserName == ApiUserName)
+            roles = ["Api"];
+        else
+            roles = (await dataNoseApiClient.GetRolesByUser(user.UserName, ct)).ToArray();
         cache.Set(cacheKey, roles, RolesCacheExpiration);
         return roles;
     }
