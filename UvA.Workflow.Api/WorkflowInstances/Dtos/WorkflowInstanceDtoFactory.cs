@@ -1,5 +1,7 @@
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -7,6 +9,8 @@ public class WorkflowInstanceDtoFactory(
     InstanceService instanceService,
     ModelService modelService,
     SubmissionDtoFactory submissionDtoFactory,
+    IWorkflowInstanceRepository repository,
+    ScreenDataService screenDataService,
     RightsService rightsService)
 {
     /// <summary>
@@ -26,12 +30,31 @@ public class WorkflowInstanceDtoFactory(
             instance.CurrentStep,
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
-            [],
+            CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
             workflowDefinition.Steps.Select(s => StepDto.Create(s, instance, modelService)).ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus))
                 .ToArray(),
             permissions.Select(a => a.Type).Distinct().ToArray()
         );
+    }
+
+
+    private async Task<FieldDto[]> CreateFields(WorkflowDefinition workflowDefinition, string instanceId,
+        CancellationToken ct)
+    {
+        var result = new List<FieldDto>();
+        var projection = screenDataService.BuildProjection(workflowDefinition.HeaderFields, workflowDefinition.Name);
+        var rawValues = (await repository.GetAllById([instanceId], projection, ct)).FirstOrDefault();
+        if (rawValues is not null)
+        {
+            foreach (var field in workflowDefinition.HeaderFields)
+            {
+                var obj = screenDataService.ProcessColumnValue(rawValues, field, workflowDefinition.Name, instanceId);
+                result.Add(new FieldDto(field.DisplayTitle, obj));
+            }
+        }
+
+        return result.ToArray();
     }
 }

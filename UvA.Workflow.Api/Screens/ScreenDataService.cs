@@ -16,7 +16,7 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
 
         // Build projection based on screen columns
-        var projection = BuildProjection(screen, workflowDefinition);
+        var projection = BuildProjection(screen.Columns.Cast<Field>().ToArray(), workflowDefinition);
         var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
 
         // Process the data and apply templates/expressions
@@ -34,14 +34,14 @@ public class ScreenDataService(
         return entity.Screens.GetOrDefault(screenName);
     }
 
-    private Dictionary<string, string> BuildProjection(Screen screen, string workflowDefinition)
+    public Dictionary<string, string> BuildProjection(Field[] columns, string workflowDefinition)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
 
         var projection = new Dictionary<string, string>();
 
-        foreach (var column in screen.Columns)
+        foreach (var column in columns)
         {
             if (column.CurrentStep)
             {
@@ -121,9 +121,9 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
-    private object? ProcessColumnValue(
+    public object? ProcessColumnValue(
         Dictionary<string, BsonValue> rawRow,
-        Column column,
+        Field column,
         string workflowDefinition,
         string instanceId
     )
