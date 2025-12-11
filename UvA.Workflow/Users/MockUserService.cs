@@ -21,7 +21,11 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
             .Where(u => u.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase))
             .Select(r => new UserSearchResult(r.Id, r.DisplayName, r.Email)));
 
-    public Task<User?> GetCurrentUser(CancellationToken ct = default) => GetUser(DummyUsers.First().UserName, ct);
+    public async Task<User?> GetCurrentUser(CancellationToken ct = default)
+    {
+        var user = DummyUsers.First();
+        return await AddOrUpdateUser(user.UserName, user.DisplayName, user.Email, ct);
+    }
 
     public Task<IEnumerable<string>> GetRolesOfCurrentUser(CancellationToken ct = default) => Task.FromResult(Roles);
 }
