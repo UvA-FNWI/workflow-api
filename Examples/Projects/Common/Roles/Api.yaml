@@ -2,6 +2,6 @@ name: Api
 inheritFrom: [Coordinator]
 actions:
 - type: CreateInstance
-  entity: Context
+  workflowDefinition: Context
 - type: CreateInstance
-  entity: Project
+  workflowDefinition: Project

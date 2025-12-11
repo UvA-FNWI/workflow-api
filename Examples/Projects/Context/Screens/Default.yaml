@@ -1,5 +1,5 @@
 name: Contexts
-entityType: Context
+workflowDefinition: Context
 columns:
   - property: Name
     link: true

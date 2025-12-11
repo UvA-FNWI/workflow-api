@@ -2,18 +2,18 @@ name: Context
 titlePlural: Contexts
 
 properties:
-  Name:
+  - name: Name
     type: String!
 
-  ExternalId:
+  - name: ExternalId
     type: String!
 
-  Type:
+  - name: Type
     type: ContextType!
     values:
       Course: {}
       Group: {}
       Specialisation: {}
 
-  Coordinator:
+  - name: Coordinator
     type: "[User]!"

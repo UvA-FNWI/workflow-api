@@ -48,7 +48,7 @@ public class WorkflowInstancesController(
             input.WorkflowDefinition,
             user,
             ct,
-            actions.First().UserProperty,
+            actions.FirstOrDefault(a => a.UserProperty != null)?.UserProperty,
             input.ParentId,
             initial
         );
