@@ -25,7 +25,7 @@ public class WorkflowInstancesController(
         var user = await userService.GetCurrentUser(ct);
         if (user == null) return Unauthorized();
         var actions = input.ParentId == null
-            ? await rightsService.GetAllowedActions(input.EntityType, RoleAction.CreateInstance)
+            ? await rightsService.GetAllowedActions(input.WorkflowDefinition, RoleAction.CreateInstance)
             : [];
         if (actions.Length == 0)
             return Forbid();
@@ -44,7 +44,7 @@ public class WorkflowInstancesController(
         }
 
         var instance = await service.Create(
-            input.EntityType,
+            input.WorkflowDefinition,
             user,
             ct,
             actions.First().UserProperty,

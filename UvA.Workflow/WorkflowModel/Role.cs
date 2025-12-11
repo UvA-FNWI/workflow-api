@@ -1,6 +1,6 @@
 namespace UvA.Workflow.Entities.Domain;
 
-public class Role
+public class Role : INamed
 {
     /// <summary>
     /// Internal name of this role
@@ -49,19 +49,21 @@ public enum RoleAction
     CreateRelatedInstance
 }
 
-public class Action
+public class Action : INamed
 {
     public const string All = "<All>";
 
     /// <summary>
     /// Internal name of the action
     /// </summary>
-    public string? Name { get; set; }
+    public string Name { get; set; } = null!;
 
     /// <summary>
     /// Localized label of the action as shown in the user interface
     /// </summary>
     public BilingualString? Label { get; set; }
+
+    public ActionIntent Intent { get; set; } = ActionIntent.Primary;
 
     /// <summary>
     /// List of roles that can perform this action
@@ -86,15 +88,11 @@ public class Action
     public string[] Collections { get; set; } = [];
 
     /// <summary>
-    /// Target question for the view hidden question action
+    /// Target propertyDefinition for the view hidden propertyDefinition action
     /// </summary>
-    public string? Question { get; set; }
+    public string? PropertyDefinition { get; set; }
 
-    /// <summary>
-    /// Entity type this action applies to
-    /// </summary>
-    [YamlMember(Alias = "entity")]
-    public string? EntityType { get; set; }
+    public string? WorkflowDefinition { get; set; }
 
     /// <summary>
     /// Type of action
@@ -107,9 +105,9 @@ public class Action
     public Condition? Condition { get; set; }
 
     /// <summary>
-    /// List of triggers to run for an Execute action
+    /// List of effects to run for an Execute action
     /// </summary>
-    public Trigger[] Triggers { get; set; } = [];
+    public Effect[] OnAction { get; set; } = [];
 
     /// <summary>
     /// List of steps during which this action is permitted 

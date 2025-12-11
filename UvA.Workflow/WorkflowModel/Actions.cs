@@ -9,6 +9,13 @@ public enum ActionType
     DeleteInstance
 }
 
+public enum ActionIntent
+{
+    Primary,
+    Secondary,
+    Destructive
+}
+
 public record WorkflowAction(
     string InstanceId,
     ActionType Type,

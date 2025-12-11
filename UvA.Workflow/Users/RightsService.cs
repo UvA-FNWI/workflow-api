@@ -14,14 +14,15 @@ public class RightsService(
         .Append("Registered");
 
 
-    public async Task<Domain_Action[]> GetAllowedActions(string? entityType, params RoleAction[] actions)
+    public async Task<Domain_Action[]> GetAllowedActions(string? workflowDefinition, params RoleAction[] actions)
         => (await GetGlobalRoles())
             .Select(r => modelService.Roles.GetValueOrDefault(r))
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(new ObjectContext(new())))
                             && actions.Contains(a.Type)
-                            && (a.EntityType == null || a.EntityType == entityType?.Split('/')[0])
+                            && (a.WorkflowDefinition == null ||
+                                a.WorkflowDefinition == workflowDefinition?.Split('/')[0])
                 ))
             .ToArray();
 
@@ -31,14 +32,14 @@ public class RightsService(
         if (user == null) return [];
 
         // Process inherited roles
-        var properties = modelService.EntityTypes[instance.EntityType].Properties.Values;
+        var properties = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties;
 
         var inheritedRoles = properties
             .Where(p => p.InheritedRoles.Any())
             .SelectMany(p => p.InheritedRoles.Select(r => new
             {
                 Role = r,
-                EntityType = p.EntityType,
+                p.WorkflowDefinition,
                 InstanceId = instance.Properties.GetValueOrDefault(p.Name)?.ToString()
             }))
             .Where(r => r.EntityType != null && !string.IsNullOrEmpty(r.InstanceId))
@@ -88,14 +89,14 @@ public class RightsService(
                 .Where(a => (a.Condition == null || a.Condition.IsMet(modelService.CreateContext(instance)))
                             && actions.Contains(a.Type)
                             && (a.Steps.Length == 0 || a.Steps.Intersect(modelService.GetActiveSteps(instance)).Any())
-                            && (a.EntityType == null || a.EntityType == instance.EntityType)
+                            && (a.WorkflowDefinition == null || a.WorkflowDefinition == instance.WorkflowDefinition)
                 ))
             .Distinct()
             .ToArray();
     }
 
-    public async Task<bool> CanAny(string? entityType, params RoleAction[] actions)
-        => (await GetAllowedActions(entityType, actions)).Any();
+    public async Task<bool> CanAny(string? workflowDefinition, params RoleAction[] actions)
+        => (await GetAllowedActions(workflowDefinition, actions)).Any();
 
     public async Task<Domain_Action[]> GetAllowedFormActions(WorkflowInstance instance, string form,
         params RoleAction[] actions)

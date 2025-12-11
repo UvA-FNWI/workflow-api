@@ -1,17 +1,17 @@
 name: Assessment
 
 pages:
-  Report:
-    questions:
+  - name: Report
+    fields:
       - Structure
       - Polishing
       - Nose
-  Presentation:
-    questions:
+  - name: Presentation
+    fields:
       - Loudness
       - Style
       - Contents
-  Practical:
-    questions:
+  - name: Practical
+    fields:
       - Bananas
     sources: [AssessmentSupervisor]

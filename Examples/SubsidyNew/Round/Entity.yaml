@@ -4,9 +4,9 @@ titlePlural: Rounds
 instanceTitle: '{{ Name }}'
 
 properties:
-  Name:
+  - name: Name
     type: String!
-  Deadline:
+  - name: Deadline
     type: Date!
     
 actions:

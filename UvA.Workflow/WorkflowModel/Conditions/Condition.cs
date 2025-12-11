@@ -5,6 +5,9 @@ namespace UvA.Workflow.Entities.Domain.Conditions;
 /// <summary>
 /// Represents a logical condition
 /// </summary>
+/// <summary>
+/// Represents a logical condition
+/// </summary>
 public class Condition
 {
     /// <summary>

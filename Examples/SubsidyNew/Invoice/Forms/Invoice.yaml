@@ -2,9 +2,9 @@ name: Invoice
 title: Invoice details
     
 pages:
-  Page:
+  - name: Page
     title: Submit invoice
-    questions:
+    fields:
       - Invoice
       - Name
       - Description

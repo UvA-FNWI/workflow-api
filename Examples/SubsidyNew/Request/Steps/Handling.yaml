@@ -15,8 +15,7 @@ actions:
     type: Execute
     name: Close
     label: Close request
-    triggers:
-      - event: Close
+
         
 ends:
   event: Close

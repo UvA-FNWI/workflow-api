@@ -1,5 +1,6 @@
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.SchemaGenerator.Generation;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.SchemaGenerator;
 
@@ -13,7 +14,7 @@ public class Worker(IHostApplicationLifetime lifetime) : BackgroundService
 
         Type[] types =
         [
-            typeof(EntityType),
+            typeof(WorkflowDefinition),
             typeof(Form),
             typeof(Screen),
             typeof(Role),

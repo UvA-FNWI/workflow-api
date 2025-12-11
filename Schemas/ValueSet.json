@@ -3,7 +3,13 @@
   "title": "ValueSet",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "name"
+  ],
   "properties": {
+    "name": {
+      "type": "string"
+    },
     "values": {
       "type": "object",
       "description": "Dictionary of choices within this value set",
@@ -140,6 +146,17 @@
             }
           ]
         },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a deadline has passed",
+              "$ref": "#/definitions/Deadline"
+            }
+          ]
+        },
         "name": {
           "type": [
             "null",
@@ -259,6 +276,19 @@
       ],
       "properties": {
         "source": {
+          "type": "string"
+        }
+      }
+    },
+    "Deadline": {
+      "title": "Deadline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionText"
+      ],
+      "properties": {
+        "expressionText": {
           "type": "string"
         }
       }

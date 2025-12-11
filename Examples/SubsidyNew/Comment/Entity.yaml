@@ -2,21 +2,21 @@ name: Comment
 title: Comment
 titlePlural: Comments
 properties:
-  User:
+  - name: User
     type: User!
     kind: Hidden
   
-  Comment:
+  - name: Comment
     type: String
     multiline: true
-  Advice:
+  - name: Advice
     type: Enum
     values:
       Approve: {}
       Reject: {}
       Postpone: {}
       Discuss: {}
-  Amount:
+  - name: Amount
     type: Currency
     
 actions:

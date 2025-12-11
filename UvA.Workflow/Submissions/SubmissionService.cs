@@ -14,7 +14,7 @@ public record InvalidQuestion(
 public class SubmissionService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    TriggerService triggerService,
+    EffectService effectService,
     InstanceService instanceService
 )
 {
@@ -48,14 +48,14 @@ public class SubmissionService(
         var objectContext = modelService.CreateContext(instance);
 
         // Validate required fields
-        var missing = form.Questions
+        var missing = form.PropertyDefinitions
             .Where(q => q.IsRequired && !instance.HasAnswer(q.Name)
                                      && q.Condition.IsMet(objectContext))
             .Select(q => new InvalidQuestion(q.Name, new BilingualString("Required field", "Verplicht veld")))
             .ToArray();
 
         // Validate field validation rules
-        var invalid = form.Questions
+        var invalid = form.PropertyDefinitions
             .Where(q => instance.HasAnswer(q.Name) && !q.Validation.IsMet(objectContext))
             .Select(q => new InvalidQuestion(
                 q.Name,
@@ -69,7 +69,7 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors);
         }
 
-        await triggerService.RunTriggers(instance, [new Trigger { Event = submissionId }, ..form.OnSubmit], user, ct);
+        await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct);
 
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);

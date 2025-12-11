@@ -1,24 +1,24 @@
 properties:
-  Submitter:
+  - name: Submitter
     type: User!
   
-  Title:
+  - name: Title
     type: String!
-  ContactName:
+  - name: ContactName
     type: String
     text: Contact name
-  ContactEmail:
+  - name: ContactEmail
     type: String
     text: Contact email
-  Place:
+  - name: Place
     type: String!
     text: Location of the event
     shortText: Location
-  Date:
+  - name: Date
     type: Date!
     text: Start date of the event
     shortText: Start date
-  EndDate:
+  - name: EndDate
     type: Date!
     text: End date of the event
     shortText: End date
@@ -27,66 +27,66 @@ properties:
       value:
         property: EndDate
         greaterThanOrEqual: Date
-  Description:
+  - name: Description
     type: String!
     text: Short description of the event (max 100 words)
     shortText: Description
     multiline: true
-  Amount:
+  - name: Amount
     type: Currency!
     text: Requested amount of financial support
     shortText: Amount
-  Participants:
+  - name: Participants
     type: String!
     text: Expected number of participants
     description: Enter 0 if not applicable
-  Speakers:
+  - name: Speakers
     type: String
     text: Main speakers, if known
     shortText: Main speakers
     multiline: true
   
-  Application:
+  - name: Application
     type: File!
-  Budget:
+  - name: Budget
     type: File!
     description: Upload a budget for the event, preferably in the form of a table with expenditure and income
   
-  Round:
+  - name: Round
     type: Round
     kind: Hidden
     hideInResults: true
-  TotalPaid:
+  - name: TotalPaid
     type: "[Currency]"
     hideInResults: true
     
-  DecisionComment:
+  - name: DecisionComment
     type: String
     multiline: true
-  Decision:
+  - name: Decision
     type: Decision!
     values:
       Approve: {}
       Reject: {}
       Postpone: {}
-  DecisionAmount:
+  - name: DecisionAmount
     type: Currency!
     condition:
       value:
         property: Decision
         equal: =Approve
         
-  Report:
+  - name: Report
     text: Upload your report here
     type: File
     
-  Comments:
+  - name: Comments
     type: "[Comment]"
     
-  Invoices:
+  - name: Invoices
     type: "[Invoice]"
     
-  ClosureStatus:
+  - name: ClosureStatus
     type: ClosureStatus
     values:
       Withdrawn: {}

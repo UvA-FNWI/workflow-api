@@ -1,6 +1,3 @@
-using UvA.Workflow.Expressions;
-using Date = UvA.Workflow.Entities.Domain.Conditions.Date;
-
 namespace UvA.Workflow.Entities.Domain;
 
 public enum StepHierarchyMode
@@ -9,7 +6,7 @@ public enum StepHierarchyMode
     Parallel
 }
 
-public class Step
+public class Step : INamed
 {
     /// <summary>
     /// Internal name of the step
@@ -20,6 +17,8 @@ public class Step
     /// Localized title of the step as shown to user
     /// </summary>
     public BilingualString? Title { get; set; }
+
+    public string? Icon { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;
 
@@ -54,7 +53,7 @@ public class Step
     /// <summary>
     /// Properties related to this step. These will become properties of the corresponding entity 
     /// </summary>
-    public Dictionary<string, Question> Properties { get; set; } = new();
+    public List<PropertyDefinition> Properties { get; set; } = new();
 
     public IEnumerable<Lookup> Lookups =>
     [
