@@ -35,7 +35,8 @@ public class WorkflowInstancesController(
         {
             foreach (var entry in input.InitialProperties ?? [])
             {
-                var property = modelService.EntityTypes[input.EntityType].Properties.GetValueOrDefault(entry.Key);
+                var property = modelService.WorkflowDefinitions[input.WorkflowDefinition].Properties
+                    .GetOrDefault(entry.Key);
                 if (property == null)
                     return BadRequest($"Property {entry.Key} does not exist");
                 initial[entry.Key] = await answerConversionService.ConvertToValue(
@@ -78,14 +79,14 @@ public class WorkflowInstancesController(
     }
 
     //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
-    [HttpGet("instances/{entityType}")]
+    [HttpGet("instances/{workflowDefinition}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string entityType,
         [FromQuery] string[] properties, CancellationToken ct)
     {
         if (!await rightsService.CanAny(entityType, RoleAction.ViewAdminTools))
             return Forbidden();
 
-        var entity = modelService.EntityTypes[entityType];
+        var entity = modelService.WorkflowDefinitions[entityType];
         var res = await repository.GetAllByType(entityType, properties.ToDictionary(
             p => p,
             p => entity.GetKey(p)

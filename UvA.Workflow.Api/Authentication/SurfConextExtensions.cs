@@ -1,7 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.OpenApi.Models;
-using UvA.Workflow.Api.Infrastructure;
 
 namespace UvA.Workflow.Api.Authentication;
 

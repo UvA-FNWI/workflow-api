@@ -42,13 +42,13 @@ public class RightsService(
                 p.WorkflowDefinition,
                 InstanceId = instance.Properties.GetValueOrDefault(p.Name)?.ToString()
             }))
-            .Where(r => r.EntityType != null && !string.IsNullOrEmpty(r.InstanceId))
+            .Where(r => r.WorkflowDefinition != null && !string.IsNullOrEmpty(r.InstanceId))
             .ToList();
 
         var inheritedViaInstances = inheritedRoles.Any()
             ? (await workflowInstanceRepository.GetAllById(
                 inheritedRoles.Select(r => r.InstanceId!).Distinct().ToArray(),
-                inheritedRoles.Select(r => new { r.Role, Key = r.EntityType!.GetKey(r.Role) }).Distinct()
+                inheritedRoles.Select(r => new { r.Role, Key = r.WorkflowDefinition!.GetKey(r.Role) }).Distinct()
                     .ToDictionary(r => r.Role, r => r.Key),
                 ct
             )).ToDictionary(r => r["_id"].ToString()!)
