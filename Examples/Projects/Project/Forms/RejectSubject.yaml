@@ -1,4 +1,5 @@
 name: RejectSubject
+step: Subject
 title:
   en: Reject subject
   nl: Onderwerp afkeuren

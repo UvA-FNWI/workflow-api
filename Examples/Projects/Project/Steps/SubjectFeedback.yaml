@@ -4,7 +4,7 @@ title:
   en: Assessment of proposal
 
 actions:
-- name: Approve
+- name: ApproveSubject
   type: Execute
   roles: [Coordinator]
   label:
@@ -13,6 +13,7 @@ actions:
 - name: Reject
   type: Submit
   form: RejectSubject
+  intent: Destructive
   roles: [Coordinator]
   label:
     en: Reject

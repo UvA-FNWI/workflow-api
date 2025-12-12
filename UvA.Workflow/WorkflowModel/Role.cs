@@ -63,6 +63,8 @@ public class Action : INamed
     /// </summary>
     public BilingualString? Label { get; set; }
 
+    public ActionIntent Intent { get; set; } = ActionIntent.Primary;
+
     /// <summary>
     /// List of roles that can perform this action
     /// </summary>

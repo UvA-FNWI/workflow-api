@@ -50,13 +50,16 @@ public record ActionDto(
     string? Name = null,
     string? UserId = null,
     Mail? Mail = null,
-    string? Property = null
+    string? Property = null,
+    string? Step = null,
+    ActionIntent Intent = ActionIntent.Primary
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
 
-    public static ActionDto Create(InstanceService.AllowedAction action) =>
-        action.Action.Type switch
+    public static ActionDto Create(InstanceService.AllowedAction action)
+    {
+        ActionDto dto = action.Action.Type switch
         {
             RoleAction.CreateRelatedInstance => new(
                 ActionType.CreateInstance,
@@ -76,6 +79,12 @@ public record ActionDto(
             ),
             _ => throw new ArgumentOutOfRangeException()
         };
+        return dto with
+        {
+            Step = action.Action.Steps.Length == 1 ? action.Action.Steps[0] : null,
+            Intent = action.Action.Intent
+        };
+    }
 
     private static BilingualString Add(BilingualString target) =>
         new($"Add {target.En.ToLower()}", $"{target.Nl} toevoegen");

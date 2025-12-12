@@ -90,6 +90,11 @@ public class PropertyDefinition : INamed
     /// </summary>
     public BilingualString? Description { get; set; }
 
+    /// <summary>
+    /// To be used for properties that refer to other entities. List of roles that is inherited from the target instance.
+    /// </summary>
+    public string[] InheritedRoles { get; set; } = [];
+
     [YamlIgnore] public WorkflowDefinition ParentType { get; set; } = null!;
 
     [YamlIgnore] public WorkflowDefinition? WorkflowDefinition { get; set; }

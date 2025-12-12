@@ -43,25 +43,32 @@
       ],
       "description": "To be used in combination with Property. The name of a form for the referenced entity type"
     },
+    "step": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Step this form belongs to"
+    },
     "pages": {
-      "type": "object",
+      "type": "array",
       "description": "Dictionary of pages of this form",
-      "additionalProperties": {
+      "items": {
         "$ref": "#/definitions/Page"
       }
     },
     "onSubmit": {
       "type": "array",
-      "description": "Triggers to run when the form is submitted",
+      "description": "Effect to run when the form is submitted",
       "items": {
-        "$ref": "#/definitions/Trigger"
+        "$ref": "#/definitions/Effect"
       }
     },
     "onSave": {
       "type": "array",
-      "description": "Triggers to run when a change is made in the form",
+      "description": "Effect to run when a change is made in the form",
       "items": {
-        "$ref": "#/definitions/Trigger"
+        "$ref": "#/definitions/Effect"
       }
     }
   },
@@ -95,7 +102,14 @@
       "type": "object",
       "description": "Represents a page in a form",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the page"
+        },
         "title": {
           "description": "Localized title of the page",
           "oneOf": [
@@ -128,9 +142,9 @@
           "description": "Layout of the page. Condensed will show the questions in a table",
           "$ref": "#/definitions/PageLayout"
         },
-        "questions": {
+        "fields": {
           "type": "array",
-          "description": "Question names to include in the page",
+          "description": "PropertyDefinition names to include in the page",
           "items": {
             "type": "string"
           }
@@ -154,8 +168,8 @@
         "Condensed"
       ]
     },
-    "Trigger": {
-      "title": "Trigger",
+    "Effect": {
+      "title": "Effect",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -273,6 +287,17 @@
             {
               "description": "Check if a date has passed",
               "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a deadline has passed",
+              "$ref": "#/definitions/Deadline"
             }
           ]
         },
@@ -395,6 +420,19 @@
       ],
       "properties": {
         "source": {
+          "type": "string"
+        }
+      }
+    },
+    "Deadline": {
+      "title": "Deadline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionText"
+      ],
+      "properties": {
+        "expressionText": {
           "type": "string"
         }
       }

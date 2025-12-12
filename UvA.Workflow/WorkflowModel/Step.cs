@@ -1,6 +1,3 @@
-using UvA.Workflow.Expressions;
-using Date = UvA.Workflow.Entities.Domain.Conditions.Date;
-
 namespace UvA.Workflow.Entities.Domain;
 
 public enum StepHierarchyMode
@@ -20,6 +17,8 @@ public class Step : INamed
     /// Localized title of the step as shown to user
     /// </summary>
     public BilingualString? Title { get; set; }
+
+    public string? Icon { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;
 
