@@ -19,7 +19,7 @@ public class InstanceService(
     /// <param name="contexts">A collection of object contexts whose values will be updated.</param>
     /// <param name="properties">The set of properties to be used for enrichment.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
-    private async Task Enrich(WorkflowDefinition workflowDefinition, ICollection<ObjectContext> contexts,
+    public async Task Enrich(WorkflowDefinition workflowDefinition, ICollection<ObjectContext> contexts,
         IEnumerable<Lookup> properties,
         CancellationToken ct)
     {

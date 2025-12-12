@@ -39,18 +39,20 @@ public class WorkflowInstanceDtoFactory(
         );
     }
 
-
     private async Task<FieldDto[]> CreateFields(WorkflowDefinition workflowDefinition, string instanceId,
         CancellationToken ct)
     {
         var result = new List<FieldDto>();
-        var projection = screenDataService.BuildProjection(workflowDefinition.HeaderFields, workflowDefinition.Name);
-        var rawValues = (await repository.GetAllById([instanceId], projection, ct)).FirstOrDefault();
-        if (rawValues is not null)
+        var instance = await repository.GetById(instanceId, ct);
+        if (instance is not null)
         {
+            var context = ObjectContext.Create(instance, modelService);
+            await instanceService.Enrich(workflowDefinition, [context],
+                workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
             foreach (var field in workflowDefinition.HeaderFields)
             {
-                var obj = screenDataService.ProcessColumnValue(rawValues, field, workflowDefinition.Name, instanceId);
+                var obj = screenDataService.ProcessColumnValue(instance.Properties, field, workflowDefinition.Name,
+                    instanceId);
                 result.Add(new FieldDto(field.DisplayTitle, obj));
             }
         }
