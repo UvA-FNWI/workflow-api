@@ -24,6 +24,7 @@ public record ScreenColumnDto(
     DisplayType DisplayType,
     UvA.Workflow.Entities.Domain.SortDirection? DefaultSort,
     bool Link,
+    bool IsCurrentStep,
     DataType DataType)
 {
     public static ScreenColumnDto Create(Column column, int id)
@@ -37,6 +38,7 @@ public record ScreenColumnDto(
             column.DisplayType,
             column.DefaultSort,
             column.Link,
+            column.CurrentStep,
             dataType);
     }
 

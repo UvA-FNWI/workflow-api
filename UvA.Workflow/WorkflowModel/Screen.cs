@@ -21,6 +21,43 @@ public class Screen : INamed
     /// Relation this screen is used for
     /// </summary>
     public string? Relation { get; set; }
+
+    /// <summary>
+    /// Optional grouping configuration for grouping screen data by steps
+    /// </summary>
+    public ScreenGrouping? Grouping { get; set; }
+}
+
+/// <summary>
+/// Configuration for grouping screen data by workflow steps
+/// </summary>
+public class ScreenGrouping
+{
+    /// <summary>
+    /// List of step groups
+    /// </summary>
+    public StepGroup[] Groups { get; set; } = [];
+}
+
+/// <summary>
+/// Defines a group of workflow steps
+/// </summary>
+public class StepGroup
+{
+    /// <summary>
+    /// Internal identifier for the group
+    /// </summary>
+    public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// Display name of the group in nl/en
+    /// </summary>
+    public BilingualString Title { get; set; } = null!;
+
+    /// <summary>
+    /// Array of step names that belong to this group
+    /// </summary>
+    public string[] Steps { get; set; } = [];
 }
 
 public enum FilterType
