@@ -260,7 +260,7 @@ public class ScreenDataService(
 
         return new GroupedScreenDataDto(
             screen.Name,
-            screen.EntityType ?? "",
+            screen.WorkflowDefinition ?? "",
             columns,
             groups);
     }
