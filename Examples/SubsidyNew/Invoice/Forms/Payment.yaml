@@ -1,7 +1,7 @@
 name: Payment
   
 pages:
-  Page:
-    questions:
+  - name:Page
+    fields:
       - PaymentAmount
       - PaymentDate

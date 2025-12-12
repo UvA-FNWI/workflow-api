@@ -1,7 +1,8 @@
 name: Upload
+step: Upload
 
 pages:
-  Upload:
-    questions:
+  - name: Upload
+    fields:
       - Title
       - Report

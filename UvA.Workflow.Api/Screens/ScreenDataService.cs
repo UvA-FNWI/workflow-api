@@ -1,6 +1,6 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Events;
-using UvA.Workflow.Tools;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -8,36 +8,36 @@ public class ScreenDataService(
     ModelService modelService,
     IWorkflowInstanceRepository repository)
 {
-    public async Task<ScreenDataDto> GetScreenData(string screenName, string entityType, CancellationToken ct)
+    public async Task<ScreenDataDto> GetScreenData(string screenName, string workflowDefinition, CancellationToken ct)
     {
         // Get the screen definition
-        var screen = GetScreen(screenName, entityType);
+        var screen = GetScreen(screenName, workflowDefinition);
         if (screen == null)
-            throw new ArgumentException($"Screen '{screenName}' not found for entity type '{entityType}'");
+            throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
 
         // Build projection based on screen columns
-        var projection = BuildProjection(screen, entityType);
-        var rawData = await repository.GetAllByType(entityType, projection, ct);
+        var projection = BuildProjection(screen, workflowDefinition);
+        var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
 
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
-        var rows = ProcessRows(rawData, screen, entityType, columns);
+        var rows = ProcessRows(rawData, screen, workflowDefinition, columns);
 
         return ScreenDataDto.Create(screen, columns, rows);
     }
 
-    private Screen? GetScreen(string screenName, string entityType)
+    private Screen? GetScreen(string screenName, string workflowDefinition)
     {
-        if (!modelService.EntityTypes.TryGetValue(entityType, out var entity))
+        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             return null;
 
-        return entity.Screens.GetValueOrDefault(screenName);
+        return entity.Screens.GetOrDefault(screenName);
     }
 
-    private Dictionary<string, string> BuildProjection(Screen screen, string entityType)
+    private Dictionary<string, string> BuildProjection(Screen screen, string workflowDefinition)
     {
-        if (!modelService.EntityTypes.TryGetValue(entityType, out var entity))
-            throw new ArgumentException($"Entity type '{entityType}' not found");
+        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
+            throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
 
         var projection = new Dictionary<string, string>();
 
@@ -49,7 +49,7 @@ public class ScreenDataService(
             }
             else if (!string.IsNullOrEmpty(column.Property))
             {
-                // Use EntityType.GetKey to get the correct MongoDB path
+                // Use WorkflowDefinition.GetKey to get the correct MongoDB path
                 var mongoPath = entity.GetKey(column.Property.Split('.')[0]);
                 var propertyName = column.Property.Split('.')[0];
 
@@ -69,7 +69,7 @@ public class ScreenDataService(
         return projection;
     }
 
-    private void AddLookupToProjection(Dictionary<string, string> projection, Lookup lookup, EntityType entity)
+    private void AddLookupToProjection(Dictionary<string, string> projection, Lookup lookup, WorkflowDefinition entity)
     {
         switch (lookup)
         {
@@ -95,7 +95,7 @@ public class ScreenDataService(
     private ScreenRowDto[] ProcessRows(
         List<Dictionary<string, BsonValue>> rawData,
         Screen screen,
-        string entityType,
+        string workflowDefinition,
         ScreenColumnDto[] columns
     )
     {
@@ -111,7 +111,7 @@ public class ScreenDataService(
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                var value = ProcessColumnValue(rawRow, column, entityType, id);
+                var value = ProcessColumnValue(rawRow, column, workflowDefinition, id);
                 processedValues[columnId] = value;
             }
 
@@ -124,7 +124,7 @@ public class ScreenDataService(
     private object? ProcessColumnValue(
         Dictionary<string, BsonValue> rawRow,
         Column column,
-        string entityType,
+        string workflowDefinition,
         string instanceId
     )
     {
@@ -137,7 +137,7 @@ public class ScreenDataService(
         if (column.ValueTemplate != null)
         {
             // Process template - create a context and evaluate the template
-            var context = CreateContextFromRawRow(rawRow, entityType, instanceId);
+            var context = CreateContextFromRawRow(rawRow, workflowDefinition, instanceId);
             return column.ValueTemplate.Execute(context);
         }
 
@@ -154,7 +154,7 @@ public class ScreenDataService(
         return column.Default;
     }
 
-    private ObjectContext CreateContextFromRawRow(Dictionary<string, BsonValue> rawRow, string entityType,
+    private ObjectContext CreateContextFromRawRow(Dictionary<string, BsonValue> rawRow, string workflowDefinition,
         string instanceId)
     {
         // Create a minimal WorkflowInstance for context creation
@@ -173,7 +173,7 @@ public class ScreenDataService(
         var instance = new WorkflowInstance
         {
             Id = instanceId,
-            EntityType = entityType,
+            WorkflowDefinition = workflowDefinition,
             Properties = properties,
             Events = new Dictionary<string, InstanceEvent>(),
             CurrentStep = rawRow.GetStringValue("CurrentStep")

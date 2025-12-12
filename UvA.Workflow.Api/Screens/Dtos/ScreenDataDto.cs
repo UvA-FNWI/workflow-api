@@ -2,7 +2,7 @@ namespace UvA.Workflow.Api.Screens.Dtos;
 
 public record ScreenDataDto(
     string Name,
-    string EntityType,
+    string WorkflowDefinition,
     ScreenColumnDto[] Columns,
     ScreenRowDto[] Rows)
 {
@@ -10,7 +10,7 @@ public record ScreenDataDto(
     {
         return new ScreenDataDto(
             screen.Name,
-            screen.EntityType ?? "",
+            screen.WorkflowDefinition ?? "",
             columns,
             rows);
     }
@@ -56,9 +56,9 @@ public record ScreenColumnDto(
         if (column.Property != null && column.Property.EndsWith("Event"))
             return DataType.DateTime;
 
-        // Use the underlying question's data type if available
-        if (column.Question != null)
-            return column.Question.DataType;
+        // Use the underlying propertyDefinition's data type if available
+        if (column.PropertyDefinition != null)
+            return column.PropertyDefinition.DataType;
 
         // Default to string for anything else
         return DataType.String;

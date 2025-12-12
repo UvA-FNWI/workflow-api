@@ -1,0 +1,7 @@
+name: Api
+inheritFrom: [Coordinator]
+actions:
+- type: CreateInstance
+  workflowDefinition: Context
+- type: CreateInstance
+  workflowDefinition: Project

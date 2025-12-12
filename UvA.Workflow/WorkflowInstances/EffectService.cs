@@ -2,22 +2,22 @@ using UvA.Workflow.Events;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-public class TriggerService(
+public class EffectService(
     InstanceService instanceService,
     IInstanceEventService eventService,
     ModelService modelService,
     IMailService mailService)
 {
-    public async Task RunTriggers(WorkflowInstance instance, Trigger[] triggers, User user, CancellationToken ct,
+    public async Task RunEffects(WorkflowInstance instance, Effect[] effects, User user, CancellationToken ct,
         MailMessage? mail = null)
     {
         var context = modelService.CreateContext(instance);
-        foreach (var trigger in triggers.Where(t => t.Condition.IsMet(context)))
+        foreach (var effect in effects.Where(t => t.Condition.IsMet(context)))
         {
-            if (trigger.Event != null) await AddEvent(instance, trigger.Event, user, ct);
-            if (trigger.UndoEvent != null) await UndoEvent(instance, trigger.UndoEvent, user, ct);
-            if (trigger.SendMail != null) await SendMail(instance, trigger.SendMail, ct, mail);
-            if (trigger.SetProperty != null) await SetProperty(instance, trigger.SetProperty, ct);
+            if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
+            if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
+            if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, mail);
+            if (effect.SetProperty != null) await SetProperty(instance, effect.SetProperty, ct);
         }
     }
 
@@ -40,7 +40,7 @@ public class TriggerService(
         await eventService.UpdateEvent(instance, ev.Id, user, ct);
     }
 
-    private async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
+    public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };

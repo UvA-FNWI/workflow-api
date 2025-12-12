@@ -1,24 +1,25 @@
 name: Start
+step: Subject
 
 pages:
-  Contents:
+  - name: Contents
     title:
       en: Contents
       nl: Inhoud
-    questions:
+    fields:
       - Title
       - Subject
       - Description
-  Staff:
+  - name: Staff
     title:
       en: Staff
       nl: Medewerkers
-    questions:
+    fields:
       - Examiner
       - Reviewer
       - Supervisor
-  Planning:
-    questions:
+  - name: Planning
+    fields:
       - StartDate
       - Deadline
       - EndDate

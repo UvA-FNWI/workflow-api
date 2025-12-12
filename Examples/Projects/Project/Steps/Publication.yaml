@@ -5,8 +5,6 @@ actions:
     type: Execute
     label: Confirm thesis publication
     name: Publish
-    triggers:
-      - event: Publish
 
 ends:
   event: Publish

@@ -6,7 +6,11 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Submissions;
 
-public record QuestionContext(WorkflowInstance Instance, InstanceEvent? Submission, Form Form, Question Question);
+public record QuestionContext(
+    WorkflowInstance Instance,
+    InstanceEvent? Submission,
+    Form Form,
+    PropertyDefinition PropertyDefinition);
 
 public class AnswerService(
     SubmissionService submissionService,
@@ -22,10 +26,10 @@ public class AnswerService(
         var (instance, submission, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
 
-        // Get the question
-        var question = modelService.GetQuestion(instance, form.Property, questionName);
+        // Get the propertyDefinition
+        var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
         if (question == null)
-            throw new EntityNotFoundException("Question", questionName);
+            throw new EntityNotFoundException("PropertyDefinition", questionName);
 
         return new QuestionContext(instance, submission, form, question);
     }
@@ -35,7 +39,7 @@ public class AnswerService(
         var (instance, submission, form, question) = context;
 
         // Get current answer
-        var currentAnswer = instance.GetProperty(form!.Property, question.Name);
+        var currentAnswer = instance.GetProperty(form!.PropertyName, question.Name);
 
         // Convert new answer to BsonValue
         var newAnswer = await answerConversionService.ConvertToValue(new AnswerInput(value), question!, ct);
@@ -43,8 +47,8 @@ public class AnswerService(
         // Save if value changed
         if (newAnswer != currentAnswer)
         {
-            instance.SetProperty(newAnswer, form.Property, question.Name);
-            await instanceService.SaveValue(instance, form.Property, question!.Name, ct);
+            instance.SetProperty(newAnswer, form.PropertyName, question.Name);
+            await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
         }
 
         // Get questions to update (including dependent questions)
@@ -64,7 +68,7 @@ public class AnswerService(
 
         var (instance, _, form, question) = context;
 
-        var value = instance!.GetProperty(form!.Property, question.Name);
+        var value = instance!.GetProperty(form!.PropertyName, question.Name);
         if (value == null) return null;
         if (question.IsArray)
         {
@@ -86,20 +90,20 @@ public class AnswerService(
         var artifactInfo = await artifactService.SaveArtifact(artifactName, contents);
         ObjectId? oidOldArtifact = null;
 
-        var value = instance.GetProperty(form.Property, question.Name);
+        var value = instance.GetProperty(form.PropertyName, question.Name);
         if (question.IsArray)
         {
             var array = value as BsonArray ?? [];
             array.Add(artifactInfo.ToBsonDocument());
-            instance.SetProperty(array, form.Property, question.Name);
+            instance.SetProperty(array, form.PropertyName, question.Name);
         }
         else
         {
-            instance.SetProperty(artifactInfo.ToBsonDocument(), form.Property, question.Name);
+            instance.SetProperty(artifactInfo.ToBsonDocument(), form.PropertyName, question.Name);
             oidOldArtifact = value?["_id"].AsObjectId;
         }
 
-        await instanceService.SaveValue(instance, form.Property, question.Name, ct);
+        await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
 
         if (oidOldArtifact != null)
         {
@@ -112,7 +116,7 @@ public class AnswerService(
         var artifactObjectId = new ObjectId(artifactId);
         var (instance, _, form, question) = context;
 
-        var value = instance!.GetProperty(form.Property, question.Name);
+        var value = instance!.GetProperty(form.PropertyName, question.Name);
         if (value == null)
             throw new EntityNotFoundException("Artifact", "Artifact not found");
 
@@ -128,8 +132,8 @@ public class AnswerService(
 
             await artifactService.TryDeleteArtifact(new ObjectId(artifactId), ct);
             array.Remove(artifactRef);
-            instance.SetProperty(array, form.Property, question.Name);
-            await instanceService.SaveValue(instance, form.Property, question.Name, ct);
+            instance.SetProperty(array, form.PropertyName, question.Name);
+            await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
         }
         else
         {
@@ -140,7 +144,7 @@ public class AnswerService(
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
             }
 
-            await instanceService.UnsetValue(instance, form.Property, question.Name, ct);
+            await instanceService.UnsetValue(instance, form.PropertyName, question.Name, ct);
             instance.ClearProperty(question.Name);
             await artifactService.TryDeleteArtifact(new ObjectId(artifactId), ct);
         }

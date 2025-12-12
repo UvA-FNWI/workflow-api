@@ -9,28 +9,30 @@ public record AnswerInput(
     int? DeleteFileId = null);
 
 /// <summary>
-/// Service responsible for converting answer input data to BsonValue based on question data types.
+/// Service responsible for converting answer input data to BsonValue based on propertyDefinition data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
 public class AnswerConversionService(IUserService userService)
 {
-    public static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    public static readonly JsonSerializerOptions Options = new()
+        { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
 
     /// <summary>
-    /// Converts an answer input to a BsonValue based on the question's data type.
+    /// Converts an answer input to a BsonValue based on the propertyDefinition's data type.
     /// </summary>
-    /// <param name="answerInput">The object containing the answers for the given question</param>
-    /// <param name="question">The question definition containing data type information</param>
+    /// <param name="answerInput">The object containing the answers for the given propertyDefinition</param>
+    /// <param name="propertyDefinition">The propertyDefinition definition containing data type information</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>BsonValue representation of the answer</returns>
-    public async Task<BsonValue> ConvertToValue(AnswerInput answerInput, Question question, CancellationToken ct)
+    public async Task<BsonValue> ConvertToValue(AnswerInput answerInput, PropertyDefinition propertyDefinition,
+        CancellationToken ct)
     {
         if (answerInput.Value == null)
             return BsonNull.Value;
 
         var value = answerInput.Value.Value;
 
-        return question.DataType switch
+        return propertyDefinition.DataType switch
         {
             DataType.String or DataType.Choice or DataType.Reference =>
                 value.ValueKind == JsonValueKind.String ? value.GetString() : BsonNull.Value,
@@ -48,13 +50,13 @@ public class AnswerConversionService(IUserService userService)
 
             DataType.Currency => await ConvertCurrency(value, ct),
 
-            DataType.User when question.IsArray => await ConvertUserArray(value, ct),
+            DataType.User when propertyDefinition.IsArray => await ConvertUserArray(value, ct),
 
             DataType.User => await ConvertUser(value, ct),
 
 
             _ => throw new NotImplementedException(
-                $"Data type {question.DataType} is not supported for question '{question.DisplayName}'")
+                $"Data type {propertyDefinition.DataType} is not supported for propertyDefinition '{propertyDefinition.DisplayName}'")
         };
     }
 

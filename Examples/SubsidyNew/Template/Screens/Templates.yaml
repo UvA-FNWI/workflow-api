@@ -1,5 +1,5 @@
 name: Templates
-entityType: Template
+workflowDefinition: Template
 columns:
   - title: Name
     property: Name

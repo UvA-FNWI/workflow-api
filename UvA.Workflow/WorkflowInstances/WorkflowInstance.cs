@@ -13,7 +13,7 @@ public class WorkflowInstance
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = null!;
 
-    public string EntityType { get; set; } = null!;
+    public string WorkflowDefinition { get; set; } = null!;
     public string? CurrentStep { get; set; }
 
     public DateTime CreatedOn { get; set; }

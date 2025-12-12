@@ -11,13 +11,13 @@ actions:
     form: Template
 
 properties:
-  Key:
+  - name: Key
     type: String!
-  Name:
+  - name: Name
     type: String!
-  Subject:
+  - name: Subject
     type: String
-  Content:
+  - name: Content
     type: String!
     multiline: true
     

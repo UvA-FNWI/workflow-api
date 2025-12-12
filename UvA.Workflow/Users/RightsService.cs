@@ -6,32 +6,64 @@ namespace UvA.Workflow.Users;
 
 public class RightsService(
     ModelService modelService,
-    IUserService userService)
+    IUserService userService,
+    IWorkflowInstanceRepository workflowInstanceRepository)
 {
     public async Task<IEnumerable<string>> GetGlobalRoles() =>
         (await userService.GetRolesOfCurrentUser()).ToList()
         .Append("Registered");
 
 
-    public async Task<Domain_Action[]> GetAllowedActions(string? entityType, params RoleAction[] actions)
+    public async Task<Domain_Action[]> GetAllowedActions(string? workflowDefinition, params RoleAction[] actions)
         => (await GetGlobalRoles())
             .Select(r => modelService.Roles.GetValueOrDefault(r))
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(new ObjectContext(new())))
                             && actions.Contains(a.Type)
-                            && (a.EntityType == null || a.EntityType == entityType?.Split('/')[0])
+                            && (a.WorkflowDefinition == null ||
+                                a.WorkflowDefinition == workflowDefinition?.Split('/')[0])
                 ))
             .ToArray();
 
-    private async Task<Role?[]> GetInstanceRoles(WorkflowInstance instance)
+    private async Task<Role?[]> GetInstanceRoles(WorkflowInstance instance, CancellationToken ct = default)
     {
-        var user = await userService.GetCurrentUser();
+        var user = await userService.GetCurrentUser(ct);
         if (user == null) return [];
 
-        return modelService.EntityTypes[instance.EntityType].Properties.Values
+        // Process inherited roles
+        var properties = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties;
+
+        var inheritedRoles = properties
+            .Where(p => p.InheritedRoles.Any())
+            .SelectMany(p => p.InheritedRoles.Select(r => new
+            {
+                Role = r,
+                p.WorkflowDefinition,
+                InstanceId = instance.Properties.GetValueOrDefault(p.Name)?.ToString()
+            }))
+            .Where(r => r.WorkflowDefinition != null && !string.IsNullOrEmpty(r.InstanceId))
+            .ToList();
+
+        var inheritedViaInstances = inheritedRoles.Any()
+            ? (await workflowInstanceRepository.GetAllById(
+                inheritedRoles.Select(r => r.InstanceId!).Distinct().ToArray(),
+                inheritedRoles.Select(r => new { r.Role, Key = r.WorkflowDefinition!.GetKey(r.Role) }).Distinct()
+                    .ToDictionary(r => r.Role, r => r.Key),
+                ct
+            )).ToDictionary(r => r["_id"].ToString()!)
+            : new();
+
+        var inheritedProperties = inheritedRoles.Select(r => new
+        {
+            Name = r.Role,
+            Value = inheritedViaInstances.GetValueOrDefault(r.InstanceId!)?.GetValueOrDefault(r.Role)
+        });
+
+        return properties
             .Where(p => p.DataType == DataType.User)
             .Select(p => new { p.Name, Value = instance.Properties.GetValueOrDefault(p.Name) })
+            .Concat(inheritedProperties)
             .Where(p => p.Value != null)
             .Where(p => p.Value switch
             {
@@ -57,14 +89,14 @@ public class RightsService(
                 .Where(a => (a.Condition == null || a.Condition.IsMet(modelService.CreateContext(instance)))
                             && actions.Contains(a.Type)
                             && (a.Steps.Length == 0 || a.Steps.Intersect(modelService.GetActiveSteps(instance)).Any())
-                            && (a.EntityType == null || a.EntityType == instance.EntityType)
+                            && (a.WorkflowDefinition == null || a.WorkflowDefinition == instance.WorkflowDefinition)
                 ))
             .Distinct()
             .ToArray();
     }
 
-    public async Task<bool> CanAny(string? entityType, params RoleAction[] actions)
-        => (await GetAllowedActions(entityType, actions)).Any();
+    public async Task<bool> CanAny(string? workflowDefinition, params RoleAction[] actions)
+        => (await GetAllowedActions(workflowDefinition, actions)).Any();
 
     public async Task<Domain_Action[]> GetAllowedFormActions(WorkflowInstance instance, string form,
         params RoleAction[] actions)

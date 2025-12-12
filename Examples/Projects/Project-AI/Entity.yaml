@@ -4,9 +4,9 @@ titlePlural: Projects (AI)
 inheritsFrom: Project
 
 properties:
-  AssessmentReviewer:
+  - name: AssessmentReviewer
     type: Assessment-AI!
-  AssessmentSupervisor:
+  - name: AssessmentSupervisor
     type: Assessment-AI!
 
 steps:

@@ -1,4 +1,4 @@
-actions:
+globalActions:
   - roles: [Student, Supervisor, Coordinator]
     type: View
     forms: [Start, Upload, Proposal]

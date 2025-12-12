@@ -33,10 +33,17 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
     {
-        var dict = instance.Properties.ToDictionary(
-            p => (Lookup)p.Key,
-            p => GetValue(p.Value, modelService.GetQuestion(instance, p.Key))
-        );
+        var dict = new Dictionary<Lookup, object?>();
+        foreach (var (k, v) in instance.Properties)
+        {
+            // Only add property values that are present in the workflow definition
+            var propertyDefinition = modelService.GetQuestion(instance, k);
+            if (propertyDefinition != null)
+            {
+                dict.Add(k, GetValue(v, propertyDefinition));
+            }
+        }
+
         dict.Add("Id", instance.Id);
         dict.Add("CurrentStep", instance.CurrentStep);
         dict.Add("CreateDate", instance.CreatedOn);
@@ -46,10 +53,10 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         return new ObjectContext(dict);
     }
 
-    public static object? GetValue(BsonValue? answer, Question question)
-        => GetValue(answer, question.DataType, question);
+    public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)
+        => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
 
-    public static object? GetValue(BsonValue? answer, DataType type, Question? question = null)
+    public static object? GetValue(BsonValue? answer, DataType type, PropertyDefinition? question = null)
     {
         if (answer is null or BsonNull) return null;
 
@@ -60,7 +67,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
-            DataType.Reference when question?.EntityType?.IsEmbedded == true => answer.AsBsonDocument,
+            DataType.Reference when question?.WorkflowDefinition?.IsEmbedded == true => answer.AsBsonDocument,
             DataType.Reference => answer.AsString,
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),

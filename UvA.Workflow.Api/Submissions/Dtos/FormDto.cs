@@ -5,23 +5,25 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
-    bool HasResults)
+    bool HasResults,
+    string? Step)
 {
     public static FormDto Create(Form form)
     {
-        var filteredPages = form.ActualForm.Pages.Values
-            .Where(p => p.Sources == null || p.Sources.Contains(form.Property))
+        var filteredPages = form.ActualForm.Pages
+            .Where(p => p.Sources == null || p.Sources.Contains(form.PropertyName))
             .ToArray();
         var questions = filteredPages
-            .SelectMany(p => p.Questions)
+            .SelectMany(p => p.Fields)
             .ToDictionary(q => q, QuestionDto.Create);
         form = form.ActualForm;
         return new FormDto(
             form.Name,
             form.Title ?? form.Name,
-            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Questions.Select(q => questions[q]))).ToArray(),
+            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]))).ToArray(),
             form.Layout,
-            form.EntityType.Results != null
+            form.WorkflowDefinition.Results != null,
+            form.Step
         );
     }
 }
@@ -52,25 +54,25 @@ public record QuestionDto(
     bool IsRequired,
     bool IsArray,
     ChoiceDto[]? Choices,
-    string? EntityType,
+    string? WorkflowDefinition,
     BilingualString? Description,
     BilingualString? ShortText,
     Dictionary<string, object>? Layout,
     TableSettingsDto? TableSettings,
     bool HideInResults)
 {
-    public static QuestionDto Create(Question question) => new(
-        $"{question.ParentType.Name}_{question.Name}",
-        question.Name,
-        question.DisplayName,
-        question.DataType, question.IsRequired, question.IsArray,
-        question.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
-        question.EntityType?.Name,
-        question.Description,
-        question.ShortDisplayName,
-        question.Layout,
-        question.Table == null ? null : TableSettingsDto.Create(question.Table),
-        question.HideInResults
+    public static QuestionDto Create(PropertyDefinition propertyDefinition) => new(
+        $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
+        propertyDefinition.Name,
+        propertyDefinition.DisplayName,
+        propertyDefinition.DataType, propertyDefinition.IsRequired, propertyDefinition.IsArray,
+        propertyDefinition.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
+        propertyDefinition.WorkflowDefinition?.Name,
+        propertyDefinition.Description,
+        propertyDefinition.ShortDisplayName,
+        propertyDefinition.Layout,
+        propertyDefinition.Table == null ? null : TableSettingsDto.Create(propertyDefinition.Table),
+        propertyDefinition.HideInResults
     );
 }
 

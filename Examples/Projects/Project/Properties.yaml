@@ -1,40 +1,44 @@
 properties:
-  Title:
+  - name: Course
+    type: Context!
+    inheritedRoles: [Coordinator]
+    
+  - name: Title
     type: String!
     text:
       en: Working title
       nl: Werktitel
-  EC:
+  - name: EC
     type: Int!
 
-  StartDate:
+  - name: StartDate
     type: Date!
     text:
       en: Start date
       nl: Startdatum
-  EndDate:
+  - name: EndDate
     type: Date!
     text:
       en: End date
       nl: Einddatum
 
-  Examiner:
+  - name: Examiner
     type: User!
     text: 
       en: Examiner
       nl: Examinator
-  Supervisor:
+  - name: Supervisor
     type: User!
     text: 
       en: Supervisor
       nl: Begeleider
-  Reviewer:
+  - name: Reviewer
     type: User!
     text: 
       en: Reviewer
       nl: Beoordelaar
-  Student:
+  - name: Student
     type: "[User]!"
 
-  Report:
+  - name: Report
     type: File!
