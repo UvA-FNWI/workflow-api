@@ -41,12 +41,7 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
     {
         try
         {
-            var screenData = await screenDataService.GetScreenData(
-                "Projects",
-                "Project-AI",
-                ct);
-
-            var grouped = GroupByCurrentStep(screenData);
+            var grouped = await screenDataService.GetGroupedScreenData("Projects", "Project-AI", ct);
             return Ok(grouped);
         }
         catch (ArgumentException ex)
@@ -60,91 +55,5 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
                 title: "Error retrieving screen data"
             );
         }
-    }
-
-    private GroupedScreenDataDto GroupByCurrentStep(ScreenDataDto screenData)
-    {
-        const string groupAssignSubject = "assign-subject";
-        const string groupThesisInProgress = "thesis-in-progress";
-        const string groupCompleted = "completed";
-
-        Dictionary<string, string> stepGroupMapping = new(StringComparer.OrdinalIgnoreCase)
-        {
-            // Subject assignment
-            ["Start"] = groupAssignSubject,
-            ["Subject"] = groupAssignSubject,
-            ["SubjectFeedback"] = groupAssignSubject,
-
-            // Thesis in progress
-            ["Proposal"] = groupThesisInProgress,
-            ["Upload"] = groupThesisInProgress,
-            ["Assessment"] = groupThesisInProgress,
-            ["AssessmentReviewer"] = groupThesisInProgress,
-            ["AssessmentSupervisor"] = groupThesisInProgress,
-            ["ApprovalCoordinator"] = groupThesisInProgress,
-
-            // Completed
-            ["Publication"] = groupCompleted
-        };
-
-        var currentStepColumn = screenData.Columns.FirstOrDefault(c => c.IsCurrentStep);
-        if (currentStepColumn is null)
-        {
-            return new GroupedScreenDataDto
-            {
-                ["Ungrouped"] = screenData
-            };
-        }
-
-        var currentStepId = currentStepColumn.Id;
-
-        // Rebuild columns without current step and reindex IDs to keep them compact
-        var columnsWithoutStep = screenData.Columns
-            .Where(c => !c.IsCurrentStep)
-            .Select((c, idx) => c with { Id = idx })
-            .ToArray();
-
-        var idMap = screenData.Columns
-            .Where(c => !c.IsCurrentStep)
-            .Select((c, idx) => (OldId: c.Id, NewId: idx))
-            .ToDictionary(x => x.OldId, x => x.NewId);
-
-        var groupedRows = new Dictionary<string, List<ScreenRowDto>>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var row in screenData.Rows)
-        {
-            var stepValue = row.Values.TryGetValue(currentStepId, out var stepObj)
-                ? stepObj?.ToString() ?? "Draft"
-                : "Draft";
-
-            var groupName = stepGroupMapping.TryGetValue(stepValue, out var mapped)
-                ? mapped
-                : stepValue;
-
-            if (!groupedRows.TryGetValue(groupName, out var list))
-            {
-                list = [];
-                groupedRows[groupName] = list;
-            }
-
-            var newValues = new Dictionary<int, object?>(row.Values.Count);
-            foreach (var kvp in row.Values.Where(kvp => kvp.Key != currentStepId))
-            {
-                if (idMap.TryGetValue(kvp.Key, out var newId))
-                {
-                    newValues[newId] = kvp.Value;
-                }
-            }
-
-            list.Add(row with { Values = newValues });
-        }
-
-        var grouped = new GroupedScreenDataDto();
-        foreach (var kvp in groupedRows)
-        {
-            grouped[kvp.Key] = screenData with { Columns = columnsWithoutStep, Rows = kvp.Value.ToArray() };
-        }
-
-        return grouped;
     }
 }

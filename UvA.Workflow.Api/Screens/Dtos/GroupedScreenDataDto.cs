@@ -1,3 +1,12 @@
 namespace UvA.Workflow.Api.Screens.Dtos;
 
-public class GroupedScreenDataDto : Dictionary<string, ScreenDataDto>;
+public record GroupedScreenDataDto(
+    string Name,
+    string EntityType,
+    ScreenColumnDto[] Columns,
+    ScreenGroupDto[] Groups);
+
+public record ScreenGroupDto(
+    string Name,
+    BilingualString Title,
+    ScreenRowDto[] Rows);

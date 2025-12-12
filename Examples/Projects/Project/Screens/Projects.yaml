@@ -13,3 +13,33 @@ columns:
   - currentStep: true
     filterType: Pick
     default: Draft
+
+grouping:
+  groups:
+    - name: assign-subject
+      title:
+        en: Assign Subject
+        nl: Onderwerp toewijzen
+      steps:
+        - Start
+        - Subject
+        - SubjectFeedback
+    
+    - name: thesis-in-progress
+      title:
+        en: Thesis in Progress
+        nl: Scriptie in behandeling
+      steps:
+        - Proposal
+        - Upload
+        - Assessment
+        - AssessmentReviewer
+        - AssessmentSupervisor
+        - ApprovalCoordinator
+    
+    - name: completed
+      title:
+        en: Completed
+        nl: Voltooid
+      steps:
+        - Publication
