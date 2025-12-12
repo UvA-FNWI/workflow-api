@@ -27,13 +27,6 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
         {
             return NotFound("ScreenNotFound", ex.Message);
         }
-        catch (Exception ex)
-        {
-            return Problem(
-                detail: ex.Message,
-                title: "Error retrieving screen data"
-            );
-        }
     }
 
     [HttpGet("Projects/Overview")]
@@ -47,13 +40,6 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
         catch (ArgumentException ex)
         {
             return NotFound("ScreenNotFound", ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return Problem(
-                detail: ex.Message,
-                title: "Error retrieving screen data"
-            );
         }
     }
 }
