@@ -1196,6 +1196,13 @@
             }
           ]
         },
+        "inheritRoles": {
+          "type": "array",
+          "description": "To be used for properties that refer to other entities. List of roles that is inherited from the target instance.",
+          "items": {
+            "type": "string"
+          }
+        },
         "condition": {
           "oneOf": [
             {

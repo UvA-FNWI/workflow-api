@@ -63,7 +63,7 @@ public class InstanceService(
         var context = modelService.CreateContext(instance);
         await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         string? targetStep = null;
-        foreach (var step in workflowDefinition.Steps)
+        foreach (var step in workflowDefinition.FlattenedSteps)
         {
             if (step.Condition.IsMet(context) && !step.HasEnded(context))
             {
