@@ -52,7 +52,8 @@ public record ActionDto(
     Mail? Mail = null,
     string? Property = null,
     string? Step = null,
-    ActionIntent Intent = ActionIntent.Primary
+    ActionIntent Intent = ActionIntent.Primary,
+    FormLayout? FormLayout = null
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
@@ -75,7 +76,8 @@ public record ActionDto(
             RoleAction.Submit => new(
                 ActionType.SubmitForm,
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
-                Form: action.Form?.Name
+                Form: action.Form?.Name,
+                FormLayout: action.Form?.Layout
             ),
             _ => throw new ArgumentOutOfRangeException()
         };

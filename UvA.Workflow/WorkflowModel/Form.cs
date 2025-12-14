@@ -1,3 +1,4 @@
+using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Entities.Domain;
@@ -11,7 +12,8 @@ public enum PageLayout
 public enum FormLayout
 {
     Normal,
-    SinglePage
+    SinglePage,
+    Modal
 }
 
 /// <summary>
@@ -33,6 +35,8 @@ public class Page
     /// Localized introduction text to show at the start of the page
     /// </summary>
     public BilingualString? Introduction { get; set; }
+
+    public BilingualTemplate? IntroductionTemplate => field ??= BilingualTemplate.Create(Introduction);
 
     /// <summary>
     /// Layout of the page. Condensed will show the questions in a table
