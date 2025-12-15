@@ -6,6 +6,8 @@ headerFields:
   - property: Title
   - property: Student.DisplayName
     title: Student
+  - property: Course.Name
+    title: Course
   - currentStep: true
 
 steps:
