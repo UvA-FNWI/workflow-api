@@ -29,12 +29,14 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
         }
     }
 
-    [HttpGet("Projects/Overview")]
-    public async Task<ActionResult<GroupedScreenDataDto>> GetProjectsOverview(CancellationToken ct)
+    [HttpGet("Grouped/{workflowDefinition}/{screenName}")]
+    public async Task<ActionResult<GroupedScreenDataDto>> GetGroupedScreenData(string screenName,
+        string workflowDefinition,
+        CancellationToken ct)
     {
         try
         {
-            var grouped = await screenDataService.GetGroupedScreenData("Projects", "Project-AI", ct);
+            var grouped = await screenDataService.GetGroupedScreenData(screenName, workflowDefinition, ct);
             return Ok(grouped);
         }
         catch (ArgumentException ex)

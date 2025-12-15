@@ -203,24 +203,24 @@ public class ScreenDataService(
     /// CurrentStep is automatically fetched for grouping purposes, regardless of whether it's defined in the columns.
     /// </summary>
     /// <param name="screenName">The name of the screen</param>
-    /// <param name="entityType">The entity type</param>
+    /// <param name="workflowDefinition">The workflow definition</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Grouped screen data with bilingual titles for each group</returns>
-    public async Task<GroupedScreenDataDto> GetGroupedScreenData(string screenName, string entityType,
+    public async Task<GroupedScreenDataDto> GetGroupedScreenData(string screenName, string workflowDefinition,
         CancellationToken ct)
     {
-        var screen = GetScreen(screenName, entityType);
+        var screen = GetScreen(screenName, workflowDefinition);
         if (screen == null)
-            throw new ArgumentException($"Screen '{screenName}' not found for entity type '{entityType}'");
+            throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
 
         if (screen.Grouping == null)
             throw new ArgumentException($"Screen '{screenName}' does not have grouping configuration");
 
         // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen, entityType);
+        var projection = BuildProjection(screen, workflowDefinition);
         projection.TryAdd("CurrentStep", "$CurrentStep");
 
-        var rawData = await repository.GetAllByType(entityType, projection, ct);
+        var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
 
         // Build step-to-group mapping from configuration
         var stepGroupMapping = BuildStepGroupMapping(screen.Grouping);
@@ -254,7 +254,8 @@ public class ScreenDataService(
             .Select(g => new ScreenGroupDto(
                 g.Name,
                 g.Title,
-                ProcessGroupRows(groupedRawRows.TryGetValue(g.Name, out var rawRows) ? rawRows : [], screen, entityType,
+                ProcessGroupRows(groupedRawRows.TryGetValue(g.Name, out var rawRows) ? rawRows : [], screen,
+                    workflowDefinition,
                     columns)))
             .ToArray();
 
