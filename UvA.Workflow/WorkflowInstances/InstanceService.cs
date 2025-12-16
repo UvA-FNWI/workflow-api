@@ -19,49 +19,41 @@ public class InstanceService(
     /// <param name="contexts">A collection of object contexts whose values will be updated.</param>
     /// <param name="properties">The set of properties to be used for enrichment.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
-    public async Task Enrich(WorkflowDefinition workflowDefinition, ICollection<ObjectContext> contexts,
+    public async Task Enrich(WorkflowDefinition workflowDefinition, ObjectContext context,
         IEnumerable<Lookup> properties,
         CancellationToken ct)
     {
-        var groups = properties
+        // Resolve (replace) references in the context with their referenced objects
+        var referenceProperties = properties
             .Where(p => p is PropertyLookup)
             .Cast<PropertyLookup>()
             .Distinct()
             .Where(p => p.Parts.Length > 1)
             .Where(p => workflowDefinition.Properties.Get(p.Parts[0]).DataType == DataType.Reference)
-            .GroupBy(p => p.Parts[0])
-            .ToArray();
-
-        foreach (var referenceGroup in groups)
+            .GroupBy(p => p.Parts[0]);
+        foreach (var referenceProperty in referenceProperties)
         {
-            var ids = contexts.ToDictionary(c => c, c => c.Get(referenceGroup.Key) as string);
-            var targetType = workflowDefinition.Properties.Get(referenceGroup.Key).WorkflowDefinition!;
-            var props = referenceGroup.Select(p => targetType.Properties.Get(p.Parts[1])).ToArray();
-            var results = await GetProperties(ids.Values.Where(i => i != null).ToArray()!, props, ct);
-            foreach (var context in contexts)
+            if (workflowDefinition.Properties.Get(referenceProperty.Key).WorkflowDefinition != null)
             {
-                var id = ids[context];
-                var result = results.GetValueOrDefault(id ?? "");
-                if (result == null)
-                    continue;
-                foreach (var reference in referenceGroup)
-                    if (result.Values.TryGetValue(reference.Parts[1], out var value))
-                        context.Values[reference] = value;
+                var instanceId = context.Get(referenceProperty.Key) as string;
+                if (instanceId != null)
+                {
+                    var instance = await workflowInstanceRepository.GetById(instanceId, ct);
+                    context.Values[referenceProperty.Key] = instance;
+                }
             }
         }
 
-        foreach (var context in contexts)
-        {
-            if (context.Values.TryGetValue("CurrentStep", out var id) && id is string stepName)
-                context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
-        }
+        // Add CurrentStep to context
+        if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
+            context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
     }
 
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
-        await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
+        await Enrich(workflowDefinition, context, workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         string? targetStep = null;
         foreach (var step in workflowDefinition.FlattenedSteps)
         {
@@ -80,12 +72,12 @@ public class InstanceService(
         }
     }
 
-    public async Task<Dictionary<string, ObjectContext>> GetProperties(string[] ids, PropertyDefinition[] properties,
+    public async Task<Dictionary<string, ObjectContext>> GetProperties(string id, PropertyDefinition[] properties,
         CancellationToken ct)
     {
         var projection = properties.ToDictionary(p => p.Name, p => $"$Properties.{p.Name}");
 
-        var res = await workflowInstanceRepository.GetAllById(ids, projection, ct);
+        var res = await workflowInstanceRepository.GetAllById([id], projection, ct);
         return res.ToDictionary(r => r["_id"].ToString()!, r => new ObjectContext(
             properties.ToDictionary(p => (Lookup)p.Name, p => ObjectContext.GetValue(r[p.Name], p))
         ));

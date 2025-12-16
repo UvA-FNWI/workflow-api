@@ -3,15 +3,15 @@ titlePlural: Projects
 instanceTitle: '{{ Title }}'
 
 headerFields:
-  - property: Title
-  - property: Student.DisplayName
-    title: Student
-  - property: Course.Name
-    title: Course
-  - currentStep: true
+ - property: Course.Name
+   title: Course
+ - property: Student.DisplayName
+   title: Student
+ - property: Title
+ - currentStep: true
 
 steps:
-  - Subject
+  - Start
   - Upload
   - Assessment
   - Publication

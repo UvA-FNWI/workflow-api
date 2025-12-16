@@ -1,4 +1,3 @@
-using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.WorkflowModel;
@@ -10,7 +9,6 @@ public class WorkflowInstanceDtoFactory(
     ModelService modelService,
     SubmissionDtoFactory submissionDtoFactory,
     IWorkflowInstanceRepository repository,
-    ScreenDataService screenDataService,
     RightsService rightsService)
 {
     /// <summary>
@@ -23,7 +21,7 @@ public class WorkflowInstanceDtoFactory(
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools);
 
-        return new WorkflowInstanceDto(
+        var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
@@ -37,6 +35,7 @@ public class WorkflowInstanceDtoFactory(
                 .ToArray(),
             permissions.Select(a => a.Type).Distinct().ToArray()
         );
+        return x;
     }
 
     private async Task<FieldDto[]> CreateFields(WorkflowDefinition workflowDefinition, string instanceId,
@@ -47,16 +46,62 @@ public class WorkflowInstanceDtoFactory(
         if (instance is not null)
         {
             var context = ObjectContext.Create(instance, modelService);
-            await instanceService.Enrich(workflowDefinition, [context],
-                workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
+            await instanceService.Enrich(workflowDefinition, context,
+                workflowDefinition.HeaderFields.SelectMany(f => f.Properties), ct);
             foreach (var field in workflowDefinition.HeaderFields)
             {
-                var obj = screenDataService.ProcessColumnValue(instance.Properties, field, workflowDefinition.Name,
-                    instanceId);
+                var obj = ProcessColumnValue(context, field);
                 result.Add(new FieldDto(field.DisplayTitle, obj));
             }
         }
 
         return result.ToArray();
+    }
+
+    private object? ProcessColumnValue(
+        ObjectContext context,
+        Field column
+    )
+    {
+        if (column.CurrentStep)
+        {
+            // Return current step value or default
+            return context.Values["CurrentStep"] ?? column.Default ?? "Draft";
+        }
+
+        if (column.ValueTemplate != null)
+        {
+            return column.ValueTemplate.Execute(context);
+        }
+
+        if (!string.IsNullOrEmpty(column.Property))
+        {
+            // Get property value from raw data
+            return GetNestedPropertyValue(context, column.Property);
+        }
+
+        return column.Default;
+    }
+
+    private static object? GetNestedPropertyValue(ObjectContext context, string propertyPath)
+    {
+        var parts = propertyPath.Split('.');
+
+        if (!context.Values.TryGetValue(parts[0], out var rootValue) || rootValue == null)
+            return null;
+
+        // If only one part, return the root value
+        if (parts.Length == 1) return rootValue;
+
+        var propName = parts[1];
+        if (rootValue is not System.Collections.IEnumerable list) return GetValue(rootValue);
+        var values = (from object? l in list select GetValue(l)).ToList();
+        return string.Join(", ", values);
+
+        object? GetValue(object obj) => obj switch
+        {
+            WorkflowInstance instance => instance.Properties[propName].AsString,
+            _ => obj.GetType().GetProperty(propName)?.GetValue(obj, null) // Fallback to reflection
+        };
     }
 }
