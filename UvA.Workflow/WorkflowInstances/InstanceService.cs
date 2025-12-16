@@ -16,9 +16,10 @@ public class InstanceService(
     /// Populates references in object contexts based on the specified entity type and lookup properties.
     /// </summary>
     /// <param name="workflowDefinition">The entity type defining the properties to be enriched.</param>
-    /// <param name="contexts">A collection of object contexts whose values will be updated.</param>
-    /// <param name="properties">The set of properties to be used for enrichment.</param>
+    /// <param name="context">The object context whose values will be updated.</param>
+    /// <param name="properties">The collection of lookup properties to be used for enrichment.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous enrichment operation.</returns>
     public async Task Enrich(WorkflowDefinition workflowDefinition, ObjectContext context,
         IEnumerable<Lookup> properties,
         CancellationToken ct)
