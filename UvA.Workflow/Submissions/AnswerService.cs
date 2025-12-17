@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Serilog;
+using UvA.Workflow.Auditing;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Persistence;
@@ -18,7 +19,8 @@ public class AnswerService(
     InstanceService instanceService,
     RightsService rightsService,
     IArtifactService artifactService,
-    AnswerConversionService answerConversionService)
+    AnswerConversionService answerConversionService,
+    IAuditLogService auditLogService)
 {
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
@@ -34,7 +36,7 @@ public class AnswerService(
         return new QuestionContext(instance, submission, form, question);
     }
 
-    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
+    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, User user, CancellationToken ct)
     {
         var (instance, submission, form, question) = context;
 
@@ -49,6 +51,8 @@ public class AnswerService(
         {
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
+            await auditLogService.LogPropertyChange(instance.Id,
+                PropertyValueChange.Create(context.PropertyDefinition, currentAnswer, newAnswer, user), ct);
         }
 
         // Get questions to update (including dependent questions)

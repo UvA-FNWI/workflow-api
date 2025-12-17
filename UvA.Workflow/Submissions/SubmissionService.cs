@@ -1,3 +1,4 @@
+using UvA.Workflow.Auditing;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 
@@ -15,7 +16,8 @@ public class SubmissionService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     EffectService effectService,
-    InstanceService instanceService
+    InstanceService instanceService,
+    IAuditLogService auditLogService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
@@ -71,8 +73,10 @@ public class SubmissionService(
 
         await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct);
 
+
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);
+        await auditLogService.IncrementVersion(instance.Id, ct);
         return new SubmissionResult(true, []);
     }
 }

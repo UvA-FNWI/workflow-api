@@ -1,3 +1,4 @@
+using UvA.Workflow.Auditing;
 using UvA.Workflow.Infrastructure;
 
 namespace UvA.Workflow.Events;
@@ -21,6 +22,7 @@ public interface IInstanceEventService
 
 public class InstanceEventService(
     IInstanceEventRepository eventRepository,
+    IAuditLogService auditLogService,
     RightsService rightsService,
     InstanceService instanceService) : IInstanceEventService
 {
@@ -48,6 +50,7 @@ public class InstanceEventService(
         {
             await eventRepository.DeleteEvent(instance, instanceEvent, user, ct);
             instance.Events.Remove(eventId);
+            await auditLogService.IncrementVersion(instance.Id, ct);
             await instanceService.UpdateCurrentStep(instance, ct);
         }
         else

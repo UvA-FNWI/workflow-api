@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Auditing;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Persistence;
@@ -55,6 +56,8 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<ModelServiceResolver>();
         services.AddScoped<ScreenDataService>();
+
+        services.AddScoped<IAuditLogService, AuditLogService>();
 
         return services;
     }
