@@ -16,7 +16,7 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
 
         // Build projection based on screen columns
-        var projection = BuildProjection(screen.Columns.Cast<Field>().ToArray(), workflowDefinition);
+        var projection = BuildProjection(screen.Columns, workflowDefinition);
         var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
 
         // Process the data and apply templates/expressions
@@ -34,7 +34,7 @@ public class ScreenDataService(
         return entity.Screens.GetOrDefault(screenName);
     }
 
-    public Dictionary<string, string> BuildProjection(Field[] columns, string workflowDefinition)
+    public Dictionary<string, string> BuildProjection(Column[] columns, string workflowDefinition)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
@@ -217,7 +217,7 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' does not have grouping configuration");
 
         // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen, workflowDefinition);
+        var projection = BuildProjection(screen.Columns, workflowDefinition);
         projection.TryAdd("CurrentStep", "$CurrentStep");
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
