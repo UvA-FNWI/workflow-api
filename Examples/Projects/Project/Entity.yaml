@@ -11,7 +11,7 @@ headerFields:
  - currentStep: true
 
 steps:
-  - Start
+  - Subject
   - Upload
   - Assessment
   - Publication
