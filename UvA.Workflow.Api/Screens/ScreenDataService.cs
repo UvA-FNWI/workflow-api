@@ -197,4 +197,114 @@ public class ScreenDataService(
         // Use shared utility to navigate the remaining path
         return BsonConversionTools.NavigateNestedBsonValue(rootValue, parts.Skip(1));
     }
+
+    /// <summary>
+    /// Gets screen data grouped by workflow step using the grouping configuration from the screen definition.
+    /// CurrentStep is automatically fetched for grouping purposes, regardless of whether it's defined in the columns.
+    /// </summary>
+    /// <param name="screenName">The name of the screen</param>
+    /// <param name="workflowDefinition">The workflow definition</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Grouped screen data with bilingual titles for each group</returns>
+    public async Task<GroupedScreenDataDto> GetGroupedScreenData(string screenName, string workflowDefinition,
+        CancellationToken ct)
+    {
+        var screen = GetScreen(screenName, workflowDefinition);
+        if (screen == null)
+            throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
+
+        if (screen.Grouping == null)
+            throw new ArgumentException($"Screen '{screenName}' does not have grouping configuration");
+
+        // Build projection based on screen columns, always including CurrentStep for grouping
+        var projection = BuildProjection(screen, workflowDefinition);
+        projection.TryAdd("CurrentStep", "$CurrentStep");
+
+        var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
+
+        // Build step-to-group mapping from configuration
+        var stepGroupMapping = BuildStepGroupMapping(screen.Grouping);
+
+        // Group raw rows by step
+        var groupedRawRows =
+            new Dictionary<string, List<Dictionary<string, BsonValue>>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rawRow in rawData)
+        {
+            var stepValue = rawRow.GetStringValue("CurrentStep") ?? "Draft";
+
+            // Only include rows that match a configured group
+            if (!stepGroupMapping.TryGetValue(stepValue, out var groupName))
+                continue;
+
+            if (!groupedRawRows.TryGetValue(groupName, out var list))
+            {
+                list = [];
+                groupedRawRows[groupName] = list;
+            }
+
+            list.Add(rawRow);
+        }
+
+        // Process columns
+        var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
+
+        // Build the result with group metadata (always include all configured groups)
+        var groups = screen.Grouping.Groups
+            .Select(g => new ScreenGroupDto(
+                g.Name,
+                g.Title,
+                ProcessGroupRows(groupedRawRows.TryGetValue(g.Name, out var rawRows) ? rawRows : [], screen,
+                    workflowDefinition,
+                    columns)))
+            .ToArray();
+
+        return new GroupedScreenDataDto(
+            screen.Name,
+            screen.WorkflowDefinition ?? "",
+            columns,
+            groups);
+    }
+
+    private ScreenRowDto[] ProcessGroupRows(
+        List<Dictionary<string, BsonValue>> rawData,
+        Screen screen,
+        string entityType,
+        ScreenColumnDto[] columns)
+    {
+        var rows = new List<ScreenRowDto>();
+
+        foreach (var rawRow in rawData)
+        {
+            var id = rawRow.GetValueOrDefault("_id")?.ToString() ?? "Unknown";
+            var processedValues = new Dictionary<int, object?>();
+
+            for (int i = 0; i < screen.Columns.Length; i++)
+            {
+                var column = screen.Columns[i];
+                var columnId = columns[i].Id;
+                var value = ProcessColumnValue(rawRow, column, entityType, id);
+                processedValues[columnId] = value;
+            }
+
+            rows.Add(ScreenRowDto.Create(id, processedValues));
+        }
+
+        return rows.ToArray();
+    }
+
+    private static Dictionary<string, string> BuildStepGroupMapping(ScreenGrouping grouping)
+    {
+        var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in grouping.Groups)
+        {
+            foreach (var step in group.Steps)
+            {
+                mapping[step] = group.Name;
+            }
+        }
+
+        return mapping;
+    }
 }

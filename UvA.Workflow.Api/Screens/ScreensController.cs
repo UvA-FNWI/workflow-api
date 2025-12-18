@@ -27,12 +27,21 @@ public class ScreensController(ScreenDataService screenDataService) : ApiControl
         {
             return NotFound("ScreenNotFound", ex.Message);
         }
-        catch (Exception ex)
+    }
+
+    [HttpGet("Grouped/{workflowDefinition}/{screenName}")]
+    public async Task<ActionResult<GroupedScreenDataDto>> GetGroupedScreenData(string screenName,
+        string workflowDefinition,
+        CancellationToken ct)
+    {
+        try
         {
-            return Problem(
-                detail: ex.Message,
-                title: "Error retrieving screen data"
-            );
+            var grouped = await screenDataService.GetGroupedScreenData(screenName, workflowDefinition, ct);
+            return Ok(grouped);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound("ScreenNotFound", ex.Message);
         }
     }
 }
