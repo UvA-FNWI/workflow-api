@@ -24,4 +24,13 @@ public interface IInstanceEventRepository
     /// <returns>An asynchronous operation representing the deletion process.</returns>
     Task DeleteEvent(WorkflowInstance instance, InstanceEvent eventToDelete, User user,
         CancellationToken ct);
+
+    /// <summary>
+    /// Counts the number of event log entries for a specified instance and event.
+    /// </summary>
+    /// <param name="instanceId">The identifier of the workflow instance to filter the event logs by.</param>
+    /// <param name="eventId">The identifier of the event to filter the event logs by.</param>
+    /// <param name="ct">The cancellation token used to observe the operation's cancellation.</param>
+    /// <returns>The total count of event log entries that match the specified instance ID and event ID.</returns>
+    Task<long> CountEventLogFor(string instanceId, string eventId, CancellationToken ct);
 }

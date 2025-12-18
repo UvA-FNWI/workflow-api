@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Serilog;
-using UvA.Workflow.Auditing;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Submissions;
@@ -20,7 +20,8 @@ public class AnswerService(
     RightsService rightsService,
     IArtifactService artifactService,
     AnswerConversionService answerConversionService,
-    IAuditLogService auditLogService)
+    IInstanceEventService instanceEventService,
+    IInstanceJournalService instanceJournalService)
 {
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
@@ -53,10 +54,10 @@ public class AnswerService(
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
 
             // if the form is submitted, then log the change
-            if (instance.HasEvent(form.Name))
+            if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
             {
-                await auditLogService.LogPropertyChange(instance.Id,
-                    PropertyValueChange.Create(context.PropertyDefinition, currentAnswer, newAnswer, user), ct);
+                await instanceJournalService.LogPropertyChange(instance.Id,
+                    PropertyChangeEntry.Create(context.PropertyDefinition, newAnswer, user), ct);
             }
         }
 

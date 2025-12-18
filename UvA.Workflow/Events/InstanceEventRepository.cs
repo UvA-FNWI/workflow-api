@@ -79,6 +79,22 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
         }
     }
 
+    /// <summary>
+    /// Counts the number of event log entries for a specified instance and event.
+    /// </summary>
+    /// <param name="instanceId">The identifier of the workflow instance to filter the event logs by.</param>
+    /// <param name="eventId">The identifier of the event to filter the event logs by.</param>
+    /// <param name="ct">The cancellation token used to observe the operation's cancellation.</param>
+    /// <returns>The total count of event log entries that match the specified instance ID and event ID.</returns>
+    public async Task<long> CountEventLogFor(string instanceId, string eventId, CancellationToken ct)
+    {
+        var filter = Builders<InstanceEventLogEntry>.Filter.And(
+            Builders<InstanceEventLogEntry>.Filter.Eq(x => x.WorkflowInstanceId, instanceId),
+            Builders<InstanceEventLogEntry>.Filter.Eq(x => x.EventId, eventId));
+        return await _eventLogCollection.CountDocumentsAsync(filter, cancellationToken: ct);
+    }
+
+
     private async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
         EventLogOperation operation, CancellationToken ct)
     {

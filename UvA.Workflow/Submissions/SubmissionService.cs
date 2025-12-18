@@ -1,6 +1,6 @@
-using UvA.Workflow.Auditing;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 
 namespace UvA.Workflow.Submissions;
 
@@ -17,7 +17,7 @@ public class SubmissionService(
     ModelService modelService,
     EffectService effectService,
     InstanceService instanceService,
-    IAuditLogService auditLogService
+    IInstanceJournalService instanceJournalService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
@@ -76,7 +76,7 @@ public class SubmissionService(
 
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);
-        await auditLogService.IncrementVersion(instance.Id, ct);
+        await instanceJournalService.IncrementVersion(instance.Id, ct);
         return new SubmissionResult(true, []);
     }
 }

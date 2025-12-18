@@ -1,8 +1,8 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace UvA.Workflow.Auditing;
+namespace UvA.Workflow.Journaling;
 
-public class WorkflowInstanceChangeSet
+public class InstanceJournalEntry
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -10,5 +10,5 @@ public class WorkflowInstanceChangeSet
 
     public int CurrentVersion { get; set; } = 0;
 
-    public PropertyValueChange[] PropertyChanges { get; set; } = Array.Empty<PropertyValueChange>();
+    public PropertyChangeEntry[] PropertyChanges { get; set; } = Array.Empty<PropertyChangeEntry>();
 }

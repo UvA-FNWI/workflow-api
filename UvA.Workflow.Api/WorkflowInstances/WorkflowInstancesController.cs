@@ -8,7 +8,7 @@ namespace UvA.Workflow.Api.WorkflowInstances;
 
 public class WorkflowInstancesController(
     IUserService userService,
-    WorkflowInstanceService service,
+    WorkflowInstanceService workflowInstanceService,
     RightsService rightsService,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
     IWorkflowInstanceRepository repository,
@@ -44,7 +44,7 @@ public class WorkflowInstancesController(
             }
         }
 
-        var instance = await service.Create(
+        var instance = await workflowInstanceService.Create(
             input.WorkflowDefinition,
             user,
             ct,
@@ -61,9 +61,12 @@ public class WorkflowInstancesController(
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id, CancellationToken ct)
+    public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id, [FromQuery] int? version = null,
+        CancellationToken ct = default)
     {
-        var instance = await repository.GetById(id, ct);
+        var instance = (version is null)
+            ? await repository.GetById(id, ct)
+            : await workflowInstanceService.GetAsOfVersion(id, version.Value, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
 

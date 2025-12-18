@@ -4,9 +4,9 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using Serilog;
-using UvA.Workflow.Auditing;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Services;
 using UvA.Workflow.Submissions;
@@ -22,7 +22,10 @@ public class WorkflowTests
     readonly Mock<IUserService> _userServiceMock;
     readonly Mock<IMailService> _mailServiceMock;
     readonly Mock<IArtifactService> _artifactServiceMock;
-    private Mock<IAuditLogService> _auditLogServiceMock;
+    readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
+    readonly Mock<IInstanceEventService> _instanceEventService;
+
+
     readonly ModelService _modelService;
     readonly RightsService _rightsService;
     readonly InstanceService _instanceService;
@@ -33,6 +36,7 @@ public class WorkflowTests
     readonly AnswerService _answerService;
     readonly AnswerConversionService _answerConversionService;
     readonly CancellationToken _ct = new CancellationTokenSource().Token;
+
 
     public WorkflowTests()
     {
@@ -48,7 +52,8 @@ public class WorkflowTests
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
         _artifactServiceMock = new Mock<IArtifactService>();
-        _auditLogServiceMock = new Mock<IAuditLogService>();
+        _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
+        _instanceEventService = new Mock<IInstanceEventService>();
 
         // Services
         var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
@@ -57,15 +62,17 @@ public class WorkflowTests
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService);
-        _eventService = new InstanceEventService(_eventRepoMock.Object, _auditLogServiceMock.Object, _rightsService,
+        _eventService = new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object,
+            _rightsService,
             _instanceService);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object);
         _submissionService =
             new SubmissionService(_instanceRepoMock.Object, _modelService, _effectService, _instanceService,
-                _auditLogServiceMock.Object);
+                _instanceJournalServiceMock.Object);
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
-            _artifactServiceMock.Object, _answerConversionService, _auditLogServiceMock.Object);
+            _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
+            _instanceJournalServiceMock.Object);
     }
 
     [Fact]
