@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using Serilog;
+using UvA.Workflow.Auditing;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
@@ -21,6 +22,7 @@ public class WorkflowTests
     readonly Mock<IUserService> _userServiceMock;
     readonly Mock<IMailService> _mailServiceMock;
     readonly Mock<IArtifactService> _artifactServiceMock;
+    private Mock<IAuditLogService> _auditLogServiceMock;
     readonly ModelService _modelService;
     readonly RightsService _rightsService;
     readonly InstanceService _instanceService;
@@ -46,6 +48,7 @@ public class WorkflowTests
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
         _artifactServiceMock = new Mock<IArtifactService>();
+        _auditLogServiceMock = new Mock<IAuditLogService>();
 
         // Services
         var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
@@ -54,13 +57,15 @@ public class WorkflowTests
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService);
-        _eventService = new InstanceEventService(_eventRepoMock.Object, _rightsService, _instanceService);
+        _eventService = new InstanceEventService(_eventRepoMock.Object, _auditLogServiceMock.Object, _rightsService,
+            _instanceService);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object);
         _submissionService =
-            new SubmissionService(_instanceRepoMock.Object, _modelService, _effectService, _instanceService);
+            new SubmissionService(_instanceRepoMock.Object, _modelService, _effectService, _instanceService,
+                _auditLogServiceMock.Object);
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
-            _artifactServiceMock.Object, _answerConversionService);
+            _artifactServiceMock.Object, _answerConversionService, _auditLogServiceMock.Object);
     }
 
     [Fact]
@@ -106,7 +111,7 @@ public class WorkflowTests
 
         // Act
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Title", _ct);
-        await _answerService.SaveAnswer(questionContext, value, _ct);
+        await _answerService.SaveAnswer(questionContext, value, new User(), _ct);
 
         // Assert
         Assert.Contains(instance.Properties, p => p.Key == "Title" && p.Value.ToString() == "title");

@@ -1,10 +1,13 @@
+using System.Diagnostics.CodeAnalysis;
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 
 namespace UvA.Workflow.Auditing;
 
 public interface IAuditLogService
 {
-    Task<WorkflowInstanceChangeSet?> GetInstanceChangeSet(string instanceId, CancellationToken ct = default);
+    Task<WorkflowInstanceChangeSet?> GetInstanceChangeSet(string instanceId, bool createIfNotExist = false,
+        CancellationToken ct = default);
 
     Task LogPropertyChange(string instanceId, PropertyValueChange valueChange, CancellationToken ct = default);
 
@@ -21,11 +24,24 @@ public class AuditLogService(IMongoDatabase db) : IAuditLogService
     private readonly IMongoCollection<WorkflowInstanceChangeSet> _changeSetCollection =
         db.GetCollection<WorkflowInstanceChangeSet>("instance_changes");
 
-    public async Task<WorkflowInstanceChangeSet?> GetInstanceChangeSet(string instanceId,
+    private readonly IMongoCollection<InstanceEventLogEntry> _eventLogCollection =
+        db.GetCollection<InstanceEventLogEntry>("eventlog");
+
+    public async Task<WorkflowInstanceChangeSet?> GetInstanceChangeSet(string instanceId, bool createIfNotExist = false,
         CancellationToken ct = default)
     {
         var filter = Builders<WorkflowInstanceChangeSet>.Filter.Eq(x => x.InstanceId, instanceId);
-        return await _changeSetCollection.Find(filter).FirstOrDefaultAsync(ct);
+        var changeSet = await _changeSetCollection.Find(filter).FirstOrDefaultAsync(ct);
+        if (changeSet == null && createIfNotExist)
+        {
+            changeSet = new WorkflowInstanceChangeSet
+            {
+                InstanceId = instanceId,
+                CurrentVersion = 0,
+            };
+        }
+
+        return changeSet!;
     }
 
     public async Task LogPropertyChange(string instanceId, PropertyValueChange valueChange,
@@ -37,12 +53,7 @@ public class AuditLogService(IMongoDatabase db) : IAuditLogService
     public async Task LogPropertyChanges(string instanceId, IEnumerable<PropertyValueChange> newChanges,
         CancellationToken ct = default)
     {
-        var changeSet = await GetInstanceChangeSet(instanceId, ct);
-        if (changeSet == null)
-            throw new EntityNotFoundException("WorkflowInstanceChangeSet", $"instanceId:{instanceId}");
-
-        // Only start tracking changes after the first version, discard before that
-        if (changeSet.CurrentVersion == 0) return;
+        var changeSet = await GetInstanceChangeSet(instanceId, createIfNotExist: true, ct);
 
         var changes = newChanges.Where(nc => nc.OldValue != nc.NewValue).ToList();
         if (changes.Count == 0)

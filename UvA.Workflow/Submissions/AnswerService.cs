@@ -51,8 +51,13 @@ public class AnswerService(
         {
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
-            await auditLogService.LogPropertyChange(instance.Id,
-                PropertyValueChange.Create(context.PropertyDefinition, currentAnswer, newAnswer, user), ct);
+
+            // if the form is submitted, then log the change
+            if (instance.HasEvent(form.Name))
+            {
+                await auditLogService.LogPropertyChange(instance.Id,
+                    PropertyValueChange.Create(context.PropertyDefinition, currentAnswer, newAnswer, user), ct);
+            }
         }
 
         // Get questions to update (including dependent questions)
