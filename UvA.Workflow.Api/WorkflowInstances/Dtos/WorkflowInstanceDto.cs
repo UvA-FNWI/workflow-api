@@ -22,7 +22,7 @@ public record WorkflowInstanceDto(
     RoleAction[] Permissions
 );
 
-public record FieldDto();
+public record FieldDto(BilingualString Title, object? Value);
 
 public record StepDto(
     string Id,
