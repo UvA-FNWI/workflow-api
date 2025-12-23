@@ -17,14 +17,18 @@ public class SubmissionService(
     ModelService modelService,
     EffectService effectService,
     InstanceService instanceService,
-    IInstanceJournalService instanceJournalService
+    IInstanceJournalService instanceJournalService,
+    WorkflowInstanceService workflowInstanceService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
-        CancellationToken ct)
+        int? version = null,
+        CancellationToken ct = default)
     {
         // Get the workflow instance
-        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
+        var instance = version is null
+            ? await workflowInstanceRepository.GetById(instanceId, ct)
+            : await workflowInstanceService.GetAsOfVersion(instanceId, version.Value, ct);
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 

@@ -75,7 +75,6 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
 
             // Update the matched array element in-place
             var updateExisting = Builders<InstanceJournalEntry>.Update
-                .Set("PropertyChanges.$.NewValue", change.NewValue)
                 .Set("PropertyChanges.$.Timestamp", change.Timestamp)
                 .Set("PropertyChanges.$.ModifiedBy", change.ModifiedBy);
 

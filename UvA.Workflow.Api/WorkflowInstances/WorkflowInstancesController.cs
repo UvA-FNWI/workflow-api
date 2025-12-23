@@ -64,7 +64,7 @@ public class WorkflowInstancesController(
     public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id, [FromQuery] int? version = null,
         CancellationToken ct = default)
     {
-        var instance = (version is null)
+        var instance = version is null
             ? await repository.GetById(id, ct)
             : await workflowInstanceService.GetAsOfVersion(id, version.Value, ct);
         if (instance == null)
@@ -83,14 +83,14 @@ public class WorkflowInstancesController(
 
     //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
     [HttpGet("instances/{workflowDefinition}")]
-    public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string entityType,
+    public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string workflowDefinition,
         [FromQuery] string[] properties, CancellationToken ct)
     {
-        if (!await rightsService.CanAny(entityType, RoleAction.ViewAdminTools))
+        if (!await rightsService.CanAny(workflowDefinition, RoleAction.ViewAdminTools))
             return Forbidden();
 
-        var entity = modelService.WorkflowDefinitions[entityType];
-        var res = await repository.GetAllByType(entityType, properties.ToDictionary(
+        var entity = modelService.WorkflowDefinitions[workflowDefinition];
+        var res = await repository.GetAllByType(workflowDefinition, properties.ToDictionary(
             p => p,
             p => entity.GetKey(p)
         ), ct);

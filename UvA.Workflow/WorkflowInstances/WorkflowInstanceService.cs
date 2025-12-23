@@ -61,10 +61,12 @@ public class WorkflowInstanceService(
         var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
         if (journal != null)
         {
-            // Replay all changes up to and including the specified version
-            foreach (var change in journal.PropertyChanges.OrderBy(p => p.Timestamp).Where(p => p.Version <= version))
+            // Revert all changes after the specified version
+            foreach (var change in journal.PropertyChanges
+                         .OrderByDescending(p => p.Timestamp)
+                         .Where(p => p.Version > version))
             {
-                workflowInstance.SetProperty(change.NewValue, change.Path.Split('.'));
+                workflowInstance.SetProperty(change.OldValue, change.Path.Split('.'));
             }
         }
 

@@ -14,10 +14,11 @@ public class SubmissionsController(
 {
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId,
-        CancellationToken ct)
+        [FromQuery] int? version = null,
+        CancellationToken ct = default)
     {
         var (instance, submission, form, _) =
-            await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
+            await submissionService.GetSubmissionContext(instanceId, submissionId, version, ct);
         var dto = submissionDtoFactory.Create(instance, form, submission,
             modelService.GetQuestionStatus(instance, form, true));
         return Ok(dto);
@@ -30,7 +31,7 @@ public class SubmissionsController(
         var currentUser = await userService.GetCurrentUser(ct);
         if (currentUser == null)
             return Unauthorized();
-        var context = await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
+        var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
         var (instance, sub, form, _) = context;
         var result = await submissionService.SubmitSubmission(context, currentUser, ct);
 

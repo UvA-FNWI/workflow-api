@@ -6,7 +6,7 @@ public class PropertyChangeEntry
 {
     public DateTime Timestamp { get; private set; }
     public string Path { get; private set; } = null!;
-    public BsonValue NewValue { get; private set; } = null!;
+    public BsonValue? OldValue { get; private set; }
     public string ModifiedBy { get; private set; } = null!;
 
     public int Version { get; set; } = 1;
@@ -20,23 +20,23 @@ public class PropertyChangeEntry
     private PropertyChangeEntry(
         DateTime timestamp,
         string path,
-        BsonValue newValue,
+        BsonValue? oldValue,
         string modifiedBy)
     {
         Timestamp = timestamp;
         Path = path;
-        NewValue = newValue;
+        OldValue = oldValue;
         ModifiedBy = modifiedBy;
     }
 
     // Factory for your application code.
     public static PropertyChangeEntry Create(
         PropertyDefinition propertyDefinition,
-        BsonValue newValue,
+        BsonValue? oldValue,
         User modifiedBy)
         => new(
             DateTime.Now,
             propertyDefinition.Name,
-            newValue,
+            oldValue,
             modifiedBy.UserName);
 }

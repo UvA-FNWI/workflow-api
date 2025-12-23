@@ -27,7 +27,7 @@ public class AnswerService(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
         var (instance, submission, form, _) =
-            await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
+            await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
 
         // Get the propertyDefinition
         var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
@@ -57,7 +57,7 @@ public class AnswerService(
             if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
             {
                 await instanceJournalService.LogPropertyChange(instance.Id,
-                    PropertyChangeEntry.Create(context.PropertyDefinition, newAnswer, user), ct);
+                    PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
             }
         }
 
