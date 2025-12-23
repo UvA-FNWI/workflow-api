@@ -1,10 +1,13 @@
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 
 namespace UvA.Workflow.WorkflowInstances;
 
 public class WorkflowInstanceService(
     ModelService modelService,
-    IWorkflowInstanceRepository repository)
+    IWorkflowInstanceRepository repository,
+    IInstanceJournalService journalService)
 {
     /// <summary>
     /// Creates a new workflow instance
@@ -38,6 +41,36 @@ public class WorkflowInstanceService(
 
         await repository.Create(instance, ct);
         return instance;
+    }
+
+    /// <summary>
+    /// Retrieves a specific version of a workflow instance by replaying property changes
+    /// from the audit journal up to the specified version thereby returning a snapshot of the workflow instance at that point in time.
+    /// </summary>
+    /// <param name="instanceId">The unique identifier of the workflow instance.</param>
+    /// <param name="version">The version number of the workflow instance to retrieve.</param>
+    /// <param name="ct">A cancellation token to observe while awaiting the task.</param>
+    /// <returns>The workflow instance at the specified version.</returns>
+    /// <exception cref="EntityNotFoundException">Thrown if the workflow instance with the given ID is not found.</exception>
+    public async Task<WorkflowInstance> GetAsOfVersion(string instanceId, int version, CancellationToken ct)
+    {
+        var workflowInstance = await repository.GetById(instanceId, ct);
+        if (workflowInstance == null)
+            throw new EntityNotFoundException(nameof(WorkflowInstance), instanceId);
+
+        var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
+        if (journal != null)
+        {
+            // Revert all changes after the specified version
+            foreach (var change in journal.PropertyChanges
+                         .OrderByDescending(p => p.Timestamp)
+                         .Where(p => p.Version > version))
+            {
+                workflowInstance.SetProperty(change.OldValue, change.Path.Split('.'));
+            }
+        }
+
+        return workflowInstance;
     }
 
     /// <summary>

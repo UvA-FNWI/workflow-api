@@ -2,6 +2,7 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.Database;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 
@@ -55,6 +56,9 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<ModelServiceResolver>();
         services.AddScoped<ScreenDataService>();
+
+        services.AddScoped<IInstanceJournalService, InstanceJournalService>();
+        services.AddScoped<InstanceEventService>();
 
         return services;
     }

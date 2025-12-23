@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 
 namespace UvA.Workflow.Submissions;
 
@@ -15,14 +16,19 @@ public class SubmissionService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     EffectService effectService,
-    InstanceService instanceService
+    InstanceService instanceService,
+    IInstanceJournalService instanceJournalService,
+    WorkflowInstanceService workflowInstanceService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
-        CancellationToken ct)
+        int? version = null,
+        CancellationToken ct = default)
     {
         // Get the workflow instance
-        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
+        var instance = version is null
+            ? await workflowInstanceRepository.GetById(instanceId, ct)
+            : await workflowInstanceService.GetAsOfVersion(instanceId, version.Value, ct);
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
@@ -71,8 +77,10 @@ public class SubmissionService(
 
         await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct);
 
+
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);
+        await instanceJournalService.IncrementVersion(instance.Id, ct);
         return new SubmissionResult(true, []);
     }
 }

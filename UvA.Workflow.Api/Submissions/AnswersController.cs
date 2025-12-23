@@ -6,6 +6,7 @@ using UvA.Workflow.Submissions;
 namespace UvA.Workflow.Api.Submissions;
 
 public class AnswersController(
+    IUserService userService,
     AnswerService answerService,
     RightsService rightsService,
     ArtifactTokenService artifactTokenService,
@@ -16,9 +17,11 @@ public class AnswersController(
         string questionName,
         [FromBody] AnswerInput input, CancellationToken ct)
     {
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null) return Unauthorized();
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
-        var answers = await answerService.SaveAnswer(context, input.Value, ct);
+        var answers = await answerService.SaveAnswer(context, input.Value, user, ct);
         var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.Submission);
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
     }

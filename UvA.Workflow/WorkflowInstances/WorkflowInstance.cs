@@ -40,12 +40,15 @@ public class WorkflowInstance
         return BsonConversionTools.NavigateNestedBsonValue(rootValue, relevantParts.Skip(1));
     }
 
-    public void SetProperty(BsonValue value, params string?[] parts)
+    public void SetProperty(BsonValue? value, params string?[] parts)
     {
         string[] relevantParts = parts.Where(p => p != null).ToArray()!;
         if (relevantParts.Length == 1)
         {
-            Properties[relevantParts[0]] = value;
+            if (value == null)
+                Properties.Remove(relevantParts[0]);
+            else
+                Properties[relevantParts[0]] = value;
             return;
         }
 

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Serilog;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Submissions;
@@ -18,13 +19,15 @@ public class AnswerService(
     InstanceService instanceService,
     RightsService rightsService,
     IArtifactService artifactService,
-    AnswerConversionService answerConversionService)
+    AnswerConversionService answerConversionService,
+    IInstanceEventService instanceEventService,
+    IInstanceJournalService instanceJournalService)
 {
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
         var (instance, submission, form, _) =
-            await submissionService.GetSubmissionContext(instanceId, submissionId, ct);
+            await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
 
         // Get the propertyDefinition
         var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
@@ -34,7 +37,7 @@ public class AnswerService(
         return new QuestionContext(instance, submission, form, question);
     }
 
-    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
+    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, User user, CancellationToken ct)
     {
         var (instance, submission, form, question) = context;
 
@@ -49,6 +52,13 @@ public class AnswerService(
         {
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
+
+            // if the form is submitted, then log the change
+            if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
+            {
+                await instanceJournalService.LogPropertyChange(instance.Id,
+                    PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
+            }
         }
 
         // Get questions to update (including dependent questions)
