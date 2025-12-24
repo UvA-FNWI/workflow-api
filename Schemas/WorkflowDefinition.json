@@ -219,24 +219,37 @@
             }
           ]
         },
+        "inheritedRoles": {
+          "type": "array",
+          "description": "To be used for properties that refer to other entities. List of roles that is inherited from the target instance.",
+          "items": {
+            "type": "string"
+          }
+        },
         "condition": {
+          "description": "Condition that determines if the propertyDefinition should be shown",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Condition that determines if the propertyDefinition should be shown",
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/Condition"
             }
           ]
         },
         "validation": {
+          "description": "Condition that determines if the value is valid",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Condition that determines if the value is valid",
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -346,12 +359,15 @@
           "description": "Numeric value of the choice"
         },
         "condition": {
+          "description": "Condition that determines if the choice should be shown",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Condition that determines if the choice should be shown",
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -568,12 +584,15 @@
       "additionalProperties": false,
       "properties": {
         "condition": {
+          "description": "Condition that determines if this trigger is active",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Condition that determines if this trigger is active",
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -785,6 +804,9 @@
             }
           ]
         },
+        "intent": {
+          "$ref": "#/definitions/ActionIntent"
+        },
         "roles": {
           "type": "array",
           "description": "List of roles that can perform this action",
@@ -831,12 +853,15 @@
           "$ref": "#/definitions/RoleAction"
         },
         "condition": {
+          "description": "Condition that determines whether the action is permitted",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Condition that determines whether the action is permitted",
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/Condition"
             }
           ]
@@ -877,6 +902,14 @@
           "description": "Weird thing, maybe we should get rid of this?"
         }
       }
+    },
+    "ActionIntent": {
+      "type": "string",
+      "enum": [
+        "Primary",
+        "Secondary",
+        "Destructive"
+      ]
     },
     "RoleAction": {
       "type": "string",

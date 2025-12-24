@@ -78,7 +78,12 @@ public partial class ModelParser
                     action.WorkflowDefinition = definition.Name;
                     action.Steps = [step.Name];
                     foreach (var role in action.Roles)
-                        Roles.Get(role).Actions.Add(action);
+                    {
+                        var roleObject = Roles.GetOrDefault(role);
+                        if (roleObject == null)
+                            throw new Exception($"Role {role} is used in action {action.Name} but does not exist");
+                        roleObject.Actions.Add(action);
+                    }
                 }
 
                 foreach (var prop in step.Properties)
@@ -125,6 +130,11 @@ public partial class ModelParser
 
         foreach (var ent in form.Pages)
         {
+            var missingFields = ent.FieldNames.Where(f => workflowDefinition.Properties.GetOrDefault(f) == null)
+                .ToArray();
+            if (missingFields.Any())
+                throw new Exception(
+                    $"Form {form.Name} references unknown property {missingFields.ToSeparatedString()}");
             ent.Fields = ent.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
         }
 
@@ -220,7 +230,12 @@ public partial class ModelParser
     {
         if (condition == null) return;
         if (condition.Name is not null)
+        {
             condition.NamedCondition = NamedConditions.FirstOrDefault(c => c.Name == condition.Name);
+            if (condition.NamedCondition == null)
+                throw new Exception($"Condition {condition.Name} not found");
+        }
+
         condition.Logical?.Children.ForEach(PreProcess);
     }
 
@@ -259,6 +274,8 @@ public partial class ModelParser
         foreach (var filePath in _contentProvider.GetFiles($"{root}/{folder}"))
         {
             var obj = Parse<T>(filePath);
+            if (obj == null)
+                throw new Exception($"Invalid file: {filePath}");
 
             // If the object has a name property, set it to the entity name
             if (nameProperty?.PropertyType == typeof(string))

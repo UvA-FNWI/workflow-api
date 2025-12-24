@@ -60,12 +60,15 @@
           "description": "Numeric value of the choice"
         },
         "condition": {
+          "description": "Condition that determines if the choice should be shown",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Condition that determines if the choice should be shown",
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/Condition"
             }
           ]

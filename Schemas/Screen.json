@@ -31,6 +31,17 @@
         "string"
       ],
       "description": "Relation this screen is used for"
+    },
+    "grouping": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Optional grouping configuration for grouping screen data by steps",
+          "$ref": "#/definitions/ScreenGrouping"
+        }
+      ]
     }
   },
   "definitions": {
@@ -151,6 +162,55 @@
         },
         "nl": {
           "type": "string"
+        }
+      }
+    },
+    "ScreenGrouping": {
+      "title": "ScreenGrouping",
+      "type": "object",
+      "description": "Configuration for grouping screen data by workflow steps",
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "type": "array",
+          "description": "List of step groups",
+          "items": {
+            "$ref": "#/definitions/StepGroup"
+          }
+        }
+      }
+    },
+    "StepGroup": {
+      "title": "StepGroup",
+      "type": "object",
+      "description": "Defines a group of workflow steps",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "title"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal identifier for the group"
+        },
+        "title": {
+          "description": "Display name of the group in nl/en",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "description": "Array of step names that belong to this group",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

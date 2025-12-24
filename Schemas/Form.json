@@ -174,12 +174,15 @@
       "additionalProperties": false,
       "properties": {
         "condition": {
+          "description": "Condition that determines if this trigger is active",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Condition that determines if this trigger is active",
+              "type": "string"
+            },
+            {
               "$ref": "#/definitions/Condition"
             }
           ]

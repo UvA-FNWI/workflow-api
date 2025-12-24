@@ -129,7 +129,7 @@ public class Generator(DocumentationReader documentationReader)
         var basicProp = targetType switch
         {
             // types that are compatible with string
-            { Name: "BilingualString" or "EventCondition" } => CreateOneOf(
+            { Name: "BilingualString" or "EventCondition" or "Condition" } => CreateOneOf(
                 isNullable ? Null : null,
                 new JsonSchema { Type = JsonObjectType.String },
                 new JsonSchemaProperty { Reference = Get(targetType) }

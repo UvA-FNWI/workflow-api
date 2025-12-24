@@ -117,7 +117,7 @@ public class PropertyDefinition : INamed
         "Table" => DataType.Table,
         _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,
-        _ => throw new ArgumentException("Invalid type")
+        _ => throw new ArgumentException($"Invalid type {UnderlyingType}")
     };
 
     /// <summary>
