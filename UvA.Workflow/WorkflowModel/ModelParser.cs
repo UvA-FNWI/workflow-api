@@ -183,6 +183,8 @@ public partial class ModelParser
         foreach (var ev in step.Actions.SelectMany(a => a.OnAction.Select(t => t.Event)).Where(t => t != null))
             if (workflowDefinition.Events.All(e => e.Name != ev!))
                 workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
+        foreach (var child in step.Children)
+            PreProcess(child, workflowDefinition);
     }
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
