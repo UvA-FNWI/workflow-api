@@ -70,6 +70,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.Reference when question?.WorkflowDefinition?.IsEmbedded == true => answer.AsBsonDocument,
             DataType.Reference => answer.AsString,
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
+            DataType.String or DataType.Choice when question?.IsArray == true => answer.AsBsonArray
+                .Select(r => r.AsString).ToArray(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),

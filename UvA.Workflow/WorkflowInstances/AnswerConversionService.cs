@@ -32,6 +32,14 @@ public class AnswerConversionService(IUserService userService)
 
         var value = answerInput.Value.Value;
 
+        if (propertyDefinition.IsArray && value.ValueKind == JsonValueKind.Array)
+        {
+            var res = new List<BsonValue>();
+            foreach (var item in value.EnumerateArray())
+                res.Add(await ConvertToValue(new AnswerInput(item), propertyDefinition, ct));
+            return new BsonArray(res);
+        }
+
         return propertyDefinition.DataType switch
         {
             DataType.String or DataType.Choice or DataType.Reference =>
