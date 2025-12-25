@@ -58,7 +58,7 @@ public static class CollectionTools
         => collection.TryFirst(c => c.Name == name, out result);
 
     public static T Get<T>(this IEnumerable<T> collection, string name) where T : class, INamed
-        => collection.First(c => c.Name == name);
+        => collection.GetOrDefault(name) ?? throw new ArgumentException($"Element {name} not found");
 
     public static T? GetOrDefault<T>(this IEnumerable<T> collection, string name) where T : class, INamed
         => collection.FirstOrDefault(c => c.Name == name);
