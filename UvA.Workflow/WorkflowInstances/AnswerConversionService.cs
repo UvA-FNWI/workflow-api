@@ -58,8 +58,6 @@ public class AnswerConversionService(IUserService userService)
 
             DataType.Currency => await ConvertCurrency(value, ct),
 
-            DataType.User when propertyDefinition.IsArray => await ConvertUserArray(value, ct),
-
             DataType.User => await ConvertUser(value, ct),
 
 
@@ -106,35 +104,6 @@ public class AnswerConversionService(IUserService userService)
                 userSearchResult.Email, ct);
 
             return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
-        }
-        catch
-        {
-            return BsonNull.Value;
-        }
-    }
-
-    /// <summary>
-    /// Handles user array conversion.
-    /// </summary>
-    private async Task<BsonValue> ConvertUserArray(JsonElement value, CancellationToken ct)
-    {
-        try
-        {
-            var searchResults = value.Deserialize<UserSearchResult[]>(Options);
-            if (searchResults == null || searchResults.Length == 0)
-                return BsonNull.Value;
-
-            var users = new List<BsonDocument>();
-            foreach (var userSearchResult in searchResults)
-            {
-                // Try to get user or create a new one if it doesn't exist'
-                var user = await userService.GetUser(userSearchResult.UserName, ct);
-                user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
-                    userSearchResult.Email, ct);
-                users.Add(user.ToBsonDocument());
-            }
-
-            return new BsonArray(users);
         }
         catch
         {
