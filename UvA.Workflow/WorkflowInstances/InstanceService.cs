@@ -197,7 +197,12 @@ public class InstanceService(
         var allowed = await rightsService.GetAllowedActions(instance, RoleAction.View);
         var allowedHidden = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden);
 
-        var forms = allowed.SelectMany(a => a.AllForms).Distinct()
+        var forms = allowed
+            .SelectMany(a => a.AllForms)
+            .SelectMany(a => a == Domain_Action.All
+                ? modelService.WorkflowDefinitions[instance.WorkflowDefinition].Forms.Select(f => f.Name)
+                : [a])
+            .Distinct()
             .ToDictionary(f => f, f => modelService.GetForm(instance, f));
         var hiddenForms = allowedHidden.SelectMany(a => a.AllForms).Distinct().ToList();
 

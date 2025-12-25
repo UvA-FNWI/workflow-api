@@ -103,7 +103,7 @@ public partial class ModelParser
         {
             PreProcess(act.OnAction);
 
-            if (act.Form != null && act.WorkflowDefinition != null &&
+            if (act.Form is not (null or Action.All) && act.WorkflowDefinition != null &&
                 !WorkflowDefinitions[act.WorkflowDefinition].Forms.Contains(act.Form))
                 throw new Exception($"{role.Name}: form {act.Form} not found for entity {act.WorkflowDefinition}");
         }
