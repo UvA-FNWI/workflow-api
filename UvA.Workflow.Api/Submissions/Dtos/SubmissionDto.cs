@@ -15,19 +15,19 @@ public record SubmissionDto(
 
 public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService)
 {
-    private readonly AnswerDtoFactory answerDtoFactory = new(artifactTokenService);
+    private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 
     public SubmissionDto Create(WorkflowInstance inst, Form form, InstanceEvent? submission,
-        Dictionary<string, QuestionStatus>? shownQuestionIds = null)
+        Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null)
     {
         var answers = shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds);
         return new(form.Name,
             form.Name,
             inst.Id,
-            answers.Select(a => answerDtoFactory.Create(a)).ToArray(),
+            answers.Select(a => _answerDtoFactory.Create(a)).ToArray(),
             submission?.Date,
             FormDto.Create(form),
-            [] // TODO: set permissions
+            permissions ?? []
         );
     }
 }

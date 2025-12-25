@@ -19,7 +19,7 @@ public class WorkflowInstanceDtoFactory(
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools);
+        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
 
         var x = new WorkflowInstanceDto(
             instance.Id,
@@ -31,9 +31,10 @@ public class WorkflowInstanceDtoFactory(
             CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
             workflowDefinition.Steps.Select(s => StepDto.Create(s, instance, modelService)).ToArray(),
             submissions
-                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus))
+                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus,
+                    permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
                 .ToArray(),
-            permissions.Select(a => a.Type).Distinct().ToArray()
+            permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray()
         );
         return x;
     }
