@@ -58,7 +58,7 @@ public record QuestionDto(
     BilingualString? Description,
     BilingualString? ShortText,
     Dictionary<string, object>? Layout,
-    TableSettingsDto? TableSettings,
+    QuestionDto[]? SubProperties,
     bool HideInResults)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition) => new(
@@ -71,15 +71,10 @@ public record QuestionDto(
         propertyDefinition.Description,
         propertyDefinition.ShortDisplayName,
         propertyDefinition.Layout,
-        propertyDefinition.Table == null ? null : TableSettingsDto.Create(propertyDefinition.Table),
+        propertyDefinition is { DataType: DataType.Object, WorkflowDefinition: not null }
+            ? propertyDefinition.WorkflowDefinition.Properties.Select(Create).ToArray()
+            : null,
         propertyDefinition.HideInResults
-    );
-}
-
-public record TableSettingsDto(FormDto Form, TableLayout Layout)
-{
-    public static TableSettingsDto Create(TableSettings tableSettings) => new(
-        FormDto.Create(tableSettings.Form), tableSettings.Layout
     );
 }
 

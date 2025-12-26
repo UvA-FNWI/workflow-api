@@ -62,20 +62,16 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
         return type switch
         {
-            DataType.User when question!.IsArray => answer.AsBsonArray
-                .Select(u => BsonSerializer.Deserialize<User>(u.AsBsonDocument)).ToArray(),
+            _ when question?.IsArray == true => answer.AsBsonArray.Select(r => GetValue(r, type)).ToArray(),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
-            DataType.Reference when question?.WorkflowDefinition?.IsEmbedded == true => answer.AsBsonDocument,
+            DataType.Object => answer.AsBsonDocument.ToDictionary(),
             DataType.Reference => answer.AsString,
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
-            DataType.String or DataType.Choice when question?.IsArray == true => answer.AsBsonArray
-                .Select(r => r.AsString).ToArray(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),
-            _ when question!.IsArray => answer.AsBsonArray.Select(r => r.AsString).ToArray(),
             _ => throw new NotImplementedException()
         };
     }

@@ -14,12 +14,18 @@ public enum ChoiceLayoutType
     RadioList
 }
 
+public enum TableLayout
+{
+    InlineEditing,
+    Modal
+}
+
 public class LayoutOptions;
 
 public class ChoiceLayoutOptions : LayoutOptions
 {
     /// <summary>
-    /// Set if the propertyDefinition should be shown as dropdown or radio list
+    /// Set if the field should be shown as dropdown or radio list
     /// </summary>
     public ChoiceLayoutType Type { get; set; }
 }
@@ -27,7 +33,7 @@ public class ChoiceLayoutOptions : LayoutOptions
 public class StringLayoutOptions : LayoutOptions
 {
     /// <summary>
-    /// Set if the propertyDefinition should be a multiline text field
+    /// Set if the field should be a multiline text field
     /// </summary>
     public bool Multiline { get; set; }
 
@@ -35,6 +41,14 @@ public class StringLayoutOptions : LayoutOptions
     /// Set if the text field should allow attachments 
     /// </summary>
     public bool AllowAttachments { get; set; }
+}
+
+public class TableLayoutOptions : LayoutOptions
+{
+    /// <summary>
+    /// Sets if the table should allow inline editing or not
+    /// </summary>
+    public TableLayout Type { get; set; }
 }
 
 /// <summary>
@@ -114,7 +128,7 @@ public class PropertyDefinition : INamed
         "File" => DataType.File,
         "User" => DataType.User,
         "Currency" => DataType.Currency,
-        "Table" => DataType.Table,
+        _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
         _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,
         _ => throw new ArgumentException($"Invalid type {UnderlyingType}")
@@ -145,25 +159,6 @@ public class PropertyDefinition : INamed
     /// Determines if the propertyDefinition should be hidden in the results table
     /// </summary>
     public bool HideInResults { get; set; }
-
-    /// <summary>
-    /// Configure table for the Table data type
-    /// </summary>
-    public TableSettings? Table { get; set; }
-}
-
-public class TableSettings
-{
-    [YamlMember(Alias = "form")] public string FormReference { get; set; } = null!;
-
-    [YamlIgnore] public Form Form { get; set; } = null!;
-    public TableLayout Layout { get; set; }
-}
-
-public enum TableLayout
-{
-    InlineEditing,
-    Modal
 }
 
 public class Choice

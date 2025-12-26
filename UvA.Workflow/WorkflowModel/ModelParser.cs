@@ -214,9 +214,6 @@ public partial class ModelParser
             propertyDefinition.WorkflowDefinition = type;
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
-        if (propertyDefinition.Table != null)
-            propertyDefinition.Table.Form =
-                propertyDefinition.ParentType.Forms.Get(propertyDefinition.Table.FormReference);
 
         foreach (var dep in propertyDefinition.Conditions.SelectMany(c => c.Part.Dependants).Distinct())
         {

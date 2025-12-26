@@ -45,7 +45,7 @@ public class AnswerService(
         var currentAnswer = instance.GetProperty(form!.PropertyName, question.Name);
 
         // Convert new answer to BsonValue
-        var newAnswer = await answerConversionService.ConvertToValue(new AnswerInput(value), question, ct);
+        var newAnswer = await answerConversionService.ConvertToValue(value, question, ct);
 
         // Save if value changed
         if (newAnswer != currentAnswer)
