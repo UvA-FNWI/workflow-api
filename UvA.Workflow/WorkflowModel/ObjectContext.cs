@@ -56,13 +56,24 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
     public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)
         => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
 
+    private static IEnumerable GetTypedArray(BsonArray array, DataType type)
+        => type switch
+        {
+            DataType.User => array.Select(r => GetValue(r, type) as User).ToArray(),
+            DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
+            DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
+            DataType.String or DataType.Choice => array.Select(r => GetValue(r, type) as string).ToArray(),
+            DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
+            _ => array.Select(r => GetValue(r, type)).ToArray()
+        };
+
     public static object? GetValue(BsonValue? answer, DataType type, PropertyDefinition? question = null)
     {
         if (answer is null or BsonNull) return null;
 
         return type switch
         {
-            _ when question?.IsArray == true => answer.AsBsonArray.Select(r => GetValue(r, type)).ToArray(),
+            _ when question?.IsArray == true => GetTypedArray(answer.AsBsonArray, type),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
