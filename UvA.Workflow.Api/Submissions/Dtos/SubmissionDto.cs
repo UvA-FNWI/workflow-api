@@ -13,20 +13,21 @@ public record SubmissionDto(
     FormDto Form,
     RoleAction[] Permissions);
 
-public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService)
+public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
 {
     private readonly AnswerDtoFactory answerDtoFactory = new(artifactTokenService);
 
     public SubmissionDto Create(WorkflowInstance inst, Form form, InstanceEvent? submission,
         Dictionary<string, QuestionStatus>? shownQuestionIds = null)
     {
+        var context = modelService.CreateContext(inst);
         var answers = shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds);
         return new(form.Name,
             form.Name,
             inst.Id,
             answers.Select(a => answerDtoFactory.Create(a)).ToArray(),
             submission?.Date,
-            FormDto.Create(form),
+            FormDto.Create(form, context),
             [] // TODO: set permissions
         );
     }
