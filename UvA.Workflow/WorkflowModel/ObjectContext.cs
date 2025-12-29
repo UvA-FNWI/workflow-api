@@ -56,6 +56,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
     public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)
         => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
 
+    // TODO: is there a better way to do this?
     private static IEnumerable GetTypedArray(BsonArray array, DataType type)
         => type switch
         {

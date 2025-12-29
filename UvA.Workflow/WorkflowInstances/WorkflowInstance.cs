@@ -115,12 +115,4 @@ public class WorkflowInstance
     }
 }
 
-public record StateLogEntry(string State, DateTime Date, string? UserId);
-
 public record CurrencyAmount(string Currency, double Amount);
-
-public enum MessageKind
-{
-    Normal,
-    Close
-}

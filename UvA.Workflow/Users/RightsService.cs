@@ -73,6 +73,7 @@ public class RightsService(
                 _ => false
             })
             .Select(p => modelService.Roles.GetValueOrDefault(p.Name))
+            .Where(p => p != null)
             .ToArray();
     }
 
