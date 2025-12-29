@@ -8,19 +8,19 @@ public record FormDto(
     bool HasResults,
     string? Step)
 {
-    public static FormDto Create(Form form)
+    public static FormDto Create(Form form, ObjectContext context)
     {
         var filteredPages = form.ActualForm.Pages
             .Where(p => p.Sources == null || p.Sources.Contains(form.PropertyName))
             .ToArray();
         var questions = filteredPages
             .SelectMany(p => p.Fields)
-            .ToDictionary(q => q, QuestionDto.Create);
+            .ToDictionary(q => q, q => QuestionDto.Create(q, context));
         form = form.ActualForm;
         return new FormDto(
             form.Name,
             form.Title ?? form.Name,
-            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]))).ToArray(),
+            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]), context)).ToArray(),
             form.Layout,
             form.WorkflowDefinition.Results != null,
             form.Step
@@ -36,11 +36,11 @@ public record PageDto(
     QuestionDto[] Questions
 )
 {
-    public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions)
+    public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context)
         => new(
             index,
             page.DisplayTitle,
-            page.Introduction,
+            page.IntroductionTemplate?.Apply(context),
             page.Layout,
             questions.ToArray()
         );
@@ -61,7 +61,7 @@ public record QuestionDto(
     QuestionDto[]? SubProperties,
     bool HideInResults)
 {
-    public static QuestionDto Create(PropertyDefinition propertyDefinition) => new(
+    public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
         propertyDefinition.Name,
         propertyDefinition.DisplayName,
@@ -72,7 +72,7 @@ public record QuestionDto(
         propertyDefinition.ShortDisplayName,
         propertyDefinition.Layout,
         propertyDefinition is { DataType: DataType.Object, WorkflowDefinition: not null }
-            ? propertyDefinition.WorkflowDefinition.Properties.Select(Create).ToArray()
+            ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context)).ToArray()
             : null,
         propertyDefinition.HideInResults
     );

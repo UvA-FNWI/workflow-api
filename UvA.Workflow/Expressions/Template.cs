@@ -1,7 +1,17 @@
+using System.Collections;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace UvA.Workflow.Expressions;
+
+public record BilingualTemplate(Template En, Template Nl)
+{
+    public static BilingualTemplate? Create(BilingualString? source)
+        => source == null ? null : new BilingualTemplate(new Template(source.En), new Template(source.Nl));
+
+    public BilingualString Apply(ObjectContext context)
+        => new(En.Apply(context), Nl.Apply(context));
+}
 
 public partial record Template : Expression
 {
@@ -37,6 +47,14 @@ public partial record Template : Expression
     public override string Execute(ObjectContext context)
         => Apply(context);
 
+    private static string? Render(Value v, ObjectContext context)
+    {
+        var result = v.Content.Execute(context);
+        if (result is IEnumerable list && list is not string)
+            return list.Cast<object>().ToSeparatedString();
+        return result?.ToString();
+    }
+
     public string Apply(ObjectContext context)
     {
         var builder = new StringBuilder();
@@ -44,7 +62,7 @@ public partial record Template : Expression
             builder.Append(part switch
             {
                 Text t => t.Content,
-                Value v => v.Content.Execute(context)?.ToString(),
+                Value v => Render(v, context),
                 _ => null
             });
         return builder.ToString();
