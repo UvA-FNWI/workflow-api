@@ -40,7 +40,7 @@ public class WorkflowInstancesController(
                 if (property == null)
                     return BadRequest($"Property {entry.Key} does not exist");
                 initial[entry.Key] = await answerConversionService.ConvertToValue(
-                    new AnswerInput(entry.Value), property, ct);
+                    entry.Value, property, ct);
             }
         }
 
