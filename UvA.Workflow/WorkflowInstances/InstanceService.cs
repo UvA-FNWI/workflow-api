@@ -36,12 +36,18 @@ public class InstanceService(
         {
             if (workflowDefinition.Properties.Get(referenceProperty.Key).WorkflowDefinition != null)
             {
-                var instanceId = context.Get(referenceProperty.Key) as string;
-                if (instanceId != null)
+                var reference = context.Get(referenceProperty.Key);
+                if (reference is string instanceId)
                 {
                     var instance = await workflowInstanceRepository.GetById(instanceId, ct);
                     if (instance != null)
                         context.Values[referenceProperty.Key] = modelService.CreateContext(instance).Values;
+                }
+                else if (reference is string[] instanceIds)
+                {
+                    var instances = await workflowInstanceRepository.GetByIds(instanceIds, ct);
+                    context.Values[referenceProperty.Key] =
+                        instances.Select(i => modelService.CreateContext(i).Values).ToArray();
                 }
             }
         }

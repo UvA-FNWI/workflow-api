@@ -23,6 +23,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             var type = res.GetType();
             if (res is Dictionary<Lookup, object> dict)
                 res = dict.GetValueOrDefault(part);
+            else if (res is Dictionary<Lookup, object>[] dicts)
+                res = dicts.Select(d => d.GetValueOrDefault(part)).ToArray();
             else if (type.IsArray)
                 res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s))
                     .ToArray();
@@ -65,7 +67,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.User => array.Select(r => GetValue(r, type) as User).ToArray(),
             DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
             DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
-            DataType.String or DataType.Choice => array.Select(r => GetValue(r, type) as string).ToArray(),
+            DataType.String or DataType.Choice or DataType.Reference => array.Select(r => GetValue(r, type) as string)
+                .ToArray(),
             DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
             _ => array.Select(r => GetValue(r, type)).ToArray()
         };

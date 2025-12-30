@@ -1,10 +1,8 @@
+using System.Collections;
 using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.Entities.Domain.Conditions;
 
-/// <summary>
-/// Represents a logical condition
-/// </summary>
 /// <summary>
 /// Represents a logical condition
 /// </summary>
@@ -191,6 +189,13 @@ public class Value : ConditionPart
     public string? GreaterThanOrEqual { get; set; }
 
     /// <summary>
+    /// Array the property should be in 
+    /// </summary>
+    public string? In { get; set; }
+
+    private Expression? InExpression => ExpressionParser.Parse(In);
+
+    /// <summary>
     /// If set, check whether the property is empty 
     /// </summary>
     public bool? IsEmpty { get; set; }
@@ -204,10 +209,12 @@ public class Value : ConditionPart
         ..LessThanExpression?.Properties ?? [],
         ..GreaterThanExpression?.Properties ?? [],
         ..GreaterThanOrEqualExpression?.Properties ?? [],
+        ..InExpression?.Properties ?? []
     ];
 
     public override IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
-        EqualExpression?.Properties, LessThanExpression?.Properties, GreaterThanExpression?.Properties);
+        EqualExpression?.Properties, LessThanExpression?.Properties, GreaterThanExpression?.Properties,
+        InExpression?.Properties);
 
     public override bool IsMet(ObjectContext context)
     {
@@ -224,6 +231,8 @@ public class Value : ConditionPart
             return (prop as IComparable)?.CompareTo(GreaterThanOrEqualExpression.Execute(context)) >= 0;
         if (IsEmpty != null)
             return IsEmpty.Value ^ !string.IsNullOrWhiteSpace(prop?.ToString());
+        if (InExpression != null)
+            return InExpression.Execute(context) is IEnumerable p && p.Cast<object>().Contains(prop);
         throw new InvalidOperationException("Invalid condition");
     }
 }
