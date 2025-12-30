@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using UvA.Workflow.Infrastructure;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 

@@ -45,8 +45,7 @@ public class WorkflowDefinition : INamed
     /// </summary>
     public string? InstanceTitle { get; set; }
 
-    private Template? _instanceTitleTemplate;
-    public Template? InstanceTitleTemplate => _instanceTitleTemplate ??= Template.Create(InstanceTitle);
+    public Template? InstanceTitleTemplate => field ??= Template.Create(InstanceTitle);
 
     /// <summary>
     /// Dictionary of properties for this entity type
@@ -84,6 +83,10 @@ public class WorkflowDefinition : INamed
     /// </summary>
     public bool IsEmbedded { get; set; }
 
+    /// <summary>
+    /// Data to be automatically created on app start. Will match existing data by external ID
+    /// </summary>
+    public Dictionary<string, string>[]? SeedData { get; set; }
 
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
 

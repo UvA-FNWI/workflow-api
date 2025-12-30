@@ -1,6 +1,4 @@
-using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Caching.Memory;
 using Serilog;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
@@ -68,6 +66,8 @@ app.UseCors(corsPolicyName);
 app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser(
     new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
 ));
+
+await app.Services.CreateScope().ServiceProvider.GetRequiredService<InitializationService>().CreateSeedData();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

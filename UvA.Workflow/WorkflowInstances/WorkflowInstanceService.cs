@@ -92,7 +92,6 @@ public class WorkflowInstanceService(
         {
             var pathParts = propertyPath.Split('.');
             instance.SetProperty(value, pathParts);
-            instance.RecordEvent($"property_updated:{propertyPath}");
         }
 
         await repository.Update(instance, ct);
