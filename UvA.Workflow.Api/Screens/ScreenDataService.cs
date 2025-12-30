@@ -19,11 +19,56 @@ public class ScreenDataService(
         var projection = BuildProjection(screen.Columns, workflowDefinition);
         var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
 
+        // Add related properties as needed
+        await AddReferences(rawData, workflowDefinition, screen, ct);
+
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
         var rows = ProcessRows(rawData, screen, workflowDefinition, columns);
 
         return ScreenDataDto.Create(screen, columns, rows);
+    }
+
+    private async Task AddReferences(List<Dictionary<string, BsonValue>> rawData, string workflowDefinition,
+        Screen screen, CancellationToken ct)
+    {
+        var definition = modelService.WorkflowDefinitions[workflowDefinition];
+
+        // Get all reference properties in the screen
+        var related = screen.Columns
+            .SelectMany(c => c.Properties.Where(p => p is PropertyLookup { Parts.Length: > 1 }))
+            .Cast<PropertyLookup>()
+            .Select(p => new
+            {
+                Property = definition.Properties.GetOrDefault(p.Parts[0]),
+                Parts = p.Parts.Skip(1).ToArray(),
+                Values = rawData
+                    .Select(r => r.GetValueOrDefault(p.Parts[0]))
+                    .Where(r => r?.IsBsonNull == false)
+                    .Select(r => r!.AsString)
+                    .ToArray()
+            })
+            .Where(p => p.Property?.DataType == DataType.Reference);
+
+        // Retrieve the related instances per property
+        foreach (var group in related.GroupBy(r => r.Property!))
+        {
+            var results = await repository.GetAllById(
+                group.SelectMany(r => r.Values).Distinct().ToArray(),
+                group.Select(r => r.Parts.First()).ToDictionary(p => p, p => $"$Properties.{p}"),
+                ct
+            );
+            foreach (var row in rawData)
+            {
+                var value = row.GetValueOrDefault(group.Key.Name);
+                if (value?.IsBsonNull != false)
+                    continue;
+                var valueId = ObjectId.Parse(value.AsString);
+                var result = results.FirstOrDefault(r => r["_id"] == valueId);
+                if (result != null)
+                    row[group.Key.Name] = result.ToBsonDocument();
+            }
+        }
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)
@@ -34,7 +79,7 @@ public class ScreenDataService(
         return entity.Screens.GetOrDefault(screenName);
     }
 
-    public Dictionary<string, string> BuildProjection(Column[] columns, string workflowDefinition)
+    private Dictionary<string, string> BuildProjection(Column[] columns, string workflowDefinition)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
