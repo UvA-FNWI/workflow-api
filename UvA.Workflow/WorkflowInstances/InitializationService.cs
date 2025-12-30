@@ -23,7 +23,8 @@ public class InitializationService(ModelService modelService, IWorkflowInstanceR
                 {
                     CreatedOn = DateTime.Now,
                     WorkflowDefinition = definition.Name,
-                    Properties = row.ToDictionary(k => k.Key, k => (BsonValue)new BsonString(k.Value))
+                    Properties = row.ToDictionary(k => k.Key, k => (BsonValue)new BsonString(k.Value)),
+                    Events = new()
                 }, ct);
             }
         }
