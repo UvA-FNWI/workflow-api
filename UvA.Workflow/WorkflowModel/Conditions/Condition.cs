@@ -190,6 +190,11 @@ public class Value : ConditionPart
     /// </summary>
     public string? GreaterThanOrEqual { get; set; }
 
+    /// <summary>
+    /// If set, check whether the property is empty 
+    /// </summary>
+    public bool? IsEmpty { get; set; }
+
     private Expression? GreaterThanOrEqualExpression => ExpressionParser.Parse(GreaterThanOrEqual);
 
     public override Lookup[] Dependants =>
@@ -217,6 +222,8 @@ public class Value : ConditionPart
             return (prop as IComparable)?.CompareTo(GreaterThanExpression.Execute(context)) > 0;
         if (GreaterThanOrEqualExpression != null)
             return (prop as IComparable)?.CompareTo(GreaterThanOrEqualExpression.Execute(context)) >= 0;
+        if (IsEmpty != null)
+            return IsEmpty.Value ^ !string.IsNullOrWhiteSpace(prop?.ToString());
         throw new InvalidOperationException("Invalid condition");
     }
 }

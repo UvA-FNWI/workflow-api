@@ -10,7 +10,9 @@ public class AnswersController(
     AnswerService answerService,
     RightsService rightsService,
     ArtifactTokenService artifactTokenService,
-    SubmissionDtoFactory submissionDtoFactory) : ApiControllerBase
+    SubmissionDtoFactory submissionDtoFactory,
+    InstanceService instanceService,
+    ModelService modelService) : ApiControllerBase
 {
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
@@ -64,6 +66,20 @@ public class AnswersController(
         var file = await answerService.GetArtifact(context, artifactId, ct);
         if (file == null) return NotFound();
         return File(file.Content, "application/pdf", file.Info.Name);
+    }
+
+    [HttpGet("{instanceId}/{submissionId}/{questionName}/Choices")]
+    public async Task<ActionResult<IEnumerable<ChoiceDto>>> GetChoices(string instanceId, string submissionId,
+        string questionName, CancellationToken ct)
+    {
+        var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
+        var insts = await instanceService.GetPossibleChoices(context.Instance, context.PropertyDefinition, ct);
+        var definition = context.PropertyDefinition.WorkflowDefinition!;
+        return Ok(insts.Select(i => new ChoiceDto(
+            i.Id,
+            definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",
+            null))
+        );
     }
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context)

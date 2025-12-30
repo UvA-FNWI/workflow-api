@@ -30,7 +30,7 @@ public class InstanceService(
             .Cast<PropertyLookup>()
             .Distinct()
             .Where(p => p.Parts.Length > 1)
-            .Where(p => workflowDefinition.Properties.Get(p.Parts[0]).DataType == DataType.Reference)
+            .Where(p => workflowDefinition.Properties.GetOrDefault(p.Parts[0])?.DataType == DataType.Reference)
             .GroupBy(p => p.Parts[0]);
         foreach (var referenceProperty in referenceProperties)
         {
@@ -40,7 +40,8 @@ public class InstanceService(
                 if (instanceId != null)
                 {
                     var instance = await workflowInstanceRepository.GetById(instanceId, ct);
-                    context.Values[referenceProperty.Key] = instance;
+                    if (instance != null)
+                        context.Values[referenceProperty.Key] = modelService.CreateContext(instance).Values;
                 }
             }
         }
@@ -213,5 +214,26 @@ public class InstanceService(
             .ToList();
         return subs.Select(s => new AllowedSubmission(s, forms[s.Id],
             modelService.GetQuestionStatus(instance, forms[s.Id], hiddenForms.Contains(s.Id))));
+    }
+
+    public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,
+        PropertyDefinition property,
+        CancellationToken ct)
+    {
+        if (property.WorkflowDefinition == null)
+            throw new Exception("Missing reference");
+
+        var instances = await workflowInstanceRepository.GetByWorkflowDefinition(property.WorkflowDefinition.Name,
+            FilterDefinition<WorkflowInstance>.Empty, ct);
+        var context = modelService.CreateContext(instance);
+
+        if (property.Filter != null)
+            await Enrich(property.ParentType, context, property.Filter.Properties, ct);
+
+        return instances.Where(i =>
+        {
+            context.Values[property.WorkflowDefinition.Name] = modelService.CreateContext(i).Values;
+            return property.Filter.IsMet(context);
+        }).ToList();
     }
 }

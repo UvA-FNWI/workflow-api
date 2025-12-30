@@ -21,7 +21,9 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             if (res is null)
                 return null;
             var type = res.GetType();
-            if (type.IsArray)
+            if (res is Dictionary<Lookup, object> dict)
+                res = dict.GetValueOrDefault(part);
+            else if (type.IsArray)
                 res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s))
                     .ToArray();
             else
