@@ -12,7 +12,8 @@ public class AnswersController(
     ArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
     InstanceService instanceService,
-    ModelService modelService) : ApiControllerBase
+    ModelService modelService,
+    IWorkflowInstanceRepository workflowInstanceRepository) : ApiControllerBase
 {
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
@@ -80,6 +81,31 @@ public class AnswersController(
             definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",
             null))
         );
+    }
+
+    [HttpGet("{instanceId}/{submissionId}/{questionName}/CurrentChoices")]
+    public async Task<ActionResult<IEnumerable<ChoiceDto>>> GetCurrentChoices(string instanceId, string submissionId,
+        string questionName, CancellationToken ct)
+    {
+        var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
+        var value = modelService.CreateContext(context.Instance).Get(questionName);
+        var ids = value switch
+        {
+            string s => [s],
+            string[] ss => ss,
+            _ => []
+        };
+
+        if (ids.Length == 0 || context.PropertyDefinition.DataType != DataType.Reference)
+            return NotFound();
+
+        var definition = context.PropertyDefinition.WorkflowDefinition!;
+        var insts = await workflowInstanceRepository.GetByIds(ids, ct);
+        return Ok(insts.Select(i => new ChoiceDto(
+            i.Id,
+            definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "",
+            null)
+        ));
     }
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context)
