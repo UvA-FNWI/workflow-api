@@ -1,12 +1,14 @@
 using System.Collections;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tools;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Entities.Domain;
 
 public class ObjectContext(Dictionary<Lookup, object?> values)
 {
     public Dictionary<Lookup, object?> Values { get; } = values;
+    public string? Id => Values.GetValueOrDefault("Id")?.ToString();
 
     public object? Get(Lookup path)
     {
@@ -33,6 +35,18 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         }
 
         return res;
+    }
+
+    public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData)
+    {
+        var dict = rawData.ToDictionary(
+            Lookup (t) => new PropertyLookup(t.Key == "_id" ? "Id" : t.Key),
+            t =>
+            {
+                var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
+                return GetValue(t.Value, prop?.DataType ?? DataType.String, prop);
+            });
+        return new ObjectContext(dict);
     }
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)

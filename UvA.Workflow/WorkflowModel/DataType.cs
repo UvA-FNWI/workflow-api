@@ -12,5 +12,6 @@ public enum DataType
     Currency = 7,
     Object = 8,
     Reference = 9,
-    Int = 10
+    Int = 10,
+    LocalString = 11
 }
