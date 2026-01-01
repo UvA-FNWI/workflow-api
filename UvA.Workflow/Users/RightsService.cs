@@ -39,25 +39,30 @@ public class RightsService(
             {
                 Role = r,
                 p.WorkflowDefinition,
-                InstanceId = instance.Properties.GetValueOrDefault(p.Name)?.ToString()
+                InstanceIds = instance.Properties.GetValueOrDefault(p.Name) switch
+                {
+                    BsonArray a => a.Select(v => v.AsString).ToArray(),
+                    BsonString s => [s.AsString],
+                    _ => []
+                }
             }))
-            .Where(r => r.WorkflowDefinition != null && !string.IsNullOrEmpty(r.InstanceId))
+            .Where(r => r.WorkflowDefinition != null && r.InstanceIds.Length > 0)
             .ToList();
 
         var inheritedViaInstances = inheritedRoles.Any()
             ? (await workflowInstanceRepository.GetAllById(
-                inheritedRoles.Select(r => r.InstanceId!).Distinct().ToArray(),
+                inheritedRoles.SelectMany(r => r.InstanceIds).Distinct().ToArray(),
                 inheritedRoles.Select(r => new { r.Role, Key = r.WorkflowDefinition!.GetKey(r.Role) }).Distinct()
                     .ToDictionary(r => r.Role, r => r.Key),
                 ct
             )).ToDictionary(r => r["_id"].ToString()!)
             : new();
 
-        var inheritedProperties = inheritedRoles.Select(r => new
+        var inheritedProperties = inheritedRoles.SelectMany(r => r.InstanceIds.Select(i => new
         {
             Name = r.Role,
-            Value = inheritedViaInstances.GetValueOrDefault(r.InstanceId!)?.GetValueOrDefault(r.Role)
-        });
+            Value = inheritedViaInstances.GetValueOrDefault(i!)?.GetValueOrDefault(r.Role)
+        }));
 
         return properties
             .Where(p => p.DataType == DataType.User)
