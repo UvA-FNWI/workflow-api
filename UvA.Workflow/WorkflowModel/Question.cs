@@ -144,9 +144,15 @@ public class PropertyDefinition : INamed
     /// </summary>
     public Condition? Validation { get; set; }
 
+    /// <summary>
+    /// Condition used for filtering reference choices 
+    /// </summary>
+    public Condition? Filter { get; set; }
+
     [YamlIgnore]
     public IEnumerable<Condition> Conditions =>
-        (Values?.Values.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Where(c => c != null)!;
+        (Values?.Values.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Append(Filter)
+        .Where(c => c != null)!;
 
     public List<PropertyDefinition> DependentQuestions { get; } = [];
 

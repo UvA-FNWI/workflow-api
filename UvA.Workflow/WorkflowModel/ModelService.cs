@@ -29,6 +29,9 @@ public class ModelService(ModelParser parser)
     public ObjectContext CreateContext(WorkflowInstance instance)
         => ObjectContext.Create(instance, this);
 
+    public ObjectContext CreateContext(string workflowDefinition, Dictionary<string, BsonValue> rawData)
+        => ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData);
+
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,
         IEnumerable<PropertyDefinition>? questions = null)

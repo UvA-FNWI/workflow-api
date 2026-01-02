@@ -215,12 +215,12 @@ public partial class ModelParser
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
 
-        foreach (var dep in propertyDefinition.Conditions.SelectMany(c => c.Part.Dependants).Distinct())
-        {
-            var depName = dep.ToString().Split('.').Last();
-            propertyDefinition.ParentType.Properties.GetOrDefault(depName)?.DependentQuestions
+        foreach (var dep in propertyDefinition.Conditions
+                     .SelectMany(c => c.Part.Dependants)
+                     .SelectMany(d => d.ToString().Split('.'))
+                     .Distinct())
+            propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
                 .Add(propertyDefinition);
-        }
 
         return propertyDefinition;
     }

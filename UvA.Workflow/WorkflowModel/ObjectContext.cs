@@ -1,12 +1,14 @@
 using System.Collections;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tools;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Entities.Domain;
 
 public class ObjectContext(Dictionary<Lookup, object?> values)
 {
     public Dictionary<Lookup, object?> Values { get; } = values;
+    public string? Id => Values.GetValueOrDefault("Id")?.ToString();
 
     public object? Get(Lookup path)
     {
@@ -21,7 +23,11 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             if (res is null)
                 return null;
             var type = res.GetType();
-            if (type.IsArray)
+            if (res is Dictionary<Lookup, object> dict)
+                res = dict.GetValueOrDefault(part);
+            else if (res is Dictionary<Lookup, object>[] dicts)
+                res = dicts.Select(d => d.GetValueOrDefault(part)).ToArray();
+            else if (type.IsArray)
                 res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s))
                     .ToArray();
             else
@@ -29,6 +35,18 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         }
 
         return res;
+    }
+
+    public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData)
+    {
+        var dict = rawData.ToDictionary(
+            Lookup (t) => new PropertyLookup(t.Key == "_id" ? "Id" : t.Key),
+            t =>
+            {
+                var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
+                return GetValue(t.Value, prop?.DataType ?? DataType.String, prop);
+            });
+        return new ObjectContext(dict);
     }
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
@@ -63,7 +81,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.User => array.Select(r => GetValue(r, type) as User).ToArray(),
             DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
             DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
-            DataType.String or DataType.Choice => array.Select(r => GetValue(r, type) as string).ToArray(),
+            DataType.String or DataType.Choice or DataType.Reference => array.Select(r => GetValue(r, type) as string)
+                .ToArray(),
             DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
             _ => array.Select(r => GetValue(r, type)).ToArray()
         };

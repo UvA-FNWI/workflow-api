@@ -60,10 +60,14 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetByWorkflowDefinition(string workflowDefinition,
+        FilterDefinition<WorkflowInstance> filter,
         CancellationToken ct)
     {
-        var filter = Builders<WorkflowInstance>.Filter.Eq(x => x.WorkflowDefinition, workflowDefinition);
-        var documents = await instanceCollection.Find(filter).ToListAsync(ct);
+        var combinedFilter = Builders<WorkflowInstance>.Filter.And(
+            Builders<WorkflowInstance>.Filter.Eq(x => x.WorkflowDefinition, workflowDefinition),
+            filter
+        );
+        var documents = await instanceCollection.Find(combinedFilter).ToListAsync(ct);
         return documents;
     }
 
