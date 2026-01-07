@@ -8,7 +8,10 @@ public class ModelService(ModelParser parser)
     public Dictionary<string, Role> Roles => parser.Roles.ToDictionary(r => r.Name, r => r);
 
     public Form GetForm(WorkflowInstance instance, string formName)
-        => WorkflowDefinitions[instance.WorkflowDefinition].Forms.Get(formName);
+    {
+        var form = WorkflowDefinitions[instance.WorkflowDefinition].Forms.GetOrDefault(formName);
+        return form ?? throw new ArgumentException($"Form {formName} not found");
+    }
 
     public IEnumerable<Form> GetForms(WorkflowInstance instance, string formName)
         => WorkflowDefinitions[instance.WorkflowDefinition].Forms

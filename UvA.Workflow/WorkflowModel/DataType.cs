@@ -10,7 +10,7 @@ public enum DataType
     File = 5,
     User = 6,
     Currency = 7,
-    Table = 8,
+    Object = 8,
     Reference = 9,
     Int = 10
 }

@@ -20,17 +20,21 @@ public class AnswerConversionService(IUserService userService)
     /// <summary>
     /// Converts an answer input to a BsonValue based on the propertyDefinition's data type.
     /// </summary>
-    /// <param name="answerInput">The object containing the answers for the given propertyDefinition</param>
+    /// <param name="element">The answer for the given propertyDefinition</param>
     /// <param name="propertyDefinition">The propertyDefinition definition containing data type information</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>BsonValue representation of the answer</returns>
-    public async Task<BsonValue> ConvertToValue(AnswerInput answerInput, PropertyDefinition propertyDefinition,
+    public async Task<BsonValue> ConvertToValue(JsonElement? element, PropertyDefinition propertyDefinition,
         CancellationToken ct)
     {
-        if (answerInput.Value == null)
+        if (element == null)
             return BsonNull.Value;
 
-        var value = answerInput.Value.Value;
+        var value = element.Value;
+
+        if (propertyDefinition.IsArray && value.ValueKind == JsonValueKind.Array)
+            return new BsonArray(await value.EnumerateArray().SelectAsync(
+                async (el, t) => await ConvertToValue(el, propertyDefinition, t), ct));
 
         return propertyDefinition.DataType switch
         {
@@ -48,12 +52,11 @@ public class AnswerConversionService(IUserService userService)
                     ? dt
                     : BsonNull.Value,
 
-            DataType.Currency => await ConvertCurrency(value, ct),
-
-            DataType.User when propertyDefinition.IsArray => await ConvertUserArray(value, ct),
+            DataType.Currency => ConvertCurrency(value),
 
             DataType.User => await ConvertUser(value, ct),
 
+            DataType.Object => await ConvertObject(value, propertyDefinition, ct),
 
             _ => throw new NotImplementedException(
                 $"Data type {propertyDefinition.DataType} is not supported for propertyDefinition '{propertyDefinition.DisplayName}'")
@@ -61,9 +64,28 @@ public class AnswerConversionService(IUserService userService)
     }
 
     /// <summary>
+    /// Converts a Json object to a BsonValue for an embedded object question.
+    /// </summary>
+    private async Task<BsonValue> ConvertObject(JsonElement value, PropertyDefinition propertyDefinition,
+        CancellationToken ct)
+    {
+        if (propertyDefinition.WorkflowDefinition == null)
+            throw new Exception("WorkflowDefinition is null");
+
+        var properties = await propertyDefinition.WorkflowDefinition.Properties
+            .Where(p => value.TryGetProperty(p.Name, out _))
+            .ToDictionaryAsync(
+                p => p.Name,
+                (p, t) => ConvertToValue(value.GetProperty(p.Name), p, t),
+                ct
+            );
+        return new BsonDocument(properties);
+    }
+
+    /// <summary>
     /// Converts Currency from JsonElement to BsonValue
     /// </summary>
-    private Task<BsonValue> ConvertCurrency(JsonElement value, CancellationToken ct)
+    private BsonValue ConvertCurrency(JsonElement value)
     {
         try
         {
@@ -71,13 +93,13 @@ public class AnswerConversionService(IUserService userService)
             var amount = value.GetProperty("amount").GetDouble();
 
             if (currency == null)
-                return Task.FromResult<BsonValue>(BsonNull.Value);
+                return BsonNull.Value;
 
-            return Task.FromResult<BsonValue>(new CurrencyAmount(currency, amount).ToBsonDocument());
+            return new CurrencyAmount(currency, amount).ToBsonDocument();
         }
         catch
         {
-            return Task.FromResult<BsonValue>(BsonNull.Value);
+            return BsonNull.Value;
         }
     }
 
@@ -98,35 +120,6 @@ public class AnswerConversionService(IUserService userService)
                 userSearchResult.Email, ct);
 
             return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
-        }
-        catch
-        {
-            return BsonNull.Value;
-        }
-    }
-
-    /// <summary>
-    /// Handles user array conversion.
-    /// </summary>
-    private async Task<BsonValue> ConvertUserArray(JsonElement value, CancellationToken ct)
-    {
-        try
-        {
-            var searchResults = value.Deserialize<UserSearchResult[]>(Options);
-            if (searchResults == null || searchResults.Length == 0)
-                return BsonNull.Value;
-
-            var users = new List<BsonDocument>();
-            foreach (var userSearchResult in searchResults)
-            {
-                // Try to get user or create a new one if it doesn't exist'
-                var user = await userService.GetUser(userSearchResult.UserName, ct);
-                user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
-                    userSearchResult.Email, ct);
-                users.Add(user.ToBsonDocument());
-            }
-
-            return new BsonArray(users);
         }
         catch
         {

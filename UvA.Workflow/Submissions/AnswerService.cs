@@ -39,13 +39,13 @@ public class AnswerService(
 
     public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, User user, CancellationToken ct)
     {
-        var (instance, submission, form, question) = context;
+        var (instance, _, form, question) = context;
 
         // Get current answer
         var currentAnswer = instance.GetProperty(form!.PropertyName, question.Name);
 
         // Convert new answer to BsonValue
-        var newAnswer = await answerConversionService.ConvertToValue(new AnswerInput(value), question!, ct);
+        var newAnswer = await answerConversionService.ConvertToValue(value, question, ct);
 
         // Save if value changed
         if (newAnswer != currentAnswer)

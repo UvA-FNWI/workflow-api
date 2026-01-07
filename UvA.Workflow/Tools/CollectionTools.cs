@@ -58,7 +58,7 @@ public static class CollectionTools
         => collection.TryFirst(c => c.Name == name, out result);
 
     public static T Get<T>(this IEnumerable<T> collection, string name) where T : class, INamed
-        => collection.First(c => c.Name == name);
+        => collection.GetOrDefault(name) ?? throw new ArgumentException($"Element {name} not found");
 
     public static T? GetOrDefault<T>(this IEnumerable<T> collection, string name) where T : class, INamed
         => collection.FirstOrDefault(c => c.Name == name);
@@ -74,4 +74,43 @@ public static class CollectionTools
     /// </returns>
     public static bool Contains<T>(this List<T> collection, string name) where T : class, INamed
         => collection.Any(c => c.Name == name);
+
+    /// <summary>
+    /// Async version of ToDictionary
+    /// </summary>
+    /// <param name="collection">Target collection</param>
+    /// <param name="keySelector">Mapping from source elements to keys</param>
+    /// <param name="valueSelector">Mapping from source elements to values</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <typeparam name="TSource">Source type</typeparam>
+    /// <typeparam name="TKey">Key type in the dictionary</typeparam>
+    /// <typeparam name="TValue">Value type in the dictionary</typeparam>
+    public static async Task<Dictionary<TKey, TValue>> ToDictionaryAsync<TSource, TKey, TValue>(
+        this IEnumerable<TSource> collection,
+        Func<TSource, TKey> keySelector,
+        Func<TSource, CancellationToken, Task<TValue>> valueSelector,
+        CancellationToken ct) where TKey : notnull
+    {
+        var dict = new Dictionary<TKey, TValue>();
+        foreach (var el in collection)
+            dict[keySelector(el)] = await valueSelector(el, ct);
+        return dict;
+    }
+
+    /// <summary>
+    /// Async version of Select
+    /// </summary>
+    /// <param name="collection">Target collection</param>
+    /// <param name="selector">Mapping from source elements to values</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <typeparam name="TSource">Source type</typeparam>
+    /// <typeparam name="TValue">Value type in the collection</typeparam>
+    public static async Task<IEnumerable<TValue>> SelectAsync<TSource, TValue>(this IEnumerable<TSource> collection,
+        Func<TSource, CancellationToken, Task<TValue>> selector, CancellationToken ct)
+    {
+        var result = new List<TValue>();
+        foreach (var el in collection)
+            result.Add(await selector(el, ct));
+        return result;
+    }
 }

@@ -75,6 +75,8 @@ public abstract class UserServiceBase(
             cache.Set(cacheKey, user, UserCacheExpiration);
         return user;
     }
+
+    protected bool IsCached(string username) => cache.TryGetValue(GetCacheKeyForUser(username), out _);
 }
 
 public class UserService(

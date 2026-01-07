@@ -51,6 +51,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<RightsService>();
         services.AddScoped<EffectService>();
         services.AddScoped<AnswerConversionService>();
+        services.AddScoped<InitializationService>();
 
         services.AddScoped<IMailService, DummyMailService>();
 

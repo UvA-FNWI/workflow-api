@@ -103,7 +103,7 @@ public partial class ModelParser
         {
             PreProcess(act.OnAction);
 
-            if (act.Form != null && act.WorkflowDefinition != null &&
+            if (act.Form is not (null or Action.All) && act.WorkflowDefinition != null &&
                 !WorkflowDefinitions[act.WorkflowDefinition].Forms.Contains(act.Form))
                 throw new Exception($"{role.Name}: form {act.Form} not found for entity {act.WorkflowDefinition}");
         }
@@ -183,6 +183,8 @@ public partial class ModelParser
         foreach (var ev in step.Actions.SelectMany(a => a.OnAction.Select(t => t.Event)).Where(t => t != null))
             if (workflowDefinition.Events.All(e => e.Name != ev!))
                 workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
+        foreach (var child in step.Children)
+            PreProcess(child, workflowDefinition);
     }
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
@@ -212,9 +214,6 @@ public partial class ModelParser
             propertyDefinition.WorkflowDefinition = type;
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
-        if (propertyDefinition.Table != null)
-            propertyDefinition.Table.Form =
-                propertyDefinition.ParentType.Forms.Get(propertyDefinition.Table.FormReference);
 
         foreach (var dep in propertyDefinition.Conditions.SelectMany(c => c.Part.Dependants).Distinct())
         {

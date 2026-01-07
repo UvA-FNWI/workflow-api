@@ -56,24 +56,34 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
     public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)
         => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
 
+    // TODO: is there a better way to do this?
+    private static IEnumerable GetTypedArray(BsonArray array, DataType type)
+        => type switch
+        {
+            DataType.User => array.Select(r => GetValue(r, type) as User).ToArray(),
+            DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
+            DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
+            DataType.String or DataType.Choice => array.Select(r => GetValue(r, type) as string).ToArray(),
+            DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
+            _ => array.Select(r => GetValue(r, type)).ToArray()
+        };
+
     public static object? GetValue(BsonValue? answer, DataType type, PropertyDefinition? question = null)
     {
         if (answer is null or BsonNull) return null;
 
         return type switch
         {
-            DataType.User when question!.IsArray => answer.AsBsonArray
-                .Select(u => BsonSerializer.Deserialize<User>(u.AsBsonDocument)).ToArray(),
+            _ when question?.IsArray == true => GetTypedArray(answer.AsBsonArray, type),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
-            DataType.Reference when question?.WorkflowDefinition?.IsEmbedded == true => answer.AsBsonDocument,
+            DataType.Object => answer.AsBsonDocument.ToDictionary(),
             DataType.Reference => answer.AsString,
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),
-            _ when question!.IsArray => answer.AsBsonArray.Select(r => r.AsString).ToArray(),
             _ => throw new NotImplementedException()
         };
     }
