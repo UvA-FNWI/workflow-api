@@ -16,13 +16,7 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
 
         // Build projection based on screen columns
-        var projection = BuildProjection(screen.Columns, workflowDefinition);
-        var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
-        var contexts = rawData.Select(r => modelService.CreateContext(workflowDefinition, r)).ToList();
-
-        // Add related properties as needed
-        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition],
-            contexts, screen.Columns.SelectMany(c => c.Properties), ct);
+        var contexts = await LoadData(screen, workflowDefinition, ct);
 
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
@@ -108,6 +102,22 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
+    private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
+    {
+        // Build projection based on screen columns, always including CurrentStep for grouping
+        var projection = BuildProjection(screen.Columns, workflowDefinition);
+        projection.TryAdd("CurrentStep", "$CurrentStep");
+
+        var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
+        var contexts = rawData.Select(r => modelService.CreateContext(workflowDefinition, r)).ToList();
+
+        // Add related properties as needed
+        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition],
+            contexts, screen.Columns.SelectMany(c => c.Properties), ct);
+
+        return contexts;
+    }
+
     /// <summary>
     /// Gets screen data grouped by workflow step using the grouping configuration from the screen definition.
     /// CurrentStep is automatically fetched for grouping purposes, regardless of whether it's defined in the columns.
@@ -126,12 +136,7 @@ public class ScreenDataService(
         if (screen.Grouping == null)
             throw new ArgumentException($"Screen '{screenName}' does not have grouping configuration");
 
-        // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen.Columns, workflowDefinition);
-        projection.TryAdd("CurrentStep", "$CurrentStep");
-
-        var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
-        var contexts = rawData.Select(r => modelService.CreateContext(workflowDefinition, r)).ToList();
+        var contexts = await LoadData(screen, workflowDefinition, ct);
 
         // Build step-to-group mapping from configuration
         var stepGroupMapping = BuildStepGroupMapping(screen.Grouping);
