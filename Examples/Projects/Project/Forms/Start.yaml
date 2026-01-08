@@ -10,6 +10,7 @@ pages:
       - Title
       - Subject
       - Description
+      - TestDocument
   - name: Staff
     title:
       en: Staff
