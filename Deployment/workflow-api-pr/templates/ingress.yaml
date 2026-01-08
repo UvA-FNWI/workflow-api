@@ -17,10 +17,19 @@ spec:
     - host: "{{ .Values.hostname }}"
       http:
         paths:
-          - path: /
+          {{- range .Values.apiPaths }}
+          - path: {{ . }}
             pathType: Prefix
             backend:
               service:
                 name: workflow-api
+                port:
+                  number: 80
+          {{- end }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: workflow-ui
                 port:
                   number: 80

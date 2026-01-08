@@ -24,6 +24,16 @@ mongo:
   host: host
   port: 27017
 
+apiPaths:
+  - /swagger
+  - /Actions
+  - /Answers
+  - /Screens
+  - /Versions
+  - /WorkflowDefinitions
+  - /Users
+  - /WorkflowInstances
+
 azure:
   keyvaultName: keyvaultName
   resourceGroup: resourceGroupName

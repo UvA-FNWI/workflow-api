@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: workflow-ui-configmap
+    namespace: "{{ .Release.Namespace }}"
+data:
+    env-contents: |
+        window._env = {
+            VITE_WEBAPI_URL: "{{ .Values.envVars.webapiUrl }}",
+            VITE_ENV: "{{ .Values.envVars.env }}"
+        };
