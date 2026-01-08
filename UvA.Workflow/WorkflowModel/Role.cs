@@ -49,14 +49,14 @@ public enum RoleAction
     CreateRelatedInstance
 }
 
-public class Action : INamed
+public class Action
 {
     public const string All = "<All>";
 
     /// <summary>
-    /// Internal name of the action
+    /// Internal name of the action. Required for actions of type execute
     /// </summary>
-    public string Name { get; set; } = null!;
+    public string? Name { get; set; }
 
     /// <summary>
     /// Localized label of the action as shown in the user interface
