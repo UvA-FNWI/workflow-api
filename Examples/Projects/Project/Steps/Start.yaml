@@ -24,7 +24,7 @@ properties:
     text:
       en: Project description
       nl: Projectomschrijving
-  - name: Test document
+  - name: TestDocument
     type: File
     text:
       en: Test document
