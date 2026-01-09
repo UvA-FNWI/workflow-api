@@ -58,4 +58,19 @@ public class Field
         ..ValueTemplate?.Properties ?? [],
         ..LinkTemplate?.Properties ?? [],
     ];
+
+    public object? GetValue(ObjectContext context)
+    {
+        if (CurrentStep)
+            return context.Values["CurrentStep"] ?? Default ?? "Draft";
+
+        if (ValueTemplate != null)
+            return ValueTemplate.Execute(context);
+
+        if (!string.IsNullOrEmpty(Property))
+            // Get property value from raw data
+            return context.Get(Property) ?? Default;
+
+        return Default;
+    }
 }

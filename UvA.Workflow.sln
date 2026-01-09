@@ -6,36 +6,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UvA.Workflow.Api", "UvA.Wor
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{D1238BC6-64A3-4534-9AC7-4A2B773843CB}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflow-api", "workflow-api", "{C6F1D196-B19A-4B74-BCC0-98CEC1C3E85F}"
-	ProjectSection(SolutionItems) = preProject
-		Deployment\workflow-api\Chart.yaml = Deployment\workflow-api\Chart.yaml
-		Deployment\workflow-api\values.yaml = Deployment\workflow-api\values.yaml
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflow-api-pr", "workflow-api-pr", "{26FBBA8A-BC18-49DF-9944-C77A9A7CBE0D}"
-	ProjectSection(SolutionItems) = preProject
-		Deployment\workflow-api-pr\Chart.yaml = Deployment\workflow-api-pr\Chart.yaml
-		Deployment\workflow-api-pr\values.yaml = Deployment\workflow-api-pr\values.yaml
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "templates", "templates", "{39C9E552-FB6B-40DD-987C-C8887BF1851F}"
-	ProjectSection(SolutionItems) = preProject
-		Deployment\workflow-api\templates\deployment.yaml = Deployment\workflow-api\templates\deployment.yaml
-		Deployment\workflow-api\templates\ingress.yaml = Deployment\workflow-api\templates\ingress.yaml
-		Deployment\workflow-api\templates\service.yaml = Deployment\workflow-api\templates\service.yaml
-		Deployment\workflow-api\templates\secretproviderclass.yaml = Deployment\workflow-api\templates\secretproviderclass.yaml
-		Deployment\workflow-api\templates\configmap.yaml = Deployment\workflow-api\templates\configmap.yaml
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "templates", "templates", "{868DAEAC-7292-491A-B261-0BC002BD17C8}"
-	ProjectSection(SolutionItems) = preProject
-		Deployment\workflow-api-pr\templates\service.yaml = Deployment\workflow-api-pr\templates\service.yaml
-		Deployment\workflow-api-pr\templates\secretproviderclass.yaml = Deployment\workflow-api-pr\templates\secretproviderclass.yaml
-		Deployment\workflow-api-pr\templates\ingress.yaml = Deployment\workflow-api-pr\templates\ingress.yaml
-		Deployment\workflow-api-pr\templates\deployment.yaml = Deployment\workflow-api-pr\templates\deployment.yaml
-		Deployment\workflow-api-pr\templates\configmap-api.yaml = Deployment\workflow-api-pr\templates\configmap-api.yaml
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Schemas", "Schemas", "{E8643B35-4149-4BA5-9830-C5A14ACDC091}"
 	ProjectSection(SolutionItems) = preProject
 		Schemas\Screen.json = Schemas\Screen.json

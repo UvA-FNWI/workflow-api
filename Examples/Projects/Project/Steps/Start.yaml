@@ -24,6 +24,11 @@ properties:
     text:
       en: Project description
       nl: Projectomschrijving
+  - name: TestDocument
+    type: File
+    text:
+      en: Test document
+      nl: Testdocument
 
   - name: Deadline
     type: Date!

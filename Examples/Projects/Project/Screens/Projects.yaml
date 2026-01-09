@@ -9,6 +9,10 @@ columns:
   - property: Title
     link: true
     default: No title
+  - property: Course.Name
+    title:
+      en: Course
+      nl: Vak
   - property: StartEvent
   - currentStep: true
     filterType: Pick

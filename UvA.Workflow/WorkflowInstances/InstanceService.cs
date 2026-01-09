@@ -16,13 +16,16 @@ public class InstanceService(
     /// Populates references in object contexts based on the specified entity type and lookup properties.
     /// </summary>
     /// <param name="workflowDefinition">The entity type defining the properties to be enriched.</param>
-    /// <param name="context">The object context whose values will be updated.</param>
+    /// <param name="contexts">The object contexts whose values will be updated.</param>
     /// <param name="properties">The collection of lookup properties to be used for enrichment.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
+    /// <param name="replaceStep">If <c>true</c>, replace the step name by the localized title</param>
     /// <returns>A task representing the asynchronous enrichment operation.</returns>
-    public async Task Enrich(WorkflowDefinition workflowDefinition, ObjectContext context,
+    public async Task Enrich(WorkflowDefinition workflowDefinition,
+        ICollection<ObjectContext> contexts,
         IEnumerable<Lookup> properties,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool replaceStep = true)
     {
         // Resolve (replace) references in the context with their referenced objects
         var referenceProperties = properties
@@ -30,31 +33,52 @@ public class InstanceService(
             .Cast<PropertyLookup>()
             .Distinct()
             .Where(p => p.Parts.Length > 1)
-            .Where(p => workflowDefinition.Properties.Get(p.Parts[0]).DataType == DataType.Reference)
+            .Where(p => workflowDefinition.Properties.GetOrDefault(p.Parts[0])?.DataType == DataType.Reference)
             .GroupBy(p => p.Parts[0]);
         foreach (var referenceProperty in referenceProperties)
         {
-            if (workflowDefinition.Properties.Get(referenceProperty.Key).WorkflowDefinition != null)
+            var definition = workflowDefinition.Properties.GetOrDefault(referenceProperty.Key)?.WorkflowDefinition;
+            if (definition != null)
             {
-                var instanceId = context.Get(referenceProperty.Key) as string;
-                if (instanceId != null)
+                var ids = contexts.SelectMany(c => c.Get(referenceProperty.Key) switch
                 {
-                    var instance = await workflowInstanceRepository.GetById(instanceId, ct);
-                    context.Values[referenceProperty.Key] = instance;
-                }
+                    string re => [re],
+                    string[] res => res,
+                    _ => []
+                }).ToArray();
+                var props = referenceProperty.Select(p => p.Parts[1]);
+                var results = await workflowInstanceRepository.GetAllById(ids,
+                    props.ToDictionary(p => p, p => $"$Properties.{p}"), ct);
+                var resultContexts = results
+                    .Select(t => modelService.CreateContext(definition.Name, t))
+                    .ToDictionary(t => t.Id!, t => t.Values);
+                foreach (var context in contexts)
+                    context.Values[referenceProperty.Key] = context.Get(referenceProperty.Key) switch
+                    {
+                        string re => resultContexts.GetValueOrDefault(re),
+                        string[] res => res.Select(r => resultContexts.GetValueOrDefault(r)).Where(r => r != null)
+                            .ToArray(),
+                        var t => t
+                    };
             }
         }
 
         // Add CurrentStep to context
-        if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
-            context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
+        if (replaceStep)
+        {
+            foreach (var context in contexts)
+            {
+                if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
+                    context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
+            }
+        }
     }
 
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
-        await Enrich(workflowDefinition, context, workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
+        await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         string? targetStep = null;
         foreach (var step in workflowDefinition.FlattenedSteps)
         {
@@ -213,5 +237,26 @@ public class InstanceService(
             .ToList();
         return subs.Select(s => new AllowedSubmission(s, forms[s.Id],
             modelService.GetQuestionStatus(instance, forms[s.Id], hiddenForms.Contains(s.Id))));
+    }
+
+    public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,
+        PropertyDefinition property,
+        CancellationToken ct)
+    {
+        if (property.WorkflowDefinition == null)
+            throw new Exception("Missing reference");
+
+        var instances = await workflowInstanceRepository.GetByWorkflowDefinition(property.WorkflowDefinition.Name,
+            FilterDefinition<WorkflowInstance>.Empty, ct);
+        var context = modelService.CreateContext(instance);
+
+        if (property.Filter != null)
+            await Enrich(property.ParentType, [context], property.Filter.Properties, ct);
+
+        return instances.Where(i =>
+        {
+            context.Values[property.WorkflowDefinition.Name] = modelService.CreateContext(i).Values;
+            return property.Filter.IsMet(context);
+        }).ToList();
     }
 }
