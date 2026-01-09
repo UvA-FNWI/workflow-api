@@ -19,11 +19,13 @@ public class InstanceService(
     /// <param name="contexts">The object contexts whose values will be updated.</param>
     /// <param name="properties">The collection of lookup properties to be used for enrichment.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
+    /// <param name="replaceStep">If <c>true</c>, replace the step name by the localized title</param>
     /// <returns>A task representing the asynchronous enrichment operation.</returns>
     public async Task Enrich(WorkflowDefinition workflowDefinition,
         ICollection<ObjectContext> contexts,
         IEnumerable<Lookup> properties,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool replaceStep = true)
     {
         // Resolve (replace) references in the context with their referenced objects
         var referenceProperties = properties
@@ -62,10 +64,13 @@ public class InstanceService(
         }
 
         // Add CurrentStep to context
-        foreach (var context in contexts)
+        if (replaceStep)
         {
-            if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
-                context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
+            foreach (var context in contexts)
+            {
+                if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
+                    context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
+            }
         }
     }
 

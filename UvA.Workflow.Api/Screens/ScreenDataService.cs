@@ -113,7 +113,7 @@ public class ScreenDataService(
 
         // Add related properties as needed
         await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition],
-            contexts, screen.Columns.SelectMany(c => c.Properties), ct);
+            contexts, screen.Columns.SelectMany(c => c.Properties), ct, false);
 
         return contexts;
     }
