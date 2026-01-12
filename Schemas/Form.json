@@ -94,7 +94,8 @@
       "type": "string",
       "enum": [
         "Normal",
-        "SinglePage"
+        "SinglePage",
+        "Modal"
       ]
     },
     "Page": {
@@ -367,6 +368,20 @@
             "string"
           ],
           "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "in": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Array the property should be in"
+        },
+        "isEmpty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If set, check whether the property is empty"
         }
       }
     },
