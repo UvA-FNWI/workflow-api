@@ -112,7 +112,7 @@ public class EventCondition : ConditionPart
     public string Id { get; set; } = null!;
 
     /// <summary>
-    /// If set, the event should not have occurred before this event
+    /// If set, the event specified by Id must have occurred on or after the event specified by this property
     /// </summary>
     public string? NotBefore { get; set; } = null!;
 
