@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
@@ -9,7 +10,8 @@ public class WorkflowInstanceDtoFactory(
     ModelService modelService,
     SubmissionDtoFactory submissionDtoFactory,
     IWorkflowInstanceRepository repository,
-    RightsService rightsService)
+    RightsService rightsService,
+    IStepVersionService stepVersionService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -21,6 +23,9 @@ public class WorkflowInstanceDtoFactory(
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
 
+        // Fetch versions for all steps
+        var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
+
         var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -29,7 +34,7 @@ public class WorkflowInstanceDtoFactory(
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
-            workflowDefinition.Steps.Select(s => StepDto.Create(s, instance, modelService)).ToArray(),
+            workflowDefinition.Steps.Select(s => CreateStepDto(s, instance, stepVersionsMap)).ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus,
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
@@ -57,5 +62,58 @@ public class WorkflowInstanceDtoFactory(
         }
 
         return result.ToArray();
+    }
+
+    /// <summary>
+    /// Fetches versions for all steps and returns a dictionary keyed by step name
+    /// </summary>
+    private async Task<Dictionary<string, List<StepVersion>>> GetStepVersionsMap(
+        WorkflowInstance instance,
+        IEnumerable<Step> steps,
+        CancellationToken ct)
+    {
+        var stepVersionsMap = new Dictionary<string, List<StepVersion>>();
+
+        foreach (var step in steps)
+        {
+            try
+            {
+                var versionsResponse = await stepVersionService.GetStepVersions(instance, step.Name, ct);
+                if (versionsResponse.Versions.Any())
+                {
+                    stepVersionsMap[step.Name] = versionsResponse.Versions;
+                }
+            }
+            catch
+            {
+                // If fetching versions fails for a step, continue without versions for that step
+            }
+        }
+
+        return stepVersionsMap;
+    }
+
+    /// <summary>
+    /// Creates a StepDto with versions from the map, recursively handling child steps
+    /// </summary>
+    private StepDto CreateStepDto(
+        Step step,
+        WorkflowInstance instance,
+        Dictionary<string, List<StepVersion>> stepVersionsMap)
+    {
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var versions = stepVersionsMap.GetValueOrDefault(step.Name);
+
+        return new StepDto(
+            step.Name,
+            step.DisplayTitle,
+            step.EndEvent,
+            step.GetEndDate(instance, workflowDef),
+            step.GetDeadline(instance, modelService),
+            step.Children.Length != 0
+                ? step.Children.Select(s => CreateStepDto(s, instance, stepVersionsMap)).ToArray()
+                : null,
+            versions
+        );
     }
 }

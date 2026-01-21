@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Events;
+using UvA.Workflow.Versioning;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -30,17 +31,23 @@ public record StepDto(
     string? Event,
     DateTime? DateCompleted,
     DateTime? Deadline,
-    StepDto[]? Children)
+    StepDto[]? Children,
+    List<StepVersion>? Versions = null)
 {
-    public static StepDto Create(Step step, WorkflowInstance instance, ModelService modelService)
-        => new(
+    public static StepDto Create(Step step, WorkflowInstance instance, ModelService modelService,
+        List<StepVersion>? versions = null)
+    {
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        return new(
             step.Name,
             step.DisplayTitle,
             step.EndEvent,
-            step.GetEndDate(instance),
+            step.GetEndDate(instance, workflowDef),
             step.GetDeadline(instance, modelService),
-            step.Children.Length != 0 ? step.Children.Select(s => Create(s, instance, modelService)).ToArray() : null
+            step.Children.Length != 0 ? step.Children.Select(s => Create(s, instance, modelService)).ToArray() : null,
+            versions
         );
+    }
 }
 
 public record ActionDto(

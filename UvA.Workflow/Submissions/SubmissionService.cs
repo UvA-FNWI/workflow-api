@@ -1,6 +1,7 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Submissions;
 
@@ -48,8 +49,14 @@ public class SubmissionService(
 
         // Check if already submitted
         if (submission?.Date != null)
-            throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
-                "Submission already submitted");
+        {
+            var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+            if (EventSuppressionHelper.IsEventActive(submissionId, instance, workflowDef))
+            {
+                throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
+                    "Submission already submitted");
+            }
+        }
 
         var objectContext = modelService.CreateContext(instance);
 
