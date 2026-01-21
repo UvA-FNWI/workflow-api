@@ -17,7 +17,7 @@ public class StepsController(
     /// </summary>
     //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
     [HttpGet("/api/instances/{instanceId}/steps/{stepName}/versions")]
-    public async Task<ActionResult<StepVersionsResponse>> GetStepVersions(
+    public async Task<ActionResult<StepVersions>> GetStepVersions(
         string instanceId,
         string stepName,
         CancellationToken ct)

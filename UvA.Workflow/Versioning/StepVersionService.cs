@@ -9,28 +9,25 @@ public record StepVersion
     public int VersionNumber { get; init; }
     public string EventId { get; init; } = null!;
     public DateTime SubmittedAt { get; init; }
-    public bool IsActive { get; init; }
-    public string? SuppressedBy { get; init; }
     public Dictionary<string, object?> FormData { get; init; } = new();
 }
 
-public record StepVersionsResponse
+public record StepVersions
 {
     public string StepName { get; init; } = null!;
     public List<StepVersion> Versions { get; init; } = new();
-    public StepVersion? ActiveVersion => Versions.FirstOrDefault(v => v.IsActive);
 }
 
 public interface IStepVersionService
 {
-    Task<StepVersionsResponse> GetStepVersions(WorkflowInstance instance, string stepName, CancellationToken ct);
+    Task<StepVersions> GetStepVersions(WorkflowInstance instance, string stepName, CancellationToken ct);
 }
 
 public class StepVersionService(
     ModelService modelService,
     IInstanceEventRepository eventRepository) : IStepVersionService
 {
-    public async Task<StepVersionsResponse> GetStepVersions(
+    public async Task<StepVersions> GetStepVersions(
         WorkflowInstance instance,
         string stepName,
         CancellationToken ct)
@@ -54,7 +51,7 @@ public class StepVersionService(
         // Build version chain by analyzing suppression relationships
         var versions = BuildVersionChain(instance, stepEvents, eventLogs);
 
-        return new StepVersionsResponse
+        return new StepVersions
         {
             StepName = stepName,
             Versions = versions
@@ -68,12 +65,11 @@ public class StepVersionService(
     {
         var versions = new List<StepVersion>();
         int versionNumber = 1;
-        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        // Group logs by event ID and get creation events only
+        // Group logs by event ID and get creation/update events only
         var submissionEvents = eventLogs
             .Where(log => eventIds.Contains(log.EventId) &&
-                          (log.Operation == EventLogOperation.Create || log.Operation == EventLogOperation.Update))
+                          log.Operation is EventLogOperation.Create or EventLogOperation.Update)
             .GroupBy(log => new { log.EventId, log.EventDate })
             .OrderBy(g => g.Key.EventDate);
 
@@ -84,17 +80,11 @@ public class StepVersionService(
 
             if (currentEvent?.Date != null)
             {
-                // Compute suppression status dynamically
-                bool isActive = EventSuppressionHelper.IsEventActive(latestLog.EventId, instance, workflowDef);
-                string? suppressedBy = EventSuppressionHelper.GetSuppressedBy(latestLog.EventId, instance, workflowDef);
-
                 versions.Add(new StepVersion
                 {
                     VersionNumber = versionNumber++,
                     EventId = latestLog.EventId,
                     SubmittedAt = currentEvent.Date.Value,
-                    IsActive = isActive,
-                    SuppressedBy = suppressedBy,
                     FormData = ExtractFormData(instance, latestLog.EventId)
                 });
             }
