@@ -15,28 +15,7 @@ public static class EventSuppressionHelper
         WorkflowInstance instance,
         WorkflowDefinition workflowDef)
     {
-        if (!instance.Events.TryGetValue(eventId, out var evt) || evt.Date == null)
-            return false;
-
-        // Check if any later event suppresses this one
-        foreach (var (otherEventId, otherEvent) in instance.Events)
-        {
-            // Skip if other event has no date or is the same event
-            if (otherEvent.Date == null || otherEventId == eventId)
-                continue;
-
-            // Only later events can suppress (temporal constraint)
-            if (otherEvent.Date > evt.Date)
-            {
-                var otherEventDef = workflowDef.Events.FirstOrDefault(e => e.Name == otherEventId);
-                if (otherEventDef?.Suppresses?.Contains(eventId) == true)
-                {
-                    return false; // Suppressed by this later event
-                }
-            }
-        }
-
-        return true; // Not suppressed by any later event
+        return GetSuppressedBy(eventId, instance, workflowDef) == null;
     }
 
     /// <summary>
