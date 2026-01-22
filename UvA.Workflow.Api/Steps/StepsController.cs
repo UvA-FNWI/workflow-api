@@ -15,7 +15,6 @@ public class StepsController(
     /// <summary>
     /// Gets all versions of a step with their submission history
     /// </summary>
-    //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
     [HttpGet("/api/instances/{instanceId}/steps/{stepName}/versions")]
     public async Task<ActionResult<StepVersions>> GetStepVersions(
         string instanceId,
