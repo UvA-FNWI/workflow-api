@@ -78,10 +78,10 @@ public class WorkflowInstanceDtoFactory(
         {
             try
             {
-                var versionsResponse = await stepVersionService.GetStepVersions(instance, step.Name, ct);
-                if (versionsResponse.Versions.Any())
+                var versions = await stepVersionService.GetStepVersions(instance, step.Name, ct);
+                if (versions.Any())
                 {
-                    stepVersionsMap[step.Name] = versionsResponse.Versions;
+                    stepVersionsMap[step.Name] = versions;
                 }
             }
             catch

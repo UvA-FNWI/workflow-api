@@ -16,7 +16,7 @@ public class StepsController(
     /// Gets all versions of a step with their submission history
     /// </summary>
     [HttpGet("/api/instances/{instanceId}/steps/{stepName}/versions")]
-    public async Task<ActionResult<StepVersions>> GetStepVersions(
+    public async Task<ActionResult<List<StepVersion>>> GetStepVersions(
         string instanceId,
         string stepName,
         CancellationToken ct)

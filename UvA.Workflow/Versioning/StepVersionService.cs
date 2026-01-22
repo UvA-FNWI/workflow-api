@@ -12,15 +12,9 @@ public record StepVersion
     public Dictionary<string, object?> FormData { get; init; } = new();
 }
 
-public record StepVersions
-{
-    public string StepName { get; init; } = null!;
-    public List<StepVersion> Versions { get; init; } = new();
-}
-
 public interface IStepVersionService
 {
-    Task<StepVersions> GetStepVersions(WorkflowInstance instance, string stepName, CancellationToken ct);
+    Task<List<StepVersion>> GetStepVersions(WorkflowInstance instance, string stepName, CancellationToken ct);
 }
 
 public class StepVersionService(
@@ -28,7 +22,7 @@ public class StepVersionService(
     IInstanceEventRepository eventRepository,
     IInstanceJournalService journalService) : IStepVersionService
 {
-    public async Task<StepVersions> GetStepVersions(
+    public async Task<List<StepVersion>> GetStepVersions(
         WorkflowInstance instance,
         string stepName,
         CancellationToken ct)
@@ -55,11 +49,7 @@ public class StepVersionService(
         // Build version chain
         var versions = await BuildVersionChain(instance, stepEvents, eventLogs, journal);
 
-        return new StepVersions
-        {
-            StepName = stepName,
-            Versions = versions
-        };
+        return versions;
     }
 
     private async Task<List<StepVersion>> BuildVersionChain(
