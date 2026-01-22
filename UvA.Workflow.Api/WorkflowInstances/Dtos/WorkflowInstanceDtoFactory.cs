@@ -11,7 +11,8 @@ public class WorkflowInstanceDtoFactory(
     SubmissionDtoFactory submissionDtoFactory,
     IWorkflowInstanceRepository repository,
     RightsService rightsService,
-    IStepVersionService stepVersionService)
+    IStepVersionService stepVersionService,
+    ILogger<WorkflowInstanceDtoFactory> logger)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -84,9 +85,10 @@ public class WorkflowInstanceDtoFactory(
                     stepVersionsMap[step.Name] = versions;
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // If fetching versions fails for a step, continue without versions for that step
+                logger.LogError(ex, "Failed to fetch step versions for step {StepName}", step.Name);
             }
         }
 
