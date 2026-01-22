@@ -74,6 +74,25 @@ public class WorkflowInstanceService(
     }
 
     /// <summary>
+    /// Gets the version number that was active at a specific timestamp.
+    /// </summary>
+    public async Task<int> GetVersionAtTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)
+    {
+        var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
+
+        if (journal is not { PropertyChanges.Length: > 0 })
+            return 0;
+
+        var changesBeforeTimestamp = journal.PropertyChanges
+            .Where(pc => pc.Timestamp < timestamp)
+            .ToList();
+
+        return changesBeforeTimestamp.Any()
+            ? changesBeforeTimestamp.Max(pc => pc.Version)
+            : 0;
+    }
+
+    /// <summary>
     /// Updates multiple properties on a workflow instance in a single operation
     /// </summary>
     public async Task UpdateProperties(
