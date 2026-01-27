@@ -223,6 +223,20 @@
             "string"
           ],
           "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "in": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Array the property should be in"
+        },
+        "isEmpty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If set, check whether the property is empty"
         }
       }
     },
@@ -266,7 +280,7 @@
             "null",
             "string"
           ],
-          "description": "If set, the event should not have occurred before this event"
+          "description": "If set, the event specified by Id must have occurred on or after the event specified by this property"
         }
       }
     },

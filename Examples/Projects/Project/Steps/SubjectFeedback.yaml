@@ -45,4 +45,8 @@ properties:
       multiline: true
 
 ends: 
-  event: RejectSubject
+  logical:
+    operator: Or
+    children: 
+    - event: RejectSubject
+    - event: ApproveSubject

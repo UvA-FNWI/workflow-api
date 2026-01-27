@@ -1,4 +1,5 @@
 using UvA.Workflow.Events;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowInstances;
 
