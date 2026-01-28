@@ -9,11 +9,11 @@ shortText:
   en: Request type
   nl: Type aanvraag
 values:
-  Donkey:
+  - name: Donkey
     text:
       en: A donkey
       nl: Een ezel
-  Exemption:
+  - name: Exemption
     text:
       en: An exemption
       nl: Een vrijstelling

@@ -26,15 +26,15 @@ properties:
       nl: Wat keur je af?
       en: Which part are you rejecting?
     values:
-      Contents:
+      - name: Contents
         text:
           en: Contents
           nl: Inhoud
-      Staff:
+      - name: Staff
         text:
           en: Staff
           nl: Medewerkers
-      Planning:
+      - name: Planning
         text: Planning      
   - name: SubjectRejectReason
     type: String!
