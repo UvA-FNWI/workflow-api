@@ -6,7 +6,8 @@ namespace UvA.Workflow.Api.Screens;
 public class ScreenDataService(
     ModelService modelService,
     InstanceService instanceService,
-    IWorkflowInstanceRepository repository)
+    IWorkflowInstanceRepository repository,
+    InstanceAuthorizationFilterService instanceAuthorizationFilterService)
 {
     public async Task<ScreenDataDto> GetScreenData(string screenName, string workflowDefinition, CancellationToken ct)
     {
@@ -108,7 +109,11 @@ public class ScreenDataService(
         var projection = BuildProjection(screen.Columns, workflowDefinition);
         projection.TryAdd("CurrentStep", "$CurrentStep");
 
-        var rawData = await repository.GetAllByType(workflowDefinition, projection, ct);
+        // Build authorization filter to restrict instances to those the user can view
+        var authorizationFilter =
+            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, ct);
+
+        var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
         var contexts = rawData.Select(r => modelService.CreateContext(workflowDefinition, r)).ToList();
 
         // Add related properties as needed
