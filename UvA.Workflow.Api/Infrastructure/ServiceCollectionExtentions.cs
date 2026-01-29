@@ -57,6 +57,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<ModelServiceResolver>();
         services.AddScoped<ScreenDataService>();
+        services.AddScoped<InstanceAuthorizationFilterService>();
 
         services.AddScoped<IInstanceJournalService, InstanceJournalService>();
         services.AddScoped<InstanceEventService>();
