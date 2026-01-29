@@ -1,9 +1,9 @@
 values:
-  Good:
+  - name: Good
     value: 10
-  Sufficient:
+  - name: Sufficient
     value: 6
-  Insufficient:
+  - name: Insufficient
     value: 4
-  Bad:
+  - name: Bad
     value: 1

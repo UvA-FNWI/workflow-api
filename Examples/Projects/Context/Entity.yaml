@@ -11,9 +11,9 @@ properties:
   - name: Type
     type: ContextType!
     values:
-      Course: {}
-      Group: {}
-      Specialisation: {}
+      - name: Course
+      - name: Group
+      - name: Specialisation
 
   - name: Coordinator
     type: "[User]!"

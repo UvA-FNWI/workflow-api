@@ -27,8 +27,8 @@ properties:
     type: YesNo!
     layout: RadioList
     values:
-      Yes: {}
-      No: {}
+      - name: Yes
+      - name: No
   - name: IBAN
     text: IBAN beneficiary
     type: String!

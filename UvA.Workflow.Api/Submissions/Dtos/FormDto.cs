@@ -66,7 +66,7 @@ public record QuestionDto(
         propertyDefinition.Name,
         propertyDefinition.DisplayName,
         propertyDefinition.DataType, propertyDefinition.IsRequired, propertyDefinition.IsArray,
-        propertyDefinition.Values?.Values.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
+        propertyDefinition.Values?.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
         propertyDefinition.WorkflowDefinition?.Name,
         propertyDefinition.Description,
         propertyDefinition.ShortDisplayName,
