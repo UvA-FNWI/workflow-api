@@ -110,7 +110,7 @@ public class AnswerService(
         else
         {
             instance.SetProperty(artifactInfo.ToBsonDocument(), form.PropertyName, question.Name);
-            oidOldArtifact = value?["_id"].AsObjectId;
+            oidOldArtifact = value is BsonDocument doc ? doc["_id"].AsObjectId : null;
         }
 
         await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
