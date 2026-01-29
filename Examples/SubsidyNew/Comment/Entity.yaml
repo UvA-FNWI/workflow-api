@@ -12,10 +12,10 @@ properties:
   - name: Advice
     type: Enum
     values:
-      Approve: {}
-      Reject: {}
-      Postpone: {}
-      Discuss: {}
+      - name: Approve
+      - name: Reject
+      - name: Postpone
+      - name: Discuss
   - name: Amount
     type: Currency
     

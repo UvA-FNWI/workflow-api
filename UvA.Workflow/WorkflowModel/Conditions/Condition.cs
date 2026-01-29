@@ -151,7 +151,7 @@ public class Logical : ConditionPart
 
 /// <summary>
 /// Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value
-/// (prefix the value with an equals sign to indicate a literal value)
+/// (prefix a string value with an equals sign to indicate a literal value)
 /// </summary>
 public class Value : ConditionPart
 {
@@ -163,28 +163,28 @@ public class Value : ConditionPart
     private Expression PropertyExpression => ExpressionParser.Parse(Property);
 
     /// <summary>
-    /// Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign 
+    /// Value the property should be equal to. If this is a literal string, it must be prefixed with an equals sign 
     /// </summary>
     public string? Equal { get; set; }
 
     private Expression? EqualExpression => ExpressionParser.Parse(Equal);
 
     /// <summary>
-    /// Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign 
+    /// Value the property should be less than. If this is a literal string, it must be prefixed with an equals sign 
     /// </summary>
     public string? LessThan { get; set; }
 
     private Expression? LessThanExpression => ExpressionParser.Parse(LessThan);
 
     /// <summary>
-    /// Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign 
+    /// Value the property should be greater than. If this is a literal string, it must be prefixed with an equals sign 
     /// </summary>
     public string? GreaterThan { get; set; }
 
     private Expression? GreaterThanExpression => ExpressionParser.Parse(GreaterThan);
 
     /// <summary>
-    /// Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign 
+    /// Value the property should be greater than or equal to. If this is a literal string, it must be prefixed with an equals sign 
     /// </summary>
     public string? GreaterThanOrEqual { get; set; }
 

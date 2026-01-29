@@ -97,7 +97,7 @@ public class PropertyDefinition : INamed
     /// <summary>
     /// Values for a choice propertyDefinition.
     /// </summary>
-    public Dictionary<string, Choice>? Values { get; set; }
+    public List<Choice>? Values { get; set; }
 
     /// <summary>
     /// Localized extended description text for the propertyDefinition.
@@ -151,7 +151,7 @@ public class PropertyDefinition : INamed
 
     [YamlIgnore]
     public IEnumerable<Condition> Conditions =>
-        (Values?.Values.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Append(Filter)
+        (Values?.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Append(Filter)
         .Where(c => c != null)!;
 
     public List<PropertyDefinition> DependentQuestions { get; } = [];
@@ -167,12 +167,11 @@ public class PropertyDefinition : INamed
     public bool HideInResults { get; set; }
 }
 
-public class Choice
+public class Choice : INamed
 {
     /// <summary>
     /// Internal name of the choice
     /// </summary>
-    [YamlIgnore]
     public string Name { get; set; } = null!;
 
     /// <summary>

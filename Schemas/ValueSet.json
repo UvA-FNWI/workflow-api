@@ -11,9 +11,9 @@
       "type": "string"
     },
     "values": {
-      "type": "object",
+      "type": "array",
       "description": "Dictionary of choices within this value set",
-      "additionalProperties": {
+      "items": {
         "$ref": "#/definitions/Choice"
       }
     }
@@ -23,7 +23,14 @@
       "title": "Choice",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the choice"
+        },
         "text": {
           "description": "Localized text of the choice",
           "oneOf": [
