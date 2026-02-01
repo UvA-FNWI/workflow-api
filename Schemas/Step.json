@@ -731,6 +731,20 @@
             "string"
           ],
           "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "in": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Array the property should be in"
+        },
+        "isEmpty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If set, check whether the property is empty"
         }
       }
     },
@@ -808,13 +822,13 @@
       "title": "Action",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
         "name": {
-          "type": "string",
-          "description": "Internal name of the action"
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Internal name of the action. Required for actions of type execute"
         },
         "label": {
           "description": "Localized label of the action as shown in the user interface",
@@ -1162,6 +1176,9 @@
               "$ref": "#/definitions/StringLayoutOptions"
             },
             {
+              "$ref": "#/definitions/TableLayoutOptions"
+            },
+            {
               "type": "null"
             }
           ]
@@ -1186,11 +1203,11 @@
         },
         "values": {
           "type": [
-            "null",
-            "object"
+            "array",
+            "null"
           ],
           "description": "Values for a choice propertyDefinition.",
-          "additionalProperties": {
+          "items": {
             "$ref": "#/definitions/Choice"
           }
         },
@@ -1243,6 +1260,20 @@
             }
           ]
         },
+        "filter": {
+          "description": "Condition used for filtering reference choices",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
         "onSave": {
           "type": "array",
           "description": "Effect that is run whenever a value is changed for this property",
@@ -1253,17 +1284,6 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
-        },
-        "table": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Configure table for the Table data type",
-              "$ref": "#/definitions/TableSettings"
-            }
-          ]
         }
       }
     },
@@ -1280,7 +1300,7 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "description": "Set if the propertyDefinition should be shown as dropdown or radio list",
+          "description": "Set if the field should be shown as dropdown or radio list",
           "$ref": "#/definitions/ChoiceLayoutType"
         }
       }
@@ -1299,7 +1319,7 @@
       "properties": {
         "multiline": {
           "type": "boolean",
-          "description": "Set if the propertyDefinition should be a multiline text field"
+          "description": "Set if the field should be a multiline text field"
         },
         "allowAttachments": {
           "type": "boolean",
@@ -1307,11 +1327,36 @@
         }
       }
     },
+    "TableLayoutOptions": {
+      "title": "TableLayoutOptions",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Sets if the table should allow inline editing or not",
+          "$ref": "#/definitions/TableLayout"
+        }
+      }
+    },
+    "TableLayout": {
+      "type": "string",
+      "enum": [
+        "InlineEditing",
+        "Modal"
+      ]
+    },
     "Choice": {
       "title": "Choice",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the choice"
+        },
         "text": {
           "description": "Localized text of the choice",
           "oneOf": [
@@ -1362,29 +1407,6 @@
           ]
         }
       }
-    },
-    "TableSettings": {
-      "title": "TableSettings",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "form"
-      ],
-      "properties": {
-        "form": {
-          "type": "string"
-        },
-        "layout": {
-          "$ref": "#/definitions/TableLayout"
-        }
-      }
-    },
-    "TableLayout": {
-      "type": "string",
-      "enum": [
-        "InlineEditing",
-        "Modal"
-      ]
     }
   }
 }

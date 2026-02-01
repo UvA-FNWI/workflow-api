@@ -112,10 +112,7 @@ public partial class ModelParser
     private void PreProcess(ValueSet set)
     {
         foreach (var entry in set.Values)
-        {
-            entry.Value.Name = entry.Key;
-            PreProcess(entry.Value);
-        }
+            PreProcess(entry);
     }
 
     private void PreProcess(Form form, WorkflowDefinition workflowDefinition)
@@ -203,10 +200,7 @@ public partial class ModelParser
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
     {
         foreach (var entry in propertyDefinition.Values ?? [])
-        {
-            entry.Value.Name = entry.Key;
-            PreProcess(entry.Value);
-        }
+            PreProcess(entry);
 
         if (ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out var set))
             propertyDefinition.Values = set.Values;

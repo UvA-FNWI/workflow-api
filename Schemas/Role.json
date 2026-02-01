@@ -62,13 +62,13 @@
       "title": "Action",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
         "name": {
-          "type": "string",
-          "description": "Internal name of the action"
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Internal name of the action. Required for actions of type execute"
         },
         "label": {
           "description": "Localized label of the action as shown in the user interface",
@@ -342,6 +342,20 @@
             "string"
           ],
           "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+        },
+        "in": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Array the property should be in"
+        },
+        "isEmpty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If set, check whether the property is empty"
         }
       }
     },
