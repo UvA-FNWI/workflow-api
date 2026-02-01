@@ -1,5 +1,4 @@
 using UvA.Workflow.Events;
-using UvA.Workflow.Infrastructure;
 using UvA.Workflow.WorkflowModel;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
@@ -9,7 +8,8 @@ public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     IUserService userService,
-    RightsService rightsService
+    RightsService rightsService,
+    IServiceProvider serviceProvider
 )
 {
     /// <summary>
@@ -61,6 +61,14 @@ public class InstanceService(
                         var t => t
                     };
             }
+        }
+
+        // Add complex lookups
+        foreach (var lookup in properties.Where(p => p is ComplexLookup).Cast<ComplexLookup>())
+        {
+            foreach (var context in contexts)
+                context.Values[lookup] = await serviceProvider.GetResolver(lookup.Function)
+                    .Resolve(lookup, context.Values, ct);
         }
 
         // Add CurrentStep to context
