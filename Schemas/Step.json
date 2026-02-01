@@ -1203,11 +1203,11 @@
         },
         "values": {
           "type": [
-            "null",
-            "object"
+            "array",
+            "null"
           ],
           "description": "Values for a choice propertyDefinition.",
-          "additionalProperties": {
+          "items": {
             "$ref": "#/definitions/Choice"
           }
         },
@@ -1349,7 +1349,14 @@
       "title": "Choice",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the choice"
+        },
         "text": {
           "description": "Localized text of the choice",
           "oneOf": [

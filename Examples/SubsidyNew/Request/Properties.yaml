@@ -66,9 +66,9 @@ properties:
   - name: Decision
     type: Decision!
     values:
-      Approve: {}
-      Reject: {}
-      Postpone: {}
+      - name: Approve
+      - name: Reject
+      - name: Postpone
   - name: DecisionAmount
     type: Currency!
     condition:
@@ -89,7 +89,7 @@ properties:
   - name: ClosureStatus
     type: ClosureStatus
     values:
-      Withdrawn: {}
-      Canceled: {}
-      Closed: {}
+      - name: Withdrawn
+      - name: Canceled
+      - name: Closed
       

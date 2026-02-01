@@ -44,7 +44,7 @@ public class ModelService(ModelParser parser)
                 q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name)
                     ? null
                     : q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde"),
-                q.Values?.Where(v => v.Value.Condition.IsMet(context)).Select(v => v.Key).ToArray()
+                q.Values?.Where(v => v.Condition.IsMet(context)).Select(v => v.Name).ToArray()
             ));
     }
 
