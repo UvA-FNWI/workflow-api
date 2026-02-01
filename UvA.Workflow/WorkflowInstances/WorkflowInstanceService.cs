@@ -17,8 +17,8 @@ public class WorkflowInstanceService(
         User createdBy,
         CancellationToken ct,
         string? userProperty = null,
-        string? parentId = null,
-        Dictionary<string, BsonValue>? initialProperties = null)
+        Dictionary<string, BsonValue>? initialProperties = null,
+        Dictionary<string, InstanceEvent>? initialEvents = null)
     {
         if (string.IsNullOrWhiteSpace(workflowDefinition))
             throw new ArgumentException("WorkflowDefinition is required", nameof(workflowDefinition));
@@ -26,10 +26,9 @@ public class WorkflowInstanceService(
         var instance = new WorkflowInstance
         {
             WorkflowDefinition = workflowDefinition,
-            ParentId = parentId,
             CreatedOn = DateTime.Now,
             Properties = initialProperties ?? new Dictionary<string, BsonValue>(),
-            Events = new Dictionary<string, InstanceEvent>()
+            Events = initialEvents ?? new Dictionary<string, InstanceEvent>()
         };
 
         if (userProperty != null)

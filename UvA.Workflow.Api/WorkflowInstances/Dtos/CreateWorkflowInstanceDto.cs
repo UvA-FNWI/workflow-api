@@ -4,6 +4,5 @@ namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 public record CreateWorkflowInstanceDto(
     string WorkflowDefinition,
-    string? ParentId = null,
-    Dictionary<string, JsonElement>? InitialProperties = null
-);
+    Dictionary<string, JsonElement>? InitialProperties = null,
+    Dictionary<string, DateTime>? InitialEvents = null);

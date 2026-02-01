@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Events;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
 
@@ -24,9 +25,7 @@ public class WorkflowInstancesController(
     {
         var user = await userService.GetCurrentUser(ct);
         if (user == null) return Unauthorized();
-        var actions = input.ParentId == null
-            ? await rightsService.GetAllowedActions(input.WorkflowDefinition, RoleAction.CreateInstance)
-            : [];
+        var actions = await rightsService.GetAllowedActions(input.WorkflowDefinition, RoleAction.CreateInstance);
         if (actions.Length == 0)
             return Forbid();
 
@@ -49,8 +48,48 @@ public class WorkflowInstancesController(
             user,
             ct,
             actions.FirstOrDefault(a => a.UserProperty != null)?.UserProperty,
-            input.ParentId,
-            initial
+            initial,
+            input.InitialEvents?.ToDictionary(e => e.Key, e => new InstanceEvent { Id = e.Key, Date = e.Value })
+        );
+
+        await instanceService.UpdateCurrentStep(instance, ct);
+
+        var result = await workflowInstanceDtoFactory.Create(instance, ct);
+
+        return CreatedAtAction(nameof(GetById), new { id = instance.Id }, result);
+    }
+
+    [HttpPost("{parentInstanceId}/{propertyName}")]
+    public async Task<ActionResult<WorkflowInstanceDto>> Create(string parentInstanceId, string propertyName,
+        [FromBody] CreateWorkflowInstanceDto input, CancellationToken ct)
+    {
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null) return Unauthorized();
+        var actions = await rightsService.GetAllowedActions(input.WorkflowDefinition, RoleAction.CreateRelatedInstance);
+        if (actions.Length == 0)
+            return Forbid();
+
+        var initial = input.InitialProperties?.ToDictionary(k => k.Key, BsonValue (_) => BsonNull.Value);
+        if (initial != null)
+        {
+            foreach (var entry in input.InitialProperties ?? [])
+            {
+                var property = modelService.WorkflowDefinitions[input.WorkflowDefinition].Properties
+                    .GetOrDefault(entry.Key);
+                if (property == null)
+                    return BadRequest($"Property {entry.Key} does not exist");
+                initial[entry.Key] = await answerConversionService.ConvertToValue(
+                    entry.Value, property, ct);
+            }
+        }
+
+        var instance = await workflowInstanceService.Create(
+            input.WorkflowDefinition,
+            user,
+            ct,
+            actions.FirstOrDefault(a => a.UserProperty != null)?.UserProperty,
+            initial,
+            input.InitialEvents?.ToDictionary(e => e.Key, e => new InstanceEvent { Id = e.Key, Date = e.Value })
         );
 
         await instanceService.UpdateCurrentStep(instance, ct);
