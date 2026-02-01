@@ -12,12 +12,18 @@ public class EffectService(
         MailMessage? mail = null)
     {
         var context = modelService.CreateContext(instance);
+        await instanceService.Enrich(
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition],
+            [context],
+            effects.SelectMany(e => e.Properties),
+            ct
+        );
         foreach (var effect in effects.Where(t => t.Condition.IsMet(context)))
         {
             if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
             if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
             if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, mail);
-            if (effect.SetProperty != null) await SetProperty(instance, effect.SetProperty, ct);
+            if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         }
     }
 
@@ -48,10 +54,10 @@ public class EffectService(
         await eventService.UpdateEvent(instance, ev.Id, user, ct);
     }
 
-    private async Task SetProperty(WorkflowInstance instance, SetProperty setProperty, CancellationToken ct)
+    private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,
+        CancellationToken ct)
     {
-        instance.Properties[setProperty.Property] =
-            setProperty.ValueExpression.Execute(modelService.CreateContext(instance)).ToBsonDocument();
+        instance.Properties[setProperty.Property] = BsonValue.Create(setProperty.ValueExpression.Execute(context));
         await instanceService.SaveValue(instance, null, setProperty.Property, ct);
     }
 }
