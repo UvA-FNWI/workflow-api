@@ -16,11 +16,11 @@ public record QuestionContext(
 public class AnswerService(
     SubmissionService submissionService,
     ModelService modelService,
-    InstanceService instanceService,
     RightsService rightsService,
     IArtifactService artifactService,
     AnswerConversionService answerConversionService,
     IInstanceEventService instanceEventService,
+    IWorkflowInstanceRepository workflowInstanceRepository,
     IInstanceJournalService instanceJournalService)
 {
     public async Task<QuestionContext> GetQuestionContext(
@@ -51,7 +51,7 @@ public class AnswerService(
         if (newAnswer != currentAnswer)
         {
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
-            await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
+            await workflowInstanceRepository.SaveValue(instance, form.PropertyName, question!.Name, ct);
 
             // if the form is submitted, then log the change
             if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
@@ -113,7 +113,7 @@ public class AnswerService(
             oidOldArtifact = value?["_id"].AsObjectId;
         }
 
-        await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
+        await workflowInstanceRepository.SaveValue(instance, form.PropertyName, question.Name, ct);
 
         if (oidOldArtifact != null)
         {
@@ -143,7 +143,7 @@ public class AnswerService(
             await artifactService.TryDeleteArtifact(new ObjectId(artifactId), ct);
             array.Remove(artifactRef);
             instance.SetProperty(array, form.PropertyName, question.Name);
-            await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
+            await workflowInstanceRepository.SaveValue(instance, form.PropertyName, question.Name, ct);
         }
         else
         {
@@ -154,7 +154,7 @@ public class AnswerService(
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
             }
 
-            await instanceService.UnsetValue(instance, form.PropertyName, question.Name, ct);
+            await workflowInstanceRepository.UnsetValue(instance, form.PropertyName, question.Name, ct);
             instance.ClearProperty(question.Name);
             await artifactService.TryDeleteArtifact(new ObjectId(artifactId), ct);
         }

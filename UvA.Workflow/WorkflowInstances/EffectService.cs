@@ -4,6 +4,7 @@ namespace UvA.Workflow.WorkflowInstances;
 
 public class EffectService(
     InstanceService instanceService,
+    IWorkflowInstanceRepository instanceRepository,
     IInstanceEventService eventService,
     ModelService modelService,
     IMailService mailService)
@@ -58,6 +59,6 @@ public class EffectService(
         CancellationToken ct)
     {
         instance.Properties[setProperty.Property] = BsonValue.Create(setProperty.ValueExpression.Execute(context));
-        await instanceService.SaveValue(instance, null, setProperty.Property, ct);
+        await instanceRepository.SaveValue(instance, null, setProperty.Property, ct);
     }
 }

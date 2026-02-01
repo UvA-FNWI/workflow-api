@@ -43,4 +43,6 @@ public interface IWorkflowInstanceRepository
         CancellationToken ct);
 
     Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct);
+    Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct);
+    Task UnsetValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct);
 }

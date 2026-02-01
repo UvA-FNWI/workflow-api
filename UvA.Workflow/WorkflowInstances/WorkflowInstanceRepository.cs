@@ -149,18 +149,6 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         await instanceCollection.UpdateOneAsync(filter, update, cancellationToken: ct);
     }
 
-    public async Task DeleteField(string instanceId, Expression<Func<WorkflowInstance, object>> field,
-        CancellationToken ct)
-    {
-        if (!ObjectId.TryParse(instanceId, out var objectId))
-            throw new ArgumentException("Invalid instance ID", nameof(instanceId));
-
-        var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
-        var update = Builders<WorkflowInstance>.Update.Unset(field);
-
-        await instanceCollection.UpdateOneAsync(filter, update, cancellationToken: ct);
-    }
-
     public async Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition,
         CancellationToken ct)
     {
@@ -170,4 +158,17 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
         await instanceCollection.UpdateOneAsync(filter, updateDefinition, cancellationToken: ct);
     }
+
+    public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
+        => UpdateFields(instance.Id,
+            Builders<WorkflowInstance>.Update.Set(part1 == null
+                    ? (i => i.Properties[part2])
+                    : (i => i.Properties[part1][part2]),
+                instance.GetProperty(part1, part2)), ct);
+
+    public Task UnsetValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
+        => UpdateFields(instance.Id,
+            Builders<WorkflowInstance>.Update.Unset(part1 == null
+                ? (i => i.Properties[part2])
+                : (i => i.Properties[part1][part2])), ct);
 }

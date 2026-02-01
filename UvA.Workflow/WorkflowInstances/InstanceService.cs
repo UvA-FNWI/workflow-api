@@ -159,19 +159,6 @@ public class InstanceService(
         return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
     }
 
-    public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
-        => workflowInstanceRepository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Set(part1 == null
-                    ? (i => i.Properties[part2])
-                    : (i => i.Properties[part1][part2]),
-                instance.GetProperty(part1, part2)), ct);
-
-    public Task UnsetValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
-        => workflowInstanceRepository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Unset(part1 == null
-                ? (i => i.Properties[part2])
-                : (i => i.Properties[part1][part2])), ct);
-
     public record AllowedAction(
         Domain_Action Action,
         Form? Form = null,
