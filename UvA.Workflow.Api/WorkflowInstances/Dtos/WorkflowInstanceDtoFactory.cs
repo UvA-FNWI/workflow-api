@@ -12,6 +12,7 @@ public class WorkflowInstanceDtoFactory(
     IWorkflowInstanceRepository repository,
     RightsService rightsService,
     IStepVersionService stepVersionService,
+    WorkflowInstanceService workflowInstanceService,
     ILogger<WorkflowInstanceDtoFactory> logger)
 {
     /// <summary>
@@ -115,7 +116,51 @@ public class WorkflowInstanceDtoFactory(
             step.Children.Length != 0
                 ? step.Children.Select(s => CreateStepDto(s, instance, stepVersionsMap)).ToArray()
                 : null,
-            versions
+            versions?.Select(v => CreateStepVersionDto(v, instance)).ToList()
         );
+    }
+
+    /// <summary>
+    /// Creates a StepVersionDto with a properly constructed SubmissionDto for the version
+    /// </summary>
+    private StepVersionDto CreateStepVersionDto(StepVersion stepVersion, WorkflowInstance instance)
+    {
+        try
+        {
+            // Get the instance at the version timestamp
+            var instanceAtVersion = workflowInstanceService
+                .GetAsOfVersion(instance.Id, stepVersion.InstanceVersion, CancellationToken.None).Result;
+
+            // Get the form for this event
+            var form = modelService.GetForm(instanceAtVersion, stepVersion.EventId);
+            if (form == null)
+            {
+                throw new InvalidOperationException($"Form not found for event {stepVersion.EventId}");
+            }
+
+            // Get the submission event from the versioned instance
+            var submission = instanceAtVersion.Events.GetValueOrDefault(stepVersion.EventId);
+
+            // Get question status with all fields visible (historical view)
+            var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, canViewHidden: true);
+
+            // Create the submission DTO with empty permissions (historical view)
+            var submissionDto =
+                submissionDtoFactory.Create(instanceAtVersion, form, submission, questionStatus, permissions: []);
+
+            return new StepVersionDto
+            {
+                VersionNumber = stepVersion.VersionNumber,
+                EventId = stepVersion.EventId,
+                SubmittedAt = stepVersion.SubmittedAt,
+                Submission = submissionDto
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create StepVersionDto for version {VersionNumber}, event {EventId}",
+                stepVersion.VersionNumber, stepVersion.EventId);
+            throw;
+        }
     }
 }

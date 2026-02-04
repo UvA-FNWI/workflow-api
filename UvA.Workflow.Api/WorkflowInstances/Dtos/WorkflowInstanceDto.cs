@@ -25,6 +25,14 @@ public record WorkflowInstanceDto(
 
 public record FieldDto(BilingualString Title, object? Value);
 
+public record StepVersionDto
+{
+    public int VersionNumber { get; init; }
+    public string EventId { get; init; } = null!;
+    public DateTime SubmittedAt { get; init; }
+    public SubmissionDto Submission { get; init; } = null!;
+}
+
 public record StepDto(
     string Id,
     BilingualString Title,
@@ -32,23 +40,7 @@ public record StepDto(
     DateTime? DateCompleted,
     DateTime? Deadline,
     StepDto[]? Children,
-    List<StepVersion>? Versions = null)
-{
-    public static StepDto Create(Step step, WorkflowInstance instance, ModelService modelService,
-        List<StepVersion>? versions = null)
-    {
-        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        return new(
-            step.Name,
-            step.DisplayTitle,
-            step.EndEvent,
-            step.GetEndDate(instance, workflowDef),
-            step.GetDeadline(instance, modelService),
-            step.Children.Length != 0 ? step.Children.Select(s => Create(s, instance, modelService)).ToArray() : null,
-            versions
-        );
-    }
-}
+    List<StepVersionDto>? Versions = null);
 
 public record ActionDto(
     ActionType Type,

@@ -8,7 +8,7 @@ public record StepVersion
     public int VersionNumber { get; init; }
     public string EventId { get; init; } = null!;
     public DateTime SubmittedAt { get; init; }
-    public Dictionary<string, object?> FormData { get; init; } = new();
+    public int InstanceVersion { get; init; }
 }
 
 public interface IStepVersionService
@@ -54,47 +54,37 @@ public class StepVersionService(
 
         foreach (var logEntry in submissionEvents)
         {
+            var instanceVersion = await instanceService.GetVersionAtTimestamp(instance.Id, logEntry.Timestamp, ct);
+
             versions.Add(new StepVersion
             {
                 VersionNumber = versionNumber++,
                 EventId = logEntry.EventId,
                 SubmittedAt = logEntry.Timestamp,
-                FormData = await ExtractFormDataAtTimestamp(instance, logEntry.EventId, logEntry.Timestamp, ct)
+                InstanceVersion = instanceVersion
             });
         }
 
-        return versions.OrderByDescending(v => v.SubmittedAt).ToList();
-    }
 
-    private async Task<Dictionary<string, object?>> ExtractFormDataAtTimestamp(
-        WorkflowInstance instance,
-        string formId,
-        DateTime timestamp,
-        CancellationToken ct)
-    {
-        try
-        {
-            var form = modelService.GetForm(instance, formId);
-            if (form == null)
-                return new Dictionary<string, object?>();
+        var orderedVersions = versions.OrderByDescending(v => v.SubmittedAt).ToList();
 
-            var version = await instanceService.GetVersionAtTimestamp(instance.Id, timestamp, ct);
-            var instanceAtVersion = await instanceService.GetAsOfVersion(instance.Id, version, ct);
+        // Determine which version is currently being shown (active)
+        var activeEvents = instance.Events.WhereActive(instance, workflowDef)
+            .Select(e => e.Key)
+            .Where(stepEvents.Contains)
+            .ToHashSet();
 
-            var result = new Dictionary<string, object?>();
-            foreach (var field in form.PropertyDefinitions)
-            {
-                if (instanceAtVersion.Properties.TryGetValue(field.Name, out var value))
-                {
-                    result[field.Name] = ObjectContext.GetValue(value, field);
-                }
-            }
+        var currentlyShownVersion = orderedVersions
+            .FirstOrDefault(v => activeEvents.Contains(v.EventId));
 
-            return result;
-        }
-        catch
-        {
-            return new Dictionary<string, object?>();
-        }
+        // If there's only one version and it's currently being shown, return empty list
+        if (orderedVersions.Count <= 1 && currentlyShownVersion != null)
+            return new List<StepVersion>();
+
+        // If a version is currently being shown, exclude it from the list
+        if (currentlyShownVersion != null)
+            return orderedVersions.Where(v => v.VersionNumber != currentlyShownVersion.VersionNumber).ToList();
+
+        return orderedVersions;
     }
 }
