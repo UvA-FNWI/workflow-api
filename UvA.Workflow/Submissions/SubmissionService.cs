@@ -33,8 +33,11 @@ public class SubmissionService(
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
         // Get the submission
-        var submission = instance.Events.GetValueOrDefault(submissionId);
+        var submission = instance.Events.WhereActive(instance, workflowDef).ToDictionary()
+            .GetValueOrDefault(submissionId);
 
         var form = modelService.GetForm(instance, submissionId);
         if (form == null)
