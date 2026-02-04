@@ -33,6 +33,8 @@ apiPaths:
   - /WorkflowDefinitions
   - /Users
   - /WorkflowInstances
+  - /Submissions
+  - /Artifacts
 
 azure:
   keyvaultName: keyvaultName
