@@ -121,45 +121,59 @@ public class WorkflowInstanceDtoFactory(
     }
 
     /// <summary>
-    /// Creates a StepVersionDto with a properly constructed SubmissionDto for the version
+    /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
     /// </summary>
     private StepVersionDto CreateStepVersionDto(StepVersion stepVersion, WorkflowInstance instance)
     {
         try
         {
+            var submissions = new List<SubmissionDto>();
+
             // Get the instance at the version timestamp
             var instanceAtVersion = workflowInstanceService
                 .GetAsOfVersion(instance.Id, stepVersion.InstanceVersion, CancellationToken.None).Result;
 
-            // Get the form for this event
-            var form = modelService.GetForm(instanceAtVersion, stepVersion.EventId);
-            if (form == null)
+            // Create a submission for each event in the version
+            foreach (var eventId in stepVersion.EventIds)
             {
-                throw new InvalidOperationException($"Form not found for event {stepVersion.EventId}");
+                // Get the form for this event
+                Form? form;
+                try
+                {
+                    form = modelService.GetForm(instanceAtVersion, eventId);
+                }
+                catch (ArgumentException)
+                {
+                    logger.LogWarning("Form not found for event {EventId} in version {VersionNumber}",
+                        eventId, stepVersion.VersionNumber);
+                    continue;
+                }
+
+                // Get the submission event from the versioned instance
+                var submission = instanceAtVersion.Events.GetValueOrDefault(eventId);
+
+                // Get question status with all fields visible (historical view)
+                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, canViewHidden: true);
+
+                // Create the submission DTO with empty permissions (historical view)
+                var submissionDto =
+                    submissionDtoFactory.Create(instanceAtVersion, form, submission, questionStatus, permissions: []);
+
+                submissions.Add(submissionDto);
             }
-
-            // Get the submission event from the versioned instance
-            var submission = instanceAtVersion.Events.GetValueOrDefault(stepVersion.EventId);
-
-            // Get question status with all fields visible (historical view)
-            var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, canViewHidden: true);
-
-            // Create the submission DTO with empty permissions (historical view)
-            var submissionDto =
-                submissionDtoFactory.Create(instanceAtVersion, form, submission, questionStatus, permissions: []);
 
             return new StepVersionDto
             {
                 VersionNumber = stepVersion.VersionNumber,
-                EventId = stepVersion.EventId,
+                EventIds = stepVersion.EventIds,
                 SubmittedAt = stepVersion.SubmittedAt,
-                Submission = submissionDto
+                Submissions = submissions
             };
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create StepVersionDto for version {VersionNumber}, event {EventId}",
-                stepVersion.VersionNumber, stepVersion.EventId);
+            logger.LogError(ex, "Failed to create StepVersionDto for version {VersionNumber}",
+                stepVersion.VersionNumber);
             throw;
         }
     }

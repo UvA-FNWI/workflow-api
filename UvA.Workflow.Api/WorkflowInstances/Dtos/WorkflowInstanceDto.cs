@@ -28,9 +28,9 @@ public record FieldDto(BilingualString Title, object? Value);
 public record StepVersionDto
 {
     public int VersionNumber { get; init; }
-    public string EventId { get; init; } = null!;
+    public List<string> EventIds { get; init; } = [];
     public DateTime SubmittedAt { get; init; }
-    public SubmissionDto Submission { get; init; } = null!;
+    public List<SubmissionDto> Submissions { get; init; } = [];
 }
 
 public record StepDto(
