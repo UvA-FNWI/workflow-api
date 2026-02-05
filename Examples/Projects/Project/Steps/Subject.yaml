@@ -6,6 +6,3 @@ title:
 children:
   - Start
   - SubjectFeedback
-
-ends:
-  event: ApproveSubject

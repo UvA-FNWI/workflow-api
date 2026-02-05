@@ -62,6 +62,16 @@ public class WorkflowInstanceBuilder
         return this;
     }
 
+    public WorkflowInstanceBuilder WithEvent(string eventId, DateTime? date = null)
+    {
+        events[eventId] = new InstanceEvent
+        {
+            Id = eventId,
+            Date = date
+        };
+        return this;
+    }
+
     public WorkflowInstanceBuilder WithProperties(
         params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
     {

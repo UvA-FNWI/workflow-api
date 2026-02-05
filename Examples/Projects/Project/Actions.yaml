@@ -1,7 +1,7 @@
 globalActions:
   - roles: [Student, Supervisor, Coordinator]
     type: View
-    forms: [Start, Upload, Proposal]
+    forms: [Start, Upload, Proposal, RejectSubject]
   - roles: [Registered]
     type: CreateInstance
     userProperty: Student

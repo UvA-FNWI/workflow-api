@@ -5,6 +5,7 @@ using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.Versioning;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -47,6 +48,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<InstanceService>();
         services.AddScoped<IInstanceEventService, InstanceEventService>();
+        services.AddScoped<IStepVersionService, StepVersionService>();
 
         services.AddScoped<RightsService>();
         services.AddScoped<EffectService>();
