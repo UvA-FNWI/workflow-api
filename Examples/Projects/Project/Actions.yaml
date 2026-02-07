@@ -14,3 +14,16 @@ globalActions:
   - roles: [Reviewer, Coordinator]
     type: View
     forms: [AssessmentReviewer]
+  - roles: [Coordinator]
+    type: Execute
+    name: CreateSubmission
+    onAction:
+    - serviceCall:
+        service: Turnitin
+        operation: CreateSubmission
+        inputs:
+          Owner: Student
+          Title: Title
+    - setProperty:
+        property: TurnitinId
+        value: CreateSubmission.Id

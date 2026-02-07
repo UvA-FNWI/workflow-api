@@ -9,6 +9,7 @@ headerFields:
    title: Student
  - property: Title
  - currentStep: true
+ - property: TurnitinId
 
 steps:
   - Subject

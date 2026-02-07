@@ -7,6 +7,11 @@ public class EndStep;
 public class Effect
 {
     /// <summary>
+    /// Optional effect name, used to refer to outputs of this effect
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
     /// Condition that determines if this trigger is active
     /// </summary>
     public Condition? Condition { get; set; }
@@ -25,6 +30,11 @@ public class Effect
     /// Set a property on the current instance
     /// </summary>
     public SetProperty? SetProperty { get; set; }
+
+    /// <summary>
+    /// Call an external service
+    /// </summary>
+    public ServiceCall? ServiceCall { get; set; }
 
     /// <summary>
     /// Complete an event
@@ -94,4 +104,11 @@ public class SendMessage
 public class Attachment
 {
     public string Template { get; set; } = null!;
+}
+
+public class ServiceCall
+{
+    public string Service { get; set; } = null!;
+    public string Operation { get; set; } = null!;
+    public Dictionary<string, string> Inputs { get; set; } = new();
 }
