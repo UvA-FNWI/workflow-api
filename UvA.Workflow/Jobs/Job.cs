@@ -32,6 +32,8 @@ public class Job
     public List<JobStep> Steps { get; set; } = new();
 
     public JobInput? Input { get; set; }
+
+    public bool IsSynchronous { get; set; }
 }
 
 public class JobStep

@@ -24,6 +24,12 @@ globalActions:
         inputs:
           Owner: Student
           Title: Title
+    - delay: 1h
+      serviceCall:
+        service: Turnitin
+        operation: GenerateReport
+        inputs:
+          SubmissionId: TurnitinId
     - setProperty:
         property: TurnitinId
         value: CreateSubmission.Id

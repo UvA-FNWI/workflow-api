@@ -62,6 +62,8 @@ public class WorkflowDefinition : INamed
     /// </summary>
     public List<Action> GlobalActions { get; set; } = [];
 
+    public IEnumerable<Action> AllActions => GlobalActions.Concat(Steps.SelectMany(s => s.Actions));
+
     /// <summary>
     /// List of step names for this entity type
     /// </summary>

@@ -51,6 +51,21 @@ public class Effect
     /// </summary>
     public string? UndoEvent { get; set; }
 
+    /// <summary>
+    /// Run the effect after this delay, e.g. 2d, 4h or 30m
+    /// </summary>
+    public string? Delay { get; set; }
+
+    public TimeSpan? DelayAsTimeSpan => Delay is null
+        ? null
+        : Delay.Last() switch
+        {
+            'h' => TimeSpan.FromHours(int.Parse(Delay[..^1])),
+            'd' => TimeSpan.FromDays(int.Parse(Delay[..^1])),
+            'm' => TimeSpan.FromMinutes(int.Parse(Delay[..^1])),
+            _ => throw new InvalidOperationException($"Invalid delay format: {Delay}")
+        };
+
     public IEnumerable<Lookup?> Properties =>
     [
         ..Condition?.Properties ?? [],

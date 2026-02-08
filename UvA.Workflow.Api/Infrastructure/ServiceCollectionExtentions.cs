@@ -65,6 +65,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInstanceJournalService, InstanceJournalService>();
         services.AddScoped<InstanceEventService>();
 
+        services.AddHostedService<JobWorker>();
+
         return services;
     }
 }
