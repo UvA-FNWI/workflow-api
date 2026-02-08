@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using UvA.Workflow.Events;
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Jobs;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -14,21 +15,16 @@ public class EffectService(
     IMailService mailService,
     IConfiguration configuration)
 {
-    public async Task<EffectResult> RunEffects(WorkflowInstance instance, Effect[] effects, User user,
-        CancellationToken ct,
-        MailMessage? mail = null)
+    public async Task<EffectResult> RunEffect(JobInput? input, WorkflowInstance instance, Effect effect, User user,
+        ObjectContext context, CancellationToken ct)
     {
-        var context = modelService.CreateContext(instance);
         string? redirectUrl = null;
-        foreach (var effect in effects.Where(t => t.Condition.IsMet(context)))
-        {
-            if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
-            if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
-            if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, mail);
-            if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
-            if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
-            redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
-        }
+        if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
+        if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
+        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, input?.Mail);
+        if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
+        if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
+        redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
 
         return new EffectResult(redirectUrl);
     }

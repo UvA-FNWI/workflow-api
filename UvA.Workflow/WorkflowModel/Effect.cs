@@ -61,6 +61,23 @@ public class Effect
         ..SetProperty?.ValueExpression.Properties ?? [],
         SendMail?.To
     ];
+
+    public string Identifier => this switch
+    {
+        { ServiceCall: not null } => $"{ServiceCall.Service}:{ServiceCall.Operation}",
+        { SetProperty: not null } => $"Set:{SetProperty.Property}",
+        { SendMail: not null } => $"Mail:{SendMail.TemplateKey}",
+        { Event: not null } => $"Event:{Event}",
+        { UndoEvent: not null } => $"Undo:{UndoEvent}",
+        { Redirect: not null } => "Redirect",
+        _ => throw new InvalidOperationException("Invalid effect")
+    };
+
+    /// <summary>
+    /// Determines whether this event is logged in the job log.
+    /// Trivial/client side effects do not need to be logged
+    /// </summary>
+    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null;
 }
 
 public class SetProperty

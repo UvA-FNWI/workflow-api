@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Jobs;
 
 namespace UvA.Workflow.Api.Actions;
 
@@ -9,6 +10,7 @@ public class ActionsController(
     IUserService userService,
     RightsService rightsService,
     EffectService effectService,
+    JobService jobService,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
     InstanceService instanceService
 ) : ApiControllerBase
@@ -47,7 +49,7 @@ public class ActionsController(
                 // Always log execute events implicitly
                 await effectService.AddEvent(instance, input.Name, currentUser, ct);
 
-                result = await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail);
+                result = await jobService.CreateAndRunJob(instance, action, currentUser, input.JobInput, ct);
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }
