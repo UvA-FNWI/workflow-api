@@ -37,6 +37,11 @@ public class Effect
     public ServiceCall? ServiceCall { get; set; }
 
     /// <summary>
+    /// Redirect the user to an url
+    /// </summary>
+    public Redirect? Redirect { get; set; }
+
+    /// <summary>
     /// Complete an event
     /// </summary>
     public string? Event { get; set; }
@@ -95,10 +100,9 @@ public class SendMessage
     public bool SendAutomatically { get; set; }
     public Attachment[] Attachments { get; set; } = [];
 
-    private Template? _subjectTemplate, _bodyTemplate, _toAddressTemplate;
-    public Template? SubjectTemplate => _subjectTemplate ??= Template.Create(Subject);
-    public Template? BodyTemplate => _bodyTemplate ??= Template.Create(Body);
-    public Template? ToAddressTemplate => _toAddressTemplate ??= Template.Create(ToAddress);
+    public Template? SubjectTemplate => field ??= Template.Create(Subject);
+    public Template? BodyTemplate => field ??= Template.Create(Body);
+    public Template? ToAddressTemplate => field ??= Template.Create(ToAddress);
 }
 
 public class Attachment
@@ -111,4 +115,10 @@ public class ServiceCall
     public string Service { get; set; } = null!;
     public string Operation { get; set; } = null!;
     public Dictionary<string, string> Inputs { get; set; } = new();
+}
+
+public class Redirect
+{
+    public string Url { get; set; } = null!;
+    public Template UrlTemplate => field ??= Template.Create(Url);
 }

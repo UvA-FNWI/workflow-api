@@ -5,6 +5,8 @@ using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.WorkflowInstances;
 
+public record EffectResult(string? RedirectUrl = null);
+
 public class EffectService(
     InstanceService instanceService,
     IInstanceEventService eventService,
@@ -12,10 +14,12 @@ public class EffectService(
     IMailService mailService,
     IConfiguration configuration)
 {
-    public async Task RunEffects(WorkflowInstance instance, Effect[] effects, User user, CancellationToken ct,
+    public async Task<EffectResult> RunEffects(WorkflowInstance instance, Effect[] effects, User user,
+        CancellationToken ct,
         MailMessage? mail = null)
     {
         var context = modelService.CreateContext(instance);
+        string? redirectUrl = null;
         foreach (var effect in effects.Where(t => t.Condition.IsMet(context)))
         {
             if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
@@ -23,7 +27,10 @@ public class EffectService(
             if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, mail);
             if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
             if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
+            redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
         }
+
+        return new EffectResult(redirectUrl);
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,

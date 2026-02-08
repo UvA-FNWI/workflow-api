@@ -6,7 +6,7 @@ namespace UvA.Workflow.Submissions;
 
 public record SubmissionContext(WorkflowInstance Instance, InstanceEvent? Submission, Form Form, string SubmissionId);
 
-public record SubmissionResult(bool Success, InvalidQuestion[] Errors);
+public record SubmissionResult(bool Success, InvalidQuestion[] Errors, EffectResult? EffectResult = null);
 
 public record InvalidQuestion(
     string QuestionName,
@@ -75,12 +75,12 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors);
         }
 
-        await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct);
-
+        var result = await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit],
+            user, ct);
 
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);
         await instanceJournalService.IncrementVersion(instance.Id, ct);
-        return new SubmissionResult(true, []);
+        return new SubmissionResult(true, [], result);
     }
 }

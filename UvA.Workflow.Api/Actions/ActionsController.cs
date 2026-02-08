@@ -25,6 +25,8 @@ public class ActionsController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
+        var result = new EffectResult();
+
         switch (input.Type)
         {
             case ActionType.DeleteInstance:
@@ -45,14 +47,15 @@ public class ActionsController(
                 // Always log execute events implicitly
                 await effectService.AddEvent(instance, input.Name, currentUser, ct);
 
-                await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail);
+                result = await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail);
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }
 
         return Ok(new ExecuteActionPayloadDto(
             input.Type,
-            input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct)
+            input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct),
+            result
         ));
     }
 }

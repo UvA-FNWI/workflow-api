@@ -27,3 +27,14 @@ globalActions:
     - setProperty:
         property: TurnitinId
         value: CreateSubmission.Id
+  - roles: [Coordinator]
+    type: Execute
+    name: GetReportUrl
+    onAction:
+    - serviceCall:
+        service: Turnitin
+        operation: GetReportUrl
+        inputs:
+          SubmissionId: TurnitinId
+    - redirect:
+        url: "{{ GetReportUrl.ReportUrl }}"
