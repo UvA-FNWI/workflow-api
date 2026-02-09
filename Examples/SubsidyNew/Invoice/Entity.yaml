@@ -2,7 +2,7 @@ name: Invoice
 index: 2
 titlePlural: Invoices
 instanceTitle: 'Invoice ({{ Invoice.Name }})'
-headerFields:
+fields:
   - property: Invoice.Request
     title: Request
     href: '/instances/{{ Invoice.Request.Id }}'
