@@ -10,7 +10,6 @@ public record StepVersion
     public int VersionNumber { get; init; }
     public List<string> EventIds { get; init; } = [];
     public DateTime SubmittedAt { get; init; }
-    public int InstanceVersion { get; init; }
 }
 
 public interface IStepVersionService
@@ -20,8 +19,7 @@ public interface IStepVersionService
 
 public class StepVersionService(
     ModelService modelService,
-    IInstanceEventRepository eventRepository,
-    WorkflowInstanceService instanceService) : IStepVersionService
+    IInstanceEventRepository eventRepository) : IStepVersionService
 {
     public async Task<List<StepVersion>> GetStepVersions(
         WorkflowInstance instance,
@@ -42,7 +40,7 @@ public class StepVersionService(
             .OrderBy(log => log.Timestamp)
             .ToList();
 
-        var versions = await BuildVersions(step, submissionEvents, completionEvents, instance, ct);
+        var versions = BuildVersions(step, submissionEvents, completionEvents);
         var orderedVersions = versions.OrderByDescending(v => v.SubmittedAt).ToList();
 
         return orderedVersions;
@@ -88,27 +86,23 @@ public class StepVersionService(
         return (allChildEvents, allChildEvents);
     }
 
-    private async Task<List<StepVersion>> BuildVersions(
+    private List<StepVersion> BuildVersions(
         Step step,
         List<InstanceEventLogEntry> submissionEvents,
-        List<string> completionEventIds,
-        WorkflowInstance instance,
-        CancellationToken ct)
+        List<string> completionEventIds)
     {
         if (step.Ends == null && step.Children.Any())
         {
             return step.HierarchyMode == StepHierarchyMode.Sequential
-                ? await BuildSequentialVersions(submissionEvents, completionEventIds, instance, ct)
-                : await BuildParallelVersions(step, submissionEvents, instance, ct);
+                ? BuildSequentialVersions(submissionEvents, completionEventIds)
+                : BuildParallelVersions(step, submissionEvents);
         }
 
-        return await BuildSingleEventVersions(submissionEvents, instance, ct);
+        return BuildSingleEventVersions(submissionEvents);
     }
 
-    private async Task<List<StepVersion>> BuildSingleEventVersions(
-        List<InstanceEventLogEntry> submissionEvents,
-        WorkflowInstance instance,
-        CancellationToken ct)
+    private static List<StepVersion> BuildSingleEventVersions(
+        List<InstanceEventLogEntry> submissionEvents)
     {
         var versionDrafts = submissionEvents
             .Select((logEntry, index) => (
@@ -117,14 +111,12 @@ public class StepVersionService(
                 SubmittedAt: logEntry.Timestamp))
             .ToList();
 
-        return await BuildStepVersions(instance.Id, versionDrafts, ct);
+        return BuildStepVersions(versionDrafts);
     }
 
-    private async Task<List<StepVersion>> BuildSequentialVersions(
+    private static List<StepVersion> BuildSequentialVersions(
         List<InstanceEventLogEntry> submissionEvents,
-        List<string> completionEventIds,
-        WorkflowInstance instance,
-        CancellationToken ct)
+        List<string> completionEventIds)
     {
         var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
         int currentVersionNumber = 1;
@@ -152,14 +144,12 @@ public class StepVersionService(
             .Where(v => v.EventIds.Any(e => completionEventSet.Contains(e))) // Only complete versions
             .ToList();
 
-        return await BuildStepVersions(instance.Id, versionDrafts, ct);
+        return BuildStepVersions(versionDrafts);
     }
 
-    private async Task<List<StepVersion>> BuildParallelVersions(
+    private static List<StepVersion> BuildParallelVersions(
         Step step,
-        List<InstanceEventLogEntry> submissionEvents,
-        WorkflowInstance instance,
-        CancellationToken ct)
+        List<InstanceEventLogEntry> submissionEvents)
     {
         var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
         int currentVersionNumber = 1;
@@ -221,30 +211,19 @@ public class StepVersionService(
             })
             .ToList();
 
-        return await BuildStepVersions(instance.Id, versionDrafts, ct);
+        return BuildStepVersions(versionDrafts);
     }
 
-    private async Task<List<StepVersion>> BuildStepVersions(
-        string instanceId,
-        List<(int VersionNumber, List<string> EventIds, DateTime SubmittedAt)> versionDrafts,
-        CancellationToken ct)
+    private static List<StepVersion> BuildStepVersions(
+        List<(int VersionNumber, List<string> EventIds, DateTime SubmittedAt)> versionDrafts)
     {
-        var versions = new List<StepVersion>(versionDrafts.Count);
-
-        foreach (var versionDraft in versionDrafts)
-        {
-            var instanceVersion =
-                await instanceService.GetVersionAtTimestamp(instanceId, versionDraft.SubmittedAt, ct);
-
-            versions.Add(new StepVersion
+        return versionDrafts
+            .Select(versionDraft => new StepVersion
             {
                 VersionNumber = versionDraft.VersionNumber,
                 EventIds = versionDraft.EventIds,
-                SubmittedAt = versionDraft.SubmittedAt,
-                InstanceVersion = instanceVersion
-            });
-        }
-
-        return versions;
+                SubmittedAt = versionDraft.SubmittedAt
+            })
+            .ToList();
     }
 }

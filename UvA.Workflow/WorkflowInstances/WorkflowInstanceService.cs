@@ -74,6 +74,15 @@ public class WorkflowInstanceService(
     }
 
     /// <summary>
+    /// Retrieves a specific snapshot of a workflow instance at the provided timestamp.
+    /// </summary>
+    public async Task<WorkflowInstance> GetAsOfTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)
+    {
+        var version = await GetVersionAtTimestamp(instanceId, timestamp, ct);
+        return await GetAsOfVersion(instanceId, version, ct);
+    }
+
+    /// <summary>
     /// Gets the version number that was active at a specific timestamp.
     /// </summary>
     public async Task<int> GetVersionAtTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)

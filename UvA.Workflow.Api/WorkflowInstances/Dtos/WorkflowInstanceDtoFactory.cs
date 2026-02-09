@@ -131,7 +131,7 @@ public class WorkflowInstanceDtoFactory(
 
             // Get the instance at the version timestamp
             var instanceAtVersion = workflowInstanceService
-                .GetAsOfVersion(instance.Id, stepVersion.InstanceVersion, CancellationToken.None).Result;
+                .GetAsOfTimestamp(instance.Id, stepVersion.SubmittedAt, CancellationToken.None).Result;
 
             // Create a submission for each event in the version
             foreach (var eventId in stepVersion.EventIds)
