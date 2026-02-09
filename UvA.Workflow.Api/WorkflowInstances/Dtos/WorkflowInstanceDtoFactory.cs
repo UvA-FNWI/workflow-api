@@ -153,7 +153,7 @@ public class WorkflowInstanceDtoFactory(
                 var submission = instanceAtVersion.Events.GetValueOrDefault(eventId);
 
                 // Get question status with all fields visible (historical view)
-                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, canViewHidden: true);
+                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false);
 
                 // Create the submission DTO with empty permissions (historical view)
                 var submissionDto =
