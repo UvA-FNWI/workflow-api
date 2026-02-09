@@ -110,23 +110,14 @@ public class StepVersionService(
         WorkflowInstance instance,
         CancellationToken ct)
     {
-        var versions = new List<StepVersion>(submissionEvents.Count);
-        var versionNumber = 1;
+        var versionDrafts = submissionEvents
+            .Select((logEntry, index) => (
+                VersionNumber: index + 1,
+                EventIds: new List<string> { logEntry.EventId },
+                SubmittedAt: logEntry.Timestamp))
+            .ToList();
 
-        foreach (var logEntry in submissionEvents)
-        {
-            var instanceVersion = await instanceService.GetVersionAtTimestamp(instance.Id, logEntry.Timestamp, ct);
-
-            versions.Add(new StepVersion
-            {
-                VersionNumber = versionNumber++,
-                EventIds = [logEntry.EventId],
-                SubmittedAt = logEntry.Timestamp,
-                InstanceVersion = instanceVersion
-            });
-        }
-
-        return versions;
+        return await BuildStepVersions(instance.Id, versionDrafts, ct);
     }
 
     private async Task<List<StepVersion>> BuildSequentialVersions(
@@ -135,16 +126,14 @@ public class StepVersionService(
         WorkflowInstance instance,
         CancellationToken ct)
     {
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp, int InstanceVersion)>();
+        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
         int currentVersionNumber = 1;
         var completionEventSet = completionEventIds.ToHashSet();
 
         foreach (var logEntry in submissionEvents)
         {
-            var instanceVersion = await instanceService.GetVersionAtTimestamp(instance.Id, logEntry.Timestamp, ct);
-
             // All events in this cycle get the same version number
-            tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp, instanceVersion));
+            tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp));
 
             // If this event marks the completion of the cycle (last child's event), increment version
             if (completionEventSet.Contains(logEntry.EventId))
@@ -154,19 +143,16 @@ public class StepVersionService(
         }
 
         // Group events by version number and consolidate
-        var consolidatedVersions = tempVersions
+        var versionDrafts = tempVersions
             .GroupBy(v => v.VersionNumber)
-            .Select(g => new StepVersion
-            {
-                VersionNumber = g.Key,
-                EventIds = g.Select(v => v.EventId).ToList(),
-                SubmittedAt = g.Max(v => v.Timestamp),
-                InstanceVersion = g.OrderByDescending(v => v.Timestamp).First().InstanceVersion
-            })
+            .Select(g => (
+                VersionNumber: g.Key,
+                EventIds: g.Select(v => v.EventId).ToList(),
+                SubmittedAt: g.Max(v => v.Timestamp)))
             .Where(v => v.EventIds.Any(e => completionEventSet.Contains(e))) // Only complete versions
             .ToList();
 
-        return consolidatedVersions;
+        return await BuildStepVersions(instance.Id, versionDrafts, ct);
     }
 
     private async Task<List<StepVersion>> BuildParallelVersions(
@@ -175,7 +161,7 @@ public class StepVersionService(
         WorkflowInstance instance,
         CancellationToken ct)
     {
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp, int InstanceVersion)>();
+        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
         int currentVersionNumber = 1;
 
         // Map each child's end events to the child
@@ -195,10 +181,8 @@ public class StepVersionService(
 
         foreach (var logEntry in submissionEvents)
         {
-            var instanceVersion = await instanceService.GetVersionAtTimestamp(instance.Id, logEntry.Timestamp, ct);
-
             // All events in this cycle get the same version number
-            tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp, instanceVersion));
+            tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp));
 
             // Determine which child this event belongs to
             if (childEventMap.TryGetValue(logEntry.EventId, out var child))
@@ -219,15 +203,12 @@ public class StepVersionService(
         }
 
         // Group events by version number and consolidate
-        var consolidatedVersions = tempVersions
+        var versionDrafts = tempVersions
             .GroupBy(v => v.VersionNumber)
-            .Select(g => new StepVersion
-            {
-                VersionNumber = g.Key,
-                EventIds = g.Select(v => v.EventId).ToList(),
-                SubmittedAt = g.Max(v => v.Timestamp),
-                InstanceVersion = g.OrderByDescending(v => v.Timestamp).First().InstanceVersion
-            })
+            .Select(g => (
+                VersionNumber: g.Key,
+                EventIds: g.Select(v => v.EventId).ToList(),
+                SubmittedAt: g.Max(v => v.Timestamp)))
             .Where(v =>
             {
                 // Check if all children have at least one event in this version
@@ -240,6 +221,30 @@ public class StepVersionService(
             })
             .ToList();
 
-        return consolidatedVersions;
+        return await BuildStepVersions(instance.Id, versionDrafts, ct);
+    }
+
+    private async Task<List<StepVersion>> BuildStepVersions(
+        string instanceId,
+        List<(int VersionNumber, List<string> EventIds, DateTime SubmittedAt)> versionDrafts,
+        CancellationToken ct)
+    {
+        var versions = new List<StepVersion>(versionDrafts.Count);
+
+        foreach (var versionDraft in versionDrafts)
+        {
+            var instanceVersion =
+                await instanceService.GetVersionAtTimestamp(instanceId, versionDraft.SubmittedAt, ct);
+
+            versions.Add(new StepVersion
+            {
+                VersionNumber = versionDraft.VersionNumber,
+                EventIds = versionDraft.EventIds,
+                SubmittedAt = versionDraft.SubmittedAt,
+                InstanceVersion = instanceVersion
+            });
+        }
+
+        return versions;
     }
 }
