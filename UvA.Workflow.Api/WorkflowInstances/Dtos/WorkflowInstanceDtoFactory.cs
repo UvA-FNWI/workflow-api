@@ -48,11 +48,14 @@ public class WorkflowInstanceDtoFactory(
         {
             var context = ObjectContext.Create(instance, modelService);
             await instanceService.Enrich(workflowDefinition, [context],
-                workflowDefinition.HeaderFields.SelectMany(f => f.Properties), ct);
-            foreach (var field in workflowDefinition.HeaderFields)
+                workflowDefinition.Fields.SelectMany(f => f.Properties), ct);
+            foreach (var field in workflowDefinition.Fields)
             {
                 var obj = field.GetValue(context);
-                result.Add(new FieldDto(field.DisplayTitle, obj));
+                if (obj is object[] arr && arr.Length == 1)
+                    obj = arr[0];
+                var key = field.CurrentStep ? "CurrentStep" : field.Property;
+                result.Add(new FieldDto(key, field.DisplayTitle, obj));
             }
         }
 
