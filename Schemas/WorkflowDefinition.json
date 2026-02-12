@@ -91,9 +91,9 @@
         "type": "string"
       }
     },
-    "headerFields": {
+    "fields": {
       "type": "array",
-      "description": "List of header fields for this entity type",
+      "description": "List of fields for this entity type",
       "items": {
         "$ref": "#/definitions/Field"
       }

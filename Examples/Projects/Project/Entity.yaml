@@ -2,11 +2,13 @@ name: Project
 titlePlural: Projects
 instanceTitle: '{{ Title }}'
 
-headerFields:
+fields:
  - property: Course.Name
    title: Course
  - property: Student.DisplayName
    title: Student
+ - property: Student.Email
+   title: Email
  - property: Title
  - currentStep: true
  - property: TurnitinId
