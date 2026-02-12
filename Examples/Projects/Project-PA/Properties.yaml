@@ -99,12 +99,26 @@ properties:
     text:
       en: Start date
       nl: Startdatum
+    validation:
+      message:
+        en: Start date must be in the future
+        nl: Startdatum moet in de toekomst liggen
+      value:
+        property: StartDate
+        greaterThan: now
 
   - name: PlannedEndDate
     type: Date!
     text:
       en: Planned end date
       nl: Geplande einddatum
+    validation:
+      message:
+        en: End date must be after start date
+        nl: Einddatum moet na de startdatum zijn
+      value:
+        property: PlannedEndDate
+        greaterThan: StartDate
 
   - name: Interruptions
     type: Date
