@@ -1,0 +1,20 @@
+name: Project-PA
+title:
+  en: Project (PA)
+  nl: Project (PA)
+titlePlural:
+  en: Projects (PA)
+  nl: Projecten (PA)
+instanceTitle: '{{ WorkingTitle }}'
+
+fields:
+  - property: Course.Name
+    title: Course
+  - property: Student.DisplayName
+    title: Student
+  - property: WorkingTitle
+    title: Working Title
+  - currentStep: true
+
+steps:
+  - Start
