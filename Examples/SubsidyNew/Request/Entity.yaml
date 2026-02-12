@@ -2,7 +2,7 @@ name: Request
 index: 1
 titlePlural: Requests
 instanceTitle: '{{ Title }} ({{ Id }})'
-headerFields:
+fields:
   - property: Round.Name
     title: Round
   - property: CurrentStep

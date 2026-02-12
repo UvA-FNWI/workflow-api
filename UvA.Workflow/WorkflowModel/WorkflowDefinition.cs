@@ -69,9 +69,9 @@ public class WorkflowDefinition : INamed
     public List<string> StepNames { get; set; } = [];
 
     /// <summary>
-    /// List of header fields for this entity type
+    /// List of fields for this entity type
     /// </summary>
-    public Field[] HeaderFields { get; set; } = [];
+    public Field[] Fields { get; set; } = [];
 
     /// <summary>
     /// List of computed results for this entity type
