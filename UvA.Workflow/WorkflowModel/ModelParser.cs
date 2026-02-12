@@ -171,7 +171,7 @@ public partial class ModelParser
             PreProcess(screen, workflowDefinition);
         foreach (var step in workflowDefinition.Steps)
             PreProcess(step, workflowDefinition);
-        foreach (var field in workflowDefinition.HeaderFields)
+        foreach (var field in workflowDefinition.Fields)
             PreProcess(field, workflowDefinition);
 
         workflowDefinition.ModelParser = this;
