@@ -1,9 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace UvA.Workflow.Jobs;
 
-public class JobWorker(IServiceProvider serviceProvider) : BackgroundService
+public class JobWorker(IServiceProvider serviceProvider, ILogger<JobWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -14,7 +15,19 @@ public class JobWorker(IServiceProvider serviceProvider) : BackgroundService
             var jobs = await jobRepository.GetPendingJobs(ct);
             var jobService = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<JobService>();
             foreach (var job in jobs)
-                await jobService.RunJob(job, ct);
+            {
+                try
+                {
+                    await jobService.RunJob(job, ct);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error running job {JobId}", job.Id);
+                    job.Message = ex.ToString();
+                    job.Status = JobStatus.Failed;
+                    await jobRepository.Update(job, ct);
+                }
+            }
 
             await Task.Delay(TimeSpan.FromSeconds(30), ct);
         }

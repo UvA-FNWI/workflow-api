@@ -11,7 +11,8 @@ public class JobService(
     IJobRepository repository,
     IWorkflowInstanceRepository workflowInstanceRepository,
     IUserRepository userRepository,
-    ILogger<JobService> logger)
+    ILogger<JobService> logger,
+    InstanceService instanceService)
 {
     public async Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, Action action, User user,
         JobInput? input, CancellationToken ct)
@@ -63,7 +64,7 @@ public class JobService(
         if (instance == null)
         {
             logger.LogError("Job {Job} references non-existing instance {InstanceId}", job.Id, job.InstanceId);
-            return;
+            throw new Exception("Instance not found");
         }
 
         // TODO: allow jobs without a user
@@ -72,6 +73,7 @@ public class JobService(
             .AllActions.Single(a => a.Name == job.Action);
         await RunJob(job, instance, action, user, ct);
         await repository.Update(job, ct);
+        await instanceService.UpdateCurrentStep(instance, ct);
     }
 
     private async Task<EffectResult> RunJob(Job job, WorkflowInstance instance, Action action, User user,

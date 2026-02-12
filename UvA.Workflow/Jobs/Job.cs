@@ -34,6 +34,8 @@ public class Job
     public JobInput? Input { get; set; }
 
     public bool IsSynchronous { get; set; }
+
+    public string? Message { get; set; }
 }
 
 public class JobStep
