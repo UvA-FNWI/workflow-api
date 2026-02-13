@@ -1,0 +1,13 @@
+name: RejectCoordinator
+title:
+  en: Reject proposal
+  nl: Voorstel afkeuren
+
+pages:
+  - name: Rejection
+    title:
+      en: Rejection reason
+      nl: Reden van afkeuring
+    sections:
+      - properties:
+          - CoordinatorRejectReason

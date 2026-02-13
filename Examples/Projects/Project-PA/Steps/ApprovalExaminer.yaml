@@ -1,0 +1,23 @@
+name: ApprovalExaminer
+title:
+  en: Approval (examiner)
+  nl: Goedkeuring (examinator)
+
+actions:
+  - name: ApproveExaminer
+    type: Execute
+    roles: [Examiner]
+    label:
+      en: Approve
+      nl: Goedkeuren
+  - name: RejectExaminer
+    type: Submit
+    form: RejectExaminer
+    intent: Destructive
+    roles: [Examiner]
+    label:
+      en: Reject
+      nl: Afkeuren
+
+ends:
+  event: ExaminerApproved

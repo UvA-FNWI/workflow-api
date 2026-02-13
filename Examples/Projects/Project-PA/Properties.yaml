@@ -205,3 +205,19 @@ properties:
       value:
         property: FrequencyDailySupervisor
         equal: =Other
+
+  - name: CoordinatorRejectReason
+    type: String!
+    text:
+      nl: Reden van afkeuring
+      en: Reason for rejection
+    layout:
+      multiline: true
+
+  - name: ExaminerRejectReason
+    type: String!
+    text:
+      nl: Reden van afkeuring
+      en: Reason for rejection
+    layout:
+      multiline: true

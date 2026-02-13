@@ -18,3 +18,5 @@ fields:
 
 steps:
   - Start
+  - ApprovalCoordinator
+  - ApprovalExaminer

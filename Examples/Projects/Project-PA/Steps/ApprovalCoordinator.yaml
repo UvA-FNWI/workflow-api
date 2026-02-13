@@ -1,0 +1,23 @@
+name: ApprovalCoordinator
+title:
+  en: Approval (coordinator)
+  nl: Goedkeuring (coördinator)
+
+actions:
+  - name: ApproveCoordinator
+    type: Execute
+    roles: [Coordinator]
+    label:
+      en: Approve
+      nl: Goedkeuren
+  - name: RejectCoordinator
+    type: Submit
+    form: RejectCoordinator
+    intent: Destructive
+    roles: [Coordinator]
+    label:
+      en: Reject
+      nl: Afkeuren
+
+ends:
+  event: CoordinatorApproved
