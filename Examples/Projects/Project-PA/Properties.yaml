@@ -221,3 +221,9 @@ properties:
       en: Reason for rejection
     layout:
       multiline: true
+
+  - name: InternshipContract
+    type: File!
+    text:
+      en: Please upload your internship contract here
+      nl: Upload hier je stage-overeenkomst

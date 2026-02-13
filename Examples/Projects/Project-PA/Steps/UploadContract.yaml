@@ -1,0 +1,16 @@
+name: UploadContract
+title:
+  en: Upload internship contract
+  nl: Stage-overeenkomst uploaden
+
+actions:
+  - name: SubmitContract
+    type: Submit
+    roles: [Student]
+    form: UploadContract
+    label:
+      en: Submit
+      nl: Indienen
+
+ends:
+  event: ContractUploaded

@@ -1,0 +1,13 @@
+name: UploadContract
+title:
+  en: Upload internship contract
+  nl: Stage-overeenkomst uploaden
+
+pages:
+  - name: Contract
+    title:
+      en: Internship contract
+      nl: Stage-overeenkomst
+    sections:
+      - properties:
+          - InternshipContract
