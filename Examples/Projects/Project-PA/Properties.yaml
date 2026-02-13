@@ -227,3 +227,59 @@ properties:
     text:
       en: Please upload your internship contract here
       nl: Upload hier je stage-overeenkomst
+
+  - name: Title
+    type: String!
+    text:
+      en: Title
+      nl: Titel
+    validation:
+      message:
+        en: At most 254 characters
+        nl: Maximaal 254 tekens
+      value:
+        property: Title
+        maxLength: 254
+
+  - name: Report
+    type: File!
+    text:
+      en: Final version report
+      nl: Eindversie verslag
+
+  - name: Abstract
+    type: String!
+    text:
+      en: Abstract
+      nl: Samenvatting
+    layout:
+      multiline: true
+
+  - name: Keywords
+    type: "[String]!"
+    text:
+      en: Keywords
+      nl: Trefwoorden
+
+  - name: Language
+    type: Language!
+    text:
+      en: Language
+      nl: Taal
+
+  - name: Publish
+    type: ConsentPublicationType!
+    text:
+      en: Do you consent to publication of this thesis in the UvA thesis database?
+      nl: Geef je toestemming voor publicatie van deze scriptie in de UvA scriptiedatabase?
+    layout:
+      type: RadioList
+    values:
+      - name: Yes
+        text:
+          en: Yes
+          nl: Ja
+      - name: No
+        text:
+          en: No
+          nl: Nee

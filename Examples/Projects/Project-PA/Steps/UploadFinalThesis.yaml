@@ -1,0 +1,16 @@
+name: UploadFinalThesis
+title:
+  en: Upload final thesis
+  nl: Eindversie scriptie uploaden
+
+actions:
+  - name: SubmitFinalThesis
+    type: Submit
+    roles: [Student]
+    form: UploadFinalThesis
+    label:
+      en: Submit
+      nl: Indienen
+
+ends:
+  event: FinalThesisUploaded
