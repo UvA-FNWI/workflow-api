@@ -91,9 +91,9 @@
         "type": "string"
       }
     },
-    "headerFields": {
+    "fields": {
       "type": "array",
-      "description": "List of header fields for this entity type",
+      "description": "List of fields for this entity type",
       "items": {
         "$ref": "#/definitions/Field"
       }
@@ -523,7 +523,7 @@
             "null",
             "string"
           ],
-          "description": "If set, the event should not have occurred before this event"
+          "description": "If set, the event specified by Id must have occurred on or after the event specified by this property"
         }
       }
     },
