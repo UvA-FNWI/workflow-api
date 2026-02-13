@@ -1,4 +1,5 @@
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.WorkflowModel.Conditions;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.Users;

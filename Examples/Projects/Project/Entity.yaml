@@ -12,6 +12,13 @@ fields:
  - property: Title
  - currentStep: true
 
+events:
+  - name: Start
+    suppresses: [RejectSubject]
+  - name: RejectSubject
+    suppresses: [Start]
+  - name: ApproveSubject
+
 steps:
   - Subject
   - Upload

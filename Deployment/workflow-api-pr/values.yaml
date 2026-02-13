@@ -30,6 +30,7 @@ apiPaths:
   - /Answers
   - /Screens
   - /Versions
+  - /Submissions
   - /WorkflowDefinitions
   - /Users
   - /WorkflowInstances
