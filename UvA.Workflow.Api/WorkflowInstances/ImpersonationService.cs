@@ -26,8 +26,7 @@ public record ImpersonationTokenClaims(
 public class ImpersonationService(
     IConfiguration config,
     IHttpContextAccessor httpContextAccessor,
-    IUserService userService,
-    ModelService modelService)
+    IUserService userService)
     : IImpersonationContextService
 {
     private static readonly TimeSpan TokenLifetime = TimeSpan.FromHours(8);
@@ -120,7 +119,7 @@ public class ImpersonationService(
         if (!string.Equals(instance.Id, impersonationClaims.InstanceId, StringComparison.Ordinal))
             return null;
 
-        return NormalizeWorkflowRelevantRole(instance.WorkflowDefinition, impersonationClaims.RoleName)?.Name;
+        return impersonationClaims.RoleName;
     }
 
     private static bool TryGetClaim(IDictionary<string, object> claims, string claimName, out string value)
@@ -140,28 +139,5 @@ public class ImpersonationService(
             return key;
 
         throw new InvalidOperationException("Missing signing key configuration.");
-    }
-
-    private WorkflowImpersonationRole? NormalizeWorkflowRelevantRole(string workflowDefinition, string roleName)
-    {
-        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
-            return null;
-
-        var actionRoles = modelService.Roles.Values
-            .Where(r => r.Actions.Any(a => a.WorkflowDefinition == null || a.WorkflowDefinition == workflowDefinition))
-            .Select(r => r.Name);
-
-        var definitionRoles = definition.Properties
-            .Where(p => p.DataType == DataType.User)
-            .Select(p => p.Name)
-            .Concat(definition.Properties.SelectMany(p => p.InheritedRoles));
-
-        return actionRoles
-            .Concat(definitionRoles)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(r => modelService.Roles.GetValueOrDefault(r))
-            .Where(r => r != null)
-            .Select(r => new WorkflowImpersonationRole(r!.Name, r.DisplayTitle))
-            .FirstOrDefault(r => string.Equals(r.Name, roleName, StringComparison.OrdinalIgnoreCase));
     }
 }

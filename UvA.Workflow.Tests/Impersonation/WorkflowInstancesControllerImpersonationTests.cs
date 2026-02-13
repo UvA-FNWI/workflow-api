@@ -15,7 +15,6 @@ public class WorkflowInstancesControllerImpersonationTests
 {
     private static ImpersonationService CreateImpersonationService(
         IUserService userService,
-        ModelService modelService,
         IHttpContextAccessor httpContextAccessor)
     {
         var config = new ConfigurationBuilder()
@@ -27,8 +26,7 @@ public class WorkflowInstancesControllerImpersonationTests
         return new ImpersonationService(
             config,
             httpContextAccessor,
-            userService,
-            modelService);
+            userService);
     }
 
     private static string CreateToken(string userName, string instanceId, string roleName)
@@ -36,7 +34,7 @@ public class WorkflowInstancesControllerImpersonationTests
         var userService = new Mock<IUserService>();
         var modelService = ImpersonationTestHelpers.CreateModelService();
         var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
-        var service = CreateImpersonationService(userService.Object, modelService, accessor);
+        var service = CreateImpersonationService(userService.Object, accessor);
         return service.CreateToken(userName, instanceId, roleName).Value;
     }
 
@@ -90,7 +88,7 @@ public class WorkflowInstancesControllerImpersonationTests
             });
 
         var rightsService = new RightsService(modelService, userService.Object, repository.Object);
-        var impersonationService = CreateImpersonationService(userService.Object, modelService, accessor);
+        var impersonationService = CreateImpersonationService(userService.Object, accessor);
         var controller = CreateController(userService.Object, rightsService, repository.Object, modelService,
             impersonationService, accessor.HttpContext!);
 

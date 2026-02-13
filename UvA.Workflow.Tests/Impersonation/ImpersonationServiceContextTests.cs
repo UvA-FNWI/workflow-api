@@ -23,8 +23,7 @@ public class ImpersonationServiceContextTests
         return new ImpersonationService(
             config,
             httpContextAccessor,
-            userService,
-            ImpersonationTestHelpers.CreateModelService());
+            userService);
     }
 
     private static ImpersonationService CreateContextService(
@@ -101,7 +100,7 @@ public class ImpersonationServiceContextTests
     }
 
     [Fact]
-    public async Task GetImpersonatedRole_IrrelevantRole_ReturnsNull()
+    public async Task GetImpersonatedRole_IrrelevantRole_ReturnsRole()
     {
         var token = CreateToken("admin", "instance-1", "NonExistingRole");
         var contextService = CreateContextService(token, "admin");
@@ -109,6 +108,6 @@ public class ImpersonationServiceContextTests
         var role = await contextService.GetImpersonatedRole(
             ImpersonationTestHelpers.CreateProjectInstance("instance-1"));
 
-        Assert.Null(role);
+        Assert.Equal("NonExistingRole", role);
     }
 }

@@ -160,7 +160,10 @@ public class RightsService(
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetAllowedActionsForRealUser(instance, actions);
 
-        var role = modelService.Roles.GetValueOrDefault(impersonatedRoleName);
+        var normalizedRoleName = NormalizeWorkflowRelevantRole(instance.WorkflowDefinition, impersonatedRoleName);
+        if (normalizedRoleName == null) return [];
+
+        var role = modelService.Roles.GetValueOrDefault(normalizedRoleName.Name);
         if (role == null) return [];
         return GetAllowedActions(instance, [role], actions);
     }

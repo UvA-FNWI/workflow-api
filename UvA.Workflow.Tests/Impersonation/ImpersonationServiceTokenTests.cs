@@ -29,8 +29,7 @@ public class ImpersonationServiceTokenTests
         return new ImpersonationService(
             config,
             new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
-            userService.Object,
-            ImpersonationTestHelpers.CreateModelService());
+            userService.Object);
     }
 
     [Fact]
