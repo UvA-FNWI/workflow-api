@@ -9,6 +9,13 @@ public enum JobStatus
     Failed
 }
 
+public enum JobSource
+{
+    Action,
+    Submit,
+    Save
+}
+
 public class Job
 {
     [BsonId]
@@ -18,7 +25,9 @@ public class Job
     [BsonRepresentation(BsonType.ObjectId)]
     public string InstanceId { get; set; } = null!;
 
-    public string Action { get; set; } = null!;
+    public JobSource SourceType { get; set; }
+
+    public string SourceName { get; set; } = null!;
 
     public DateTime StartOn { get; set; }
 

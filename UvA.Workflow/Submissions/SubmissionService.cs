@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 
 namespace UvA.Workflow.Submissions;
@@ -18,7 +19,8 @@ public class SubmissionService(
     EffectService effectService,
     InstanceService instanceService,
     IInstanceJournalService instanceJournalService,
-    WorkflowInstanceService workflowInstanceService
+    WorkflowInstanceService workflowInstanceService,
+    JobService jobService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
@@ -77,9 +79,8 @@ public class SubmissionService(
 
         await effectService.AddEvent(instance, submissionId, user, ct);
 
-        // TODO: use the JobService to run effects here based on the submit action
-        //var result = await effectService.RunEffects(instance, form.OnSubmit, user, ct);
-        var result = new EffectResult();
+        var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
+            form.Name, form.OnSubmit, user, null, ct);
 
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);

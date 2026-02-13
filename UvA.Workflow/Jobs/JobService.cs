@@ -14,18 +14,21 @@ public class JobService(
     ILogger<JobService> logger,
     InstanceService instanceService)
 {
-    public async Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, Action action, User user,
+    public Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, Action action, User user,
         JobInput? input, CancellationToken ct)
-    {
-        // TODO: support form submission? Or refactor that so it action-based as well (probably a batter idea)
-        var effects = action.OnAction;
+        => CreateAndRunJob(instance, JobSource.Action,
+            action.Name ?? throw new InvalidOperationException("Invalid action"), action.OnAction, user, input, ct);
 
+    public async Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, JobSource sourceType, string sourceName,
+        Effect[] effects, User user, JobInput? input, CancellationToken ct)
+    {
         var steps = effects
             .Where(e => e.Delay == null)
             .ToDictionary(e => new JobStep { Identifier = e.Identifier }, e => e);
         var job = new Job
         {
-            Action = action.Name ?? throw new InvalidOperationException("Invalid action"),
+            SourceType = sourceType,
+            SourceName = sourceName,
             CreatedBy = user.Id,
             StartOn = DateTime.Now,
             InstanceId = instance.Id,
@@ -34,7 +37,7 @@ public class JobService(
             Steps = steps.Keys.ToList()
         };
 
-        var result = await RunJob(job, instance, action, user, ct);
+        var result = await RunJob(job, instance, effects, user, ct);
         job.Steps = job.Steps.Where(s => steps[s].IsLogged).ToList();
         if (job.Steps.Count > 0)
             await repository.Add(job, ct);
@@ -46,7 +49,8 @@ public class JobService(
                      .GroupBy(e => e.DelayAsTimeSpan!.Value))
             await repository.Add(new Job
             {
-                Action = action.Name ?? throw new InvalidOperationException("Invalid action"),
+                SourceType = sourceType,
+                SourceName = sourceName,
                 CreatedBy = user.Id,
                 StartOn = DateTime.Now.Add(delayGroup.Key),
                 InstanceId = instance.Id,
@@ -69,14 +73,20 @@ public class JobService(
 
         // TODO: allow jobs without a user
         var user = await userRepository.GetById(job.CreatedBy!, ct) ?? throw new Exception();
-        var action = modelService.WorkflowDefinitions[instance.WorkflowDefinition]
-            .AllActions.Single(a => a.Name == job.Action);
-        await RunJob(job, instance, action, user, ct);
+        var effects = job.SourceType switch
+        {
+            JobSource.Action => modelService.WorkflowDefinitions[instance.WorkflowDefinition]
+                .AllActions.Single(a => a.Name == job.SourceName).OnAction,
+            JobSource.Submit => modelService.WorkflowDefinitions[instance.WorkflowDefinition]
+                .Forms.Single(f => f.Name == job.SourceName).OnSubmit,
+            _ => throw new NotImplementedException()
+        };
+        await RunJob(job, instance, effects, user, ct);
         await repository.Update(job, ct);
         await instanceService.UpdateCurrentStep(instance, ct);
     }
 
-    private async Task<EffectResult> RunJob(Job job, WorkflowInstance instance, Action action, User user,
+    private async Task<EffectResult> RunJob(Job job, WorkflowInstance instance, Effect[] effects, User user,
         CancellationToken ct)
     {
         var context = modelService.CreateContext(instance);
@@ -84,7 +94,7 @@ public class JobService(
 
         foreach (var step in job.Steps)
         {
-            var effect = action.OnAction.Single(a => a.Identifier == step.Identifier);
+            var effect = effects.Single(a => a.Identifier == step.Identifier);
             if (!effect.Condition.IsMet(context)) continue;
 
             try
