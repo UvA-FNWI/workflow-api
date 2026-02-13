@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
@@ -24,6 +24,7 @@ public class WorkflowTests
     readonly Mock<IArtifactService> _artifactServiceMock;
     readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
     readonly Mock<IInstanceEventService> _instanceEventService;
+    readonly WorkflowInstanceService _workflowInstanceService;
 
 
     readonly ModelService _modelService;
@@ -69,6 +70,8 @@ public class WorkflowTests
             _rightsService,
             _instanceService);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object);
+        _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
+            _instanceJournalServiceMock.Object);
         _submissionService =
             new SubmissionService(_instanceRepoMock.Object, _modelService, _effectService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService);

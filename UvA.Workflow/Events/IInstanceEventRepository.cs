@@ -33,4 +33,18 @@ public interface IInstanceEventRepository
     /// <param name="ct">The cancellation token used to observe the operation's cancellation.</param>
     /// <returns>The total count of event log entries that match the specified instance ID and event ID.</returns>
     Task<long> CountEventLogFor(string instanceId, string eventId, CancellationToken ct);
+
+    /// <summary>
+    /// Adds an event log entry to the event log collection
+    /// </summary>
+    Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
+        EventLogOperation operation, CancellationToken ct);
+
+    /// <summary>
+    /// Gets all event log entries for specific events in an instance
+    /// </summary>
+    Task<List<InstanceEventLogEntry>> GetEventLogEntriesForInstance(
+        string instanceId,
+        List<string> eventIds,
+        CancellationToken ct);
 }
