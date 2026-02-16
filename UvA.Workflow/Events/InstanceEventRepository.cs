@@ -95,7 +95,10 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     }
 
 
-    private async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
+    /// <summary>
+    /// Adds an event log entry to the event log collection
+    /// </summary>
+    public async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
         EventLogOperation operation, CancellationToken ct)
     {
         var logEntry = new InstanceEventLogEntry
@@ -108,5 +111,24 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             ExecutedBy = user.Id
         };
         await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
+    }
+
+    /// <summary>
+    /// Gets all event log entries for specific events in an instance
+    /// </summary>
+    public async Task<List<InstanceEventLogEntry>> GetEventLogEntriesForInstance(
+        string instanceId,
+        List<string> eventIds,
+        CancellationToken ct)
+    {
+        var filter = Builders<InstanceEventLogEntry>.Filter.And(
+            Builders<InstanceEventLogEntry>.Filter.Eq(e => e.WorkflowInstanceId, instanceId),
+            Builders<InstanceEventLogEntry>.Filter.In(e => e.EventId, eventIds)
+        );
+
+        return await _eventLogCollection
+            .Find(filter)
+            .SortBy(e => e.Timestamp)
+            .ToListAsync(ct);
     }
 }

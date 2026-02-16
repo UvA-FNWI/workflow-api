@@ -1,4 +1,5 @@
 using System.Collections;
+using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowModel;
@@ -66,8 +67,22 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         dict.Add("CurrentStep", instance.CurrentStep);
         dict.Add("CreateDate", instance.CreatedOn);
 
-        foreach (var ev in instance.Events.Values.Where(e => e.Date != null))
-            dict.Add(ev.Id + "Event", ev.Date);
+        // Get workflow definition for suppression computation
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
+        // Add event information with computed suppression
+        foreach (var ev in instance.Events.Values)
+        {
+            // Compute and add event active status
+            bool isActive = EventSuppressionHelper.IsEventActive(ev.Id, instance, workflowDef);
+            dict.Add(ev.Id + "EventActive", isActive);
+
+            // Only add event date for active (non-suppressed) events
+            // Suppressed events should not affect step condition evaluation
+            if (ev.Date != null && isActive)
+                dict.Add(ev.Id + "Event", ev.Date);
+        }
+
         return new ObjectContext(dict);
     }
 

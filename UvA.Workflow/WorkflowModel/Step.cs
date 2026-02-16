@@ -1,3 +1,7 @@
+using UvA.Workflow.Events;
+using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public enum StepHierarchyMode
@@ -64,13 +68,20 @@ public class Step : INamed
 
     public string? EndEvent => Ends?.Event?.Id;
 
-    public DateTime? GetEndDate(WorkflowInstance instance)
+    public DateTime? GetEndDate(WorkflowInstance instance, WorkflowDefinition workflowDef)
     {
         if (Ends?.Event != null)
-            return instance.Events.GetValueOrDefault(Ends.Event.Id)?.Date;
+        {
+            var evt = instance.Events.GetValueOrDefault(Ends.Event.Id);
+            // Only consider the event if it's active (not suppressed)
+            if (evt?.Date != null && EventSuppressionHelper.IsEventActive(Ends.Event.Id, instance, workflowDef))
+                return evt.Date;
+            return null;
+        }
+
         if (Children.Any())
         {
-            var dates = Children.Select(c => c.GetEndDate(instance)).ToArray();
+            var dates = Children.Select(c => c.GetEndDate(instance, workflowDef)).ToArray();
             if (dates.Any(d => d == null))
                 return null;
             return dates.Max();
