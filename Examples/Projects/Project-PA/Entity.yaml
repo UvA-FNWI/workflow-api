@@ -22,3 +22,6 @@ steps:
   - ApprovalExaminer
   - UploadContract
   - UploadFinalThesis
+  - AssessmentExaminer
+  - AssessmentAssessor
+  - AssessmentCompleted

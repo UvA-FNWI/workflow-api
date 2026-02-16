@@ -1,0 +1,16 @@
+name: AssessmentExaminer
+title:
+  en: Assessment (examiner)
+  nl: Beoordeling (examinator)
+
+actions:
+  - name: SubmitAssessmentExaminer
+    type: Submit
+    roles: [Examiner]
+    form: AssessmentExaminer
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+ends:
+  event: AssessedExaminer
