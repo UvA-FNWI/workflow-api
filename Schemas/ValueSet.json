@@ -193,7 +193,7 @@
     "Value": {
       "title": "Value",
       "type": "object",
-      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix the value with an equals sign to indicate a literal value)",
+      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix a string value with an equals sign to indicate a literal value)",
       "additionalProperties": false,
       "required": [
         "property"
@@ -208,28 +208,28 @@
             "null",
             "string"
           ],
-          "description": "Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be equal to. If this is a literal string, it must be prefixed with an equals sign"
         },
         "lessThan": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be less than. If this is a literal string, it must be prefixed with an equals sign"
         },
         "greaterThan": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be greater than. If this is a literal string, it must be prefixed with an equals sign"
         },
         "greaterThanOrEqual": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be greater than or equal to. If this is a literal string, it must be prefixed with an equals sign"
         },
         "in": {
           "type": [
