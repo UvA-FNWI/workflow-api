@@ -8,11 +8,10 @@ pages:
     title:
       en: Final thesis
       nl: Eindversie scriptie
-    sections:
-      - properties:
-          - Title
-          - Report
-          - Abstract
-          - Keywords
-          - Language
-          - Publish
+    fields:
+      - Title
+      - Report
+      - Abstract
+      - Keywords
+      - Language
+      - Publish

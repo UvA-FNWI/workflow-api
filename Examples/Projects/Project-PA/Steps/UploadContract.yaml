@@ -12,5 +12,12 @@ actions:
       en: Submit
       nl: Indienen
 
+properties:
+  - name: InternshipContract
+    type: File!
+    text:
+      en: Please upload your internship contract here
+      nl: Upload hier je stage-overeenkomst
+
 ends:
   event: ContractUploaded

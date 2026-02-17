@@ -19,5 +19,14 @@ actions:
       en: Reject
       nl: Afkeuren
 
+properties:
+  - name: CoordinatorRejectReason
+    type: String!
+    text:
+      nl: Reden van afkeuring
+      en: Reason for rejection
+    layout:
+      multiline: true
+
 ends:
   event: CoordinatorApproved

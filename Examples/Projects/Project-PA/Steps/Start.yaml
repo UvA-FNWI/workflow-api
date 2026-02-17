@@ -8,6 +8,177 @@ actions:
     type: Submit
     form: Start
 
+properties:
+  - name: ProjectLocation
+    type: ProjectLocationType!
+    text:
+      en: Is this an internal (UvA or VU) or external project?
+      nl: Is dit een intern (UvA of VU) of extern project?
+    layout:
+      type: RadioList
+    values:
+      - name: Internal
+        text:
+          en: Internal
+          nl: Intern
+      - name: External
+        text:
+          en: External
+          nl: Extern
+
+  - name: InstituteDepartment
+    type: String!
+    text:
+      en: Institute and department/research group
+      nl: Instituut en afdeling/onderzoeksgroep
+
+  - name: City
+    type: String!
+    text:
+      en: City
+      nl: Stad
+
+  - name: Country
+    type: Country!
+    text:
+      en: Country
+      nl: Land
+
+  - name: PartAbroad
+    type: PartAbroadType!
+    text:
+      en: Will part of the project take place abroad?
+      nl: Zal een deel van het project in het buitenland plaatsvinden?
+    layout:
+      type: RadioList
+    values:
+      - name: Yes
+        text:
+          en: Yes
+          nl: Ja
+      - name: No
+        text:
+          en: No
+          nl: Nee
+
+  - name: Description
+    type: File!
+    text:
+      en: Upload a description
+      nl: Upload een beschrijving
+
+  - name: StartDate
+    type: Date!
+    text:
+      en: Start date
+      nl: Startdatum
+    validation:
+      message:
+        en: Start date must be in the future
+        nl: Startdatum moet in de toekomst liggen
+      value:
+        property: StartDate
+        greaterThan: now
+
+  - name: PlannedEndDate
+    type: Date!
+    text:
+      en: Planned end date
+      nl: Geplande einddatum
+    validation:
+      message:
+        en: End date must be after start date
+        nl: Einddatum moet na de startdatum zijn
+      value:
+        property: PlannedEndDate
+        greaterThan: StartDate
+
+  - name: Interruptions
+    type: Date
+    text:
+      en: Interruptions
+      nl: Onderbrekingen
+
+  - name: HoursPerWeek
+    type: Int!
+    text:
+      en: Hours/week
+      nl: Uren/week
+
+  - name: FrequencyExaminerReviewer
+    type: ConsultationFrequency!
+    text:
+      en: Frequency consultation Examiner / Second reviewer
+      nl: Frequentie overleg examinator / tweede beoordelaar
+    values:
+      - name: Daily
+        text:
+          en: Daily
+          nl: Dagelijks
+      - name: Weekly
+        text:
+          en: Weekly
+          nl: Wekelijks
+      - name: TwiceAWeek
+        text:
+          en: Twice a week
+          nl: Twee keer per week
+      - name: Monthly
+        text:
+          en: Monthly
+          nl: Maandelijks
+      - name: Other
+        text:
+          en: Other
+          nl: Anders
+
+  - name: FrequencyExaminerReviewerOther
+    type: String!
+    text:
+      en: Please specify
+      nl: Specificeer
+    condition:
+      value:
+        property: FrequencyExaminerReviewer
+        equal: =Other
+
+  - name: FrequencyDailySupervisor
+    type: ConsultationFrequency!
+    text:
+      en: Frequency consultation daily supervisor
+      nl: Frequentie overleg dagelijks begeleider
+    values:
+      - name: Daily
+        text:
+          en: Daily
+          nl: Dagelijks
+      - name: Weekly
+        text:
+          en: Weekly
+          nl: Wekelijks
+      - name: TwiceAWeek
+        text:
+          en: Twice a week
+          nl: Twee keer per week
+      - name: Monthly
+        text:
+          en: Monthly
+          nl: Maandelijks
+      - name: Other
+        text:
+          en: Other
+          nl: Anders
+
+  - name: FrequencyDailySupervisorOther
+    type: String!
+    text:
+      en: Please specify
+      nl: Specificeer
+    condition:
+      value:
+        property: FrequencyDailySupervisor
+        equal: =Other
+
 ends:
   event:
     id: Start

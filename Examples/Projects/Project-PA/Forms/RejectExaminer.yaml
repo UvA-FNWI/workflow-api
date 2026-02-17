@@ -8,6 +8,5 @@ pages:
     title:
       en: Rejection reason
       nl: Reden van afkeuring
-    sections:
-      - properties:
-          - ExaminerRejectReason
+    fields:
+      - ExaminerRejectReason
