@@ -30,6 +30,7 @@ public class WorkflowTests
     readonly ModelService _modelService;
     readonly RightsService _rightsService;
     readonly InstanceService _instanceService;
+    readonly WorkflowInstanceService _workflowInstanceService;
     readonly InstanceEventService _eventService;
     readonly EffectService _effectService;
     readonly SubmissionService _submissionService;
@@ -63,6 +64,8 @@ public class WorkflowTests
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService);
+        _workflowInstanceService =
+            new WorkflowInstanceService(_modelService, _instanceRepoMock.Object, _instanceJournalServiceMock.Object);
         _eventService = new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object,
             _rightsService,
             _instanceService);

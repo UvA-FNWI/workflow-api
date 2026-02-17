@@ -24,6 +24,10 @@ public class WorkflowInstanceDtoFactory(
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
+        var canUseAdminTools = await rightsService.Can(
+            instance,
+            RoleAction.ViewAdminTools,
+            RightsEvaluationMode.RealUser);
 
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
@@ -41,7 +45,8 @@ public class WorkflowInstanceDtoFactory(
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus,
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
                 .ToArray(),
-            permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray()
+            permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray(),
+            canUseAdminTools
         );
         return x;
     }
