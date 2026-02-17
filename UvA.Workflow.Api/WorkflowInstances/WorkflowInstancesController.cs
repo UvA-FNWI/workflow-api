@@ -1,6 +1,3 @@
-using System.Text.Json;
-using Microsoft.AspNetCore.Authorization;
-using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -14,7 +11,8 @@ public class WorkflowInstancesController(
     IWorkflowInstanceRepository repository,
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
-    ModelService modelService
+    ModelService modelService,
+    ImpersonationService impersonationService
 ) : ApiControllerBase
 {
     //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
@@ -79,6 +77,54 @@ public class WorkflowInstancesController(
         var result = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(result);
+    }
+
+    [HttpGet("{id}/impersonation/roles")]
+    public async Task<ActionResult<IEnumerable<ImpersonationRoleDto>>> GetImpersonationRoles(string id,
+        CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, RoleAction.ViewAdminTools, RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var roles = rightsService.GetWorkflowRelevantRoles(instance.WorkflowDefinition)
+            .Select(ImpersonationRoleDto.Create)
+            .ToArray();
+
+        return Ok(roles);
+    }
+
+    [HttpPost("{id}/impersonation")]
+    public async Task<ActionResult<StartImpersonationResultDto>> StartImpersonation(string id,
+        [FromBody] StartImpersonationDto input, CancellationToken ct)
+    {
+        var currentUser = await userService.GetCurrentUser(ct);
+        if (currentUser == null)
+            return Unauthorized();
+
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, RoleAction.ViewAdminTools, RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var normalizedRoleName = rightsService.NormalizeWorkflowRelevantRole(
+            instance.WorkflowDefinition, input.Role);
+        if (normalizedRoleName == null)
+            return BadRequest("InvalidImpersonationRole",
+                $"Role '{input.Role}' cannot be impersonated for workflow '{instance.WorkflowDefinition}'.");
+
+        var token = impersonationService.CreateToken(currentUser.UserName, instance.Id, normalizedRoleName.Name);
+        return Ok(new StartImpersonationResultDto(
+            instance.Id,
+            normalizedRoleName,
+            token.Value,
+            token.ExpiresAtUtc
+        ));
     }
 
     //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again

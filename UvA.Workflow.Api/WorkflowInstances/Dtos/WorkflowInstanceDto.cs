@@ -20,7 +20,8 @@ public record WorkflowInstanceDto(
     FieldDto[] Fields,
     StepDto[] Steps,
     SubmissionDto[] Submissions,
-    RoleAction[] Permissions
+    RoleAction[] Permissions,
+    bool CanUseAdminTools
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value);
