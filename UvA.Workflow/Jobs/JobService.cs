@@ -99,7 +99,7 @@ public class JobService(
 
             try
             {
-                result = await effectService.RunEffect(job.Input, instance, effect, user, context, ct);
+                result += await effectService.RunEffect(job.Input, instance, effect, user, context, ct);
             }
             catch (Exception ex)
             {

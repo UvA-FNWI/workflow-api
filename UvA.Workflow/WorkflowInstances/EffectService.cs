@@ -6,7 +6,11 @@ using UvA.Workflow.Jobs;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-public record EffectResult(string? RedirectUrl = null);
+public record EffectResult(string? RedirectUrl = null)
+{
+    public static EffectResult operator +(EffectResult result, EffectResult other)
+        => new(result.RedirectUrl ?? other.RedirectUrl);
+}
 
 public class EffectService(
     InstanceService instanceService,

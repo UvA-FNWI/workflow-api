@@ -716,21 +716,21 @@
             "null",
             "string"
           ],
-          "description": "Value the property should be less than. If this is a literal string, it must be prefixed with an equals sign"
+          "description": "Value the property should be less than"
         },
         "greaterThan": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be greater than. If this is a literal string, it must be prefixed with an equals sign"
+          "description": "Value the property should be greater than"
         },
         "greaterThanOrEqual": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be greater than or equal to. If this is a literal string, it must be prefixed with an equals sign"
+          "description": "Value the property should be greater than or equal to"
         },
         "in": {
           "type": [
