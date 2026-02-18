@@ -82,13 +82,12 @@ public class SendMessage
     public string? Body { get; set; }
     [YamlMember(Alias = "template")] public string? TemplateKey { get; set; }
     public bool SendAsMail { get; set; }
-    public bool SendAutomatically { get; set; }
+    public bool SendAutomatically { get; set; } = true;
     public Attachment[] Attachments { get; set; } = [];
 
-    private Template? _subjectTemplate, _bodyTemplate, _toAddressTemplate;
-    public Template? SubjectTemplate => _subjectTemplate ??= Template.Create(Subject);
-    public Template? BodyTemplate => _bodyTemplate ??= Template.Create(Body);
-    public Template? ToAddressTemplate => _toAddressTemplate ??= Template.Create(ToAddress);
+    public Template? SubjectTemplate => field ??= Template.Create(Subject);
+    public Template? BodyTemplate => field ??= Template.Create(Body);
+    public Template? ToAddressTemplate => field ??= Template.Create(ToAddress);
 }
 
 public class Attachment

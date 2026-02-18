@@ -1,3 +1,5 @@
+using UvA.Workflow.Notifications;
+
 namespace UvA.Workflow.Api.Actions.Dtos;
 
 public record ExecuteActionInputDto(
