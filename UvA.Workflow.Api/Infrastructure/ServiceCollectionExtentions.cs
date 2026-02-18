@@ -2,8 +2,10 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Infrastructure.Database;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
@@ -15,6 +17,13 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddWorkflow(this IServiceCollection services, IConfiguration config)
     {
         services.AddHttpContextAccessor();
+
+        // Configure and validate Graph mail settings
+        services.Configure<GraphMailOptions>(config.GetSection(GraphMailOptions.Section));
+        var graphMailOptions = config.GetSection(GraphMailOptions.Section).Get<GraphMailOptions>() ??
+                               new GraphMailOptions();
+        GraphMailOptions.Validate(graphMailOptions);
+        services.Configure<EncryptionServiceConfig>(config.GetSection(EncryptionServiceConfig.SectionName));
 
         // Configure MongoDB
         services.Configure<MongoOptions>(config.GetSection("Mongo"));
@@ -56,7 +65,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AnswerConversionService>();
         services.AddScoped<InitializationService>();
 
-        services.AddScoped<IMailService, DummyMailService>();
+        services.AddScoped<IMailService, GraphMailService>();
+        services.AddScoped<IMailLogRepository, MailLogRepository>();
+        services.AddScoped<ISettingsStore, SettingsStore>();
+        services.AddScoped<IEncryptionService, EncryptionService>();
+        services.AddScoped<IGraphMailTokenStore, GraphMailTokenStore>();
 
         services.AddSingleton<ModelServiceResolver>();
         services.AddScoped<ScreenDataService>();

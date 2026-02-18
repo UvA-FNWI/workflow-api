@@ -1,5 +1,5 @@
 using UvA.Workflow.Events;
-using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;

@@ -1,3 +1,5 @@
+using UvA.Workflow.Notifications;
+
 namespace UvA.Workflow.Entities.Domain;
 
 public enum ActionType
