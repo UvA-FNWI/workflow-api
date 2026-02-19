@@ -1,0 +1,32 @@
+name: ApprovalCoordinator
+title:
+  en: Approval (coordinator)
+  nl: Goedkeuring (coördinator)
+
+actions:
+  - name: ApproveCoordinator
+    type: Execute
+    roles: [Coordinator]
+    label:
+      en: Approve
+      nl: Goedkeuren
+  - name: RejectCoordinator
+    type: Submit
+    form: RejectCoordinator
+    intent: Destructive
+    roles: [Coordinator]
+    label:
+      en: Reject
+      nl: Afkeuren
+
+properties:
+  - name: CoordinatorRejectReason
+    type: String!
+    text:
+      nl: Reden van afkeuring
+      en: Reason for rejection
+    layout:
+      multiline: true
+
+ends:
+  event: ApproveCoordinator
