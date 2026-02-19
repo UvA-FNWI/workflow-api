@@ -130,4 +130,9 @@ public class EventDefinition : INamed
     /// Name of the event
     /// </summary>
     public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// List of event names that are suppressed when this event occurs. Only the most recent event will be suppressed.
+    /// </summary>
+    public List<string>? Suppresses { get; set; }
 }

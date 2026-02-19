@@ -2,6 +2,7 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Submissions;
 
@@ -34,8 +35,11 @@ public class SubmissionService(
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
         // Get the submission
-        var submission = instance.Events.GetValueOrDefault(submissionId);
+        var submission = instance.Events.WhereActive(instance, workflowDef).ToDictionary()
+            .GetValueOrDefault(submissionId);
 
         var form = modelService.GetForm(instance, submissionId);
         if (form == null)
@@ -50,8 +54,14 @@ public class SubmissionService(
 
         // Check if already submitted
         if (submission?.Date != null)
-            throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
-                "Submission already submitted");
+        {
+            var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+            if (EventSuppressionHelper.IsEventActive(submissionId, instance, workflowDef))
+            {
+                throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
+                    "Submission already submitted");
+            }
+        }
 
         var objectContext = modelService.CreateContext(instance);
 

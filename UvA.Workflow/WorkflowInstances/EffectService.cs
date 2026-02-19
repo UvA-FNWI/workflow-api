@@ -3,6 +3,7 @@ using System.Text.Json;
 using UvA.Workflow.Events;
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Jobs;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowInstances;
 

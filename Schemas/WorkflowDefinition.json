@@ -603,7 +603,7 @@
             "null",
             "string"
           ],
-          "description": "If set, the event should not have occurred before this event"
+          "description": "If set, the event specified by Id must have occurred on or after the event specified by this property"
         }
       }
     },
@@ -879,6 +879,16 @@
         "name": {
           "type": "string",
           "description": "Name of the event"
+        },
+        "suppresses": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "List of event names that are suppressed when this event occurs. Only the most recent event will be suppressed.",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
