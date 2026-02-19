@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using UvA.Workflow.WorkflowModel.Conditions;
 using Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.Jobs;
