@@ -1,0 +1,55 @@
+using MongoDB.Bson.Serialization.Attributes;
+
+namespace UvA.Workflow.Jobs;
+
+public enum JobStatus
+{
+    Pending,
+    Completed,
+    Failed
+}
+
+public enum JobSource
+{
+    Action,
+    Submit,
+    Save
+}
+
+public class Job
+{
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string Id { get; set; } = null!;
+
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string InstanceId { get; set; } = null!;
+
+    public JobSource SourceType { get; set; }
+
+    public string SourceName { get; set; } = null!;
+
+    public DateTime StartOn { get; set; }
+
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? CreatedBy { get; set; }
+
+    public DateTime? ExecutedOn { get; set; }
+
+    public JobStatus Status { get; set; }
+
+    public List<JobStep> Steps { get; set; } = new();
+
+    public JobInput? Input { get; set; }
+
+    public bool IsSynchronous { get; set; }
+
+    public string? Message { get; set; }
+}
+
+public class JobStep
+{
+    public string Identifier { get; set; } = null!;
+    public string? Message { get; set; }
+    public Dictionary<string, object>? Outputs { get; set; }
+}

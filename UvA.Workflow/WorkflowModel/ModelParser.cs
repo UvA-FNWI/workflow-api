@@ -14,6 +14,7 @@ public partial class ModelParser
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
+    public List<Service> Services { get; }
     public List<Role> Roles { get; }
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
     private List<ValueSet> ValueSets { get; }
@@ -23,6 +24,7 @@ public partial class ModelParser
     {
         _contentProvider = contentProvider;
         Roles = Read<Role>();
+        Services = Read<Service>();
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
@@ -169,6 +171,8 @@ public partial class ModelParser
             PreProcess(screen, workflowDefinition);
         foreach (var step in workflowDefinition.Steps)
             PreProcess(step, workflowDefinition);
+        foreach (var field in workflowDefinition.Fields)
+            PreProcess(field, workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
@@ -182,6 +186,12 @@ public partial class ModelParser
                 workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
         foreach (var child in step.Children)
             PreProcess(child, workflowDefinition);
+    }
+
+    private void PreProcess(Field field, WorkflowDefinition workflowDefinition)
+    {
+        if (field.Property != null)
+            field.PropertyDefinition = workflowDefinition.Properties.GetOrDefault(field.Property);
     }
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)

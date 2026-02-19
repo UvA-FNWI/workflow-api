@@ -3,6 +3,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.Database;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
@@ -31,6 +32,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWorkflowInstanceRepository, WorkflowInstanceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IInstanceEventRepository, InstanceEventRepository>();
+        services.AddScoped<IJobRepository, JobRepository>();
 
         services.AddScoped<WorkflowInstanceService>();
 
@@ -52,6 +54,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStepVersionService, StepVersionService>();
 
         services.AddScoped<RightsService>();
+        services.AddScoped<JobService>();
         services.AddScoped<EffectService>();
         services.AddScoped<AnswerConversionService>();
         services.AddScoped<InitializationService>();
@@ -66,6 +69,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IInstanceJournalService, InstanceJournalService>();
         services.AddScoped<InstanceEventService>();
+
+        services.AddHostedService<JobWorker>();
 
         return services;
     }

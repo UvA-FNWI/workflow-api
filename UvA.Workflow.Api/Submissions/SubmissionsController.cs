@@ -47,6 +47,7 @@ public class SubmissionsController(
             modelService.GetQuestionStatus(instance, form, true));
         var updatedInstanceDto = await workflowInstanceDtoFactory.Create(instance, ct);
 
-        return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto));
+        return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto,
+            EffectResult: result.EffectResult));
     }
 }

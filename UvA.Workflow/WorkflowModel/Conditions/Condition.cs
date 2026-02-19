@@ -190,21 +190,21 @@ public class Value : ConditionPart
     private Expression? EqualExpression => ExpressionParser.Parse(Equal);
 
     /// <summary>
-    /// Value the property should be less than. If this is a literal string, it must be prefixed with an equals sign 
+    /// Value the property should be less than 
     /// </summary>
     public string? LessThan { get; set; }
 
     private Expression? LessThanExpression => ExpressionParser.Parse(LessThan);
 
     /// <summary>
-    /// Value the property should be greater than. If this is a literal string, it must be prefixed with an equals sign 
+    /// Value the property should be greater than 
     /// </summary>
     public string? GreaterThan { get; set; }
 
     private Expression? GreaterThanExpression => ExpressionParser.Parse(GreaterThan);
 
     /// <summary>
-    /// Value the property should be greater than or equal to. If this is a literal string, it must be prefixed with an equals sign 
+    /// Value the property should be greater than or equal to 
     /// </summary>
     public string? GreaterThanOrEqual { get; set; }
 

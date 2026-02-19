@@ -42,3 +42,6 @@ properties:
 
   - name: Report
     type: File!
+  
+  - name: TurnitinId
+    type: String

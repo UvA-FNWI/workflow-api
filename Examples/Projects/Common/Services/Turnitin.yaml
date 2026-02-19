@@ -1,0 +1,80 @@
+name: Turnitin
+baseUrl: "{{ BaseUrl }}"
+headers:
+  X-Turnitin-Integration-Name: UVA-DataNose
+  X-Turnitin-Integration-Version: "1.0"
+  Authorization: Bearer {{Token}}
+
+operations:
+
+- name: CreateSubmission
+  url: submissions
+  method: POST
+  inputs:
+    - name: Owner
+      type: User!
+    - name: Title
+      type: String!
+  outputs:
+    - name: Id
+      path: id
+  body:
+    owner: MIST_{{ Owner.Id }}
+    title: "{{ Title }}"
+    owner_default_permission_set: LEARNER
+    eula:
+      version: v1beta
+      language: en-US
+      accepted_timestamp: "{{ now }}"
+    metadata:
+      owners:
+      - id: MIST_{{ Owner.Id }}
+        given_name: "{{ Owner.DisplayName }}"
+        last_name: "{{ Owner.DisplayName }}"
+        email: "{{ Owner.Email }}"
+
+- name: UploadFile
+  url: submissions/{{SubmissionId}}
+  method: POST
+  inputs:
+    - name: SubmissionId
+      type: String!
+    - name: File
+      type: File!
+
+- name: GenerateReport
+  url: submissions/{{SubmissionId}}/similarity
+  inputs:
+    - name: SubmissionId
+      type: String!
+  method: POST
+  body:
+    indexing_settings:
+      add_to_index: true
+    generation_settings:
+      search_repositories:
+        - INTERNET
+        - SUBMITTED_WORK
+        - PUBLICATION
+        - CROSSREF
+        - CROSSREF_POSTED_CONTENT
+      auto_exclude_self_matching_scope: ALL
+      priority: LOW
+
+- name: GetReportUrl
+  url: submissions/{{SubmissionId}}/viewer-url
+  method: POST
+  inputs:
+    - name: SubmissionId
+      type: String!
+  outputs:
+    - name: ReportUrl
+      path: viewer_url
+  body:
+    viewer_user_id: workflow-user
+    viewer_default_permission_set: INSTRUCTOR
+    locale: en
+    eula:
+      version: v1beta
+      language: en-US
+      accepted_timestamp: "{{now}}"

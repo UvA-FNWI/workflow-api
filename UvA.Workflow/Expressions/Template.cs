@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -24,6 +25,7 @@ public partial record Template : Expression
     public override Lookup[] Properties { get; }
     private readonly List<Part> _parts = [];
 
+    [return: NotNullIfNotNull(nameof(source))]
     public static Template? Create(string? source)
         => source == null ? null : new(source);
 
