@@ -18,13 +18,6 @@ properties:
     text:
       en: Title
       nl: Titel
-    validation:
-      message:
-        en: At most 254 characters
-        nl: Maximaal 254 tekens
-      value:
-        property: Title
-        maxLength: 254
 
   - name: Report
     type: File!

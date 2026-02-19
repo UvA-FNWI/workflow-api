@@ -43,6 +43,8 @@ properties:
     text:
       en: Country
       nl: Land
+    layout:
+      type: Dropdown
 
   - name: PartAbroad
     type: PartAbroadType!
@@ -110,6 +112,8 @@ properties:
     text:
       en: Frequency consultation Examiner / Second reviewer
       nl: Frequentie overleg examinator / tweede beoordelaar
+    layout:
+      type: Dropdown
     values:
       - name: Daily
         text:
@@ -147,6 +151,8 @@ properties:
     text:
       en: Frequency consultation daily supervisor
       nl: Frequentie overleg dagelijks begeleider
+    layout:
+      type: Dropdown
     values:
       - name: Daily
         text:
