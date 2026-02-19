@@ -13,4 +13,4 @@ actions:
       nl: Beoordeling bevestigen
 
 ends:
-  event: AssessedAssessor
+  event: AssessmentAssessor

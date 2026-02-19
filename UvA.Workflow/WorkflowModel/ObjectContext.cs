@@ -108,7 +108,9 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
         return type switch
         {
-            _ when question?.IsArray == true => GetTypedArray(answer.AsBsonArray, type),
+            _ when question?.IsArray == true => answer.IsBsonArray
+                ? GetTypedArray(answer.AsBsonArray, type)
+                : GetTypedArray(new BsonArray { answer }, type),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),

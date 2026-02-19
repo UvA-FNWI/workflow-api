@@ -63,4 +63,4 @@ properties:
           nl: Nee
 
 ends:
-  event: FinalThesisUploaded
+  event: UploadFinalThesis

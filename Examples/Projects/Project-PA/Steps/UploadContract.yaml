@@ -20,4 +20,4 @@ properties:
       nl: Upload hier je stage-overeenkomst
 
 ends:
-  event: ContractUploaded
+  event: UploadContract

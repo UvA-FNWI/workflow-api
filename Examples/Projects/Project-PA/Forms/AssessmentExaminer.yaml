@@ -50,10 +50,10 @@ pages:
       - PresentationClarityStyle
       - PresentationHandlingQuestions
 
-  - name: Summary
+  - name: FinalRemarks
     title:
-      en: Summary
-      nl: Samenvatting
+      en: Final Remarks
+      nl: Eindopmerkingen
     fields:
       - SummaryComments
       - Laudatio

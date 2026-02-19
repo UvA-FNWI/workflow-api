@@ -38,36 +38,48 @@ properties:
     text:
       en: Abstract (5%)
       nl: Abstract (5%)
+    layout:
+      type: Dropdown
 
   - name: ProductIntroduction
     type: TenPoint!
     text:
       en: Introduction (5%)
       nl: Inleiding (5%)
+    layout:
+      type: Dropdown
 
   - name: ProductMethods
     type: TenPoint!
     text:
       en: Methods (10%)
       nl: Methods (10%)
+    layout:
+      type: Dropdown
 
   - name: ProductResults
     type: TenPoint!
     text:
       en: Results (10%)
       nl: Resultaten (10%)
+    layout:
+      type: Dropdown
 
   - name: ProductDiscussionConclusion
     type: TenPoint!
     text:
       en: Discussion and conclusion (5%)
       nl: Discussie en conclusie (5%)
+    layout:
+      type: Dropdown
 
   - name: ProductReadability
     type: TenPoint!
     text:
       en: Readability (5%)
       nl: Leesbaarheid (5%)
+    layout:
+      type: Dropdown
 
   - name: ProductComments
     type: String
@@ -83,42 +95,56 @@ properties:
     text:
       en: Preparation & methodology
       nl: Voorbereiding & methodologie
+    layout:
+      type: Dropdown
 
   - name: ProcessExperimentalSkills
     type: TenPoint!
     text:
       en: Experimental / analytical / programming skills
       nl: Experimentele / analytische / programmeervaardigheden
+    layout:
+      type: Dropdown
 
   - name: ProcessReliabilityReproducibility
     type: TenPoint!
     text:
       en: Reliability and reproducibility
       nl: Betrouwbaarheid en reproduceerbaarheid
+    layout:
+      type: Dropdown
 
   - name: ProcessInterpretingResults
     type: TenPoint!
     text:
       en: Interpreting results
       nl: Interpreteren van resultaten
+    layout:
+      type: Dropdown
 
   - name: ProcessIndependenceInitiative
     type: TenPoint!
     text:
       en: Independence and initiative
       nl: Zelfstandigheid en initiatief
+    layout:
+      type: Dropdown
 
   - name: ProcessCommunicationCollaboration
     type: TenPoint!
     text:
       en: Communication and collaboration
       nl: Communicatie en samenwerking
+    layout:
+      type: Dropdown
 
   - name: ProcessPlanningTimeManagement
     type: TenPoint!
     text:
       en: Planning and time management
       nl: Planning en tijdmanagement
+    layout:
+      type: Dropdown
 
   # Presentation
   - name: PresentationContextualizationDelivery
@@ -126,18 +152,24 @@ properties:
     text:
       en: Contextualization & delivery
       nl: Contextualisering & presentatie
+    layout:
+      type: Dropdown
 
   - name: PresentationClarityStyle
     type: TenPoint!
     text:
       en: Clarity and style
       nl: Helderheid en stijl
+    layout:
+      type: Dropdown
 
   - name: PresentationHandlingQuestions
     type: TenPoint!
     text:
       en: Handling questions
       nl: Omgaan met vragen
+    layout:
+      type: Dropdown
 
   # Summary
   - name: SummaryComments
@@ -174,4 +206,4 @@ properties:
           nl: Nee
 
 ends:
-  event: AssessedExaminer
+  event: AssessmentExaminer
