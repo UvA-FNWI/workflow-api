@@ -3,6 +3,9 @@ title:
   en: Approval (coordinator)
   nl: Goedkeuring (coördinator)
 
+condition:
+  deadline: "=2026-03-15"
+
 actions:
   - name: ApproveCoordinator
     type: Execute
