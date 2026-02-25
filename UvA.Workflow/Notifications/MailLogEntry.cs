@@ -2,6 +2,14 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Notifications;
 
+public enum MailTriggerType
+{
+    Action,
+    FormSubmission
+}
+
+public record MailTriggerContext(MailTriggerType TriggerType, string? ActionName = null, string? FormId = null);
+
 public class MailLogEntry
 {
     [BsonId]
@@ -21,6 +29,12 @@ public class MailLogEntry
     [BsonElement("ExecutedBy")]
     [BsonRepresentation(BsonType.ObjectId)]
     public string ExecutedBy { get; set; } = null!;
+
+    [BsonElement("StepName")] public string? StepName { get; set; }
+    [BsonElement("TriggerType")] public MailTriggerType? TriggerType { get; set; }
+    [BsonElement("ActionName")] public string? ActionName { get; set; }
+    [BsonElement("FormId")] public string? FormId { get; set; }
+    [BsonElement("TemplateKey")] public string? TemplateKey { get; set; }
 
     [BsonElement("OverrideRecipient")] public string? OverrideRecipient { get; set; }
     [BsonElement("Subject")] public string Subject { get; set; } = null!;

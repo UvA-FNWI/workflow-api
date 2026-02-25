@@ -1,6 +1,7 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Submissions;
@@ -85,7 +86,8 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors);
         }
 
-        await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct);
+        await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct,
+            triggerContext: new MailTriggerContext(MailTriggerType.FormSubmission, FormId: submissionId));
 
 
         // Save the updated instance

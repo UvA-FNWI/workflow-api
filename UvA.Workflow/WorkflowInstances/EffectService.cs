@@ -15,20 +15,20 @@ public class EffectService(
     private readonly GraphMailOptions _graphMailOptions = graphMailOptions.Value;
 
     public async Task RunEffects(WorkflowInstance instance, Effect[] effects, User user, CancellationToken ct,
-        MailMessage? mail = null)
+        MailMessage? mail = null, MailTriggerContext? triggerContext = null)
     {
         var context = modelService.CreateContext(instance);
         foreach (var effect in effects.Where(t => t.Condition.IsMet(context)))
         {
             if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
             if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
-            if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, mail);
+            if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, mail, triggerContext);
             if (effect.SetProperty != null) await SetProperty(instance, effect.SetProperty, ct);
         }
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
-        MailMessage? mail = null)
+        MailMessage? mail = null, MailTriggerContext? triggerContext = null)
     {
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
@@ -41,6 +41,11 @@ public class EffectService(
             WorkflowInstanceId = instance.Id,
             WorkflowDefinition = instance.WorkflowDefinition,
             ExecutedBy = user.Id,
+            StepName = instance.CurrentStep,
+            TriggerType = triggerContext?.TriggerType,
+            ActionName = triggerContext?.ActionName,
+            FormId = triggerContext?.FormId,
+            TemplateKey = sendMail.TemplateKey,
             OverrideRecipient = _graphMailOptions.OverrideRecipient,
             Subject = mail.Subject,
             Body = mail.Body,

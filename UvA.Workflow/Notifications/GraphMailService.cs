@@ -91,10 +91,13 @@ public class GraphMailService : IMailService
             },
             ToRecipients = BuildRecipients(mail.To, overrideRecipient),
             CcRecipients = BuildRecipients(mail.Cc, overrideRecipient),
-            BccRecipients = BuildRecipients(mail.Bcc, overrideRecipient),
-            Attachments = BuildAttachments(mail.Attachments)
+            BccRecipients = BuildRecipients(mail.Bcc, overrideRecipient)
         };
-
+        var attachments = BuildAttachments(mail.Attachments);
+        if (attachments is { Count: > 0 })
+            graphMessage.Attachments = attachments;
+        else
+            graphMessage.AdditionalData = new Dictionary<string, object> { ["attachments"] = Array.Empty<object>() };
         return graphMessage;
     }
 
