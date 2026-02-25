@@ -11,6 +11,7 @@ fields:
    title: Email
  - property: Title
  - currentStep: true
+ - property: TurnitinId
 
 events:
   - name: Start

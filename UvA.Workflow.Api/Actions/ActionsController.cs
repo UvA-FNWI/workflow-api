@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 
 namespace UvA.Workflow.Api.Actions;
@@ -10,6 +11,7 @@ public class ActionsController(
     IUserService userService,
     RightsService rightsService,
     EffectService effectService,
+    JobService jobService,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
     InstanceService instanceService
 ) : ApiControllerBase
@@ -25,6 +27,8 @@ public class ActionsController(
         var instance = await workflowInstanceRepository.GetById(input.InstanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
+
+        var result = new EffectResult();
 
         switch (input.Type)
         {
@@ -46,15 +50,17 @@ public class ActionsController(
                 // Always log execute events implicitly
                 await effectService.AddEvent(instance, input.Name, currentUser, ct);
 
-                await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail,
-                    new MailTriggerContext(MailTriggerType.Action, ActionName: input.Name));
+                result = await jobService.CreateAndRunJob(instance, action, currentUser, input.JobInput, ct);
+                // await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail,
+                // new MailTriggerContext(MailTriggerType.Action, ActionName: input.Name));
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }
 
         return Ok(new ExecuteActionPayloadDto(
             input.Type,
-            input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct)
+            input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct),
+            result
         ));
     }
 }

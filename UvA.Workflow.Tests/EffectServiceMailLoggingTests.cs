@@ -1,7 +1,9 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Users;
@@ -26,6 +28,7 @@ public class EffectServiceMailLoggingTests
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
+        var configuration = new Mock<IConfiguration>();
         var effectService = new EffectService(
             instanceService,
             eventService.Object,
@@ -39,7 +42,9 @@ public class EffectServiceMailLoggingTests
                 ClientId = "client",
                 UserAccount = "user@mail.com",
                 OverrideRecipient = "testen-dn-fnwi@uva.nl"
-            }));
+            }),
+            configuration.Object
+        );
 
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
@@ -70,7 +75,8 @@ public class EffectServiceMailLoggingTests
             SendMail = new SendMessage()
         };
 
-        await effectService.RunEffects(instance, [effect], user, CancellationToken.None, mail);
+        await effectService.RunEffect(new JobInput(mail), instance, effect, user, modelService.CreateContext(instance),
+            CancellationToken.None);
 
         mailService.Verify(m => m.Send(It.IsAny<MailMessage>()), Times.Once);
         mailLogRepository.Verify(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -114,6 +120,7 @@ public class EffectServiceMailLoggingTests
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
+        var configuration = new Mock<IConfiguration>();
         var effectService = new EffectService(
             instanceService,
             eventService.Object,
@@ -127,7 +134,8 @@ public class EffectServiceMailLoggingTests
                 ClientId = "client",
                 UserAccount = "user@mail.com",
                 OverrideRecipient = null
-            }));
+            }),
+            configuration.Object);
 
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "SendLetter")
@@ -150,13 +158,13 @@ public class EffectServiceMailLoggingTests
             SendMail = new SendMessage { TemplateKey = "DecisionMail" }
         };
 
-        var triggerContext = new MailTriggerContext(MailTriggerType.Action, ActionName: "SendLetter");
-        await effectService.RunEffects(instance, [effect], user, CancellationToken.None, mail, triggerContext);
+        await effectService.RunEffect(new JobInput(mail), instance, effect, user, modelService.CreateContext(instance),
+            CancellationToken.None);
 
         Assert.NotNull(loggedEntry);
         Assert.Equal("SendLetter", loggedEntry!.StepName);
-        Assert.Equal(MailTriggerType.Action, loggedEntry.TriggerType);
-        Assert.Equal("SendLetter", loggedEntry.ActionName);
+        Assert.Null(loggedEntry.TriggerType);
+        Assert.Null(loggedEntry.ActionName);
         Assert.Null(loggedEntry.FormId);
         Assert.Equal("DecisionMail", loggedEntry.TemplateKey);
     }

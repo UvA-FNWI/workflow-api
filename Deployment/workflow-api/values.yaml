@@ -44,3 +44,5 @@ azure:
       key: Encryption__Secret
     - name: workflow-surfconext-client-secret
       key: SurfConext__ClientSecret
+    - name: workflow-impersonation-key
+      key: ImpersonationKey

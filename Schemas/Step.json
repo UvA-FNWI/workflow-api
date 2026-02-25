@@ -694,7 +694,7 @@
     "Value": {
       "title": "Value",
       "type": "object",
-      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix the value with an equals sign to indicate a literal value)",
+      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix a string value with an equals sign to indicate a literal value)",
       "additionalProperties": false,
       "required": [
         "property"
@@ -709,28 +709,28 @@
             "null",
             "string"
           ],
-          "description": "Value the property should be equal to. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be equal to. If this is a literal string, it must be prefixed with an equals sign"
         },
         "lessThan": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be less than. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be less than"
         },
         "greaterThan": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be greater than. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be greater than"
         },
         "greaterThanOrEqual": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Value the property should be greater than or equal to. If this is a literal value, it must be prefixed with an equals sign"
+          "description": "Value the property should be greater than or equal to"
         },
         "in": {
           "type": [
@@ -976,6 +976,13 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Optional effect name, used to refer to outputs of this effect"
+        },
         "condition": {
           "description": "Condition that determines if this trigger is active",
           "oneOf": [
@@ -1023,6 +1030,28 @@
             }
           ]
         },
+        "serviceCall": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Call an external service",
+              "$ref": "#/definitions/ServiceCall"
+            }
+          ]
+        },
+        "redirect": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Redirect the user to an url",
+              "$ref": "#/definitions/Redirect"
+            }
+          ]
+        },
         "event": {
           "type": [
             "null",
@@ -1036,6 +1065,13 @@
             "string"
           ],
           "description": "Undo an event"
+        },
+        "delay": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Run the effect after this delay, e.g. 2d, 4h or 30m"
         }
       }
     },
@@ -1131,6 +1167,42 @@
         "value": {
           "type": "string",
           "description": "Expression that determines the value of the property"
+        }
+      }
+    },
+    "ServiceCall": {
+      "title": "ServiceCall",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service",
+        "operation"
+      ],
+      "properties": {
+        "service": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Redirect": {
+      "title": "Redirect",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url"
+      ],
+      "properties": {
+        "url": {
+          "type": "string"
         }
       }
     },

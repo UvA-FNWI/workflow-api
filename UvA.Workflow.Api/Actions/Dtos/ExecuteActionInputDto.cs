@@ -1,4 +1,4 @@
-using UvA.Workflow.Notifications;
+using UvA.Workflow.Jobs;
 
 namespace UvA.Workflow.Api.Actions.Dtos;
 
@@ -6,5 +6,5 @@ public record ExecuteActionInputDto(
     ActionType Type,
     string InstanceId,
     string? Name = null,
-    MailMessage? Mail = null
+    JobInput? JobInput = null
 );

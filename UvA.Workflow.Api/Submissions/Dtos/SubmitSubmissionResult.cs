@@ -7,4 +7,5 @@ public record SubmitSubmissionResult(
     SubmissionDto Submission,
     WorkflowInstanceDto? UpdatedInstance = null,
     InvalidQuestion[]? ValidationErrors = null,
-    bool Success = true);
+    bool Success = true,
+    EffectResult? EffectResult = null);
