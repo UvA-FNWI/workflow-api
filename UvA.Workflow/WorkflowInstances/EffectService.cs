@@ -45,15 +45,15 @@ public class EffectService(
             Subject = mail.Subject,
             Body = mail.Body,
             AttachmentTemplate = mail.AttachmentTemplate,
-            To = MailDeliveryResolver.GetEffectiveRecipients(mail.To, _graphMailOptions.OverrideRecipient)
+            To = mail.To
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
                 .ToArray(),
-            Cc = MailDeliveryResolver.GetEffectiveRecipients(mail.Cc, _graphMailOptions.OverrideRecipient)
+            Cc = mail.Cc?
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
-                .ToArray(),
-            Bcc = MailDeliveryResolver.GetEffectiveRecipients(mail.Bcc, _graphMailOptions.OverrideRecipient)
+                .ToArray() ?? [],
+            Bcc = mail.Bcc?
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
-                .ToArray(),
+                .ToArray() ?? [],
             Attachments = mail.Attachments?
                 .Select(a => new MailLogAttachment(a.FileName, a.Content))
                 .ToArray() ?? []
