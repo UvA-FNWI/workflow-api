@@ -2,7 +2,6 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
-using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Submissions;
@@ -18,7 +17,6 @@ public record InvalidQuestion(
 public class SubmissionService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    EffectService effectService,
     InstanceService instanceService,
     IInstanceJournalService instanceJournalService,
     WorkflowInstanceService workflowInstanceService,
