@@ -3,6 +3,7 @@ using Moq;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
@@ -22,6 +23,7 @@ public class EffectServiceMailLoggingTests
 
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
         var effectService = new EffectService(
@@ -29,6 +31,7 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            artifactService.Object,
             mailLogRepository.Object,
             Options.Create(new GraphMailOptions
             {
@@ -51,6 +54,10 @@ public class EffectServiceMailLoggingTests
             Bcc = [new MailRecipient("bcc@uva.nl", "Bcc User")],
             Attachments = [new MailAttachment("test.txt", attachmentBytes)]
         };
+
+        artifactService
+            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<byte[]>()))
+            .ReturnsAsync((string name, byte[] _) => new ArtifactInfo(MongoDB.Bson.ObjectId.GenerateNewId(), name));
 
         MailLogEntry? loggedEntry = null;
         mailLogRepository
@@ -82,15 +89,14 @@ public class EffectServiceMailLoggingTests
         Assert.Equal("attachment-template", loggedEntry.AttachmentTemplate);
 
         Assert.Single(loggedEntry.To);
-        Assert.Equal("testen-dn-fnwi@uva.nl", loggedEntry.To[0].MailAddress);
+        Assert.Equal("to@uva.nl", loggedEntry.To[0].MailAddress);
         Assert.Single(loggedEntry.Cc);
-        Assert.Equal("testen-dn-fnwi@uva.nl", loggedEntry.Cc[0].MailAddress);
+        Assert.Equal("cc@uva.nl", loggedEntry.Cc[0].MailAddress);
         Assert.Single(loggedEntry.Bcc);
-        Assert.Equal("testen-dn-fnwi@uva.nl", loggedEntry.Bcc[0].MailAddress);
+        Assert.Equal("bcc@uva.nl", loggedEntry.Bcc[0].MailAddress);
 
         Assert.Single(loggedEntry.Attachments);
-        Assert.Equal("test.txt", loggedEntry.Attachments[0].FileName);
-        Assert.Equal(attachmentBytes, loggedEntry.Attachments[0].Content);
+        Assert.Equal("test.txt", loggedEntry.Attachments[0].Name);
     }
 
     [Fact]
@@ -105,6 +111,7 @@ public class EffectServiceMailLoggingTests
 
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
         var effectService = new EffectService(
@@ -112,6 +119,7 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            artifactService.Object,
             mailLogRepository.Object,
             Options.Create(new GraphMailOptions
             {

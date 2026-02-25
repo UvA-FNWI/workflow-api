@@ -1,4 +1,5 @@
 using MongoDB.Bson.Serialization.Attributes;
+using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Notifications;
 
@@ -43,9 +44,7 @@ public class MailLogEntry
     [BsonElement("To")] public MailLogRecipient[] To { get; set; } = [];
     [BsonElement("Cc")] public MailLogRecipient[] Cc { get; set; } = [];
     [BsonElement("Bcc")] public MailLogRecipient[] Bcc { get; set; } = [];
-    [BsonElement("Attachments")] public MailLogAttachment[] Attachments { get; set; } = [];
+    [BsonElement("Attachments")] public ArtifactInfo[] Attachments { get; set; } = [];
 }
 
 public record MailLogRecipient(string MailAddress, string? DisplayName = null);
-
-public record MailLogAttachment(string FileName, byte[] Content);

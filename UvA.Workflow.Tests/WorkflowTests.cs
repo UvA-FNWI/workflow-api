@@ -75,6 +75,7 @@ public class WorkflowTests
             _eventService,
             _modelService,
             _mailServiceMock.Object,
+            _artifactServiceMock.Object,
             _mailLogRepositoryMock.Object,
             Options.Create(new GraphMailOptions
             {

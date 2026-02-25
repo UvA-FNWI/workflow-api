@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowInstances;
@@ -9,6 +10,7 @@ public class EffectService(
     IInstanceEventService eventService,
     ModelService modelService,
     IMailService mailService,
+    IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IOptions<GraphMailOptions> graphMailOptions)
 {
@@ -36,6 +38,16 @@ public class EffectService(
         mail ??= (await Mail.FromModel(instance, sendMail, modelService))!.ToMailMessage();
         await mailService.Send(mail);
 
+        var attachments = new List<ArtifactInfo>();
+        if (mail.Attachments is { Count: > 0 } mailAttachments)
+        {
+            foreach (var a in mailAttachments)
+            {
+                var artifact = await artifactService.SaveArtifact(a.FileName, a.Content);
+                attachments.Add(artifact);
+            }
+        }
+
         await mailLogRepository.Log(new MailLogEntry
         {
             WorkflowInstanceId = instance.Id,
@@ -59,9 +71,7 @@ public class EffectService(
             Bcc = mail.Bcc?
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
                 .ToArray() ?? [],
-            Attachments = mail.Attachments?
-                .Select(a => new MailLogAttachment(a.FileName, a.Content))
-                .ToArray() ?? []
+            Attachments = attachments.ToArray()
         }, ct);
     }
 
