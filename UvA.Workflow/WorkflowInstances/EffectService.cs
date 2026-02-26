@@ -26,22 +26,22 @@ public class EffectService(
 {
     private readonly GraphMailOptions _graphMailOptions = graphMailOptions.Value;
 
-    public async Task<EffectResult> RunEffect(JobInput? input, WorkflowInstance instance, Effect effect, User user,
+    public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
         ObjectContext context, CancellationToken ct)
     {
-        string? redirectUrl = null;
+        var input = job.Input;
         if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
         if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
-        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail);
+        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
-        redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
+        var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
 
         return new EffectResult(redirectUrl);
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
-        MailMessage? mail = null, MailTriggerContext? triggerContext = null)
+        MailMessage? mail = null, string? jobId = null)
     {
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
@@ -64,11 +64,7 @@ public class EffectService(
             WorkflowInstanceId = instance.Id,
             WorkflowDefinition = instance.WorkflowDefinition,
             ExecutedBy = user.Id,
-            StepName = instance.CurrentStep,
-            TriggerType = triggerContext?.TriggerType,
-            ActionName = triggerContext?.ActionName,
-            FormId = triggerContext?.FormId,
-            TemplateKey = sendMail.TemplateKey,
+            JobId = jobId,
             OverrideRecipient = _graphMailOptions.OverrideRecipient,
             Subject = mail.Subject,
             Body = mail.Body,

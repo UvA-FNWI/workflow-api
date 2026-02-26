@@ -75,7 +75,8 @@ public class EffectServiceMailLoggingTests
             SendMail = new SendMessage()
         };
 
-        await effectService.RunEffect(new JobInput(mail), instance, effect, user, modelService.CreateContext(instance),
+        await effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, user,
+            modelService.CreateContext(instance),
             CancellationToken.None);
 
         mailService.Verify(m => m.Send(It.IsAny<MailMessage>()), Times.Once);
@@ -85,11 +86,6 @@ public class EffectServiceMailLoggingTests
         Assert.Equal(instance.Id, loggedEntry!.WorkflowInstanceId);
         Assert.Equal("Project", loggedEntry.WorkflowDefinition);
         Assert.Equal(user.Id, loggedEntry.ExecutedBy);
-        Assert.Equal("Start", loggedEntry.StepName);
-        Assert.Null(loggedEntry.TriggerType);
-        Assert.Null(loggedEntry.ActionName);
-        Assert.Null(loggedEntry.FormId);
-        Assert.Null(loggedEntry.TemplateKey);
         Assert.Equal("Subject", loggedEntry.Subject);
         Assert.Equal("Body", loggedEntry.Body);
         Assert.Equal("attachment-template", loggedEntry.AttachmentTemplate);
@@ -158,14 +154,10 @@ public class EffectServiceMailLoggingTests
             SendMail = new SendMessage { TemplateKey = "DecisionMail" }
         };
 
-        await effectService.RunEffect(new JobInput(mail), instance, effect, user, modelService.CreateContext(instance),
+        await effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, user,
+            modelService.CreateContext(instance),
             CancellationToken.None);
 
         Assert.NotNull(loggedEntry);
-        Assert.Equal("SendLetter", loggedEntry!.StepName);
-        Assert.Null(loggedEntry.TriggerType);
-        Assert.Null(loggedEntry.ActionName);
-        Assert.Null(loggedEntry.FormId);
-        Assert.Equal("DecisionMail", loggedEntry.TemplateKey);
     }
 }

@@ -31,11 +31,9 @@ public class MailLogEntry
     [BsonRepresentation(BsonType.ObjectId)]
     public string ExecutedBy { get; set; } = null!;
 
-    [BsonElement("StepName")] public string? StepName { get; set; }
-    [BsonElement("TriggerType")] public MailTriggerType? TriggerType { get; set; }
-    [BsonElement("ActionName")] public string? ActionName { get; set; }
-    [BsonElement("FormId")] public string? FormId { get; set; }
-    [BsonElement("TemplateKey")] public string? TemplateKey { get; set; }
+    [BsonElement("JobId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? JobId { get; set; } = null!;
 
     [BsonElement("OverrideRecipient")] public string? OverrideRecipient { get; set; }
     [BsonElement("Subject")] public string Subject { get; set; } = null!;
