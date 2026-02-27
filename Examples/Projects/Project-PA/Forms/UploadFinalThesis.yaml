@@ -1,0 +1,17 @@
+name: UploadFinalThesis
+title:
+  en: Upload final thesis
+  nl: Eindversie scriptie uploaden
+
+pages:
+  - name: Thesis
+    title:
+      en: Final thesis
+      nl: Eindversie scriptie
+    fields:
+      - Title
+      - Report
+      - Abstract
+      - Keywords
+      - Language
+      - Publish

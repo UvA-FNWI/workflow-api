@@ -1,0 +1,10 @@
+name: Language
+values:
+  - name: Dutch
+    text:
+      en: Dutch
+      nl: Nederlands
+  - name: English
+    text:
+      en: English
+      nl: Engels
