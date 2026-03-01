@@ -4,6 +4,7 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.DataNose;
+using UvA.Workflow.Security;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -28,6 +29,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflow(config);
+builder.Services.AddSecurity(config);
 builder.Services.AddScoped<WorkflowInstanceDtoFactory>();
 builder.Services
     .AddControllers()
@@ -36,7 +38,7 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddDataNoseApiClient(builder.Configuration);
-builder.Services.AddWorkflowAuthentication(builder.Environment, builder.Configuration);
+//builder.Services.AddWorkflowAuthentication(builder.Environment, builder.Configuration);
 
 builder.Services.AddCors(options =>
 {
@@ -64,23 +66,25 @@ app.UseExceptionHandler();
 app.UseCors(corsPolicyName);
 
 app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser(
-    new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
+    new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+        "../../../../../UvA.Workflow.Security/Workflow"))
+    //new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
 ));
 
 await app.Services.CreateScope().ServiceProvider.GetRequiredService<InitializationService>().CreateSeedData();
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    if (app.Environment.IsDevOrTest())
-    {
-        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
-        c.OAuthUsePkce();
-    }
-
-    c.SwaggerEndpoint("v1/swagger.json", "Workflow API v1");
-    c.DisplayRequestDuration();
-});
+// app.UseSwagger();
+// app.UseSwaggerUI(c =>
+// {
+//     if (app.Environment.IsDevOrTest())
+//     {
+//         c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
+//         c.OAuthUsePkce();
+//     }
+//
+//     c.SwaggerEndpoint("v1/swagger.json", "Workflow API v1");
+//     c.DisplayRequestDuration();
+// });
 
 app.MapControllers();
 app.Run();

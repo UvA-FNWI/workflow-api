@@ -20,6 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\UvA.Workflow.Security\UvA.Workflow.Security.csproj" />
         <ProjectReference Include="..\UvA.Workflow\UvA.Workflow.csproj" />
     </ItemGroup>
 

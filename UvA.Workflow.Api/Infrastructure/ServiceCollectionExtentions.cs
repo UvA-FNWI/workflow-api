@@ -37,7 +37,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WorkflowInstanceService>();
 
         // TODO: restore actual user service when UI has SurfContext support
-        services.AddScoped<IUserService, MockUserService>();
         //services.AddScoped<IUserService, MockUserService>();
 
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
