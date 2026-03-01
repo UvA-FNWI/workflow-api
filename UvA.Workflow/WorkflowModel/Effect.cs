@@ -66,7 +66,7 @@ public class Effect
             _ => throw new InvalidOperationException($"Invalid delay format: {Delay}")
         };
 
-    public IEnumerable<Lookup?> Properties =>
+    public IEnumerable<Lookup> Properties =>
     [
         ..Condition?.Properties ?? [],
         ..SendMail?.SubjectTemplate?.Properties ?? [],

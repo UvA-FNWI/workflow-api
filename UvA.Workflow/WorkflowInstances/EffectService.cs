@@ -14,7 +14,6 @@ public record EffectResult(string? RedirectUrl = null)
 }
 
 public class EffectService(
-    InstanceService instanceService,
     IWorkflowInstanceRepository instanceRepository,
     IInstanceEventService eventService,
     ModelService modelService,

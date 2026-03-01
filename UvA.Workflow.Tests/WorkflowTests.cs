@@ -30,6 +30,7 @@ public class WorkflowTests
     readonly Mock<IJobRepository> _jobRepositoryMock;
     readonly Mock<IUserRepository> _userRepoMock;
     readonly Mock<IConfiguration> _configurationMock;
+    readonly Mock<IServiceProvider> _serviceProviderMock;
 
 
     readonly ModelService _modelService;
@@ -66,6 +67,7 @@ public class WorkflowTests
         _configurationMock = new Mock<IConfiguration>();
         _userRepoMock = new Mock<IUserRepository>();
         _jobRepositoryMock = new Mock<IJobRepository>();
+        _serviceProviderMock = new Mock<IServiceProvider>();
 
         // Services
         var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
@@ -73,14 +75,15 @@ public class WorkflowTests
         _modelService = new ModelService(_parser);
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
         _instanceService =
-            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService);
+            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
+                _serviceProviderMock.Object);
         _eventService = new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object,
             _rightsService,
             _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
-        _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            _configurationMock.Object);
+        _effectService = new EffectService(_instanceRepoMock.Object, _eventService, _modelService,
+            _mailServiceMock.Object, _configurationMock.Object);
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService);
@@ -88,9 +91,9 @@ public class WorkflowTests
             new SubmissionService(_instanceRepoMock.Object, _modelService, _effectService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService);
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
-        _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
+        _answerService = new AnswerService(_submissionService, _modelService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
-            _instanceJournalServiceMock.Object);
+            _instanceRepoMock.Object, _instanceJournalServiceMock.Object);
     }
 
     [Fact]

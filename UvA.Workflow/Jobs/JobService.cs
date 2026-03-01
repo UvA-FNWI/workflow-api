@@ -91,6 +91,12 @@ public class JobService(
         CancellationToken ct)
     {
         var context = modelService.CreateContext(instance);
+        await instanceService.Enrich(
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition],
+            [context],
+            effects.SelectMany(e => e.Properties),
+            ct
+        );
         EffectResult result = new();
 
         foreach (var step in job.Steps)
