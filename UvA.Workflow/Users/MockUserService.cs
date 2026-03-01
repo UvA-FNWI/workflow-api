@@ -19,7 +19,7 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
     public Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken cancellationToken)
         => Task.FromResult(DummyUsers
             .Where(u => u.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase))
-            .Select(r => new UserSearchResult(r.Id, r.DisplayName, r.Email)));
+            .Select(r => new UserSearchResult(r.UserName, r.DisplayName, r.Email)));
 
     public async Task<User?> GetCurrentUser(CancellationToken ct = default)
     {

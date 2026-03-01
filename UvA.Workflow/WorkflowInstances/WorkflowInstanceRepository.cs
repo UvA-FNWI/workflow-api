@@ -102,10 +102,22 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
 
     public async Task<List<Dictionary<string, BsonValue>>> GetAllByType(string workflowDefinition,
         Dictionary<string, string> projection, CancellationToken ct)
+        => await GetAllByType(workflowDefinition, projection, null, ct);
+
+    public async Task<List<Dictionary<string, BsonValue>>> GetAllByType(string workflowDefinition,
+        Dictionary<string, string> projection, BsonDocument? authorizationFilter, CancellationToken ct)
     {
+        var matchFilter = authorizationFilter != null
+            ? new BsonDocument("$and", new BsonArray
+            {
+                new BsonDocument { ["WorkflowDefinition"] = workflowDefinition },
+                authorizationFilter
+            })
+            : new BsonDocument { ["WorkflowDefinition"] = workflowDefinition };
+
         BsonDocument[] pipeline =
         [
-            new("$match", new BsonDocument { ["WorkflowDefinition"] = workflowDefinition }),
+            new("$match", matchFilter),
             new("$project", projection.ToBsonDocument())
         ];
 

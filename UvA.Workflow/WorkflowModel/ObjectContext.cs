@@ -1,4 +1,5 @@
 using System.Collections;
+using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowModel;
@@ -66,8 +67,22 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         dict.Add("CurrentStep", instance.CurrentStep);
         dict.Add("CreateDate", instance.CreatedOn);
 
-        foreach (var ev in instance.Events.Values.Where(e => e.Date != null))
-            dict.Add(ev.Id + "Event", ev.Date);
+        // Get workflow definition for suppression computation
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
+        // Add event information with computed suppression
+        foreach (var ev in instance.Events.Values)
+        {
+            // Compute and add event active status
+            bool isActive = EventSuppressionHelper.IsEventActive(ev.Id, instance, workflowDef);
+            dict.Add(ev.Id + "EventActive", isActive);
+
+            // Only add event date for active (non-suppressed) events
+            // Suppressed events should not affect step condition evaluation
+            if (ev.Date != null && isActive)
+                dict.Add(ev.Id + "Event", ev.Date);
+        }
+
         return new ObjectContext(dict);
     }
 
@@ -93,7 +108,9 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
         return type switch
         {
-            _ when question?.IsArray == true => GetTypedArray(answer.AsBsonArray, type),
+            _ when question?.IsArray == true => answer.IsBsonArray
+                ? GetTypedArray(answer.AsBsonArray, type)
+                : GetTypedArray(new BsonArray { answer }, type),
             DataType.User => BsonSerializer.Deserialize<User>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),

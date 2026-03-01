@@ -36,3 +36,5 @@ azure:
       key: DataNoseApi__ApiKey
     - name: workflow-surfconext-client-secret
       key: SurfConext__ClientSecret
+    - name: workflow-impersonation-key
+      key: ImpersonationKey

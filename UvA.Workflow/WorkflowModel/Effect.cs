@@ -7,6 +7,11 @@ public class EndStep;
 public class Effect
 {
     /// <summary>
+    /// Optional effect name, used to refer to outputs of this effect
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
     /// Condition that determines if this trigger is active
     /// </summary>
     public Condition? Condition { get; set; }
@@ -27,6 +32,16 @@ public class Effect
     public SetProperty? SetProperty { get; set; }
 
     /// <summary>
+    /// Call an external service
+    /// </summary>
+    public ServiceCall? ServiceCall { get; set; }
+
+    /// <summary>
+    /// Redirect the user to an url
+    /// </summary>
+    public Redirect? Redirect { get; set; }
+
+    /// <summary>
     /// Complete an event
     /// </summary>
     public string? Event { get; set; }
@@ -36,7 +51,22 @@ public class Effect
     /// </summary>
     public string? UndoEvent { get; set; }
 
-    public IEnumerable<Lookup> Properties =>
+    /// <summary>
+    /// Run the effect after this delay, e.g. 2d, 4h or 30m
+    /// </summary>
+    public string? Delay { get; set; }
+
+    public TimeSpan? DelayAsTimeSpan => Delay is null
+        ? null
+        : Delay.Last() switch
+        {
+            'h' => TimeSpan.FromHours(int.Parse(Delay[..^1])),
+            'd' => TimeSpan.FromDays(int.Parse(Delay[..^1])),
+            'm' => TimeSpan.FromMinutes(int.Parse(Delay[..^1])),
+            _ => throw new InvalidOperationException($"Invalid delay format: {Delay}")
+        };
+
+    public IEnumerable<Lookup?> Properties =>
     [
         ..Condition?.Properties ?? [],
         ..SendMail?.SubjectTemplate?.Properties ?? [],
@@ -46,6 +76,23 @@ public class Effect
         ..SetProperty?.ValueExpression.Properties ?? [],
         ..SendMail?.Properties ?? []
     ];
+
+    public string Identifier => this switch
+    {
+        { ServiceCall: not null } => $"{ServiceCall.Service}:{ServiceCall.Operation}",
+        { SetProperty: not null } => $"Set:{SetProperty.Property}",
+        { SendMail: not null } => $"Mail:{SendMail.TemplateKey}",
+        { Event: not null } => $"Event:{Event}",
+        { UndoEvent: not null } => $"Undo:{UndoEvent}",
+        { Redirect: not null } => "Redirect",
+        _ => throw new InvalidOperationException("Invalid effect")
+    };
+
+    /// <summary>
+    /// Determines whether this event is logged in the job log.
+    /// Trivial/client side effects do not need to be logged
+    /// </summary>
+    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null;
 }
 
 public class SetProperty
@@ -101,4 +148,17 @@ public class SendMessage
 public class Attachment
 {
     public string Template { get; set; } = null!;
+}
+
+public class ServiceCall
+{
+    public string Service { get; set; } = null!;
+    public string Operation { get; set; } = null!;
+    public Dictionary<string, string> Inputs { get; set; } = new();
+}
+
+public class Redirect
+{
+    public string Url { get; set; } = null!;
+    public Template UrlTemplate => field ??= Template.Create(Url);
 }

@@ -47,7 +47,7 @@ public partial class ModelParser
         target.TitlePlural ??= source.TitlePlural;
         target.IsEmbedded = source.IsEmbedded;
         target.IsAlwaysVisible = source.IsAlwaysVisible;
-        target.HeaderFields = source.HeaderFields.Concat(target.HeaderFields).ToArray();
+        target.Fields = source.Fields.Concat(target.Fields).ToArray();
     }
 
     private void ApplyInheritance(Form target, Form source)

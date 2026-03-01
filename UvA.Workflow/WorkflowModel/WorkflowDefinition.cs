@@ -62,6 +62,8 @@ public class WorkflowDefinition : INamed
     /// </summary>
     public List<Action> GlobalActions { get; set; } = [];
 
+    public IEnumerable<Action> AllActions => GlobalActions.Concat(AllSteps.SelectMany(s => s.Actions));
+
     /// <summary>
     /// List of step names for this entity type
     /// </summary>
@@ -69,9 +71,9 @@ public class WorkflowDefinition : INamed
     public List<string> StepNames { get; set; } = [];
 
     /// <summary>
-    /// List of header fields for this entity type
+    /// List of fields for this entity type
     /// </summary>
-    public Field[] HeaderFields { get; set; } = [];
+    public Field[] Fields { get; set; } = [];
 
     /// <summary>
     /// List of computed results for this entity type
@@ -128,4 +130,9 @@ public class EventDefinition : INamed
     /// Name of the event
     /// </summary>
     public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// List of event names that are suppressed when this event occurs. Only the most recent event will be suppressed.
+    /// </summary>
+    public List<string>? Suppresses { get; set; }
 }

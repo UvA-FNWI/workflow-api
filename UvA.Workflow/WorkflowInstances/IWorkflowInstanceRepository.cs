@@ -32,6 +32,9 @@ public interface IWorkflowInstanceRepository
     Task<List<Dictionary<string, BsonValue>>> GetAllByType(string workflowDefinition,
         Dictionary<string, string> projection, CancellationToken ct);
 
+    Task<List<Dictionary<string, BsonValue>>> GetAllByType(string workflowDefinition,
+        Dictionary<string, string> projection, BsonDocument? authorizationFilter, CancellationToken ct);
+
     Task<List<Dictionary<string, BsonValue>>> GetAllByParentId(string parentId,
         Dictionary<string, string> projection, CancellationToken ct);
 

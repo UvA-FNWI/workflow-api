@@ -1,0 +1,43 @@
+name: Start
+step: Start
+
+pages:
+  - name: Proposal
+    title:
+      en: Proposal
+      nl: Voorstel
+    fields:
+      - WorkingTitle
+      - EC
+      - Description
+  - name: Staff
+    title:
+      en: Staff
+      nl: Begeleiding
+    fields:
+      - Examiner
+      - SecondReviewer
+      - DailySupervisor
+  - name: Location
+    title:
+      en: Location
+      nl: Locatie
+    fields:
+      - ProjectLocation
+      - InstituteDepartment
+      - City
+      - Country
+      - PartAbroad
+  - name: Planning
+    title:
+      en: Planning
+      nl: Planning
+    fields:
+      - StartDate
+      - PlannedEndDate
+      - Interruptions
+      - HoursPerWeek
+      - FrequencyExaminerReviewer
+      - FrequencyExaminerReviewerOther
+      - FrequencyDailySupervisor
+      - FrequencyDailySupervisorOther

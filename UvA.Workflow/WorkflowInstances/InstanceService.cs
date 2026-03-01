@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 using Domain_Action = UvA.Workflow.Entities.Domain.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
@@ -171,12 +172,14 @@ public class InstanceService(
             RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
 
         var actions = new List<AllowedAction>();
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
         // Submittable forms
         actions.AddRange(allowed
             .Where(a => a.Type == RoleAction.Submit)
             .SelectMany(a => a.AllForms.Select(f => new { Action = a, Form = f }))
-            .Where(f => instance.Events.GetValueOrDefault(f.Form)?.Date == null)
+            .Where(f => instance.Events.WhereActive(instance, workflowDef).ToDictionary().GetValueOrDefault(f.Form)
+                ?.Date == null)
             .Distinct()
             .Select(f => new AllowedAction(f.Action, modelService.GetForm(instance, f.Form)))
         );
@@ -225,8 +228,12 @@ public class InstanceService(
             .ToDictionary(f => f, f => modelService.GetForm(instance, f));
         var hiddenForms = allowedHidden.SelectMany(a => a.AllForms).Distinct().ToList();
 
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
+        // Only include active (non-suppressed) submissions
         var subs = instance.Events
             .Select(e => e.Value)
+            .WhereActive(instance, workflowDef)
             .Where(s => forms.ContainsKey(s.Id))
             .OrderBy(s => s.Date)
             .ToList();

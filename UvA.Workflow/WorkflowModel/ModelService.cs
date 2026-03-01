@@ -1,4 +1,5 @@
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Entities.Domain;
 
@@ -6,6 +7,7 @@ public class ModelService(ModelParser parser)
 {
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => parser.WorkflowDefinitions;
     public Dictionary<string, Role> Roles => parser.Roles.ToDictionary(r => r.Name, r => r);
+    public List<Service> Services => parser.Services;
 
     public Form GetForm(WorkflowInstance instance, string formName)
     {

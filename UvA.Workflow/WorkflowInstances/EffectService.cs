@@ -1,31 +1,38 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using UvA.Workflow.Events;
+using UvA.Workflow.Expressions;
+using UvA.Workflow.Jobs;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowInstances;
+
+public record EffectResult(string? RedirectUrl = null)
+{
+    public static EffectResult operator +(EffectResult result, EffectResult other)
+        => new(result.RedirectUrl ?? other.RedirectUrl);
+}
 
 public class EffectService(
     InstanceService instanceService,
     IWorkflowInstanceRepository instanceRepository,
     IInstanceEventService eventService,
     ModelService modelService,
-    IMailService mailService)
+    IMailService mailService,
+    IConfiguration configuration)
 {
-    public async Task RunEffects(WorkflowInstance instance, Effect[] effects, User user, CancellationToken ct,
-        MailMessage? mail = null)
+    public async Task<EffectResult> RunEffect(JobInput? input, WorkflowInstance instance, Effect effect, User user,
+        ObjectContext context, CancellationToken ct)
     {
-        var context = modelService.CreateContext(instance);
-        await instanceService.Enrich(
-            modelService.WorkflowDefinitions[instance.WorkflowDefinition],
-            [context],
-            effects.SelectMany(e => e.Properties),
-            ct
-        );
-        foreach (var effect in effects.Where(t => t.Condition.IsMet(context)))
-        {
-            if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
-            if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
-            if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, mail);
-            if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
-        }
+        string? redirectUrl = null;
+        if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
+        if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
+        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, input?.Mail);
+        if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
+        if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
+        redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
+
+        return new EffectResult(redirectUrl);
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
@@ -61,4 +68,55 @@ public class EffectService(
         instance.Properties[setProperty.Property] = BsonValue.Create(setProperty.ValueExpression.Execute(context));
         await instanceRepository.SaveValue(instance, null, setProperty.Property, ct);
     }
+
+    private async Task ServiceCall(ObjectContext context, Effect effect, CancellationToken ct)
+    {
+        var serviceCall = effect.ServiceCall!;
+        var service = modelService.Services.Get(serviceCall.Service);
+        var operation = service.Operations.Get(serviceCall.Operation);
+
+        var optionContext = new ObjectContext(
+            configuration
+                .GetSection("Services").GetSection(serviceCall.Service)
+                .Get<Dictionary<string, string>>()?
+                .ToDictionary(Lookup (l) => l.Key, object? (l) => l.Value) ?? new()
+        );
+
+        var client = new HttpClient
+        {
+            BaseAddress = service.BaseUrl != null
+                ? new Uri(Template.Create(service.BaseUrl).Apply(optionContext))
+                : null
+        };
+        foreach (var header in service.Headers)
+            client.DefaultRequestHeaders.Add(header.Key, Template.Create(header.Value).Apply(optionContext));
+
+        var requestContext =
+            new ObjectContext(serviceCall.Inputs.ToDictionary(Lookup (i) => i.Key, i => context.Get(i.Value)));
+
+        var request = new HttpRequestMessage(new HttpMethod(operation.Method),
+            Template.Create(operation.Url).Apply(requestContext));
+        if (operation.Body != null)
+            request.Content = JsonContent.Create(Process(operation.Body, requestContext));
+
+        var result = await client.SendAsync(request, ct);
+        result.EnsureSuccessStatusCode();
+
+        if (operation.Outputs.Any())
+        {
+            var body = await result.Content.ReadFromJsonAsync<JsonDocument>(ct);
+            context.Values.Add(effect.Name ?? operation.Name, operation.Outputs.ToDictionary(
+                Lookup (o) => o.Name,
+                object (o) => body?.RootElement.GetProperty(o.Path).GetString()!)
+            );
+        }
+    }
+
+    private object Process(object source, ObjectContext context) => source switch
+    {
+        Dictionary<object, object> dict => dict.ToDictionary(o => o.Key.ToString()!, o => Process(o.Value, context)),
+        List<object> list => list.Select(o => Process(o, context)).ToList(),
+        string s => Template.Create(s).Apply(context),
+        _ => source
+    };
 }

@@ -1,5 +1,6 @@
 using System.Collections;
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Entities.Domain.Conditions;
 
@@ -112,15 +113,34 @@ public class EventCondition : ConditionPart
     public string Id { get; set; } = null!;
 
     /// <summary>
-    /// If set, the event should not have occurred before this event
+    /// If set, the event specified by Id must have occurred on or after the event specified by this property
     /// </summary>
     public string? NotBefore { get; set; } = null!;
 
     public override bool IsMet(ObjectContext context)
     {
+        // Check if event exists and is active (not suppressed)
+        var isActive = context.Get(Id + "EventActive") as bool? ?? false;
+        if (!isActive)
+            return false;
+
         var date = context.Get(Id + "Event") as DateTime?;
-        var notBeforeDate = context.Get(NotBefore + "Event") as DateTime?;
-        return date != null && (notBeforeDate == null || date >= notBeforeDate);
+        if (date == null)
+            return false;
+
+        // Check notBefore constraint if specified
+        if (NotBefore != null)
+        {
+            var notBeforeActive = context.Get(NotBefore + "EventActive") as bool? ?? false;
+            if (!notBeforeActive)
+                return true; // NotBefore event doesn't exist or is suppressed, constraint satisfied
+
+            var notBeforeDate = context.Get(NotBefore + "Event") as DateTime?;
+            if (date < notBeforeDate)
+                return false;
+        }
+
+        return true;
     }
 
     public static implicit operator EventCondition(string s) => new() { Id = s };
@@ -170,21 +190,21 @@ public class Value : ConditionPart
     private Expression? EqualExpression => ExpressionParser.Parse(Equal);
 
     /// <summary>
-    /// Value the property should be less than. If this is a literal string, it must be prefixed with an equals sign 
+    /// Value the property should be less than 
     /// </summary>
     public string? LessThan { get; set; }
 
     private Expression? LessThanExpression => ExpressionParser.Parse(LessThan);
 
     /// <summary>
-    /// Value the property should be greater than. If this is a literal string, it must be prefixed with an equals sign 
+    /// Value the property should be greater than 
     /// </summary>
     public string? GreaterThan { get; set; }
 
     private Expression? GreaterThanExpression => ExpressionParser.Parse(GreaterThan);
 
     /// <summary>
-    /// Value the property should be greater than or equal to. If this is a literal string, it must be prefixed with an equals sign 
+    /// Value the property should be greater than or equal to 
     /// </summary>
     public string? GreaterThanOrEqual { get; set; }
 
