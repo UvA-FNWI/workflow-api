@@ -49,7 +49,7 @@ public record ActionDto(
     string? Form = null,
     string? Name = null,
     string? UserId = null,
-    Mail? Mail = null,
+    MailMessage? Mail = null,
     string? Property = null,
     string? Step = null,
     ActionIntent Intent = ActionIntent.Primary,

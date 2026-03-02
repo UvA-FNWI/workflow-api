@@ -19,6 +19,7 @@ public class EffectService(
     IInstanceEventService eventService,
     ModelService modelService,
     IMailService mailService,
+    MailBuilder mailBuilder,
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IOptions<GraphMailOptions> graphMailOptions,
@@ -46,7 +47,7 @@ public class EffectService(
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
 
-        mail ??= (await Mail.FromModel(instance, sendMail, modelService))!.ToMailMessage();
+        mail ??= await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
         await mailService.Send(mail);
 
         var attachments = new List<ArtifactInfo>();

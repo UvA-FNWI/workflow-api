@@ -130,6 +130,7 @@ public class SendMessage
     [YamlMember(Alias = "template")] public string? TemplateKey { get; set; }
     public bool SendAsMail { get; set; }
     public bool SendAutomatically { get; set; } = true;
+    public bool IncludeInstanceButton { get; set; }
     public Attachment[] Attachments { get; set; } = [];
 
     public Template? SubjectTemplate => field ??= Template.Create(Subject);

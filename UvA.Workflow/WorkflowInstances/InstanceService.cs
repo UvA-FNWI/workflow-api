@@ -10,7 +10,8 @@ public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     IUserService userService,
-    RightsService rightsService
+    RightsService rightsService,
+    MailBuilder mailBuilder
 )
 {
     /// <summary>
@@ -168,7 +169,7 @@ public class InstanceService(
     public record AllowedAction(
         Domain_Action Action,
         Form? Form = null,
-        Mail? Mail = null,
+        MailMessage? Mail = null,
         WorkflowDefinition? WorkflowDefinition = null);
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
@@ -206,12 +207,17 @@ public class InstanceService(
 
         // Executable actions
         foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
-            actions.Add(new AllowedAction(a,
-                Mail: await Mail.FromModel(
-                    instance,
-                    a.OnAction.FirstOrDefault(t =>
-                        t.SendMail != null && t.Condition.IsMet(modelService.CreateContext(instance)))?.SendMail,
-                    modelService)));
+        {
+            // Build mail message for actions that send mail
+            var sendMail = a.OnAction.FirstOrDefault(t =>
+                t.SendMail != null && t.Condition.IsMet(modelService.CreateContext(instance)))?.SendMail;
+
+            MailMessage? mail = null;
+            if (sendMail is not null)
+                mail = await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
+
+            actions.Add(new AllowedAction(a, Mail: mail));
+        }
 
         return actions;
     }

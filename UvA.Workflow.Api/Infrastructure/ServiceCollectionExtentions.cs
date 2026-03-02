@@ -69,6 +69,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<InitializationService>();
 
         services.AddScoped<IMailService, GraphMailService>();
+        services.AddScoped<IMailLayout, DefaultMailLayout>();
+        services.AddScoped<MailBuilder>();
         services.AddScoped<IMailLogRepository, MailLogRepository>();
         services.AddScoped<ISettingsStore, SettingsStore>();
         services.AddScoped<IEncryptionService, EncryptionService>();
