@@ -1,7 +1,0 @@
-name: SystemAdmin
-actions:
-  - type: ViewAdminTools
-  - type: View
-  - type: Edit
-  - type: Submit
-  - type: Execute

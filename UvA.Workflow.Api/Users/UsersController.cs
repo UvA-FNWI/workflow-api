@@ -1,27 +1,11 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.DataNose;
-using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Api.Users;
 
-public class UsersController(
-    IUserService userService,
-    IUserRepository userRepository) : ApiControllerBase
+public class UsersController(IUserService userService, IUserRepository userRepository) : ApiControllerBase
 {
-    /// <summary>
-    /// Returns the currently authenticated user.
-    /// </summary>
-    [HttpGet("me")]
-    public async Task<ActionResult<UserDto>> GetLoggedInUser(CancellationToken ct)
-    {
-        var user = await userService.GetCurrentUser(ct);
-        if (user == null)
-            return UserNotFound;
-
-        return Ok(UserDto.Create(user));
-    }
-
     [HttpPost]
     public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
     {

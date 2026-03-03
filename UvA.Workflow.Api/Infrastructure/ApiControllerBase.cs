@@ -5,7 +5,7 @@ using UvA.Workflow.Api.Authentication;
 namespace UvA.Workflow.Api.Infrastructure;
 
 [ApiController]
-[Authorize(AuthenticationSchemes = SurfConextAuthenticationHandler.SchemeName)]
+// [Authorize(AuthenticationSchemes = SurfConextAuthenticationHandler.SchemeName)] //TODO: enable authentication when UI has SurfConext support
 [Route("[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {
