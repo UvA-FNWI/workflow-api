@@ -24,7 +24,6 @@ public class WorkflowTests
     readonly Mock<IArtifactService> _artifactServiceMock;
     readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
     readonly Mock<IInstanceEventService> _instanceEventService;
-    readonly WorkflowInstanceService _workflowInstanceService;
 
 
     readonly ModelService _modelService;
