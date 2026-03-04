@@ -1,4 +1,7 @@
 name: Publication
+title:
+  en: Publication
+  nl: Publicatie
 
 actions:
   - roles: [Supervisor]

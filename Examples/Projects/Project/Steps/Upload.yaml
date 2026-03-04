@@ -1,5 +1,8 @@
 name: Upload
-title: Upload final version
+title:
+  en: Upload final version
+  nl: Eindversie uploaden
+icon: download-line
 
 actions:
   - roles: [Student]
