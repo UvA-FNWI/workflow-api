@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -7,7 +8,7 @@ namespace UvA.Workflow.Submissions;
 
 public record SubmissionContext(WorkflowInstance Instance, InstanceEvent? Submission, Form Form, string SubmissionId);
 
-public record SubmissionResult(bool Success, InvalidQuestion[] Errors);
+public record SubmissionResult(bool Success, InvalidQuestion[] Errors, EffectResult? EffectResult = null);
 
 public record InvalidQuestion(
     string QuestionName,
@@ -19,7 +20,8 @@ public class SubmissionService(
     EffectService effectService,
     InstanceService instanceService,
     IInstanceJournalService instanceJournalService,
-    WorkflowInstanceService workflowInstanceService
+    WorkflowInstanceService workflowInstanceService,
+    JobService jobService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
@@ -85,12 +87,14 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors);
         }
 
-        await effectService.RunEffects(instance, [new Effect { Event = submissionId }, ..form.OnSubmit], user, ct);
+        await effectService.AddEvent(instance, submissionId, user, ct);
 
+        var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
+            form.Name, form.OnSubmit, user, null, ct);
 
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);
         await instanceJournalService.IncrementVersion(instance.Id, ct);
-        return new SubmissionResult(true, []);
+        return new SubmissionResult(true, [], result);
     }
 }

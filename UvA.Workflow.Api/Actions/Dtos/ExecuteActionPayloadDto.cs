@@ -4,5 +4,6 @@ namespace UvA.Workflow.Api.Actions.Dtos;
 
 public record ExecuteActionPayloadDto(
     ActionType Type,
-    WorkflowInstanceDto? Instance
+    WorkflowInstanceDto? Instance,
+    EffectResult Result
 );
