@@ -4,7 +4,7 @@ namespace UvA.Workflow.Notifications;
 
 public class MailBuilder(
     IWorkflowInstanceRepository repository,
-    IMailLayout layout,
+    IMailLayoutResolver layoutResolver,
     IConfiguration configuration)
 {
     public async Task<MailMessage> BuildAsync(
@@ -14,6 +14,9 @@ public class MailBuilder(
         CancellationToken ct = default)
     {
         var context = modelService.CreateContext(instance);
+        var frontendBaseUrl = configuration["FrontendBaseUrl"]?.TrimEnd('/');
+        if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
+            context.Values["FrontendBaseUrl"] = frontendBaseUrl;
 
         var recipient = sendMail.To != null
             ? MailRecipient.FromUser(context.Get(sendMail.To) as User)
@@ -22,19 +25,22 @@ public class MailBuilder(
 
         var (subject, bodyMarkdown) = sendMail.TemplateKey != null
             ? await ResolveTemplate(sendMail.TemplateKey, context, ct)
-            : (sendMail.SubjectTemplate?.Execute(context) ?? "", sendMail.BodyTemplate?.Execute(context) ?? "");
+            : (
+                sendMail.SubjectTemplate?.Apply(context).En ?? "",
+                sendMail.BodyTemplate?.Apply(context).En ?? ""
+            );
 
         var htmlBody = MarkdownRenderer.ToHtml(bodyMarkdown);
 
-        MailButton? button = null;
-        if (sendMail.IncludeInstanceButton)
-        {
-            var baseUrl = configuration["FrontendBaseUrl"]?.TrimEnd('/');
-            if (baseUrl is not null)
-                button = new MailButton("Login", $"{baseUrl}/instances/{instance.Id}");
-        }
+        var buttons = sendMail.Buttons
+            .Select(b => new MailButton(
+                b.LabelTemplate.Apply(context).En,
+                b.UrlTemplate.Execute(context),
+                b.Intent))
+            .ToList();
 
-        var fullHtml = layout.Render(htmlBody, button);
+        var layout = layoutResolver.Resolve(sendMail.Layout);
+        var fullHtml = layout.Render(htmlBody, buttons);
 
         return new MailMessage(subject, fullHtml) { To = [recipient] };
     }

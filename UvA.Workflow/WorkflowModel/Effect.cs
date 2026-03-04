@@ -69,9 +69,14 @@ public class Effect
     public IEnumerable<Lookup?> Properties =>
     [
         ..Condition?.Properties ?? [],
-        ..SendMail?.SubjectTemplate?.Properties ?? [],
-        ..SendMail?.BodyTemplate?.Properties ?? [],
+        ..SendMail?.SubjectTemplate?.En.Properties ?? [],
+        ..SendMail?.SubjectTemplate?.Nl.Properties ?? [],
+        ..SendMail?.BodyTemplate?.En.Properties ?? [],
+        ..SendMail?.BodyTemplate?.Nl.Properties ?? [],
         ..SendMail?.ToAddressTemplate?.Properties ?? [],
+        ..SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
+        ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.En.Properties) ?? [],
+        ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Nl.Properties) ?? [],
         ..Http?.UrlTemplate.Properties ?? [],
         ..SetProperty?.ValueExpression.Properties ?? [],
         SendMail?.To
@@ -125,17 +130,33 @@ public class SendMessage
 {
     public string? To { get; set; } = null!;
     public string? ToAddress { get; set; }
-    public string? Subject { get; set; }
-    public string? Body { get; set; }
+    public BilingualString? Subject { get; set; }
+    public BilingualString? Body { get; set; }
     [YamlMember(Alias = "template")] public string? TemplateKey { get; set; }
+    [YamlMember(Alias = "layout")] public string? Layout { get; set; }
+    [YamlMember(Alias = "buttons")] public SendMessageButton[] Buttons { get; set; } = [];
     public bool SendAsMail { get; set; }
     public bool SendAutomatically { get; set; } = true;
-    public bool IncludeInstanceButton { get; set; }
     public Attachment[] Attachments { get; set; } = [];
 
-    public Template? SubjectTemplate => field ??= Template.Create(Subject);
-    public Template? BodyTemplate => field ??= Template.Create(Body);
+    public BilingualTemplate? SubjectTemplate => field ??= BilingualTemplate.Create(Subject);
+    public BilingualTemplate? BodyTemplate => field ??= BilingualTemplate.Create(Body);
     public Template? ToAddressTemplate => field ??= Template.Create(ToAddress);
+}
+
+public enum MailButtonIntent
+{
+    Primary
+}
+
+public class SendMessageButton
+{
+    public string Url { get; set; } = null!;
+    public BilingualString Label { get; set; } = "";
+    public MailButtonIntent Intent { get; set; } = MailButtonIntent.Primary;
+
+    public Template UrlTemplate => field ??= Template.Create(Url);
+    public BilingualTemplate LabelTemplate => field ??= BilingualTemplate.Create(Label)!;
 }
 
 public class Attachment

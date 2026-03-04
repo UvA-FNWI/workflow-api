@@ -1,74 +1,117 @@
 namespace UvA.Workflow.Notifications;
 
-public record MailButton(string Label, string Url);
+public record MailButton(string Label, string Url, MailButtonIntent Intent = MailButtonIntent.Primary);
 
 public interface IMailLayout
 {
-    string Render(string htmlBody, MailButton? button = null);
+    string Render(string htmlBody, IReadOnlyList<MailButton> buttons);
 }
 
-public class DefaultMailLayout : IMailLayout
+public interface INamedMailLayout : IMailLayout
 {
-    public string Render(string htmlBody, MailButton? button = null)
+    string Key { get; }
+}
+
+public interface IMailLayoutResolver
+{
+    IMailLayout Resolve(string? key);
+}
+
+public class MailLayoutResolver(IEnumerable<INamedMailLayout> layouts) : IMailLayoutResolver
+{
+    public const string DefaultKey = "default";
+
+    private readonly IReadOnlyDictionary<string, INamedMailLayout> _layouts = layouts
+        .GroupBy(l => l.Key, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(g => g.Key, g => g.Single(), StringComparer.OrdinalIgnoreCase);
+
+    public IMailLayout Resolve(string? key)
     {
-        var buttonHtml = button is null
-            ? ""
-            : $"""
-               <tr>
-                 <td align="center" style="padding: 0 0 24px 0;">
-                   <a href="{button.Url}"
-                      style="display:inline-block;padding:12px 28px;background-color:#E00031;color:#ffffff;
-                             font-family:Source Sans Pro, Arial, sans-serif;font-size:14px;
-                             text-decoration:none;border-radius:2px;">
-                     {button.Label}
-                   </a>
-                 </td>
-               </tr>
-               """;
+        key = string.IsNullOrWhiteSpace(key) ? DefaultKey : key.Trim();
 
-        return $"""
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                  <meta charset="UTF-8" />
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                  <title>Milestones</title>
-                </head>
-                <body style="margin:0;padding:0;background-color:#F5F5F4;">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
-                         style="background-color:#F5F5F4;padding:32px 0;">
+        if (_layouts.TryGetValue(key, out var layout))
+            return layout;
+
+        var known = string.Join(", ", _layouts.Keys.OrderBy(k => k));
+        throw new InvalidOperationException($"Unknown mail layout '{key}'. Known layouts: {known}");
+    }
+}
+
+public abstract class FileMailLayout : INamedMailLayout
+{
+    private readonly string _layoutPath;
+    private string? _cachedTemplate;
+    private readonly object _cacheLock = new();
+
+    protected FileMailLayout(string key, string layoutPath)
+    {
+        Key = key;
+        _layoutPath = layoutPath;
+    }
+
+    public string Key { get; }
+
+    public string Render(string htmlBody, IReadOnlyList<MailButton> buttons)
+    {
+        var template = GetCachedTemplate();
+        var buttonHtml = GenerateButtonHtml(buttons);
+
+        return template
+            .Replace("{{htmlBody}}", htmlBody)
+            .Replace("{{buttonHtml}}", buttonHtml);
+    }
+
+    private string GetCachedTemplate()
+    {
+        if (_cachedTemplate != null)
+            return _cachedTemplate;
+
+        lock (_cacheLock)
+        {
+            if (_cachedTemplate != null)
+                return _cachedTemplate;
+
+            if (!File.Exists(_layoutPath))
+                throw new FileNotFoundException($"Layout file not found: {_layoutPath}");
+
+            _cachedTemplate = File.ReadAllText(_layoutPath);
+            return _cachedTemplate;
+        }
+    }
+
+    protected virtual string GenerateButtonHtml(IReadOnlyList<MailButton> buttons)
+    {
+        if (buttons.Count == 0)
+            return "";
+
+        return string.Join("\n", buttons.Select(button =>
+        {
+            var intentClass = button.Intent switch
+            {
+                MailButtonIntent.Primary => "button-primary",
+                _ => "button-primary"
+            };
+
+            var classAttr = $"button {intentClass}";
+
+            return $"""
                     <tr>
-                      <td align="center">
-                        <table role="presentation" width="600" cellspacing="0" cellpadding="0"
-                               style="background-color:#ffffff;border-radius:6px;overflow:hidden;
-                                      box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-
-                          <!-- Body -->
-                          <tr>
-                            <td align="center" style="padding:24px;font-family:Source Sans Pro, Arial, sans-serif;font-size:14px;
-                                       line-height:1.6;color:#333333;">
-                              {htmlBody}
-                            </td>
-                          </tr>
-
-                          <!-- Optional button -->
-                          {buttonHtml}
-
-                          <!-- Footer -->
-                          <tr>
-                            <td style="padding:16px 32px;background-color:#FAFAFA;
-                                       border-top:1px solid #F5F5F4;font-family:Source Sans Pro, Arial, sans-serif;
-                                       font-size:12px;color:#8F8884;text-align:center;">
-                              This is an automated message from UvA Milestones. Please do not reply directly to this email.
-                            </td>
-                          </tr>
-
-                        </table>
+                      <td align="center" style="padding: 0 0 24px 0;">
+                        <a href="{button.Url}" class="{classAttr}">
+                          {button.Label}
+                        </a>
                       </td>
                     </tr>
-                  </table>
-                </body>
-                </html>
-                """;
+                    """;
+        }));
+    }
+}
+
+public class DefaultMailLayout : FileMailLayout
+{
+    public DefaultMailLayout() : base(MailLayoutResolver.DefaultKey,
+        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "UvA.Workflow",
+            "Notifications", "Layouts", "default.html")))
+    {
     }
 }
