@@ -3,7 +3,6 @@ using UvA.Workflow.Expressions;
 namespace UvA.Workflow.Notifications;
 
 public class MailBuilder(
-    IWorkflowInstanceRepository repository,
     IMailLayoutResolver layoutResolver,
     IConfiguration configuration)
 {
@@ -23,12 +22,8 @@ public class MailBuilder(
             : new MailRecipient(sendMail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
 
-        var (subject, bodyMarkdown) = sendMail.TemplateKey != null
-            ? await ResolveTemplate(sendMail.TemplateKey, context, ct)
-            : (
-                sendMail.SubjectTemplate?.Apply(context).En ?? "",
-                sendMail.BodyTemplate?.Apply(context).En ?? ""
-            );
+        var subject = sendMail.SubjectTemplate?.Apply(context).En ?? "";
+        var bodyMarkdown = sendMail.BodyTemplate?.Apply(context).En ?? "";
 
         var htmlBody = MarkdownRenderer.ToHtml(bodyMarkdown);
 
@@ -43,29 +38,5 @@ public class MailBuilder(
         var fullHtml = layout.Render(htmlBody, buttons);
 
         return new MailMessage(subject, fullHtml) { To = [recipient] };
-    }
-
-    private async Task<(string Subject, string Body)> ResolveTemplate(
-        string templateKey,
-        ObjectContext context,
-        CancellationToken ct)
-    {
-        var templates = await repository.GetAll(
-            i => i.WorkflowDefinition == "Template",
-            ct);
-
-        var template =
-            templates.FirstOrDefault(i => i.Properties.TryGetValue("Key", out var k) && k.AsString == templateKey);
-
-        if (template is null)
-            return ("", "");
-
-        var subjectRaw = template.Properties.GetValueOrDefault("Subject")?.AsString ?? "";
-        var bodyRaw = template.Properties.GetValueOrDefault("Content")?.AsString ?? "";
-
-        var subject = Template.Create(subjectRaw)?.Execute(context) ?? "";
-        var body = new Template(bodyRaw).Execute(context);
-
-        return (subject, body);
     }
 }
