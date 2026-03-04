@@ -36,50 +36,56 @@ properties:
   - name: ProductAbstract
     type: TenPoint!
     text:
-      en: Abstract (5%)
-      nl: Abstract (5%)
+      en: Abstract
+      nl: Abstract
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductIntroduction
     type: TenPoint!
     text:
-      en: Introduction (5%)
-      nl: Inleiding (5%)
+      en: Introduction
+      nl: Inleiding
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductMethods
     type: TenPoint!
     text:
-      en: Methods (10%)
-      nl: Methods (10%)
+      en: Methods
+      nl: Methods
     layout:
       type: Dropdown
+    weight: 10
 
   - name: ProductResults
     type: TenPoint!
     text:
-      en: Results (10%)
-      nl: Resultaten (10%)
+      en: Results
+      nl: Resultaten
     layout:
       type: Dropdown
+    weight: 10  
 
   - name: ProductDiscussionConclusion
     type: TenPoint!
     text:
-      en: Discussion and conclusion (5%)
-      nl: Discussie en conclusie (5%)
+      en: Discussion and conclusion
+      nl: Discussie en conclusie
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductReadability
     type: TenPoint!
     text:
-      en: Readability (5%)
-      nl: Leesbaarheid (5%)
+      en: Readability
+      nl: Leesbaarheid
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductComments
     type: String
