@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Calculations;
 using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
 
@@ -11,7 +12,8 @@ public record SubmissionDto(
     AnswerDto[] Answers,
     DateTime? DateSubmitted,
     FormDto Form,
-    RoleAction[] Permissions);
+    RoleAction[] Permissions,
+    Dictionary<string, double>? AverageResults);
 
 public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
 {
@@ -28,7 +30,8 @@ public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, Mod
             answers.Select(a => _answerDtoFactory.Create(a)).ToArray(),
             submission?.Date,
             FormDto.Create(form, context),
-            permissions ?? []
+            permissions ?? [],
+            CalculationService.CalculateWeightedAverages(CalculationService.CalculateFormResults(answers, form))
         );
     }
 }

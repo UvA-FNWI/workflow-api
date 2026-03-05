@@ -5,7 +5,6 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
-    bool HasResults,
     string? Step)
 {
     public static FormDto Create(Form form, ObjectContext context)
@@ -22,7 +21,6 @@ public record FormDto(
             form.Title ?? form.Name,
             filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]), context)).ToArray(),
             form.Layout,
-            form.WorkflowDefinition.Results != null,
             form.Step
         );
     }
@@ -33,7 +31,8 @@ public record PageDto(
     BilingualString Title,
     BilingualString? Introduction,
     PageLayout Layout,
-    QuestionDto[] Questions
+    QuestionDto[] Questions,
+    int? Weight
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context)
@@ -42,7 +41,8 @@ public record PageDto(
             page.DisplayTitle,
             page.IntroductionTemplate?.Apply(context),
             page.Layout,
-            questions.ToArray()
+            questions.ToArray(),
+            questions.Sum(q => q.Weight)
         );
 }
 
