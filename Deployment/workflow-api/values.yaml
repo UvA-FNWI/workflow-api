@@ -11,6 +11,12 @@ allowedOrigins: "http://localhost:5173"
 
 datanoseApi:
   baseAddress: https://api-v2-tst.datanose.nl/
+
+graph:
+  tenantId: tenantId
+  clientId: clientId
+  userAccount: datanose@amsuni.onmicrosoft.com
+  overrideRecipient: testen-dn-fnwi@uva.nl
   
 surfConext:
   baseUrl: https://connect.test.surfconext.nl
@@ -34,6 +40,8 @@ azure:
       key: Mongo__Password
     - name: dn2-api-key
       key: DataNoseApi__ApiKey
+    - name: workflow-encryption-secret
+      key: Encryption__Secret
     - name: workflow-surfconext-client-secret
       key: SurfConext__ClientSecret
     - name: workflow-impersonation-key
