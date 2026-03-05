@@ -103,6 +103,7 @@ properties:
       nl: Voorbereiding & methodologie
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessExperimentalSkills
     type: TenPoint!
@@ -111,6 +112,7 @@ properties:
       nl: Experimentele / analytische / programmeervaardigheden
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessReliabilityReproducibility
     type: TenPoint!
@@ -119,6 +121,7 @@ properties:
       nl: Betrouwbaarheid en reproduceerbaarheid
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessInterpretingResults
     type: TenPoint!
@@ -127,6 +130,7 @@ properties:
       nl: Interpreteren van resultaten
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessIndependenceInitiative
     type: TenPoint!
@@ -135,6 +139,7 @@ properties:
       nl: Zelfstandigheid en initiatief
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessCommunicationCollaboration
     type: TenPoint!
@@ -143,6 +148,7 @@ properties:
       nl: Communicatie en samenwerking
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessPlanningTimeManagement
     type: TenPoint!
@@ -151,6 +157,7 @@ properties:
       nl: Planning en tijdmanagement
     layout:
       type: Dropdown
+    weight: 5
 
   # Presentation
   - name: PresentationContextualizationDelivery
@@ -160,6 +167,7 @@ properties:
       nl: Contextualisering & presentatie
     layout:
       type: Dropdown
+    weight: 10
 
   - name: PresentationClarityStyle
     type: TenPoint!
@@ -168,6 +176,7 @@ properties:
       nl: Helderheid en stijl
     layout:
       type: Dropdown
+    weight: 5
 
   - name: PresentationHandlingQuestions
     type: TenPoint!
@@ -176,6 +185,7 @@ properties:
       nl: Omgaan met vragen
     layout:
       type: Dropdown
+    weight: 10
 
   # Summary
   - name: SummaryComments
