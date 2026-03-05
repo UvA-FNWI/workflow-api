@@ -21,7 +21,8 @@ public record WorkflowInstanceDto(
     StepDto[] Steps,
     SubmissionDto[] Submissions,
     RoleAction[] Permissions,
-    bool CanUseAdminTools
+    bool CanUseAdminTools,
+    string[] ViewerRoles
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value);
@@ -37,6 +38,7 @@ public record StepVersionDto
 public record StepDto(
     string Id,
     BilingualString Title,
+    string? Icon,
     string? Event,
     DateTime? DateCompleted,
     DateTime? Deadline,
