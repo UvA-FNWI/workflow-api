@@ -59,7 +59,8 @@ public record QuestionDto(
     BilingualString? ShortText,
     Dictionary<string, object>? Layout,
     QuestionDto[]? SubProperties,
-    bool HideInResults)
+    bool HideInResults,
+    int? MaxLength)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
@@ -74,7 +75,8 @@ public record QuestionDto(
         propertyDefinition is { DataType: DataType.Object, WorkflowDefinition: not null }
             ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context)).ToArray()
             : null,
-        propertyDefinition.HideInResults
+        propertyDefinition.HideInResults,
+        propertyDefinition.Validation?.Value?.MaxLength
     );
 }
 

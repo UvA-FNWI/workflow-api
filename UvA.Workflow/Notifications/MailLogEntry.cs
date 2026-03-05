@@ -3,14 +3,6 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Notifications;
 
-public enum MailTriggerType
-{
-    Action,
-    FormSubmission
-}
-
-public record MailTriggerContext(MailTriggerType TriggerType, string? ActionName = null, string? FormId = null);
-
 public class MailLogEntry
 {
     [BsonId]

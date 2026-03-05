@@ -91,13 +91,9 @@ public class GraphMailService : IMailService
             },
             ToRecipients = BuildRecipients(mail.To, overrideRecipient),
             CcRecipients = BuildRecipients(mail.Cc, overrideRecipient),
-            BccRecipients = BuildRecipients(mail.Bcc, overrideRecipient)
+            BccRecipients = BuildRecipients(mail.Bcc, overrideRecipient),
+            Attachments = BuildAttachments(mail.Attachments)
         };
-        var attachments = BuildAttachments(mail.Attachments);
-        if (attachments is { Count: > 0 })
-            graphMessage.Attachments = attachments;
-        else
-            graphMessage.AdditionalData = new Dictionary<string, object> { ["attachments"] = Array.Empty<object>() };
         return graphMessage;
     }
 
@@ -106,7 +102,7 @@ public class GraphMailService : IMailService
             .Select(ToRecipient)
             .ToList();
 
-    private static List<Microsoft.Graph.Models.Attachment>? BuildAttachments(IEnumerable<MailAttachment>? attachments)
+    private static List<Microsoft.Graph.Models.Attachment> BuildAttachments(IEnumerable<MailAttachment>? attachments)
         => attachments?
             .Select<MailAttachment, Microsoft.Graph.Models.Attachment>(attachment => new FileAttachment
             {
@@ -115,7 +111,7 @@ public class GraphMailService : IMailService
                 ContentType = "application/octet-stream",
                 ContentBytes = attachment.Content
             })
-            .ToList();
+            .ToList() ?? [];
 
     private static Recipient ToRecipient(MailRecipient recipient)
         => new()

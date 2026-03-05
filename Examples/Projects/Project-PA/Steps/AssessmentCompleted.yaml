@@ -1,0 +1,7 @@
+name: AssessmentCompleted
+title:
+  en: Grade registration (SIS)
+  nl: Cijferregistratie (SIS)
+
+ends:
+  event: AssessmentCompleted
