@@ -29,63 +29,29 @@ pages:
 onSubmit:
   - sendMail:
      toAddress: "replaced-by-override@mail.com"
-     subject: "New project submitted: {{ Subject }}"
-     body: |
-       <html>
-       <head>
-         <style>
-           body {
-             background-color: #f4f6fa;
-             font-family: Arial, sans-serif;
-           }
-           h2 {
-             color: #224488;
-           }
-           table {
-             border-collapse: collapse;
-             width: 100%;
-             background-color: #ffffff;
-           }
-           th, td {
-             border: 1px solid #cccccc;
-             padding: 8px 12px;
-           }
-           th {
-             background-color: #e2eafc;
-             color: #113366;
-           }
-           tr:nth-child(even) td {
-             background-color: #f0f4fb;
-           }
-         </style>
-       </head>
-         <body>
-           <h2>New Project Submitted: {{ Subject }}</h2>
-           <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
-             <tr>
-               <th align="left">Project Description</th>
-               <td>{{ Description }}</td>
-             </tr>
-             <tr>
-               <th align="left">Test Document</th>
-               <td>{{ TestDocument }}</td>
-             </tr>
-             <tr>
-               <th align="left">Start Date</th>
-               <td>{{ StartDate }}</td>
-             </tr>
-             <tr>
-               <th align="left">Deadline</th>
-               <td>{{ Deadline }}</td>
-             </tr>
-             <tr>
-               <th align="left">End Date</th>
-               <td>{{ EndDate }}</td>
-             </tr>
-             <tr>
-               <th align="left">EC</th>
-               <td>{{ EC }}</td>
-             </tr>
-           </table>
-         </body>
-       </html>
+     layout: default
+     subject:
+       en: "New project submitted: {{ Subject }}"
+       nl: "Nieuw project ingediend: {{ Subject }}"
+     body:
+       en: |
+         Dear {{ Student.DisplayName[0] }},
+
+         Your thesis proprosal has been submitted. Great work 👍 You've taken the first step!
+
+         **What to expect next?**
+
+         The coordinator of your program will review the information you submitted. You will receive feedback within approximately 14 days.
+       nl: |
+         Beste {{ Student.DisplayName[0] }},
+
+         Je scriptieonderwerp is ingeleverd. Goed bezig 👍 De eerste stap is gezet!
+
+         **Wat kan je nu verwachten?**
+
+         De coördinator van je opleiding kijkt naar de informatie die je hebt ingeleverd. Je krijgt ongeveer binnen 14 dagen feedback.
+     buttons:
+      - label:
+          en: "View your submission"
+          nl: "Bekijk je ingediende voorstel"
+        url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"
