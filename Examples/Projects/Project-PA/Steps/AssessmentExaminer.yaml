@@ -1,0 +1,209 @@
+name: AssessmentExaminer
+title:
+  en: Assessment (examiner)
+  nl: Beoordeling (examinator)
+
+actions:
+  - name: SubmitAssessmentExaminer
+    type: Submit
+    roles: [Examiner]
+    form: AssessmentExaminer
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+properties:
+  - name: PlagiarismReportUrl
+    type: String!
+    text:
+      en: Link to plagiarism report (Turnitin)
+      nl: Link naar plagiaatrapport (Turnitin)
+
+  - name: FraudChecked
+    type: FraudCheckedType!
+    text:
+      en: I have checked the work for fraud and plagiarism
+      nl: Ik heb het werk gecontroleerd op fraude en plagiaat
+    layout:
+      type: RadioList
+    values:
+      - name: Checked
+        text:
+          en: I confirm I have checked the work for fraud and plagiarism
+          nl: Ik bevestig dat ik het werk heb gecontroleerd op fraude en plagiaat
+
+  # Product
+  - name: ProductAbstract
+    type: TenPoint!
+    text:
+      en: Abstract (5%)
+      nl: Abstract (5%)
+    layout:
+      type: Dropdown
+
+  - name: ProductIntroduction
+    type: TenPoint!
+    text:
+      en: Introduction (5%)
+      nl: Inleiding (5%)
+    layout:
+      type: Dropdown
+
+  - name: ProductMethods
+    type: TenPoint!
+    text:
+      en: Methods (10%)
+      nl: Methods (10%)
+    layout:
+      type: Dropdown
+
+  - name: ProductResults
+    type: TenPoint!
+    text:
+      en: Results (10%)
+      nl: Resultaten (10%)
+    layout:
+      type: Dropdown
+
+  - name: ProductDiscussionConclusion
+    type: TenPoint!
+    text:
+      en: Discussion and conclusion (5%)
+      nl: Discussie en conclusie (5%)
+    layout:
+      type: Dropdown
+
+  - name: ProductReadability
+    type: TenPoint!
+    text:
+      en: Readability (5%)
+      nl: Leesbaarheid (5%)
+    layout:
+      type: Dropdown
+
+  - name: ProductComments
+    type: String
+    text:
+      en: Comments
+      nl: Toelichting
+    layout:
+      multiline: true
+
+  # Process
+  - name: ProcessPreparationMethodology
+    type: TenPoint!
+    text:
+      en: Preparation & methodology
+      nl: Voorbereiding & methodologie
+    layout:
+      type: Dropdown
+
+  - name: ProcessExperimentalSkills
+    type: TenPoint!
+    text:
+      en: Experimental / analytical / programming skills
+      nl: Experimentele / analytische / programmeervaardigheden
+    layout:
+      type: Dropdown
+
+  - name: ProcessReliabilityReproducibility
+    type: TenPoint!
+    text:
+      en: Reliability and reproducibility
+      nl: Betrouwbaarheid en reproduceerbaarheid
+    layout:
+      type: Dropdown
+
+  - name: ProcessInterpretingResults
+    type: TenPoint!
+    text:
+      en: Interpreting results
+      nl: Interpreteren van resultaten
+    layout:
+      type: Dropdown
+
+  - name: ProcessIndependenceInitiative
+    type: TenPoint!
+    text:
+      en: Independence and initiative
+      nl: Zelfstandigheid en initiatief
+    layout:
+      type: Dropdown
+
+  - name: ProcessCommunicationCollaboration
+    type: TenPoint!
+    text:
+      en: Communication and collaboration
+      nl: Communicatie en samenwerking
+    layout:
+      type: Dropdown
+
+  - name: ProcessPlanningTimeManagement
+    type: TenPoint!
+    text:
+      en: Planning and time management
+      nl: Planning en tijdmanagement
+    layout:
+      type: Dropdown
+
+  # Presentation
+  - name: PresentationContextualizationDelivery
+    type: TenPoint!
+    text:
+      en: Contextualization & delivery
+      nl: Contextualisering & presentatie
+    layout:
+      type: Dropdown
+
+  - name: PresentationClarityStyle
+    type: TenPoint!
+    text:
+      en: Clarity and style
+      nl: Helderheid en stijl
+    layout:
+      type: Dropdown
+
+  - name: PresentationHandlingQuestions
+    type: TenPoint!
+    text:
+      en: Handling questions
+      nl: Omgaan met vragen
+    layout:
+      type: Dropdown
+
+  # Summary
+  - name: SummaryComments
+    type: String!
+    text:
+      en: Comments
+      nl: Toelichting
+    layout:
+      multiline: true
+
+  - name: Laudatio
+    type: String!
+    text:
+      en: Laudatio
+      nl: Laudatio
+    layout:
+      multiline: true
+
+  - name: ConsentExaminerName
+    type: ConsentExaminerNameType!
+    text:
+      en: May your name appear in the database at scripties.uva.nl if the thesis is published?
+      nl: Mag jouw naam in de database van scripties.uva.nl komen als de scriptie wordt gepubliceerd?
+    layout:
+      type: RadioList
+    values:
+      - name: Yes
+        text:
+          en: Yes
+          nl: Ja
+      - name: No
+        text:
+          en: No
+          nl: Nee
+
+ends:
+  event: AssessmentExaminer
