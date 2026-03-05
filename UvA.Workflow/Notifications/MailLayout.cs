@@ -110,8 +110,8 @@ public abstract class FileMailLayout : INamedMailLayout
 public class DefaultMailLayout : FileMailLayout
 {
     public DefaultMailLayout() : base(MailLayoutResolver.DefaultKey,
-        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "UvA.Workflow",
-            "Notifications", "Layouts", "default.html")))
+        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "Examples",
+            "Layouts", "default.html")))
     {
     }
 }

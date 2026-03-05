@@ -69,14 +69,11 @@ public class Effect
     public IEnumerable<Lookup?> Properties =>
     [
         ..Condition?.Properties ?? [],
-        ..SendMail?.SubjectTemplate?.En.Properties ?? [],
-        ..SendMail?.SubjectTemplate?.Nl.Properties ?? [],
-        ..SendMail?.BodyTemplate?.En.Properties ?? [],
-        ..SendMail?.BodyTemplate?.Nl.Properties ?? [],
+        ..SendMail?.SubjectTemplate?.Properties ?? [],
+        ..SendMail?.BodyTemplate?.Properties ?? [],
         ..SendMail?.ToAddressTemplate?.Properties ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
-        ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.En.Properties) ?? [],
-        ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Nl.Properties) ?? [],
+        ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
         ..Http?.UrlTemplate.Properties ?? [],
         ..SetProperty?.ValueExpression.Properties ?? [],
         SendMail?.To
