@@ -51,8 +51,6 @@ public class ActionsController(
                 await effectService.AddEvent(instance, input.Name, currentUser, ct);
 
                 result = await jobService.CreateAndRunJob(instance, action, currentUser, input.JobInput, ct);
-                // await effectService.RunEffects(instance, action.OnAction, currentUser, ct, input.Mail,
-                // new MailTriggerContext(MailTriggerType.Action, ActionName: input.Name));
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }

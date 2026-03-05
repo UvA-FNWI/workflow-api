@@ -20,7 +20,8 @@ public class SubmissionService(
     InstanceService instanceService,
     IInstanceJournalService instanceJournalService,
     WorkflowInstanceService workflowInstanceService,
-    JobService jobService
+    JobService jobService,
+    EffectService effectService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
@@ -86,7 +87,7 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors);
         }
 
-        // await effectService.AddEvent(instance, submissionId, user, ct);
+        await effectService.AddEvent(instance, submissionId, user, ct);
 
         var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
             form.Name, form.OnSubmit, user, null, ct);
