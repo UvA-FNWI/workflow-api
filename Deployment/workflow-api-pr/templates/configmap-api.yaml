@@ -9,6 +9,10 @@ data:
   Serilog__MinimumLevel__Override__Uva.DataNose: "{{ .Values.logLevel }}"
   
   DataNoseApi__BaseAddress: "{{ .Values.datanoseApi.baseAddress }}"
+  GraphMail__TenantId: "{{ .Values.graph.tenantId }}"
+  GraphMail__ClientId: "{{ .Values.graph.clientId }}"
+  GraphMail__UserAccount: "{{ .Values.graph.userAccount }}"
+  GraphMail__OverrideRecipient: "{{ .Values.graph.overrideRecipient }}"
   
   AllowedOrigins: "{{ .Values.allowedOrigins }}"
 
