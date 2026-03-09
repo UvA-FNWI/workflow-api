@@ -4,49 +4,61 @@ namespace UvA.Workflow.Calculations;
 
 public static class CalculationService
 {
-    public static Result[] CalculateFormResults(Answer[] answers, Form form)
+    public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext)
     {
-        return form.Pages
-            .SelectMany(page =>
-                page.Fields
-                    .Where(field => field.Weight.HasValue)
+        int totalWeight = submissionContext.Form.Pages
+            .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
+            .Sum(field => field.Weight ?? 0);
+
+        return submissionContext.Form.Pages
+            .ToDictionary(
+                page => page.Name,
+                page => page.Fields.Where(field => field.Weight.HasValue)
                     .Select(field =>
                     {
-                        var answer = answers.FirstOrDefault(a => a.QuestionName == field.Name);
+                        var answer = submissionContext.Instance.Properties.SingleOrDefault(a => a.Key == field.Name);
 
+                        var answerValue = ObjectContext.GetValue(answer.Value, DataType.String, null) as string;
                         return new Result
                         {
                             QuestionName = field.Name,
-                            PageName = page.Name,
                             Weight = field.Weight ?? 0,
-                            Answer = int.TryParse(answer?.Value?.GetString(), out var n) ? n : 0
+                            Percentage = totalWeight == 0
+                                ? 0
+                                : Math.Round(((double)field.Weight / totalWeight) * 100, 2),
+                            Answer = int.TryParse(answerValue, out var n) ? n : 0
                         };
                     })
-            )
-            .ToArray();
+                    .ToArray()
+            );
     }
 
-    public static Dictionary<string, double> CalculateWeightedAverages(Result[] results)
+    public static Dictionary<string, double> CalculateWeightedAverages(Dictionary<string, Result[]> results)
     {
-        if (results.Length == 0)
-            return new Dictionary<string, double>();
+        var output = new Dictionary<string, double>();
+        var totalWeight = 0;
+        double totalWeightedSum = 0;
 
-        var dict = results
-            .GroupBy(r => r.PageName)
-            .ToDictionary(
-                g => g.Key,
-                g =>
-                {
-                    double weightSum = g.Sum(r => r.Weight);
-                    return weightSum == 0 ? 0 : Math.Round(g.Sum(r => r.Answer * r.Weight) / weightSum, 2);
-                });
+        foreach (var (key, pageResults) in results)
+        {
+            if (pageResults.Length == 0)
+            {
+                output[key] = 0;
+            }
 
-        // Total weighted average
-        double totalWeight = results.Sum(r => r.Weight);
-        double totalWeightedSum = results.Sum(r => r.Answer * r.Weight);
+            int totalPageWeight = pageResults.Sum(r => r.Weight);
+            double totalPageWeightedSum = pageResults.Sum(r => r.Answer * r.Weight);
+            totalWeight += totalPageWeight;
+            totalWeightedSum += totalPageWeightedSum;
 
-        dict["total"] = totalWeight == 0 ? 0 : Math.Round(totalWeightedSum / totalWeight, 2);
+            output[key] = totalPageWeight == 0
+                ? 0
+                : Math.Round(totalPageWeightedSum / totalPageWeight, 2);
+        }
 
-        return dict;
+
+        output["total"] = totalWeight == 0 ? 0 : Math.Round(totalWeightedSum / totalWeight, 2);
+
+        return output;
     }
 }

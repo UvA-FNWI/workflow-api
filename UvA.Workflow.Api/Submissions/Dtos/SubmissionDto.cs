@@ -12,8 +12,7 @@ public record SubmissionDto(
     AnswerDto[] Answers,
     DateTime? DateSubmitted,
     FormDto Form,
-    RoleAction[] Permissions,
-    Dictionary<string, double>? AverageResults);
+    RoleAction[] Permissions);
 
 public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
 {
@@ -30,8 +29,7 @@ public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, Mod
             answers.Select(a => _answerDtoFactory.Create(a)).ToArray(),
             submission?.Date,
             FormDto.Create(form, context),
-            permissions ?? [],
-            CalculationService.CalculateWeightedAverages(CalculationService.CalculateFormResults(answers, form))
+            permissions ?? []
         );
     }
 }

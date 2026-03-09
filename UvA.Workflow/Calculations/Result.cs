@@ -8,14 +8,14 @@ public class Result
     public string QuestionName { get; set; }
 
     /// <summary>
-    /// The page the question is on
-    /// </summary>
-    public string PageName { get; set; }
-
-    /// <summary>
     /// The weight of the question
     /// </summary>
     public int Weight { get; set; }
+
+    /// <summary>
+    /// The percentage of the weight of the answer in relation to all other questions in the form
+    /// </summary>
+    public double Percentage { get; set; }
 
     /// <summary>
     /// The given answer
