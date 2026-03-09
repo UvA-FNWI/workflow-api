@@ -11,9 +11,10 @@ public static class CalculationService
             .Sum(field => field.Weight ?? 0);
 
         return submissionContext.Form.Pages
+            .Where(page => page.Fields.Any(field => field.Weight.HasValue)) // Filter out pages without a weight
             .ToDictionary(
                 page => page.Name,
-                page => page.Fields.Where(field => field.Weight.HasValue)
+                page => page.Fields.Where(field => field.Weight.HasValue) // Filter out fields without a weight
                     .Select(field =>
                     {
                         var answer = submissionContext.Instance.Properties.SingleOrDefault(a => a.Key == field.Name);
@@ -41,11 +42,6 @@ public static class CalculationService
 
         foreach (var (key, pageResults) in results)
         {
-            if (pageResults.Length == 0)
-            {
-                output[key] = 0;
-            }
-
             int totalPageWeight = pageResults.Sum(r => r.Weight);
             double totalPageWeightedSum = pageResults.Sum(r => r.Answer * r.Weight);
             totalWeight += totalPageWeight;
