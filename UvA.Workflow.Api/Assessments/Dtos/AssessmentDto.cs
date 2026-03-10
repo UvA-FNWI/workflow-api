@@ -1,21 +1,21 @@
-using UvA.Workflow.Calculations;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Submissions;
 
-namespace UvA.Workflow.Api.Calculations.Dtos;
+namespace UvA.Workflow.Api.Assessments.Dtos;
 
-public record CalculationDto(
+public record AssessmentDto(
     string Id,
     Dictionary<string, Result[]> Results, // <Page name, Results for all questions of that page>
     Dictionary<string, double> WeightedAverages // <Page name, weighted average for all questions on that page>
 )
 {
-    public static CalculationDto Create(SubmissionContext submissionContext)
+    public static AssessmentDto Create(SubmissionContext submissionContext)
     {
-        var calculatedFormResults = CalculationService.CalculateFormResults(submissionContext);
+        var calculatedFormResults = AssessmentService.CalculateFormResults(submissionContext);
         return new(
             submissionContext.Form.Name,
             calculatedFormResults,
-            CalculationService.CalculateWeightedAverages(calculatedFormResults)
+            AssessmentService.CalculateWeightedAverages(calculatedFormResults)
         );
     }
 }

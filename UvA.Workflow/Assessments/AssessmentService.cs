@@ -1,8 +1,8 @@
 using UvA.Workflow.Submissions;
 
-namespace UvA.Workflow.Calculations;
+namespace UvA.Workflow.Assessments;
 
-public static class CalculationService
+public static class AssessmentService
 {
     public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext)
     {

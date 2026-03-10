@@ -1,5 +1,4 @@
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Calculations;
 using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
 

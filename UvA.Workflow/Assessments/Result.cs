@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Calculations;
+namespace UvA.Workflow.Assessments;
 
 public class Result
 {
