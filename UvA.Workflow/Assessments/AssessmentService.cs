@@ -4,7 +4,8 @@ namespace UvA.Workflow.Assessments;
 
 public static class AssessmentService
 {
-    public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext)
+    public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext,
+        string? pageName)
     {
         int totalWeight = submissionContext.Form.Pages
             .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
@@ -12,6 +13,7 @@ public static class AssessmentService
 
         return submissionContext.Form.Pages
             .Where(page => page.Fields.Any(field => field.Weight.HasValue)) // Filter out pages without a weight
+            .Where(page => string.IsNullOrEmpty(pageName) || page.Name == pageName)
             .ToDictionary(
                 page => page.Name,
                 page => page.Fields.Where(field => field.Weight.HasValue) // Filter out fields without a weight
@@ -19,7 +21,7 @@ public static class AssessmentService
                     {
                         var answer = submissionContext.Instance.Properties.SingleOrDefault(a => a.Key == field.Name);
 
-                        var answerValue = ObjectContext.GetValue(answer.Value, DataType.String, null) as string;
+                        var answerString = ObjectContext.GetValue(answer.Value, DataType.String, null) as string;
                         return new Result
                         {
                             QuestionName = field.Name,
@@ -27,14 +29,15 @@ public static class AssessmentService
                             Percentage = totalWeight == 0
                                 ? 0
                                 : Math.Round(((double)field.Weight / totalWeight) * 100, 2),
-                            Answer = int.TryParse(answerValue, out var n) ? n : 0
+                            Answer = int.TryParse(answerString, out var n) ? n : 0
                         };
                     })
                     .ToArray()
             );
     }
 
-    public static Dictionary<string, double> CalculateWeightedAverages(Dictionary<string, Result[]> results)
+    public static Dictionary<string, double> CalculateWeightedAverages(Dictionary<string, Result[]> results,
+        string? pageName)
     {
         var output = new Dictionary<string, double>();
         var totalWeight = 0;
