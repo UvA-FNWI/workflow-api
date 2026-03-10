@@ -9,6 +9,7 @@ contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
 allowedOrigins: "http://localhost:5173"
+frontendBaseUrl: "http://localhost:5173"
 
 datanoseApi:
   baseAddress: https://api-v2-tst.datanose.nl/

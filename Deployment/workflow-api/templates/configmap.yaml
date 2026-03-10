@@ -15,6 +15,7 @@ data:
   Serilog__MinimumLevel__Override__Uva.DataNose: "{{ .Values.logLevel }}"
 
   AllowedOrigins: "{{ .Values.allowedOrigins }}"
+  FrontendBaseUrl: "{{ .Values.frontendBaseUrl }}"
   
   SurfConext__BaseUrl: "{{ .Values.surfConext.baseUrl }}"
   SurfConext__ClientId: "{{ .Values.surfConext.clientId }}"
