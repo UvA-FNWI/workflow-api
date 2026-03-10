@@ -222,6 +222,11 @@ public class Value : ConditionPart
 
     private Expression? GreaterThanOrEqualExpression => ExpressionParser.Parse(GreaterThanOrEqual);
 
+    /// <summary>
+    /// Maximum length of a string
+    /// </summary>
+    public int? MaxLength { get; set; }
+
     public override Lookup[] Dependants =>
     [
         Property,
@@ -253,6 +258,8 @@ public class Value : ConditionPart
             return IsEmpty.Value ^ !string.IsNullOrWhiteSpace(prop?.ToString());
         if (InExpression != null)
             return InExpression.Execute(context) is IEnumerable p && p.Cast<object>().Contains(prop);
+        if (MaxLength != null)
+            return prop is string s && s.Length <= MaxLength;
         throw new InvalidOperationException("Invalid condition");
     }
 }

@@ -60,7 +60,8 @@ public record QuestionDto(
     Dictionary<string, object>? Layout,
     QuestionDto[]? SubProperties,
     bool HideInResults,
-    int? Weight)
+    int? Weight,
+    int? MaxLength)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
@@ -76,7 +77,8 @@ public record QuestionDto(
             ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context)).ToArray()
             : null,
         propertyDefinition.HideInResults,
-        propertyDefinition.Weight
+        propertyDefinition.Weight,
+        propertyDefinition.Validation?.Value?.MaxLength
     );
 }
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel.Conditions;
 using Action = UvA.Workflow.Entities.Domain.Action;
 
@@ -100,7 +101,7 @@ public class JobService(
 
             try
             {
-                result += await effectService.RunEffect(job.Input, instance, effect, user, context, ct);
+                result += await effectService.RunEffect(job, instance, effect, user, context, ct);
             }
             catch (Exception ex)
             {
