@@ -28,21 +28,21 @@ public record FormDto(
 
 public record PageDto(
     int Index,
+    string Name,
     BilingualString Title,
     BilingualString? Introduction,
     PageLayout Layout,
-    QuestionDto[] Questions,
-    int? Weight
+    QuestionDto[] Questions
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context)
         => new(
             index,
+            page.Name,
             page.DisplayTitle,
             page.IntroductionTemplate?.Apply(context),
             page.Layout,
-            questions.ToArray(),
-            questions.Sum(q => q.Weight)
+            questions.ToArray()
         );
 }
 
