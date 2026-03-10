@@ -28,7 +28,7 @@ public static class AssessmentService
                             Weight = field.Weight ?? 0,
                             Percentage = totalWeight == 0
                                 ? 0
-                                : Math.Round(((double)field.Weight / totalWeight) * 100, 2),
+                                : Math.Round(((double)field.Weight.GetValueOrDefault() / totalWeight) * 100, 2),
                             Answer = int.TryParse(answerString, out var n) ? n : 0
                         };
                     })

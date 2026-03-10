@@ -5,7 +5,7 @@ public class Result
     /// <summary>
     /// The question this result belongs to
     /// </summary>
-    public string QuestionName { get; set; }
+    public string QuestionName { get; set; } = null!;
 
     /// <summary>
     /// The weight of the question
