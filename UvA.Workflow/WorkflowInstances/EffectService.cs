@@ -3,7 +3,8 @@ using System.Text.Json;
 using UvA.Workflow.Events;
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Jobs;
-using UvA.Workflow.WorkflowModel.Conditions;
+using UvA.Workflow.Notifications;
+using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -18,31 +19,67 @@ public class EffectService(
     IInstanceEventService eventService,
     ModelService modelService,
     IMailService mailService,
+    IArtifactService artifactService,
+    IMailLogRepository mailLogRepository,
+    IOptions<GraphMailOptions> graphMailOptions,
     IConfiguration configuration)
 {
-    public async Task<EffectResult> RunEffect(JobInput? input, WorkflowInstance instance, Effect effect, User user,
+    private readonly GraphMailOptions _graphMailOptions = graphMailOptions.Value;
+
+    public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
         ObjectContext context, CancellationToken ct)
     {
-        string? redirectUrl = null;
+        var input = job.Input;
         if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
         if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
-        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, ct, input?.Mail);
+        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
-        redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
+        var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
 
         return new EffectResult(redirectUrl);
     }
 
-    private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
-        MailMessage? mail = null)
+    private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
+        MailMessage? mail = null, string? jobId = null)
     {
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
 
         mail ??= (await Mail.FromModel(instance, sendMail, modelService))!.ToMailMessage();
-        // TODO: sendAsMail vs message
         await mailService.Send(mail);
+
+        var attachments = new List<ArtifactInfo>();
+        if (mail.Attachments is { Count: > 0 } mailAttachments)
+        {
+            foreach (var a in mailAttachments)
+            {
+                var artifact = await artifactService.SaveArtifact(a.FileName, a.Content);
+                attachments.Add(artifact);
+            }
+        }
+
+        await mailLogRepository.Log(new MailLogEntry
+        {
+            WorkflowInstanceId = instance.Id,
+            WorkflowDefinition = instance.WorkflowDefinition,
+            ExecutedBy = user.Id,
+            JobId = jobId,
+            OverrideRecipient = _graphMailOptions.OverrideRecipient,
+            Subject = mail.Subject,
+            Body = mail.Body,
+            AttachmentTemplate = mail.AttachmentTemplate,
+            To = mail.To
+                .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
+                .ToArray(),
+            Cc = mail.Cc?
+                .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
+                .ToArray() ?? [],
+            Bcc = mail.Bcc?
+                .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
+                .ToArray() ?? [],
+            Attachments = attachments.ToArray()
+        }, ct);
     }
 
     private async Task UndoEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)

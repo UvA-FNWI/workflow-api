@@ -17,11 +17,11 @@ public record InvalidQuestion(
 public class SubmissionService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    EffectService effectService,
     InstanceService instanceService,
     IInstanceJournalService instanceJournalService,
     WorkflowInstanceService workflowInstanceService,
-    JobService jobService
+    JobService jobService,
+    EffectService effectService
 )
 {
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,

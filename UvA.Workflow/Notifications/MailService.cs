@@ -1,11 +1,6 @@
 using UvA.Workflow.Expressions;
 
-namespace UvA.Workflow.Services;
-
-public interface IMailService
-{
-    Task Send(MailMessage mail);
-}
+namespace UvA.Workflow.Notifications;
 
 public class DummyMailService : IMailService
 {
@@ -48,7 +43,7 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
         return new Mail([recipient], subject ?? "", body, attachmentContent);
     }
 
-    public MailMessage ToMailMessage() => new(Subject, Body, false, AttachmentTemplate)
+    public MailMessage ToMailMessage() => new(Subject, Body, AttachmentTemplate)
     {
         To = To.ToList()
     };
@@ -77,7 +72,6 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
 public record MailMessage(
     string Subject,
     string Body,
-    bool SendAsHtml = false,
     string? AttachmentTemplate = null
 )
 {
