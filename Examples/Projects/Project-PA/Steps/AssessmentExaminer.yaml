@@ -161,30 +161,24 @@ properties:
 
   # Presentation
   - name: PresentationContextualizationDelivery
-    type: TenPoint!
+    type: Double!
     text:
       en: Contextualization & delivery
       nl: Contextualisering & presentatie
-    layout:
-      type: Dropdown
     weight: 10
 
   - name: PresentationClarityStyle
-    type: TenPoint!
+    type: Double!
     text:
       en: Clarity and style
       nl: Helderheid en stijl
-    layout:
-      type: Dropdown
-    weight: 5
+    weight: 4
 
   - name: PresentationHandlingQuestions
-    type: TenPoint!
+    type: Double!
     text:
       en: Handling questions
       nl: Omgaan met vragen
-    layout:
-      type: Dropdown
     weight: 10
 
   # Summary

@@ -6,16 +6,22 @@ namespace UvA.Workflow.Api.Assessments.Dtos;
 public record AssessmentDto(
     string Id,
     Dictionary<string, Result[]> Results, // <Page name, Results for all questions of that page>
-    Dictionary<string, double> WeightedAverages // <Page name, weighted average for all questions on that page>
+    Dictionary<string, decimal> WeightedAverages // <Page name, weighted average for all questions on that page>
 )
 {
     public static AssessmentDto Create(SubmissionContext submissionContext)
     {
-        var calculatedFormResults = AssessmentService.CalculateFormResults(submissionContext, null);
+        var results = AssessmentService.CalculateFormResults(submissionContext, null);
+        var weightedAverages = AssessmentService.CalculateWeightedAverages(results, null);
+
+        results.Values
+            .SelectMany(arr => arr)
+            .ForEach(r => r.Percentage = Math.Round(r.Percentage, 2, MidpointRounding.AwayFromZero));
+
         return new(
             submissionContext.Form.Name,
-            calculatedFormResults,
-            AssessmentService.CalculateWeightedAverages(calculatedFormResults, null)
+            results,
+            weightedAverages
         );
     }
 }
@@ -24,19 +30,23 @@ public record AssessmentPageDto(
     string Id,
     string FormName,
     Result[] Results, // Results for all questions of that page
-    double WeightedAverage // weighted average for all questions on that page
+    decimal WeightedAverage // weighted average for all questions on that page
 )
 {
     public static AssessmentPageDto Create(SubmissionContext submissionContext, string pageName)
     {
         var results = AssessmentService.CalculateFormResults(submissionContext, pageName);
-        var weighted = AssessmentService.CalculateWeightedAverages(results, pageName);
+        var weightedAverages = AssessmentService.CalculateWeightedAverages(results, pageName);
+
+        results.Values
+            .SelectMany(arr => arr)
+            .ForEach(r => r.Percentage = Math.Round(r.Percentage, 2, MidpointRounding.AwayFromZero));
 
         return new(
             pageName,
             submissionContext.Form.Name,
             results.GetValueOrDefault(pageName) ?? Array.Empty<Result>(),
-            weighted.GetValueOrDefault(pageName)
+            weightedAverages.GetValueOrDefault(pageName)
         );
     }
 }

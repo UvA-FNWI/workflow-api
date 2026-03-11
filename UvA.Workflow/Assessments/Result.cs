@@ -15,10 +15,10 @@ public class Result
     /// <summary>
     /// The percentage of the weight of the answer in relation to all other questions in the form
     /// </summary>
-    public double Percentage { get; set; }
+    public decimal Percentage { get; set; }
 
     /// <summary>
     /// The given answer
     /// </summary>
-    public int Answer { get; set; }
+    public double Answer { get; set; }
 }

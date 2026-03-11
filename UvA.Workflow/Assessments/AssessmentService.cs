@@ -21,42 +21,42 @@ public static class AssessmentService
                     {
                         var answer = submissionContext.Instance.Properties.SingleOrDefault(a => a.Key == field.Name);
 
-                        var answerString = ObjectContext.GetValue(answer.Value, DataType.String, null) as string;
                         return new Result
                         {
                             QuestionName = field.Name,
                             Weight = field.Weight ?? 0,
                             Percentage = totalWeight == 0
                                 ? 0
-                                : Math.Round(((double)field.Weight.GetValueOrDefault() / totalWeight) * 100, 2),
-                            Answer = int.TryParse(answerString, out var n) ? n : 0
+                                : (decimal)field.Weight.GetValueOrDefault() / totalWeight * 100,
+                            Answer = answer.Value.IsBsonNull ? 0 : answer.Value.ToDouble()
                         };
                     })
                     .ToArray()
             );
     }
 
-    public static Dictionary<string, double> CalculateWeightedAverages(Dictionary<string, Result[]> results,
+    public static Dictionary<string, decimal> CalculateWeightedAverages(Dictionary<string, Result[]> results,
         string? pageName)
     {
-        var output = new Dictionary<string, double>();
+        var output = new Dictionary<string, decimal>();
         var totalWeight = 0;
-        double totalWeightedSum = 0;
+        decimal totalAnswersSum = 0;
 
         foreach (var (key, pageResults) in results)
         {
-            int totalPageWeight = pageResults.Sum(r => r.Weight);
-            double totalPageWeightedSum = pageResults.Sum(r => r.Answer * r.Weight);
-            totalWeight += totalPageWeight;
-            totalWeightedSum += totalPageWeightedSum;
+            int pageWeight = pageResults.Sum(r => r.Weight);
+            decimal pageAnswersSum = pageResults.Sum(r => (decimal)r.Answer * r.Weight);
+            totalWeight += pageWeight;
+            totalAnswersSum += pageAnswersSum;
 
-            output[key] = totalPageWeight == 0
+            output[key] = pageWeight == 0
                 ? 0
-                : Math.Round(totalPageWeightedSum / totalPageWeight, 2);
+                : Math.Round(pageAnswersSum / pageWeight, 2, MidpointRounding.AwayFromZero);
         }
 
-
-        output["total"] = totalWeight == 0 ? 0 : Math.Round(totalWeightedSum / totalWeight, 2);
+        output["total"] = totalWeight == 0
+            ? 0
+            : Math.Round(totalAnswersSum / totalWeight, 2, MidpointRounding.AwayFromZero);
 
         return output;
     }
