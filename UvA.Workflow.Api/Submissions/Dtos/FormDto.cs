@@ -32,7 +32,8 @@ public record PageDto(
     BilingualString Title,
     BilingualString? Introduction,
     PageLayout Layout,
-    QuestionDto[] Questions
+    QuestionDto[] Questions,
+    bool HasResults
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context)
@@ -42,7 +43,8 @@ public record PageDto(
             page.DisplayTitle,
             page.IntroductionTemplate?.Apply(context),
             page.Layout,
-            questions.ToArray()
+            questions.ToArray(),
+            page.HasResults
         );
 }
 
