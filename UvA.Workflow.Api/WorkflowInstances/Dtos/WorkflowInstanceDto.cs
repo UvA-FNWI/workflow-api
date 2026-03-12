@@ -1,7 +1,7 @@
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Events;
-using UvA.Workflow.Versioning;
+using UvA.Workflow.Notifications;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 

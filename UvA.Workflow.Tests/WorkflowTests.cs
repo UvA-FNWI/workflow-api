@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
@@ -10,6 +11,7 @@ using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Services;
 using UvA.Workflow.Submissions;
@@ -24,6 +26,7 @@ public class WorkflowTests
     readonly Mock<IInstanceEventRepository> _eventRepoMock;
     readonly Mock<IUserService> _userServiceMock;
     readonly Mock<IMailService> _mailServiceMock;
+    readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     readonly Mock<IArtifactService> _artifactServiceMock;
     readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
     readonly Mock<IInstanceEventService> _instanceEventService;
@@ -60,6 +63,7 @@ public class WorkflowTests
         _eventRepoMock = new Mock<IInstanceEventRepository>();
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
+        _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
         _instanceEventService = new Mock<IInstanceEventService>();
@@ -80,12 +84,18 @@ public class WorkflowTests
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            _configurationMock.Object);
+            _artifactServiceMock.Object,
+            _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
+            {
+                TenantId = "tenant",
+                ClientId = "client",
+                UserAccount = "user@mail.com",
+            }), _configurationMock.Object);
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService);
         _submissionService =
-            new SubmissionService(_instanceRepoMock.Object, _modelService, _effectService, _instanceService,
+            new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService);
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
