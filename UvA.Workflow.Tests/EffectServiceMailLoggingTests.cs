@@ -20,6 +20,8 @@ public class EffectServiceMailLoggingTests
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
+        var instanceService =
+            new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService);
 
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
@@ -30,9 +32,7 @@ public class EffectServiceMailLoggingTests
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = new MailBuilder(mailLayoutResolver.Object, configuration.Object);
-        var instanceService =
-            new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder);
+
         var effectService = new EffectService(
             instanceService,
             eventService.Object,
