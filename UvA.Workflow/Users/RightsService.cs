@@ -66,6 +66,17 @@ public class RightsService(
                 ))
             .ToArray();
 
+    public async Task<string[]> GetViewerRoles(WorkflowInstance instance, CancellationToken ct = default)
+    {
+        var globalRoles = await GetGlobalRoles();
+        var instanceRoles = await GetInstanceRoles(instance, ct);
+
+        return globalRoles
+            .Concat(instanceRoles.Where(r => r != null).Select(r => r!.Name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private async Task<Role?[]> GetInstanceRoles(WorkflowInstance instance, CancellationToken ct = default)
     {
         var user = await userService.GetCurrentUser(ct);

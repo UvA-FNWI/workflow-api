@@ -28,6 +28,7 @@ public class WorkflowInstanceDtoFactory(
             instance,
             RoleAction.ViewAdminTools,
             RightsEvaluationMode.RealUser);
+        var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
 
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
@@ -46,7 +47,8 @@ public class WorkflowInstanceDtoFactory(
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
                 .ToArray(),
             permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray(),
-            canUseAdminTools
+            canUseAdminTools,
+            viewerRoles
         );
         return x;
     }
@@ -118,6 +120,7 @@ public class WorkflowInstanceDtoFactory(
         return new StepDto(
             step.Name,
             step.DisplayTitle,
+            step.Icon,
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
             step.GetDeadline(instance, modelService),
