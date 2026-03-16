@@ -35,7 +35,7 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
 
         var (subject, body) = mail.TemplateKey != null
             ? await GenerateTemplate(mail.TemplateKey, inst, modelService, context)
-            : (mail.SubjectTemplate?.Execute(context), mail.BodyTemplate!.Execute(context));
+            : (mail.SubjectTemplate?.Apply(context).En, mail.BodyTemplate!.Apply(context).En);
         var (_, attachmentContent) = attachment != null
             ? await GenerateTemplate(attachment.Template, inst, modelService, context)
             : (null, null);

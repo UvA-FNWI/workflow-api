@@ -25,7 +25,7 @@ public record WorkflowAction(
     string? Form = null,
     string? Name = null,
     string? UserId = null,
-    Mail? Mail = null,
+    MailMessage? Mail = null,
     string? Property = null)
 {
     public string Id => $"{InstanceId}_{Type}_{Name ?? Property ?? Form ?? UserId}";

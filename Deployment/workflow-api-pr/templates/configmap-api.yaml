@@ -15,6 +15,7 @@ data:
   GraphMail__OverrideRecipient: "{{ .Values.graph.overrideRecipient }}"
   
   AllowedOrigins: "{{ .Values.allowedOrigins }}"
+  FrontendBaseUrl: "{{ .Values.frontendBaseUrl }}"
 
   SurfConext__BaseUrl: "{{ .Values.surfConext.baseUrl }}"
   SurfConext__ClientId: "{{ .Values.surfConext.clientId }}"

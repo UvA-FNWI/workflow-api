@@ -76,15 +76,19 @@ public class WorkflowTests
         _parser = new ModelParser(modelProvider);
         _modelService = new ModelService(_parser);
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
+        var mailLayoutResolver = new Mock<IMailLayoutResolver>();
+        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
+        var mailBuilder = new MailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
         _instanceService =
-            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService);
+            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
+                mailBuilder);
         _eventService = new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object,
             _rightsService,
             _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            _artifactServiceMock.Object,
+            mailBuilder, _artifactServiceMock.Object,
             _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
             {
                 TenantId = "tenant",
@@ -96,7 +100,7 @@ public class WorkflowTests
             _instanceService);
         _submissionService =
             new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
-                _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService);
+                _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
