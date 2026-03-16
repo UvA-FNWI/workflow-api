@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -15,7 +17,7 @@ public class WorkflowInstancesController(
     ImpersonationService impersonationService
 ) : ApiControllerBase
 {
-    //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
+    [Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)]
     [HttpPost]
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
         [FromBody] CreateWorkflowInstanceDto input, CancellationToken ct)
@@ -127,7 +129,7 @@ public class WorkflowInstancesController(
         ));
     }
 
-    //[Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)] TODO: enable again
+    [Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)]
     [HttpGet("instances/{workflowDefinition}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string workflowDefinition,
         [FromQuery] string[] properties, CancellationToken ct)
