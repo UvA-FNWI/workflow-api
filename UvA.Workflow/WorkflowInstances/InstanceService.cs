@@ -219,7 +219,9 @@ public class InstanceService(
             actions.Add(new AllowedAction(a, Mail: mail));
         }
 
-        return actions;
+        return actions
+            .OrderBy(a => Array.IndexOf(allowed, a.Action))
+            .ToList();
     }
 
     public record AllowedSubmission(InstanceEvent Event, Form Form, Dictionary<string, QuestionStatus> QuestionStatus);
