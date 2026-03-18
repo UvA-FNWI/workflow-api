@@ -5,7 +5,6 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
-    bool HasResults,
     string? Step)
 {
     public static FormDto Create(Form form, ObjectContext context)
@@ -22,7 +21,6 @@ public record FormDto(
             form.Title ?? form.Name,
             filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]), context)).ToArray(),
             form.Layout,
-            form.WorkflowDefinition.Results != null,
             form.Step
         );
     }
@@ -30,19 +28,23 @@ public record FormDto(
 
 public record PageDto(
     int Index,
+    string Name,
     BilingualString Title,
     BilingualString? Introduction,
     PageLayout Layout,
-    QuestionDto[] Questions
+    QuestionDto[] Questions,
+    bool HasResults
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context)
         => new(
             index,
+            page.Name,
             page.DisplayTitle,
             page.IntroductionTemplate?.Apply(context),
             page.Layout,
-            questions.ToArray()
+            questions.ToArray(),
+            page.HasResults
         );
 }
 
@@ -60,6 +62,7 @@ public record QuestionDto(
     Dictionary<string, object>? Layout,
     QuestionDto[]? SubProperties,
     bool HideInResults,
+    int? Weight,
     int? MaxLength)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
@@ -76,6 +79,7 @@ public record QuestionDto(
             ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context)).ToArray()
             : null,
         propertyDefinition.HideInResults,
+        propertyDefinition.Weight,
         propertyDefinition.Validation?.Value?.MaxLength
     );
 }

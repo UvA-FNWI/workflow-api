@@ -76,11 +76,6 @@ public class WorkflowDefinition : INamed
     public Field[] Fields { get; set; } = [];
 
     /// <summary>
-    /// List of computed results for this entity type
-    /// </summary>
-    public Result[]? Results { get; set; }
-
-    /// <summary>
     /// Indicated whether this entity type is stored as an embedded document in the parent instance
     /// </summary>
     public bool IsEmbedded { get; set; }
