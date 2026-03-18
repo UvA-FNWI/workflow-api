@@ -2,7 +2,7 @@ hostname: workflow-api.local
 ingressClass: nginx
 repo: datanosecr.azurecr.io
 tag: latest
-certificateName: datanose-nl
+certificateName: milestones-fnwi-uva-nl
 environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
