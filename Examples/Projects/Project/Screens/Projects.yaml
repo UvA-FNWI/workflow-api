@@ -1,10 +1,10 @@
 name: Projects
 workflowDefinition: Project
 columns:
-  - title: 
-      en: Summary
-      nl: Samenvatting
-    value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
+  - title:
+      en: Student name
+      nl: Naam student 
+    value: "{{Student.DisplayName}}"
     defaultSort: "Descending"
   - property: Title
     link: true
@@ -13,8 +13,14 @@ columns:
     title:
       en: Course
       nl: Vak
-  - property: StartEvent
-  - currentStep: true
+  - property: Supervisor.DisplayName
+    title:
+      en: Supervisor
+      nl: Begeleider
+  - title:
+      en: Progress
+      nl: Voortgang
+    currentStep: true
     filterType: Pick
     default: Draft
 
