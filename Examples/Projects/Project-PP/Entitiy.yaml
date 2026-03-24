@@ -1,0 +1,29 @@
+name: Project-PP
+title: 
+  en: Project (PP)
+  nl: Project (PP)
+titlePlural: 
+  en: Projects (PP)
+  nl: Projecten (PP)
+instanceTitle: '{{ WorkingTitle }}'
+
+fields:
+  - property: Course.Name
+    title: Course
+  - property: Student.DisplayName
+    title: Student
+  - property: WorkingTitle
+    title: Working Title
+  - currentStep: true
+    
+steps:
+  - Start
+  - UploadFinalThesis
+  - AssessmentSupervisor
+  - AssessmentSecondreader
+    
+properties:
+  - name: AssessmentReviewer
+    type: Assessment-PP!
+  - name: AssessmentSupervisor
+    type: Assessment-PP!
