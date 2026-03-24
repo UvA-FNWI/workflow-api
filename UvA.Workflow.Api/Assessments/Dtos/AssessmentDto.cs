@@ -12,7 +12,7 @@ public record AssessmentDto(
     public static AssessmentDto Create(SubmissionContext submissionContext)
     {
         var results = AssessmentService.CalculateFormResults(submissionContext, null);
-        var weightedAverages = AssessmentService.CalculateWeightedAverages(results, null);
+        var weightedAverages = AssessmentService.CalculateWeightedAverages(results);
 
         results.Values
             .SelectMany(arr => arr)
@@ -36,7 +36,7 @@ public record AssessmentPageDto(
     public static AssessmentPageDto Create(SubmissionContext submissionContext, string pageName)
     {
         var results = AssessmentService.CalculateFormResults(submissionContext, pageName);
-        var weightedAverages = AssessmentService.CalculateWeightedAverages(results, pageName);
+        var weightedAverages = AssessmentService.CalculateWeightedAverages(results);
 
         results.Values
             .SelectMany(arr => arr)

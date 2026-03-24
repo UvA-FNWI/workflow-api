@@ -19,8 +19,7 @@ public static class AssessmentService
                 page => page.Fields.Where(field => field.Weight.HasValue) // Filter out fields without a weight
                     .Select(field =>
                     {
-                        var answer = submissionContext.Instance.Properties.SingleOrDefault(a => a.Key == field.Name);
-
+                        var hasAnswer = submissionContext.Instance.Properties.TryGetValue(field.Name, out var answer);
                         return new Result
                         {
                             QuestionName = field.Name,
@@ -28,15 +27,14 @@ public static class AssessmentService
                             Percentage = totalWeight == 0
                                 ? 0
                                 : (decimal)field.Weight.GetValueOrDefault() / totalWeight * 100,
-                            Answer = answer.Value.IsBsonNull ? 0 : answer.Value.ToDouble()
+                            Answer = !hasAnswer || answer is null || answer.IsBsonNull ? 0 : answer.ToDouble()
                         };
                     })
                     .ToArray()
             );
     }
 
-    public static Dictionary<string, decimal> CalculateWeightedAverages(Dictionary<string, Result[]> results,
-        string? pageName)
+    public static Dictionary<string, decimal> CalculateWeightedAverages(Dictionary<string, Result[]> results)
     {
         var output = new Dictionary<string, decimal>();
         var totalWeight = 0;

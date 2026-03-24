@@ -58,7 +58,7 @@ public class Page
 
     public BilingualString DisplayTitle => Title ?? Name;
 
-    [YamlIgnore] public bool HasResults => Fields.Any(f => f.Weight.HasValue);
+    public bool HasResults => Fields.Any(f => f.Weight.HasValue);
 }
 
 public class Form : INamed
