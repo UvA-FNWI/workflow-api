@@ -23,6 +23,12 @@ surfConext:
   baseUrl: https://connect.test.surfconext.nl
   clientId: datanose-api.local
 
+canvasLti:
+  clientId: 104400000000000348
+  authenticateUrl: https://uvadlo-dev.instructure.com/api/lti/authorize_redirect
+  jwksUrl: https://uvadlo-dev.instructure.com/api/lti/security/jwks
+  teacherTarget: /screens/project-overview
+
 mongo:
   username: username
   database: workflow
@@ -45,5 +51,7 @@ azure:
       key: Encryption__Secret
     - name: workflow-surfconext-client-secret
       key: SurfConext__ClientSecret
+    - name: workflow-canvas-lti-key
+      key: CanvasLti__Key
     - name: workflow-impersonation-key
       key: ImpersonationKey
