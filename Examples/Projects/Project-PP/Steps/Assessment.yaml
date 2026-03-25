@@ -1,5 +1,17 @@
 name: Assessment
 
+title:
+  en: Assessment
+  nl: Beoordeling
+  
+actions:
+  - name: Assessment
+    type: Execute
+    roles: [Coordinator]
+    label:
+      en: Complete assessment
+      nl: Beoordeling afronden
+
 properties:
   # Product
   - name: ProductAbstract
@@ -156,3 +168,10 @@ properties:
       nl: Laudatio
     layout:
       multiline: true
+      
+children:
+  - AssessmentSupervisor
+  - AssessmentSecondreader
+
+ends:
+  event: Assessment

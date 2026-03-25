@@ -5,10 +5,10 @@ title:
 
 properties:
   - name: AssessmentSecondreader
-    type: Assessment-PP!
+    type: Assessment!
 
 actions:
-  - name: SubmitAssessmentSecondreader
+  - name: AssessmentSecondreader
     type: Submit
     roles: [SecondReviewer]
     form: Assessment
@@ -17,4 +17,4 @@ actions:
       nl: Beoordeling indienen
 
 ends:
-  event: AssessmentSecondreaderCompleted
+  event: AssessmentSecondreader

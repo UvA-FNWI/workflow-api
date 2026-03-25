@@ -17,13 +17,12 @@ fields:
   - currentStep: true
     
 steps:
-  - Start
-  - UploadFinalThesis
-  - AssessmentSupervisor
-  - AssessmentSecondreader
+#  - Start
+#  - UploadFinalThesis
+  - Assessment
     
 properties:
   - name: AssessmentSupervisor
-    type: Assessment-PP!
+    type: Assessment!
   - name: AssessmentSecondreader
-    type: Assessment-PP!
+    type: Assessment!

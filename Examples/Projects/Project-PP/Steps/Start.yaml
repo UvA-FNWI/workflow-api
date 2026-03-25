@@ -49,7 +49,7 @@ properties:
         greaterThan: now
   
   - name: NumberOfDefenseGuests
-    type: Integer
+    type: Int!
     text:
       en: Expected number of guests at the defense
       nl: Verwacht aantal gasten bij de verdediging

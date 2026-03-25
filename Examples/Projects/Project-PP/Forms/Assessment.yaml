@@ -10,12 +10,13 @@ pages:
       nl: Verslag
     fields:
       - ProductAbstract
-      - ProductIntroduction
-      - ProductMethods
-      - ProductResults
-      - ProductDiscussionConclusion
-      - ProductReadability
-      - ProductComments
+#      - ProductIntroduction
+#      - ProductMethods
+#      - ProductResults
+#      - ProductDiscussionConclusion
+#      - ProductReadability
+#      - ProductComments
+    #sources: [AssessmentSupervisor, AssessmentSecondreader]
 
   - name: Process
     title:
@@ -23,12 +24,13 @@ pages:
       nl: Proces
     fields:
       - ProcessPreparationMethodology
-      - ProcessExperimentalSkills
-      - ProcessReliabilityReproducibility
-      - ProcessInterpretingResults
-      - ProcessIndependenceInitiative
-      - ProcessCommunicationCollaboration
-      - ProcessPlanningTimeManagement
+#      - ProcessExperimentalSkills
+#      - ProcessReliabilityReproducibility
+#      - ProcessInterpretingResults
+#      - ProcessIndependenceInitiative
+#      - ProcessCommunicationCollaboration
+#      - ProcessPlanningTimeManagement
+   # sources: [AssessmentSupervisor]
 
   - name: Presentation
     title:
@@ -36,8 +38,9 @@ pages:
       nl: Presentatie
     fields:
       - PresentationContextualizationDelivery
-      - PresentationClarityStyle
-      - PresentationHandlingQuestions
+#      - PresentationClarityStyle
+#      - PresentationHandlingQuestions
+   # sources: [AssessmentSupervisor]
 
   - name: FinalRemarks
     title:
@@ -45,4 +48,5 @@ pages:
       nl: Eindopmerkingen
     fields:
       - SummaryComments
-      - Laudatio
+#      - Laudatio
+   # sources: [AssessmentSupervisor]

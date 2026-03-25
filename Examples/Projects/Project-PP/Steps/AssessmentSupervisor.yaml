@@ -5,10 +5,10 @@ title:
   
 properties:
   - name: AssessmentSupervisor
-    type: Assessment-PP!
+    type: Assessment!
 
 actions:
-  - name: SubmitAssessmentSupervisor
+  - name: AssessmentSupervisor
     type: Submit
     roles: [Supervisor]
     form: Assessment
@@ -17,4 +17,4 @@ actions:
       nl: Beoordeling indienen
 
 ends:
-  event: AssessmentSupervisorCompleted
+  event: AssessmentSupervisor
