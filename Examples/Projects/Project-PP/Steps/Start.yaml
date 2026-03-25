@@ -47,6 +47,19 @@ properties:
       value:
         property: PlannedDateDefense
         greaterThan: now
+  
+  - name: NumberOfDefenseGuests
+    type: Integer
+    text:
+      en: Expected number of guests at the defense
+      nl: Verwacht aantal gasten bij de verdediging
+    validation:
+      message:
+        en: Number of guests cannot be negative
+        nl: Aantal gasten mag niet negatief zijn
+      value:
+        property: NumberOfDefenseGuests
+        greaterThanOrEqual: 0
 
 ends:
   event:

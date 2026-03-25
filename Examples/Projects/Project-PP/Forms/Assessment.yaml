@@ -16,6 +16,7 @@ pages:
       - ProductDiscussionConclusion
       - ProductReadability
       - ProductComments
+
   - name: Process
     title:
       en: Process
@@ -28,6 +29,7 @@ pages:
       - ProcessIndependenceInitiative
       - ProcessCommunicationCollaboration
       - ProcessPlanningTimeManagement
+
   - name: Presentation
     title:
       en: Presentation
@@ -36,10 +38,11 @@ pages:
       - PresentationContextualizationDelivery
       - PresentationClarityStyle
       - PresentationHandlingQuestions
-    - name: FinalRemarks
-      title:
-        en: Final Remarks
-        nl: Eindopmerkingen
-      fields:
-        - SummaryComments
-        - Laudatio
+
+  - name: FinalRemarks
+    title:
+      en: Final Remarks
+      nl: Eindopmerkingen
+    fields:
+      - SummaryComments
+      - Laudatio

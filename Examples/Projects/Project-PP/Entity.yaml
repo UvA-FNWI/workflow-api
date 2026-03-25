@@ -23,7 +23,7 @@ steps:
   - AssessmentSecondreader
     
 properties:
-  - name: AssessmentReviewer
-    type: Assessment-PP!
   - name: AssessmentSupervisor
+    type: Assessment-PP!
+  - name: AssessmentSecondreader
     type: Assessment-PP!

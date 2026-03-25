@@ -1,16 +1,4 @@
 name: Assessment
-title:
-  en: Assessment
-  nl: Beoordeling
-
-actions:
-  - name: SubmitAssessment
-    type: Submit
-    roles: [ Examiner, SecondReviewer ]
-    form: Assessment
-    label:
-      en: Submit assessment
-      nl: Beoordeling indienen
 
 properties:
   # Product
@@ -151,23 +139,20 @@ properties:
       nl: Omgaan met vragen
     layout:
       type: Dropdown
-        
+    
     # Summary
   - name: SummaryComments
-      type: String!
-      text:
-        en: Comments
-        nl: Toelichting
-      layout:
-        multiline: true
+    type: String!
+    text:
+      en: Comments
+      nl: Toelichting
+    layout:
+      multiline: true
 
   - name: Laudatio
-      type: String!
-      text:
-        en: Laudatio
-        nl: Laudatio
-      layout:
-        multiline: true
-        
-ends:
-  event: AssessmentSecondReviewer
+    type: String!
+    text:
+      en: Laudatio
+      nl: Laudatio
+    layout:
+      multiline: true
