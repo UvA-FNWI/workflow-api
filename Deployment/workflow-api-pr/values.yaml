@@ -41,7 +41,7 @@ apiPaths:
   - /WorkflowDefinitions
   - /Users
   - /WorkflowInstances
-  - /Submissions
+  - /Annotations
   - /Artifacts
   - /Assessments
 
