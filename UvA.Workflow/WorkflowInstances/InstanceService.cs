@@ -227,7 +227,9 @@ public class InstanceService(
             actions.Add(new AllowedAction(a, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
         }
 
-        return actions;
+        return actions
+            .OrderBy(a => Array.IndexOf(allowed, a.Action))
+            .ToList();
 
         string[] GetDisplaySteps(Domain_Action action, Form? form = null)
         {

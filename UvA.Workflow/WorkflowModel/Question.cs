@@ -165,6 +165,11 @@ public class PropertyDefinition : INamed
     /// Determines if the propertyDefinition should be hidden in the results table
     /// </summary>
     public bool HideInResults { get; set; }
+
+    /// <summary>
+    /// The weight of a field for result calculation
+    /// </summary>
+    public int? Weight { get; set; }
 }
 
 public class Choice : INamed
