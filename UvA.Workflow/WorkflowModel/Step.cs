@@ -70,6 +70,25 @@ public class Step : INamed
 
     public DateTime? GetEndDate(WorkflowInstance instance, WorkflowDefinition workflowDef)
     {
+        if (Ends?.Logical != null && Ends?.Logical?.Children.Length > 0 &&
+            Ends.Logical.Children.All(c => c.Event != null))
+        {
+            var dates = Ends.Logical.Children
+                .Select(c => instance.Events.GetValueOrDefault(c.Event!.Id))
+                .Where(evt => evt?.Date != null && EventSuppressionHelper.IsEventActive(evt.Id, instance, workflowDef))
+                .Select(evt => evt!.Date!.Value)
+                .ToArray();
+
+            if (dates.Length == 0) return null;
+
+            if (Ends.Logical.Operator == LogicalOperator.And)
+                return dates.Max();
+            if (Ends.Logical.Operator == LogicalOperator.Or)
+                return dates.Min();
+
+            return null;
+        }
+
         if (Ends?.Event != null)
         {
             var evt = instance.Events.GetValueOrDefault(Ends.Event.Id);

@@ -334,6 +334,97 @@ public class EventSuppressionTests
         // Since IsEventActive is false, it should allow resubmission
     }
 
+    [Fact]
+    public void StepGetEndDate_WithLogicalOr_ReturnsEarliestActiveEventDate()
+    {
+        var workflowDef = CreateWorkflowDefWithSuppression(
+            ("EventA", []),
+            ("EventB", [])
+        );
+        var step = CreateStepWithLogicalEnds(LogicalOperator.Or, "EventA", "EventB");
+
+        var t1 = DateTime.UtcNow.AddHours(-2);
+        var t2 = DateTime.UtcNow.AddHours(-1);
+
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("TestWorkflow")
+            .WithCurrentStep("TestStep")
+            .WithEvent("EventA", t1)
+            .WithEvent("EventB", t2)
+            .Build();
+
+        var endDate = step.GetEndDate(instance, workflowDef);
+
+        Assert.Equal(t1, endDate);
+    }
+
+    [Fact]
+    public void StepGetEndDate_WithLogicalAnd_ReturnsLatestActiveEventDate()
+    {
+        var workflowDef = CreateWorkflowDefWithSuppression(
+            ("EventA", []),
+            ("EventB", [])
+        );
+        var step = CreateStepWithLogicalEnds(LogicalOperator.And, "EventA", "EventB");
+
+        var t1 = DateTime.UtcNow.AddHours(-2);
+        var t2 = DateTime.UtcNow.AddHours(-1);
+
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("TestWorkflow")
+            .WithCurrentStep("TestStep")
+            .WithEvent("EventA", t1)
+            .WithEvent("EventB", t2)
+            .Build();
+
+        var endDate = step.GetEndDate(instance, workflowDef);
+
+        Assert.Equal(t2, endDate);
+    }
+
+    [Fact]
+    public void StepGetEndDate_WithLogicalEnds_IgnoresSuppressedEvents()
+    {
+        var workflowDef = CreateWorkflowDefWithSuppression(
+            ("EventA", ["EventB"]),
+            ("EventB", ["EventA"])
+        );
+        var step = CreateStepWithLogicalEnds(LogicalOperator.Or, "EventA", "EventB");
+
+        var t1 = DateTime.UtcNow.AddHours(-2);
+        var t2 = DateTime.UtcNow.AddHours(-1);
+
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("TestWorkflow")
+            .WithCurrentStep("TestStep")
+            .WithEvent("EventA", t1)
+            .WithEvent("EventB", t2)
+            .Build();
+
+        var endDate = step.GetEndDate(instance, workflowDef);
+
+        Assert.Equal(t2, endDate);
+    }
+
+    [Fact]
+    public void StepGetEndDate_WithLogicalEnds_ReturnsNullWhenNoEventsAreActive()
+    {
+        var workflowDef = CreateWorkflowDefWithSuppression(
+            ("EventA", []),
+            ("EventB", [])
+        );
+        var step = CreateStepWithLogicalEnds(LogicalOperator.Or, "EventA", "EventB");
+
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("TestWorkflow")
+            .WithCurrentStep("TestStep")
+            .Build();
+
+        var endDate = step.GetEndDate(instance, workflowDef);
+
+        Assert.Null(endDate);
+    }
+
     // Helper methods
     private static WorkflowDefinition CreateWorkflowDefWithSuppression(
         params (string EventName, string[] Suppresses)[] events)
@@ -359,6 +450,27 @@ public class EventSuppressionTests
         modelService.WorkflowDefinitions[workflowDef.Name] = workflowDef;
 
         return modelService;
+    }
+
+    private static Step CreateStepWithLogicalEnds(LogicalOperator @operator, params string[] eventIds)
+    {
+        return new Step
+        {
+            Name = "Subject",
+            Ends = new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = @operator,
+                    Children = eventIds
+                        .Select(id => new Condition
+                        {
+                            Event = new EventCondition { Id = id }
+                        })
+                        .ToArray()
+                }
+            }
+        };
     }
 }
 
