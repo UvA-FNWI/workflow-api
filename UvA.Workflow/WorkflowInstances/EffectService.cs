@@ -8,10 +8,10 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-public record EffectResult(string? RedirectUrl = null)
+public record EffectResult(string? RedirectUrl = null, bool? ShowConfetti = null)
 {
     public static EffectResult operator +(EffectResult result, EffectResult other)
-        => new(result.RedirectUrl ?? other.RedirectUrl);
+        => new(result.RedirectUrl ?? other.RedirectUrl, result.ShowConfetti ?? other.ShowConfetti);
 }
 
 public class EffectService(
@@ -38,7 +38,7 @@ public class EffectService(
         if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
         var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
 
-        return new EffectResult(redirectUrl);
+        return new EffectResult(redirectUrl, effect.ShowConfetti);
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
