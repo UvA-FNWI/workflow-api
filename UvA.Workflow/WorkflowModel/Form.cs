@@ -16,6 +16,12 @@ public enum FormLayout
     Modal
 }
 
+public enum PageType
+{
+    Normal,
+    AssessmentOverview
+}
+
 /// <summary>
 /// Represents a page in a form
 /// </summary>
@@ -42,6 +48,11 @@ public class Page
     /// Layout of the page. Condensed will show the questions in a table
     /// </summary>
     public PageLayout Layout { get; set; }
+
+    /// <summary>
+    /// Type of the page to be rendered by the front-end.
+    /// </summary>
+    public PageType Type { get; set; } = PageType.Normal;
 
     /// <summary>
     /// PropertyDefinition names to include in the page

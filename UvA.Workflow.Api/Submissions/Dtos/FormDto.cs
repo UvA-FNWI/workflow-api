@@ -32,6 +32,7 @@ public record PageDto(
     BilingualString Title,
     BilingualString? Introduction,
     PageLayout Layout,
+    PageType Type,
     QuestionDto[] Questions,
     bool HasResults
 )
@@ -43,6 +44,7 @@ public record PageDto(
             page.DisplayTitle,
             page.IntroductionTemplate?.Apply(context),
             page.Layout,
+            page.Type,
             questions.ToArray(),
             page.HasResults
         );

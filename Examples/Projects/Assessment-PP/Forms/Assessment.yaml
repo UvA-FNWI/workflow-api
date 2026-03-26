@@ -52,3 +52,10 @@ pages:
       - SummaryComments   
     sources: [AssessmentSupervisor]
 #      - Laudatio
+ 
+  - name: FinalGrade
+    title:
+      en: Final Grade
+      nl: Eindcijfer
+    type: AssessmentOverview
+    sources: [AssessmentExaminer]
