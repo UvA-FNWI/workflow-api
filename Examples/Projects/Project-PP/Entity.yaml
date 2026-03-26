@@ -23,6 +23,6 @@ steps:
     
 properties:
   - name: AssessmentSupervisor
-    type: Assessment!
+    type: Assessment-PP!
   - name: AssessmentSecondreader
-    type: Assessment!
+    type: Assessment-PP!

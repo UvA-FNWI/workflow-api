@@ -5,13 +5,13 @@ title:
 
 properties:
   - name: AssessmentSecondreader
-    type: Assessment!
+    type: Assessment-PP!
 
 actions:
   - name: AssessmentSecondreader
     type: Submit
     roles: [SecondReviewer]
-    form: Assessment
+    form: AssessmentSecondreader
     label:
       en: Submit assessment
       nl: Beoordeling indienen

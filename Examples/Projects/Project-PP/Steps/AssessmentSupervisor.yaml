@@ -5,13 +5,13 @@ title:
   
 properties:
   - name: AssessmentSupervisor
-    type: Assessment!
+    type: Assessment-PP!
 
 actions:
   - name: AssessmentSupervisor
     type: Submit
     roles: [Supervisor]
-    form: Assessment
+    form: AssessmentSupervisor
     label:
       en: Submit assessment
       nl: Beoordeling indienen
