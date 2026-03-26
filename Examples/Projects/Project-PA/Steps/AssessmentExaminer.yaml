@@ -39,50 +39,56 @@ properties:
   - name: ProductAbstract
     type: TenPoint!
     text:
-      en: Abstract (5%)
-      nl: Abstract (5%)
+      en: Abstract
+      nl: Abstract
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductIntroduction
     type: TenPoint!
     text:
-      en: Introduction (5%)
-      nl: Inleiding (5%)
+      en: Introduction
+      nl: Inleiding
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductMethods
     type: TenPoint!
     text:
-      en: Methods (10%)
-      nl: Methods (10%)
+      en: Methods
+      nl: Methods
     layout:
       type: Dropdown
+    weight: 10
 
   - name: ProductResults
     type: TenPoint!
     text:
-      en: Results (10%)
-      nl: Resultaten (10%)
+      en: Results
+      nl: Resultaten
     layout:
       type: Dropdown
+    weight: 10  
 
   - name: ProductDiscussionConclusion
     type: TenPoint!
     text:
-      en: Discussion and conclusion (5%)
-      nl: Discussie en conclusie (5%)
+      en: Discussion and conclusion
+      nl: Discussie en conclusie
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductReadability
     type: TenPoint!
     text:
-      en: Readability (5%)
-      nl: Leesbaarheid (5%)
+      en: Readability
+      nl: Leesbaarheid
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProductComments
     type: String
@@ -100,6 +106,7 @@ properties:
       nl: Voorbereiding & methodologie
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessExperimentalSkills
     type: TenPoint!
@@ -108,6 +115,7 @@ properties:
       nl: Experimentele / analytische / programmeervaardigheden
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessReliabilityReproducibility
     type: TenPoint!
@@ -116,6 +124,7 @@ properties:
       nl: Betrouwbaarheid en reproduceerbaarheid
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessInterpretingResults
     type: TenPoint!
@@ -124,6 +133,7 @@ properties:
       nl: Interpreteren van resultaten
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessIndependenceInitiative
     type: TenPoint!
@@ -132,6 +142,7 @@ properties:
       nl: Zelfstandigheid en initiatief
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessCommunicationCollaboration
     type: TenPoint!
@@ -140,6 +151,7 @@ properties:
       nl: Communicatie en samenwerking
     layout:
       type: Dropdown
+    weight: 5
 
   - name: ProcessPlanningTimeManagement
     type: TenPoint!
@@ -148,31 +160,29 @@ properties:
       nl: Planning en tijdmanagement
     layout:
       type: Dropdown
+    weight: 5
 
   # Presentation
   - name: PresentationContextualizationDelivery
-    type: TenPoint!
+    type: Double!
     text:
       en: Contextualization & delivery
       nl: Contextualisering & presentatie
-    layout:
-      type: Dropdown
+    weight: 10
 
   - name: PresentationClarityStyle
-    type: TenPoint!
+    type: Double!
     text:
       en: Clarity and style
       nl: Helderheid en stijl
-    layout:
-      type: Dropdown
+    weight: 4
 
   - name: PresentationHandlingQuestions
-    type: TenPoint!
+    type: Double!
     text:
       en: Handling questions
       nl: Omgaan met vragen
-    layout:
-      type: Dropdown
+    weight: 10
 
   # Summary
   - name: SummaryComments
