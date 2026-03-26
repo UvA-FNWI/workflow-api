@@ -224,8 +224,7 @@ public class EffectService(
         content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         content.Headers.ContentDisposition = new ContentDispositionHeaderValue("inline")
         {
-            FileName = fileInfo.Name,
-            FileNameStar = fileInfo.Name
+            FileName = Uri.EscapeDataString(fileInfo.Name)
         };
         return content;
     }
