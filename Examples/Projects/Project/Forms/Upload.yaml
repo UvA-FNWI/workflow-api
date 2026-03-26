@@ -17,22 +17,12 @@ onSubmit:
    inputs:
      SubmissionId: CreateSubmission.Id
      File: Report
-- delay: 10s
+- delay: 1m
   serviceCall:
     service: Turnitin
     operation: GenerateReport
     inputs:
       SubmissionId: TurnitinId
-- delay: 1m
-  serviceCall:
-    service: Turnitin
-    operation: GetReportUrl
-    inputs:
-      SubmissionId: TurnitinId
-- delay: 1m
-  setProperty:
-    property: TurnitinReportUrl
-    value: GetReportUrl.ReportUrl
 
 pages:
   - name: Upload

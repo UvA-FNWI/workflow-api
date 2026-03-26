@@ -6,18 +6,6 @@ actions:
     type: Submit
     label: Assess final version (reviewer)
     form: AssessmentReviewer
-  - name: GenerateTurnitinReport
-    roles: [Reviewer, Examiner, Coordinator]
-    type: Execute
-    label:
-      en: Generate Turnitin report
-      nl: Genereer Turnitin rapport
-    onAction:
-      - serviceCall:
-          service: Turnitin
-          operation: GenerateReport
-          inputs:
-            SubmissionId: TurnitinId
   - name: ViewTurnitinReport
     roles: [Reviewer, Examiner, Coordinator]
     type: Execute
@@ -30,11 +18,8 @@ actions:
           operation: GetReportUrl
           inputs:
             SubmissionId: TurnitinId
-      - setProperty:
-          property: TurnitinReportUrl
-          value: GetReportUrl.ReportUrl
       - redirect:
-          url: "{{ TurnitinReportUrl }}"
+          url: "{{ GetReportUrl.ReportUrl }}"
 
 properties:
   - name: AssessmentReviewer
