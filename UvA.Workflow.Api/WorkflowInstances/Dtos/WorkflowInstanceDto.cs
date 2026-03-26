@@ -53,7 +53,7 @@ public record ActionDto(
     string? UserId = null,
     MailMessage? Mail = null,
     string? Property = null,
-    string? Step = null,
+    string[] Steps = null!,
     ActionIntent Intent = ActionIntent.Primary,
     FormLayout? FormLayout = null
 )
@@ -62,6 +62,8 @@ public record ActionDto(
 
     public static ActionDto Create(InstanceService.AllowedAction action)
     {
+        var steps = action.DisplaySteps ?? [];
+
         ActionDto dto = action.Action.Type switch
         {
             RoleAction.CreateRelatedInstance => new(
@@ -85,7 +87,7 @@ public record ActionDto(
         };
         return dto with
         {
-            Step = action.Action.Steps.Length == 1 ? action.Action.Steps[0] : null,
+            Steps = steps,
             Intent = action.Action.Intent
         };
     }
