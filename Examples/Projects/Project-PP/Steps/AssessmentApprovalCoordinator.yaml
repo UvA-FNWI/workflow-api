@@ -1,0 +1,36 @@
+name: AssessmentApprovalCoordinator
+title:
+  en: Approval Assessment (coordinator)
+  nl: Goedkeuring beoordeling (coördinator)
+
+condition:
+  logical:
+    operator: And
+    children:
+      - event: AssessmentSupervisor
+      - event: AssessmentSecondreader
+
+actions:
+  - type: View
+    roles: [Coordinator]
+    form: AssessmentSupervisor
+    label:
+      en: View supervisor assessment
+      nl: Bekijk beoordeling supervisor
+
+  - type: View
+    roles: [Coordinator]
+    form: AssessmentSecondreader
+    label:
+      en: View second reader assessment
+      nl: Bekijk beoordeling tweede lezer
+
+  - name: ApproveCoordinator
+    type: Execute
+    roles: [Coordinator]
+    label:
+      en: Approve
+      nl: Goedkeuren
+
+ends:
+  event: AssessmentApprovalCoordinator

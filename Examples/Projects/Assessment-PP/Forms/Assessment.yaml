@@ -10,13 +10,14 @@ pages:
       nl: Verslag
     fields:
       - ProductAbstract
+    sources: [AssessmentSupervisor, AssessmentSecondreader]
     #      - ProductIntroduction
     #      - ProductMethods
     #      - ProductResults
     #      - ProductDiscussionConclusion
     #      - ProductReadability
     #      - ProductComments
-    #sources: [AssessmentSupervisor, AssessmentSecondreader]
+
 
   - name: Process
     title:
@@ -24,13 +25,13 @@ pages:
       nl: Proces
     fields:
       - ProcessPreparationMethodology
+    sources: [AssessmentSupervisor]
   #      - ProcessExperimentalSkills
   #      - ProcessReliabilityReproducibility
   #      - ProcessInterpretingResults
   #      - ProcessIndependenceInitiative
   #      - ProcessCommunicationCollaboration
   #      - ProcessPlanningTimeManagement
-  # sources: [AssessmentSupervisor]
 
   - name: Presentation
     title:
@@ -38,15 +39,16 @@ pages:
       nl: Presentatie
     fields:
       - PresentationContextualizationDelivery
-  #      - PresentationClarityStyle
-  #      - PresentationHandlingQuestions
-  # sources: [AssessmentSupervisor]
+    sources: [ AssessmentSupervisor ]
+#      - PresentationClarityStyle
+#      - PresentationHandlingQuestions
+
 
   - name: FinalRemarks
     title:
       en: Final Remarks
       nl: Eindopmerkingen
     fields:
-      - SummaryComments
-  #      - Laudatio
-  # sources: [AssessmentSupervisor]
+      - SummaryComments   
+    sources: [AssessmentSupervisor]
+#      - Laudatio
