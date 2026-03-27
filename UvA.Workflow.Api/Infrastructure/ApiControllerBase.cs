@@ -1,10 +1,12 @@
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
+using UvA.Workflow.Api.Authentication;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
 [ApiController]
-[Authorize]
+[Authorize(AuthenticationSchemes =
+    $"{SurfConextAuthenticationHandler.SchemeName},{CanvasLtiDefaults.AuthenticationScheme}")]
 [Route("[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {
