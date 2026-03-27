@@ -49,6 +49,7 @@ apiPaths:
   - /WorkflowInstances
   - /Submissions
   - /Artifacts
+  - /Assessments
   - /oidc
   - /signin-oidc
 
