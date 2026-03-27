@@ -7,7 +7,7 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
-allowedOrigins: "http://localhost:5173"
+allowedOrigins: "http://localhost:5173,https://*.instructure.com"
 frontendBaseUrl: "http://localhost:5173"
 
 datanoseApi:
