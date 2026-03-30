@@ -54,8 +54,6 @@ public class InstanceEventService(
     /// </exception>
     public async Task DeleteEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
-
         if (instance.Events.TryGetValue(eventId, out InstanceEvent? instanceEvent))
         {
             await eventRepository.DeleteEvent(instance, instanceEvent, user, ct);
