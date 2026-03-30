@@ -9,9 +9,9 @@ public record AssessmentDto(
     Dictionary<string, decimal> WeightedAverages // <Page name, weighted average for all questions on that page>
 )
 {
-    public static AssessmentDto Create(SubmissionContext submissionContext)
+    public static AssessmentDto Create(SubmissionContext submissionContext, string? pageName = null)
     {
-        var results = AssessmentService.CalculateFormResults(submissionContext, null);
+        var results = AssessmentService.CalculateFormResults(submissionContext, pageName);
         var weightedAverages = AssessmentService.CalculateWeightedAverages(results);
 
         results.Values
@@ -26,27 +26,14 @@ public record AssessmentDto(
     }
 }
 
-public record AssessmentPageDto(
+public record AssessmentGroupDto(
     string Id,
-    string FormName,
-    Result[] Results, // Results for all questions of that page
-    decimal WeightedAverage // weighted average for all questions on that page
-)
+    AssessmentDto[] Forms)
 {
-    public static AssessmentPageDto Create(SubmissionContext submissionContext, string pageName)
-    {
-        var results = AssessmentService.CalculateFormResults(submissionContext, pageName);
-        var weightedAverages = AssessmentService.CalculateWeightedAverages(results);
-
-        results.Values
-            .SelectMany(arr => arr)
-            .ForEach(r => r.Percentage = Math.Round(r.Percentage, 2, MidpointRounding.AwayFromZero));
-
-        return new(
-            pageName,
-            submissionContext.Form.Name,
-            results.GetValueOrDefault(pageName) ?? Array.Empty<Result>(),
-            weightedAverages.GetValueOrDefault(pageName)
+    public static AssessmentGroupDto Create(string id, IEnumerable<SubmissionContext> contexts,
+        string? pageName = null)
+        => new(
+            id,
+            contexts.Select(c => AssessmentDto.Create(c, pageName)).ToArray()
         );
-    }
 }
