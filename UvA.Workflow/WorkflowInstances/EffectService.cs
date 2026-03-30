@@ -185,11 +185,6 @@ public class EffectService(
                 (int?)result.StatusCode,
                 result.ReasonPhrase,
                 responseBody);
-            logger.LogError(
-                "Service config options for {Service}: {Options}. Request headers: {Headers}",
-                serviceCall.Service,
-                string.Join(", ", optionContext.Values.Select(kv => $"{kv.Key}={kv.Value}")),
-                string.Join(", ", client.DefaultRequestHeaders.Select(h => $"{h.Key}={string.Join(";", h.Value)}")));
             throw;
         }
 
