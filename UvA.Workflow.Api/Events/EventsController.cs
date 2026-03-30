@@ -1,8 +1,5 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Events;
-using UvA.Workflow.Infrastructure;
 
 namespace UvA.Workflow.Api.Events;
 
@@ -18,10 +15,13 @@ public class EventsController(
     [Route("{eventName}")]
     public async Task<IActionResult> DeleteEvent(string instanceId, string eventName, CancellationToken ct)
     {
-        var user = await userService.GetCurrentUser(ct) ??
-                   throw new UnauthorizedAccessException();
-        var instance = await workflowRepository.GetById(instanceId, ct) ??
-                       throw new WorkflowInstanceNotFoundException(instanceId);
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            return Unauthorized();
+
+        var instance = await workflowRepository.GetById(instanceId, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
 
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
 

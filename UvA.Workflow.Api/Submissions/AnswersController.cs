@@ -21,7 +21,10 @@ public class AnswersController(
         string questionName,
         [FromBody] AnswerInput input, CancellationToken ct)
     {
-        var user = await userService.GetCurrentUser(ct) ?? throw new UnauthorizedAccessException();
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            return Unauthorized();
+
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
 
@@ -42,6 +45,7 @@ public class AnswersController(
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
+
         await using var contents = request.File.OpenReadStream();
         await answerService.SaveArtifact(context, request.File.FileName, contents, ct);
         return Ok(new SaveAnswerFileResponse(true));
@@ -69,7 +73,7 @@ public class AnswersController(
         }
 
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedAction(context, RoleAction.View);
+        await EnsureAuthorizedForAction(context, RoleAction.View);
 
         var file = await answerService.GetArtifact(context, artifactId, ct);
         if (file == null) return NotFound();
@@ -81,7 +85,7 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedAction(context, RoleAction.View);
+        await EnsureAuthorizedForAction(context, RoleAction.View);
 
         var insts = await instanceService.GetPossibleChoices(context.Instance, context.PropertyDefinition, ct);
         var definition = context.PropertyDefinition.WorkflowDefinition!;
@@ -97,7 +101,7 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedAction(context, RoleAction.View);
+        await EnsureAuthorizedForAction(context, RoleAction.View);
 
         var value = modelService.CreateContext(context.Instance).Get(questionName);
         var ids = value switch
@@ -120,11 +124,10 @@ public class AnswersController(
     }
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
-        await EnsureAuthorizedAction(context, context.Submission?.Date == null ? RoleAction.Submit : RoleAction.Edit);
+        await EnsureAuthorizedForAction(context,
+            context.Submission?.Date == null ? RoleAction.Submit : RoleAction.Edit);
 
-    private async Task EnsureAuthorizedAction(QuestionContext context, RoleAction action)
-    {
-        if (!await rightsService.Can(context.Instance, action, context.Form.Name))
-            throw new ForbiddenWorkflowActionException(context.Instance.Id, action, context.Form.Name);
-    }
+    private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>
+        await rightsService.EnsureAuthorizedForAction(context.Instance, action, RightsEvaluationMode.RequestContext,
+            context.Form.Name);
 }
