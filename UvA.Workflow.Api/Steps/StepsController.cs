@@ -8,6 +8,7 @@ namespace UvA.Workflow.Api.Steps;
 
 public class StepsController(
     IUserService userService,
+    RightsService rightsService,
     IWorkflowInstanceRepository workflowInstanceRepository,
     IStepVersionService stepVersionService
 ) : ApiControllerBase
@@ -28,6 +29,8 @@ public class StepsController(
         var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
             return NotFound();
+
+        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View);
 
         try
         {
