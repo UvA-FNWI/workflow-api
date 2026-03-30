@@ -26,7 +26,7 @@ surfConext:
   authority: https://auth-pr.datanose.nl
 
 canvasLti:
-  clientId: 104400000000000348
+  clientId: "104400000000000348"
   authenticateUrl: https://uvadlo-dev.instructure.com/api/lti/authorize_redirect
   jwksUrl: https://uvadlo-dev.instructure.com/api/lti/security/jwks
   teacherTarget: /screens/project-overview
