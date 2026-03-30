@@ -23,6 +23,7 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.number }}
           UPDATER_SECRET: ${{ secrets.UPDATER_SECRET_DN }}
+          DESCR: ${{ github.event.pull_request.body }}
         run: |
           set -euxo pipefail
           TAG="pr-${PR_NUMBER}"
@@ -31,4 +32,9 @@ jobs:
           VERSION=$(date "+1.0.%Y%m%d%H%M%S")
           helm package --version "${VERSION}" --app-version "${VERSION}" Deployment/workflow-api-pr
           helm push "workflow-api-pr-${VERSION}.tgz" oci://datanosecr.azurecr.io/helm
-          curl --fail --no-progress-meter "https://api-v2-tst.datanose.nl/gitops-updater?name=workflow-api-pr&secret=${UPDATER_SECRET}&version=${VERSION}&id=${PR_NUMBER}"
+          if [[ "$DESCR" =~ workflow-ui/pull/([0-9]+) ]]; then
+            pr=${BASH_REMATCH[1]}
+            curl --fail --no-progress-meter "https://api-v2-tst.datanose.nl/gitops-updater?name=workflow-api-pr&secret=${UPDATER_SECRET}&version=${VERSION}&id=${PR_NUMBER}&target=https://workflow-ui-pr-${pr}.datanose.nl"
+          else
+            curl --fail --no-progress-meter "https://api-v2-tst.datanose.nl/gitops-updater?name=workflow-api-pr&secret=${UPDATER_SECRET}&version=${VERSION}&id=${PR_NUMBER}"
+          fi
