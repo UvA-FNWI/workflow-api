@@ -10,6 +10,9 @@ public class WorkflowException(string code, string message, object? details = nu
 public class EntityNotFoundException(string entityType, string entityId)
     : WorkflowException($"{entityType}NotFound", $"Entity {entityType} {entityId} not found");
 
+public class WorkflowInstanceNotFoundException(string workflowInstanceId)
+    : WorkflowException($"WorkflowInstanceNotFound", $"Workflow instance {workflowInstanceId} not found");
+
 public class ForbiddenWorkflowActionException(string workflowInstanceId, RoleAction action, string? formId)
     : WorkflowException("Forbidden",
         $"User does not have permission to {action} workflow instance {workflowInstanceId} for form {formId ?? "all forms"}");
