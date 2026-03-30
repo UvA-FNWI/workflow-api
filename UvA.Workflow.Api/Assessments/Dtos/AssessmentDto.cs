@@ -5,6 +5,7 @@ namespace UvA.Workflow.Api.Assessments.Dtos;
 
 public record AssessmentDto(
     string Id,
+    BilingualString FormTitle,
     Dictionary<string, Result[]> Results, // <Page name, Results for all questions of that page>
     Dictionary<string, decimal> WeightedAverages // <Page name, weighted average for all questions on that page>
 )
@@ -20,6 +21,7 @@ public record AssessmentDto(
 
         return new(
             submissionContext.Form.Name,
+            submissionContext.Form.DisplayName,
             results,
             weightedAverages
         );
