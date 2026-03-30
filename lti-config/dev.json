@@ -1,0 +1,34 @@
+{
+  "title": "Milestones (dev)",
+  "description": "Milestones (local testing)",
+  "target_link_uri": "http://localhost:5173/canvas",
+  "oidc_initiation_url": "https://localhost:5124/oidc",
+  "oidc_initiation_urls": {},
+  "public_jwk_url": "https://localhost:5124/jwks",
+  "public_jwk": {},
+  "custom_fields": {
+    "courseId": "$Canvas.course.id"
+  },
+  "scopes": [],
+  "extensions": [
+    {
+      "platform": "canvas.instructure.com",
+      "settings": {
+        "platform": "canvas.instructure.com",
+        "placements": [
+          {
+            "placement": "course_navigation",
+            "visibility": "members",
+            "message_type": "LtiResourceLinkRequest",
+            "display_type": "full_width_in_context",
+            "labels": {
+              "nl": "Milestones (dev)",
+              "en": "Milestones (dev)"
+            }
+          }
+        ]
+      },
+      "privacy_level": "public"
+    }
+  ]
+}

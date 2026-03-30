@@ -62,6 +62,7 @@ var app = builder.Build();
 app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
+app.UseWorkflowAuthentication(app.Configuration);
 
 app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser(
     new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
