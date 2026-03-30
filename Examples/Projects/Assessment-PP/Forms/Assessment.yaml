@@ -10,7 +10,7 @@ pages:
       nl: Verslag
     fields:
       - ProductAbstract
-    sources: [AssessmentSupervisor, AssessmentSecondreader]
+    sources: [AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer]
     #      - ProductIntroduction
     #      - ProductMethods
     #      - ProductResults
@@ -25,7 +25,7 @@ pages:
       nl: Proces
     fields:
       - ProcessPreparationMethodology
-    sources: [AssessmentSupervisor]
+    sources: [AssessmentSupervisor, AssessmentExaminer]
   #      - ProcessExperimentalSkills
   #      - ProcessReliabilityReproducibility
   #      - ProcessInterpretingResults
@@ -39,7 +39,7 @@ pages:
       nl: Presentatie
     fields:
       - PresentationContextualizationDelivery
-    sources: [ AssessmentSupervisor ]
+    sources: [ AssessmentSupervisor, AssessmentExaminer ]
 #      - PresentationClarityStyle
 #      - PresentationHandlingQuestions
 
@@ -50,7 +50,7 @@ pages:
       nl: Eindopmerkingen
     fields:
       - SummaryComments   
-    sources: [AssessmentSupervisor]
+    sources: [AssessmentSupervisor, AssessmentExaminer]
 #      - Laudatio
  
   - name: FinalGrade
