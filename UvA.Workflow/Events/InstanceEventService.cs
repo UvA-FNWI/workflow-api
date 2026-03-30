@@ -33,7 +33,6 @@ public interface IInstanceEventService
 public class InstanceEventService(
     IInstanceEventRepository eventRepository,
     IInstanceJournalService instanceJournalService,
-    RightsService rightsService,
     InstanceService instanceService) : IInstanceEventService
 {
     public async Task UpdateEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct)
