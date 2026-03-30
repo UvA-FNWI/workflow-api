@@ -63,3 +63,5 @@ azure:
       key: SurfConext__ClientSecret
     - name: workflow-impersonation-key
       key: ImpersonationKey
+    - name: workflow-turnitin-token
+      key: Services__Turnitin__Token
