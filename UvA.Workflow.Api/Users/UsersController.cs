@@ -1,7 +1,5 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
-using UvA.Workflow.DataNose;
-using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Api.Users;
 
@@ -25,6 +23,12 @@ public class UsersController(
     [HttpPost]
     public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
     {
+        var allowedCreateRoles = new[] { "Api", "Admin" };
+        var roles = await userService.GetRolesOfCurrentUser(ct);
+
+        if (!roles.Any(role => allowedCreateRoles.Contains(role)))
+            throw new UnauthorizedAccessException();
+
         var user = new User
         {
             UserName = dto.UserName,
