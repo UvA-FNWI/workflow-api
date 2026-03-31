@@ -71,6 +71,12 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         return documents;
     }
 
+    public async Task<IEnumerable<WorkflowInstance>> GetByFilter(FilterDefinition<WorkflowInstance> filter,
+        CancellationToken ct)
+    {
+        return await instanceCollection.Find(filter).ToListAsync(ct);
+    }
+
     public async Task<IEnumerable<WorkflowInstance>> GetByParentId(string parentId, CancellationToken ct)
     {
         var filter = Builders<WorkflowInstance>.Filter.Eq(x => x.ParentId, parentId);

@@ -1,0 +1,36 @@
+{
+  "title": "Milestones (test)",
+  "description": "Milestones (test environment)",
+  "target_link_uri": "https://workflow-ui-tst.datanose.nl/canvas",
+  "oidc_initiation_url": "https://workflow-api-tst.datanose.nl/oidc",
+  "oidc_initiation_urls": {},
+  "public_jwk_url": "https://workflow-api-tst.datanose.nl/jwks",
+  "public_jwk": {},
+  "custom_fields": {
+    "courseId": "$Canvas.course.id"
+  },
+  "scopes": [],
+  "extensions": [
+    {
+      "domain": "",
+      "tool_id": "",
+      "privacy_level": "public",
+      "platform": "canvas.instructure.com",
+      "settings": {
+        "platform": "canvas.instructure.com",
+        "placements": [
+          {
+            "labels": {
+              "en": "Milestones (test)",
+              "nl": "Milestones (test)"
+            },
+            "placement": "course_navigation",
+            "visibility": "members",
+            "display_type": "full_width_in_context",
+            "message_type": "LtiResourceLinkRequest"
+          }
+        ]
+      }
+    }
+  ]
+}

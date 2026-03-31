@@ -20,6 +20,8 @@ public interface IWorkflowInstanceRepository
     Task<IEnumerable<WorkflowInstance>> GetByWorkflowDefinition(string workflowDefinition,
         FilterDefinition<WorkflowInstance> filter, CancellationToken ct);
 
+    Task<IEnumerable<WorkflowInstance>> GetByFilter(FilterDefinition<WorkflowInstance> filter, CancellationToken ct);
+
     Task<IEnumerable<WorkflowInstance>> GetByParentId(string parentId, CancellationToken ct);
 
     // Advanced query methods

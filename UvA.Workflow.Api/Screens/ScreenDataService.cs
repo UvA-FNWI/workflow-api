@@ -93,7 +93,9 @@ public class ScreenDataService(
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                var value = column.GetValue(context);
+                var value = columns[i].IsCurrentStep
+                    ? GetDisplayTitleCurrentStep(screen, column.GetValue(context) as string ?? "")
+                    : column.GetValue(context);
                 processedValues[columnId] = value;
             }
 
@@ -200,7 +202,9 @@ public class ScreenDataService(
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                var value = column.GetValue(context);
+                var value = columns[i].IsCurrentStep
+                    ? GetDisplayTitleCurrentStep(screen, column.GetValue(context) as string ?? "")
+                    : column.GetValue(context);
                 processedValues[columnId] = value;
             }
 
@@ -223,5 +227,14 @@ public class ScreenDataService(
         }
 
         return mapping;
+    }
+
+    private BilingualString GetDisplayTitleCurrentStep(Screen screen, string internalName)
+    {
+        if (string.IsNullOrEmpty(internalName) ||
+            string.IsNullOrEmpty(screen.WorkflowDefinition) ||
+            !modelService.WorkflowDefinitions.TryGetValue(screen.WorkflowDefinition, out var workflowDef))
+            return internalName;
+        return workflowDef.AllSteps.Find(s => s.Name == internalName)?.DisplayTitle ?? internalName;
     }
 }
