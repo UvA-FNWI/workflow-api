@@ -32,6 +32,8 @@ public abstract class ControllerTestsBase
     protected readonly Mock<IUserRepository> _userRepoMock;
     protected readonly Mock<IConfiguration> _configurationMock;
 
+    protected readonly ILoggerFactory _loggerFactory;
+
     protected readonly ModelService _modelService;
     protected readonly RightsService _rightsService;
     protected readonly InstanceService _instanceService;
@@ -49,7 +51,8 @@ public abstract class ControllerTestsBase
             .WriteTo.Console()
             .WriteTo.Debug()
             .CreateLogger();
-        var factory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
+
+        _loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
 
         // Mocks
         _instanceRepoMock = new Mock<IWorkflowInstanceRepository>();
@@ -60,14 +63,16 @@ public abstract class ControllerTestsBase
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
         _instanceEventService = new Mock<IInstanceEventService>();
-        _configurationMock = new Mock<IConfiguration>();
-        _userRepoMock = new Mock<IUserRepository>();
         _jobRepositoryMock = new Mock<IJobRepository>();
+        _userRepoMock = new Mock<IUserRepository>();
+
+        _configurationMock = new Mock<IConfiguration>();
+        _configurationMock.SetupGet(c => c["FileKey"]).Returns(ImpersonationTestHelpers.SigningKey);
 
         // Services
         _modelService = ControllerTestsHelpers.CreateModelService();
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
-        _configurationMock.SetupGet(c => c["FileKey"]).Returns(ImpersonationTestHelpers.SigningKey);
+
 
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
@@ -80,20 +85,23 @@ public abstract class ControllerTestsBase
         _eventService =
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
 
-        _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
-            _instanceJournalServiceMock.Object);
+        _workflowInstanceService =
+            new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
+                _instanceJournalServiceMock.Object);
 
-        _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            mailBuilder, _artifactServiceMock.Object,
-            _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
-            {
-                TenantId = "tenant",
-                ClientId = "client",
-                UserAccount = "user@mail.com",
-            }), _configurationMock.Object);
+        _effectService =
+            new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object, mailBuilder,
+                _artifactServiceMock.Object, _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
+                {
+                    TenantId = "tenant",
+                    ClientId = "client",
+                    UserAccount = "user@mail.com",
+                }), _configurationMock.Object);
 
-        _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
-            _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
-            _instanceService);
+        _jobService =
+            new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
+                _instanceRepoMock.Object, userRepository: _userRepoMock.Object,
+                _loggerFactory.CreateLogger<JobService>(),
+                _instanceService);
     }
 }

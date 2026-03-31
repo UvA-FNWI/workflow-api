@@ -1,14 +1,13 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
-using UvA.Workflow.Api.WorkflowInstances;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
-using UvA.Workflow.Tests.Impersonation;
-using UvA.Workflow.Users;
+using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Controllers;
@@ -17,14 +16,20 @@ public class SubmissionsControllerTests : ControllerTestsBase
 {
     private readonly SubmissionService _submissionService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
+    private readonly WorkflowInstanceDtoFactory _workflowInstanceDtoFactory;
 
-    public SubmissionsControllerTests() : base()
+    public SubmissionsControllerTests()
     {
         _submissionService =
             new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
         _submissionDtoFactory =
             new SubmissionDtoFactory(new ArtifactTokenService(_configurationMock.Object), _modelService);
+        _workflowInstanceDtoFactory =
+            new WorkflowInstanceDtoFactory(_instanceService, _modelService,
+                _submissionDtoFactory, _instanceRepoMock.Object, _rightsService,
+                new StepVersionService(_modelService, _eventRepoMock.Object), _workflowInstanceService,
+                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
     }
 
     [Theory]
@@ -82,12 +87,11 @@ public class SubmissionsControllerTests : ControllerTestsBase
             .ReturnsAsync(instance);
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles);
-
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ControllerTestsHelpers.AdminUser);
 
         var controller = new SubmissionsController(_userServiceMock.Object, _modelService, _rightsService,
-            _submissionService, _submissionDtoFactory, null);
+            _submissionService, _submissionDtoFactory, _workflowInstanceDtoFactory);
 
         return (controller, instance);
     }
