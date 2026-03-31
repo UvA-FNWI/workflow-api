@@ -21,7 +21,7 @@ public static class AssessmentService
     public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext,
         string? pageName)
     {
-        var pages = GetPagesForResults(submissionContext.Form);
+        var pages = GetPagesForResults(submissionContext.Form.ActualForm);
 
         int totalWeight = pages
             .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
