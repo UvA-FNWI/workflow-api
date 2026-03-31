@@ -9,15 +9,14 @@ pages:
       en: Report
       nl: Verslag
     fields:
-      - ProductAbstract
+      - ProductAbstract          
+      - ProductIntroduction
+      - ProductMethods
+      - ProductResults
+      - ProductDiscussionConclusion
+      - ProductReadability
+      - ProductComments
     sources: [AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer]
-    #      - ProductIntroduction
-    #      - ProductMethods
-    #      - ProductResults
-    #      - ProductDiscussionConclusion
-    #      - ProductReadability
-    #      - ProductComments
-
 
   - name: Process
     title:
@@ -25,23 +24,23 @@ pages:
       nl: Proces
     fields:
       - ProcessPreparationMethodology
+      - ProcessExperimentalSkills
+      - ProcessReliabilityReproducibility
+      - ProcessInterpretingResults
+      - ProcessIndependenceInitiative
+      - ProcessCommunicationCollaboration
+      - ProcessPlanningTimeManagement
     sources: [AssessmentSupervisor, AssessmentExaminer]
-  #      - ProcessExperimentalSkills
-  #      - ProcessReliabilityReproducibility
-  #      - ProcessInterpretingResults
-  #      - ProcessIndependenceInitiative
-  #      - ProcessCommunicationCollaboration
-  #      - ProcessPlanningTimeManagement
-
+    
   - name: Presentation
     title:
       en: Presentation
       nl: Presentatie
     fields:
       - PresentationContextualizationDelivery
-    sources: [ AssessmentSupervisor, AssessmentExaminer ]
-#      - PresentationClarityStyle
-#      - PresentationHandlingQuestions
+      - PresentationClarityStyle
+      - PresentationHandlingQuestions
+    sources: [ AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer ]
 
 
   - name: FinalRemarks
@@ -49,13 +48,6 @@ pages:
       en: Final Remarks
       nl: Eindopmerkingen
     fields:
-      - SummaryComments   
+      - SummaryComments 
+      - Laudatio     
     sources: [AssessmentSupervisor, AssessmentExaminer]
-#      - Laudatio
- 
-  - name: FinalGrade
-    title:
-      en: Final Grade
-      nl: Eindcijfer
-    type: AssessmentOverview
-    sources: [AssessmentExaminer]

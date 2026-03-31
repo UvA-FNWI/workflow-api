@@ -16,7 +16,7 @@ public enum FormLayout
     Modal
 }
 
-public enum PageType
+public enum FormType
 {
     Normal,
     AssessmentOverview
@@ -48,11 +48,6 @@ public class Page
     /// Layout of the page. Condensed will show the questions in a table
     /// </summary>
     public PageLayout Layout { get; set; }
-
-    /// <summary>
-    /// Type of the page to be rendered by the front-end.
-    /// </summary>
-    public PageType Type { get; set; } = PageType.Normal;
 
     /// <summary>
     /// PropertyDefinition names to include in the page
@@ -103,6 +98,11 @@ public class Form : INamed
     /// </summary>
     [YamlMember(Alias = "targetForm")]
     public string? TargetFormName { get; set; }
+
+    /// <summary>
+    /// Type of the form to be rendered by the front-end.
+    /// </summary>
+    public FormType FormType { get; set; } = FormType.Normal;
 
     /// <summary>
     /// Step this form belongs to

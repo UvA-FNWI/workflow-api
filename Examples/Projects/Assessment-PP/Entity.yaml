@@ -67,7 +67,6 @@ properties:
       nl: Toelichting
     layout:
       multiline: true
-    weight: 1
     
   # Process
   - name: ProcessPreparationMethodology

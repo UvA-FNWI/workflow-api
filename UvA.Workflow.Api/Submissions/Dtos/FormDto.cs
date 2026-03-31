@@ -5,6 +5,7 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
+    FormType FormType,
     string? Step)
 {
     public static FormDto Create(Form form, ObjectContext context)
@@ -15,12 +16,14 @@ public record FormDto(
         var questions = filteredPages
             .SelectMany(p => p.Fields)
             .ToDictionary(q => q, q => QuestionDto.Create(q, context));
+        var formType = form.FormType;
         form = form.ActualForm;
         return new FormDto(
             form.Name,
             form.Title ?? form.Name,
             filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]), context)).ToArray(),
             form.Layout,
+            formType,
             form.Step
         );
     }
@@ -32,7 +35,6 @@ public record PageDto(
     BilingualString Title,
     BilingualString? Introduction,
     PageLayout Layout,
-    PageType Type,
     QuestionDto[] Questions,
     bool HasResults
 )
@@ -44,7 +46,6 @@ public record PageDto(
             page.DisplayTitle,
             page.IntroductionTemplate?.Apply(context),
             page.Layout,
-            page.Type,
             questions.ToArray(),
             page.HasResults
         );
