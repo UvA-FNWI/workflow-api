@@ -27,11 +27,6 @@ pages:
       - EC
 
 onSubmit:
-  - showConfetti: true
-    condition:
-      value:
-        property: Title
-        equal: =TEST
   - sendMail:
      toAddress: "replaced-by-override@mail.com"
      layout: default
