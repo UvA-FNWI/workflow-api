@@ -1,0 +1,20 @@
+name: AssessmentSecondreader
+title:
+  en: Assessment (Second Reader)
+  nl: Beoordeling (Tweede lezer)
+
+properties:
+  - name: AssessmentSecondreader
+    type: Assessment-PP!
+
+actions:
+  - name: AssessmentSecondreader
+    type: Submit
+    roles: [SecondReviewer]
+    form: AssessmentSecondreader
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+ends:
+  event: AssessmentSecondreader

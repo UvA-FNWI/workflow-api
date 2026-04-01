@@ -4,14 +4,30 @@ namespace UvA.Workflow.Assessments;
 
 public static class AssessmentService
 {
+    private static Page[] GetPagesForResults(Form form)
+    {
+        var actualForm = form.ActualForm;
+
+        // Base form: use all pages
+        if (form.TargetForm == null)
+            return actualForm.Pages.ToArray();
+
+        // Child form: only use pages that belong to this child
+        return actualForm.Pages
+            .Where(p => p.Sources == null || p.Sources.Contains(form.PropertyName))
+            .ToArray();
+    }
+
     public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext,
         string? pageName)
     {
-        int totalWeight = submissionContext.Form.Pages
+        var pages = GetPagesForResults(submissionContext.Form.ActualForm);
+
+        int totalWeight = pages
             .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
             .Sum(field => field.Weight ?? 0);
 
-        return submissionContext.Form.Pages
+        return pages
             .Where(page => page.Fields.Any(field => field.Weight.HasValue)) // Filter out pages without a weight
             .Where(page => string.IsNullOrEmpty(pageName) || page.Name == pageName)
             .ToDictionary(
@@ -19,7 +35,9 @@ public static class AssessmentService
                 page => page.Fields.Where(field => field.Weight.HasValue) // Filter out fields without a weight
                     .Select(field =>
                     {
-                        var hasAnswer = submissionContext.Instance.Properties.TryGetValue(field.Name, out var answer);
+                        var answer =
+                            submissionContext.Instance.GetProperty(submissionContext.Form.PropertyName, field.Name);
+
                         return new Result
                         {
                             QuestionName = field.Name,
@@ -27,7 +45,7 @@ public static class AssessmentService
                             Percentage = totalWeight == 0
                                 ? 0
                                 : (decimal)field.Weight.GetValueOrDefault() / totalWeight * 100,
-                            Answer = !hasAnswer || answer is null || answer.IsBsonNull ? 0 : answer.ToDouble()
+                            Answer = answer is null || answer.IsBsonNull ? 0 : answer.ToDouble()
                         };
                     })
                     .ToArray()

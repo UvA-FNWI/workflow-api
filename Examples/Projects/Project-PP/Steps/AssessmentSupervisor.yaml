@@ -1,0 +1,20 @@
+name: AssessmentSupervisor
+title:
+  en: Assessment (Supervisor)
+  nl: Beoordeling (Supervisor)
+  
+properties:
+  - name: AssessmentSupervisor
+    type: Assessment-PP!
+
+actions:
+  - name: AssessmentSupervisor
+    type: Submit
+    roles: [Supervisor]
+    form: AssessmentSupervisor
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+ends:
+  event: AssessmentSupervisor

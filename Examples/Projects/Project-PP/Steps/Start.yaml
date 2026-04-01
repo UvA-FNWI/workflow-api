@@ -1,0 +1,66 @@
+name: Start
+
+icon: article-line
+
+title:
+  nl: Titel en details invullen
+  en: Specify title and details
+
+actions:
+  - roles: [Student]
+    type: Submit
+    form: Start
+
+properties:
+  - name: ProjectLocation
+    type: ProjectLocationType!
+    text:
+      en: Is this an internal (UvA or VU) or external project?
+      nl: Is dit een intern (UvA of VU) of extern project?
+    layout:
+      type: RadioList
+    values:
+      - name: Internal
+        text:
+          en: Internal
+          nl: Intern
+      - name: External
+        text:
+          en: External
+          nl: Extern
+
+  - name: InstituteDepartment
+    type: String!
+    text:
+      en: Institute and department/research group
+      nl: Instituut en afdeling/onderzoeksgroep
+
+  - name: PlannedDateDefense
+    type: Date!
+    text:
+      en: Planned date of defense
+      nl: Geplande datum van verdediging
+    validation:
+      message:
+        en: Date must be in the future
+        nl: Datum moet in de toekomst liggen
+      value:
+        property: PlannedDateDefense
+        greaterThan: now
+  
+  - name: NumberOfDefenseGuests
+    type: Int!
+    text:
+      en: Expected number of guests at the defense
+      nl: Verwacht aantal gasten bij de verdediging
+    validation:
+      message:
+        en: Number of guests cannot be negative
+        nl: Aantal gasten mag niet negatief zijn
+      value:
+        property: NumberOfDefenseGuests
+        greaterThanOrEqual: 0
+
+ends:
+  event:
+    id: Start
