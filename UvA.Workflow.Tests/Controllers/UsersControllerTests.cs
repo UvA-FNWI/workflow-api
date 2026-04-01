@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
-using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -11,6 +10,8 @@ public class UsersControllerTests : ControllerTestsBase
     [Theory]
     [InlineData("Coordinator")]
     [InlineData("Student")]
+    [InlineData("Admin")]
+    [InlineData("Api")]
     public async Task Users_GetLoggedInUser_Allow(string role)
     {
         // Arrange

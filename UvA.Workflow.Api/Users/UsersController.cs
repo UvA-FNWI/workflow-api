@@ -23,7 +23,7 @@ public class UsersController(
     [HttpPost]
     public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
     {
-        var allowedCreateRoles = new[] { "Api", "Admin" };
+        string[] allowedCreateRoles = ["Api", "Admin"];
         var roles = await userService.GetRolesOfCurrentUser(ct);
 
         if (!roles.Any(role => allowedCreateRoles.Contains(role)))
