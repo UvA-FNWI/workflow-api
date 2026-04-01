@@ -1,0 +1,41 @@
+name: DataNose
+baseUrl: "{{ BaseUrl }}"
+headers:
+  Api-Key: "{{ Token }}"
+
+operations:
+
+- name: FinalGradeSubmission
+  url: Grading/External/CreateProjectGradeList
+  method: POST
+  inputs:
+    - name: CourseExternalId
+      type: String!
+    - name: Student
+      type: User!
+    - name: Grade
+      type: String!
+    - name: ExamDate
+      type: DateTime!
+    - name: Title
+      type: String!
+    - name: Supervisor
+      type: User!
+    - name: Examiner
+      type: User!
+    - name: ExamType
+      type: String!
+  outputs:
+    - name: Id
+      path: submittedListId
+    - name: SigningUrl
+      template: "{{ DN1BaseUrl }}#canvassign[{{ submittedListId }}]"
+  body:
+    courseExternalId: "{{ CourseExternalId }}"
+    studentUserName: "{{ Student.UserName }}"
+    grade: "{{ Grade }}"
+    examDate: "{{ formatDate(ExamDate, =o) }}"
+    title: "{{ Title }}"
+    examType: "{{ ExamType }}"
+    supervisorEmail: "{{ Supervisor.Email }}"
+    examinerEmail: "{{ Examiner.Email }}"
