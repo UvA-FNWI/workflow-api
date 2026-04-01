@@ -8,11 +8,11 @@ public static class AssessmentService
     {
         var actualForm = form.ActualForm;
 
-        // Direct/base form: use all pages
+        // Base form: use all pages
         if (form.TargetForm == null)
             return actualForm.Pages.ToArray();
 
-        // Child/proxy form: only use pages that belong to this child
+        // Child form: only use pages that belong to this child
         return actualForm.Pages
             .Where(p => p.Sources == null || p.Sources.Contains(form.PropertyName))
             .ToArray();

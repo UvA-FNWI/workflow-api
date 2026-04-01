@@ -50,9 +50,8 @@ public class AssessmentsController(
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
-        // 1. Exact form name? Return single form.
-        var exactForm = modelService.GetFormOrDefault(instance, requestedId);
-        if (exactForm != null)
+        // If the form with the name exists, return the single form
+        if (modelService.TryGetForm(instance, requestedId) != null)
         {
             return
             [
@@ -60,10 +59,10 @@ public class AssessmentsController(
             ];
         }
 
-        // 2. Otherwise treat requestedId as actual/base form and resolve child forms
+        // Otherwise treat requestedId as base form and resolve child forms
         var childForms = modelService.GetDerivedForms(instance, requestedId).ToArray();
         if (childForms.Length == 0)
-            throw new EntityNotFoundException("Form", requestedId);
+            throw new ArgumentException($"Form with {requestedId} not found");
 
         return await Task.WhenAll(
             childForms.Select(f => submissionService.GetSubmissionContext(instanceId, f.Name, null, ct))

@@ -15,12 +15,12 @@ public class ModelService(ModelParser parser)
         return form ?? throw new ArgumentException($"Form {formName} not found");
     }
 
+    public Form? TryGetForm(WorkflowInstance instance, string formName)
+        => WorkflowDefinitions[instance.WorkflowDefinition].Forms.GetOrDefault(formName);
+
     public IEnumerable<Form> GetDerivedForms(WorkflowInstance instance, string formName)
         => WorkflowDefinitions[instance.WorkflowDefinition].Forms
             .Where(f => f.Name == formName || f.TargetFormName == formName);
-
-    public Form? GetFormOrDefault(WorkflowInstance instance, string formName)
-        => WorkflowDefinitions[instance.WorkflowDefinition].Forms.GetOrDefault(formName);
 
     public PropertyDefinition? GetQuestion(WorkflowInstance instance, params string?[] parts)
     {
