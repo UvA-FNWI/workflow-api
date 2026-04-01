@@ -9,7 +9,8 @@ public class AssessmentsController(
     SubmissionService submissionService,
     IUserService userService,
     IWorkflowInstanceRepository workflowInstanceRepository,
-    ModelService modelService) : ApiControllerBase
+    ModelService modelService,
+    AssessmentDtoFactory assessmentDtoFactory) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}/Results")]
     public async Task<ActionResult<AssessmentGroupDto>> GetSubmissionResults(string instanceId, string submissionId,
@@ -21,7 +22,7 @@ public class AssessmentsController(
 
         var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
 
-        var dto = AssessmentGroupDto.Create(submissionId, contexts);
+        var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts);
         return Ok(dto);
     }
 
@@ -36,7 +37,7 @@ public class AssessmentsController(
 
         var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
 
-        var dto = AssessmentGroupDto.Create(submissionId, contexts, pageName);
+        var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts, pageName);
         return Ok(dto);
     }
 

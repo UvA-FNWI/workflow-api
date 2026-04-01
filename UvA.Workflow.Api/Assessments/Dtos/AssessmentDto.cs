@@ -1,3 +1,5 @@
+using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Submissions;
 
@@ -7,14 +9,28 @@ public record AssessmentDto(
     string Id,
     BilingualString FormTitle,
     Dictionary<string, Result[]> Results, // <Page name, Results for all questions of that page>
-    Dictionary<string, decimal> WeightedAverages // <Page name, weighted average for all questions on that page>
-)
+    Dictionary<string, decimal> WeightedAverages, // <Page name, weighted average for all questions on that page>
+    AnswerDto[] Answers
+);
+
+public record AssessmentGroupDto(
+    string Id,
+    AssessmentDto[] Forms
+);
+
+public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
 {
-    public static AssessmentDto Create(SubmissionContext submissionContext, string? pageName = null)
+    private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
+
+    public AssessmentDto Create(SubmissionContext submissionContext, string? pageName = null)
     {
         var results = AssessmentService.CalculateFormResults(submissionContext, pageName);
         var weightedAverages = AssessmentService.CalculateWeightedAverages(results);
-
+        var shownQuestionIds =
+            modelService.GetQuestionStatus(submissionContext.Instance, submissionContext.Form, true);
+        var answers = shownQuestionIds == null
+            ? []
+            : Answer.Create(submissionContext.Instance, submissionContext.Form, shownQuestionIds);
         results.Values
             .SelectMany(arr => arr)
             .ForEach(r => r.Percentage = Math.Round(r.Percentage, 2, MidpointRounding.AwayFromZero));
@@ -23,19 +39,15 @@ public record AssessmentDto(
             submissionContext.Form.Name,
             submissionContext.Form.DisplayName,
             results,
-            weightedAverages
+            weightedAverages,
+            answers.Select(a => _answerDtoFactory.Create(a)).ToArray()
         );
     }
-}
 
-public record AssessmentGroupDto(
-    string Id,
-    AssessmentDto[] Forms)
-{
-    public static AssessmentGroupDto Create(string id, IEnumerable<SubmissionContext> contexts,
+    public AssessmentGroupDto CreateGroup(string id, IEnumerable<SubmissionContext> contexts,
         string? pageName = null)
         => new(
             id,
-            contexts.Select(c => AssessmentDto.Create(c, pageName)).ToArray()
+            contexts.Select(c => Create(c, pageName)).ToArray()
         );
 }
