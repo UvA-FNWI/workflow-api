@@ -24,6 +24,27 @@ public class SubmissionsController(
         return Ok(dto);
     }
 
+    [HttpGet("{instanceId}")]
+    public async Task<ActionResult<IEnumerable<SubmissionDto>>> GetMultipleSubmissions(
+        string instanceId,
+        [FromQuery] string[] submissionIds,
+        [FromQuery] int? version = null,
+        CancellationToken ct = default)
+    {
+        var contexts = await Task.WhenAll(
+            submissionIds.Select(submissionId =>
+                submissionService.GetSubmissionContext(instanceId, submissionId, version, ct))
+        );
+
+        var dtos = contexts.Select(ctx =>
+        {
+            var (instance, submission, form, _) = ctx;
+            return submissionDtoFactory.Create(instance, form, submission,
+                modelService.GetQuestionStatus(instance, form, true));
+        });
+        return Ok(dtos);
+    }
+
     [HttpPost("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string submissionId,
         CancellationToken ct)
