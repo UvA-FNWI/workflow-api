@@ -3,7 +3,7 @@ using UvA.Workflow.Api.Screens.Dtos;
 
 namespace UvA.Workflow.Api.Screens;
 
-public class ScreensController(ScreenDataService screenDataService, RightsService rightsService) : ApiControllerBase
+public class ScreensController(ScreenDataService screenDataService) : ApiControllerBase
 {
     /// <summary>
     /// Gets the specific screen for an instance, with column and rows
@@ -34,9 +34,6 @@ public class ScreensController(ScreenDataService screenDataService, RightsServic
         string workflowDefinition,
         CancellationToken ct)
     {
-        // if (!await rightsService.CanAny(workflowDefinition, RoleAction.View))
-        //     return Forbid();
-
         try
         {
             var grouped = await screenDataService.GetGroupedScreenData(screenName, workflowDefinition, ct);

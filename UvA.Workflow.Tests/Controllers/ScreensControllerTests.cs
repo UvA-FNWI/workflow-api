@@ -58,7 +58,7 @@ public class ScreensControllerTests : ControllerTestsBase
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ControllerTestsHelpers.AdminUser);
 
-        var controller = new ScreensController(_screenDataService, _rightsService);
+        var controller = new ScreensController(_screenDataService);
 
         return controller;
     }
