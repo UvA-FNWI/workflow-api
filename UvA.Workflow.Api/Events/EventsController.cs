@@ -7,6 +7,7 @@ namespace UvA.Workflow.Api.Events;
 public class EventsController(
     IWorkflowInstanceRepository workflowRepository,
     IUserService userService,
+    RightsService rightsService,
     IInstanceEventService eventService)
     : ApiControllerBase
 {
@@ -21,6 +22,9 @@ public class EventsController(
         var instance = await workflowRepository.GetById(instanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
+
+        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
+
         await eventService.DeleteEvent(instance, eventName, user, ct);
         return Ok();
     }
