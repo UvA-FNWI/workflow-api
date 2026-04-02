@@ -26,8 +26,6 @@ operations:
     - name: ExamType
       type: String!
   outputs:
-    - name: Id
-      path: submittedListId
     - name: SigningUrl
       template: "{{ DN1BaseUrl }}#canvassign[{{ submittedListId }}]"
   body:
