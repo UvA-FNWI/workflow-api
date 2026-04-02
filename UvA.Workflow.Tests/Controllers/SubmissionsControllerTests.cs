@@ -7,6 +7,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
 
@@ -21,13 +22,13 @@ public class SubmissionsControllerTests : ControllerTestsBase
     public SubmissionsControllerTests()
     {
         _submissionService =
-            new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
+            new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
         _submissionDtoFactory =
             new SubmissionDtoFactory(new ArtifactTokenService(_configurationMock.Object), _modelService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(_instanceService, _modelService,
-                _submissionDtoFactory, _instanceRepoMock.Object, _rightsService,
+                _submissionDtoFactory, _workflowInstanceRepoMock.Object, _rightsService,
                 new StepVersionService(_modelService, _eventRepoMock.Object), _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
     }
@@ -83,7 +84,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
             .WithEvents(b => b.WithId(submissionId))
             .Build();
 
-        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(instance);
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles);

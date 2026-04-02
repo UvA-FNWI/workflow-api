@@ -13,11 +13,11 @@ using UvA.Workflow.Tests.Impersonation;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
-namespace UvA.Workflow.Tests.Controllers;
+namespace UvA.Workflow.Tests.Controllers.Helpers;
 
 public abstract class ControllerTestsBase
 {
-    protected readonly Mock<IWorkflowInstanceRepository> _instanceRepoMock;
+    protected readonly Mock<IWorkflowInstanceRepository> _workflowInstanceRepoMock;
     protected readonly Mock<IInstanceEventRepository> _eventRepoMock;
     protected readonly Mock<IUserService> _userServiceMock;
     protected readonly Mock<IMailService> _mailServiceMock;
@@ -52,7 +52,7 @@ public abstract class ControllerTestsBase
         _loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
 
         // Mocks
-        _instanceRepoMock = new Mock<IWorkflowInstanceRepository>();
+        _workflowInstanceRepoMock = new Mock<IWorkflowInstanceRepository>();
         _eventRepoMock = new Mock<IInstanceEventRepository>();
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
@@ -68,22 +68,21 @@ public abstract class ControllerTestsBase
 
         // Services
         _modelService = ControllerTestsHelpers.CreateModelService();
-        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
-
-
+        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+        
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = new MailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
 
         _instanceService =
-            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
+            new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
                 mailBuilder);
 
         _eventService =
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
 
         _workflowInstanceService =
-            new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
+            new WorkflowInstanceService(_modelService, _workflowInstanceRepoMock.Object,
                 _instanceJournalServiceMock.Object);
 
         _effectService =
@@ -97,7 +96,7 @@ public abstract class ControllerTestsBase
 
         _jobService =
             new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
-                _instanceRepoMock.Object, userRepository: _userRepoMock.Object,
+                _workflowInstanceRepoMock.Object, userRepository: _userRepoMock.Object,
                 _loggerFactory.CreateLogger<JobService>(),
                 _instanceService);
     }

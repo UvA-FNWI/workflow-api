@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Tests.Controllers.Helpers;
 
 namespace UvA.Workflow.Tests.Controllers;
 

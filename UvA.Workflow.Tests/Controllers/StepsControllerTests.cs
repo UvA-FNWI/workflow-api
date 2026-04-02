@@ -1,13 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Moq;
-using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Steps;
-using UvA.Workflow.Api.Submissions;
-using UvA.Workflow.Api.Submissions.Dtos;
-using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
-using UvA.Workflow.Submissions;
+using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
 
@@ -60,14 +55,20 @@ public class StepsControllerTests : ControllerTestsBase
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(instance);
+
+        _workflowInstanceRepoMock.Setup(r => r.GetAllById(It.IsAny<string[]>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles);
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ControllerTestsHelpers.AdminUser);
 
-        var controller = new StepsController(_userServiceMock.Object, _rightsService, _instanceRepoMock.Object,
+        var controller = new StepsController(_userServiceMock.Object, _rightsService, _workflowInstanceRepoMock.Object,
             _stepVersionService);
 
         return (controller, instance);
