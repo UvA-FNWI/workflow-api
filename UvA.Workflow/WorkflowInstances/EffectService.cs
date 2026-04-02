@@ -142,10 +142,7 @@ public class EffectService(
         var request = new HttpRequestMessage(new HttpMethod(operation.Method),
             Template.Create(operation.Url).Apply(requestContext));
         if (operation.Body != null)
-        {
-            var b = Process(operation.Body, requestContext);
-            request.Content = JsonContent.Create(b);
-        }
+            request.Content = JsonContent.Create(Process(operation.Body, requestContext));
 
         var result = await client.SendAsync(request, ct);
         try
