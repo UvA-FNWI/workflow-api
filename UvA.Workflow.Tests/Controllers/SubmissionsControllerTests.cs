@@ -36,7 +36,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
     [Theory]
     [InlineData("Coordinator")]
     [InlineData("Student")]
-    public async Task Submissions_GetSubmission_OnlyAllowWithViewRights(string role)
+    public async Task Submissions_GetSubmission_AllowWithViewRights(string role)
     {
         // Arrange
         const string submissionId = "Start";
@@ -50,7 +50,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
     [Theory]
     [InlineData("Student")]
-    public async Task Submissions_SubmitSubmission_OnlyAllowWithSubmitRights(string role)
+    public async Task Submissions_SubmitSubmission_AllowWithSubmitRights(string role)
     {
         // Arrange
         const string submissionId = "Start";
