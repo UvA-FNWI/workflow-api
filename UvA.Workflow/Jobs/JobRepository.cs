@@ -20,7 +20,7 @@ public class JobRepository(IMongoDatabase database) : IJobRepository
     public async Task<IEnumerable<Job>> GetPendingJobs(CancellationToken ct)
     {
         var result = await _jobCollection.FindAsync(
-            j => j.Status == JobStatus.Pending && j.StartOn.Date.Year == 2222,
+            j => j.Status == JobStatus.Pending && j.StartOn < DateTime.Now,
             cancellationToken: ct
         );
         return await result.ToListAsync(ct);
