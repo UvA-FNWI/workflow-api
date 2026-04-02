@@ -9,8 +9,7 @@ namespace UvA.Workflow.Tests.Controllers.Helpers;
 /// </summary>
 internal static class ControllerTestsHelpers
 {
-    public static ModelService CreateModelService()
-        => new(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+    public static ModelParser CreateModelParser() => new(new FileSystemProvider("../../../../Examples/Projects"));
 
     public static readonly User AdminUser = new()
     {

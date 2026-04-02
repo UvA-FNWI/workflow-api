@@ -31,6 +31,7 @@ public abstract class ControllerTestsBase
 
     protected readonly ILoggerFactory _loggerFactory;
 
+    protected readonly ModelParser _modelParser;
     protected readonly ModelService _modelService;
     protected readonly RightsService _rightsService;
     protected readonly InstanceService _instanceService;
@@ -66,16 +67,19 @@ public abstract class ControllerTestsBase
         _configurationMock = new Mock<IConfiguration>();
         _configurationMock.SetupGet(c => c["FileKey"]).Returns(ImpersonationTestHelpers.SigningKey);
 
+        _modelParser = ControllerTestsHelpers.CreateModelParser();
+
         // Services
-        _modelService = ControllerTestsHelpers.CreateModelService();
+        _modelService = new ModelService(_modelParser);
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
-        
+
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = new MailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
 
         _instanceService =
-            new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
+            new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object,
+                _rightsService,
                 mailBuilder);
 
         _eventService =

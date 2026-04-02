@@ -24,8 +24,8 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData("Coordinator")]
     [InlineData("Student")]
+    [InlineData("RandomPerson")]
     public async Task Users_Create_ThrowUnauthorizedException(string role)
     {
         // Arrange
@@ -36,9 +36,9 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData("Admin")]
     [InlineData("Api")]
-    public async Task Users_Create_AdminOrApiAllowed(string role)
+    [InlineData("Coordinator")]
+    public async Task Users_Create_AllowedWithViewAdminRights(string role)
     {
         // Arrange
         var controller = BuildControllerWithRoles([role]);
@@ -56,6 +56,6 @@ public class UsersControllerTests : ControllerTestsBase
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ControllerTestsHelpers.AdminUser);
 
-        return new UsersController(_userServiceMock.Object, _userRepoMock.Object);
+        return new UsersController(_userServiceMock.Object, _userRepoMock.Object, _rightsService);
     }
 }

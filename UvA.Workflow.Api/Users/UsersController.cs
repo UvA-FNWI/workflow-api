@@ -5,7 +5,8 @@ namespace UvA.Workflow.Api.Users;
 
 public class UsersController(
     IUserService userService,
-    IUserRepository userRepository) : ApiControllerBase
+    IUserRepository userRepository,
+    RightsService rightsService) : ApiControllerBase
 {
     /// <summary>
     /// Returns the currently authenticated user.
@@ -23,11 +24,7 @@ public class UsersController(
     [HttpPost]
     public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
     {
-        string[] allowedCreateRoles = ["Api", "Admin"];
-        var roles = await userService.GetRolesOfCurrentUser(ct);
-
-        if (!roles.Any(role => allowedCreateRoles.Contains(role)))
-            throw new UnauthorizedAccessException();
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
 
         var user = new User
         {
