@@ -1,4 +1,5 @@
 name: Turnitin
+disabled: "{{ IsDisabled }}"
 baseUrl: "{{ BaseUrl }}"
 headers:
   X-Turnitin-Integration-Name: UVA-DataNose
@@ -25,7 +26,7 @@ operations:
     eula:
       version: v1beta
       language: en-US
-      accepted_timestamp: "{{ now }}"
+      accepted_timestamp: "{{ formatDate(now, =o)}}"
     metadata:
       owners:
       - id: MIST_{{ Owner.Id }}
@@ -34,8 +35,8 @@ operations:
         email: "{{ Owner.Email }}"
 
 - name: UploadFile
-  url: submissions/{{SubmissionId}}
-  method: POST
+  url: submissions/{{SubmissionId}}/original
+  method: PUT
   inputs:
     - name: SubmissionId
       type: String!
@@ -47,7 +48,7 @@ operations:
   inputs:
     - name: SubmissionId
       type: String!
-  method: POST
+  method: PUT
   body:
     indexing_settings:
       add_to_index: true
@@ -77,4 +78,4 @@ operations:
     eula:
       version: v1beta
       language: en-US
-      accepted_timestamp: "{{now}}"
+      accepted_timestamp: "{{ formatDate(now, =o) }}"
