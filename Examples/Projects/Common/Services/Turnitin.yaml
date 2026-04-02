@@ -1,4 +1,5 @@
 name: Turnitin
+disabled: "{{ IsDisabled }}"
 baseUrl: "{{ BaseUrl }}"
 headers:
   X-Turnitin-Integration-Name: UVA-DataNose

@@ -126,6 +126,17 @@ public class EffectService(
                 .ToDictionary(Lookup (l) => l.Key, object? (l) => l.Value) ?? new()
         );
 
+        var isDisabled = service.Disabled != null
+                         && bool.TryParse(Template.Create(service.Disabled).Apply(optionContext), out var d)
+                         && d;
+        if (isDisabled)
+        {
+            logger.LogWarning(
+                "Service {Service} is disabled; skipping call to {Operation}.",
+                serviceCall.Service, serviceCall.Operation);
+            return;
+        }
+
         var client = new HttpClient
         {
             BaseAddress = service.BaseUrl != null
