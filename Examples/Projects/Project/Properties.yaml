@@ -45,9 +45,3 @@ properties:
   
   - name: TurnitinId
     type: String
-
-  - name: TurnitinReportUrl
-    type: String
-    text:
-      en: Turnitin report URL
-      nl: Turnitin rapport-URL
