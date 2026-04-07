@@ -20,16 +20,22 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         UrlEncoder encoder,
         IHttpClientFactory httpClientFactory,
         IUserService userService,
+        IEduIdUserService eduIdUserService,
+        IOptions<EduIdOptions> eduIdOptions,
         IMemoryCache cache)
         : base(options, logger, encoder)
     {
         this.httpClient = httpClientFactory.CreateClient(SchemeName);
         this.userService = userService;
+        this.eduIdUserService = eduIdUserService;
+        this.eduIdOptions = eduIdOptions.Value;
         this.cache = cache;
     }
 
     private readonly HttpClient httpClient;
     private readonly IUserService userService;
+    private readonly IEduIdUserService eduIdUserService;
+    private readonly EduIdOptions eduIdOptions;
     private readonly IMemoryCache cache;
     private static readonly int CacheExpirationMinutes = 10;
 
@@ -72,14 +78,30 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         if (resp.Uids is null || resp.Uids.Length == 0)
             return AuthenticateResult.Fail("missing uid");
 
+        var uid = resp.Uids[0].Trim();
+        if (string.IsNullOrWhiteSpace(uid))
+            return AuthenticateResult.Fail("missing uid");
+
+        if (IsEduIdAuthentication(resp))
+        {
+            var resolvedUser = await eduIdUserService.ResolveAuthenticatedUser(uid, resp.FullName, resp.Email);
+            if (resolvedUser == null)
+            {
+                Context.Items[SurfconextError] = "EduID user is not invited.";
+                return AuthenticateResult.Fail("EduID user is not invited");
+            }
+        }
+        else
+        {
+            await userService.AddOrUpdateUser(uid, resp.FullName, resp.Email);
+        }
+
         var principal = CreateClaimsPrincipal(resp);
         cache.Set(cacheKey, principal,
             new MemoryCacheEntryOptions
             {
                 SlidingExpiration = TimeSpan.FromMinutes(CacheExpirationMinutes)
             });
-
-        await userService.AddOrUpdateUser(principal.Identity!.Name!, resp.FullName, resp.Email);
 
         return AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName));
     }
@@ -148,7 +170,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
 
         if (r.Uids is { Length: > 0 } && !string.IsNullOrWhiteSpace(r.Uids[0]))
         {
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, UvaClaimTypes.UvanetId));
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, r.Uids[0]));
             claims.Add(new Claim(UvaClaimTypes.UvanetId, r.Uids[0]));
         }
 
@@ -180,4 +202,8 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         var identity = new ClaimsIdentity(claims, SchemeName, UvaClaimTypes.UvanetId, ClaimTypes.Role);
         return new ClaimsPrincipal(identity);
     }
+
+    private bool IsEduIdAuthentication(IntrospectionResponse response)
+        => !string.IsNullOrWhiteSpace(response.AuthenticatingAuthority) &&
+           string.Equals(response.AuthenticatingAuthority, eduIdOptions.Authority, StringComparison.OrdinalIgnoreCase);
 }

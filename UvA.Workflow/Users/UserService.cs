@@ -4,10 +4,9 @@ using UvA.Workflow.DataNose;
 
 namespace UvA.Workflow.Users;
 
-public abstract class UserServiceBase(
-    IUserRepository userRepository,
-    IMemoryCache cache)
+public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCache memoryCache)
 {
+    private IUserRepository UserRepository { get; } = userRepository;
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
     private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
     public const string ApiUserName = "__ApiUser";
@@ -25,15 +24,22 @@ public abstract class UserServiceBase(
     public async Task<User> AddOrUpdateUser(string username, string displayName, string email, CancellationToken ct)
     {
         var cacheKey = GetCacheKeyForUser(username);
-        if (!cache.TryGetValue(cacheKey, out User? user))
+        if (!memoryCache.TryGetValue(cacheKey, out User? user))
         {
-            user = await userRepository.GetByExternalId(username, ct);
+            user = await UserRepository.GetByExternalId(username, ct);
         }
 
         if (user == null)
         {
-            user = new User { UserName = username, DisplayName = displayName, Email = email };
-            await userRepository.Create(user, ct);
+            user = new User
+            {
+                UserName = username,
+                DisplayName = displayName,
+                Email = email,
+                AuthProvider = UserAuthProvider.Internal,
+                IsActive = true
+            };
+            await UserRepository.Create(user, ct);
         }
         else
         {
@@ -50,10 +56,10 @@ public abstract class UserServiceBase(
                 user.Email = email;
             }
 
-            if (changed) await userRepository.Update(user, ct);
+            if (changed) await UserRepository.Update(user, ct);
         }
 
-        cache.Set(cacheKey, user, UserCacheExpiration);
+        memoryCache.Set(cacheKey, user, UserCacheExpiration);
         return user;
     }
 
@@ -66,27 +72,31 @@ public abstract class UserServiceBase(
     public async Task<User?> GetUser(string username, CancellationToken ct)
     {
         var cacheKey = GetCacheKeyForUser(username);
-        if (cache.TryGetValue(cacheKey, out User? user)) return user;
+        if (memoryCache.TryGetValue(cacheKey, out User? user)) return user;
         if (username == ApiUserName)
             user = new User { UserName = username, DisplayName = "Api", Email = "api@invalid.uva.nl" };
         else
-            user = await userRepository.GetByExternalId(username, ct);
+            user = await UserRepository.GetByExternalId(username, ct);
         if (user != null)
-            cache.Set(cacheKey, user, UserCacheExpiration);
+            memoryCache.Set(cacheKey, user, UserCacheExpiration);
         return user;
     }
 
-    protected bool IsCached(string username) => cache.TryGetValue(GetCacheKeyForUser(username), out _);
+    protected bool IsCached(string username) => memoryCache.TryGetValue(GetCacheKeyForUser(username), out _);
 }
 
 public class UserService(
     IHttpContextAccessor httpContextAccessor,
     IDataNoseApiClient dataNoseApiClient,
     IUserRepository userRepository,
-    IMemoryCache cache)
+    IMemoryCache cache,
+    IEnumerable<IUserRoleSource> userRoleSources,
+    IEnumerable<IUserSearchSource> userSearchSources)
     : UserServiceBase(userRepository, cache), IUserService
 {
-    private readonly IMemoryCache cache = cache;
+    private readonly IMemoryCache _cache = cache;
+    private readonly IReadOnlyList<IUserRoleSource> _userRoleSources = userRoleSources.ToList();
+    private readonly IReadOnlyList<IUserSearchSource> _userSearchSources = userSearchSources.ToList();
     private static string GetCacheKeyForRoles(string userName) => $"roles:{userName}";
     private static TimeSpan RolesCacheExpiration => TimeSpan.FromMinutes(15);
 
@@ -106,12 +116,18 @@ public class UserService(
     public async Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default)
     {
         var cacheKey = GetCacheKeyForRoles(user.UserName);
-        if (cache.TryGetValue(cacheKey, out string[]? roles)) return roles!;
+        if (_cache.TryGetValue(cacheKey, out string[]? roles)) return roles!;
         if (user.UserName == ApiUserName)
             roles = ["Api"];
         else
-            roles = (await dataNoseApiClient.GetRolesByUser(user.UserName, ct)).ToArray();
-        cache.Set(cacheKey, roles, RolesCacheExpiration);
+        {
+            var roleSource = _userRoleSources.FirstOrDefault(source => source.CanResolve(user));
+            roles = roleSource == null
+                ? (await dataNoseApiClient.GetRolesByUser(user.UserName, ct)).ToArray()
+                : (await roleSource.GetRoles(user, ct)).ToArray();
+        }
+
+        _cache.Set(cacheKey, roles, RolesCacheExpiration);
         return roles;
     }
 
@@ -127,5 +143,30 @@ public class UserService(
     }
 
     public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct)
-        => await dataNoseApiClient.SearchPeople(query, ct);
+    {
+        var internalUsers = (await dataNoseApiClient.SearchPeople(query, ct)).ToList();
+        var additionalUsers = new List<UserSearchResult>();
+        foreach (var searchSource in _userSearchSources)
+            additionalUsers.AddRange(await searchSource.FindUsers(query, ct));
+
+        var results = new List<UserSearchResult>();
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenUserNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var user in internalUsers.Concat(additionalUsers))
+        {
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                if (!seenEmails.Add(user.Email))
+                    continue;
+            }
+
+            if (!seenUserNames.Add(user.UserName))
+                continue;
+
+            results.Add(user);
+        }
+
+        return results;
+    }
 }

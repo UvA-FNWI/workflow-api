@@ -16,4 +16,10 @@ public class User
     [BsonElement("DisplayName")] public string DisplayName { get; set; } = null!;
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
+
+    [BsonElement("AuthProvider")]
+    [JsonIgnore]
+    public UserAuthProvider AuthProvider { get; set; } = UserAuthProvider.Internal;
+
+    [BsonElement("IsActive")] [JsonIgnore] public bool IsActive { get; set; } = true;
 }

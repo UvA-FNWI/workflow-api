@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Infrastructure.Database;
@@ -21,6 +22,7 @@ public static class ServiceCollectionExtensions
 
         // Configure and validate Graph mail settings
         services.Configure<GraphMailOptions>(config.GetSection(GraphMailOptions.Section));
+        services.Configure<EduIdOptions>(config.GetSection(EduIdOptions.Section));
         var graphMailOptions = config.GetSection(GraphMailOptions.Section).Get<GraphMailOptions>() ??
                                new GraphMailOptions();
         GraphMailOptions.Validate(graphMailOptions);
@@ -42,6 +44,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IInstanceEventRepository, InstanceEventRepository>();
         services.AddScoped<IJobRepository, JobRepository>();
+        services.AddScoped<EduIdUserDirectory>();
+        services.AddScoped<IUserRoleSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
+        services.AddScoped<IUserSearchSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
+        services.AddScoped<IEduIdInvitationClient, EduIdInvitationClient>();
+        services.AddScoped<IEduIdUserService, EduIdUserService>();
+
+        services.AddHttpClient(EduIdInvitationClient.HttpClientName, (provider, http) =>
+        {
+            var options = provider.GetRequiredService<IOptions<EduIdOptions>>().Value;
+            http.BaseAddress = new Uri(options.InvitationApiUrl);
+            http.DefaultRequestHeaders.Remove("X-API-TOKEN");
+            http.DefaultRequestHeaders.Add("X-API-TOKEN", options.InvitationApiToken);
+        });
 
         services.AddScoped<WorkflowInstanceService>();
 

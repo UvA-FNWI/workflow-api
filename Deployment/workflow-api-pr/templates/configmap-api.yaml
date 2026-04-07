@@ -19,6 +19,14 @@ data:
 
   SurfConext__BaseUrl: "{{ .Values.surfConext.baseUrl }}"
   SurfConext__ClientId: "{{ .Values.surfConext.clientId }}"
+  EduId__Authority: "{{ .Values.eduId.authority }}"
+  EduId__InvitationApiUrl: "{{ .Values.eduId.invitationApiUrl }}"
+  EduId__RoleIdentifier: "{{ .Values.eduId.roleIdentifier }}"
+  EduId__InvitationExpiryDays: "{{ .Values.eduId.invitationExpiryDays }}"
+  EduId__RoleExpiryDays: "{{ .Values.eduId.roleExpiryDays }}"
+  EduId__InternalEmailDomains__0: "{{ index .Values.eduId.internalEmailDomains 0 }}"
+  EduId__InternalEmailDomains__1: "{{ index .Values.eduId.internalEmailDomains 1 }}"
+  EduId__InternalEmailDomains__2: "{{ index .Values.eduId.internalEmailDomains 2 }}"
 
   CanvasLti__ClientId: "{{ .Values.canvasLti.clientId }}"
   CanvasLti__AuthenticateUrl: "{{ .Values.canvasLti.authenticateUrl }}"
