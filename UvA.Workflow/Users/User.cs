@@ -5,6 +5,7 @@ namespace UvA.Workflow.Users;
 /// <summary>
 /// Represents a user in the workflow system.
 /// </summary>
+[BsonIgnoreExtraElements]
 public class User
 {
     [BsonId]

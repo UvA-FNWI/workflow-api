@@ -4,6 +4,7 @@ public class Service : INamed
 {
     public string Name { get; set; } = null!;
     public string? BaseUrl { get; set; }
+    public string? Disabled { get; set; }
     public Dictionary<string, string> Headers { get; set; } = new();
 
     public List<ServiceOperation> Operations { get; set; } = [];

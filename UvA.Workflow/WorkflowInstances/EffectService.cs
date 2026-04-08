@@ -1,11 +1,16 @@
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.StaticFiles;
 using UvA.Workflow.Events;
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowInstances.ServiceCalls;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -28,6 +33,7 @@ public class EffectService(
     ILogger<EffectService> logger)
 {
     private readonly GraphMailOptions _graphMailOptions = graphMailOptions.Value;
+    private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
     public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
         ObjectContext context, CancellationToken ct)
@@ -114,10 +120,10 @@ public class EffectService(
         var serviceCall = effect.ServiceCall!;
         var service = modelService.Services.Get(serviceCall.Service);
         var operation = service.Operations.Get(serviceCall.Operation);
+        var inputs = new ServiceCallInputs(serviceCall.Inputs);
 
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var inputLookups = serviceCall.Inputs.Values.SelectMany(v => ExpressionParser.Parse(v).Properties);
-        await instanceService.Enrich(workflowDefinition, [context], inputLookups, ct, replaceStep: false);
+        await instanceService.Enrich(workflowDefinition, [context], inputs.Lookups, ct, replaceStep: false);
 
         var optionContext = new ObjectContext(
             configuration
@@ -125,6 +131,17 @@ public class EffectService(
                 .Get<Dictionary<string, string>>()?
                 .ToDictionary(Lookup (l) => l.Key, object? (l) => l.Value) ?? new()
         );
+
+        var isDisabled = service.Disabled != null
+                         && bool.TryParse(Template.Create(service.Disabled).Apply(optionContext), out var d)
+                         && d;
+        if (isDisabled)
+        {
+            logger.LogWarning(
+                "Service {Service} is disabled; skipping call to {Operation}.",
+                serviceCall.Service, serviceCall.Operation);
+            return;
+        }
 
         var client = new HttpClient
         {
@@ -135,14 +152,18 @@ public class EffectService(
         foreach (var header in service.Headers)
             client.DefaultRequestHeaders.Add(header.Key, Template.Create(header.Value).Apply(optionContext));
 
-        var requestContext =
-            new ObjectContext(serviceCall.Inputs.ToDictionary(Lookup (i) => i.Key,
-                i => ExpressionParser.Parse(i.Value).Execute(context)));
+        var missingInputs = inputs.GetMissingInputs(context);
 
+        if (missingInputs.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Service call {serviceCall.Service}.{serviceCall.Operation} has unresolved inputs: {string.Join(", ", missingInputs)}");
+        }
+
+        var requestContext = inputs.CreateRequestContext(context);
         var request = new HttpRequestMessage(new HttpMethod(operation.Method),
             Template.Create(operation.Url).Apply(requestContext));
-        if (operation.Body != null)
-            request.Content = JsonContent.Create(Process(operation.Body, requestContext));
+        request.Content = await BuildRequestContent(operation, requestContext, ct);
 
         var result = await client.SendAsync(request, ct);
         try
@@ -175,6 +196,7 @@ public class EffectService(
             throw;
         }
 
+
         if (operation.Outputs.Any())
         {
             var body = await result.Content.ReadFromJsonAsync<JsonDocument>(ct);
@@ -206,6 +228,36 @@ public class EffectService(
                     : body?.RootElement.GetProperty(o.Path!).ToString()!)
             );
         }
+    }
+
+    private async Task<HttpContent?> BuildRequestContent(ServiceOperation operation, ObjectContext requestContext,
+        CancellationToken ct)
+    {
+        if (operation.Body != null)
+            return JsonContent.Create(Process(operation.Body, requestContext));
+
+        var fileInput = operation.Inputs.FirstOrDefault(i =>
+            i.Type.TrimEnd('!').Equals("File", StringComparison.OrdinalIgnoreCase));
+        if (fileInput == null)
+            return null;
+
+        if (requestContext.Get(fileInput.Name) is not ArtifactInfo fileInfo)
+            return null;
+
+        var artifact = await artifactService.GetArtifact(fileInfo.Id, ct);
+        if (artifact == null)
+            throw new EntityNotFoundException("Artifact", fileInfo.Id.ToString());
+
+        var content = new ByteArrayContent(artifact.Content);
+        var contentType = ContentTypeProvider.TryGetContentType(fileInfo.Name, out var mimeType)
+            ? mimeType
+            : "application/octet-stream";
+        content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Headers.ContentDisposition = new ContentDispositionHeaderValue("inline")
+        {
+            FileName = Uri.EscapeDataString(fileInfo.Name)
+        };
+        return content;
     }
 
     private object Process(object source, ObjectContext context) => source switch

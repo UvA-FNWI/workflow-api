@@ -26,6 +26,8 @@ public record Expression
         ["addDays"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(i)),
         ["addMonths"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddMonths(i)),
         ["addWeeks"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(7 * i)),
+        ["formatDate"] = new Function<DateTime?, string, string?>((d, f)
+            => d?.ToString(f, CultureInfo.InvariantCulture)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["formatDate"] = new Function<DateTime?, string, string?>((d, f)
             => d?.ToString(f, CultureInfo.InvariantCulture)),

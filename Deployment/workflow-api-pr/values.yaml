@@ -73,5 +73,7 @@ azure:
       key: CanvasLti__Key
     - name: workflow-impersonation-key
       key: ImpersonationKey
+    - name: workflow-turnitin-token
+      key: Services__Turnitin__Token
     - name: dn2-api-key
       key: Services__DataNose__Token
