@@ -36,4 +36,5 @@ operations:
     title: "{{ Title }}"
     examType: "{{ ExamType }}"
     supervisorEmail: "{{ Supervisor.Email }}"
-    examinerEmail: "{{ Examiner.Email }}"
+    supervisorFullName: "{{ Supervisor.DisplayName }}"
+    examinerUserName: "{{ Examiner.UserName }}"
