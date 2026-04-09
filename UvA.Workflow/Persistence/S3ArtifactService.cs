@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Minio;
 using Minio.DataModel.Args;
 using Serilog;
@@ -45,14 +46,37 @@ public class S3ArtifactService : IArtifactService
     public async Task<ArtifactInfo> SaveArtifact(string artifactName, Stream stream)
     {
         var id = ObjectId.GenerateNewId();
+        var contentType = "application/pdf";
+
         await UploadFileAsync(
             Buckets.Resumes,
             id.ToString(),
             stream,
-            "application/pdf");
+            contentType);
 
-        return new ArtifactInfo(id, artifactName);
+        return new ArtifactInfo(id,
+            artifactName,
+            contentType,
+            stream.Length,
+            DateTime.Now);
     }
+
+    public async Task<ArtifactInfo> SaveArtifact(IFormFile formFile)
+    {
+        var id = ObjectId.GenerateNewId();
+        await UploadFileAsync(
+            Buckets.Resumes,
+            id.ToString(),
+            formFile.OpenReadStream(),
+            formFile.ContentType);
+
+        return new ArtifactInfo(id,
+            formFile.FileName,
+            formFile.ContentType,
+            formFile.Length,
+            DateTime.Now);
+    }
+
 
     public async Task<Artifact?> GetArtifact(ObjectId id, CancellationToken ct)
     {

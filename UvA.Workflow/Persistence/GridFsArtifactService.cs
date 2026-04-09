@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using MongoDB.Driver.GridFS;
 using Serilog;
 using UvA.Workflow.Infrastructure.Database;
@@ -29,6 +30,9 @@ public class GridFsArtifactService : IArtifactService
         var id = await _bucket.UploadFromBytesAsync(artifactName, contents);
         return new ArtifactInfo(id, artifactName);
     }
+
+    public async Task<ArtifactInfo> SaveArtifact(IFormFile formFile)
+        => await SaveArtifact(formFile.Name, formFile.OpenReadStream());
 
     public async Task<ArtifactInfo> SaveArtifact(string artifactName, Stream stream)
         => await SaveArtifact(artifactName, await IArtifactService.ToByteArray(stream));

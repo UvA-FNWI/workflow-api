@@ -1,10 +1,14 @@
-using MongoDB.Driver.GridFS;
-using Serilog;
-using UvA.Workflow.Infrastructure.Database;
+using System.Net.Mime;
+using Microsoft.AspNetCore.Http;
 
 namespace UvA.Workflow.Persistence;
 
-public record ArtifactInfo(ObjectId Id, string Name);
+public record ArtifactInfo(
+    ObjectId Id,
+    string Name,
+    string ContentType = "application/octet-stream",
+    long Length = 0,
+    DateTime CreatedOn = default);
 
 public record Artifact(ArtifactInfo Info, byte[] Content);
 
@@ -13,6 +17,7 @@ public interface IArtifactService
     Task<ArtifactInfo?> GetArtifactInfo(ObjectId id, CancellationToken ct);
     Task<ArtifactInfo> SaveArtifact(string artifactName, byte[] contents);
     Task<ArtifactInfo> SaveArtifact(string artifactName, Stream stream);
+    Task<ArtifactInfo> SaveArtifact(IFormFile file);
     Task<Artifact?> GetArtifact(ObjectId id, CancellationToken ct);
     Task DeleteArtifact(ObjectId id, CancellationToken ct = default);
 

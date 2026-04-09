@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 using UvA.Workflow.Events;
 using UvA.Workflow.Files.S3;
@@ -94,11 +95,21 @@ public class AnswerService(
         return await artifactService.GetArtifact(artifactObjectId, ct);
     }
 
-    public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents, CancellationToken ct)
+    public async Task SaveArtifact(QuestionContext context, string artifactName, byte[] contents)
+    {
+        var artifactInfo = await artifactService.SaveArtifact(artifactName, contents);
+        await SaveArtifact(context, artifactInfo);
+    }
+
+    public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct)
+    {
+        var artifactInfo = await artifactService.SaveArtifact(formFile);
+        await SaveArtifact(context, artifactInfo, ct);
+    }
+
+    private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)
     {
         var (instance, _, form, question) = context;
-
-        var artifactInfo = await artifactService.SaveArtifact(artifactName, contents);
         ObjectId? oidOldArtifact = null;
 
         var value = instance.GetProperty(form.PropertyName, question.Name);
