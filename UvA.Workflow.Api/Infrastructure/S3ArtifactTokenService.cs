@@ -20,7 +20,7 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
         var claims = new List<Claim>
         {
             new("type", ResourceType),
-            new("bucket", Buckets.Resumes),
+            new("bucket", Buckets.Milestones),
             new("key", artifactInfo.Id.ToString()),
         };
 

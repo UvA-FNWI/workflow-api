@@ -29,7 +29,7 @@ public class S3ArtifactService : IArtifactService
     {
         // First, get the object metadata
         var statObjectArgs = new StatObjectArgs()
-            .WithBucket(Buckets.Resumes)
+            .WithBucket(Buckets.Milestones)
             .WithObject(id.ToString());
 
         var objectStat = await _minioClient.StatObjectAsync(statObjectArgs, ct);
@@ -48,7 +48,7 @@ public class S3ArtifactService : IArtifactService
         var id = ObjectId.GenerateNewId();
 
         await UploadFileAsync(
-            Buckets.Resumes,
+            Buckets.Milestones,
             id.ToString(),
             stream,
             contentType,
@@ -69,7 +69,7 @@ public class S3ArtifactService : IArtifactService
     {
         var id = ObjectId.GenerateNewId();
         await UploadFileAsync(
-            Buckets.Resumes,
+            Buckets.Milestones,
             id.ToString(),
             formFile.OpenReadStream(),
             formFile.ContentType,
@@ -95,7 +95,7 @@ public class S3ArtifactService : IArtifactService
         var ms = new MemoryStream();
         await _minioClient.GetObjectAsync(
             new GetObjectArgs()
-                .WithBucket(Buckets.Resumes)
+                .WithBucket(Buckets.Milestones)
                 .WithObject(id.ToString())
                 .WithCallbackStream(stream => stream.CopyTo(ms)),
             ct);
@@ -108,7 +108,7 @@ public class S3ArtifactService : IArtifactService
     {
         await _minioClient.RemoveObjectAsync(
             new RemoveObjectArgs()
-                .WithBucket(Buckets.Resumes)
+                .WithBucket(Buckets.Milestones)
                 .WithObject(id.ToString()),
             ct);
     }
