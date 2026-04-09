@@ -33,11 +33,10 @@ public class S3ArtifactService : IArtifactService
             .WithObject(id.ToString());
 
         var objectStat = await _minioClient.StatObjectAsync(statObjectArgs, ct);
-        var filename = objectStat.MetaData.TryGetValue("filename", out var value)
-            ? value
-            : id.ToString();
+        objectStat.MetaData.TryGetValue("filename", out var filename);
+        objectStat.MetaData.TryGetValue("type", out var contentType);
 
-        return new ArtifactInfo(id, filename);
+        return new ArtifactInfo(id, filename ?? id.ToString(), contentType ?? "application/octet-stream");
     }
 
     public async Task<ArtifactInfo> SaveArtifact(string artifactName, byte[] contents)
@@ -52,7 +51,12 @@ public class S3ArtifactService : IArtifactService
             Buckets.Resumes,
             id.ToString(),
             stream,
-            contentType);
+            contentType,
+            new Dictionary<string, string>
+            {
+                ["filename"] = artifactName,
+                ["type"] = contentType
+            });
 
         return new ArtifactInfo(id,
             artifactName,
@@ -68,7 +72,12 @@ public class S3ArtifactService : IArtifactService
             Buckets.Resumes,
             id.ToString(),
             formFile.OpenReadStream(),
-            formFile.ContentType);
+            formFile.ContentType,
+            new Dictionary<string, string>
+            {
+                ["filename"] = formFile.FileName,
+                ["type"] = formFile.ContentType
+            });
 
         return new ArtifactInfo(id,
             formFile.FileName,
@@ -83,8 +92,6 @@ public class S3ArtifactService : IArtifactService
         var info = await GetArtifactInfo(id, ct);
         if (info is null) return null;
 
-
-        // Then, get the object content
         var ms = new MemoryStream();
         await _minioClient.GetObjectAsync(
             new GetObjectArgs()
@@ -124,27 +131,6 @@ public class S3ArtifactService : IArtifactService
             Log.Error(ex, "Error deleting artifact {ArtifactId}", id);
             return false;
         }
-    }
-
-
-    private Dictionary<string, string> ExtractMetadata(IDictionary<string, string> metadata)
-    {
-        var userMetadata = new Dictionary<string, string>();
-        foreach (var kvp in metadata)
-        {
-            if (kvp.Key.StartsWith("x-amz-meta-", StringComparison.OrdinalIgnoreCase))
-            {
-                var userKey = kvp.Key.Substring("x-amz-meta-".Length);
-                userMetadata[userKey] = kvp.Value;
-            }
-            else
-            {
-                // Include other relevant metadata
-                userMetadata[kvp.Key] = kvp.Value;
-            }
-        }
-
-        return userMetadata;
     }
 
     private async Task UploadFileAsync(
