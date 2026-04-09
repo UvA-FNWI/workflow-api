@@ -68,6 +68,7 @@ public class Effect
             'h' => TimeSpan.FromHours(int.Parse(Delay[..^1])),
             'd' => TimeSpan.FromDays(int.Parse(Delay[..^1])),
             'm' => TimeSpan.FromMinutes(int.Parse(Delay[..^1])),
+            's' => TimeSpan.FromSeconds(int.Parse(Delay[..^1])),
             _ => throw new InvalidOperationException($"Invalid delay format: {Delay}")
         };
 
