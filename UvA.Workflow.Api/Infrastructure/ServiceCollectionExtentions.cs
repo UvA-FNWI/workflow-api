@@ -2,9 +2,9 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Events;
-using UvA.Workflow.Files.S3;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Infrastructure.Database;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
@@ -52,9 +52,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserService, UserService>();
 
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
-
-        // services.AddScoped<IArtifactService, GridFsArtifactService>();
-        // services.AddScoped<IArtifactTokenService, ArtifactTokenService>();
 
         services.AddScoped<IArtifactService, S3ArtifactService>();
         services.AddScoped<IArtifactTokenService, S3ArtifactTokenService>();

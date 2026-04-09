@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Files.S3;
+namespace UvA.Workflow.Infrastructure.S3;
 
 public class S3Config
 {

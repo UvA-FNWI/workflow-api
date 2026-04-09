@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Serilog;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
@@ -16,6 +18,13 @@ public class EffectServiceMailLoggingTests
     [Fact]
     public async Task RunEffects_WithMailEffect_SendsMailAndLogsFullContent()
     {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .WriteTo.Debug()
+            .CreateLogger();
+        var factory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
+
         var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
@@ -48,7 +57,8 @@ public class EffectServiceMailLoggingTests
                 UserAccount = "user@mail.com",
                 OverrideRecipient = "testen-dn-fnwi@uva.nl"
             }),
-            configuration.Object
+            configuration.Object,
+            factory.CreateLogger<EffectService>()
         );
 
         var instance = new WorkflowInstanceBuilder()
@@ -109,6 +119,13 @@ public class EffectServiceMailLoggingTests
     [Fact]
     public async Task RunEffects_WithMailEffectAndTriggerContext_LogsTriggerContext()
     {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .WriteTo.Debug()
+            .CreateLogger();
+        var factory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
+
         var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
@@ -140,7 +157,8 @@ public class EffectServiceMailLoggingTests
                 UserAccount = "user@mail.com",
                 OverrideRecipient = null
             }),
-            configuration.Object);
+            configuration.Object,
+            factory.CreateLogger<EffectService>());
 
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "SendLetter")

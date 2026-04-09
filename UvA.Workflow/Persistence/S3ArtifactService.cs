@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Minio;
 using Minio.DataModel.Args;
 using Serilog;
-using UvA.Workflow.Files.S3;
+using UvA.Workflow.Infrastructure.S3;
 
 namespace UvA.Workflow.Persistence;
 
@@ -45,8 +45,8 @@ public class S3ArtifactService : IArtifactService
 
     public async Task<ArtifactInfo> SaveArtifact(string artifactName, Stream stream)
     {
+        const string contentType = "application/pdf";
         var id = ObjectId.GenerateNewId();
-        var contentType = "application/pdf";
 
         await UploadFileAsync(
             Buckets.Resumes,

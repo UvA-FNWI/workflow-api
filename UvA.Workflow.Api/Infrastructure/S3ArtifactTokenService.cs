@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using UvA.Workflow.Files.S3;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Api.Infrastructure;
@@ -21,7 +21,6 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
         {
             new("type", ResourceType),
             new("bucket", Buckets.Resumes),
-            new("id", artifactInfo.Id.ToString()),
             new("key", artifactInfo.Id.ToString()),
         };
 

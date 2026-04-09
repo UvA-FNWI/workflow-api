@@ -7,7 +7,7 @@ public record ArtifactInfo(
     ObjectId Id,
     string Name,
     string ContentType = "application/octet-stream",
-    long Length = 0,
+    long Length = 0L,
     DateTime CreatedOn = default);
 
 public record Artifact(ArtifactInfo Info, byte[] Content);
