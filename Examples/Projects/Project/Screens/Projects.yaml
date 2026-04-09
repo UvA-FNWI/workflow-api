@@ -6,8 +6,8 @@ columns:
       nl: Naam student 
     value: "{{Student.DisplayName}}"
     defaultSort: "Descending"
-  - property: Title
     link: true
+  - property: Title
     default: No title
   - property: Course.Name
     title:

@@ -2,6 +2,7 @@ name: Publication
 title:
   en: Publication
   nl: Publicatie
+icon: sparkles-line
 
 actions:
   - roles: [Supervisor]
