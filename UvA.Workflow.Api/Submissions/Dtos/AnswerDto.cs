@@ -19,7 +19,7 @@ public record AnswerDto(
     string[]? VisibleChoices = null
 );
 
-public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
+public class AnswerDtoFactory(IArtifactTokenService artifactTokenService)
 {
     public AnswerDto Create(Answer answer)
     {

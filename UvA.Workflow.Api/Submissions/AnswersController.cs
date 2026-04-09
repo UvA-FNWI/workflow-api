@@ -9,7 +9,7 @@ public class AnswersController(
     IUserService userService,
     AnswerService answerService,
     RightsService rightsService,
-    ArtifactTokenService artifactTokenService,
+    IArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
     SubmissionService submissionService,
     InstanceService instanceService,
