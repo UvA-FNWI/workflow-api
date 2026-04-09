@@ -1,3 +1,4 @@
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Serilog;
@@ -53,6 +54,9 @@ public class AnswerService(
         {
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
+
+            if (currentAnswer != null && newAnswer.IsBsonNull && question.DataType == DataType.File)
+                await artifactService.TryDeleteArtifact(currentAnswer["_id"].AsObjectId, ct);
 
             // if the form is submitted, then log the change
             if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
