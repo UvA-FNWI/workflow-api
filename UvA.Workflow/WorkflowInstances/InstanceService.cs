@@ -170,7 +170,8 @@ public class InstanceService(
         Domain_Action Action,
         Form? Form = null,
         MailMessage? Mail = null,
-        WorkflowDefinition? WorkflowDefinition = null);
+        WorkflowDefinition? WorkflowDefinition = null,
+        string[]? DisplaySteps = null);
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
     {
@@ -179,6 +180,7 @@ public class InstanceService(
 
         var actions = new List<AllowedAction>();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var activeSteps = modelService.GetActiveSteps(instance);
 
         // Submittable forms
         actions.AddRange(allowed
@@ -187,7 +189,11 @@ public class InstanceService(
             .Where(f => instance.Events.WhereActive(instance, workflowDef).ToDictionary().GetValueOrDefault(f.Form)
                 ?.Date == null)
             .Distinct()
-            .Select(f => new AllowedAction(f.Action, modelService.GetForm(instance, f.Form)))
+            .Select(f =>
+            {
+                var form = modelService.GetForm(instance, f.Form);
+                return new AllowedAction(f.Action, form, DisplaySteps: GetDisplaySteps(f.Action, form));
+            })
         );
 
         // Create related entities
@@ -201,7 +207,9 @@ public class InstanceService(
                 var propDef = modelService.GetQuestion(instance, rel.Property!);
                 if (propDef is not null)
                 {
-                    actions.Add(new AllowedAction(rel, WorkflowDefinition: propDef.WorkflowDefinition));
+                    actions.Add(new AllowedAction(rel,
+                        WorkflowDefinition: propDef.WorkflowDefinition,
+                        DisplaySteps: GetDisplaySteps(rel)));
                 }
             }
 
@@ -216,12 +224,22 @@ public class InstanceService(
             if (sendMail is not null)
                 mail = await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
 
-            actions.Add(new AllowedAction(a, Mail: mail));
+            actions.Add(new AllowedAction(a, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
         }
 
         return actions
             .OrderBy(a => Array.IndexOf(allowed, a.Action))
             .ToList();
+
+        string[] GetDisplaySteps(Domain_Action action, Form? form = null)
+        {
+            var matchingActionSteps = action.Steps.Intersect(activeSteps).ToArray();
+            if (matchingActionSteps.Length != 0)
+                return matchingActionSteps;
+
+            // Fall back to the form's own step when the action has no active steps
+            return form?.Step != null ? [form.Step] : [];
+        }
     }
 
     public record AllowedSubmission(InstanceEvent Event, Form Form, Dictionary<string, QuestionStatus> QuestionStatus);

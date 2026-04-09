@@ -22,6 +22,11 @@ public class Effect
     public SendMessage? SendMail { get; set; }
 
     /// <summary>
+    /// Show confetti
+    /// </summary>
+    public bool? ShowConfetti { get; set; }
+
+    /// <summary>
     /// Do an http call to an external service
     /// </summary>
     public Http? Http { get; set; }
@@ -63,6 +68,7 @@ public class Effect
             'h' => TimeSpan.FromHours(int.Parse(Delay[..^1])),
             'd' => TimeSpan.FromDays(int.Parse(Delay[..^1])),
             'm' => TimeSpan.FromMinutes(int.Parse(Delay[..^1])),
+            's' => TimeSpan.FromSeconds(int.Parse(Delay[..^1])),
             _ => throw new InvalidOperationException($"Invalid delay format: {Delay}")
         };
 
@@ -86,6 +92,7 @@ public class Effect
         { SendMail: not null } => $"Mail:{SendMail.TemplateKey}",
         { Event: not null } => $"Event:{Event}",
         { UndoEvent: not null } => $"Undo:{UndoEvent}",
+        { ShowConfetti: not null } => "ShowConfetti",
         { Redirect: not null } => "Redirect",
         _ => throw new InvalidOperationException("Invalid effect")
     };
