@@ -7,16 +7,19 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 ENV HUSKY=0
 WORKDIR /src
+COPY ["UvA.Workflow.sln", "./"]
 COPY ["UvA.Workflow.Api/UvA.Workflow.Api.csproj", "UvA.Workflow.Api/"]
 COPY ["UvA.Workflow/UvA.Workflow.csproj", "UvA.Workflow/"]
-RUN dotnet restore "UvA.Workflow.Api/UvA.Workflow.Api.csproj"
+COPY ["UvA.Workflow.Tests/UvA.Workflow.Tests.csproj", "UvA.Workflow.Tests/"]
+COPY ["UvA.Workflow.SchemaGenerator/UvA.Workflow.SchemaGenerator.csproj", "UvA.Workflow.SchemaGenerator/"]
+RUN dotnet restore "UvA.Workflow.sln"
 COPY . .
+RUN dotnet test "UvA.Workflow.sln" -c $BUILD_CONFIGURATION --no-restore
 WORKDIR "/src/UvA.Workflow.Api"
-RUN dotnet build "./UvA.Workflow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./UvA.Workflow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./UvA.Workflow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false --no-restore
 
 FROM base AS final
 WORKDIR /app
