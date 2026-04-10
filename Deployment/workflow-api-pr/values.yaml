@@ -27,7 +27,7 @@ surfConext:
 
 eduId:
   authority: https://login.test.eduid.nl
-  invitationApiUrl: https://eduid-invite-proxy-tst.datanose.nl
+  invitationApiUrl: https://eduid-invite-proxy-pr-3.datanose.nl
   roleIdentifier: 2412
   invitationExpiryDays: 30
   roleExpiryDays: 365
