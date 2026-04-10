@@ -26,8 +26,14 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 
     public async Task Update(User user, CancellationToken ct)
     {
-        var filter = Builders<User>.Filter.Eq("_id", user.Id);
-        await _collection.ReplaceOneAsync(filter, user, cancellationToken: ct);
+        if (!ObjectId.TryParse(user.Id, out var objectId))
+            throw new ArgumentException("Invalid user ID", nameof(user.Id));
+
+        var filter = Builders<User>.Filter.Eq("_id", objectId);
+        var result = await _collection.ReplaceOneAsync(filter, user, cancellationToken: ct);
+
+        if (result.IsAcknowledged && result.MatchedCount == 0)
+            throw new InvalidOperationException($"User '{user.Id}' was not found for update.");
     }
 
     public async Task<User?> GetByExternalId(string externalId, CancellationToken ct)
