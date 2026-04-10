@@ -487,7 +487,7 @@ public static class TestHelper
 
 public class TestContentProvider : IContentProvider
 {
-    public IEnumerable<string> GetFolders() => Array.Empty<string>();
+    public IEnumerable<string> GetFolders(string? directory = null) => Array.Empty<string>();
     public IEnumerable<string> GetFiles(string directory) => Array.Empty<string>();
     public string GetFile(string file) => "";
 }
