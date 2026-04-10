@@ -26,7 +26,7 @@ public class EduIdUserServiceTests
         var invitationClientMock = new Mock<IEduIdInvitationClient>();
         var options = new EduIdOptions
         {
-            RoleIdentifier = 2412,
+            RoleIdentifier = 7040,
             InvitationExpiryDays = 30,
             RoleExpiryDays = 365
         };
@@ -65,7 +65,7 @@ public class EduIdUserServiceTests
         Assert.True(capturedRequest.GuestRoleIncluded);
         Assert.True(capturedRequest.SuppressSendingEmails);
         Assert.Equal(["newuser@external.org"], capturedRequest.Invites);
-        Assert.Equal([2412L], capturedRequest.RoleIdentifiers);
+        Assert.Equal([7040], capturedRequest.RoleIdentifiers);
         Assert.NotNull(capturedRequest.RoleExpiryDate);
         Assert.Equal("https://invite.example/hash", result.InvitationUrl);
     }

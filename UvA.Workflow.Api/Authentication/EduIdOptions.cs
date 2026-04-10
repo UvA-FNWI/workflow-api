@@ -7,7 +7,7 @@ public class EduIdOptions
     public string Authority { get; set; } = "";
     public string InvitationApiUrl { get; set; } = "";
     public string InvitationApiToken { get; set; } = "";
-    public int RoleIdentifier { get; set; } = 2412;
+    public int RoleIdentifier { get; set; } = 7040;
     public int InvitationExpiryDays { get; set; } = 30;
     public int RoleExpiryDays { get; set; } = 365;
     public string[] InternalEmailDomains { get; set; } = [];
