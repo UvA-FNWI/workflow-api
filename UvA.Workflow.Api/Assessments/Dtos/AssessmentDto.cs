@@ -26,11 +26,16 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
     {
         var results = AssessmentService.CalculateFormResults(submissionContext, pageName);
         var weightedAverages = AssessmentService.CalculateWeightedAverages(results);
+
         var shownQuestionIds =
             modelService.GetQuestionStatus(submissionContext.Instance, submissionContext.Form, true);
-        var answers = shownQuestionIds == null
-            ? []
-            : Answer.Create(submissionContext.Instance, submissionContext.Form, shownQuestionIds);
+        var questionNamesInForm = submissionContext.Form.ActualForm.Pages
+            .Where(p => string.IsNullOrEmpty(pageName) || p.Name == pageName)
+            .SelectMany(p => p.Fields)
+            .Select(f => f.Name);
+        var answers = Answer.Create(submissionContext.Instance, submissionContext.Form, shownQuestionIds)
+            .Where(a => questionNamesInForm.Contains(a.QuestionName)).ToArray();
+
         results.Values
             .SelectMany(arr => arr)
             .ForEach(r => r.Percentage = Math.Round(r.Percentage, 2, MidpointRounding.AwayFromZero));

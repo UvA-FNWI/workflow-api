@@ -4,24 +4,10 @@ namespace UvA.Workflow.Assessments;
 
 public static class AssessmentService
 {
-    private static Page[] GetPagesForResults(Form form)
-    {
-        var actualForm = form.ActualForm;
-
-        // Base form: use all pages
-        if (form.TargetForm == null)
-            return actualForm.Pages.ToArray();
-
-        // Child form: only use pages that belong to this child
-        return actualForm.Pages
-            .Where(p => p.Sources == null || p.Sources.Contains(form.PropertyName))
-            .ToArray();
-    }
-
     public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext,
         string? pageName)
     {
-        var pages = GetPagesForResults(submissionContext.Form);
+        var pages = submissionContext.Form.ActualForm.Pages.ToArray();
 
         int totalWeight = pages
             .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
