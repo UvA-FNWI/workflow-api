@@ -10,6 +10,17 @@ actions:
   - roles: [Student]
     type: Submit
     form: Start
+  - roles: [Student]
+    type: Execute
+    label:
+      en: Test toast
+      nl: Test toast
+    onAction:
+      - showToast:
+          type: Success
+          message:
+            en: Project proposal saved successfully
+            nl: Projectvoorstel succesvol opgeslagen
 
 properties:
   - name: ProjectLocation

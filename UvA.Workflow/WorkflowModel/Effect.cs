@@ -27,6 +27,11 @@ public class Effect
     public bool? ShowConfetti { get; set; }
 
     /// <summary>
+    /// Show a toast message
+    /// </summary>
+    public ShowToast? ShowToast { get; set; }
+
+    /// <summary>
     /// Do an http call to an external service
     /// </summary>
     public Http? Http { get; set; }
@@ -80,6 +85,7 @@ public class Effect
         ..SendMail?.ToAddressTemplate?.Properties ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
+        ..ShowToast?.MessageTemplate.Properties ?? [],
         ..Http?.UrlTemplate.Properties ?? [],
         ..SetProperty?.ValueExpression.Properties ?? [],
         SendMail?.To
@@ -93,6 +99,7 @@ public class Effect
         { Event: not null } => $"Event:{Event}",
         { UndoEvent: not null } => $"Undo:{UndoEvent}",
         { ShowConfetti: not null } => "ShowConfetti",
+        { ShowToast: not null } => $"ShowToast:{ShowToast.Type}:{ShowToast.Message.En}:{ShowToast.Message.Nl}",
         { Redirect: not null } => "Redirect",
         _ => throw new InvalidOperationException("Invalid effect")
     };
@@ -102,6 +109,30 @@ public class Effect
     /// Trivial/client side effects do not need to be logged
     /// </summary>
     public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null;
+}
+
+public class ShowToast
+{
+    /// <summary>
+    /// Toast type to show in the frontend
+    /// </summary>
+    public ToastType Type { get; set; } = ToastType.Info;
+
+    /// <summary>
+    /// Toast message to show in the frontend
+    /// </summary>
+    public BilingualString Message { get; set; } = null!;
+
+    [YamlIgnore] public BilingualTemplate MessageTemplate => field ??= BilingualTemplate.Create(Message)!;
+}
+
+public enum ToastType
+{
+    Success,
+    Error,
+    Info,
+    Warning,
+    Note
 }
 
 public class SetProperty

@@ -11,6 +11,18 @@ actions:
   - roles: [Student]
     type: Submit
     form: Start
+  - roles: [Student]
+    type: Execute
+    name: TestToast
+    label:
+      en: Test toast
+      nl: Test toast
+    onAction:
+      - showToast:
+          type: Success
+          message:
+            en: "Project submitted successfully"
+            nl: "Project succesvol ingediend"
 
 properties:
   - name: Subject
