@@ -10,6 +10,9 @@ namespace UvA.Workflow.Api.Authentication;
 
 public static class AuthenticationExtensions
 {
+    public const string AnyAuthScheme = "AuthSelector";
+    public const string SurfConextOrCanvasScheme = "SurfConextOrCanvas";
+
     public const string AllSchemes = $"{SurfConextAuthenticationHandler.SchemeName}," +
                                      $"{ApiKeyAuthenticationHandler.AuthenticationScheme}," +
                                      $"{CanvasLtiDefaults.AuthenticationScheme}";
@@ -17,7 +20,7 @@ public static class AuthenticationExtensions
     public static IServiceCollection AddWorkflowAuthentication(this IServiceCollection services,
         IWebHostEnvironment environment, IConfiguration configuration)
     {
-        const string authSelector = "AuthSelector";
+        const string authSelector = AnyAuthScheme;
 
         services.AddSurfConextServices(configuration);
         services.Configure<CanvasLtiOptions>(configuration.GetSection(CanvasLtiOptions.Section));
@@ -48,26 +51,23 @@ public static class AuthenticationExtensions
                         RoleClaimType = CanvasClaimTypes.Role
                     };
                 })
+            .AddPolicyScheme(SurfConextOrCanvasScheme,
+                SurfConextOrCanvasScheme,
+                options =>
+                {
+                    options.ForwardDefaultSelector = context =>
+                        IsLtiToken(context)
+                            ? CanvasLtiDefaults.AuthenticationScheme
+                            : SurfConextAuthenticationHandler.SchemeName;
+                })
             .AddPolicyScheme(authSelector,
                 authSelector,
                 options =>
                 {
                     options.ForwardDefaultSelector = context =>
                     {
-                        if (context.Request.Headers.TryGetValue("Authorization", out var authorizationHeader) &&
-                            authorizationHeader.FirstOrDefault() is { } bearerHeader &&
-                            bearerHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var token = bearerHeader[7..].Trim();
-                            var tokenHandler = new JwtSecurityTokenHandler();
-                            if (tokenHandler.CanReadToken(token))
-                            {
-                                var jwt = tokenHandler.ReadJwtToken(token);
-                                if (string.Equals(jwt.Issuer, CanvasLtiDefaults.Issuer,
-                                        StringComparison.OrdinalIgnoreCase))
-                                    return CanvasLtiDefaults.AuthenticationScheme;
-                            }
-                        }
+                        if (IsLtiToken(context))
+                            return CanvasLtiDefaults.AuthenticationScheme;
 
                         if (context.Request.Headers.TryGetValue("Api-Key", out var values) &&
                             !string.IsNullOrWhiteSpace(values))
@@ -167,6 +167,18 @@ public static class AuthenticationExtensions
         });
 
         return app;
+    }
+
+    private static bool IsLtiToken(HttpContext context)
+    {
+        var bearer = context.Request.Headers.Authorization.FirstOrDefault();
+        if (bearer?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) != true)
+            return false;
+        var token = bearer[7..].Trim();
+        var handler = new JwtSecurityTokenHandler();
+        if (!handler.CanReadToken(token)) return false;
+        return string.Equals(handler.ReadJwtToken(token).Issuer, CanvasLtiDefaults.Issuer,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsCanvasProduction(IFormCollection parameters)
