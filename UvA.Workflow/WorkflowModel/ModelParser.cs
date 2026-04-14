@@ -209,6 +209,8 @@ public partial class ModelParser
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
     {
+        propertyDefinition.Layout = NormalizeLayout(propertyDefinition.Layout);
+
         foreach (var entry in propertyDefinition.Values ?? [])
             PreProcess(entry);
 
@@ -228,6 +230,23 @@ public partial class ModelParser
 
         return propertyDefinition;
     }
+
+    private static Dictionary<string, object>? NormalizeLayout(Dictionary<string, object>? layout)
+    {
+        if (layout == null)
+            return null;
+
+        return layout.ToDictionary(entry => entry.Key, entry => NormalizeLayoutValue(entry.Value));
+    }
+
+    private static object NormalizeLayoutValue(object value)
+        => value switch
+        {
+            Dictionary<string, object> dict => NormalizeLayout(dict)!,
+            List<object> list => list.Select(NormalizeLayoutValue).ToList(),
+            string text when bool.TryParse(text, out var boolean) => boolean,
+            _ => value
+        };
 
     private void PreProcess(Condition? condition)
     {
