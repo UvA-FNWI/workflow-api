@@ -47,6 +47,7 @@ public partial class ModelParser
             definition.Forms = Read<Form>(definition.Name);
             definition.Screens = Read<Screen>(definition.Name);
             definition.AllSteps = Read<Step>(definition.Name);
+            definition.SendMessages = Read<SendMessage>(definition.Name);
 
             foreach (var entry in Read<Condition>(definition.Name))
                 NamedConditions.Add(entry);

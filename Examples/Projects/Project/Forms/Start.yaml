@@ -28,30 +28,4 @@ pages:
 
 onSubmit:
   - sendMail:
-     toAddress: "replaced-by-override@mail.com"
-     layout: default
-     subject:
-       en: "New project submitted: {{ Subject }}"
-       nl: "Nieuw project ingediend: {{ Subject }}"
-     body:
-       en: |
-         Dear {{ Student.DisplayName[0] }},
-
-         Your thesis proprosal has been submitted. Great work 👍 You've taken the first step!
-
-         **What to expect next?**
-
-         The coordinator of your program will review the information you submitted. You will receive feedback within approximately 14 days.
-       nl: |
-         Beste {{ Student.DisplayName[0] }},
-
-         Je scriptieonderwerp is ingeleverd. Goed bezig 👍 De eerste stap is gezet!
-
-         **Wat kan je nu verwachten?**
-
-         De coördinator van je opleiding kijkt naar de informatie die je hebt ingeleverd. Je krijgt ongeveer binnen 14 dagen feedback.
-     buttons:
-      - label:
-          en: "View your submission"
-          nl: "Bekijk je ingediende voorstel"
-        url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"
+      template: ProjectSubmitted
