@@ -27,11 +27,11 @@ public partial class ModelParser
                 target.AllSteps.Add(sourceStep);
         }
 
-        foreach (var sourceMessage in source.SendMessages)
+        foreach (var sourceMessage in source.Emails)
         {
-            if (target.SendMessages.TryGetValue(sourceMessage.Name, out var targetMessage))
+            if (target.Emails.TryGetValue(sourceMessage.Name, out var targetMessage))
                 ApplyInheritance(targetMessage, sourceMessage);
-            else target.SendMessages.Add(sourceMessage);
+            else target.Emails.Add(sourceMessage);
         }
 
         foreach (var ev in source.Events)

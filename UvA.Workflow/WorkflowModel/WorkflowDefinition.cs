@@ -91,7 +91,7 @@ public class WorkflowDefinition : INamed
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
-    [YamlIgnore] public List<SendMessage> SendMessages { get; set; } = null!;
+    [YamlIgnore] public List<SendMessage> Emails { get; set; } = null!;
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
     private static IEnumerable<Step> GetSteps(Step s) =>

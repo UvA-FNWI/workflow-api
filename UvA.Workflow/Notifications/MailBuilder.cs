@@ -47,12 +47,12 @@ public class MailBuilder(
         if (string.IsNullOrWhiteSpace(sendMail.TemplateKey))
             return sendMail;
 
-        var template = workflowDefinition.SendMessages
+        var template = workflowDefinition.Emails
             .FirstOrDefault(e => string.Equals(e.Name, sendMail.TemplateKey, StringComparison.OrdinalIgnoreCase));
 
         if (template == null)
         {
-            var known = string.Join(", ", workflowDefinition.SendMessages.Select(m => m.Name).OrderBy(n => n));
+            var known = string.Join(", ", workflowDefinition.Emails.Select(m => m.Name).OrderBy(n => n));
             throw new InvalidOperationException(
                 $"Mail template '{sendMail.TemplateKey}' not found in '{workflowDefinition.Name}'. Known templates: {known}");
         }
