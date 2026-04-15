@@ -1,0 +1,34 @@
+name: Project-RMSS
+title:
+  en: Project (RMSS)
+  nl: Project (RMSS)
+titlePlural:
+  en: Projectss (PA)
+  nl: Projecten (PA)
+instanceTitle: '{{ WorkingTitle }}'
+
+fields:
+  - property: Course.Name
+    title: Course
+  - property: Student.DisplayName
+    title: Student
+  - property: WorkingTitle
+    title: Working Title
+  - currentStep: true
+
+events:
+  - name: Start
+    suppresses: [RejectSupervisor, RejectProposalReviewer, ApproveSupervisor, ApproveProposalReviewer, ThesisProposalReview, ProposalReviewerReview]
+  - name: RejectSupervisor
+    suppresses: [Start, ApproveSupervisor]
+  - name: RejectProposalReviewer
+    suppresses: [Start, ApproveProposalReviewer]
+  - name: ApproveSupervisor
+    suppresses: [RejectSupervisor]
+  - name: ApproveProposalReviewer
+    suppresses: [RejectProposalReviewer]
+
+steps:
+  - Start
+  - Review
+  - Finish

@@ -1,0 +1,45 @@
+name: ThesisProposalReview
+title:
+  en: Research proposal and ethics review
+  nl: Onderzoeksvoorstel en ethiek beoordeling
+
+onSubmit:
+  - condition:
+      logical:
+        operator: And
+        children:
+          - value:
+              property: EthicsSufficient
+              equal: =Pass
+          - value:
+              property: ResearchProposalSufficient
+              equal: =Pass
+    event: ApproveSupervisor
+  - condition:
+      not: true
+      logical:
+        operator: And
+        children:
+          - value:
+              property: EthicsSufficient
+              equal: =Pass
+          - value:
+              property: ResearchProposalSufficient
+              equal: =Pass
+    event: RejectSupervisor
+
+pages:
+  - name: Ethics
+    title:
+      en: Ethics
+      nl: Ethiek
+    fields:
+      - EthicsSufficient
+      - EthicsFeedback
+  - name: Proposal
+    title:
+      en: Proposal
+      nl: Voorstel
+    fields:
+      - ResearchProposalSufficient
+      - ResearchProposalFeedback

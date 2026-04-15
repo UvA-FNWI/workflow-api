@@ -1,0 +1,28 @@
+name: ReviewProposalReviewer
+title:
+  en: Review (proposal reviewer)
+  nl: Beoordeling (voorstelbeoordelaar)
+
+actions:
+  - type: Submit
+    roles: [ProposalReviewer]
+    form: ProposalReviewerReview
+    label:
+      en: Submit review
+      nl: Beoordeling indienen
+
+properties:
+  - name: ProposalReviewerRejectReason
+    type: String!
+    text:
+      nl: Reden van afkeuring van voorstel
+      en: Reason for rejection of proposal
+    layout:
+      multiline: true
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: RejectProposalReviewer
+      - event: ApproveProposalReviewer

@@ -1,0 +1,19 @@
+name: Projects-PA
+workflowDefinition: Project-PA
+columns:
+  - property: WorkingTitle
+    title:
+      en: Working Title
+      nl: Werktitel
+    link: true
+  - property: Course.Name
+    title:
+      en: Course
+      nl: Vak
+  - property: Student.DisplayName
+    title:
+      en: Student
+      nl: Student
+  - currentStep: true
+    filterType: Pick
+    default: Draft

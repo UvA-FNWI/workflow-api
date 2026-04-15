@@ -1,0 +1,28 @@
+name: ReviewSupervisor
+title:
+  en: Review (supervisor)
+  nl: Beoordeling (supervisor)
+
+actions:
+  - type: Submit
+    roles: [Supervisor]
+    form: ThesisProposalReview
+    label:
+      en: Submit review
+      nl: Beoordeling indienen
+
+properties:
+  - name: SupervisorRejectReason
+    type: String!
+    text:
+      nl: Reden van afkeuring van voorstel
+      en: Reason for rejection of proposal
+    layout:
+      multiline: true
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: RejectSupervisor
+      - event: ApproveSupervisor
