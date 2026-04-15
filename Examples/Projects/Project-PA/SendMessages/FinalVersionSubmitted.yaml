@@ -1,0 +1,21 @@
+name: FinalVersionSubmitted
+layout: default
+toAddress: "replaced-by-override@mail.com"
+subject:
+  en: "🎉Congratulations! You have submitted your thesis"
+  nl: "🎉Gefeliciteerd! Je hebt je scriptie ingeleverd"
+body:
+  en: |
+    Congratulations {{ Student.DisplayName[0] }},
+    
+    You have submitted the final version of your thesis.
+    
+    **What happens next?**<br>
+    Your thesis will go through a plagiarism check and will be assessed. You will receive the results within 2 weeks. Once a final grade is available, you will receive an email.
+  nl: |
+    Gefeliciteerd {{ Student.DisplayName[0] }}!
+    
+    Je hebt de definitieve versie van je scriptie ingeleverd.
+    
+    **Wat gebeurt er nu?**<br>
+    Je scriptie gaat door de plagiaatscan en wordt uiteraard beoordeeld. De uitslag ontvang je binnen 2 weken. Zodra er een eindcijfer is ontvang je een mail.

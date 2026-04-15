@@ -15,3 +15,9 @@ pages:
       - Keywords
       - Language
       - Publish
+      
+onSubmit:
+  - sendMail:
+      template: FinalVersionSubmitted
+  - sendMail:
+      template: AssessmentReminderExaminer

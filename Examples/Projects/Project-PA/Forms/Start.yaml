@@ -41,3 +41,7 @@ pages:
       - FrequencyExaminerReviewerOther
       - FrequencyDailySupervisor
       - FrequencyDailySupervisorOther
+
+onSubmit:
+  - sendMail:
+      template: ProjectSubmitted

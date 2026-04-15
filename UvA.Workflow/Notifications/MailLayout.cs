@@ -86,18 +86,25 @@ public abstract class FileMailLayout : INamedMailLayout
 
         return string.Join("\n", buttons.Select(button =>
         {
-            var intentClass = button.Intent switch
+            var (background, textColor) = button.Intent switch
             {
-                MailButtonIntent.Primary => "button-primary",
-                _ => "button-primary"
+                MailButtonIntent.Primary => ("#E00031", "#FFFFFF"),
+                _ => ("#E00031", "#FFFFFF")
             };
 
-            var classAttr = $"button {intentClass}";
+            // Inline styles are the most reliable across email clients.
+            var style =
+                $"display:inline-block;padding:12px 28px;" +
+                $"font-family:'Source Sans Pro', Arial, sans-serif;" +
+                $"font-weight:bold;" +
+                $"font-size:14px;line-height:1.2;text-decoration:none;" +
+                $"border-radius:2px;background-color:{background};" +
+                $"color:{textColor};";
 
             return $"""
                     <tr>
                       <td align="center" style="padding: 0 0 24px 0;">
-                        <a href="{button.Url}" class="{classAttr}">
+                        <a href="{button.Url}" style="{style}">
                           {button.Label}
                         </a>
                       </td>

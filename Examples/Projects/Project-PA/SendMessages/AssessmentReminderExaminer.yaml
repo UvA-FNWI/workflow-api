@@ -1,0 +1,36 @@
+name: AssessmentReminderExaminer
+layout: default
+toAddress: "replaced-by-override@mail.com"
+subject:
+  en: "Reminder: assess the thesis of {{ Student.DisplayName[0] }} before {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }}"
+  nl: "Herinnering: beoordeel de scriptie van {{ Student.DisplayName[0] }} voor {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }}"
+body:
+  en: |
+    Dear {{ Examiner.DisplayName[0] }},
+    
+    You have not yet assessed the thesis of {{ Student.DisplayName[0] }}.<br>
+    The assessment should be submitted before {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }}. That is in {{ daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)) }} days.
+    
+    **Consequences for a non-EU student**<br>
+    A late assessment can cause problems for the student when reapplying for a visa or residence permit with the IND.
+    This can subsequently have consequences for, for example, housing and valid health insurance.<br>
+    Therefore, please fill this in as soon as possible.
+    
+    Thanks in advance!
+  nl: |
+    Beste {{ Examiner.DisplayName[0] }},
+    
+    Je hebt de scriptie van {{ Student.DisplayName[0] }} nog niet beoordeeld.<br>
+    De beoordeling moet voor {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }} ingeleverd zijn. Dat is over {{ daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)) }} dagen.
+    
+    **Gevolgen voor een niet EU-student**<br>
+    Een te late beoordeling kan voor de student problemen veroorzaken bij de herbeoordeling van het visum of de verblijfsvergunning door de IND.
+    Dit kan vervolgens gevolgen hebben voor bijvoorbeeld huisvesting en een geldige zorgverzekering.<br>
+    Vul deze daarom zo snel mogelijk in.
+    
+    Alvast bedankt!
+buttons:
+  - label:
+      en: "Assess thesis"
+      nl: "Beoordeel scriptie"
+    url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"

@@ -19,19 +19,19 @@ properties:
       nl: EC
 
   - name: Examiner
-    type: User!
+    type: "[User]!"
     text:
       en: Examiner
       nl: Examinator
 
   - name: SecondReviewer
-    type: User!
+    type: "[User]!"
     text:
       en: Second reviewer
       nl: Tweede beoordelaar
 
   - name: DailySupervisor
-    type: User!
+    type: "[User]!"
     text:
       en: Daily supervisor
       nl: Dagelijks begeleider

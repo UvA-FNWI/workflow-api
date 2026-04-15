@@ -58,3 +58,7 @@ pages:
       - SummaryComments
       - Laudatio
       - ConsentExaminerName
+        
+onSubmit:
+  - sendMail:
+      template: AssessmentRequestAssessor
