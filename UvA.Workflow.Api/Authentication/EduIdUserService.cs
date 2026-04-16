@@ -39,7 +39,7 @@ public class EduIdUserService(
         var trimmedEmail = email.Trim();
         var atIndex = trimmedEmail.LastIndexOf('@');
         if (atIndex < 0 || atIndex == trimmedEmail.Length - 1)
-            return false;
+            throw new ArgumentException($"Invalid email address: {email}", nameof(email));
 
         var domain = trimmedEmail[(atIndex + 1)..];
         return _options.InternalEmailDomains.Any(internalDomain =>
