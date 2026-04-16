@@ -174,7 +174,7 @@ public class EffectServiceMailLoggingTests
     }
 
     [Fact]
-    public async Task RunEffects_WithShowToastEffect_ReturnsResolvedToast()
+    public async Task RunEffects_WithToastEffect_ReturnsResolvedToast()
     {
         var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
@@ -221,7 +221,7 @@ public class EffectServiceMailLoggingTests
             instance,
             new Effect
             {
-                ShowToast = new ShowToast
+                Toast = new Toast
                 {
                     Type = ToastType.Success,
                     Message = new BilingualString("Saved {{Title}}", "{{Title}} opgeslagen")
@@ -232,9 +232,9 @@ public class EffectServiceMailLoggingTests
             CancellationToken.None
         );
 
-        Assert.NotNull(result.ShowToast);
-        Assert.Equal(ToastType.Success, result.ShowToast!.Type);
-        Assert.Equal("Saved My thesis", result.ShowToast.Message.En);
-        Assert.Equal("My thesis opgeslagen", result.ShowToast.Message.Nl);
+        Assert.NotNull(result.Toast);
+        Assert.Equal(ToastType.Success, result.Toast!.Type);
+        Assert.Equal("Saved My thesis", result.Toast.Message.En);
+        Assert.Equal("My thesis opgeslagen", result.Toast.Message.Nl);
     }
 }

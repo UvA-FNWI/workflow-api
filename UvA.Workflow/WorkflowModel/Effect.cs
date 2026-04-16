@@ -29,7 +29,7 @@ public class Effect
     /// <summary>
     /// Show a toast message
     /// </summary>
-    public ShowToast? ShowToast { get; set; }
+    public Toast? Toast { get; set; }
 
     /// <summary>
     /// Do an http call to an external service
@@ -85,7 +85,7 @@ public class Effect
         ..SendMail?.ToAddressTemplate?.Properties ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
-        ..ShowToast?.MessageTemplate.Properties ?? [],
+        ..Toast?.MessageTemplate.Properties ?? [],
         ..Http?.UrlTemplate.Properties ?? [],
         ..SetProperty?.ValueExpression.Properties ?? [],
         SendMail?.To
@@ -99,7 +99,7 @@ public class Effect
         { Event: not null } => $"Event:{Event}",
         { UndoEvent: not null } => $"Undo:{UndoEvent}",
         { ShowConfetti: not null } => "ShowConfetti",
-        { ShowToast: not null } => $"ShowToast:{ShowToast.Type}:{ShowToast.Message.En}:{ShowToast.Message.Nl}",
+        { Toast: not null } => $"Toast:{Toast.Type}:{Toast.Message.En}:{Toast.Message.Nl}",
         { Redirect: not null } => "Redirect",
         _ => throw new InvalidOperationException("Invalid effect")
     };
@@ -111,7 +111,7 @@ public class Effect
     public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null;
 }
 
-public class ShowToast
+public class Toast
 {
     /// <summary>
     /// Toast type to show in the frontend

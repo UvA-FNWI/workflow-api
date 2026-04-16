@@ -13,15 +13,15 @@ using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-public record ShowToastResult(ToastType Type, BilingualString Message);
+public record ToastResult(ToastType Type, BilingualString Message);
 
-public record EffectResult(string? RedirectUrl = null, bool? ShowConfetti = null, ShowToastResult? ShowToast = null)
+public record EffectResult(string? RedirectUrl = null, bool? ShowConfetti = null, ToastResult? Toast = null)
 {
     public static EffectResult operator +(EffectResult result, EffectResult other)
         => new(
             result.RedirectUrl ?? other.RedirectUrl,
             result.ShowConfetti ?? other.ShowConfetti,
-            result.ShowToast ?? other.ShowToast
+            result.Toast ?? other.Toast
         );
 }
 
@@ -50,11 +50,11 @@ public class EffectService(
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
         var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
-        var showToast = effect.ShowToast == null
+        var toast = effect.Toast == null
             ? null
-            : new ShowToastResult(effect.ShowToast.Type, effect.ShowToast.MessageTemplate.Apply(context));
+            : new ToastResult(effect.Toast.Type, effect.Toast.MessageTemplate.Apply(context));
 
-        return new EffectResult(redirectUrl, effect.ShowConfetti, showToast);
+        return new EffectResult(redirectUrl, effect.ShowConfetti, toast);
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
