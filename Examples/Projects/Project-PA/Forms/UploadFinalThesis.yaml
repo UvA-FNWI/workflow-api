@@ -19,5 +19,7 @@ pages:
 onSubmit:
   - sendMail:
       template: FinalVersionSubmitted
+      to: Student
   - sendMail:
       template: AssessmentReminderExaminer
+      to: Examiner

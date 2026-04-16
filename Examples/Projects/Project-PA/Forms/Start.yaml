@@ -45,3 +45,4 @@ pages:
 onSubmit:
   - sendMail:
       template: SubjectSubmitted
+      to: Student

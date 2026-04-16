@@ -4,6 +4,7 @@ step: Upload
 onSubmit:
   - sendMail:
       template: FinalVersionSubmitted
+      to: Student
   - serviceCall:
       service: Turnitin
       operation: CreateSubmission

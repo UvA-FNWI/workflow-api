@@ -29,5 +29,7 @@ pages:
 onSubmit:
   - sendMail:
       template: SubjectSubmitted
+      to: Student
   - sendMail:
       template: AssessmentRequestAssessor
+      to: Reviewer
