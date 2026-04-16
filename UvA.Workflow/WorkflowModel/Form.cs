@@ -16,6 +16,12 @@ public enum FormLayout
     Modal
 }
 
+public enum FormType
+{
+    Normal,
+    AssessmentOverview
+}
+
 /// <summary>
 /// Represents a page in a form
 /// </summary>
@@ -92,6 +98,11 @@ public class Form : INamed
     /// </summary>
     [YamlMember(Alias = "targetForm")]
     public string? TargetFormName { get; set; }
+
+    /// <summary>
+    /// Type of the form to be rendered by the front-end.
+    /// </summary>
+    public FormType FormType { get; set; } = FormType.Normal;
 
     /// <summary>
     /// Step this form belongs to

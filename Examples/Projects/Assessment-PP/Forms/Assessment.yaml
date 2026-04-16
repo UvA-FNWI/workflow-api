@@ -1,0 +1,53 @@
+name: Assessment
+title:
+  en: Assessment
+  nl: Beoordeling
+
+pages:
+  - name: Report
+    title:
+      en: Report
+      nl: Verslag
+    fields:
+      - ProductAbstract          
+      - ProductIntroduction
+      - ProductMethods
+      - ProductResults
+      - ProductDiscussionConclusion
+      - ProductReadability
+      - ProductComments
+    sources: [AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer]
+
+  - name: Process
+    title:
+      en: Process
+      nl: Proces
+    fields:
+      - ProcessPreparationMethodology
+      - ProcessExperimentalSkills
+      - ProcessReliabilityReproducibility
+      - ProcessInterpretingResults
+      - ProcessIndependenceInitiative
+      - ProcessCommunicationCollaboration
+      - ProcessPlanningTimeManagement
+    sources: [AssessmentSupervisor, AssessmentExaminer]
+    
+  - name: Presentation
+    title:
+      en: Presentation
+      nl: Presentatie
+    fields:
+      - PresentationContextualizationDelivery
+      - PresentationClarityStyle
+      - PresentationHandlingQuestions
+    sources: [ AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer ]
+
+
+  - name: FinalRemarks
+    title:
+      en: Final Remarks
+      nl: Eindopmerkingen
+    fields:
+      - SummaryComments 
+      - Laudatio     
+    sources: [AssessmentSupervisor, AssessmentExaminer]

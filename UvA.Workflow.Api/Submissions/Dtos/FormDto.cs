@@ -5,22 +5,39 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
+    FormType FormType,
     string? Step)
 {
     public static FormDto Create(Form form, ObjectContext context)
     {
-        var filteredPages = form.ActualForm.Pages
-            .Where(p => p.Sources == null || p.Sources.Contains(form.PropertyName))
-            .ToArray();
-        var questions = filteredPages
+        var allPages = form.ActualForm.Pages.ToArray();
+
+        // For child forms, only pages matching Sources belong to the current form. For base forms, all pages are considered part of the current form.
+        var currentFormPages = form.TargetForm == null
+            ? allPages
+            : allPages
+                .Where(p => p.Sources == null ||
+                            (form.PropertyName != null && p.Sources.Contains(form.PropertyName)))
+                .ToArray();
+
+        var questions = currentFormPages
             .SelectMany(p => p.Fields)
             .ToDictionary(q => q, q => QuestionDto.Create(q, context));
+        var formType = form.FormType;
         form = form.ActualForm;
         return new FormDto(
             form.Name,
             form.Title ?? form.Name,
-            filteredPages.Select((p, i) => PageDto.Create(i, p, p.Fields.Select(q => questions[q]), context)).ToArray(),
+            allPages.Select((p, i) =>
+            {
+                var isInCurrentForm = currentFormPages.Any(page => page.Name == p.Name);
+                var pageQuestions = isInCurrentForm
+                    ? p.Fields.Select(q => questions[q])
+                    : Enumerable.Empty<QuestionDto>();
+                return PageDto.Create(i, p, pageQuestions, context, isInCurrentForm);
+            }).ToArray(),
             form.Layout,
+            formType,
             form.Step
         );
     }
@@ -33,10 +50,12 @@ public record PageDto(
     BilingualString? Introduction,
     PageLayout Layout,
     QuestionDto[] Questions,
-    bool HasResults
+    bool HasResults,
+    bool IsInCurrentForm
 )
 {
-    public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context)
+    public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context,
+        bool isInCurrentForm)
         => new(
             index,
             page.Name,
@@ -44,7 +63,8 @@ public record PageDto(
             page.IntroductionTemplate?.Apply(context),
             page.Layout,
             questions.ToArray(),
-            page.HasResults
+            page.HasResults,
+            isInCurrentForm
         );
 }
 
