@@ -2,14 +2,14 @@ name: AssessmentReminderExaminer
 layout: default
 toAddress: "replaced-by-override@mail.com"
 subject:
-  en: "Reminder: assess the thesis of {{ Student.DisplayName[0] }} before {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }}"
-  nl: "Herinnering: beoordeel de scriptie van {{ Student.DisplayName[0] }} voor {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }}"
+  en: "Reminder: assess the thesis of {{ coalesce(Student.DisplayName, =this student) }} before {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =the deadline) }}"
+  nl: "Herinnering: beoordeel de scriptie van {{ coalesce(Student.DisplayName, =deze student) }} voor {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =de deadline) }}"
 body:
   en: |
-    Dear {{ Examiner.DisplayName[0] }},
+    Dear {{ coalesce(Examiner.DisplayName, =colleague) }},
     
-    You have not yet assessed the thesis of {{ Student.DisplayName[0] }}.<br>
-    The assessment should be submitted before {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }}. That is in {{ daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)) }} days.
+    You have not yet assessed the thesis of {{ coalesce(Student.DisplayName, =this student) }}.<br>
+    The assessment should be submitted before {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =the deadline) }}. That is in {{ coalesce(daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)), =a few) }} days.
     
     **Consequences for a non-EU student**<br>
     A late assessment can cause problems for the student when reapplying for a visa or residence permit with the IND.
@@ -18,10 +18,10 @@ body:
     
     Thanks in advance!
   nl: |
-    Beste {{ Examiner.DisplayName[0] }},
+    Beste {{ coalesce(Examiner.DisplayName, =colleague) }},
     
-    Je hebt de scriptie van {{ Student.DisplayName[0] }} nog niet beoordeeld.<br>
-    De beoordeling moet voor {{ formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy) }} ingeleverd zijn. Dat is over {{ daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)) }} dagen.
+    Je hebt de scriptie van {{ coalesce(Student.DisplayName, =deze student) }} nog niet beoordeeld.<br>
+    De beoordeling moet voor {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =de deadline) }} ingeleverd zijn. Dat is over {{ coalesce(daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)), =enkele) }} dagen.
     
     **Gevolgen voor een niet EU-student**<br>
     Een te late beoordeling kan voor de student problemen veroorzaken bij de herbeoordeling van het visum of de verblijfsvergunning door de IND.

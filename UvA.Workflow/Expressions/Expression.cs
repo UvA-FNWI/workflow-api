@@ -33,6 +33,7 @@ public record Expression
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
+        ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
 
     public virtual IEnumerable<Lookup> Properties => this switch

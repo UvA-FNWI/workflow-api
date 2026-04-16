@@ -6,14 +6,14 @@ subject:
   nl: "🎉Gefeliciteerd! Je hebt je scriptie ingeleverd"
 body:
   en: |
-    Congratulations {{ Student.DisplayName[0] }},
+    Congratulations {{ coalesce(Student.DisplayName, =student) }},
     
     You have submitted the final version of your thesis.
     
     **What happens next?**<br>
     Your thesis will go through a plagiarism check and will be assessed. You will receive the results within 2 weeks. Once a final grade is available, you will receive an email.
   nl: |
-    Gefeliciteerd {{ Student.DisplayName[0] }}!
+    Gefeliciteerd {{ coalesce(Student.DisplayName, =student) }}!
     
     Je hebt de definitieve versie van je scriptie ingeleverd.
     

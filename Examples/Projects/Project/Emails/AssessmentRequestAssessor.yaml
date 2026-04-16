@@ -2,13 +2,13 @@ name: AssessmentRequestAssessor
 layout: default
 toAddress: "replaced-by-override@mail.com"
 subject:
-  en: "Indicate whether you agree with the assessment for the thesis of {{ coalesce(Student.DisplayName, =this student) }}"
+  en: "Indicate whether you agree with the assessment for the thesis of {{ coalesce(Student.DisplayName, = this student) }}"
   nl: "Geef aan of je het eens bent met de beoordeling voor de scriptie van {{ coalesce(Student.DisplayName, =deze student) }}"
 body:
   en: |
-    Dear {{ coalesce(SecondReviewer.DisplayName, =colleague) }},
+    Dear {{ coalesce(Reviewer.DisplayName, =colleague) }},
     
-    The thesis of **{{ coalesce(Student.DisplayName, =this student) }}** has been assessed by the supervisor.<br>
+    The thesis of **{{ Student.DisplayName }}** has been assessed by the supervisor.<br>
     You are the second reader for this thesis.
    
     Could you please let us know as soon as possible whether you agree with this assessment or not?<br>
@@ -17,9 +17,9 @@ body:
     Could you assess this thesis as soon as you have time for it?<br>
     Thanks in advance, also on behalf of the student (who is eagerly waiting for a final grade).
   nl: |
-    Beste {{ coalesce(SecondReviewer.DisplayName, =collega) }},
+    Beste {{ coalesce(Reviewer.DisplayName, =collega) }},
     
-    De scriptie van **{{ coalesce(Student.DisplayName, =deze student) }}** is beoordeeld door de begeleider.<br>
+    De scriptie van **{{ Student.DisplayName }}** is beoordeeld door de begeleider.<br>
     Jij bent voor deze scriptie de 2e beoordelaar.
    
     Wil je zo snel mogelijk doorgeven of je wel of niet akkoord bent met deze beoordeling?<br>

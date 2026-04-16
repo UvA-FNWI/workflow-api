@@ -28,4 +28,6 @@ pages:
 
 onSubmit:
   - sendMail:
-      template: ProjectSubmitted
+      template: SubjectSubmitted
+  - sendMail:
+      template: AssessmentRequestAssessor

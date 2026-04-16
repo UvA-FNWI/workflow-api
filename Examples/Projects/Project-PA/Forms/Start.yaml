@@ -44,4 +44,4 @@ pages:
 
 onSubmit:
   - sendMail:
-      template: ProjectSubmitted
+      template: SubjectSubmitted

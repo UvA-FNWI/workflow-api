@@ -6,21 +6,23 @@ subject:
   nl: "Je hebt je scriptieonderwerp ingeleverd"
 body:
   en: |
-    Dear {{ Student.DisplayName[0] }},
+    Dear {{ coalesce(Student.DisplayName, =student) }},
     
     Your thesis proprosal has been submitted.<br>
     Great work 👍 You've taken the first step!
     
     **What to expect next?**<br>
-    The coordinator of your program will review the information you submitted. You will receive feedback within approximately 14 days.
+    The coordinator of your program will review the information you submitted.<br> 
+    You will receive feedback within approximately 14 days.
   nl: |
-    Beste {{ Student.DisplayName[0] }},
+    Beste {{ coalesce(Student.DisplayName, =student) }},
     
     Je scriptieonderwerp is ingeleverd.<br>
     Goed bezig 👍 De eerste stap is gezet!
     
     **Wat kan je nu verwachten?**<br>
-    De coördinator van je opleiding kijkt naar de informatie die je hebt ingeleverd. Je krijgt ongeveer binnen 14 dagen feedback.
+    De coördinator van je opleiding kijkt naar de informatie die je hebt ingeleverd.<br>
+    Je krijgt ongeveer binnen 14 dagen feedback.
 buttons:
   - label:
       en: "View your submission"
