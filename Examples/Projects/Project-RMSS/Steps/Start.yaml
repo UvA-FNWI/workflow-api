@@ -105,6 +105,4 @@ properties:
       nl: Onderbrekingen
 
 ends:
-  event:
-    id: Start
-    notBefore: RejectSupervisor
+  event: Start

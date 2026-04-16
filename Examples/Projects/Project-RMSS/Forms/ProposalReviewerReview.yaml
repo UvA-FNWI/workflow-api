@@ -9,10 +9,10 @@ onSubmit:
         operator: And
         children:
           - value:
-              property: EthicsSufficient
+              property: ProposalReviewerEthicsSufficient
               equal: =Pass
           - value:
-              property: ResearchProposalSufficient
+              property: ProposalReviewerResearchProposalSufficient
               equal: =Pass
     event: ApproveProposalReviewer
   - condition:
@@ -21,10 +21,10 @@ onSubmit:
         operator: And
         children:
           - value:
-              property: EthicsSufficient
+              property: ProposalReviewerEthicsSufficient
               equal: =Pass
           - value:
-              property: ResearchProposalSufficient
+              property: ProposalReviewerResearchProposalSufficient
               equal: =Pass
     event: RejectProposalReviewer
 
@@ -34,12 +34,12 @@ pages:
       en: Ethics
       nl: Ethiek
     fields:
-      - EthicsSufficient
-      - EthicsFeedback
+      - ProposalReviewerEthicsSufficient
+      - ProposalReviewerEthicsFeedback
   - name: Proposal
     title:
       en: Proposal
       nl: Voorstel
     fields:
-      - ResearchProposalSufficient
-      - ResearchProposalFeedback
+      - ProposalReviewerResearchProposalSufficient
+      - ProposalReviewerResearchProposalFeedback
