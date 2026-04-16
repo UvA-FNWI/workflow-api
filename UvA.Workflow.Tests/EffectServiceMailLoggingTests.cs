@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Entities.Domain;
@@ -50,7 +50,7 @@ public class EffectServiceMailLoggingTests
                 OverrideRecipient = "testen-dn-fnwi@uva.nl"
             }),
             configuration.Object,
-            Mock.Of<ILogger<EffectService>>()
+            NullLogger<EffectService>.Instance
         );
 
         var instance = new WorkflowInstanceBuilder()
@@ -143,7 +143,7 @@ public class EffectServiceMailLoggingTests
                 OverrideRecipient = null
             }),
             configuration.Object,
-            Mock.Of<ILogger<EffectService>>());
+            NullLogger<EffectService>.Instance);
 
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "SendLetter")
