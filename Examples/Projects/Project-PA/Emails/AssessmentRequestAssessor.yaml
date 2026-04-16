@@ -11,7 +11,7 @@ body:
     The thesis of **{{ coalesce(Student.DisplayName, =this student) }}** has been assessed by the supervisor.<br>
     You are the second reader for this thesis.
    
-    Could you please let us know as soon as possible whether you agree with this assessment or not?<br>
+    Could you please let us know as soon as possible whether you agree with this assessment or not?
     Please provide this **before {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =the deadline) }}**. That is in {{ coalesce(daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)), =a few) }} days.
     
     Could you assess this thesis as soon as you have time for it?<br>
@@ -22,7 +22,7 @@ body:
     De scriptie van **{{ coalesce(Student.DisplayName, =deze student) }}** is beoordeeld door de begeleider.<br>
     Jij bent voor deze scriptie de 2e beoordelaar.
    
-    Wil je zo snel mogelijk doorgeven of je wel of niet akkoord bent met deze beoordeling?<br>
+    Wil je zo snel mogelijk doorgeven of je wel of niet akkoord bent met deze beoordeling?
     Geef dit **uiterlijk op {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =de deadline) }}** door. Dat is over {{ coalesce(daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)), =enkele) }} dagen.
     
     Wil je deze scriptie beoordelen zodra je hier tijd voor hebt?<br>
