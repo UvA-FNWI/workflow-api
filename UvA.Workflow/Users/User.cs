@@ -17,9 +17,9 @@ public class User
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
 
-    [BsonElement("AuthProvider")]
+    [BsonElement("ProviderKey")]
     [JsonIgnore]
-    public UserAuthProvider AuthProvider { get; set; } = UserAuthProvider.Internal;
+    public string ProviderKey { get; set; } = UserProviderKeys.Internal;
 
     [BsonElement("IsActive")] [JsonIgnore] public bool IsActive { get; set; } = true;
 }

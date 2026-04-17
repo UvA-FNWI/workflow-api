@@ -1,7 +1,6 @@
 namespace UvA.Workflow.Users;
 
-public enum UserAuthProvider
+public static class UserProviderKeys
 {
-    Internal = 0,
-    EduId = 1
+    public const string Internal = "internal";
 }

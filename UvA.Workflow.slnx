@@ -12,7 +12,14 @@
     <File Path=".gitignore" />
   </Folder>
   <Project Path="UvA.Workflow.Api/UvA.Workflow.Api.csproj" />
+  <Project Path="UvA.Workflow.Api.Authentication.Abstractions/UvA.Workflow.Api.Authentication.Abstractions.csproj" />
+  <Project Path="UvA.Workflow.Api.Authentication.CanvasLti/UvA.Workflow.Api.Authentication.CanvasLti.csproj" />
+  <Project Path="UvA.Workflow.Api.Authentication.SurfConext/UvA.Workflow.Api.Authentication.SurfConext.csproj" />
+  <Project Path="UvA.Workflow.Notifications.Graph/UvA.Workflow.Notifications.Graph.csproj" />
+  <Project Path="UvA.Workflow.Persistence.Mongo/UvA.Workflow.Persistence.Mongo.csproj" />
   <Project Path="UvA.Workflow.SchemaGenerator/UvA.Workflow.SchemaGenerator.csproj" />
   <Project Path="UvA.Workflow.Tests/UvA.Workflow.Tests.csproj" />
   <Project Path="UvA.Workflow/UvA.Workflow.csproj" />
+  <Project Path="UvA.Workflow.Users.DataNose/UvA.Workflow.Users.DataNose.csproj" />
+  <Project Path="UvA.Workflow.Users.EduId/UvA.Workflow.Users.EduId.csproj" />
 </Solution>

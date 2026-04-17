@@ -1,14 +1,19 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Notifications;
 
 public class DummyMailService : IMailService
 {
-    public Task Send(MailMessage mail)
+    public Task<MailDispatchResult> Send(MailMessage mail, CancellationToken ct = default)
     {
         Console.WriteLine(
             $"Sending mail to {mail.To.ToSeparatedString(t => t.MailAddress)}: {mail.Subject}\n{mail.Body}");
-        return Task.CompletedTask;
+        return Task.FromResult(new MailDispatchResult(
+            mail.To,
+            mail.Cc ?? [],
+            mail.Bcc ?? [],
+            null));
     }
 }
 
@@ -19,6 +24,21 @@ public record MailRecipient(string MailAddress, string? DisplayName = null)
 }
 
 public record MailAttachment(string FileName, byte[] Content);
+
+public enum MailSender
+{
+    MilestonesGeneral,
+}
+
+public static class MailSenderExtensions
+{
+    public static string GetUserId(this MailSender sender) => sender switch
+    {
+        MailSender.MilestonesGeneral =>
+            "0c6948d0-009a-4796-9d94-e0b56bc3ea9c", // TODO: Replace with milestones mail
+        _ => throw new ArgumentOutOfRangeException(nameof(sender), sender, null)
+    };
+}
 
 public record Mail(MailRecipient[] To, string Subject, string Body, string? AttachmentTemplate)
 {
@@ -75,6 +95,7 @@ public record MailMessage(
     string? AttachmentTemplate = null
 )
 {
+    public MailSender? Sender { get; set; }
     public List<MailRecipient> To { get; set; } = [];
     public List<MailRecipient>? Cc { get; set; }
     public List<MailRecipient>? Bcc { get; set; }

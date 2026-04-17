@@ -1,0 +1,95 @@
+using System.Text.RegularExpressions;
+
+namespace UvA.Workflow.Persistence.Mongo;
+
+/// <summary>
+/// MongoDB implementation of the IUserRepository contract.
+/// Handles mapping between domain entities and MongoDB documents.
+/// </summary>
+public class UserRepository(IMongoDatabase database) : IUserRepository
+{
+    private readonly IMongoCollection<User> _collection = database.GetCollection<User>("users");
+
+    public async Task Create(User user, CancellationToken ct)
+    {
+        await _collection.InsertOneAsync(user, cancellationToken: ct);
+    }
+
+    public async Task<User?> GetById(string id, CancellationToken ct)
+    {
+        if (!ObjectId.TryParse(id, out var objectId))
+            return null;
+
+        var filter = Builders<User>.Filter.Eq("_id", objectId);
+        return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task Update(User user, CancellationToken ct)
+    {
+        if (!ObjectId.TryParse(user.Id, out var objectId))
+            throw new ArgumentException("Invalid user ID", nameof(user.Id));
+
+        var filter = Builders<User>.Filter.Eq("_id", objectId);
+        var result = await _collection.ReplaceOneAsync(filter, user, cancellationToken: ct);
+
+        if (result.IsAcknowledged && result.MatchedCount == 0)
+            throw new InvalidOperationException($"User '{user.Id}' was not found for update.");
+    }
+
+    public async Task<User?> GetByExternalId(string externalId, CancellationToken ct)
+    {
+        var filter = Builders<User>.Filter.Eq(x => x.UserName, externalId);
+        return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<User?> GetByEmail(string email, CancellationToken ct)
+    {
+        var filter = Builders<User>.Filter.Regex(
+            x => x.Email,
+            new BsonRegularExpression($"^{Regex.Escape(email.Trim())}$", "i"));
+        return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<User?> GetByEmailAndProvider(string email, string providerKey, CancellationToken ct)
+    {
+        var filter = Builders<User>.Filter.And(
+            Builders<User>.Filter.Regex(
+                x => x.Email,
+                new BsonRegularExpression($"^{Regex.Escape(email.Trim())}$", "i")),
+            Builders<User>.Filter.Eq(x => x.ProviderKey, providerKey));
+
+        return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IEnumerable<User>> SearchByQuery(string query, string providerKey, CancellationToken ct)
+    {
+        var trimmedQuery = query.Trim();
+        var filter = Builders<User>.Filter.Eq(x => x.ProviderKey, providerKey);
+
+        if (!string.IsNullOrWhiteSpace(trimmedQuery))
+        {
+            var regex = new BsonRegularExpression(Regex.Escape(trimmedQuery), "i");
+            filter &= Builders<User>.Filter.Or(
+                Builders<User>.Filter.Regex(x => x.DisplayName, regex),
+                Builders<User>.Filter.Regex(x => x.Email, regex),
+                Builders<User>.Filter.Regex(x => x.UserName, regex));
+        }
+
+        return await _collection.Find(filter)
+            .SortBy(x => x.DisplayName)
+            .ThenBy(x => x.UserName)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IEnumerable<User>> GetByIds(IReadOnlyList<string> ids, CancellationToken ct)
+    {
+        var objectIds = ids
+            .Select(id => ObjectId.TryParse(id, out var oid) ? oid : (ObjectId?)null)
+            .Where(oid => oid.HasValue)
+            .Select(oid => oid!.Value)
+            .ToList();
+
+        var filter = Builders<User>.Filter.In("_id", objectIds);
+        return await _collection.Find(filter).ToListAsync(ct);
+    }
+}

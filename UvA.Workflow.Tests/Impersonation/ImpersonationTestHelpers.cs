@@ -1,7 +1,7 @@
 using MongoDB.Bson;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests.Impersonation;
 

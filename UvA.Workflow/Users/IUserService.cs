@@ -1,5 +1,3 @@
-using UvA.Workflow.DataNose;
-
 namespace UvA.Workflow.Users;
 
 public interface IUserService

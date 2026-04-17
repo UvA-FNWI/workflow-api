@@ -1,10 +1,8 @@
 using System.Collections;
 using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
-using UvA.Workflow.Tools;
-using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class ObjectContext(Dictionary<Lookup, object?> values)
 {

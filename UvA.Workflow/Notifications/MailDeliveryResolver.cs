@@ -1,6 +1,6 @@
 namespace UvA.Workflow.Notifications;
 
-internal static class MailDeliveryResolver
+public static class MailDeliveryResolver
 {
     private static string ResolveAddress(MailRecipient recipient, string? overrideRecipient)
         => string.IsNullOrWhiteSpace(overrideRecipient) ? recipient.MailAddress : overrideRecipient;

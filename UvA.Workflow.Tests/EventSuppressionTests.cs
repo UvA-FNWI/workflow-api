@@ -1,7 +1,7 @@
-using UvA.Workflow.Entities.Domain;
-using UvA.Workflow.Entities.Domain.Conditions;
 using UvA.Workflow.Events;
+using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
 

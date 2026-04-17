@@ -1,4 +1,5 @@
 using UvA.Workflow.Jobs;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Actions.Dtos;
 

@@ -2,6 +2,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
+using UvA.Workflow.Persistence.Mongo;
 using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Users;

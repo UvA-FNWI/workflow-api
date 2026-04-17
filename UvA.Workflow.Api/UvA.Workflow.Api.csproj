@@ -9,20 +9,24 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
-        <PackageReference Include="MongoDB.Driver" Version="3.5.2" />
         <PackageReference Include="Serilog" Version="4.3.0"/>
         <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1"/>
         <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0"/>
         <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.0" />
-        <PackageReference Include="UvA.LTI" Version="0.2.7" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\UvA.Workflow\UvA.Workflow.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Api.Authentication.Abstractions\UvA.Workflow.Api.Authentication.Abstractions.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Persistence.Mongo\UvA.Workflow.Persistence.Mongo.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Notifications.Graph\UvA.Workflow.Notifications.Graph.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Users.DataNose\UvA.Workflow.Users.DataNose.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Users.EduId\UvA.Workflow.Users.EduId.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Api.Authentication.SurfConext\UvA.Workflow.Api.Authentication.SurfConext.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Api.Authentication.CanvasLti\UvA.Workflow.Api.Authentication.CanvasLti.csproj" />
     </ItemGroup>
 
     <ItemGroup>

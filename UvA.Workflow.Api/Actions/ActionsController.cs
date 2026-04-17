@@ -3,6 +3,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Actions;
 

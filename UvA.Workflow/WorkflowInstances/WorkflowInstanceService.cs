@@ -1,6 +1,7 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.WorkflowInstances;
 

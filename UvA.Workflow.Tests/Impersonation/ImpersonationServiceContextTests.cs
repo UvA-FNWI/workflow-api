@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using UvA.Workflow.Api.WorkflowInstances;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 

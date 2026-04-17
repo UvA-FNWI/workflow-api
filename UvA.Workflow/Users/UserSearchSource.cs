@@ -1,7 +1,6 @@
 namespace UvA.Workflow.Users;
 
-public enum UserSearchSource
+public static class UserSearchSources
 {
-    DataNose,
-    EduId
+    public const string Internal = "internal";
 }

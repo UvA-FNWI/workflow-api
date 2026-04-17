@@ -27,11 +27,9 @@ public class EffectService(
     MailBuilder mailBuilder,
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
-    IOptions<GraphMailOptions> graphMailOptions,
     IConfiguration configuration,
     ILogger<EffectService> logger)
 {
-    private readonly GraphMailOptions _graphMailOptions = graphMailOptions.Value;
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
     public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
@@ -55,7 +53,7 @@ public class EffectService(
             throw new Exception("Mail message not provided");
 
         mail ??= await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
-        await mailService.Send(mail);
+        var dispatchResult = await mailService.Send(mail, ct);
 
         var attachments = new List<ArtifactInfo>();
         if (mail.Attachments is { Count: > 0 } mailAttachments)
@@ -73,19 +71,19 @@ public class EffectService(
             WorkflowDefinition = instance.WorkflowDefinition,
             ExecutedBy = user.Id,
             JobId = jobId,
-            OverrideRecipient = _graphMailOptions.OverrideRecipient,
+            OverrideRecipient = dispatchResult.AppliedRecipientOverride,
             Subject = mail.Subject,
             Body = mail.Body,
             AttachmentTemplate = mail.AttachmentTemplate,
-            To = mail.To
+            To = dispatchResult.To
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
                 .ToArray(),
-            Cc = mail.Cc?
+            Cc = dispatchResult.Cc
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
-                .ToArray() ?? [],
-            Bcc = mail.Bcc?
+                .ToArray(),
+            Bcc = dispatchResult.Bcc
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
-                .ToArray() ?? [],
+                .ToArray(),
             Attachments = attachments.ToArray()
         }, ct);
     }

@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class Screen : INamed
 {

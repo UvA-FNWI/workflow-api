@@ -1,5 +1,6 @@
 using System.Text.Json;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Submissions;
 

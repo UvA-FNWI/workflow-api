@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace UvA.Workflow.Services;
+namespace UvA.Workflow.Tools;
 
 public abstract record Lookup
 {
