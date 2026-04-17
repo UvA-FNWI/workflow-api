@@ -1,9 +1,16 @@
 using System.Text.Json.Serialization;
 using Serilog;
+using UvA.Workflow;
 using UvA.Workflow.Api.Authentication;
+using UvA.Workflow.Api.Authentication.CanvasLti;
+using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.DataNose;
+using UvA.Workflow.Notifications;
+using UvA.Workflow.Notifications.Graph;
+using UvA.Workflow.Persistence.Mongo;
+using UvA.Workflow.Users.DataNose;
+using UvA.Workflow.Users.EduId;
+using UvA.Workflow.WorkflowModel;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -27,16 +34,21 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
-builder.Services.AddWorkflow(config);
-builder.Services.AddScoped<WorkflowInstanceDtoFactory>();
+builder.Services.AddWorkflowCore();
+builder.Services.AddWorkflowApiCore();
 builder.Services
     .AddControllers()
     .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-builder.Services.AddDataNoseApiClient(builder.Configuration);
-builder.Services.AddWorkflowAuthentication(builder.Environment, builder.Configuration);
+builder.Services.AddWorkflowAuthenticationSelector(builder.Configuration);
+builder.Services.AddWorkflowMongoPersistence(builder.Configuration);
+builder.Services.AddWorkflowGraphMail(builder.Configuration);
+builder.Services.AddWorkflowDataNoseUsers(builder.Configuration);
+builder.Services.AddWorkflowEduIdUsers(builder.Configuration);
+builder.Services.AddWorkflowSurfConextAuthentication(builder.Configuration);
+builder.Services.AddWorkflowCanvasLtiAuthentication(builder.Environment, builder.Configuration);
 
 builder.Services.AddCors(options =>
 {
@@ -62,7 +74,8 @@ var app = builder.Build();
 app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
-app.UseWorkflowAuthentication(app.Configuration);
+app.UseWorkflowAuthenticationSelector();
+app.UseWorkflowCanvasLti(app.Configuration);
 
 app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser(
     new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
@@ -73,12 +86,6 @@ await app.Services.CreateScope().ServiceProvider.GetRequiredService<Initializati
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    if (app.Environment.IsDevOrTest())
-    {
-        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "milestones-tst.fnwi.uva.nl");
-        c.OAuthUsePkce();
-    }
-
     c.SwaggerEndpoint("v1/swagger.json", "Workflow API v1");
     c.DisplayRequestDuration();
 });

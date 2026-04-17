@@ -1,4 +1,5 @@
 using MongoDB.Bson.Serialization.Attributes;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Journaling;
 

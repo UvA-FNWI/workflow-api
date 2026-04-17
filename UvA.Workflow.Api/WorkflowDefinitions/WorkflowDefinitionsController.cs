@@ -1,7 +1,8 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Api.WorkflowDefinitions.Dto;
+namespace UvA.Workflow.Api.WorkflowDefinitions;
 
 public class WorkflowDefinitionsController(ModelService modelService) : ApiControllerBase
 {

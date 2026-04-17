@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Moq;
 using UvA.Workflow.Api.Authentication;
-using UvA.Workflow.DataNose;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.DataNose;
+using UvA.Workflow.Users.EduId;
 
 namespace UvA.Workflow.Tests.Users;
 
@@ -12,7 +13,7 @@ public class UserServiceEduIdTests
     private static UserService CreateService(
         Mock<IDataNoseApiClient> dataNoseApiClientMock,
         Mock<IUserRepository> userRepositoryMock)
-        => new(Mock.Of<IHttpContextAccessor>(),
+        => new(Mock.Of<ICurrentUserAccessor>(),
             userRepositoryMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [
@@ -35,7 +36,7 @@ public class UserServiceEduIdTests
             UserName = "eduid-123",
             DisplayName = "External User",
             Email = "external@example.org",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = true
         };
 
@@ -53,31 +54,33 @@ public class UserServiceEduIdTests
         var userRepositoryMock = new Mock<IUserRepository>();
         dataNoseApiClientMock.Setup(c => c.SearchPeople("query", CancellationToken.None))
             .ReturnsAsync([
-                new UserSearchResult("internal-1", "Internal One", "duplicate@example.org", UserSearchSource.DataNose),
-                new UserSearchResult("internal-2", "Internal Two", "internal2@example.org", UserSearchSource.DataNose)
+                new UserSearchResult("internal-1", "Internal One", "duplicate@example.org",
+                    DataNoseDirectoryKeys.SourceKey),
+                new UserSearchResult("internal-2", "Internal Two", "internal2@example.org",
+                    DataNoseDirectoryKeys.SourceKey)
             ]);
-        userRepositoryMock.Setup(r => r.SearchByQuery("query", UserAuthProvider.EduId, CancellationToken.None))
+        userRepositoryMock.Setup(r => r.SearchByQuery("query", EduIdDirectoryKeys.ProviderKey, CancellationToken.None))
             .ReturnsAsync([
                 new User
                 {
                     UserName = "external-duplicate",
                     DisplayName = "External Duplicate",
                     Email = "duplicate@example.org",
-                    AuthProvider = UserAuthProvider.EduId
+                    ProviderKey = EduIdDirectoryKeys.ProviderKey
                 },
                 new User
                 {
                     UserName = "external-unique",
                     DisplayName = "External Unique",
                     Email = "unique@example.org",
-                    AuthProvider = UserAuthProvider.EduId
+                    ProviderKey = EduIdDirectoryKeys.ProviderKey
                 },
                 new User
                 {
                     UserName = "internal-2",
                     DisplayName = "External Username Duplicate",
                     Email = "other@example.org",
-                    AuthProvider = UserAuthProvider.EduId
+                    ProviderKey = EduIdDirectoryKeys.ProviderKey
                 }
             ]);
 
@@ -90,19 +93,19 @@ public class UserServiceEduIdTests
             {
                 Assert.Equal("internal-1", result.UserName);
                 Assert.Equal("duplicate@example.org", result.Email);
-                Assert.Equal(UserSearchSource.DataNose, result.SearchSource);
+                Assert.Equal(DataNoseDirectoryKeys.SourceKey, result.SourceKey);
             },
             result =>
             {
                 Assert.Equal("internal-2", result.UserName);
                 Assert.Equal("internal2@example.org", result.Email);
-                Assert.Equal(UserSearchSource.DataNose, result.SearchSource);
+                Assert.Equal(DataNoseDirectoryKeys.SourceKey, result.SourceKey);
             },
             result =>
             {
                 Assert.Equal("external-unique", result.UserName);
                 Assert.Equal("unique@example.org", result.Email);
-                Assert.Equal(UserSearchSource.EduId, result.SearchSource);
+                Assert.Equal(EduIdDirectoryKeys.SourceKey, result.SourceKey);
             });
     }
 
@@ -119,7 +122,7 @@ public class UserServiceEduIdTests
             UserName = "internal-123",
             DisplayName = "Internal User",
             Email = "internal@example.org",
-            AuthProvider = UserAuthProvider.Internal,
+            ProviderKey = UserProviderKeys.Internal,
             IsActive = true
         };
 
@@ -134,7 +137,7 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
-        var service = new UserService(Mock.Of<IHttpContextAccessor>(),
+        var service = new UserService(Mock.Of<ICurrentUserAccessor>(),
             userRepositoryMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [new EduIdUserDirectory(userRepositoryMock.Object)],
@@ -144,7 +147,7 @@ public class UserServiceEduIdTests
             UserName = "unknown-123",
             DisplayName = "Unknown User",
             Email = "unknown@example.org",
-            AuthProvider = (UserAuthProvider)999,
+            ProviderKey = "other-provider",
             IsActive = true
         };
 

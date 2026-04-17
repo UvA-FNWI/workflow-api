@@ -29,6 +29,13 @@
     <ItemGroup>
       <ProjectReference Include="..\UvA.Workflow\UvA.Workflow.csproj" />
       <ProjectReference Include="..\UvA.Workflow.Api\UvA.Workflow.Api.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.Api.Authentication.Abstractions\UvA.Workflow.Api.Authentication.Abstractions.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.Persistence.Mongo\UvA.Workflow.Persistence.Mongo.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.Notifications.Graph\UvA.Workflow.Notifications.Graph.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.Users.DataNose\UvA.Workflow.Users.DataNose.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.Users.EduId\UvA.Workflow.Users.EduId.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.Api.Authentication.SurfConext\UvA.Workflow.Api.Authentication.SurfConext.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.Api.Authentication.CanvasLti\UvA.Workflow.Api.Authentication.CanvasLti.csproj" />
     </ItemGroup>
 
 </Project>

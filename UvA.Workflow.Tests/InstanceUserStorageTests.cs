@@ -1,11 +1,13 @@
 using System.Text.Json;
 using MongoDB.Bson;
 using Moq;
-using UvA.Workflow.Entities.Domain;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Journaling;
-using UvA.Workflow.Services;
+using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.EduId;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 
@@ -23,7 +25,7 @@ public class InstanceUserStorageTests
             UserName = "jdoe",
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = false
         };
 
@@ -48,7 +50,7 @@ public class InstanceUserStorageTests
             UserName = "jdoe",
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = false
         };
         var userService = new Mock<IUserService>();
@@ -171,7 +173,7 @@ public class InstanceUserStorageTests
             UserName = "jdoe",
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = false
         };
 
@@ -198,7 +200,7 @@ public class InstanceUserStorageTests
             UserName = "jdoe",
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = false
         };
 

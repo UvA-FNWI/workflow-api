@@ -9,7 +9,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Authentication;
+using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.EduId;
 
 namespace UvA.Workflow.Tests.Authentication;
 
@@ -28,7 +30,7 @@ public class SurfConextAuthenticationHandlerTests
             {
                 UserName = "eduid-123",
                 Email = "external@example.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = true
             });
 
@@ -63,7 +65,7 @@ public class SurfConextAuthenticationHandlerTests
             {
                 UserName = "eduid-123",
                 Email = "external@example.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = true
             });
 
@@ -100,7 +102,7 @@ public class SurfConextAuthenticationHandlerTests
             {
                 UserName = "jdoe",
                 Email = "jane.doe@uva.nl",
-                AuthProvider = UserAuthProvider.Internal,
+                ProviderKey = UserProviderKeys.Internal,
                 IsActive = true
             });
 

@@ -1,7 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Diagnostics;
 using UvA.Workflow.Infrastructure;
-using UvA.Workflow.Infrastructure.Database;
 
 namespace UvA.Workflow.Api.Infrastructure;
 

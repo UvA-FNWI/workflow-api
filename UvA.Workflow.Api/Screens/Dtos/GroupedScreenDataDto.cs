@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Api.Screens.Dtos;
 
 public record GroupedScreenDataDto(

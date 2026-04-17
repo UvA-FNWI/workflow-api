@@ -5,6 +5,7 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.EduId;
 
 namespace UvA.Workflow.Tests.Users;
 
@@ -53,7 +54,7 @@ public class EduIdUserServiceTests
         Assert.Equal("newuser@external.org", createdUser!.UserName);
         Assert.Equal("New User", createdUser.DisplayName);
         Assert.Equal("newuser@external.org", createdUser.Email);
-        Assert.Equal(UserAuthProvider.EduId, createdUser.AuthProvider);
+        Assert.Equal(EduIdDirectoryKeys.ProviderKey, createdUser.ProviderKey);
         Assert.False(createdUser.IsActive);
 
         Assert.NotNull(capturedRequest);
@@ -98,7 +99,7 @@ public class EduIdUserServiceTests
             {
                 UserName = "pending@external.org",
                 Email = "pending@external.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = false
             });
 
@@ -120,7 +121,7 @@ public class EduIdUserServiceTests
             {
                 UserName = "active-user",
                 Email = "active@external.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = true
             });
 
@@ -184,13 +185,13 @@ public class EduIdUserServiceTests
             UserName = "pending@external.org",
             DisplayName = "Pending User",
             Email = "pending@external.org",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = false
         };
 
         userRepositoryMock.Setup(r => r.GetByExternalId("eduid-123", CancellationToken.None))
             .ReturnsAsync((User?)null);
-        userRepositoryMock.Setup(r => r.GetByEmailAndProvider("pending@external.org", UserAuthProvider.EduId,
+        userRepositoryMock.Setup(r => r.GetByEmailAndProvider("pending@external.org", EduIdDirectoryKeys.ProviderKey,
                 CancellationToken.None))
             .ReturnsAsync(pendingUser);
         userRepositoryMock.Setup(r => r.Update(pendingUser, CancellationToken.None))
@@ -222,7 +223,7 @@ public class EduIdUserServiceTests
             UserName = "eduid-123",
             DisplayName = "External User",
             Email = "external@example.org",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = true
         };
 
@@ -257,7 +258,7 @@ public class EduIdUserServiceTests
             CancellationToken.None);
 
         Assert.Null(result);
-        userRepositoryMock.Verify(r => r.GetByEmailAndProvider(It.IsAny<string>(), It.IsAny<UserAuthProvider>(),
+        userRepositoryMock.Verify(r => r.GetByEmailAndProvider(It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
 }

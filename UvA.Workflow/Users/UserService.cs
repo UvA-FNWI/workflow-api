@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace UvA.Workflow.Users;
@@ -35,7 +34,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 UserName = username,
                 DisplayName = displayName,
                 Email = email,
-                AuthProvider = UserAuthProvider.Internal,
+                ProviderKey = UserProviderKeys.Internal,
                 IsActive = true
             };
             await UserRepository.Create(user, ct);
@@ -85,7 +84,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
 }
 
 public class UserService(
-    IHttpContextAccessor httpContextAccessor,
+    ICurrentUserAccessor currentUserAccessor,
     IUserRepository userRepository,
     IMemoryCache cache,
     IEnumerable<IUserRoleSource> userRoleSources,
@@ -105,9 +104,10 @@ public class UserService(
     /// <returns>A <see cref="User"/> object representing the current user if authenticated, or null if the user is not authenticated or not found.</returns>
     public async Task<User?> GetCurrentUser(CancellationToken ct = default)
     {
-        var principal = httpContextAccessor.HttpContext.User;
-        if (!(principal?.Identity?.IsAuthenticated ?? false)) return null;
-        return await GetUser(principal.Identity.Name!, ct);
+        var userName = currentUserAccessor.GetCurrentUserName();
+        return string.IsNullOrWhiteSpace(userName)
+            ? null
+            : await GetUser(userName, ct);
     }
 
 
@@ -119,7 +119,8 @@ public class UserService(
             roles = ["Api"];
         else
         {
-            var roleSource = _userRoleSources.FirstOrDefault(source => source.CanResolve(user));
+            var roleSource = _userRoleSources.FirstOrDefault(source =>
+                string.Equals(source.ProviderKey, user.ProviderKey, StringComparison.OrdinalIgnoreCase));
             roles = roleSource == null
                 ? []
                 : (await roleSource.GetRoles(user, ct)).ToArray();

@@ -8,11 +8,12 @@ A role is assigned to a user in two ways:
 
 | Type | How it's assigned | Example |
 |------|-------------------|---------|
-| **Global role** | Fetched from the DataNose API based on the user's account | `Coordinator`, `Admin` |
+| **Global role** | Resolved by one or more configured external role providers | `Coordinator`, `Admin` |
 | **Instance role** | Derived from `User`-typed properties on the workflow instance | `Student`, `Supervisor`, `Examiner` |
 
 The special role `Registered` is automatically assigned to every authenticated user.
 
+External role providers are optional integrations. The core does not assume a specific directory or institution. A deployment may choose to provide global roles from:
 ### Instance roles
 
 When a workflow instance has a property of type `User` (e.g., `Student`, `Supervisor`), the system checks whether the current user matches the value. If so, the **property name becomes the role name**. This means:
@@ -110,6 +111,10 @@ actions:
 ```yaml
 name: Student
 ```
+
+### Role providers in practice
+
+One deployment might fetch global roles from a university directory. Another might map them from Azure AD groups or a custom HR system. The workflow engine only cares about the resulting role names.
 
 ### Role with view permissions
 

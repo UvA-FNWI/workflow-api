@@ -2,7 +2,7 @@ namespace UvA.Workflow.Users;
 
 public interface IUserRoleSource
 {
-    bool CanResolve(User user);
+    string ProviderKey { get; }
 
     Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default);
 }

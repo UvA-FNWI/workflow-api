@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Notifications;
 
 public record MailButton(string Label, string Url, MailButtonIntent Intent = MailButtonIntent.Primary);

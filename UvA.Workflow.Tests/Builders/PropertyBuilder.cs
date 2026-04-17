@@ -1,7 +1,7 @@
 using Bogus;
 using MongoDB.Bson;
 
-namespace UvA.Workflow.Tests;
+namespace UvA.Workflow.Tests.Builders;
 
 public class PropertyBuilder
 {

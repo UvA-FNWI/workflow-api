@@ -1,8 +1,7 @@
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-using UvA.Workflow.DataNose;
+using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Services;
+namespace UvA.Workflow.WorkflowInstances;
 
 public record AnswerInput(
     JsonElement? Value,
