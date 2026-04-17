@@ -9,6 +9,9 @@ public class EduIdUserDirectory(IUserRepository userRepository) : IUserRoleSourc
 
     public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct = default)
         => (await userRepository.SearchByQuery(query, UserAuthProvider.EduId, ct))
-            .Select(user => new UserSearchResult(user.UserName, user.DisplayName, user.Email))
+            .Select(user => new UserSearchResult(user.UserName,
+                user.DisplayName,
+                user.Email,
+                UserSearchSource.EduId))
             .ToArray();
 }

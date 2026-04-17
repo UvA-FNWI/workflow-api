@@ -13,11 +13,16 @@ public class UserServiceEduIdTests
         Mock<IDataNoseApiClient> dataNoseApiClientMock,
         Mock<IUserRepository> userRepositoryMock)
         => new(Mock.Of<IHttpContextAccessor>(),
-            dataNoseApiClientMock.Object,
             userRepositoryMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
-            [new EduIdUserDirectory(userRepositoryMock.Object)],
-            [new EduIdUserDirectory(userRepositoryMock.Object)]);
+            [
+                new DataNoseUserRoleSource(dataNoseApiClientMock.Object),
+                new EduIdUserDirectory(userRepositoryMock.Object)
+            ],
+            [
+                new DataNoseUserSearchSource(dataNoseApiClientMock.Object),
+                new EduIdUserDirectory(userRepositoryMock.Object)
+            ]);
 
     [Fact]
     public async Task GetRoles_EduIdUser_ReturnsEmpty_WithoutCallingDataNose()
@@ -48,8 +53,8 @@ public class UserServiceEduIdTests
         var userRepositoryMock = new Mock<IUserRepository>();
         dataNoseApiClientMock.Setup(c => c.SearchPeople("query", CancellationToken.None))
             .ReturnsAsync([
-                new UserSearchResult("internal-1", "Internal One", "duplicate@example.org"),
-                new UserSearchResult("internal-2", "Internal Two", "internal2@example.org")
+                new UserSearchResult("internal-1", "Internal One", "duplicate@example.org", UserSearchSource.DataNose),
+                new UserSearchResult("internal-2", "Internal Two", "internal2@example.org", UserSearchSource.DataNose)
             ]);
         userRepositoryMock.Setup(r => r.SearchByQuery("query", UserAuthProvider.EduId, CancellationToken.None))
             .ReturnsAsync([
@@ -85,16 +90,68 @@ public class UserServiceEduIdTests
             {
                 Assert.Equal("internal-1", result.UserName);
                 Assert.Equal("duplicate@example.org", result.Email);
+                Assert.Equal(UserSearchSource.DataNose, result.SearchSource);
             },
             result =>
             {
                 Assert.Equal("internal-2", result.UserName);
                 Assert.Equal("internal2@example.org", result.Email);
+                Assert.Equal(UserSearchSource.DataNose, result.SearchSource);
             },
             result =>
             {
                 Assert.Equal("external-unique", result.UserName);
                 Assert.Equal("unique@example.org", result.Email);
+                Assert.Equal(UserSearchSource.EduId, result.SearchSource);
             });
+    }
+
+    [Fact]
+    public async Task GetRoles_InternalUser_UsesDataNoseRoleSource()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        dataNoseApiClientMock.Setup(c => c.GetRolesByUser("internal-123", CancellationToken.None))
+            .ReturnsAsync(["Coordinator"]);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var user = new User
+        {
+            UserName = "internal-123",
+            DisplayName = "Internal User",
+            Email = "internal@example.org",
+            AuthProvider = UserAuthProvider.Internal,
+            IsActive = true
+        };
+
+        var roles = (await service.GetRoles(user, CancellationToken.None)).ToArray();
+
+        Assert.Equal(["Coordinator"], roles);
+        dataNoseApiClientMock.Verify(c => c.GetRolesByUser("internal-123", CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetRoles_UnknownProvider_ReturnsEmpty_WhenNoSourceResolves()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var service = new UserService(Mock.Of<IHttpContextAccessor>(),
+            userRepositoryMock.Object,
+            new MemoryCache(new MemoryCacheOptions()),
+            [new EduIdUserDirectory(userRepositoryMock.Object)],
+            [new EduIdUserDirectory(userRepositoryMock.Object)]);
+        var user = new User
+        {
+            UserName = "unknown-123",
+            DisplayName = "Unknown User",
+            Email = "unknown@example.org",
+            AuthProvider = (UserAuthProvider)999,
+            IsActive = true
+        };
+
+        var roles = await service.GetRoles(user, CancellationToken.None);
+
+        Assert.Empty(roles);
+        dataNoseApiClientMock.Verify(c => c.GetRolesByUser(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

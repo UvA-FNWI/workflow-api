@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
-using UvA.Workflow.DataNose;
 
 namespace UvA.Workflow.Users;
 
@@ -87,7 +86,6 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
 
 public class UserService(
     IHttpContextAccessor httpContextAccessor,
-    IDataNoseApiClient dataNoseApiClient,
     IUserRepository userRepository,
     IMemoryCache cache,
     IEnumerable<IUserRoleSource> userRoleSources,
@@ -123,7 +121,7 @@ public class UserService(
         {
             var roleSource = _userRoleSources.FirstOrDefault(source => source.CanResolve(user));
             roles = roleSource == null
-                ? (await dataNoseApiClient.GetRolesByUser(user.UserName, ct)).ToArray()
+                ? []
                 : (await roleSource.GetRoles(user, ct)).ToArray();
         }
 
@@ -144,16 +142,15 @@ public class UserService(
 
     public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct)
     {
-        var internalUsers = (await dataNoseApiClient.SearchPeople(query, ct)).ToList();
-        var additionalUsers = new List<UserSearchResult>();
+        var resultsBySource = new List<UserSearchResult>();
         foreach (var searchSource in _userSearchSources)
-            additionalUsers.AddRange(await searchSource.FindUsers(query, ct));
+            resultsBySource.AddRange(await searchSource.FindUsers(query, ct));
 
         var results = new List<UserSearchResult>();
         var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenUserNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var user in internalUsers.Concat(additionalUsers))
+        foreach (var user in resultsBySource)
         {
             if (!string.IsNullOrWhiteSpace(user.Email))
             {

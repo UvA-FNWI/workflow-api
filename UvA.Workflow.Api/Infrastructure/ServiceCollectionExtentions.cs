@@ -2,6 +2,7 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.Authentication;
+using UvA.Workflow.DataNose;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Infrastructure.Database;
@@ -44,9 +45,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IInstanceEventRepository, InstanceEventRepository>();
         services.AddScoped<IJobRepository, JobRepository>();
-        services.AddScoped<EduIdUserDirectory>();
-        services.AddScoped<IUserRoleSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
-        services.AddScoped<IUserSearchSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
+        services.AddUserSources();
         services.AddScoped<IEduIdInvitationClient, EduIdInvitationClient>();
         services.AddScoped<IEduIdUserService, EduIdUserService>();
 
@@ -100,6 +99,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<InstanceEventService>();
 
         services.AddHostedService<JobWorker>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddUserSources(this IServiceCollection services)
+    {
+        services.AddScoped<IUserRoleSource, DataNoseUserRoleSource>();
+        services.AddScoped<IUserSearchSource, DataNoseUserSearchSource>();
+
+        // Register once so both interfaces resolve to the same scoped EduId directory instance.
+        services.AddScoped<EduIdUserDirectory>();
+        services.AddScoped<IUserRoleSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
+        services.AddScoped<IUserSearchSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
 
         return services;
     }
