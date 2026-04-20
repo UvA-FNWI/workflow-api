@@ -6,7 +6,7 @@ titlePlural:
   en: Projectss (RMSS)
   nl: Projecten (RMSS)
 instanceTitle: '{{ WorkingTitle }}'
-
+inheritsFrom: Project
 fields:
   - property: Course.Name
     title: Course

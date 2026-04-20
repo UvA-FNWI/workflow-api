@@ -6,11 +6,6 @@ title:
   nl: Voorstel indienen
   en: Submit proposal
 
-actions:
-  - roles: [Student]
-    type: Submit
-    form: Start
-
 properties:
   - name: ProjectLocation
     type: ProjectLocationType!

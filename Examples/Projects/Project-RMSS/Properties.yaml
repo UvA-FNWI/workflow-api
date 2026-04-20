@@ -3,29 +3,8 @@ properties:
     type: Context!
     inheritedRoles: [Coordinator]
 
-  - name: Student
-    type: User!
-
-  - name: WorkingTitle
-    type: String!
-    text:
-      en: Working title
-      nl: Werktitel
-
-  - name: EC
-    type: Int!
-    text:
-      en: EC
-      nl: EC
-
   - name: ProposalReviewer
     type: User!
     text:
       en: Proposal reviewer
       nl: Voorstel beoordelaar
-
-  - name: Supervisor
-    type: User!
-    text:
-      en: Supervisor
-      nl: Begeleider

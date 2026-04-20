@@ -7,7 +7,7 @@ pages:
       en: Proposal
       nl: Voorstel
     fields:
-      - WorkingTitle
+      - Title
       - EC
       - Description
   - name: Staff
@@ -16,7 +16,6 @@ pages:
       nl: Begeleiding
     fields:
       - Supervisor
-      - ProposalReviewer
   - name: Location
     title:
       en: Location
