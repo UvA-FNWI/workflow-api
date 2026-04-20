@@ -1,5 +1,5 @@
-name: Projects-PA
-workflowDefinition: Project-PA
+name: Projects-RMSS
+workflowDefinition: Project-RMSS
 columns:
   - property: WorkingTitle
     title:

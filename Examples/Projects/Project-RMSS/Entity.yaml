@@ -3,8 +3,8 @@ title:
   en: Project (RMSS)
   nl: Project (RMSS)
 titlePlural:
-  en: Projectss (PA)
-  nl: Projecten (PA)
+  en: Projectss (RMSS)
+  nl: Projecten (RMSS)
 instanceTitle: '{{ WorkingTitle }}'
 
 fields:
