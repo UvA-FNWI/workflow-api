@@ -4,8 +4,9 @@ title:
   en: Assessment of proposal
 
 actions:
-- name: ApproveSubject
-  type: Execute
+- name: Approve
+  type: Submit
+  form: ApproveSubject
   roles: [Coordinator]
   label:
     en: Approve

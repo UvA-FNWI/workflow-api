@@ -1,0 +1,11 @@
+name: ApproveSubject
+step: Subject
+layout: Modal
+title:
+  en: Approve subject
+  nl: Onderwerp goedkeuren
+pages:
+  - name: Approve
+    introduction:
+      nl: Weet je zeker dat je het onderwerp voor {{ Student.DisplayName }} wil goedkeuren?
+      en: Are you sure you want to approve the subject for {{ Student.DisplayName }}?
