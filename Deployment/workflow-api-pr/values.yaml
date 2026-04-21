@@ -8,7 +8,7 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
-allowedOrigins: "http://localhost:5173"
+allowedOrigins: "http://localhost:5173,https://*.instructure.com"
 frontendBaseUrl: "http://localhost:5173"
 
 datanoseApi:
@@ -24,6 +24,12 @@ surfConext:
   baseUrl: https://connect.test.surfconext.nl
   clientId: datanose-api.local
   authority: https://auth-pr.datanose.nl
+
+canvasLti:
+  clientId: "104400000000000348"
+  authenticateUrl: https://uvadlo-dev.instructure.com/api/lti/authorize_redirect
+  jwksUrl: https://uvadlo-dev.instructure.com/api/lti/security/jwks
+  teacherTarget: /screens/project-overview
 
 mongo:
   username: username
@@ -44,6 +50,8 @@ apiPaths:
   - /Submissions
   - /Artifacts
   - /Assessments
+  - /oidc
+  - /signin-oidc
 
 azure:
   keyvaultName: keyvaultName
@@ -61,5 +69,9 @@ azure:
       key: Encryption__Secret
     - name: workflow-surfconext-client-secret
       key: SurfConext__ClientSecret
+    - name: workflow-canvas-lti-key
+      key: CanvasLti__Key
     - name: workflow-impersonation-key
       key: ImpersonationKey
+    - name: workflow-turnitin-token
+      key: Services__Turnitin__Token

@@ -96,7 +96,19 @@ public class JobService(
 
         foreach (var step in job.Steps)
         {
-            var effect = effects.Single(a => a.Identifier == step.Identifier);
+            var effect = effects.SingleOrDefault(a => a.Identifier == step.Identifier);
+            if (effect == null)
+            {
+                logger.LogError(
+                    "Job {Job}: step identifier {StepIdentifier} not found in current model effects [{AvailableIdentifiers}].",
+                    job.Id,
+                    step.Identifier,
+                    string.Join(", ", effects.Select(e => e.Identifier)));
+                step.Message = $"Effect '{step.Identifier}' not found in the workflow definition";
+                job.Status = JobStatus.Failed;
+                return result;
+            }
+
             if (!effect.Condition.IsMet(context)) continue;
 
             try

@@ -22,6 +22,16 @@ public class Effect
     public SendMessage? SendMail { get; set; }
 
     /// <summary>
+    /// Show confetti
+    /// </summary>
+    public bool? ShowConfetti { get; set; }
+
+    /// <summary>
+    /// Show a toast message
+    /// </summary>
+    public Toast? Toast { get; set; }
+
+    /// <summary>
     /// Do an http call to an external service
     /// </summary>
     public Http? Http { get; set; }
@@ -63,6 +73,7 @@ public class Effect
             'h' => TimeSpan.FromHours(int.Parse(Delay[..^1])),
             'd' => TimeSpan.FromDays(int.Parse(Delay[..^1])),
             'm' => TimeSpan.FromMinutes(int.Parse(Delay[..^1])),
+            's' => TimeSpan.FromSeconds(int.Parse(Delay[..^1])),
             _ => throw new InvalidOperationException($"Invalid delay format: {Delay}")
         };
 
@@ -74,6 +85,7 @@ public class Effect
         ..SendMail?.ToAddressTemplate?.Properties ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
+        ..Toast?.MessageTemplate.Properties ?? [],
         ..Http?.UrlTemplate.Properties ?? [],
         ..SetProperty?.ValueExpression.Properties ?? [],
         SendMail?.To
@@ -86,6 +98,8 @@ public class Effect
         { SendMail: not null } => $"Mail:{SendMail.TemplateKey}",
         { Event: not null } => $"Event:{Event}",
         { UndoEvent: not null } => $"Undo:{UndoEvent}",
+        { ShowConfetti: not null } => "ShowConfetti",
+        { Toast: not null } => $"Toast:{Toast.Type}:{Toast.Message.En}:{Toast.Message.Nl}",
         { Redirect: not null } => "Redirect",
         _ => throw new InvalidOperationException("Invalid effect")
     };
@@ -95,6 +109,30 @@ public class Effect
     /// Trivial/client side effects do not need to be logged
     /// </summary>
     public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null;
+}
+
+public class Toast
+{
+    /// <summary>
+    /// Toast type to show in the frontend
+    /// </summary>
+    public ToastType Type { get; set; } = ToastType.Info;
+
+    /// <summary>
+    /// Toast message to show in the frontend
+    /// </summary>
+    public BilingualString Message { get; set; } = null!;
+
+    [YamlIgnore] public BilingualTemplate MessageTemplate => field ??= BilingualTemplate.Create(Message)!;
+}
+
+public enum ToastType
+{
+    Success,
+    Error,
+    Info,
+    Warning,
+    Note
 }
 
 public class SetProperty
