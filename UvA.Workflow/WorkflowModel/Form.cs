@@ -59,6 +59,13 @@ public class Page
     public BilingualString DisplayTitle => Title ?? Name;
 
     public bool HasResults => Fields.Any(f => f.Weight.HasValue);
+
+    public Page Clone()
+    {
+        var clone = (Page)MemberwiseClone();
+        clone.Fields = [];
+        return clone;
+    }
 }
 
 public class Form : INamed
@@ -120,4 +127,14 @@ public class Form : INamed
     public Effect[] OnSave { get; set; } = [];
 
     public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields);
+
+    //todo: Do we need to deep clone OnSave and onSubmit?
+    public Form Clone()
+    {
+        var clone = (Form)MemberwiseClone();
+        clone.WorkflowDefinition = null!;
+        clone.TargetForm = null;
+        clone.Pages = Pages.Select(p => p.Clone()).ToList();
+        return clone;
+    }
 }
