@@ -1,4 +1,5 @@
 using UvA.Workflow.Events;
+using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -8,6 +9,13 @@ public enum StepHierarchyMode
 {
     Sequential,
     Parallel
+}
+
+public enum StepHeaderPillType
+{
+    Info,
+    Attention,
+    Success
 }
 
 public class Step : INamed
@@ -38,6 +46,8 @@ public class Step : INamed
     public string[] ChildNames { get; set; } = [];
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
+
+    [YamlMember(Alias = "headerStatus")] public List<StepHeaderStatusConfiguration>? HeaderStatus { get; set; }
 
     /// <summary>
     /// Condition requires for this step to start
@@ -137,5 +147,13 @@ public class Step : INamed
         if (Children.Any())
             return Children.All(c => c.HasEnded(context));
         return false;
+    }
+
+    public class StepHeaderStatusConfiguration
+    {
+        public string Event { get; set; } = null!;
+        public StepHeaderPillType Type { get; set; }
+        public BilingualString Label { get; set; } = null!;
+        public BilingualTemplate LabelTemplate => field ??= BilingualTemplate.Create(Label)!;
     }
 }

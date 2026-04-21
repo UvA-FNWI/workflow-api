@@ -35,6 +35,11 @@ public record StepVersionDto
     public List<SubmissionDto> Submissions { get; init; } = [];
 }
 
+public record StepHeaderStatusDto(
+    StepHeaderPillType Type,
+    BilingualString Label
+);
+
 public record StepDto(
     string Id,
     BilingualString Title,
@@ -43,6 +48,7 @@ public record StepDto(
     DateTime? DateCompleted,
     DateTime? Deadline,
     StepDto[]? Children,
+    StepHeaderStatusDto? HeaderStatus,
     List<StepVersionDto>? Versions = null);
 
 public record ActionDto(
