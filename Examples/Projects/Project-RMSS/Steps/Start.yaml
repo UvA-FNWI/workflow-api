@@ -67,6 +67,12 @@ properties:
       en: Upload a description
       nl: Upload een beschrijving
 
+  - name: EmergencyPhoneNumber
+    type: String!
+    text:
+      en: Emergency phone number
+      nl: Telefoonnummer voor noodgevallen
+
   - name: StartDate
     type: Date!
     text:
