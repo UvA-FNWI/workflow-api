@@ -17,7 +17,7 @@ public class WorkflowInstancesController(
     ImpersonationService impersonationService
 ) : ApiControllerBase
 {
-    [Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)]
+    [Authorize(AuthenticationSchemes = AuthenticationExtensions.AnyAuthScheme)]
     [HttpPost]
     public async Task<ActionResult<WorkflowInstanceDto>> Create(
         [FromBody] CreateWorkflowInstanceDto input, CancellationToken ct)
@@ -129,7 +129,7 @@ public class WorkflowInstancesController(
         ));
     }
 
-    [Authorize(AuthenticationSchemes = AuthenticationExtensions.AllSchemes)]
+    [Authorize(AuthenticationSchemes = AuthenticationExtensions.AnyAuthScheme)]
     [HttpGet("instances/{workflowDefinition}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string workflowDefinition,
         [FromQuery] string[] properties, CancellationToken ct)

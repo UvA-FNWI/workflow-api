@@ -1,18 +1,31 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.LTI;
 
 namespace UvA.Workflow.Api.Authentication;
 
 public static class AuthenticationExtensions
 {
-    public const string AllSchemes = "SURFconext,ApiKey";
+    public const string AnyAuthScheme = "AuthSelector";
+    public const string SurfConextOrCanvasScheme = "SurfConextOrCanvas";
+
+    public const string AllSchemes = $"{SurfConextAuthenticationHandler.SchemeName}," +
+                                     $"{ApiKeyAuthenticationHandler.AuthenticationScheme}," +
+                                     $"{CanvasLtiDefaults.AuthenticationScheme}";
 
     public static IServiceCollection AddWorkflowAuthentication(this IServiceCollection services,
         IWebHostEnvironment environment, IConfiguration configuration)
     {
-        const string authSelector = "AuthSelector";
+        const string authSelector = AnyAuthScheme;
 
         services.AddSurfConextServices(configuration);
+        services.Configure<CanvasLtiOptions>(configuration.GetSection(CanvasLtiOptions.Section));
+        services.AddScoped<ILtiClaimsResolver, CanvasClaimsResolver>();
+        services.AddScoped<CanvasLaunchTargetResolver>();
 
         services.AddAuthentication(authSelector)
             .AddApiKeyAuthentication(options =>
@@ -20,12 +33,42 @@ public static class AuthenticationExtensions
                 configuration.GetSection(ApiKeyAuthenticationOptions.Section).Bind(options);
             })
             .AddSurfConext(options => { configuration.GetSection(SurfConextOptions.Section).Bind(options); })
+            .AddJwtBearer(CanvasLtiDefaults.AuthenticationScheme,
+                options =>
+                {
+                    var ltiOptions = configuration.GetSection(CanvasLtiOptions.Section).Get<CanvasLtiOptions>()
+                                     ?? throw new InvalidOperationException(
+                                         $"Missing {CanvasLtiOptions.Section} configuration");
+
+                    options.MapInboundClaims = false;
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = false,
+                        ValidIssuer = CanvasLtiDefaults.Issuer,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(ltiOptions.Key)),
+                        NameClaimType = CanvasClaimTypes.UvanetId,
+                        RoleClaimType = CanvasClaimTypes.Role
+                    };
+                })
+            .AddPolicyScheme(SurfConextOrCanvasScheme,
+                SurfConextOrCanvasScheme,
+                options =>
+                {
+                    options.ForwardDefaultSelector = context =>
+                        IsLtiToken(context)
+                            ? CanvasLtiDefaults.AuthenticationScheme
+                            : SurfConextAuthenticationHandler.SchemeName;
+                })
             .AddPolicyScheme(authSelector,
                 authSelector,
                 options =>
                 {
                     options.ForwardDefaultSelector = context =>
                     {
+                        if (IsLtiToken(context))
+                            return CanvasLtiDefaults.AuthenticationScheme;
+
                         if (context.Request.Headers.TryGetValue("Api-Key", out var values) &&
                             !string.IsNullOrWhiteSpace(values))
                             return ApiKeyAuthenticationHandler.AuthenticationScheme;
@@ -33,6 +76,13 @@ public static class AuthenticationExtensions
                         return SurfConextAuthenticationHandler.SchemeName;
                     };
                 });
+
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownIPNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
 
         services.AddSwaggerGen(c =>
         {
@@ -97,4 +147,41 @@ public static class AuthenticationExtensions
 
         return services;
     }
+
+    public static IApplicationBuilder UseWorkflowAuthentication(this IApplicationBuilder app, IConfiguration config)
+    {
+        var ltiOptions = config.GetSection(CanvasLtiOptions.Section).Get<CanvasLtiOptions>()
+                         ?? throw new InvalidOperationException(
+                             $"Missing {CanvasLtiOptions.Section} configuration");
+
+        app.UseForwardedHeaders();
+        app.UseLti(new LtiOptions
+        {
+            ClientId = ltiOptions.ClientId,
+            AuthenticateUrl = ltiOptions.AuthenticateUrl,
+            JwksUrl = ltiOptions.JwksUrl,
+            SigningKey = ltiOptions.Key,
+            TokenLifetime = ltiOptions.TokenLifetime,
+            RedirectUrl = $"{config["FrontendBaseUrl"]?.TrimEnd('/')}/canvas",
+            RedirectFunction = form => IsCanvasProduction(form) ? null : ltiOptions.TestRedirectUrl
+        });
+
+        return app;
+    }
+
+    private static bool IsLtiToken(HttpContext context)
+    {
+        var bearer = context.Request.Headers.Authorization.FirstOrDefault();
+        if (bearer?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) != true)
+            return false;
+        var token = bearer[7..].Trim();
+        var handler = new JwtSecurityTokenHandler();
+        if (!handler.CanReadToken(token)) return false;
+        return string.Equals(handler.ReadJwtToken(token).Issuer, CanvasLtiDefaults.Issuer,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCanvasProduction(IFormCollection parameters)
+        => parameters["canvas_environment"].FirstOrDefault()?.StartsWith("prod", StringComparison.OrdinalIgnoreCase) ==
+           true;
 }

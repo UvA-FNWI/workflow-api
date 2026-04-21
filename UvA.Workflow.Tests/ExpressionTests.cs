@@ -112,4 +112,29 @@ public class ExpressionTests
         var date = (DateTime)res;
         Assert.Equal(DateTime.Now.AddMonths(5).AddDays(3).Date, date.Date);
     }
+
+    [Fact]
+    public void TestDate_FormatIsoRoundTrip()
+    {
+        var date = new DateTime(2026, 3, 16, 12, 34, 56, DateTimeKind.Local);
+        var exp = ExpressionParser.Parse("formatDate(TestDate, =o)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["TestDate"] = date });
+
+        var res = exp.Execute(context);
+
+        var output = Assert.IsType<string>(res);
+        Assert.Equal(date.ToString("o"), output);
+        Assert.True(DateTimeOffset.TryParse(output, out _));
+    }
+
+    [Fact]
+    public void TestDate_FormatNullDate_ReturnsNull()
+    {
+        var exp = ExpressionParser.Parse("formatDate(MissingDate, =o)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>());
+
+        var res = exp.Execute(context);
+
+        Assert.Null(res);
+    }
 }

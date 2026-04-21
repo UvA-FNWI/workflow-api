@@ -57,6 +57,8 @@ public class Page
     public string[]? Sources { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;
+
+    public bool HasResults => Fields.Any(f => f.Weight.HasValue);
 }
 
 public class Form : INamed

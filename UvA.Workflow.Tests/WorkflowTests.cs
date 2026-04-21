@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -94,7 +96,7 @@ public class WorkflowTests
                 TenantId = "tenant",
                 ClientId = "client",
                 UserAccount = "user@mail.com",
-            }), _configurationMock.Object);
+            }), _configurationMock.Object, NullLogger<EffectService>.Instance);
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService);

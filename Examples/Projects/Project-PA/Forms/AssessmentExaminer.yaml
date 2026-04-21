@@ -17,8 +17,8 @@ pages:
 
   - name: Product
     title:
-      en: Product (40%)
-      nl: Product (40%)
+      en: Product
+      nl: Product
     fields:
       - ProductAbstract
       - ProductIntroduction
@@ -30,8 +30,8 @@ pages:
 
   - name: Process
     title:
-      en: Process (30%)
-      nl: Process (30%)
+      en: Process
+      nl: Process
     fields:
       - ProcessPreparationMethodology
       - ProcessExperimentalSkills
@@ -43,8 +43,8 @@ pages:
 
   - name: Presentation
     title:
-      en: Presentation (30%)
-      nl: Presentatie (30%)
+      en: Presentation
+      nl: Presentatie
     fields:
       - PresentationContextualizationDelivery
       - PresentationClarityStyle
