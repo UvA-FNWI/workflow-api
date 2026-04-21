@@ -47,7 +47,7 @@ public class Step : INamed
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
 
-    [YamlMember(Alias = "headerStatus")] public List<StepHeaderStatusConfiguration>? HeaderStatus { get; set; }
+    public List<StepHeaderStatusConfiguration>? HeaderStatus { get; set; }
 
     /// <summary>
     /// Condition requires for this step to start
