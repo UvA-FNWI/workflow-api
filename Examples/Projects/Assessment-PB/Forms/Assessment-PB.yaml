@@ -1,0 +1,20 @@
+name: Assessment
+
+pages:
+  - name: Consent
+    fields:
+      - Consent
+  - name: Report
+    fields:
+      - Structure
+      - Polishing
+      - Nose
+  - name: Presentation
+    fields:
+      - Loudness
+      - Style
+      - Contents
+  - name: Practical
+    fields:
+      - Bananas
+    sources: [AssessmentSupervisor]

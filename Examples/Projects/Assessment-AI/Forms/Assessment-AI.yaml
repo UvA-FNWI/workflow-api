@@ -1,6 +1,9 @@
-name: Assessment
+name: Assessment-AI
 
 pages:
+  - name: Consent
+    fields:
+      - Consent
   - name: Report
     fields:
       - Structure
@@ -11,7 +14,3 @@ pages:
       - Loudness
       - Style
       - Contents
-  - name: Practical
-    fields:
-      - Bananas
-    sources: [AssessmentSupervisor]

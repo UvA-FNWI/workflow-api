@@ -5,7 +5,7 @@ actions:
   - roles: [Coordinator]
     type: Execute
     label: Approve (coordinator)
-    name: ApproveCoordinator
+    name: CoordinatorApproved
 
 ends:
   event: CoordinatorApproved

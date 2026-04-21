@@ -2,3 +2,9 @@
 name: Assessment
 isEmbedded: true
 
+properties:
+  - name: Consent
+    text: 
+      en: Do you consent to the processing of your data for the purpose of this assessment?
+      nl: Geeft u toestemming voor de verwerking van uw gegevens voor het doel van deze beoordeling?
+    type: String!
