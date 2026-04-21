@@ -12,55 +12,8 @@ actions:
       nl: Beoordeling indienen
 
 properties:
-  - name: SupervisorResearchProposalSufficient
-    type: SupervisorResearchProposalSufficientType!
-    text:
-      en: Is the proposal sufficient?
-      nl: Is het voorstel voldoende?
-    layout:
-      type: RadioList
-    values:
-      - name: Pass
-        text:
-          en: Pass
-          nl: Voldoende
-      - name: Fail
-        text:
-          en: Fail
-          nl: Onvoldoende
-
-  - name: SupervisorResearchProposalFeedback
-    type: String
-    text:
-      en: Feedback on proposal
-      nl: Feedback op voorstel
-    layout:
-      multiline: true
-
-  - name: SupervisorEthicsSufficient
-    type: SupervisorEthicsSufficientType!
-    text:
-      en: Is the ethics declaration sufficient?
-      nl: Is de ethiek verklaring voldoende?
-    layout:
-      type: RadioList
-    values:
-      - name: Pass
-        text:
-          en: Pass
-          nl: Voldoende
-      - name: Fail
-        text:
-          en: Fail
-          nl: Onvoldoende
-
-  - name: SupervisorEthicsFeedback
-    type: String
-    text:
-      en: Feedback on ethics
-      nl: Feedback op ethiek
-    layout:
-      multiline: true
+  - name: SupervisorReview
+    type: ProposalReview!
 
 ends:
   logical:
