@@ -1008,6 +1008,17 @@
             }
           ]
         },
+        "showToast": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Show a toast message",
+              "$ref": "#/definitions/ShowToast"
+            }
+          ]
+        },
         "http": {
           "oneOf": [
             {
@@ -1136,6 +1147,41 @@
           "type": "string"
         }
       }
+    },
+    "ShowToast": {
+      "title": "ShowToast",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message"
+      ],
+      "properties": {
+        "type": {
+          "description": "Toast type to show in the frontend",
+          "$ref": "#/definitions/ToastType"
+        },
+        "message": {
+          "description": "Toast message to show in the frontend",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "ToastType": {
+      "type": "string",
+      "enum": [
+        "Success",
+        "Error",
+        "Info",
+        "Warning",
+        "Note"
+      ]
     },
     "Http": {
       "title": "Http",
