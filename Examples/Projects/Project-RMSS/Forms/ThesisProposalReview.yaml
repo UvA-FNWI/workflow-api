@@ -1,0 +1,31 @@
+name: ThesisProposalReview
+property: SupervisorReview
+targetForm: ProposalReview
+title:
+  en: Research proposal and ethics review
+  nl: Onderzoeksvoorstel en ethiek beoordeling
+
+onSubmit:
+  - condition:
+      logical:
+        operator: And
+        children:
+          - value:
+              property: SupervisorReview.EthicsSufficient
+              equal: =Pass
+          - value:
+              property: SupervisorReview.ProposalSufficient
+              equal: =Pass
+    event: ApproveSupervisor
+  - condition:
+      not: true
+      logical:
+        operator: And
+        children:
+          - value:
+              property: SupervisorReview.EthicsSufficient
+              equal: =Pass
+          - value:
+              property: SupervisorReview.ProposalSufficient
+              equal: =Pass
+    event: RejectSupervisor

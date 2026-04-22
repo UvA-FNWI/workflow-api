@@ -1,0 +1,31 @@
+name: ProposalReviewerReview
+property: ProposalReviewerReview
+targetForm: ProposalReview
+title:
+  en: Research proposal and ethics review
+  nl: Onderzoeksvoorstel en ethiek beoordeling
+
+onSubmit:
+  - condition:
+      logical:
+        operator: And
+        children:
+          - value:
+              property: ProposalReviewerReview.EthicsSufficient
+              equal: =Pass
+          - value:
+              property: ProposalReviewerReview.ProposalSufficient
+              equal: =Pass
+    event: ApproveProposalReviewer
+  - condition:
+      not: true
+      logical:
+        operator: And
+        children:
+          - value:
+              property: ProposalReviewerReview.EthicsSufficient
+              equal: =Pass
+          - value:
+              property: ProposalReviewerReview.ProposalSufficient
+              equal: =Pass
+    event: RejectProposalReviewer

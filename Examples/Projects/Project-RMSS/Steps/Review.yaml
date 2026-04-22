@@ -1,0 +1,17 @@
+name: Review
+title:
+  en: Review
+  nl: Beoordeling
+
+hierarchyMode: Parallel
+
+ends:
+  logical:
+    operator: And
+    children:
+      - event: ApproveSupervisor
+      - event: ApproveProposalReviewer
+
+children:
+  - ReviewSupervisor
+  - ReviewProposalReviewer
