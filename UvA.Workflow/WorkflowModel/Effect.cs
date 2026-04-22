@@ -161,8 +161,9 @@ public class Http
     public Template UrlTemplate => _urlTemplate ??= new Template(Url);
 }
 
-public class SendMessage
+public class SendMessage : INamed
 {
+    public string Name { get; set; } = null!;
     public string? To { get; set; } = null!;
     public string? ToAddress { get; set; }
     public BilingualString? Subject { get; set; }

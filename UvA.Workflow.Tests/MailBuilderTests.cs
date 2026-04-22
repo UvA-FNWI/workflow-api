@@ -196,4 +196,154 @@ public class MailBuilderTests
         // Trailing slash should be trimmed
         Assert.Equal("Link: https://milestones.uva.nl", result.Subject);
     }
+
+    [Fact]
+    public async Task BuildAsync_WithTemplateKey_LoadsTemplateAndUsesDefaults()
+    {
+        var (builder, layout, resolver) = CreateBuilder(frontendBaseUrl: "https://milestones.uva.nl");
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+
+        var sendMail = new SendMessage
+        {
+            TemplateKey = "SubjectSubmitted"
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        // Subject / recipient come from template defaults
+        Assert.Equal("You have submitted your thesis proposal", result.Subject);
+        var recipient = Assert.Single(result.To);
+        Assert.Equal("replaced-by-override@mail.com", recipient.MailAddress);
+
+        // Layout key comes from template defaults
+        resolver.Verify(r => r.Resolve("default"), Times.Once);
+
+        // Button comes from template and has resolved FrontendBaseUrl + instance id
+        Assert.NotNull(layout.CapturedButtons);
+        var button = Assert.Single(layout.CapturedButtons);
+        Assert.Equal("View your submission", button.Label);
+        Assert.StartsWith("https://milestones.uva.nl/instance/", button.Url);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithTemplateKey_InlineValuesOverrideTemplateDefaults()
+    {
+        var (builder, layout, resolver) = CreateBuilder(frontendBaseUrl: "https://milestones.uva.nl");
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("Title", b => b.Value("Custom Title")))
+            .Build();
+
+        var sendMail = new SendMessage
+        {
+            TemplateKey = "SubjectSubmitted",
+            ToAddress = "override@uva.nl",
+            Subject = new BilingualString("Overridden: {{ Title }}", ""),
+            Body = new BilingualString("**custom body**", ""),
+            Layout = "custom-layout",
+            Buttons =
+            [
+                new SendMessageButton
+                {
+                    Label = new BilingualString("Custom action", "Custom action"),
+                    Url = "{{ FrontendBaseUrl }}/custom"
+                }
+            ]
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal("Overridden: Custom Title", result.Subject);
+        var recipient = Assert.Single(result.To);
+        Assert.Equal("override@uva.nl", recipient.MailAddress);
+
+        resolver.Verify(r => r.Resolve("custom-layout"), Times.Once);
+
+        Assert.NotNull(layout.CapturedBody);
+        Assert.Contains("<strong>custom body</strong>", layout.CapturedBody);
+
+        Assert.NotNull(layout.CapturedButtons);
+        var button = Assert.Single(layout.CapturedButtons);
+        Assert.Equal("Custom action", button.Label);
+        Assert.Equal("https://milestones.uva.nl/custom", button.Url);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithUnknownTemplateKey_ThrowsWithKnownTemplates()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+
+        var sendMail = new SendMessage
+        {
+            TemplateKey = "DoesNotExist"
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            builder.BuildAsync(instance, sendMail, _modelService));
+
+        Assert.Contains("Mail template 'DoesNotExist' not found in 'Project'", ex.Message);
+        Assert.Contains("Known templates:", ex.Message);
+        Assert.Contains("SubjectSubmitted", ex.Message);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithTemplateDefaultExpression_UsesFallbackWhenDataMissing()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+
+        var sendMail = new SendMessage
+        {
+            TemplateKey = "FinalVersionSubmitted"
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        // FinalVersionSubmitted template uses:
+        // {{ coalesce(Student.DisplayName, =student) }}
+        // so without Student data it should fall back to "student".
+        Assert.Contains("Congratulations student", result.Body);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithTemplateKeyAndToUserProperty_UsesUserRecipientInsteadOfTemplateToAddress()
+    {
+        var (builder, _, _) = CreateBuilder();
+
+        var reviewerDoc = new MongoDB.Bson.BsonDocument
+        {
+            { "_id", MongoDB.Bson.ObjectId.GenerateNewId() },
+            { "UserName", "rjansen" },
+            { "DisplayName", "Robin Jansen" },
+            { "Email", "robin.jansen@uva.nl" }
+        };
+
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project-PA", currentStep: "AssessmentExaminer")
+            .WithProperties(("SecondReviewer", _ => reviewerDoc))
+            .Build();
+
+        // Mirrors AssessmentExaminer.yaml:
+        // - sendMail:
+        //     template: AssessmentRequestAssessor
+        //     to: SecondReviewer
+        var sendMail = new SendMessage
+        {
+            TemplateKey = "AssessmentRequestAssessor",
+            To = "SecondReviewer"
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        var recipient = Assert.Single(result.To);
+        Assert.Equal("robin.jansen@uva.nl", recipient.MailAddress);
+        Assert.Equal("Robin Jansen", recipient.DisplayName);
+    }
 }

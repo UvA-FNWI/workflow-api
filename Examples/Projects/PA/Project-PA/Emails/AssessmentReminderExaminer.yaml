@@ -1,0 +1,36 @@
+name: AssessmentReminderExaminer
+layout: default
+toAddress: "replaced-by-override@mail.com"
+subject:
+  en: "Reminder: assess the thesis of {{ coalesce(Student.DisplayName, =this student) }} before {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =the deadline) }}"
+  nl: "Herinnering: beoordeel de scriptie van {{ coalesce(Student.DisplayName, =deze student) }} voor {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =de deadline) }}"
+body:
+  en: |
+    Dear {{ coalesce(Examiner.DisplayName, =colleague) }},
+    
+    You have not yet assessed the thesis of {{ coalesce(Student.DisplayName, =this student) }}.<br>
+    The assessment should be submitted before {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =the deadline) }}. That is in {{ coalesce(daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)), =a few) }} days.
+    
+    **Consequences for a non-EU student**<br>
+    A late assessment can cause problems for the student when reapplying for a visa or residence permit with the IND.
+    This can subsequently have consequences for, for example, housing and valid health insurance.<br>
+    Therefore, please fill this in as soon as possible.
+    
+    Thanks in advance!
+  nl: |
+    Beste {{ coalesce(Examiner.DisplayName, =colleague) }},
+    
+    Je hebt de scriptie van {{ coalesce(Student.DisplayName, =deze student) }} nog niet beoordeeld.<br>
+    De beoordeling moet voor {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =de deadline) }} ingeleverd zijn. Dat is over {{ coalesce(daysUntil(now, addWeeks(UploadFinalThesisEvent, 2)), =enkele) }} dagen.
+    
+    **Gevolgen voor een niet EU-student**<br>
+    Een te late beoordeling kan voor de student problemen veroorzaken bij de herbeoordeling van het visum of de verblijfsvergunning door de IND.
+    Dit kan vervolgens gevolgen hebben voor bijvoorbeeld huisvesting en een geldige zorgverzekering.<br>
+    Vul deze daarom zo snel mogelijk in.
+    
+    Alvast bedankt!
+buttons:
+  - label:
+      en: "Assess thesis"
+      nl: "Beoordeel scriptie"
+    url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"

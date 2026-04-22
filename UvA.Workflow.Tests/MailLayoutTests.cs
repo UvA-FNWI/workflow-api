@@ -111,7 +111,9 @@ public class FileMailLayoutTests
 
             Assert.Contains("href=\"https://example.com/form\"", result);
             Assert.Contains("Open Form", result);
-            Assert.Contains("button-primary", result);
+            Assert.Contains("padding:12px 28px;", result);
+            Assert.Contains("background-color:#E00031;color:#FFFFFF;", result);
+            Assert.Contains("display:inline-block;", result);
         }
         finally
         {

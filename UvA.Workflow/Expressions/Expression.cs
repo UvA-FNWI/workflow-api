@@ -26,11 +26,14 @@ public record Expression
         ["addDays"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(i)),
         ["addMonths"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddMonths(i)),
         ["addWeeks"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(7 * i)),
+        ["daysUntil"] = new Function<DateTime?, DateTime?, int?>((from, to) =>
+            from == null || to == null ? null : (int)Math.Ceiling((to.Value.Date - from.Value.Date).TotalDays)),
         ["formatDate"] = new Function<DateTime?, string, string?>((d, f)
             => d?.ToString(f, CultureInfo.InvariantCulture)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
+        ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
 
     public virtual IEnumerable<Lookup> Properties => this switch

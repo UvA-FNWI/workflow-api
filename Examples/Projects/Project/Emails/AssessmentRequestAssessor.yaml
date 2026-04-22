@@ -1,0 +1,34 @@
+name: AssessmentRequestAssessor
+layout: default
+toAddress: "replaced-by-override@mail.com"
+subject:
+  en: "Indicate whether you agree with the assessment for the thesis of {{ coalesce(Student.DisplayName, = this student) }}"
+  nl: "Geef aan of je het eens bent met de beoordeling voor de scriptie van {{ coalesce(Student.DisplayName, =deze student) }}"
+body:
+  en: |
+    Dear {{ coalesce(Reviewer.DisplayName, =colleague) }},
+    
+    The thesis of **{{ Student.DisplayName }}** has been assessed by the supervisor.<br>
+    You are the second reader for this thesis.
+   
+    Could you please let us know as soon as possible whether you agree with this assessment or not?
+    Please provide this **before {{ coalesce(formatDate(addWeeks(UploadEvent, 2), =dd-MM-yyyy), =the deadline) }}**. That is in {{ coalesce(daysUntil(now, addWeeks(UploadEvent, 2)), =a few) }} days.
+    
+    Could you assess this thesis as soon as you have time for it?<br>
+    Thanks in advance, also on behalf of the student (who is eagerly waiting for a final grade).
+  nl: |
+    Beste {{ coalesce(Reviewer.DisplayName, =collega) }},
+    
+    De scriptie van **{{ Student.DisplayName }}** is beoordeeld door de begeleider.<br>
+    Jij bent voor deze scriptie de 2e beoordelaar.
+   
+    Wil je zo snel mogelijk doorgeven of je wel of niet akkoord bent met deze beoordeling?
+    Geef dit **uiterlijk op {{ coalesce(formatDate(addWeeks(UploadEvent, 2), =dd-MM-yyyy), =de deadline) }}** door. Dat is over {{ coalesce(daysUntil(now, addWeeks(UploadEvent, 2)), =enkele) }} dagen.
+    
+    Wil je deze scriptie beoordelen zodra je hier tijd voor hebt?<br>
+    Alvast bedankt, ook names de student (die vol spanning op een eindcijfer wacht).
+buttons:
+  - label:
+      en: "Assess thesis"
+      nl: "Beoordeel scriptie"
+    url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"

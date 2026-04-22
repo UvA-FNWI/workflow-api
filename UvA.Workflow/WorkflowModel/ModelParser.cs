@@ -51,6 +51,7 @@ public partial class ModelParser
             definition.Forms = Read<Form>(definition.SourceFolder);
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
+            definition.Emails = Read<SendMessage>(definition.SourceFolder);
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
                 NamedConditions.Add(entry);
@@ -311,6 +312,7 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         var folder = typeName switch
         {
+            "SendMessage" => "Emails",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };
