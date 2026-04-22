@@ -90,13 +90,21 @@ public abstract class ControllerTestsBase
                 _instanceJournalServiceMock.Object);
 
         _effectService =
-            new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object, mailBuilder,
-                _artifactServiceMock.Object, _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
+            new EffectService(_instanceService,
+                _eventService,
+                _modelService,
+                _mailServiceMock.Object,
+                mailBuilder,
+                _artifactServiceMock.Object,
+                _mailLogRepositoryMock.Object,
+                Options.Create(new GraphMailOptions
                 {
                     TenantId = "tenant",
                     ClientId = "client",
                     UserAccount = "user@mail.com",
-                }), _configurationMock.Object);
+                }),
+                _configurationMock.Object,
+                _loggerFactory.CreateLogger<EffectService>());
 
         _jobService =
             new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
