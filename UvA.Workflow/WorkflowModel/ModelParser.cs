@@ -163,8 +163,11 @@ public partial class ModelParser
         workflowDefinition.Events.Add(new() { Name = form.Name });
 
         if (form is { PropertyName: not null, TargetFormName: not null })
-            form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType]
-                .Forms.Get(form.TargetFormName);
+        {
+            var targetDef = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType];
+            form.TargetForm = targetDef.Forms.GetOrDefault(form.TargetFormName)
+                              ?? targetDef.Forms.FirstOrDefault();
+        }
 
         if (form.PropertyDefinitions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
             throw new Exception($"Form {form.Name} has multiple questions with the same name");
@@ -322,12 +325,9 @@ public partial class ModelParser
             if (obj == null)
                 throw new Exception($"Invalid file: {filePath}");
 
-            // If the object has a name property, set it to the entity name
-            if (nameProperty?.PropertyType == typeof(string))
-            {
-                var entityName = Path.GetFileNameWithoutExtension(filePath);
-                nameProperty.SetValue(obj, entityName);
-            }
+            // Set the entity name to the filename when the name is not defined in the file
+            if (nameProperty?.PropertyType == typeof(string) && nameProperty.GetValue(obj)?.ToString() == null)
+                nameProperty.SetValue(obj, Path.GetFileNameWithoutExtension(filePath));
 
             result.Add(obj);
         }

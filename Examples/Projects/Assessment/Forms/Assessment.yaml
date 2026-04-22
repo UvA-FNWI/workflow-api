@@ -1,1 +1,6 @@
 name: Assessment
+
+pages:
+  - name: Consent
+    fields:
+      - Consent
