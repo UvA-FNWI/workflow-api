@@ -1,9 +1,6 @@
 name: Assessment
 
 pages:
-  - name: Consent
-    fields:
-      - Consent
   - name: Report
     fields:
       - Structure

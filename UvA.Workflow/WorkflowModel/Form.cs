@@ -19,7 +19,7 @@ public enum FormLayout
 /// <summary>
 /// Represents a page in a form
 /// </summary>
-public class Page
+public class Page : INamed
 {
     /// <summary>
     /// Internal name of the page

@@ -9,8 +9,19 @@ public partial class ModelParser
         target.Parent = source;
 
         if (!target.Forms.Any())
+        {
             foreach (var sourceForm in source.Forms)
                 target.Forms.Add(sourceForm.Clone());
+        }
+        else
+        {
+            foreach (var targetForm in target.Forms)
+            {
+                var parentFormName = target.InheritsFrom ?? targetForm.Name;
+                if (source.Forms.TryGetValue(parentFormName, out var sourceForm))
+                    ApplyInheritance(targetForm, sourceForm);
+            }
+        }
 
         foreach (var property in source.Properties.Where(p => !target.Properties.Contains(p.Name)))
             target.Properties.Add(property);
@@ -48,6 +59,8 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
+        foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
+            target.Pages.Insert(0, sourcePage.Clone()); // prepend parent pages before child-specific ones
     }
 
     private void ApplyInheritance(Step target, Step source)

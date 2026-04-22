@@ -1,9 +1,6 @@
 name: Assessment-AI
 
 pages:
-  - name: Consent
-    fields:
-      - Consent
   - name: Report
     fields:
       - Structure
