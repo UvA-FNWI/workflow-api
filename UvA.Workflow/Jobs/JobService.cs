@@ -110,10 +110,9 @@ public class JobService(
                 job.Status = JobStatus.Failed;
 #if DEBUG
                 throw;
-#endif
-#pragma warning disable CS0162 // Unreachable code detected
+#else
                 return result;
-#pragma warning restore CS0162
+#endif
             }
 
             var outputs = context.Get(effect.Name ?? effect.ServiceCall?.Operation ?? "__invalid")
