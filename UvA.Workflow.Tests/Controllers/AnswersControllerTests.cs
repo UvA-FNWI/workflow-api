@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moq;
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Api.Steps;
 using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
@@ -77,23 +75,10 @@ public class AnswersControllerTests : ControllerTestsBase
             .WithProperties(("Title", b => b.Value("My Thesis")))
             .Build();
 
-        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id,
-                It.IsAny<List<string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instance);
-
-        _workflowInstanceRepoMock.Setup(r => r.GetAllById(It.IsAny<string[]>(),
-                It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+        MockInstance(instance);
+        MockEmptyEventLog(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser(roles);
 
         var controller =
             new AnswersController(_userServiceMock.Object, _answerService, _rightsService, _artifactTokenService,

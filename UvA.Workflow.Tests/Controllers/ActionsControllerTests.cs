@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -8,6 +9,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
 
@@ -59,6 +61,47 @@ public class ActionsControllerTests : ControllerTestsBase
         Assert.Equal(403, objectResult.StatusCode);
     }
 
+    [Fact]
+    public async Task Actions_ExecuteAction_ReturnsUnauthorized_WhenNoCurrentUser()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        var input = new ExecuteActionInputDto(ActionType.Execute, instance.Id, "ApproveCoordinator");
+
+        var result = await controller.ExecuteAction(input, _ct);
+
+        Assert.IsType<UnauthorizedResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Actions_ExecuteAction_ReturnsNotFound_WhenInstanceDoesNotExist()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
+
+        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WorkflowInstance?)null);
+
+        var input = new ExecuteActionInputDto(ActionType.Execute, instance.Id, "ApproveCoordinator");
+
+        var result = await controller.ExecuteAction(input, _ct);
+
+        var badRequest = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status404NotFound, badRequest.StatusCode);
+    }
+
+    [Fact]
+    public async Task Actions_ExecuteAction_ReturnsBadRequest_WhenActionNameMissing()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
+        var input = new ExecuteActionInputDto(ActionType.Execute, instance.Id, null);
+
+        var result = await controller.ExecuteAction(input, _ct);
+
+        var badRequest = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequest.StatusCode);
+    }
+
     private (ActionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string stepName = "Start", string workflowDefinition = "Project")
     {
@@ -76,24 +119,11 @@ public class ActionsControllerTests : ControllerTestsBase
             .WithProperties(("Course", _ => contextInstance.Id))
             .Build();
 
-        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id,
-                It.IsAny<List<string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        _workflowInstanceRepoMock.Setup(r => r.GetById(contextInstance.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(contextInstance);
-        _workflowInstanceRepoMock.Setup(r => r.GetAllById(It.IsAny<string[]>(), It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instance);
-
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+        MockInstance(instance);
+        MockEmptyEventLog(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockInstance(contextInstance);
+        MockCurrentUser(roles);
 
         var controller =
             new ActionsController(_workflowInstanceRepoMock.Object, _userServiceMock.Object, _rightsService,

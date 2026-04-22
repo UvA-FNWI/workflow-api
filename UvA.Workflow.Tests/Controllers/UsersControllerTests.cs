@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -20,7 +22,13 @@ public class UsersControllerTests : ControllerTestsBase
         // Act
         var result = await controller.GetLoggedInUser(_ct);
         //Assert
-        Assert.IsType<ActionResult<UserDto>>(result);
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var userDto = Assert.IsType<UserDto>(okResult.Value);
+
+        Assert.Equal(ControllerTestsHelpers.AdminUser.Id, userDto.Id);
+        Assert.Equal(ControllerTestsHelpers.AdminUser.Email, userDto.Email);
+        Assert.Equal(ControllerTestsHelpers.AdminUser.UserName, userDto.UserName);
+        Assert.Equal(ControllerTestsHelpers.AdminUser.DisplayName, userDto.DisplayName);
     }
 
     [Theory]
@@ -45,17 +53,33 @@ public class UsersControllerTests : ControllerTestsBase
         // Act
         var result = await controller.Create(new CreateUserDto("username", "displayName", "email"), _ct);
         //Assert
-        Assert.IsType<ActionResult<UserDto>>(result);
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+
+        Assert.Equal(nameof(UsersController.GetById), createdResult.ActionName);
+
+        _userRepoMock.Verify(r => r.Create(It.Is<User>(u =>
+            u.UserName == "username" &&
+            u.DisplayName == "displayName" &&
+            u.Email == "email"), _ct), Times.Once);
+    }
+
+    [Fact]
+    public async Task Users_GetLoggedInUser_ReturnsNotFound_WhenNoUserIsAuthenticated()
+    {
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        var controller = new UsersController(_userServiceMock.Object, _userRepoMock.Object, _rightsService);
+
+        var result = await controller.GetLoggedInUser(_ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
     }
 
     private UsersController BuildControllerWithRoles(
         string[] roles)
     {
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
-
+        MockCurrentUser(roles);
         return new UsersController(_userServiceMock.Object, _userRepoMock.Object, _rightsService);
     }
 }

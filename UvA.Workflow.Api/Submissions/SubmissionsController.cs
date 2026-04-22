@@ -21,7 +21,7 @@ public class SubmissionsController(
         var (instance, submission, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, version, ct);
 
-        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View);
+        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
 
         var dto = submissionDtoFactory.Create(instance, form, submission,
             modelService.GetQuestionStatus(instance, form, true));
@@ -39,7 +39,7 @@ public class SubmissionsController(
         var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
         var (instance, sub, form, _) = context;
 
-        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.Submit);
+        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.Submit, form.Name);
 
         var result = await submissionService.SubmitSubmission(context, user, ct);
 

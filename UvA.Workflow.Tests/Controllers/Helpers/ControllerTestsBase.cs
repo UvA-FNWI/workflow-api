@@ -104,4 +104,34 @@ public abstract class ControllerTestsBase
                 _loggerFactory.CreateLogger<JobService>(),
                 _instanceService);
     }
+
+    protected void MockCurrentUser(params string[] roles)
+    {
+        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(roles);
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+    }
+
+    protected void MockInstance(WorkflowInstance instance)
+    {
+        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(instance);
+    }
+
+    protected void MockEmptyRelatedInstanceLookups()
+    {
+        _workflowInstanceRepoMock.Setup(r => r.GetAllById(It.IsAny<string[]>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+    }
+
+    protected void MockEmptyEventLog(WorkflowInstance instance)
+    {
+        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id,
+                It.IsAny<List<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+    }
 }

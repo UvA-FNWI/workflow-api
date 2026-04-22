@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Moq;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
@@ -54,13 +53,7 @@ public class ScreensControllerTests : ControllerTestsBase
     private ScreensController BuildControllerWithRoles(
         string[] roles)
     {
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
-
-        var controller = new ScreensController(_screenDataService);
-
-        return controller;
+        MockCurrentUser(roles);
+        return new ScreensController(_screenDataService);
     }
 }

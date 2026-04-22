@@ -3,6 +3,7 @@ using Moq;
 using UvA.Workflow.Api.Steps;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
 
@@ -42,6 +43,32 @@ public class StepsControllerTests : ControllerTestsBase
             controller.GetStepVersions(instance.Id, stepName, _ct));
     }
 
+    [Fact]
+    public async Task Steps_GetStepVersions_ReturnsUnauthorized_WhenNoCurrentUser()
+    {
+        const string stepName = "Assessment";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], stepName);
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        var result = await controller.GetStepVersions(instance.Id, stepName, _ct);
+
+        Assert.IsType<UnauthorizedResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Steps_GetStepVersions_ReturnsNotFound_WhenInstanceDoesNotExist()
+    {
+        const string stepName = "Assessment";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], stepName);
+        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WorkflowInstance?)null);
+
+        var result = await controller.GetStepVersions(instance.Id, stepName, _ct);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+
     private (StepsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string stepName)
     {
@@ -50,23 +77,10 @@ public class StepsControllerTests : ControllerTestsBase
             .WithEvents(b => b.WithId(stepName))
             .Build();
 
-        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id,
-                It.IsAny<List<string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instance);
-
-        _workflowInstanceRepoMock.Setup(r => r.GetAllById(It.IsAny<string[]>(),
-                It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+        MockEmptyEventLog(instance);
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser(roles);
 
         var controller = new StepsController(_userServiceMock.Object, _rightsService, _workflowInstanceRepoMock.Object,
             _stepVersionService);

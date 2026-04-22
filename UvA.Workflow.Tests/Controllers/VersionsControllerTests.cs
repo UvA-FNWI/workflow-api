@@ -46,11 +46,7 @@ public class VersionsControllerTests : ControllerTestsBase
     private VersionsController BuildControllerWithRoles(
         string[] roles)
     {
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
-
+        MockCurrentUser(roles);
         return new VersionsController(_modelServiceResolver, _rightsService,
             _loggerFactory.CreateLogger<VersionsController>());
     }

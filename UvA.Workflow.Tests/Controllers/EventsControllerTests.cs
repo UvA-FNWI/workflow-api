@@ -4,6 +4,7 @@ using UvA.Workflow.Api.Events;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Controllers;
@@ -20,6 +21,10 @@ public class EventsControllerTests : ControllerTestsBase
         var result = await controller.DeleteEvent(instance.Id, eventName, _ct);
         //Assert
         Assert.IsType<OkResult>(result);
+        _eventRepoMock.Verify(r =>
+                r.DeleteEvent(instance, It.Is<InstanceEvent>(e => e.Id == eventName), ControllerTestsHelpers.AdminUser,
+                    _ct),
+            Times.Once);
     }
 
     [Theory]
@@ -33,6 +38,18 @@ public class EventsControllerTests : ControllerTestsBase
             controller.DeleteEvent(instance.Id, eventName, _ct));
     }
 
+    [Fact]
+    public async Task Events_DeleteEvent_ReturnsUnauthorized_WhenNoCurrentUser()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Start");
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        var result = await controller.DeleteEvent(instance.Id, "Start", _ct);
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
+
     private (EventsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string eventName)
     {
@@ -42,26 +59,13 @@ public class EventsControllerTests : ControllerTestsBase
             .WithProperties(("Title", b => b.Value("My Thesis")))
             .Build();
 
-        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id,
-                It.IsAny<List<string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
         _eventRepoMock.Setup(r =>
             r.DeleteEvent(instance, It.IsAny<InstanceEvent>(), ControllerTestsHelpers.AdminUser, _ct));
 
-        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instance);
-
-        _workflowInstanceRepoMock.Setup(r => r.GetAllById(It.IsAny<string[]>(),
-                It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+        MockInstance(instance);
+        MockEmptyEventLog(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser(roles);
 
         var controller =
             new EventsController(_workflowInstanceRepoMock.Object, _userServiceMock.Object, _rightsService,

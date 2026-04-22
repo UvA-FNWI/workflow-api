@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
@@ -64,12 +63,13 @@ public class SubmissionsControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData("Coordinator")]
-    public async Task Submissions_SubmitSubmission_ThrowsForbiddenException(string role)
+    [InlineData("Coordinator", "Start")]
+    [InlineData("Student", "Upload")]
+    public async Task Submissions_SubmitSubmission_ThrowsForbiddenException(string role, string stepName)
     {
         // Arrange
         const string submissionId = "Start";
-        var (controller, instance) = BuildControllerWithRoles([role], submissionId);
+        var (controller, instance) = BuildControllerWithRoles([role], submissionId, stepName);
 
         // Act and Assert
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
@@ -77,19 +77,15 @@ public class SubmissionsControllerTests : ControllerTestsBase
     }
 
     private (SubmissionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
-        string[] roles, string submissionId)
+        string[] roles, string submissionId, string stepName = "Start")
     {
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .With(workflowDefinition: "Project", currentStep: stepName)
             .WithEvents(b => b.WithId(submissionId))
             .Build();
 
-        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(instance);
-        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
-        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+        MockInstance(instance);
+        MockCurrentUser(roles);
 
         var controller = new SubmissionsController(_userServiceMock.Object, _modelService, _rightsService,
             _submissionService, _submissionDtoFactory, _workflowInstanceDtoFactory);
