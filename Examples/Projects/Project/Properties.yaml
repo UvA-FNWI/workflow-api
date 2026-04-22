@@ -28,10 +28,12 @@ properties:
       en: Examiner
       nl: Examinator
   - name: Supervisor
-    type: User!
+    type: User!    
+    allowsExternalUsers: true
     text: 
       en: Supervisor
       nl: Begeleider
+
   - name: Reviewer
     type: User!
     text: 

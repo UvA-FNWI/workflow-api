@@ -291,6 +291,14 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "weight": {
+          "type": "integer",
+          "description": "Weight used when calculating results for this property"
+        },
+        "allowsExternalUsers": {
+          "type": "boolean",
+          "description": "Determines if a user-valued property may reference a user outside the university"
         }
       }
     },
