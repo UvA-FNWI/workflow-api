@@ -35,6 +35,11 @@ public record StepVersionDto
     public List<SubmissionDto> Submissions { get; init; } = [];
 }
 
+public record StepHeaderStatusDto(
+    StepHeaderPillType Type,
+    BilingualString Label
+);
+
 public record StepDto(
     string Id,
     BilingualString Title,
@@ -43,6 +48,7 @@ public record StepDto(
     DateTime? DateCompleted,
     DateTime? Deadline,
     StepDto[]? Children,
+    StepHeaderStatusDto? HeaderStatus,
     List<StepVersionDto>? Versions = null);
 
 public record ActionDto(
@@ -53,7 +59,7 @@ public record ActionDto(
     string? UserId = null,
     MailMessage? Mail = null,
     string? Property = null,
-    string? Step = null,
+    string[] Steps = null!,
     ActionIntent Intent = ActionIntent.Primary,
     FormLayout? FormLayout = null
 )
@@ -62,6 +68,8 @@ public record ActionDto(
 
     public static ActionDto Create(InstanceService.AllowedAction action)
     {
+        var steps = action.DisplaySteps ?? [];
+
         ActionDto dto = action.Action.Type switch
         {
             RoleAction.CreateRelatedInstance => new(
@@ -85,7 +93,7 @@ public record ActionDto(
         };
         return dto with
         {
-            Step = action.Action.Steps.Length == 1 ? action.Action.Steps[0] : null,
+            Steps = steps,
             Intent = action.Action.Intent
         };
     }
