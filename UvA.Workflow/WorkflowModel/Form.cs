@@ -128,7 +128,6 @@ public class Form : INamed
 
     public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields);
 
-    //todo: Do we need to deep clone OnSave and onSubmit?
     public Form Clone()
     {
         var clone = (Form)MemberwiseClone();

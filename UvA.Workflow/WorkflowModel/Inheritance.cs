@@ -8,19 +8,9 @@ public partial class ModelParser
     {
         target.Parent = source;
 
-        foreach (var sourceForm in source.Forms)
-        {
-            // If the name of the form matches the source form or the workflow definition (default form) it uses that form instead of the parent form 
-            if (target.Forms.TryGetValue(sourceForm.Name, out var targetForm) ||
-                target.Forms.TryGetValue(target.Name, out targetForm))
-                ApplyInheritance(targetForm, sourceForm);
-            else
+        if (!target.Forms.Any())
+            foreach (var sourceForm in source.Forms)
                 target.Forms.Add(sourceForm.Clone());
-        }
-        // todo: This also works, but might be too simple?
-        // if (!target.Forms.Any())
-        //     foreach (var sourceForm in source.Forms)
-        //         target.Forms.Add(sourceForm.Clone());
 
         foreach (var property in source.Properties.Where(p => !target.Properties.Contains(p.Name)))
             target.Properties.Add(property);

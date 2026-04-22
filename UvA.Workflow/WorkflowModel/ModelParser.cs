@@ -167,7 +167,7 @@ public partial class ModelParser
             var targetDef = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType];
             form.TargetForm =
                 targetDef.Forms.GetOrDefault(form.TargetFormName) ??
-                targetDef.Forms.Get(targetDef.Name); // Fallback to form with the same name as workflowDefinition
+                targetDef.Forms.FirstOrDefault(); // Fallback to its own form when the parent form was not inherited
         }
 
         if (form.PropertyDefinitions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
