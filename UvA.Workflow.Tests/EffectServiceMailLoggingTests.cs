@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Serilog;
@@ -58,7 +58,7 @@ public class EffectServiceMailLoggingTests
                 OverrideRecipient = "testen-dn-fnwi@uva.nl"
             }),
             configuration.Object,
-            factory.CreateLogger<EffectService>()
+            NullLogger<EffectService>.Instance
         );
 
         var instance = new WorkflowInstanceBuilder()
@@ -158,7 +158,7 @@ public class EffectServiceMailLoggingTests
                 OverrideRecipient = null
             }),
             configuration.Object,
-            factory.CreateLogger<EffectService>());
+            NullLogger<EffectService>.Instance);
 
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "SendLetter")
@@ -186,5 +186,70 @@ public class EffectServiceMailLoggingTests
             CancellationToken.None);
 
         Assert.NotNull(loggedEntry);
+    }
+
+    [Fact]
+    public async Task RunEffects_WithToastEffect_ReturnsResolvedToast()
+    {
+        var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        var instanceRepository = new Mock<IWorkflowInstanceRepository>();
+        var userService = new Mock<IUserService>();
+        var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
+        var eventService = new Mock<IInstanceEventService>();
+        var mailService = new Mock<IMailService>();
+        var artifactService = new Mock<IArtifactService>();
+        var mailLogRepository = new Mock<IMailLogRepository>();
+
+        var configuration = new Mock<IConfiguration>();
+        var mailLayoutResolver = new Mock<IMailLayoutResolver>();
+        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
+        var mailBuilder = new MailBuilder(mailLayoutResolver.Object, configuration.Object);
+        var instanceService =
+            new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
+                mailBuilder);
+
+        var effectService = new EffectService(
+            instanceService,
+            eventService.Object,
+            modelService,
+            mailService.Object,
+            mailBuilder,
+            artifactService.Object,
+            mailLogRepository.Object,
+            Options.Create(new GraphMailOptions
+            {
+                TenantId = "tenant",
+                ClientId = "client",
+                UserAccount = "user@mail.com",
+            }),
+            configuration.Object,
+            NullLogger<EffectService>.Instance
+        );
+
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("Title", b => b.Value("My thesis")))
+            .Build();
+
+        var result = await effectService.RunEffect(
+            new Job(),
+            instance,
+            new Effect
+            {
+                Toast = new Toast
+                {
+                    Type = ToastType.Success,
+                    Message = new BilingualString("Saved {{Title}}", "{{Title}} opgeslagen")
+                }
+            },
+            new User(),
+            modelService.CreateContext(instance),
+            CancellationToken.None
+        );
+
+        Assert.NotNull(result.Toast);
+        Assert.Equal(ToastType.Success, result.Toast!.Type);
+        Assert.Equal("Saved My thesis", result.Toast.Message.En);
+        Assert.Equal("My thesis opgeslagen", result.Toast.Message.Nl);
     }
 }
