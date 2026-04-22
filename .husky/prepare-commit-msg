@@ -1,4 +1,4 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-dotnet husky run --name add-ticket-key-to-commit-message --args "$1"
+/usr/local/share/dotnet/dotnet husky run --name add-ticket-key-to-commit-message --args "$1"
