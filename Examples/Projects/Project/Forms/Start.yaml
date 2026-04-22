@@ -27,6 +27,11 @@ pages:
       - EC
 
 onSubmit:
+  - toast:
+      type: Success
+      message:
+        en: "Nice work 👍! You've submitted your topic. You will also receive a confirmation email."
+        nl: "Goed bezig 👍! Je hebt je onderwerp ingeleverd. Je krijgt hiervan ook een bevestigingsmail."
   - sendMail:
       template: SubjectSubmitted
       to: Student

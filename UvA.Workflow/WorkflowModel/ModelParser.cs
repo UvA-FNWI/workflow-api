@@ -28,15 +28,19 @@ public partial class ModelParser
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
-        var definitions = _contentProvider.GetFolders()
-            .Where(d => Path.GetFileName(d) != "Common")
-            .Select(d => Parse<WorkflowDefinition>(Path.Combine(d, "Entity.yaml")))
+        var definitions = GetWorkflowDefinitionFolders()
+            .Select(folder =>
+            {
+                var definition = Parse<WorkflowDefinition>(Path.Combine(folder, "Entity.yaml"));
+                definition.SourceFolder = folder;
+                return definition;
+            })
             .OrderBy(e => e.InheritsFrom != null);
 
         foreach (var definition in definitions)
         {
             Log.Debug("Processing definition {Name}", definition.Name);
-            foreach (var file in contentProvider.GetFiles(definition.Name)
+            foreach (var file in contentProvider.GetFiles(definition.SourceFolder)
                          .Where(f => Path.GetFileNameWithoutExtension(f) != "Entity.yaml"))
             {
                 var content = Parse<WorkflowDefinition>(file);
@@ -44,12 +48,12 @@ public partial class ModelParser
                 if (content.GlobalActions.Count > 0) definition.GlobalActions = content.GlobalActions;
             }
 
-            definition.Forms = Read<Form>(definition.Name);
-            definition.Screens = Read<Screen>(definition.Name);
-            definition.AllSteps = Read<Step>(definition.Name);
-            definition.Emails = Read<SendMessage>(definition.Name);
+            definition.Forms = Read<Form>(definition.SourceFolder);
+            definition.Screens = Read<Screen>(definition.SourceFolder);
+            definition.AllSteps = Read<Step>(definition.SourceFolder);
+            definition.Emails = Read<SendMessage>(definition.SourceFolder);
 
-            foreach (var entry in Read<Condition>(definition.Name))
+            foreach (var entry in Read<Condition>(definition.SourceFolder))
                 NamedConditions.Add(entry);
 
             if (definition.InheritsFrom != null)
@@ -97,6 +101,25 @@ public partial class ModelParser
         Roles.ForEach(PreProcess);
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+    }
+
+    private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)
+    {
+        foreach (var folder in _contentProvider.GetFolders(root))
+        {
+            if (Path.GetFileName(folder) == "Common")
+                continue;
+
+            if (_contentProvider.GetFiles(folder)
+                .Any(file => string.Equals(Path.GetFileName(file), "Entity.yaml", StringComparison.OrdinalIgnoreCase)))
+            {
+                yield return folder;
+                continue;
+            }
+
+            foreach (var child in GetWorkflowDefinitionFolders(folder))
+                yield return child;
+        }
     }
 
     private void PreProcess(Role role)
@@ -289,7 +312,6 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         var folder = typeName switch
         {
-            "SendMessage" => "Emails",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };
