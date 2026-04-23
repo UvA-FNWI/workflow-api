@@ -52,6 +52,11 @@ public class AnswerConversionService(IUserService userService)
                     ? dt
                     : BsonNull.Value,
 
+            DataType.Boolean =>
+                value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                    ? value.GetBoolean()
+                    : BsonNull.Value,
+
             DataType.Currency => ConvertCurrency(value),
 
             DataType.User => await ConvertUser(value, ct),
