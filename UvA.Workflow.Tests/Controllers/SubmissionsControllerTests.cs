@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
@@ -7,6 +8,7 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
 
@@ -74,6 +76,21 @@ public class SubmissionsControllerTests : ControllerTestsBase
         // Act and Assert
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
             controller.SubmitSubmission(instance.Id, submissionId, _ct));
+    }
+
+    [Fact]
+    public async Task Submissions_SubmitSubmission_ReturnsUnauthorized_WhenNoCurrentUser()
+    {
+        const string submissionId = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId);
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        Assert.IsType<UnauthorizedResult>(result.Result);
+        _instanceJournalServiceMock.Verify(s => s.IncrementVersion(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private (SubmissionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(

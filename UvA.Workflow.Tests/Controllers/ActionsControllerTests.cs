@@ -8,6 +8,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Entities.Domain;
+using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
@@ -42,7 +43,14 @@ public class ActionsControllerTests : ControllerTestsBase
         var result = await controller.ExecuteAction(input, _ct);
 
         //Assert
-        Assert.IsType<OkObjectResult>(result.Result);
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
+        Assert.Equal(ActionType.Execute, payload.Type);
+        Assert.NotNull(payload.Instance);
+        _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
+            It.Is<InstanceEvent>(e => e.Id == actionName),
+            ControllerTestsHelpers.AdminUser,
+            _ct), Times.Once);
     }
 
     [Theory]
@@ -59,6 +67,18 @@ public class ActionsControllerTests : ControllerTestsBase
         //Assert
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(403, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task Actions_ExecuteAction_DeleteInstance_ReturnsForbidden_WhenUserLacksDeleteRights()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "ApprovalCoordinator");
+        var input = new ExecuteActionInputDto(ActionType.DeleteInstance, instance.Id, null);
+
+        var result = await controller.ExecuteAction(input, _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
     }
 
     [Fact]

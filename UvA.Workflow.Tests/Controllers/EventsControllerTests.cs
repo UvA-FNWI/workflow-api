@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using UvA.Workflow.Api.Events;
@@ -48,6 +49,22 @@ public class EventsControllerTests : ControllerTestsBase
         var result = await controller.DeleteEvent(instance.Id, "Start", _ct);
 
         Assert.IsType<UnauthorizedResult>(result);
+    }
+
+    [Fact]
+    public async Task Events_DeleteEvent_ReturnsNotFound_WhenInstanceDoesNotExist()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Start");
+        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WorkflowInstance?)null);
+
+        var result = await controller.DeleteEvent(instance.Id, "Start", _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
+
+        _eventRepoMock.Verify(r => r.DeleteEvent(It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
+            It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private (EventsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(

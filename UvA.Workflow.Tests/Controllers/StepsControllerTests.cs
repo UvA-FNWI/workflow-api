@@ -69,6 +69,36 @@ public class StepsControllerTests : ControllerTestsBase
         Assert.IsType<NotFoundResult>(result.Result);
     }
 
+    [Fact]
+    public async Task Steps_GetStepVersions_ReturnsNotFoundWithMessage_WhenStepDoesNotExist()
+    {
+        const string stepName = "UnknownStep";
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Assessment")
+            .Build();
+
+        MockInstance(instance);
+        MockCurrentUser("Student");
+
+        var stepVersionServiceMock = new Mock<IStepVersionService>();
+        stepVersionServiceMock.Setup(s => s.GetStepVersions(instance, stepName, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new EntityNotFoundException("Step", stepName));
+
+        var controller = new StepsController(
+            _userServiceMock.Object,
+            _rightsService,
+            _workflowInstanceRepoMock.Object,
+            stepVersionServiceMock.Object);
+
+        var result = await controller.GetStepVersions(instance.Id, stepName, _ct);
+
+        var objectResult = Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.NotNull(objectResult.Value);
+        var messageProperty = objectResult.Value.GetType().GetProperty("message");
+        Assert.NotNull(messageProperty);
+        Assert.Equal($"Entity Step {stepName} not found", messageProperty.GetValue(objectResult.Value));
+    }
+
     private (StepsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string stepName)
     {
