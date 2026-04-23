@@ -2,6 +2,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -29,6 +30,7 @@ public class WorkflowInstanceDtoFactory(
             RoleAction.ViewAdminTools,
             RightsEvaluationMode.RealUser);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
+        var context = modelService.CreateContext(instance);
 
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
@@ -41,7 +43,10 @@ public class WorkflowInstanceDtoFactory(
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
-            workflowDefinition.Steps.Select(s => CreateStepDto(s, instance, stepVersionsMap)).ToArray(),
+            workflowDefinition.Steps
+                .Where(s => s.Condition.IsMet(context))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
+                .ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus,
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
@@ -112,7 +117,8 @@ public class WorkflowInstanceDtoFactory(
     private StepDto CreateStepDto(
         Step step,
         WorkflowInstance instance,
-        Dictionary<string, List<StepVersion>> stepVersionsMap)
+        Dictionary<string, List<StepVersion>> stepVersionsMap,
+        ObjectContext context)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var versions = stepVersionsMap.GetValueOrDefault(step.Name);
@@ -125,7 +131,10 @@ public class WorkflowInstanceDtoFactory(
             step.GetEndDate(instance, workflowDef),
             step.GetDeadline(instance, modelService),
             step.Children.Length != 0
-                ? step.Children.Select(s => CreateStepDto(s, instance, stepVersionsMap)).ToArray()
+                ? step.Children
+                    .Where(s => s.Condition.IsMet(context))
+                    .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
+                    .ToArray()
                 : null,
             versions?.Select(v => CreateStepVersionDto(v, instance)).ToList()
         );

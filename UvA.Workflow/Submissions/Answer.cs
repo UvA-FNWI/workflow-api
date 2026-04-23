@@ -75,6 +75,15 @@ public record Answer(
             );
         }
 
+        if (question.DataType == DataType.Boolean)
+        {
+            // Default to false, not to null
+            var value = ObjectContext.GetValue(answer, question) as bool?;
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
+                validationError,
+                Value: JsonSerializer.SerializeToElement(value ?? false));
+        }
+
         // Handle remaining types: String, DateTime, Date, Int, Double, Choice, Reference
         var convertedValue = ObjectContext.GetValue(answer, question);
         return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
