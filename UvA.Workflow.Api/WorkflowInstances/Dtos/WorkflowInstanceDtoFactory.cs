@@ -13,6 +13,7 @@ public class WorkflowInstanceDtoFactory(
     IWorkflowInstanceRepository repository,
     RightsService rightsService,
     IStepVersionService stepVersionService,
+    StepHeaderStatusResolver stepHeaderStatusResolver,
     WorkflowInstanceService workflowInstanceService,
     ILogger<WorkflowInstanceDtoFactory> logger)
 {
@@ -136,6 +137,7 @@ public class WorkflowInstanceDtoFactory(
                     .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
                     .ToArray()
                 : null,
+            stepHeaderStatusResolver.Resolve(step, instance),
             versions?.Select(v => CreateStepVersionDto(v, instance)).ToList()
         );
     }
