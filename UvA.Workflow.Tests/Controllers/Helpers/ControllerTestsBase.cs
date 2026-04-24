@@ -135,11 +135,13 @@ public abstract class ControllerTestsBase
             .ReturnsAsync([]);
     }
 
-    protected void MockEmptyEventLog(WorkflowInstance instance)
+    protected void MockEmptyEventLog(WorkflowInstance instance) => MockEventLogs(instance, []);
+
+    protected void MockEventLogs(WorkflowInstance instance, List<InstanceEventLogEntry> eventLog)
     {
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id,
                 It.IsAny<List<string>>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+            .ReturnsAsync(eventLog);
     }
 }

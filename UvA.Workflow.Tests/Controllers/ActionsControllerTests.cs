@@ -25,9 +25,15 @@ public class ActionsControllerTests : ControllerTestsBase
         var submissionDtoFactory =
             new SubmissionDtoFactory(new ArtifactTokenService(_configurationMock.Object), _modelService);
         _workflowInstanceDtoFactory =
-            new WorkflowInstanceDtoFactory(_instanceService, _modelService,
-                submissionDtoFactory, _workflowInstanceRepoMock.Object, _rightsService,
-                new StepVersionService(_modelService, _eventRepoMock.Object), _workflowInstanceService,
+            new WorkflowInstanceDtoFactory(
+                _instanceService,
+                _modelService,
+                submissionDtoFactory,
+                _workflowInstanceRepoMock.Object,
+                _rightsService,
+                new StepVersionService(_modelService, _eventRepoMock.Object),
+                new StepHeaderStatusResolver(_modelService),
+                _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
     }
 

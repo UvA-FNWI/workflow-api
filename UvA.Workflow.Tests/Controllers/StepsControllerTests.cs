@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using UvA.Workflow.Api.Steps;
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Users;
@@ -25,10 +26,32 @@ public class StepsControllerTests : ControllerTestsBase
         // Arrange
         const string stepName = "Assessment";
         var (controller, instance) = BuildControllerWithRoles([role], stepName);
+
+        MockEventLogs(instance, [
+            new InstanceEventLogEntry
+            {
+                WorkflowInstanceId = instance.Id,
+                EventId = "AssessmentSupervisor",
+                EventDate = DateTime.Now,
+                Operation = EventLogOperation.Create,
+                Timestamp = DateTime.Now
+            },
+            new InstanceEventLogEntry
+            {
+                WorkflowInstanceId = instance.Id,
+                EventId = "AssessmentSupervisor",
+                EventDate = DateTime.Now,
+                Operation = EventLogOperation.Update,
+                Timestamp = DateTime.Now
+            }
+        ]);
+
         // Act
         var result = await controller.GetStepVersions(instance.Id, stepName, _ct);
         //Assert
-        Assert.IsType<ActionResult<List<StepVersion>>>(result);
+        var actionResult = Assert.IsType<OkObjectResult>(result.Result);
+        var listResult = Assert.IsType<List<StepVersion>>(actionResult.Value);
+        Assert.Equal(2, listResult.Count);
     }
 
     [Theory]

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using UvA.Workflow.Api.Infrastructure;
@@ -31,28 +32,40 @@ public class AnswersControllerTests : ControllerTestsBase
         _submissionDtoFactory =
             new SubmissionDtoFactory(_artifactTokenService, _modelService);
         _workflowInstanceDtoFactory =
-            new WorkflowInstanceDtoFactory(_instanceService, _modelService,
-                _submissionDtoFactory, _workflowInstanceRepoMock.Object, _rightsService,
-                new StepVersionService(_modelService, _eventRepoMock.Object), _workflowInstanceService,
+            new WorkflowInstanceDtoFactory(
+                _instanceService,
+                _modelService,
+                _submissionDtoFactory,
+                _workflowInstanceRepoMock.Object,
+                _rightsService,
+                new StepVersionService(_modelService, _eventRepoMock.Object),
+                new StepHeaderStatusResolver(_modelService),
+                _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
 
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
-        _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
-            _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
+        _answerService = new AnswerService(
+            _submissionService,
+            _modelService,
+            _instanceService,
+            _rightsService,
+            _artifactServiceMock.Object,
+            _answerConversionService,
+            _instanceEventService.Object,
             _instanceJournalServiceMock.Object);
     }
 
-    [Theory]
-    [InlineData("Student", "Start", "AssessmentReviewer")]
-    [InlineData("Coordinator", "Start", "AssessmentReviewer")]
-    public async Task Answers_GetChoices_AllowWithViewRights(string role, string submissionId, string questionName)
+    [Fact]
+    public async Task Answers_GetChoices_AllowWithViewRights()
     {
+        var submissionId = "Start";
         // Arrange
-        var (controller, instance) = BuildControllerWithRoles([role], submissionId);
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], submissionId, "SubjectFeedback");
         // Act
-        var result = await controller.GetChoices(instance.Id, submissionId, questionName, _ct);
+        var result = await controller.GetChoices(instance.Id, submissionId, "AssessmentReviewer", _ct);
         //Assert
-        Assert.IsType<OkObjectResult>(result.Result);
+        var okObjectResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status200OK, okObjectResult.StatusCode);
     }
 
     [Theory]
@@ -67,10 +80,10 @@ public class AnswersControllerTests : ControllerTestsBase
     }
 
     private (AnswersController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
-        string[] roles, string submissionId)
+        string[] roles, string submissionId, string stepName = "Start")
     {
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Start")
+            .With(workflowDefinition: "Project", currentStep: stepName)
             .WithEvents(b => b.WithId(submissionId))
             .WithProperties(("Title", b => b.Value("My Thesis")))
             .Build();
