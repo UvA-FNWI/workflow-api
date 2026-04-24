@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -191,5 +193,22 @@ public class WorkflowTests
         _instanceRepoMock.Verify(
             r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void GroupedWorkflowDefinitions_AreLoadedFromTheirSourceFolder()
+    {
+        var assessmentPb = _modelService.WorkflowDefinitions["Assessment-PB"];
+        var assessmentForm = assessmentPb.Forms.Single(f => f.Name == "Assessment");
+
+        Assert.Equal("PB/Assessment-PB", assessmentPb.SourceFolder);
+        Assert.Equal(3, assessmentForm.Pages.Count);
+        Assert.Equal("Practical", assessmentForm.Pages[^1].Name);
+
+        var projectAi = _modelService.WorkflowDefinitions["Project-AI"];
+
+        Assert.Equal("AI/Project-AI", projectAi.SourceFolder);
+        Assert.Equal("Assessment-AI",
+            projectAi.Properties.Single(p => p.Name == "AssessmentReviewer").WorkflowDefinition?.Name);
     }
 }
