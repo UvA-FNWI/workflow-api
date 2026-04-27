@@ -84,9 +84,8 @@ public class WorkflowTests
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
                 mailBuilder);
-        _eventService = new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object,
-            _rightsService,
-            _instanceService);
+        _eventService =
+            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
