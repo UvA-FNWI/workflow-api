@@ -89,3 +89,7 @@ azure:
       key: ImpersonationKey
     - name: workflow-turnitin-token
       key: Services__Turnitin__Token
+    - name: workflow-s3-secret-key
+      key: S3__SecretKey
+    - name: workflow-s3-signing-key
+      key: S3__SigningKey

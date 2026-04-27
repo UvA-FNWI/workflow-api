@@ -89,9 +89,14 @@ public class WorkflowTests
             _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
-        _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            mailBuilder, _artifactServiceMock.Object,
-            _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
+        _effectService = new EffectService(_instanceService,
+            _eventService,
+            _modelService,
+            _mailServiceMock.Object,
+            mailBuilder,
+            _artifactServiceMock.Object,
+            _mailLogRepositoryMock.Object,
+            Options.Create(new GraphMailOptions
             {
                 TenantId = "tenant",
                 ClientId = "client",

@@ -191,8 +191,8 @@ public class StepHeaderStatusTests
             rightsService,
             new MailBuilder(layoutResolver.Object, configuration)
         );
-
-        var submissionDtoFactory = new SubmissionDtoFactory(new ArtifactTokenService(configuration), modelService);
+        var artifactTokenService = new Mock<IArtifactTokenService>();
+        var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService.Object, modelService);
         var stepVersionService = new Mock<IStepVersionService>();
         stepVersionService
             .Setup(s => s.GetStepVersions(It.IsAny<WorkflowInstance>(), It.IsAny<string>(),

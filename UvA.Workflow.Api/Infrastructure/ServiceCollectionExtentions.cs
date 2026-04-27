@@ -7,6 +7,7 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Infrastructure.Database;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
@@ -29,6 +30,9 @@ public static class ServiceCollectionExtensions
                                new GraphMailOptions();
         GraphMailOptions.Validate(graphMailOptions);
         services.Configure<EncryptionServiceConfig>(config.GetSection(EncryptionServiceConfig.SectionName));
+
+        // Configure S3
+        services.Configure<S3Config>(config.GetSection(S3Config.S3));
 
         // Configure MongoDB
         services.Configure<MongoOptions>(config.GetSection("Mongo"));
@@ -64,10 +68,11 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
-        services.AddScoped<IArtifactService, ArtifactService>();
+        services.AddScoped<IArtifactService, S3ArtifactService>();
+        services.AddScoped<IArtifactTokenService, S3ArtifactTokenService>();
+
         services.AddScoped<AnswerService>();
         services.AddScoped<SubmissionService>();
-        services.AddScoped<ArtifactTokenService>();
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
         services.AddScoped<StepHeaderStatusResolver>();

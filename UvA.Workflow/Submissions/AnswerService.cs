@@ -1,4 +1,6 @@
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
@@ -53,6 +55,9 @@ public class AnswerService(
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
 
+            if (currentAnswer != null && newAnswer.IsBsonNull && question.DataType == DataType.File)
+                await artifactService.TryDeleteArtifact(currentAnswer["_id"].AsObjectId, ct);
+
             // if the form is submitted, then log the change
             if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
             {
@@ -93,11 +98,22 @@ public class AnswerService(
         return await artifactService.GetArtifact(artifactObjectId, ct);
     }
 
-    public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents, CancellationToken ct)
+    public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents,
+        CancellationToken ct = default)
+    {
+        var artifactInfo = await artifactService.SaveArtifact(artifactName, contents);
+        await SaveArtifact(context, artifactInfo, ct);
+    }
+
+    public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
+    {
+        var artifactInfo = await artifactService.SaveArtifact(formFile);
+        await SaveArtifact(context, artifactInfo, ct);
+    }
+
+    private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)
     {
         var (instance, _, form, question) = context;
-
-        var artifactInfo = await artifactService.SaveArtifact(artifactName, contents);
         ObjectId? oidOldArtifact = null;
 
         var value = instance.GetProperty(form.PropertyName, question.Name);
