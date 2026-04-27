@@ -5,6 +5,7 @@ namespace UvA.Workflow.Api.Invites;
 
 /// <summary>
 /// Creates a pending EduID user and EduID invitation via <see cref="IEduIdUserService"/>.
+/// TODO: remove this once we have a proper invitation flow
 /// </summary>
 public class InvitesController(IEduIdUserService eduIdUserService) : ApiControllerBase
 {
