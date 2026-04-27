@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace UvA.Workflow.Users;
 
 /// <summary>
@@ -24,14 +26,59 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 
     public async Task Update(User user, CancellationToken ct)
     {
-        var filter = Builders<User>.Filter.Eq("_id", user.Id);
-        await _collection.ReplaceOneAsync(filter, user, cancellationToken: ct);
+        if (!ObjectId.TryParse(user.Id, out var objectId))
+            throw new ArgumentException("Invalid user ID", nameof(user.Id));
+
+        var filter = Builders<User>.Filter.Eq("_id", objectId);
+        var result = await _collection.ReplaceOneAsync(filter, user, cancellationToken: ct);
+
+        if (result.IsAcknowledged && result.MatchedCount == 0)
+            throw new InvalidOperationException($"User '{user.Id}' was not found for update.");
     }
 
     public async Task<User?> GetByExternalId(string externalId, CancellationToken ct)
     {
         var filter = Builders<User>.Filter.Eq(x => x.UserName, externalId);
         return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<User?> GetByEmail(string email, CancellationToken ct)
+    {
+        var filter = Builders<User>.Filter.Regex(
+            x => x.Email,
+            new BsonRegularExpression($"^{Regex.Escape(email.Trim())}$", "i"));
+        return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<User?> GetByEmailAndProvider(string email, UserAuthProvider provider, CancellationToken ct)
+    {
+        var filter = Builders<User>.Filter.And(
+            Builders<User>.Filter.Regex(
+                x => x.Email,
+                new BsonRegularExpression($"^{Regex.Escape(email.Trim())}$", "i")),
+            Builders<User>.Filter.Eq(x => x.AuthProvider, provider));
+
+        return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IEnumerable<User>> SearchByQuery(string query, UserAuthProvider provider, CancellationToken ct)
+    {
+        var trimmedQuery = query.Trim();
+        var filter = Builders<User>.Filter.Eq(x => x.AuthProvider, provider);
+
+        if (!string.IsNullOrWhiteSpace(trimmedQuery))
+        {
+            var regex = new BsonRegularExpression(Regex.Escape(trimmedQuery), "i");
+            filter &= Builders<User>.Filter.Or(
+                Builders<User>.Filter.Regex(x => x.DisplayName, regex),
+                Builders<User>.Filter.Regex(x => x.Email, regex),
+                Builders<User>.Filter.Regex(x => x.UserName, regex));
+        }
+
+        return await _collection.Find(filter)
+            .SortBy(x => x.DisplayName)
+            .ThenBy(x => x.UserName)
+            .ToListAsync(ct);
     }
 
     public async Task<IEnumerable<User>> GetByIds(IReadOnlyList<string> ids, CancellationToken ct)

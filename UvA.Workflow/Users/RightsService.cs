@@ -123,9 +123,9 @@ public class RightsService(
             .Where(p => p.Value != null)
             .Where(p => p.Value switch
             {
-                BsonDocument d => BsonSerializer.Deserialize<User>(d).Id == user.Id,
+                BsonDocument d => BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id,
                 BsonArray a => a.Any(v =>
-                    v is BsonDocument d && BsonSerializer.Deserialize<User>(d).Id == user.Id),
+                    v is BsonDocument d && BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id),
                 _ => false
             })
             .Select(p => modelService.Roles.GetValueOrDefault(p.Name))
