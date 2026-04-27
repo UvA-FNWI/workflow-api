@@ -119,7 +119,7 @@ public class AnswerConversionService(IUserService userService)
             user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
                 userSearchResult.Email, ct);
 
-            return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
+            return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }
         catch
         {
