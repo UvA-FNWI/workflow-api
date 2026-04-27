@@ -148,7 +148,7 @@ public class InstanceService(
         var users = results
             .Select(r => r.GetValueOrDefault(property))
             .Where(r => r?.IsBsonNull == false)
-            .Select(r => BsonSerializer.Deserialize<User>(r!.AsBsonDocument));
+            .Select(r => BsonSerializer.Deserialize<InstanceUser>(r!.AsBsonDocument));
         var user = await userService.GetCurrentUser(ct);
         return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
     }
