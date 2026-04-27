@@ -96,7 +96,7 @@ public class WorkflowTests
                 TenantId = "tenant",
                 ClientId = "client",
                 UserAccount = "user@mail.com",
-            }), _configurationMock.Object, NullLogger<EffectService>.Instance);
+            }), _configurationMock.Object, factory.CreateLogger<EffectService>());
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService);

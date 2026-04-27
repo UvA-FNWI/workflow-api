@@ -29,6 +29,8 @@ public record Expression
         ["formatDate"] = new Function<DateTime?, string, string?>((d, f)
             => d?.ToString(f, CultureInfo.InvariantCulture)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
+        ["formatDate"] = new Function<DateTime?, string, string?>((d, f)
+            => d?.ToString(f, CultureInfo.InvariantCulture)),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
     };

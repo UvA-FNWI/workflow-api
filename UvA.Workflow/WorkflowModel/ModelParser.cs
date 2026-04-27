@@ -25,6 +25,7 @@ public partial class ModelParser
         _contentProvider = contentProvider;
         Roles = Read<Role>();
         Services = Read<Service>();
+        ValidateServices(Services);
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
@@ -287,6 +288,21 @@ public partial class ModelParser
     private void PreProcess(Choice choice)
     {
         PreProcess(choice.Condition);
+    }
+
+    private static void ValidateServices(List<Service> services)
+    {
+        foreach (var service in services)
+        foreach (var operation in service.Operations)
+        foreach (var output in operation.Outputs)
+        {
+            if (output.Path != null && output.Template != null)
+                throw new Exception(
+                    $"ServiceOutput '{output.Name}' in '{service.Name}.{operation.Name}' has both 'path' and 'template' set — use one or the other.");
+            if (output.Path == null && output.Template == null)
+                throw new Exception(
+                    $"ServiceOutput '{output.Name}' in '{service.Name}.{operation.Name}' requires either 'path' or 'template'.");
+        }
     }
 
     private T Parse<T>(string file)
