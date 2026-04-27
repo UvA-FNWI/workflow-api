@@ -47,7 +47,7 @@ public record Answer(
 
         if (question.DataType == DataType.User && question.IsArray)
         {
-            var users = ObjectContext.GetValue(answer, question) as User[];
+            var users = ObjectContext.GetValue(answer, question) as InstanceUser[];
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: users == null
@@ -57,7 +57,7 @@ public record Answer(
 
         if (question.DataType == DataType.User)
         {
-            var user = ObjectContext.GetValue(answer, question) as User;
+            var user = ObjectContext.GetValue(answer, question) as InstanceUser;
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options));

@@ -9,12 +9,12 @@ public class PropertyBuilder
 
     public BsonValue Value(BsonValue value) => value;
 
-    public BsonDocument Person(string? displayName = null, string? email = null, string? externalId = null,
+    public BsonDocument Person(string? displayName = null, string? email = null, string? userName = null,
         string? objectId = null)
         => new()
         {
             { "_id", NewObjectId(objectId) },
-            { "ExternalId", externalId ?? faker.Random.Int().ToString() },
+            { "UserName", userName ?? faker.Random.Int().ToString() },
             { "DisplayName", displayName ?? faker.Name.FullName() },
             { "Email", email ?? faker.Internet.Email() }
         };
