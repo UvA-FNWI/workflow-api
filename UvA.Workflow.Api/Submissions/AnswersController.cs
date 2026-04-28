@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
-using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions;
@@ -23,9 +22,12 @@ public class AnswersController(
         [FromBody] AnswerInput input, CancellationToken ct)
     {
         var user = await userService.GetCurrentUser(ct);
-        if (user == null) return Unauthorized();
+        if (user == null)
+            return Unauthorized();
+
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
+
         var answers = await answerService.SaveAnswer(context, input.Value, user, ct);
         var (instance, submission, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
@@ -54,6 +56,7 @@ public class AnswersController(
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
+
         await answerService.DeleteArtifact(context, artifactId, ct);
         return Ok(new SaveAnswerFileResponse(true));
     }
@@ -70,6 +73,8 @@ public class AnswersController(
         }
 
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
+        await EnsureAuthorizedForAction(context, RoleAction.View);
+
         var file = await answerService.GetArtifact(context, artifactId, ct);
         if (file == null) return NotFound();
         return File(file.Content, file.Info.ContentType, file.Info.Name);
@@ -80,6 +85,8 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
+        await EnsureAuthorizedForAction(context, RoleAction.View);
+
         var insts = await instanceService.GetPossibleChoices(context.Instance, context.PropertyDefinition, ct);
         var definition = context.PropertyDefinition.WorkflowDefinition!;
         return Ok(insts.Select(i => new ChoiceDto(
@@ -94,6 +101,8 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
+        await EnsureAuthorizedForAction(context, RoleAction.View);
+
         var value = modelService.CreateContext(context.Instance).Get(questionName);
         var ids = value switch
         {
@@ -114,10 +123,11 @@ public class AnswersController(
         ));
     }
 
-    private async Task EnsureAuthorizedToEdit(QuestionContext context)
-    {
-        var action = context.Submission?.Date == null ? RoleAction.Submit : RoleAction.Edit;
-        if (!await rightsService.Can(context.Instance, action, context.Form.Name))
-            throw new ForbiddenWorkflowActionException(context.Instance.Id, action, context.Form.Name);
-    }
+    private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
+        await EnsureAuthorizedForAction(context,
+            context.Submission?.Date == null ? RoleAction.Submit : RoleAction.Edit);
+
+    private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>
+        await rightsService.EnsureAuthorizedForAction(context.Instance, action, RightsEvaluationMode.RequestContext,
+            context.Form.Name);
 }

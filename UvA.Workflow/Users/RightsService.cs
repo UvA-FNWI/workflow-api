@@ -224,6 +224,14 @@ public class RightsService(
         return actions.Any(f => form == null || f.MatchesForm(form));
     }
 
+    private async Task<bool> Can(RoleAction action)
+    {
+        var globalRoles = (await GetGlobalRoles())
+            .Select(gur => modelService.Roles.GetValueOrDefault(gur))
+            .ToArray();
+        return globalRoles.Any(r => r != null && r.Actions.Any(a => a.Type == action));
+    }
+
     public Task EnsureAuthorizedForAction(WorkflowInstance instance, RoleAction action, string? form = null)
         => EnsureAuthorizedForAction(instance, action, RightsEvaluationMode.RequestContext, form);
 
@@ -235,6 +243,12 @@ public class RightsService(
     {
         if (!await Can(instance, action, evaluationMode, form))
             throw new ForbiddenWorkflowActionException(instance.Id, action, form);
+    }
+
+    public async Task EnsureAuthorizedForAction(RoleAction action)
+    {
+        if (!await Can(action))
+            throw new UnauthorizedAccessException();
     }
 
     public Task<bool> CanViewCollection(WorkflowInstance instance, string collection)
