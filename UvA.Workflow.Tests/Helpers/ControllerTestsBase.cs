@@ -43,7 +43,7 @@ public abstract class ControllerTestsBase
     protected readonly JobService _jobService;
 
     protected readonly CancellationToken _ct = new CancellationTokenSource().Token;
-    
+
     protected readonly IOptionsMonitor<S3Config> _s3OptionsMonitor =
         new UnitTestsHelpers.TestOptionsMonitor<S3Config>(new S3Config
         {
@@ -53,7 +53,7 @@ public abstract class ControllerTestsBase
             SecretKey = "LaIhdtuPhgkbczwo9ZcDkFI5E6Cdn7QoN30nP3LUQgM", // Dummy SecretKey
             SigningKey = "criXzMbgewG6VC1ebBcmSN92bl496oc0xNOaM6cCS7e" // Dummy SigningKey
         });
-    
+
     protected ControllerTestsBase() : base()
     {
         Log.Logger = new LoggerConfiguration()
@@ -124,7 +124,7 @@ public abstract class ControllerTestsBase
                 _loggerFactory.CreateLogger<JobService>(),
                 _instanceService);
     }
-    
+
     protected void MockCurrentUser(params string[] roles)
     {
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
