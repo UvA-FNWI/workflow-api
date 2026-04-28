@@ -14,11 +14,17 @@ public class InstanceUser
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
 
+    [BsonElement("Organization")] public Organization? Organization { get; set; }
+
+    [BsonElement("IsExternal")] public bool IsExternal { get; set; }
+
     public static InstanceUser FromUser(User user) => new()
     {
         Id = user.Id,
         UserName = user.UserName,
         DisplayName = user.DisplayName,
-        Email = user.Email
+        Email = user.Email,
+        Organization = user.Organization,
+        IsExternal = user.AuthProvider == UserAuthProvider.EduId
     };
 }

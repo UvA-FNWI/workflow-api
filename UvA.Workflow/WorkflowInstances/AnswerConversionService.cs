@@ -15,7 +15,11 @@ public record AnswerInput(
 public class AnswerConversionService(IUserService userService)
 {
     public static readonly JsonSerializerOptions Options = new()
-        { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     /// <summary>
     /// Converts an answer input to a BsonValue based on the propertyDefinition's data type.
@@ -117,12 +121,13 @@ public class AnswerConversionService(IUserService userService)
             // Try to get user or create a new one if it doesn't exist'
             var user = await userService.GetUser(userSearchResult.UserName, ct);
             user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
-                userSearchResult.Email, ct);
+                userSearchResult.Email, userSearchResult.Organization, ct);
 
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }
-        catch
+        catch (Exception ex)
         {
+            var msg = ex.Message;
             return BsonNull.Value;
         }
     }

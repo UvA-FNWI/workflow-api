@@ -25,9 +25,11 @@ public interface IUserService
     /// <param name="username">A string representing the unique external identifier for the user.</param>
     /// <param name="displayName">A string representing the display name of the user.</param>
     /// <param name="email">A string containing the email address of the user.</param>
+    /// <param name="organization">An Organization object containing the id and name of the user's organization.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
-    Task<User> AddOrUpdateUser(string username, string displayName, string email, CancellationToken ct = default);
+    Task<User> AddOrUpdateUser(string username, string displayName, string email, Organization? organization = null,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves a user by their username from the cache, or the user repository if not cached. If the user is found in the repository, it is added to the cache for future requests.

@@ -17,6 +17,8 @@ public class User
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
 
+    [BsonElement("Organization")] public Organization? Organization { get; set; }
+
     [BsonElement("AuthProvider")]
     [JsonIgnore]
     public UserAuthProvider AuthProvider { get; set; } = UserAuthProvider.Internal;
