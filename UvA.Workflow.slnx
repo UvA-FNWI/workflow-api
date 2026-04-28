@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/Deployment/" />
+  <Folder Name="/Schemas/">
+    <File Path="Schemas/EntityType.json" />
+    <File Path="Schemas/Form.json" />
+    <File Path="Schemas/README.md" />
+    <File Path="Schemas/Role.json" />
+    <File Path="Schemas/Screen.json" />
+  </Folder>
+  <Folder Name="/SolutionItems/">
+    <File Path=".dockerignore" />
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="UvA.Workflow.Api/UvA.Workflow.Api.csproj" />
+  <Project Path="UvA.Workflow.SchemaGenerator/UvA.Workflow.SchemaGenerator.csproj" />
+  <Project Path="UvA.Workflow.Tests/UvA.Workflow.Tests.csproj" />
+  <Project Path="UvA.Workflow/UvA.Workflow.csproj" />
+</Solution>

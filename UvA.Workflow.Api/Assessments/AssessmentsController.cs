@@ -6,6 +6,7 @@ namespace UvA.Workflow.Api.Assessments;
 
 public class AssessmentsController(
     SubmissionService submissionService,
+    RightsService rightsService,
     IUserService userService) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}/Results")]
@@ -17,6 +18,10 @@ public class AssessmentsController(
             return Unauthorized();
 
         var submissionContext = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+
+        await rightsService.EnsureAuthorizedForAction(submissionContext.Instance, RoleAction.View,
+            submissionContext.Form.Name);
+
         var dto = AssessmentDto.Create(submissionContext);
         return Ok(dto);
     }
@@ -31,6 +36,10 @@ public class AssessmentsController(
             return Unauthorized();
 
         var submissionContext = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+
+        await rightsService.EnsureAuthorizedForAction(submissionContext.Instance, RoleAction.View,
+            submissionContext.Form.Name);
+
         var dto = AssessmentPageDto.Create(submissionContext, pageName);
         return Ok(dto);
     }
