@@ -1,6 +1,5 @@
 name: AssessmentRequestAssessor
 layout: default
-toAddress: "replaced-by-override@mail.com"
 subject:
   en: "Indicate whether you agree with the assessment for the thesis of {{ coalesce(Student.DisplayName, =this student) }}"
   nl: "Geef aan of je het eens bent met de beoordeling voor de scriptie van {{ coalesce(Student.DisplayName, =deze student) }}"

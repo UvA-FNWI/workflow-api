@@ -1,6 +1,5 @@
 name: AssessmentReminderExaminer
 layout: default
-toAddress: "replaced-by-override@mail.com"
 subject:
   en: "Reminder: assess the thesis of {{ coalesce(Student.DisplayName, =this student) }} before {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =the deadline) }}"
   nl: "Herinnering: beoordeel de scriptie van {{ coalesce(Student.DisplayName, =deze student) }} voor {{ coalesce(formatDate(addWeeks(UploadFinalThesisEvent, 2), =dd-MM-yyyy), =de deadline) }}"

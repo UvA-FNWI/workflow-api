@@ -1,6 +1,5 @@
 name: ProjectSubmitted
 layout: default
-toAddress: "replaced-by-override@mail.com"
 subject:
   en: "You have submitted your thesis proposal"
   nl: "Je hebt je scriptieonderwerp ingeleverd"
