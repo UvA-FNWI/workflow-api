@@ -21,7 +21,7 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
         {
             new("type", ResourceType),
             new("bucket", Buckets.Milestones),
-            new("key", artifactInfo.Id.ToString()),
+            new("key", artifactInfo.Key),
         };
 
         var token = new JwtSecurityToken(
@@ -37,10 +37,10 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
         return handler.WriteToken(token);
     }
 
-    public async Task<bool> ValidateAccessToken(string artifactId, string token)
+    public async Task<bool> ValidateAccessToken(string artifactKey, string token)
     {
         if (string.IsNullOrWhiteSpace(token) ||
-            string.IsNullOrWhiteSpace(artifactId))
+            string.IsNullOrWhiteSpace(artifactKey))
             return false;
         var handler = new JwtSecurityTokenHandler();
         var result = await handler.ValidateTokenAsync(token, new TokenValidationParameters
@@ -52,7 +52,7 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
             ValidateLifetime = true,
         });
         return result.IsValid
-               && result.Claims["key"]?.ToString() == artifactId
+               && result.Claims["key"]?.ToString() == artifactKey
                && result.Claims["type"]?.ToString() == ResourceType;
     }
 }

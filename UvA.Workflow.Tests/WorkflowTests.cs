@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -181,9 +180,12 @@ public class WorkflowTests
         await writer.FlushAsync(_ct);
         const string fileName = "test.pdf";
 
+        var fileKey = IArtifactService.ToObjectKey(instance.Id, null);
+
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
-        _artifactServiceMock.Setup(a => a.SaveArtifact(fileName, It.IsAny<Stream>()))
-            .ReturnsAsync(new ArtifactInfo(ObjectId.GenerateNewId(), fileName));
+        _artifactServiceMock.Setup(a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()))
+            .ReturnsAsync(new ArtifactInfo(fileKey, fileName));
+
 
         // Act
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
@@ -193,7 +195,7 @@ public class WorkflowTests
         Assert.Contains(instance.Properties, p => p.Key == "Report");
         var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
         Assert.Equal(fileName, report.Name);
-        _artifactServiceMock.Verify(a => a.SaveArtifact(fileName, It.IsAny<Stream>()), Times.Once);
+        _artifactServiceMock.Verify(a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()), Times.Once);
         _instanceRepoMock.Verify(
             r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()), Times.Once);

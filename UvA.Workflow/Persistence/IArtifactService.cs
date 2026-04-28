@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 namespace UvA.Workflow.Persistence;
 
 public record ArtifactInfo(
-    ObjectId Id,
+    string Key,
     string Name,
     string ContentType = "application/octet-stream",
     long Length = 0L,
@@ -14,20 +14,26 @@ public record Artifact(ArtifactInfo Info, byte[] Content);
 
 public interface IArtifactService
 {
-    Task<ArtifactInfo?> GetArtifactInfo(ObjectId id, CancellationToken ct);
-    Task<ArtifactInfo> SaveArtifact(string artifactName, byte[] contents);
-    Task<ArtifactInfo> SaveArtifact(string artifactName, Stream stream);
-    Task<ArtifactInfo> SaveArtifact(IFormFile file);
-    Task<Artifact?> GetArtifact(ObjectId id, CancellationToken ct);
-    Task DeleteArtifact(ObjectId id, CancellationToken ct = default);
+    Task<ArtifactInfo?> GetArtifactInfo(string key, CancellationToken ct);
+
+    Task<ArtifactInfo> SaveArtifact(string key, string artifactName, byte[] contents);
+    Task<ArtifactInfo> SaveArtifact(string key, string artifactName, Stream stream);
+    Task<ArtifactInfo> SaveArtifact(string key, IFormFile file);
+
+    Task<Artifact?> GetArtifact(string key, CancellationToken ct);
+
+    Task DeleteArtifact(string key, CancellationToken ct = default);
 
     /// Attempts to delete an artifact from the storage system using the specified identifier.
     /// The deletion process internally calls the DeleteArtifact method and logs any exception
     /// that occurs during the operation. If an error is encountered, the method returns false.
-    /// <param name="id">The identifier of the artifact to be deleted.</param>
+    /// <param name="key">The identifier of the artifact to be deleted.</param>
     /// <param name="ct">An optional cancellation token to cancel the operation if required.</param>
     /// <returns>True if the artifact is successfully deleted; otherwise, false.</returns>
-    Task<bool> TryDeleteArtifact(ObjectId id, CancellationToken ct = default);
+    Task<bool> TryDeleteArtifact(string key, CancellationToken ct = default);
+
+    public static string ToObjectKey(string instanceId, string? propertyName, ObjectId? id = null)
+        => $"{instanceId}_{propertyName ?? "global"}_{id ?? ObjectId.GenerateNewId()}";
 
     public static async Task<byte[]> ToByteArray(Stream stream)
     {
