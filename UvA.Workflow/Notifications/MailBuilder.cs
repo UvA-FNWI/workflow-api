@@ -1,4 +1,4 @@
-using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Notifications;
 
@@ -39,7 +39,7 @@ public class MailBuilder(
         var layout = layoutResolver.Resolve(resolvedMail.Layout);
         var fullHtml = layout.Render(htmlBody, buttons);
 
-        return Task.FromResult(new MailMessage(subject, fullHtml) { To = [recipient] });
+        return new MailMessage(subject, fullHtml) { To = [recipient] };
     }
 
     private static SendMessage ResolveMessageContents(WorkflowDefinition workflowDefinition, SendMessage sendMail)
