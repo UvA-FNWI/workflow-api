@@ -98,15 +98,16 @@ public class AnswerService(
         }
 
         return await artifactService.GetArtifact(
-            IArtifactService.ToObjectKey(instance.Id, form.PropertyName, artifactObjectId), ct);
+            IArtifactService.ToObjectKey(instance.Id, question.Name, artifactObjectId), ct);
     }
 
     public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents,
         CancellationToken ct = default)
     {
-        var (instance, _, form, _) = context;
+        var (instance, _, _, propertyDefinition) = context;
         var artifactInfo = await artifactService.SaveArtifact(
-            IArtifactService.ToObjectKey(instance.Id, form.PropertyName),
+            instance.Id,
+            propertyDefinition.Name,
             artifactName,
             contents);
         await SaveArtifact(context, artifactInfo, ct);
@@ -114,9 +115,10 @@ public class AnswerService(
 
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
-        var (instance, _, form, _) = context;
+        var (instance, _, _, propertyDefinition) = context;
         var artifactInfo = await artifactService.SaveArtifact(
-            IArtifactService.ToObjectKey(instance.Id, form.PropertyName),
+            instance.Id,
+            propertyDefinition.Name,
             formFile);
         await SaveArtifact(context, artifactInfo, ct);
     }

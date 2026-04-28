@@ -72,8 +72,7 @@ public class EffectService(
             foreach (var a in mailAttachments)
             {
                 var artifact =
-                    await artifactService.SaveArtifact(IArtifactService.ToObjectKey(instance.Id, "mailAttachments"),
-                        a.FileName, a.Content);
+                    await artifactService.SaveArtifact(instance.Id, "mailAttachments", a.FileName, a.Content);
                 attachments.Add(artifact);
             }
         }

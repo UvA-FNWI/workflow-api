@@ -77,8 +77,9 @@ public class EffectServiceMailLoggingTests
         };
 
         artifactService
-            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
-            .ReturnsAsync((string key, string name, byte[] _) => new ArtifactInfo(key, name));
+            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
+            .ReturnsAsync((string key, string name, byte[] _) =>
+                new ArtifactInfo(MongoDB.Bson.ObjectId.GenerateNewId(), name, key));
 
         MailLogEntry? loggedEntry = null;
         mailLogRepository

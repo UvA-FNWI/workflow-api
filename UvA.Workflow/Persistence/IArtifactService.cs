@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.Http;
 namespace UvA.Workflow.Persistence;
 
 public record ArtifactInfo(
-    string Key,
+    ObjectId Id,
     string Name,
+    string Key,
     string ContentType = "application/octet-stream",
     long Length = 0L,
     DateTime CreatedOn = default);
@@ -14,12 +15,9 @@ public record Artifact(ArtifactInfo Info, byte[] Content);
 
 public interface IArtifactService
 {
-    Task<ArtifactInfo?> GetArtifactInfo(string key, CancellationToken ct);
-
-    Task<ArtifactInfo> SaveArtifact(string key, string artifactName, byte[] contents);
-    Task<ArtifactInfo> SaveArtifact(string key, string artifactName, Stream stream);
-    Task<ArtifactInfo> SaveArtifact(string key, IFormFile file);
-
+    Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, string artifactName, byte[] contents);
+    Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, string artifactName, Stream stream);
+    Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, IFormFile file);
     Task<Artifact?> GetArtifact(string key, CancellationToken ct);
 
     Task DeleteArtifact(string key, CancellationToken ct = default);

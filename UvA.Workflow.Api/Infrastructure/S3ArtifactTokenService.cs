@@ -21,7 +21,7 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
         {
             new("type", ResourceType),
             new("bucket", Buckets.Milestones),
-            new("key", artifactInfo.Key),
+            new("key", artifactInfo.Id.ToString()),
         };
 
         var token = new JwtSecurityToken(

@@ -11,6 +11,13 @@ public class S3ArtifactService : IArtifactService
 {
     private readonly IMinioClient _minioClient;
 
+    private readonly record struct SaveArtifactRequest(
+        ObjectId Id,
+        Stream Stream,
+        string Key,
+        string FileName,
+        string ContentType,
+        long FileSize);
 
     public S3ArtifactService(IOptions<S3Config> config)
     {
@@ -33,57 +40,69 @@ public class S3ArtifactService : IArtifactService
             .WithObject(key);
 
         var objectStat = await _minioClient.StatObjectAsync(statObjectArgs, ct);
+        objectStat.MetaData.TryGetValue("id", out var objectId);
         objectStat.MetaData.TryGetValue("filename", out var filename);
         objectStat.MetaData.TryGetValue("type", out var contentType);
 
-        return new ArtifactInfo(key,
-            filename ?? new ObjectId().ToString(),
+        return new ArtifactInfo(
+            ObjectId.Parse(objectId),
+            filename ?? key,
             contentType ?? "application/octet-stream");
     }
 
-    public async Task<ArtifactInfo> SaveArtifact(string key, string artifactName,
+    public async Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, string artifactName,
         byte[] contents)
-        => await SaveArtifact(key, artifactName, new MemoryStream(contents));
+        => await SaveArtifact(instanceId, propertyName, artifactName, new MemoryStream(contents));
 
-    public async Task<ArtifactInfo> SaveArtifact(string key, string artifactName,
+    public async Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, string artifactName,
         Stream stream)
     {
-        const string contentType = "application/pdf";
-        await UploadFileAsync(
-            Buckets.Milestones,
-            key,
-            stream,
-            contentType,
-            new Dictionary<string, string>
-            {
-                ["filename"] = artifactName,
-                ["type"] = contentType
-            });
-
-        return new ArtifactInfo(key,
-            artifactName,
-            contentType,
-            stream.Length,
-            DateTime.UtcNow);
+        var id = ObjectId.GenerateNewId();
+        return await SaveArtifact(new SaveArtifactRequest
+        {
+            Id = id,
+            Stream = stream,
+            Key = IArtifactService.ToObjectKey(instanceId, propertyName, id),
+            FileName = artifactName,
+            ContentType = "application/pdf",
+            FileSize = stream.Length
+        });
     }
 
-    public async Task<ArtifactInfo> SaveArtifact(string key, IFormFile formFile)
+    public async Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, IFormFile formFile)
+    {
+        var id = ObjectId.GenerateNewId();
+        return await SaveArtifact(new SaveArtifactRequest
+        {
+            Id = id,
+            Stream = formFile.OpenReadStream(),
+            Key = IArtifactService.ToObjectKey(instanceId, propertyName, id),
+            FileName = formFile.FileName,
+            ContentType = formFile.ContentType,
+            FileSize = formFile.Length
+        });
+    }
+
+    private async Task<ArtifactInfo> SaveArtifact(SaveArtifactRequest request)
     {
         await UploadFileAsync(
             Buckets.Milestones,
-            key,
-            formFile.OpenReadStream(),
-            formFile.ContentType,
+            request.Key,
+            request.Stream,
+            request.ContentType,
             new Dictionary<string, string>
             {
-                ["filename"] = formFile.FileName,
-                ["type"] = formFile.ContentType
+                ["id"] = request.Id.ToString(),
+                ["filename"] = request.FileName,
+                ["type"] = request.ContentType
             });
 
-        return new ArtifactInfo(key,
-            formFile.FileName,
-            formFile.ContentType,
-            formFile.Length,
+        return new ArtifactInfo(
+            request.Id,
+            request.FileName,
+            request.Key,
+            request.ContentType,
+            request.FileSize,
             DateTime.UtcNow);
     }
 

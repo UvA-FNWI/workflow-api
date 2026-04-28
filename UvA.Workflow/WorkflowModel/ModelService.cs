@@ -19,7 +19,6 @@ public class ModelService(ModelParser parser)
         => WorkflowDefinitions[instance.WorkflowDefinition].Forms
             .Where(f => f.Name == formName || f.TargetFormName == formName);
 
-
     public PropertyDefinition? GetQuestion(WorkflowInstance instance, params string?[] parts)
     {
         var type = WorkflowDefinitions[instance.WorkflowDefinition];

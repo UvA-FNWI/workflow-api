@@ -73,10 +73,9 @@ public class AnswersController(
         }
 
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedForAction(context, RoleAction.View);
-
         var file = await answerService.GetArtifact(context, artifactId, ct);
         if (file == null) return NotFound();
+
         return File(file.Content, file.Info.ContentType, file.Info.Name);
     }
 
