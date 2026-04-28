@@ -201,13 +201,23 @@ public class MailBuilderTests
     public async Task BuildAsync_WithTemplateKey_LoadsTemplateAndUsesDefaults()
     {
         var (builder, layout, resolver) = CreateBuilder(frontendBaseUrl: "https://milestones.uva.nl");
+        var supervisorDoc = new MongoDB.Bson.BsonDocument
+        {
+            { "_id", MongoDB.Bson.ObjectId.GenerateNewId() },
+            { "UserName", "supervisor" },
+            { "DisplayName", "Test Supervisor" },
+            { "Email", "test_address@invalid.invalid" }
+        };
+
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("Supervisor", _ => supervisorDoc))
             .Build();
 
         var sendMail = new SendMessage
         {
-            TemplateKey = "SubjectSubmitted"
+            TemplateKey = "SubjectSubmitted",
+            To = "Supervisor"
         };
 
         var result = await builder.BuildAsync(instance, sendMail, _modelService);
@@ -215,7 +225,7 @@ public class MailBuilderTests
         // Subject / recipient come from template defaults
         Assert.Equal("You have submitted your thesis proposal", result.Subject);
         var recipient = Assert.Single(result.To);
-        Assert.Equal("replaced-by-override@mail.com", recipient.MailAddress);
+        Assert.Equal("test_address@invalid.invalid", recipient.MailAddress);
 
         // Layout key comes from template defaults
         resolver.Verify(r => r.Resolve("default"), Times.Once);
@@ -301,7 +311,8 @@ public class MailBuilderTests
 
         var sendMail = new SendMessage
         {
-            TemplateKey = "FinalVersionSubmitted"
+            TemplateKey = "FinalVersionSubmitted",
+            ToAddress = "test_address@invalid.invalid"
         };
 
         var result = await builder.BuildAsync(instance, sendMail, _modelService);
