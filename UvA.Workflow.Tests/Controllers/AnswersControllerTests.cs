@@ -18,14 +18,14 @@ public class AnswersControllerTests : ControllerTestsBase
 {
     private readonly SubmissionService _submissionService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
-    private readonly ArtifactTokenService _artifactTokenService;
+    private readonly IArtifactTokenService _artifactTokenService;
     private readonly WorkflowInstanceDtoFactory _workflowInstanceDtoFactory;
     private readonly AnswerService _answerService;
     private readonly AnswerConversionService _answerConversionService;
 
     public AnswersControllerTests() : base()
     {
-        _artifactTokenService = new ArtifactTokenService(_configurationMock.Object);
+        _artifactTokenService = new S3ArtifactTokenService(_s3OptionsMonitor);
         _submissionService =
             new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);

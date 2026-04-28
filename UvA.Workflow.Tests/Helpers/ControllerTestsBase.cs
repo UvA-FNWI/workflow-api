@@ -5,10 +5,12 @@ using Moq;
 using Serilog;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Tests.Impersonation;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
@@ -41,7 +43,17 @@ public abstract class ControllerTestsBase
     protected readonly JobService _jobService;
 
     protected readonly CancellationToken _ct = new CancellationTokenSource().Token;
-
+    
+    protected readonly IOptionsMonitor<S3Config> _s3OptionsMonitor =
+        new UnitTestsHelpers.TestOptionsMonitor<S3Config>(new S3Config
+        {
+            ServiceUrl = "http://serviceurl",
+            AuthenticationRegion = "EU",
+            AccessKey = "zh7F5ZZxmchb3We49nGVMhESZhRtxhWuZhQCDSQak5M", // Dummy AccessKey
+            SecretKey = "LaIhdtuPhgkbczwo9ZcDkFI5E6Cdn7QoN30nP3LUQgM", // Dummy SecretKey
+            SigningKey = "criXzMbgewG6VC1ebBcmSN92bl496oc0xNOaM6cCS7e" // Dummy SigningKey
+        });
+    
     protected ControllerTestsBase() : base()
     {
         Log.Logger = new LoggerConfiguration()
@@ -67,7 +79,7 @@ public abstract class ControllerTestsBase
         _configurationMock = new Mock<IConfiguration>();
         _configurationMock.SetupGet(c => c["FileKey"]).Returns(ImpersonationTestHelpers.SigningKey);
 
-        _modelParser = ControllerTestsHelpers.CreateModelParser();
+        _modelParser = UnitTestsHelpers.CreateModelParser();
 
         // Services
         _modelService = new ModelService(_modelParser);
@@ -112,13 +124,13 @@ public abstract class ControllerTestsBase
                 _loggerFactory.CreateLogger<JobService>(),
                 _instanceService);
     }
-
+    
     protected void MockCurrentUser(params string[] roles)
     {
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles);
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
     }
 
     protected void MockInstance(WorkflowInstance instance)
