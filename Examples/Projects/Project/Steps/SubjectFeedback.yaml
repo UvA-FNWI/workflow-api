@@ -10,6 +10,15 @@ actions:
   label:
     en: Approve
     nl: Goedkeuren
+- name: CreateExternalSupervisorAccount
+  type: Execute
+  roles: [Coordinator]
+  label:
+    en: Create external user account
+    nl: Maak extern gebruikersaccount aan
+  onAction:
+    - createExternalUserAccount:
+        role: Supervisor
 - name: Reject
   type: Submit
   form: RejectSubject

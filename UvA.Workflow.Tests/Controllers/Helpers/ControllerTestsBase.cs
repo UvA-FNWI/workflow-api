@@ -21,6 +21,7 @@ public abstract class ControllerTestsBase
     protected readonly Mock<IInstanceEventRepository> _eventRepoMock;
     protected readonly Mock<IUserService> _userServiceMock;
     protected readonly Mock<IMailService> _mailServiceMock;
+    protected readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
     protected readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     protected readonly Mock<IArtifactService> _artifactServiceMock;
     protected readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
@@ -57,12 +58,15 @@ public abstract class ControllerTestsBase
         _eventRepoMock = new Mock<IInstanceEventRepository>();
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
+        _eduIdUserServiceMock = new Mock<IEduIdUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
         _instanceEventService = new Mock<IInstanceEventService>();
         _jobRepositoryMock = new Mock<IJobRepository>();
         _userRepoMock = new Mock<IUserRepository>();
+        _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         _configurationMock = new Mock<IConfiguration>();
         _configurationMock.SetupGet(c => c["FileKey"]).Returns(ImpersonationTestHelpers.SigningKey);
@@ -94,6 +98,7 @@ public abstract class ControllerTestsBase
                 _eventService,
                 _modelService,
                 _mailServiceMock.Object,
+                _eduIdUserServiceMock.Object,
                 mailBuilder,
                 _artifactServiceMock.Object,
                 _mailLogRepositoryMock.Object,
