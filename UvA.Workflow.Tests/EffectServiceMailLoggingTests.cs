@@ -76,10 +76,11 @@ public class EffectServiceMailLoggingTests
             Attachments = [new MailAttachment("test.txt", attachmentBytes)]
         };
 
+        var id = MongoDB.Bson.ObjectId.GenerateNewId();
         artifactService
             .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
-            .ReturnsAsync((string key, string name, byte[] _) =>
-                new ArtifactInfo(MongoDB.Bson.ObjectId.GenerateNewId(), name, key));
+            .ReturnsAsync((string instanceId, string propertyName, string name, byte[] _) =>
+                new ArtifactInfo(id, name, IArtifactService.ToObjectKey(instanceId, propertyName, id)));
 
         MailLogEntry? loggedEntry = null;
         mailLogRepository
