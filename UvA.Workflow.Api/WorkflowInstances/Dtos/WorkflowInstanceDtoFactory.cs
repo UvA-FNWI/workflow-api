@@ -32,6 +32,8 @@ public class WorkflowInstanceDtoFactory(
             RightsEvaluationMode.RealUser);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
         var context = modelService.CreateContext(instance);
+        await instanceService.Enrich(workflowDefinition, [context],
+            workflowDefinition.Steps.SelectMany(f => f.Lookups), ct);
 
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);

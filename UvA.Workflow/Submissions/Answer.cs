@@ -32,6 +32,11 @@ public record Answer(
         BilingualString? validationError = null)
     {
         var workflowDefinition = form.ActualForm.WorkflowDefinition.Name;
+
+        if (!isVisible)
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition,
+                false);
+
         var question = form.ActualForm.WorkflowDefinition.Properties.Get(questionName);
 
         if (question.DataType == DataType.Currency)
