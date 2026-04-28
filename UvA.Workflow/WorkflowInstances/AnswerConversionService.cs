@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using UvA.Workflow.DataNose;
 
@@ -15,7 +16,14 @@ public record AnswerInput(
 public class AnswerConversionService(IUserService userService)
 {
     public static readonly JsonSerializerOptions Options = new()
-        { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        Converters =
+        {
+            new JsonStringEnumConverter()
+        }
+    };
 
     /// <summary>
     /// Converts an answer input to a BsonValue based on the propertyDefinition's data type.
@@ -119,7 +127,7 @@ public class AnswerConversionService(IUserService userService)
             user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
                 userSearchResult.Email, ct);
 
-            return BsonTypeMapper.MapToBsonValue(user.ToBsonDocument());
+            return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }
         catch
         {

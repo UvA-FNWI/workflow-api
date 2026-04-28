@@ -7,5 +7,8 @@ data:
     env-contents: |
         window._env = {
             VITE_WEBAPI_URL: "{{ .Values.envVars.webapiUrl }}",
-            VITE_ENV: "{{ .Values.envVars.env }}"
+            VITE_ENV: "{{ .Values.envVars.env }}",
+            VITE_AUTH_AUTHORITY: "{{ .Values.envVars.authAuthority }}",
+            VITE_AUTH_CLIENT_ID: "{{ .Values.envVars.authClientId }}",
+            VITE_AUTH_LOGOUT_URL: "{{ .Values.envVars.authLogoutUrl }}"
         };

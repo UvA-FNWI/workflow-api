@@ -1,4 +1,4 @@
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.Notifications;
 
@@ -6,7 +6,7 @@ public class MailBuilder(
     IMailLayoutResolver layoutResolver,
     IConfiguration configuration)
 {
-    public Task<MailMessage> BuildAsync(
+    public async Task<MailMessage> BuildAsync(
         WorkflowInstance instance,
         SendMessage sendMail,
         ModelService modelService,
@@ -20,7 +20,7 @@ public class MailBuilder(
             context.Values["FrontendBaseUrl"] = frontendBaseUrl;
 
         var recipient = resolvedMail.To != null
-            ? MailRecipient.FromUser(context.Get(resolvedMail.To) as User)
+            ? MailRecipient.FromUser(context.Get(resolvedMail.To) as InstanceUser)
             : new MailRecipient(resolvedMail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
 

@@ -1,13 +1,12 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
-using UvA.Workflow.DataNose;
-using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Api.Users;
 
 public class UsersController(
     IUserService userService,
-    IUserRepository userRepository) : ApiControllerBase
+    IUserRepository userRepository,
+    RightsService rightsService) : ApiControllerBase
 {
     /// <summary>
     /// Returns the currently authenticated user.
@@ -25,6 +24,8 @@ public class UsersController(
     [HttpPost]
     public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
     {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+
         var user = new User
         {
             UserName = dto.UserName,

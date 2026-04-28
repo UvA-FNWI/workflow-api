@@ -25,6 +25,17 @@ surfConext:
   clientId: datanose-api.local
   authority: https://auth-pr.datanose.nl
 
+eduId:
+  authority: https://login.test.eduid.nl
+  invitationApiUrl: https://eduid-invite-proxy-tst.datanose.nl
+  roleIdentifier: 7040
+  invitationExpiryDays: 30
+  roleExpiryDays: 365
+  internalEmailDomains:
+    - uva.nl
+    - auc.nl
+    - amsterdamumc.nl
+
 canvasLti:
   clientId: "104400000000000348"
   authenticateUrl: https://uvadlo-dev.instructure.com/api/lti/authorize_redirect
@@ -52,6 +63,7 @@ apiPaths:
   - /Assessments
   - /oidc
   - /signin-oidc
+  - /Invites
 
 azure:
   keyvaultName: keyvaultName
@@ -67,8 +79,10 @@ azure:
       key: DatanoseApi__ApiKey
     - name: workflow-encryption-secret
       key: Encryption__Secret
-    - name: workflow-surfconext-client-secret
+    - name: workflow-surfconext-client-secret-v2
       key: SurfConext__ClientSecret
+    - name: eduid-invite-proxy-milestones-role-token
+      key: EduId__InvitationApiToken
     - name: workflow-canvas-lti-key
       key: CanvasLti__Key
     - name: workflow-impersonation-key

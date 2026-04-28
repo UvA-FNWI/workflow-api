@@ -62,7 +62,10 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         return peopleEntries.Where(p =>
                 (!string.IsNullOrEmpty(p.EmployeeUvAnetId) || !string.IsNullOrEmpty(p.StudentId)) &&
                 !string.IsNullOrEmpty(p.Email))
-            .Select(p => new UserSearchResult((p.EmployeeUvAnetId ?? p.StudentId)!, p.FullName, p.Email!));
+            .Select(p => new UserSearchResult((p.EmployeeUvAnetId ?? p.StudentId)!,
+                p.FullName,
+                p.Email!,
+                UserSearchSource.DataNose));
     }
 
     #region DTO
