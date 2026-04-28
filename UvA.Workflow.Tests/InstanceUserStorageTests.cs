@@ -60,7 +60,8 @@ public class InstanceUserStorageTests
                                        {
                                          "userName": "jdoe",
                                          "displayName": "Jane Doe",
-                                         "email": "j.doe@uva.nl"
+                                         "email": "j.doe@uva.nl",
+                                         "searchSource": "DataNose"
                                        }
                                        """).RootElement;
 
