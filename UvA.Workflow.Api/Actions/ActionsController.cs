@@ -33,7 +33,7 @@ public class ActionsController(
         switch (input.Type)
         {
             case ActionType.DeleteInstance:
-                if (!await rightsService.Can(instance, RoleAction.Submit))
+                if (!await rightsService.Can(instance, RoleAction.Delete))
                     return Forbidden();
                 // TODO: delete it
                 break;
