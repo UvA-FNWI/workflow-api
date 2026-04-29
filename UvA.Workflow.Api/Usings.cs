@@ -7,4 +7,5 @@ global using UvA.Workflow.WorkflowInstances;
 global using UvA.Workflow.Entities.Domain;
 global using UvA.Workflow.Entities.Domain.Conditions;
 global using UvA.Workflow.Users;
+global using UvA.Workflow.Organisations;
 global using UvA.Workflow.Tools;
