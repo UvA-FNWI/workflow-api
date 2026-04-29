@@ -1,7 +1,7 @@
 globalActions:
   - roles: [Student, Coordinator, Examiner, SecondReviewer, DailySupervisor, Supervisor]
     type: View
-    forms: [Start]
+    forms: [Start, AssessmentExaminer, AssessmentSecondreader, AssessmentSupervisor]
   - roles: [Registered]
     type: CreateInstance
     userProperty: Student

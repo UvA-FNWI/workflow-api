@@ -10,9 +10,8 @@ public class AssessmentsController(
     IUserService userService,
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
-    AssessmentDtoFactory assessmentDtoFactory) : ApiControllerBase
-
-RightsService rightsService) : ApiControllerBase
+    AssessmentDtoFactory assessmentDtoFactory,
+    RightsService rightsService) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}/Results")]
     public async Task<ActionResult<AssessmentGroupDto>> GetSubmissionResults(string instanceId, string submissionId,
@@ -24,11 +23,9 @@ RightsService rightsService) : ApiControllerBase
 
         var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
 
+        await Task.WhenAll(contexts.Select(context =>
+            rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name)));
 
-        var submissionContext = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
-
-        await rightsService.EnsureAuthorizedForAction(submissionContext.Instance, RoleAction.View,
-            submissionContext.Form.Name);
         var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts);
         return Ok(dto);
     }
@@ -44,10 +41,8 @@ RightsService rightsService) : ApiControllerBase
 
         var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
 
-        var submissionContext = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
-
-        await rightsService.EnsureAuthorizedForAction(submissionContext.Instance, RoleAction.View,
-            submissionContext.Form.Name);
+        await Task.WhenAll(contexts.Select(context =>
+            rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name)));
 
         var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts, pageName);
         return Ok(dto);
