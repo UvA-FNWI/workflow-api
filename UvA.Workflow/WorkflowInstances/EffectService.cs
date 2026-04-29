@@ -193,16 +193,13 @@ public class EffectService(
                     serviceCall.Service, serviceCall.Operation);
             }
 
-            logger.LogError(e,
-                "Service call {Service}.{Operation} failed. Method: {Method}, Url: {Url}, StatusCode: {StatusCode}, ReasonPhrase: {ReasonPhrase}, ResponseBody: {ResponseBody}",
-                serviceCall.Service,
-                serviceCall.Operation,
-                request.Method.Method,
-                request.RequestUri?.ToString(),
-                (int?)result.StatusCode,
-                result.ReasonPhrase,
-                responseBody);
-            throw;
+            var message = $"Service call {serviceCall.Service}.{serviceCall.Operation} failed. " +
+                          $"Method: {request.Method.Method}, Url: {request.RequestUri}, " +
+                          $"StatusCode: {(int?)result.StatusCode}, ReasonPhrase: {result.ReasonPhrase}, " +
+                          $"ResponseBody: {responseBody}";
+
+            logger.LogError(e, message);
+            throw new HttpRequestException(message, e, result.StatusCode);
         }
 
 
