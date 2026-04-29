@@ -123,14 +123,29 @@ public class RightsService(
             .Where(p => p.Value != null)
             .Where(p => p.Value switch
             {
-                BsonDocument d => BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id,
-                BsonArray a => a.Any(v =>
-                    v is BsonDocument d && BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id),
+                BsonDocument d => Matches(d, user),
+                BsonArray a => a.Any(v => v is BsonDocument d && Matches(d, user)),
                 _ => false
             })
             .Select(p => modelService.Roles.GetValueOrDefault(p.Name))
             .Where(p => p != null)
             .ToArray();
+    }
+
+    /// <summary>
+    /// Determines whether an embedded <see cref="InstanceUser"/> document refers to the given user.
+    /// Matches by user id when the embedded document carries one (the common case), and falls back
+    /// to a case-insensitive email match when it does not — for example, an external person picked
+    /// in a form before the EduID invitation flow has created the underlying user row.
+    /// </summary>
+    private static bool Matches(BsonDocument embeddedUser, User user)
+    {
+        var instanceUser = BsonSerializer.Deserialize<InstanceUser>(embeddedUser);
+        if (!string.IsNullOrEmpty(instanceUser.Id))
+            return instanceUser.Id == user.Id;
+        return !string.IsNullOrWhiteSpace(instanceUser.Email)
+               && !string.IsNullOrWhiteSpace(user.Email)
+               && string.Equals(instanceUser.Email.Trim(), user.Email.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, IEnumerable<Role?> roles,

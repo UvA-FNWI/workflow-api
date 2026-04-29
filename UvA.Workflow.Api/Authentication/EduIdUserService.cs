@@ -60,15 +60,15 @@ public class EduIdUserService(
         if (IsInternalEmailAddress(trimmedEmail))
             return new EduIdExternalAccountResult(EduIdExternalAccountStatus.InternalEmail);
 
-        // var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
-        // if (existingUser != null)
-        // {
-        //     return existingUser.IsActive
-        //         ? new EduIdExternalAccountResult(EduIdExternalAccountStatus.AlreadyActive, existingUser)
-        //         : new EduIdExternalAccountResult(EduIdExternalAccountStatus.PendingInvitation, existingUser);
-        // }
+        var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
+        if (existingUser?.AuthProvider == UserAuthProvider.EduId)
+        {
+            return existingUser.IsActive
+                ? new EduIdExternalAccountResult(EduIdExternalAccountStatus.AlreadyActive, existingUser)
+                : new EduIdExternalAccountResult(EduIdExternalAccountStatus.PendingInvitation, existingUser);
+        }
 
-        return await CreateExternalAccount(trimmedEmail, resolvedDisplayName, deliveryMode, ct);
+        return await CreateExternalAccount(trimmedEmail, resolvedDisplayName, deliveryMode, ct, existingUser);
     }
 
     public async Task<User?> ResolveAuthenticatedUser(string uid,
@@ -144,16 +144,15 @@ public class EduIdUserService(
         string email,
         string displayName,
         EduIdInviteDeliveryMode deliveryMode,
-        CancellationToken ct)
+        CancellationToken ct,
+        User? existingUser = null)
     {
-        var user = new User
-        {
-            UserName = email,
-            DisplayName = displayName,
-            Email = email,
-            AuthProvider = UserAuthProvider.EduId,
-            IsActive = false
-        };
+        var user = existingUser ?? new User();
+        user.UserName = email;
+        user.DisplayName = displayName;
+        user.Email = email;
+        user.AuthProvider = UserAuthProvider.EduId;
+        user.IsActive = false;
 
         var request = new EduIdInvitationRequest
         {
@@ -186,8 +185,16 @@ public class EduIdUserService(
                 $"The EduID invitation response did not contain an invitation URL for '{email}'.");
         }
 
-        await userRepository.Create(user, ct);
-        logger.LogInformation("Created pending EduID user for {Email}", email);
+        if (existingUser == null)
+        {
+            await userRepository.Create(user, ct);
+            logger.LogInformation("Created pending EduID user for {Email}", email);
+        }
+        else
+        {
+            await userRepository.Update(user, ct);
+            logger.LogInformation("Converted existing user {UserId} to pending EduID user for {Email}", user.Id, email);
+        }
 
         return new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited, user, invitationUrl);
     }

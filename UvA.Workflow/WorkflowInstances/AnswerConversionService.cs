@@ -112,7 +112,12 @@ public class AnswerConversionService(IUserService userService)
     }
 
     /// <summary>
-    /// Converts a single user to BsonValue using the user cache service.
+    /// Converts a single user to BsonValue.
+    /// For internal (DataNose) users, ensures a user row exists so that role
+    /// resolution works. For external (EduID) users that we have not seen yet,
+    /// the <see cref="InstanceUser"/> is embedded inline without creating a
+    /// placeholder user row; the actual user is created later by the EduID
+    /// invitation flow or on first sign-in.
     /// </summary>
     private async Task<BsonValue> ConvertUser(JsonElement value, CancellationToken ct)
     {
@@ -122,11 +127,16 @@ public class AnswerConversionService(IUserService userService)
             if (userSearchResult == null)
                 return BsonNull.Value;
 
-            // Try to get user or create a new one if it doesn't exist'
             var user = await userService.GetUser(userSearchResult.UserName, ct);
-            user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
-                userSearchResult.Email, ct);
+            if (user != null)
+                return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
 
+            if (userSearchResult.SearchSource == UserSearchSource.EduId)
+                return BsonTypeMapper.MapToBsonValue(
+                    InstanceUser.FromSearchResult(userSearchResult).ToBsonDocument());
+
+            user = await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
+                userSearchResult.Email, ct);
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }
         catch
