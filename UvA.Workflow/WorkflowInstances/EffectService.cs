@@ -176,12 +176,54 @@ public class EffectService(
                     ex);
             }
 
-            _ = await eduIdUserService.EnsureExternalAccount(
+            var result = await eduIdUserService.EnsureExternalAccount(
                 email,
                 recipient.DisplayName,
                 EduIdInviteDeliveryMode.SendEmail,
                 ct);
+
+            if (result.User != null && LinkExternalAccount(instance, property.Name, email, result.User))
+                await instanceService.SaveValue(instance, null, property.Name, ct);
         }
+    }
+
+    private static bool LinkExternalAccount(WorkflowInstance instance, string propertyName, string email, User user)
+    {
+        if (!ObjectId.TryParse(user.Id, out var userId)
+            || !instance.Properties.TryGetValue(propertyName, out var rawValue))
+            return false;
+
+        return rawValue switch
+        {
+            BsonDocument document => LinkExternalAccount(document, email, user, userId),
+            BsonArray array => LinkExternalAccounts(array, email, user, userId),
+            _ => false
+        };
+    }
+
+    private static bool LinkExternalAccounts(BsonArray array, string email, User user, ObjectId userId)
+    {
+        var changed = false;
+        foreach (var document in array.OfType<BsonDocument>())
+            changed |= LinkExternalAccount(document, email, user, userId);
+        return changed;
+    }
+
+    private static bool LinkExternalAccount(BsonDocument document, string email, User user, ObjectId userId)
+    {
+        if (document.Contains("_id"))
+            return false;
+
+        if (!document.TryGetValue("Email", out var existingEmail)
+            || !existingEmail.IsString
+            || !string.Equals(existingEmail.AsString.Trim(), email, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        document["_id"] = userId;
+        document["UserName"] = user.UserName;
+        document["DisplayName"] = user.DisplayName;
+        document["Email"] = user.Email;
+        return true;
     }
 
     private async Task ServiceCall(ObjectContext context, Effect effect, CancellationToken ct)

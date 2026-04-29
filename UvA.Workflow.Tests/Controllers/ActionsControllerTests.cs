@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Actions;
 using UvA.Workflow.Api.Actions.Dtos;
@@ -132,14 +134,33 @@ public class ActionsControllerTests : ControllerTestsBase
     public async Task Actions_ExecuteAction_CreateExternalSupervisorAccount_RunsEffectAndLogsEvent()
     {
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "SubjectFeedback");
-        instance.Properties["Supervisor"] =
-            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org");
+        instance.Properties["Supervisor"] = new BsonDocument
+        {
+            { "UserName", "supervisor@external.org" },
+            { "DisplayName", "External Supervisor" },
+            { "Email", "supervisor@external.org" }
+        };
+        var userId = ObjectId.GenerateNewId().ToString();
         _eduIdUserServiceMock.Setup(s => s.EnsureExternalAccount(
                 "supervisor@external.org",
                 "External Supervisor",
                 EduIdInviteDeliveryMode.SendEmail,
                 _ct))
-            .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited));
+            .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited,
+                new User
+                {
+                    Id = userId,
+                    UserName = "supervisor@external.org",
+                    DisplayName = "External Supervisor",
+                    Email = "supervisor@external.org",
+                    AuthProvider = UserAuthProvider.EduId,
+                    IsActive = false
+                }));
+        _workflowInstanceRepoMock.Setup(r => r.UpdateFields(
+                instance.Id,
+                It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                _ct))
+            .Returns(Task.CompletedTask);
 
         var result = await controller.ExecuteAction(
             new ExecuteActionInputDto(ActionType.Execute, instance.Id, "CreateExternalSupervisorAccount"),
@@ -147,7 +168,13 @@ public class ActionsControllerTests : ControllerTestsBase
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
+        Assert.Equal(userId, instance.Properties["Supervisor"].AsBsonDocument["_id"].ToString());
         _eduIdUserServiceMock.VerifyAll();
+        _workflowInstanceRepoMock.Verify(r => r.UpdateFields(
+                instance.Id,
+                It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                _ct),
+            Times.Once);
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == "CreateExternalSupervisorAccount"),
             ControllerTestsHelpers.AdminUser,
