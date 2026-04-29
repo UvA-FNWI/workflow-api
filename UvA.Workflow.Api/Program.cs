@@ -75,7 +75,7 @@ app.UseSwaggerUI(c =>
 {
     if (app.Environment.IsDevOrTest())
     {
-        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "v2-tst.datanose.nl");
+        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "milestones-tst.fnwi.uva.nl");
         c.OAuthUsePkce();
     }
 
