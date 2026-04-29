@@ -43,9 +43,11 @@ public class OrganisationsController(
     }
 
     [HttpGet("find")]
-    public async Task<ActionResult<IEnumerable<OrganisationDto>>> Find(string query, CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<OrganisationDto>>> Find(string query, int? limit,
+        CancellationToken ct)
     {
-        var organisations = await organisationRepository.Search(query, ct);
+        var resolvedLimit = Math.Clamp(limit ?? 5, 1, 100);
+        var organisations = await organisationRepository.Search(query, resolvedLimit, ct);
         return Ok(organisations.Select(OrganisationDto.Create));
     }
 }

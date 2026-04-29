@@ -30,17 +30,17 @@ public class OrganisationRepository(IMongoDatabase database) : IOrganisationRepo
             .ToListAsync(ct);
     }
 
-    public async Task<IEnumerable<Organisation>> Search(string query, CancellationToken ct)
+    public async Task<IEnumerable<Organisation>> Search(string query, int limit, CancellationToken ct)
     {
         var trimmedQuery = query.Trim();
-        if (string.IsNullOrWhiteSpace(trimmedQuery))
-            return await GetAll(ct);
-
         var regex = new BsonRegularExpression(Regex.Escape(trimmedQuery), "i");
-        var filter = Builders<Organisation>.Filter.Regex(o => o.Name, regex);
+        var filter = string.IsNullOrWhiteSpace(trimmedQuery)
+            ? Builders<Organisation>.Filter.Empty
+            : Builders<Organisation>.Filter.Regex(o => o.Name, regex);
 
         return await _collection.Find(filter)
             .SortBy(o => o.Name)
+            .Limit(limit)
             .ToListAsync(ct);
     }
 }
