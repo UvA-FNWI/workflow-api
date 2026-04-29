@@ -38,7 +38,7 @@ public class ActionsControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData("Coordinator", "ApproveCoordinator", "ApprovalCoordinator")]
+    [InlineData("Coordinator", "CoordinatorApproved", "ApprovalCoordinator")]
     public async Task Actions_ExecuteAction_AllowedForUser(string role, string actionName, string stepName)
     {
         // Arrange
