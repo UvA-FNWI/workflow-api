@@ -163,11 +163,8 @@ public partial class ModelParser
         workflowDefinition.Events.Add(new() { Name = form.Name });
 
         if (form is { PropertyName: not null, TargetFormName: not null })
-        {
-            var targetDef = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType];
-            form.TargetForm = targetDef.Forms.GetOrDefault(form.TargetFormName)
-                              ?? targetDef.Forms.FirstOrDefault();
-        }
+            form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType]
+                .Forms.Get(form.TargetFormName);
 
         if (form.PropertyDefinitions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
             throw new Exception($"Form {form.Name} has multiple questions with the same name");
