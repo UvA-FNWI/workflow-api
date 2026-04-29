@@ -131,7 +131,7 @@ public class ActionsControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Actions_ExecuteAction_CreateExternalSupervisorAccount_RunsEffectAndLogsEvent()
+    public async Task Actions_ExecuteAction_ApproveSubject_RunsCreateExternalAccountEffectAndLogsEvent()
     {
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "SubjectFeedback");
         instance.Properties["Supervisor"] = new BsonDocument
@@ -163,7 +163,7 @@ public class ActionsControllerTests : ControllerTestsBase
             .Returns(Task.CompletedTask);
 
         var result = await controller.ExecuteAction(
-            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "CreateExternalSupervisorAccount"),
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "ApproveSubject"),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -176,7 +176,7 @@ public class ActionsControllerTests : ControllerTestsBase
                 _ct),
             Times.Once);
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
-            It.Is<InstanceEvent>(e => e.Id == "CreateExternalSupervisorAccount"),
+            It.Is<InstanceEvent>(e => e.Id == "ApproveSubject"),
             ControllerTestsHelpers.AdminUser,
             _ct), Times.Once);
     }
