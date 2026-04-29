@@ -170,6 +170,11 @@ public class PropertyDefinition : INamed
     /// The weight of a field for result calculation
     /// </summary>
     public int? Weight { get; set; }
+
+    /// <summary>
+    /// Determines if the propertyDefinition allows external users
+    /// </summary>
+    public bool? AllowsExternalUsers { get; set; } = false;
 }
 
 public class Choice : INamed

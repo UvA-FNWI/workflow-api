@@ -32,6 +32,7 @@ properties:
 
   - name: DailySupervisor
     type: User!
+    allowsExternalUsers: true
     text:
       en: Daily supervisor
       nl: Dagelijks begeleider

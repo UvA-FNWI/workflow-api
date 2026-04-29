@@ -60,13 +60,13 @@ public class EduIdUserService(
         if (IsInternalEmailAddress(trimmedEmail))
             return new EduIdExternalAccountResult(EduIdExternalAccountStatus.InternalEmail);
 
-        var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
-        if (existingUser != null)
-        {
-            return existingUser.IsActive
-                ? new EduIdExternalAccountResult(EduIdExternalAccountStatus.AlreadyActive, existingUser)
-                : new EduIdExternalAccountResult(EduIdExternalAccountStatus.PendingInvitation, existingUser);
-        }
+        // var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
+        // if (existingUser != null)
+        // {
+        //     return existingUser.IsActive
+        //         ? new EduIdExternalAccountResult(EduIdExternalAccountStatus.AlreadyActive, existingUser)
+        //         : new EduIdExternalAccountResult(EduIdExternalAccountStatus.PendingInvitation, existingUser);
+        // }
 
         return await CreateExternalAccount(trimmedEmail, resolvedDisplayName, deliveryMode, ct);
     }

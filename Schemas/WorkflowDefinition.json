@@ -288,6 +288,13 @@
             "null"
           ],
           "description": "The weight of a field for result calculation"
+        },
+        "allowsExternalUsers": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Determines if the propertyDefinition allows external users"
         }
       }
     },
