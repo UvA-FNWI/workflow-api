@@ -83,6 +83,11 @@ public class Form : INamed
     public BilingualString DisplayName => Title ?? Name;
 
     /// <summary>
+    ///  Name of the parent form to inherit pages from
+    /// </summary>
+    public string? InheritsFrom { get; set; }
+
+    /// <summary>
     /// Sets whether this form shows as multi-page layout with navigation bor or shows all pages at once
     /// </summary>
     public FormLayout Layout { get; set; }

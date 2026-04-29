@@ -1,4 +1,5 @@
 name: Assessment-AI
+inheritsFrom: Assessment
 
 pages:
   - name: Report

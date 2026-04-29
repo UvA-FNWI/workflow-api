@@ -8,19 +8,14 @@ public partial class ModelParser
     {
         target.Parent = source;
 
-        if (!target.Forms.Any())
+        foreach (var sourceForm in source.Forms)
         {
-            foreach (var sourceForm in source.Forms)
+            // Target form matches on inheritsFrom property on form or on form name
+            var targetForm = target.Forms.FirstOrDefault(tf => (tf.InheritsFrom ?? tf.Name) == sourceForm.Name);
+            if (targetForm != null)
+                ApplyInheritance(targetForm, sourceForm);
+            else
                 target.Forms.Add(sourceForm.Clone());
-        }
-        else
-        {
-            foreach (var targetForm in target.Forms)
-            {
-                var parentFormName = target.InheritsFrom ?? targetForm.Name;
-                if (source.Forms.TryGetValue(parentFormName, out var sourceForm))
-                    ApplyInheritance(targetForm, sourceForm);
-            }
         }
 
         foreach (var property in source.Properties.Where(p => !target.Properties.Contains(p.Name)))
