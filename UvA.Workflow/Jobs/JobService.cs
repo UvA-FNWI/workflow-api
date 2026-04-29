@@ -122,8 +122,9 @@ public class JobService(
                 job.Status = JobStatus.Failed;
 #if DEBUG
                 throw;
-#endif
+#else
                 return result;
+#endif
             }
 
             var outputs = context.Get(effect.Name ?? effect.ServiceCall?.Operation ?? "__invalid")

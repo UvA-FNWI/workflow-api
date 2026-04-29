@@ -18,7 +18,7 @@ public class MailBuilder(
             context.Values["FrontendBaseUrl"] = frontendBaseUrl;
 
         var recipient = sendMail.To != null
-            ? MailRecipient.FromUser(context.Get(sendMail.To) as User)
+            ? MailRecipient.FromUser(context.Get(sendMail.To) as InstanceUser)
             : new MailRecipient(sendMail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
 
