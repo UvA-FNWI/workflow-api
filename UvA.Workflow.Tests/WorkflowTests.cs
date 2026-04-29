@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -82,9 +84,8 @@ public class WorkflowTests
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
                 mailBuilder);
-        _eventService = new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object,
-            _rightsService,
-            _instanceService);
+        _eventService =
+            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
@@ -94,7 +95,7 @@ public class WorkflowTests
                 TenantId = "tenant",
                 ClientId = "client",
                 UserAccount = "user@mail.com",
-            }), _configurationMock.Object);
+            }), _configurationMock.Object, NullLogger<EffectService>.Instance);
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService);
@@ -191,5 +192,22 @@ public class WorkflowTests
         _instanceRepoMock.Verify(
             r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void GroupedWorkflowDefinitions_AreLoadedFromTheirSourceFolder()
+    {
+        var assessmentPb = _modelService.WorkflowDefinitions["Assessment-PB"];
+        var assessmentForm = assessmentPb.Forms.Single(f => f.Name == "Assessment");
+
+        Assert.Equal("PB/Assessment-PB", assessmentPb.SourceFolder);
+        Assert.Equal(3, assessmentForm.Pages.Count);
+        Assert.Equal("Practical", assessmentForm.Pages[^1].Name);
+
+        var projectAi = _modelService.WorkflowDefinitions["Project-AI"];
+
+        Assert.Equal("AI/Project-AI", projectAi.SourceFolder);
+        Assert.Equal("Assessment-AI",
+            projectAi.Properties.Single(p => p.Name == "AssessmentReviewer").WorkflowDefinition?.Name);
     }
 }

@@ -11,6 +11,8 @@ public class AssessmentsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     AssessmentDtoFactory assessmentDtoFactory) : ApiControllerBase
+
+RightsService rightsService) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}/Results")]
     public async Task<ActionResult<AssessmentGroupDto>> GetSubmissionResults(string instanceId, string submissionId,
@@ -22,6 +24,11 @@ public class AssessmentsController(
 
         var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
 
+
+        var submissionContext = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+
+        await rightsService.EnsureAuthorizedForAction(submissionContext.Instance, RoleAction.View,
+            submissionContext.Form.Name);
         var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts);
         return Ok(dto);
     }
@@ -36,6 +43,11 @@ public class AssessmentsController(
             return Unauthorized();
 
         var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
+
+        var submissionContext = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+
+        await rightsService.EnsureAuthorizedForAction(submissionContext.Instance, RoleAction.View,
+            submissionContext.Form.Name);
 
         var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts, pageName);
         return Ok(dto);

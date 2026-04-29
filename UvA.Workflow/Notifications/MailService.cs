@@ -14,7 +14,7 @@ public class DummyMailService : IMailService
 
 public record MailRecipient(string MailAddress, string? DisplayName = null)
 {
-    public static MailRecipient? FromUser(User? user) =>
+    public static MailRecipient? FromUser(InstanceUser? user) =>
         user == null ? null : new MailRecipient(user.Email, user.DisplayName);
 }
 
@@ -28,7 +28,7 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
             return null;
         var context = modelService.CreateContext(inst);
         var recipient = mail.To != null
-            ? MailRecipient.FromUser(context.Get(mail.To) as User)
+            ? MailRecipient.FromUser(context.Get(mail.To) as InstanceUser)
             : new MailRecipient(mail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
         var attachment = mail.Attachments.FirstOrDefault();
