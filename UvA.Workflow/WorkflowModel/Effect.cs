@@ -114,7 +114,8 @@ public class Effect
     /// Determines whether this event is logged in the job log.
     /// Trivial/client side effects do not need to be logged
     /// </summary>
-    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null;
+    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null ||
+                            CreateExternalUserAccount != null;
 }
 
 public class CreateExternalUserAccount

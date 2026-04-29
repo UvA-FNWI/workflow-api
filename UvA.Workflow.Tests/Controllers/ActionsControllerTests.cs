@@ -142,14 +142,14 @@ public class ActionsControllerTests : ControllerTestsBase
             .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited));
 
         var result = await controller.ExecuteAction(
-            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "CreateExternalSupervisorAccount"),
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "ApproveSubject"),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
         _eduIdUserServiceMock.VerifyAll();
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
-            It.Is<InstanceEvent>(e => e.Id == "CreateExternalSupervisorAccount"),
+            It.Is<InstanceEvent>(e => e.Id == "ApproveSubject"),
             ControllerTestsHelpers.AdminUser,
             _ct), Times.Once);
     }
