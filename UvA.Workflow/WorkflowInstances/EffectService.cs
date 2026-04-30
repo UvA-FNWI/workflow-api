@@ -159,12 +159,6 @@ public class EffectService(
 
         foreach (var (recipient, email) in normalizedRecipients)
         {
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                throw new InvalidOperationException(
-                    $"External account effect role '{effect.Role}' contains a user without an email address.");
-            }
-
             try
             {
                 _ = new System.Net.Mail.MailAddress(email);
