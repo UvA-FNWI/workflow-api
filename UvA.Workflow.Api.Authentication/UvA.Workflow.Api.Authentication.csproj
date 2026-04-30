@@ -17,8 +17,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\UvA.Workflow.Api.Authentication.Abstractions\UvA.Workflow.Api.Authentication.Abstractions.csproj" />
         <ProjectReference Include="..\UvA.Workflow\UvA.Workflow.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.Users.EduId\UvA.Workflow.Users.EduId.csproj" />
     </ItemGroup>
 
 </Project>

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using UvA.LTI;
-using UvA.Workflow.Api.Authentication.Abstractions;
+using UvA.Workflow.Api.Authentication;
 
 namespace UvA.Workflow.Api.Authentication.CanvasLti;
 

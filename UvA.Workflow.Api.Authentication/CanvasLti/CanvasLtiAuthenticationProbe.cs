@@ -1,5 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
-using UvA.Workflow.Api.Authentication.Abstractions;
+using UvA.Workflow.Api.Authentication;
 
 namespace UvA.Workflow.Api.Authentication.CanvasLti;
 

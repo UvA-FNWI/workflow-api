@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Api.Authentication.Abstractions;
+namespace UvA.Workflow.Api.Authentication;
 
 public static class WorkflowAuthenticationDefaults
 {

@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Authentication;
-using UvA.Workflow.Api.Authentication.Abstractions;
-using UvA.Workflow.Api.Infrastructure;
 
 namespace UvA.Workflow.Api.Authentication;
 

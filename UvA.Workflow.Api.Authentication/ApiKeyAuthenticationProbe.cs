@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Http;
-using UvA.Workflow.Api.Authentication.Abstractions;
-
 namespace UvA.Workflow.Api.Authentication;
 
 public class ApiKeyAuthenticationProbe : IAuthenticationSchemeProbe

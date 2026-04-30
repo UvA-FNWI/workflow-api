@@ -15,6 +15,6 @@ Check the following:
 - No new institution-specific concepts leaked into `UvA.Workflow` public contracts.
 - No new controller, middleware, or `HttpContext` code was added to `UvA.Workflow`.
 - No concrete storage implementation was added to core.
-- New auth providers were added as modules, not inside the generic API auth selector.
+- New authentication schemes/providers belong in `UvA.Workflow.Api.Authentication`, not in generic API code or core.
 - New user directories or mail providers were added as modules, not in core.
 - Docs/config examples remain organization-neutral unless they are explicitly module-specific examples.

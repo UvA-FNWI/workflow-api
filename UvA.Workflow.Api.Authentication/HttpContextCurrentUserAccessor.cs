@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace UvA.Workflow.Api.Infrastructure;
+namespace UvA.Workflow.Api.Authentication;
 
 public class HttpContextCurrentUserAccessor(IHttpContextAccessor httpContextAccessor) : ICurrentUserAccessor
 {

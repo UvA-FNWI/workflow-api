@@ -1,5 +1,3 @@
-using UvA.Workflow.Api.Authentication.Abstractions;
-
 namespace UvA.Workflow.Users.EduId;
 
 /// <summary>
@@ -7,7 +5,7 @@ namespace UvA.Workflow.Users.EduId;
 /// </summary>
 [ApiController]
 [Route("[controller]")]
-[Microsoft.AspNetCore.Authorization.Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.UserScheme)]
+[Microsoft.AspNetCore.Authorization.Authorize(AuthenticationSchemes = "WorkflowUser")]
 public class InvitesController(IEduIdUserService eduIdUserService) : ControllerBase
 {
     [HttpPost]

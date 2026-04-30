@@ -1,5 +1,5 @@
 using System.Text;
-using UvA.Workflow.Api.Authentication.Abstractions;
+using UvA.Workflow.Api.Authentication;
 
 namespace UvA.Workflow.Api.Authentication.SurfConext;
 

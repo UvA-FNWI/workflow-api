@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace UvA.Workflow.Api.Authentication.Abstractions;
+namespace UvA.Workflow.Api.Authentication;
 
 public interface IAuthenticationSchemeProbe
 {
