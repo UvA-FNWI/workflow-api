@@ -86,6 +86,7 @@ public class WorkflowDefinition : INamed
     public Dictionary<string, string>[]? SeedData { get; set; }
 
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
+    [YamlIgnore] public string SourceFolder { get; set; } = null!;
 
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
