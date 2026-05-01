@@ -1,4 +1,6 @@
-namespace UvA.Workflow.Api.Infrastructure;
+using Microsoft.Extensions.Hosting;
+
+namespace UvA.Workflow.Api.Authentication;
 
 public static class HostEnvironmentExtensions
 {

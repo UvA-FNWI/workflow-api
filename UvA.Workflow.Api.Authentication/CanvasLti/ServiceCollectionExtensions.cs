@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using UvA.LTI;
 using UvA.Workflow.Api.Authentication;
 
@@ -10,7 +9,7 @@ namespace UvA.Workflow.Api.Authentication.CanvasLti;
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddWorkflowCanvasLtiAuthentication(this IServiceCollection services,
-        IWebHostEnvironment environment, IConfiguration configuration)
+        IConfiguration configuration)
     {
         services.Configure<CanvasLtiOptions>(configuration.GetSection(CanvasLtiOptions.Section));
         services.AddScoped<ILtiClaimsResolver, CanvasClaimsResolver>();
@@ -42,29 +41,6 @@ public static class ServiceCollectionExtensions
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
-        });
-
-        services.AddSwaggerGen(c =>
-        {
-            c.AddSecurityDefinition("Bearer",
-                new OpenApiSecurityScheme()
-                {
-                    Name = "Authorization",
-                    BearerFormat = "JWT",
-                    Scheme = "Bearer",
-                    Description = "Specify the authorization token",
-                    In = ParameterLocation.Header,
-                    Type = SecuritySchemeType.Http,
-                });
-
-            c.AddSecurityRequirement(doc =>
-            {
-                var securityRequirement = new OpenApiSecurityRequirement
-                {
-                    { new OpenApiSecuritySchemeReference("Bearer", doc), [] }
-                };
-                return securityRequirement;
-            });
         });
 
         return services;

@@ -40,13 +40,13 @@ builder.Services
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-builder.Services.AddWorkflowAuthenticationSelector(builder.Configuration);
+builder.Services.AddWorkflowAuthenticationSelector(builder.Environment, builder.Configuration);
 builder.Services.AddWorkflowMongoPersistence(builder.Configuration);
 builder.Services.AddWorkflowGraphMail(builder.Configuration);
 builder.Services.AddWorkflowDataNoseUsers(builder.Configuration);
 builder.Services.AddWorkflowEduIdUsers(builder.Configuration);
 builder.Services.AddWorkflowSurfConextAuthentication(builder.Configuration);
-builder.Services.AddWorkflowCanvasLtiAuthentication(builder.Environment, builder.Configuration);
+builder.Services.AddWorkflowCanvasLtiAuthentication(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {
