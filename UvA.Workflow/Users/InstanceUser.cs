@@ -14,11 +14,16 @@ public class InstanceUser
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
 
+    [BsonElement("PreferredLanguage")]
+    [BsonIgnoreIfNull]
+    public string? PreferredLanguage { get; set; }
+
     public static InstanceUser FromUser(User user) => new()
     {
         Id = user.Id,
         UserName = user.UserName,
         DisplayName = user.DisplayName,
-        Email = user.Email
+        Email = user.Email,
+        PreferredLanguage = user.PreferredLanguage
     };
 }
