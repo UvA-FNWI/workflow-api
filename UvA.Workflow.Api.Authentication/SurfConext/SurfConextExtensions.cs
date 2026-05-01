@@ -28,10 +28,7 @@ public static class SurfConextExtensions
         });
 
         services.AddAuthentication()
-            .AddSurfConext(bound =>
-            {
-                config.GetSection(SurfConextOptions.Section).Bind(bound);
-            });
+            .AddSurfConext(bound => { config.GetSection(SurfConextOptions.Section).Bind(bound); });
 
         return services;
     }
