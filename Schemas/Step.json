@@ -532,6 +532,15 @@
         "type": "string"
       }
     },
+    "headerStatus": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/StepHeaderStatusConfiguration"
+      }
+    },
     "condition": {
       "description": "Condition requires for this step to start",
       "oneOf": [
@@ -598,6 +607,35 @@
       "enum": [
         "Sequential",
         "Parallel"
+      ]
+    },
+    "StepHeaderStatusConfiguration": {
+      "title": "StepHeaderStatusConfiguration",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event",
+        "type",
+        "label"
+      ],
+      "properties": {
+        "event": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/StepHeaderPillType"
+        },
+        "label": {
+          "$ref": "#/definitions/BilingualString"
+        }
+      }
+    },
+    "StepHeaderPillType": {
+      "type": "string",
+      "enum": [
+        "Info",
+        "Attention",
+        "Success"
       ]
     },
     "Condition": {
@@ -745,6 +783,13 @@
             "null"
           ],
           "description": "If set, check whether the property is empty"
+        },
+        "maxLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum length of a string"
         }
       }
     },
@@ -1008,6 +1053,24 @@
             }
           ]
         },
+        "showConfetti": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Show confetti"
+        },
+        "toast": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Show a toast message",
+              "$ref": "#/definitions/Toast"
+            }
+          ]
+        },
         "http": {
           "oneOf": [
             {
@@ -1093,15 +1156,29 @@
           ]
         },
         "subject": {
-          "type": [
-            "null",
-            "string"
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
           ]
         },
         "body": {
-          "type": [
-            "null",
-            "string"
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
           ]
         },
         "template": {
@@ -1109,6 +1186,18 @@
             "null",
             "string"
           ]
+        },
+        "layout": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "buttons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SendMessageButton"
+          }
         },
         "sendAsMail": {
           "type": "boolean"
@@ -1124,6 +1213,39 @@
         }
       }
     },
+    "SendMessageButton": {
+      "title": "SendMessageButton",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "label"
+      ],
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "intent": {
+          "$ref": "#/definitions/MailButtonIntent"
+        }
+      }
+    },
+    "MailButtonIntent": {
+      "type": "string",
+      "enum": [
+        "Primary"
+      ]
+    },
     "Attachment": {
       "title": "Attachment",
       "type": "object",
@@ -1136,6 +1258,41 @@
           "type": "string"
         }
       }
+    },
+    "Toast": {
+      "title": "Toast",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message"
+      ],
+      "properties": {
+        "type": {
+          "description": "Toast type to show in the frontend",
+          "$ref": "#/definitions/ToastType"
+        },
+        "message": {
+          "description": "Toast message to show in the frontend",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "ToastType": {
+      "type": "string",
+      "enum": [
+        "Success",
+        "Error",
+        "Info",
+        "Warning",
+        "Note"
+      ]
     },
     "Http": {
       "title": "Http",
@@ -1356,6 +1513,13 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "weight": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "The weight of a field for result calculation"
         }
       }
     },

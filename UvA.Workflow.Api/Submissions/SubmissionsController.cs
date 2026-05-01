@@ -9,6 +9,7 @@ namespace UvA.Workflow.Api.Submissions;
 public class SubmissionsController(
     IUserService userService,
     ModelService modelService,
+    RightsService rightsService,
     SubmissionService submissionService,
     SubmissionDtoFactory submissionDtoFactory,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
@@ -20,6 +21,9 @@ public class SubmissionsController(
     {
         var (instance, submission, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, version, ct);
+
+        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
+
         var dto = submissionDtoFactory.Create(instance, form, submission,
             modelService.GetQuestionStatus(instance, form, true));
         return Ok(dto);
@@ -29,12 +33,16 @@ public class SubmissionsController(
     public async Task<ActionResult<SubmitSubmissionResult>> SubmitSubmission(string instanceId, string submissionId,
         CancellationToken ct)
     {
-        var currentUser = await userService.GetCurrentUser(ct);
-        if (currentUser == null)
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
             return Unauthorized();
+
         var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
         var (instance, sub, form, _) = context;
-        var result = await submissionService.SubmitSubmission(context, currentUser, ct);
+
+        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.Submit, form.Name);
+
+        var result = await submissionService.SubmitSubmission(context, user, ct);
 
         if (!result.Success)
         {

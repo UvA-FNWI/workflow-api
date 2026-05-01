@@ -1,8 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Versions;
 
+[ApiExplorerSettings(IgnoreApi = true)]
+[AllowAnonymous]
 public class VersionsController(ModelServiceResolver modelServiceResolver, ILogger<VersionsController> logger)
     : ApiControllerBase
 {

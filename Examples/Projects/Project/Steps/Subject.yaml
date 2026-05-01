@@ -8,3 +8,20 @@ title:
 children:
   - Start
   - SubjectFeedback
+
+headerStatus:
+  - event: Start
+    type: Info
+    label:
+      en: Wait for approval
+      nl: Wacht op goedkeuring
+  - event: RejectSubject
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  - event: ApproveSubject
+    type: Success
+    label:
+      en: Approved and assigned on {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}
+      nl: Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}

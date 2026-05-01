@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ArtifactTokenService>();
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
+        services.AddScoped<StepHeaderStatusResolver>();
         services.AddScoped<WorkflowInstanceDtoFactory>();
 
         services.AddScoped<ScreenDataService>();

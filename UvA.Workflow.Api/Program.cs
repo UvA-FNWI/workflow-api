@@ -5,12 +5,10 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.CanvasLti;
 using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Notifications;
 using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Persistence.Mongo;
 using UvA.Workflow.Users.DataNose;
 using UvA.Workflow.Users.EduId;
-using UvA.Workflow.WorkflowModel;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -86,6 +84,12 @@ await app.Services.CreateScope().ServiceProvider.GetRequiredService<Initializati
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
+    if (app.Environment.IsDevOrTest())
+    {
+        c.OAuthClientId(app.Environment.IsDevelopment() ? "datanose.local" : "milestones-tst.fnwi.uva.nl");
+        c.OAuthUsePkce();
+    }
+
     c.SwaggerEndpoint("v1/swagger.json", "Workflow API v1");
     c.DisplayRequestDuration();
 });
