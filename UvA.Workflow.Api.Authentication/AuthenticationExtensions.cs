@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using UvA.Workflow.Api.Authentication.SurfConext;
 using Microsoft.OpenApi;
 
 namespace UvA.Workflow.Api.Authentication;
@@ -26,15 +27,19 @@ public static class AuthenticationExtensions
                 WorkflowAuthenticationDefaults.UserScheme,
                 options =>
                 {
-                    options.ForwardDefaultSelector = context => SelectScheme(context, includeApiKey: false);
-                    options.ForwardDefault = WorkflowAuthenticationDefaults.NoResultScheme;
+                    options.ForwardDefaultSelector = context => SelectScheme(
+                        context,
+                        includeApiKey: false,
+                        fallbackScheme: SurfConextAuthenticationHandler.SchemeName);
                 })
             .AddPolicyScheme(WorkflowAuthenticationDefaults.AnyScheme,
                 WorkflowAuthenticationDefaults.AnyScheme,
                 options =>
                 {
-                    options.ForwardDefaultSelector = context => SelectScheme(context, includeApiKey: true);
-                    options.ForwardDefault = WorkflowAuthenticationDefaults.NoResultScheme;
+                    options.ForwardDefaultSelector = context => SelectScheme(
+                        context,
+                        includeApiKey: true,
+                        fallbackScheme: SurfConextAuthenticationHandler.SchemeName);
                 });
 
         services.AddSwaggerGen(c =>
@@ -105,7 +110,7 @@ public static class AuthenticationExtensions
         return app;
     }
 
-    private static string? SelectScheme(HttpContext context, bool includeApiKey)
+    private static string SelectScheme(HttpContext context, bool includeApiKey, string fallbackScheme)
     {
         var probes = context.RequestServices.GetServices<IAuthenticationSchemeProbe>()
             .OrderBy(p => p.Order);
@@ -121,6 +126,6 @@ public static class AuthenticationExtensions
                 return probe.SchemeName;
         }
 
-        return null;
+        return fallbackScheme;
     }
 }
