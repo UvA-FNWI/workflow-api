@@ -1,17 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Infrastructure;
 
 namespace UvA.Workflow.Api.Versions;
 
-public class VersionsController(
-    ModelServiceResolver modelServiceResolver,
-    RightsService rightsService,
-    ILogger<VersionsController> logger)
+[ApiExplorerSettings(IgnoreApi = true)]
+[AllowAnonymous]
+public class VersionsController(ModelServiceResolver modelServiceResolver, ILogger<VersionsController> logger)
     : ApiControllerBase
 {
     [HttpPost("{version}")]
-    public async Task<ActionResult> CreateVersion(string version, [FromBody] Dictionary<string, string> files)
+    public ActionResult CreateVersion(string version, [FromBody] Dictionary<string, string> files)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
         ModelParser parser;
         try
         {
