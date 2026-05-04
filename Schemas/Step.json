@@ -615,7 +615,6 @@
       "additionalProperties": false,
       "required": [
         "event",
-        "type",
         "label"
       ],
       "properties": {
@@ -626,7 +625,14 @@
           "$ref": "#/definitions/StepHeaderPillType"
         },
         "label": {
-          "$ref": "#/definitions/BilingualString"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         }
       }
     },
@@ -1115,6 +1121,17 @@
             }
           ]
         },
+        "createExternalUserAccount": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Create external login access for the assigned user or users of a workflow role",
+              "$ref": "#/definitions/CreateExternalUserAccount"
+            }
+          ]
+        },
         "event": {
           "type": [
             "null",
@@ -1360,6 +1377,20 @@
       "properties": {
         "url": {
           "type": "string"
+        }
+      }
+    },
+    "CreateExternalUserAccount": {
+      "title": "CreateExternalUserAccount",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Name of the workflow role/property that holds the target user or users"
         }
       }
     },
