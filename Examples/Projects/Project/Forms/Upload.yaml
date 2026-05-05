@@ -2,27 +2,30 @@ name: Upload
 step: Upload
 
 onSubmit:
-- serviceCall:
-   service: Turnitin
-   operation: CreateSubmission
-   inputs:
-     Owner: Student
-     Title: Title
-- setProperty:
-   property: TurnitinId
-   value: CreateSubmission.Id
-- serviceCall:
-   service: Turnitin
-   operation: UploadFile
-   inputs:
-     SubmissionId: CreateSubmission.Id
-     File: Report
-- delay: 1m
-  serviceCall:
-    service: Turnitin
-    operation: GenerateReport
-    inputs:
-      SubmissionId: TurnitinId
+  - sendMail:
+      template: FinalVersionSubmitted
+      to: Student
+  - serviceCall:
+      service: Turnitin
+      operation: CreateSubmission
+      inputs:
+        Owner: Student
+        Title: Title
+  - setProperty:
+      property: TurnitinId
+      value: CreateSubmission.Id
+  - serviceCall:
+      service: Turnitin
+      operation: UploadFile
+      inputs:
+        SubmissionId: CreateSubmission.Id
+        File: Report
+  - delay: 1m
+    serviceCall:
+      service: Turnitin
+      operation: GenerateReport
+      inputs:
+        SubmissionId: TurnitinId
 
 pages:
   - name: Upload
