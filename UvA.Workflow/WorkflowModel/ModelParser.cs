@@ -324,12 +324,9 @@ public partial class ModelParser
             if (obj == null)
                 throw new Exception($"Invalid file: {filePath}");
 
-            // If the object has a name property, set it to the entity name
-            if (nameProperty?.PropertyType == typeof(string))
-            {
-                var entityName = Path.GetFileNameWithoutExtension(filePath);
-                nameProperty.SetValue(obj, entityName);
-            }
+            // Set the entity name to the filename when the name is not defined in the file
+            if (nameProperty?.PropertyType == typeof(string) && nameProperty.GetValue(obj)?.ToString() == null)
+                nameProperty.SetValue(obj, Path.GetFileNameWithoutExtension(filePath));
 
             result.Add(obj);
         }

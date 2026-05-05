@@ -32,3 +32,4 @@ pages:
     fields:
       - Title
       - Report
+      - CanBePublished

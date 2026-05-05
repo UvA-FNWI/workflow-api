@@ -244,6 +244,13 @@
             "null"
           ],
           "description": "If set, check whether the property is empty"
+        },
+        "maxLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum length of a string"
         }
       }
     },
