@@ -68,6 +68,7 @@ public class SubmissionService(
         // Validate required fields
         var missing = form.PropertyDefinitions
             .Where(q => q.IsRequired && !instance.HasAnswer(q.Name)
+                                     && q.DataType != DataType.Boolean // Boolean datatype always defaults to false
                                      && q.Condition.IsMet(objectContext))
             .Select(q => new InvalidQuestion(q.Name, new BilingualString("Required field", "Verplicht veld")))
             .ToArray();

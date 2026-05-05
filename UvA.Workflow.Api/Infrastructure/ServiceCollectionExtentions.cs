@@ -49,8 +49,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJobRepository, JobRepository>();
         services.AddUserSources();
         services.AddScoped<IEduIdInvitationClient, EduIdInvitationClient>();
-        services.AddScoped<IEduIdUserService, EduIdUserService>();
-
         services.AddHttpClient(EduIdInvitationClient.HttpClientName, (provider, http) =>
         {
             var options = provider.GetRequiredService<IOptions<EduIdOptions>>().Value;
@@ -58,6 +56,8 @@ public static class ServiceCollectionExtensions
             http.DefaultRequestHeaders.Remove("X-API-TOKEN");
             http.DefaultRequestHeaders.Add("X-API-TOKEN", options.InvitationApiToken);
         });
+
+        services.AddScoped<IEduIdUserService, EduIdUserService>();
 
         services.AddScoped<WorkflowInstanceService>();
 
