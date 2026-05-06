@@ -23,6 +23,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
@@ -39,6 +40,7 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            eduIdUserService.Object,
             mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
@@ -117,6 +119,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
@@ -132,6 +135,7 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            eduIdUserService.Object,
             mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
@@ -182,6 +186,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
@@ -198,6 +203,7 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            eduIdUserService.Object,
             mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,

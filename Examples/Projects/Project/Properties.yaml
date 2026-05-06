@@ -38,7 +38,7 @@ properties:
       en: Reviewer
       nl: Beoordelaar
   - name: Student
-    type: "[User]!"
+    type: User!
 
   - name: Report
     type: File!

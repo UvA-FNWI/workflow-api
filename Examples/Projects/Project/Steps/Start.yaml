@@ -36,7 +36,12 @@ properties:
     text:
       en: Important deadline
       nl: Belangrijke deadline
-
+      
+  - name: CanBePublished
+    type: Boolean!
+    text:
+      en: "Thesis can be published"
+      nl: "Scriptie mag gepubliceerd worden"
 
 ends:
   event:

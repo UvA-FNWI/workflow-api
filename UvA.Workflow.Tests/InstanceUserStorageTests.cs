@@ -209,8 +209,7 @@ public class InstanceUserStorageTests
 
         await service.Create("Project", user, CancellationToken.None, userProperty: "Student");
 
-        var array = Assert.IsType<BsonArray>(created!.Properties["Student"]);
-        var bson = array.Single().AsBsonDocument;
+        var bson = Assert.IsType<BsonDocument>(created!.Properties["Student"]);
         Assert.Equal(["_id", "UserName", "DisplayName", "Email"], bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
