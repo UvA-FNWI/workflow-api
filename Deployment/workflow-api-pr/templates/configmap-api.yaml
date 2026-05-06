@@ -37,3 +37,5 @@ data:
   Mongo__Database: "{{ .Values.mongo.database }}"
   Mongo__Host: "{{ .Values.mongo.host }}"
   Mongo__Port: "{{ .Values.mongo.port }}"
+    
+  Worker__WorkerGroup: "{{ .Release.Namespace }}"

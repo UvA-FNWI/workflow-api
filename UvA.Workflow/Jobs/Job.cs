@@ -5,6 +5,7 @@ namespace UvA.Workflow.Jobs;
 public enum JobStatus
 {
     Pending,
+    Running,
     Completed,
     Failed
 }
@@ -45,6 +46,10 @@ public class Job
     public bool IsSynchronous { get; set; }
 
     public string? Message { get; set; }
+
+    public string WorkerGroup { get; set; }
+
+    public DateTime? ClaimedUntil { get; set; }
 }
 
 public class JobStep

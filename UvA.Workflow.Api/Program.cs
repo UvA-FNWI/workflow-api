@@ -4,6 +4,7 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.DataNose;
+using UvA.Workflow.Jobs;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -34,6 +35,7 @@ builder.Services
     .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 
 builder.Services.AddDataNoseApiClient(builder.Configuration);
 builder.Services.AddWorkflowAuthentication(builder.Environment, builder.Configuration);

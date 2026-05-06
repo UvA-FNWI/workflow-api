@@ -115,7 +115,7 @@ public abstract class ControllerTestsBase
             new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
                 _workflowInstanceRepoMock.Object, userRepository: _userRepoMock.Object,
                 _loggerFactory.CreateLogger<JobService>(),
-                _instanceService);
+                _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
     }
 
     protected void MockCurrentUser(params string[] roles)

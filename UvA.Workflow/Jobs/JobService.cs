@@ -14,7 +14,8 @@ public class JobService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IUserRepository userRepository,
     ILogger<JobService> logger,
-    InstanceService instanceService)
+    InstanceService instanceService,
+    IOptions<WorkerOptions> workerOptions)
 {
     public Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, Action action, User user,
         JobInput? input, CancellationToken ct)
@@ -36,6 +37,7 @@ public class JobService(
             InstanceId = instance.Id,
             Input = input,
             IsSynchronous = true,
+            WorkerGroup = workerOptions.Value.WorkerGroup,
             Steps = steps.Keys.ToList()
         };
 
@@ -58,6 +60,7 @@ public class JobService(
                 InstanceId = instance.Id,
                 Input = input,
                 IsSynchronous = false,
+                WorkerGroup = workerOptions.Value.WorkerGroup,
                 Steps = delayGroup.Select(e => new JobStep { Identifier = e.Identifier }).ToList()
             }, ct);
 
