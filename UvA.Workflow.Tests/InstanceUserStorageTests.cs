@@ -63,7 +63,8 @@ public class InstanceUserStorageTests
                                        {
                                          "userName": "jdoe",
                                          "displayName": "Jane Doe",
-                                         "email": "j.doe@uva.nl"
+                                         "email": "j.doe@uva.nl",
+                                         "searchSource": "DataNose"
                                        }
                                        """).RootElement;
 
@@ -211,8 +212,7 @@ public class InstanceUserStorageTests
 
         await service.Create("Project", user, CancellationToken.None, userProperty: "Student");
 
-        var array = Assert.IsType<BsonArray>(created!.Properties["Student"]);
-        var bson = array.Single().AsBsonDocument;
+        var bson = Assert.IsType<BsonDocument>(created!.Properties["Student"]);
         Assert.Equal(["_id", "UserName", "DisplayName", "Email", "Organization", "IsExternal"], bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));

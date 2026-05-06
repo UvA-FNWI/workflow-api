@@ -98,16 +98,6 @@
         "$ref": "#/definitions/Field"
       }
     },
-    "results": {
-      "type": [
-        "array",
-        "null"
-      ],
-      "description": "List of computed results for this entity type",
-      "items": {
-        "$ref": "#/definitions/Result"
-      }
-    },
     "isEmbedded": {
       "type": "boolean",
       "description": "Indicated whether this entity type is stored as an embedded document in the parent instance"
@@ -293,8 +283,11 @@
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
         "weight": {
-          "type": "integer",
-          "description": "Weight used when calculating results for this property"
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "The weight of a field for result calculation"
         },
         "allowsExternalUsers": {
           "type": "boolean",
@@ -568,6 +561,13 @@
             "null"
           ],
           "description": "If set, check whether the property is empty"
+        },
+        "maxLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum length of a string"
         }
       }
     },
@@ -678,14 +678,21 @@
             }
           ]
         },
-        "showToast": {
+        "showConfetti": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Show confetti"
+        },
+        "toast": {
           "oneOf": [
             {
               "type": "null"
             },
             {
               "description": "Show a toast message",
-              "$ref": "#/definitions/ShowToast"
+              "$ref": "#/definitions/Toast"
             }
           ]
         },
@@ -733,6 +740,17 @@
             }
           ]
         },
+        "createExternalUserAccount": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Create external login access for the assigned user or users of a workflow role",
+              "$ref": "#/definitions/CreateExternalUserAccount"
+            }
+          ]
+        },
         "event": {
           "type": [
             "null",
@@ -774,15 +792,29 @@
           ]
         },
         "subject": {
-          "type": [
-            "null",
-            "string"
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
           ]
         },
         "body": {
-          "type": [
-            "null",
-            "string"
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
           ]
         },
         "template": {
@@ -790,6 +822,18 @@
             "null",
             "string"
           ]
+        },
+        "layout": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "buttons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SendMessageButton"
+          }
         },
         "sendAsMail": {
           "type": "boolean"
@@ -805,6 +849,39 @@
         }
       }
     },
+    "SendMessageButton": {
+      "title": "SendMessageButton",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "label"
+      ],
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "intent": {
+          "$ref": "#/definitions/MailButtonIntent"
+        }
+      }
+    },
+    "MailButtonIntent": {
+      "type": "string",
+      "enum": [
+        "Primary"
+      ]
+    },
     "Attachment": {
       "title": "Attachment",
       "type": "object",
@@ -818,8 +895,8 @@
         }
       }
     },
-    "ShowToast": {
-      "title": "ShowToast",
+    "Toast": {
+      "title": "Toast",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -919,6 +996,20 @@
       "properties": {
         "url": {
           "type": "string"
+        }
+      }
+    },
+    "CreateExternalUserAccount": {
+      "title": "CreateExternalUserAccount",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Name of the workflow role/property that holds the target user or users"
         }
       }
     },

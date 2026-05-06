@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using UvA.Workflow.DataNose;
 
@@ -18,7 +19,10 @@ public class AnswerConversionService(IUserService userService)
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
+        Converters =
+        {
+            new JsonStringEnumConverter()
+        }
     };
 
     /// <summary>
@@ -54,6 +58,11 @@ public class AnswerConversionService(IUserService userService)
             DataType.DateTime or DataType.Date =>
                 value.ValueKind == JsonValueKind.String && DateTime.TryParse(value.GetString(), out var dt)
                     ? dt
+                    : BsonNull.Value,
+
+            DataType.Boolean =>
+                value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                    ? value.GetBoolean()
                     : BsonNull.Value,
 
             DataType.Currency => ConvertCurrency(value),
@@ -125,9 +134,8 @@ public class AnswerConversionService(IUserService userService)
 
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }
-        catch (Exception ex)
+        catch
         {
-            var msg = ex.Message;
             return BsonNull.Value;
         }
     }
