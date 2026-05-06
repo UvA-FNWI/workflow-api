@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -14,6 +13,7 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Organisations;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Services;
 using UvA.Workflow.Submissions;
@@ -34,6 +34,7 @@ public class WorkflowTests
     readonly Mock<IInstanceEventService> _instanceEventService;
     readonly Mock<IJobRepository> _jobRepositoryMock;
     readonly Mock<IUserRepository> _userRepoMock;
+    readonly Mock<IOrganisationService> _organisationServiceMock;
     readonly Mock<IConfiguration> _configurationMock;
 
 
@@ -71,6 +72,7 @@ public class WorkflowTests
         _instanceEventService = new Mock<IInstanceEventService>();
         _configurationMock = new Mock<IConfiguration>();
         _userRepoMock = new Mock<IUserRepository>();
+        _organisationServiceMock = new Mock<IOrganisationService>();
         _jobRepositoryMock = new Mock<IJobRepository>();
 
         // Services
@@ -102,7 +104,8 @@ public class WorkflowTests
         _submissionService =
             new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
-        _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
+        _answerConversionService =
+            new AnswerConversionService(_userServiceMock.Object, _organisationServiceMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
             _instanceJournalServiceMock.Object);

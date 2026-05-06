@@ -12,6 +12,7 @@ public class VersionsController(
     public async Task<ActionResult> CreateVersion(string version, [FromBody] Dictionary<string, string> files)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+
         ModelParser parser;
         try
         {

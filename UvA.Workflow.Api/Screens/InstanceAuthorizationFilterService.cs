@@ -1,3 +1,5 @@
+using Action = UvA.Workflow.Entities.Domain.Action;
+
 namespace UvA.Workflow.Api.Screens;
 
 public class InstanceAuthorizationFilterService(

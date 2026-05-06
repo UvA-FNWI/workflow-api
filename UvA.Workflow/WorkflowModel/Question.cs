@@ -127,6 +127,7 @@ public class PropertyDefinition : INamed
         "Double" => DataType.Double,
         "File" => DataType.File,
         "User" => DataType.User,
+        "Organisation" => DataType.Organisation,
         "Currency" => DataType.Currency,
         _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
         _ when WorkflowDefinition != null => DataType.Reference,

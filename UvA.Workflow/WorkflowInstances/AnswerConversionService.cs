@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using UvA.Workflow.DataNose;
+using UvA.Workflow.Organisations;
 
 namespace UvA.Workflow.Services;
 
@@ -13,7 +14,7 @@ public record AnswerInput(
 /// Service responsible for converting answer input data to BsonValue based on propertyDefinition data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
-public class AnswerConversionService(IUserService userService)
+public class AnswerConversionService(IUserService userService, IOrganisationService organisationService)
 {
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -63,6 +64,8 @@ public class AnswerConversionService(IUserService userService)
             DataType.Currency => ConvertCurrency(value),
 
             DataType.User => await ConvertUser(value, ct),
+
+            DataType.Organisation => await ConvertOrganisation(value, ct),
 
             DataType.Object => await ConvertObject(value, propertyDefinition, ct),
 
@@ -128,6 +131,26 @@ public class AnswerConversionService(IUserService userService)
                 userSearchResult.Email, ct);
 
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
+        }
+        catch
+        {
+            return BsonNull.Value;
+        }
+    }
+
+    private async Task<BsonValue> ConvertOrganisation(JsonElement value, CancellationToken ct)
+    {
+        try
+        {
+            var instanceOrganisation = value.Deserialize<InstanceOrganisation>(Options);
+            if (instanceOrganisation == null || string.IsNullOrWhiteSpace(instanceOrganisation.Id))
+                return BsonNull.Value;
+
+            var organisation = await organisationService.GetOrganisation(instanceOrganisation.Id, ct);
+            if (organisation == null)
+                return BsonNull.Value;
+
+            return BsonTypeMapper.MapToBsonValue(InstanceOrganisation.FromOrganisation(organisation).ToBsonDocument());
         }
         catch
         {

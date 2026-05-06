@@ -10,7 +10,7 @@ namespace UvA.Workflow.Tests.Controllers;
 
 public class OrganisationsControllerTests : ControllerTestsBase
 {
-    private readonly Mock<IOrganisationRepository> _organisationRepositoryMock = new();
+    private readonly Mock<IOrganisationService> _organisationServiceMock = new();
 
     [Theory]
     [InlineData("Student")]
@@ -28,6 +28,8 @@ public class OrganisationsControllerTests : ControllerTestsBase
     [InlineData("Coordinator")]
     public async Task Organisations_Create_AllowedWithViewAdminRights(string role)
     {
+        _organisationServiceMock.Setup(r => r.CreateOrganisation("science", _ct))
+            .ReturnsAsync(new Organisation { Id = "1", Name = "science" });
         var controller = BuildControllerWithRoles([role]);
 
         var result = await controller.Create(new CreateOrganisationDto("science"), _ct);
@@ -35,14 +37,14 @@ public class OrganisationsControllerTests : ControllerTestsBase
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
         Assert.Equal(nameof(OrganisationsController.GetById), createdResult.ActionName);
 
-        _organisationRepositoryMock.Verify(r => r.Create(It.Is<Organisation>(o => o.Name == "science"), _ct),
+        _organisationServiceMock.Verify(r => r.CreateOrganisation("science", _ct),
             Times.Once);
     }
 
     [Fact]
     public async Task Organisations_GetById_ReturnsNotFound_WhenMissing()
     {
-        _organisationRepositoryMock.Setup(r => r.GetById("missing", _ct))
+        _organisationServiceMock.Setup(r => r.GetOrganisation("missing", _ct))
             .ReturnsAsync((Organisation?)null);
         var controller = BuildControllerWithRoles(["Admin"]);
 
@@ -55,7 +57,7 @@ public class OrganisationsControllerTests : ControllerTestsBase
     [Fact]
     public async Task Organisations_Find_UsesDefaultLimit_WhenLimitIsNull()
     {
-        _organisationRepositoryMock.Setup(r => r.Search("sci", 5, _ct))
+        _organisationServiceMock.Setup(r => r.Search("sci", 5, _ct))
             .ReturnsAsync([new Organisation { Id = "1", Name = "Science" }]);
         var controller = BuildControllerWithRoles(["Admin"]);
 
@@ -64,7 +66,7 @@ public class OrganisationsControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var dtos = Assert.IsAssignableFrom<IEnumerable<OrganisationDto>>(okResult.Value);
         Assert.Single(dtos);
-        _organisationRepositoryMock.Verify(r => r.Search("sci", 5, _ct), Times.Once);
+        _organisationServiceMock.Verify(r => r.Search("sci", 5, _ct), Times.Once);
     }
 
     [Theory]
@@ -73,18 +75,18 @@ public class OrganisationsControllerTests : ControllerTestsBase
     [InlineData(500, 100)]
     public async Task Organisations_Find_ClampsLimit(int requestedLimit, int expectedLimit)
     {
-        _organisationRepositoryMock.Setup(r => r.Search("sci", expectedLimit, _ct))
+        _organisationServiceMock.Setup(r => r.Search("sci", expectedLimit, _ct))
             .ReturnsAsync([]);
         var controller = BuildControllerWithRoles(["Admin"]);
 
         _ = await controller.Find("sci", requestedLimit, _ct);
 
-        _organisationRepositoryMock.Verify(r => r.Search("sci", expectedLimit, _ct), Times.Once);
+        _organisationServiceMock.Verify(r => r.Search("sci", expectedLimit, _ct), Times.Once);
     }
 
     private OrganisationsController BuildControllerWithRoles(string[] roles)
     {
         MockCurrentUser(roles);
-        return new OrganisationsController(_organisationRepositoryMock.Object, _rightsService);
+        return new OrganisationsController(_organisationServiceMock.Object, _rightsService);
     }
 }

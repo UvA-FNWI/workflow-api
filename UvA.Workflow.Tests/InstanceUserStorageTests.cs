@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Organisations;
 using UvA.Workflow.Services;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
@@ -54,7 +55,8 @@ public class InstanceUserStorageTests
         var userService = new Mock<IUserService>();
         userService.Setup(s => s.GetUser("jdoe", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        var service = new AnswerConversionService(userService.Object);
+        var organisationService = new Mock<IOrganisationService>();
+        var service = new AnswerConversionService(userService.Object, organisationService.Object);
         var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
@@ -74,6 +76,56 @@ public class InstanceUserStorageTests
         Assert.Equal("Jane Doe", bson["DisplayName"].AsString);
         Assert.Equal("j.doe@uva.nl", bson["Email"].AsString);
         Assert.False(bson.Contains("AuthProvider"));
+        Assert.False(bson.Contains("IsActive"));
+    }
+
+    [Fact]
+    public void FromOrganisation_MapsOnlyInstanceFields()
+    {
+        var organisation = new Organisation
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            Name = "FNWI",
+            IsActive = false
+        };
+
+        var instanceOrganisation = InstanceOrganisation.FromOrganisation(organisation);
+        var bson = instanceOrganisation.ToBsonDocument();
+
+        Assert.Equal(organisation.Id, instanceOrganisation.Id);
+        Assert.Equal("FNWI", instanceOrganisation.Name);
+        Assert.Equal(["_id", "Name"], bson.Names);
+        Assert.False(bson.Contains("IsActive"));
+    }
+
+    [Fact]
+    public async Task ConvertToValue_ForOrganisation_StoresLeanInstanceOrganisationDocument()
+    {
+        var organisation = new Organisation
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            Name = "FNWI",
+            IsActive = false
+        };
+        var userService = new Mock<IUserService>();
+        var organisationService = new Mock<IOrganisationService>();
+        organisationService.Setup(r => r.GetOrganisation(organisation.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(organisation);
+        var service = new AnswerConversionService(userService.Object, organisationService.Object);
+        var property = new PropertyDefinition { Name = "Faculty", Type = "Organisation!" };
+        var value = JsonDocument.Parse($$"""
+                                         {
+                                           "id": "{{organisation.Id}}",
+                                           "name": "FNWI"
+                                         }
+                                         """).RootElement;
+
+        var result = await service.ConvertToValue(value, property, CancellationToken.None);
+        var bson = result.AsBsonDocument;
+
+        Assert.Equal(["_id", "Name"], bson.Names);
+        Assert.Equal(organisation.Id, bson["_id"].ToString());
+        Assert.Equal("FNWI", bson["Name"].AsString);
         Assert.False(bson.Contains("IsActive"));
     }
 
@@ -100,6 +152,51 @@ public class InstanceUserStorageTests
         Assert.Equal("jdoe", instanceUser.UserName);
         Assert.Single(instanceUsers);
         Assert.Equal(userId, instanceUsers[0].Id);
+    }
+
+    [Fact]
+    public void ObjectContext_GetValue_ForOrganisationAndArray_ReturnsInstanceOrganisationTypes()
+    {
+        var organisationId = ObjectId.GenerateNewId().ToString();
+        var organisationDoc = new BsonDocument
+        {
+            { "_id", ObjectId.Parse(organisationId) },
+            { "Name", "FNWI" }
+        };
+        var singleProperty = new PropertyDefinition { Name = "Faculty", Type = "Organisation!" };
+        var arrayProperty = new PropertyDefinition { Name = "Faculties", Type = "[Organisation]!" };
+
+        var single = ObjectContext.GetValue(organisationDoc, singleProperty);
+        var array = ObjectContext.GetValue(new BsonArray { organisationDoc }, arrayProperty);
+
+        var instanceOrganisation = Assert.IsType<InstanceOrganisation>(single);
+        var instanceOrganisations = Assert.IsType<InstanceOrganisation[]>(array);
+
+        Assert.Equal("FNWI", instanceOrganisation.Name);
+        Assert.Single(instanceOrganisations);
+        Assert.Equal(organisationId, instanceOrganisations[0].Id);
+    }
+
+    [Fact]
+    public async Task ConvertToValue_ForUnknownOrganisation_ReturnsBsonNull()
+    {
+        var organisationId = ObjectId.GenerateNewId().ToString();
+        var userService = new Mock<IUserService>();
+        var organisationService = new Mock<IOrganisationService>();
+        organisationService.Setup(r => r.GetOrganisation(organisationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Organisation?)null);
+        var service = new AnswerConversionService(userService.Object, organisationService.Object);
+        var property = new PropertyDefinition { Name = "Faculty", Type = "Organisation!" };
+        var value = JsonDocument.Parse($$"""
+                                         {
+                                           "id": "{{organisationId}}",
+                                           "name": "Unknown"
+                                         }
+                                         """).RootElement;
+
+        var result = await service.ConvertToValue(value, property, CancellationToken.None);
+
+        Assert.Equal(BsonNull.Value, result);
     }
 
     [Fact]

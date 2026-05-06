@@ -63,6 +63,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WorkflowInstanceService>();
 
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IOrganisationService, OrganisationService>();
 
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 

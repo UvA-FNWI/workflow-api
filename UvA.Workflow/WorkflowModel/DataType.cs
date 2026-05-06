@@ -13,5 +13,7 @@ public enum DataType
     Object = 8,
     Reference = 9,
     Int = 10,
-    LocalString = 11
+    LocalString = 11,
+    Boolean = 12,
+    Organisation = 13
 }
