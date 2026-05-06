@@ -1,8 +1,8 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace UvA.Workflow.Organisations;
+namespace UvA.Workflow.Organizations;
 
-public class InstanceOrganisation
+public class InstanceOrganization
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -10,9 +10,9 @@ public class InstanceOrganisation
 
     [BsonElement("Name")] public string Name { get; set; } = null!;
 
-    public static InstanceOrganisation FromOrganisation(Organisation organisation) => new()
+    public static InstanceOrganization FromOrganization(Organization organization) => new()
     {
-        Id = organisation.Id,
-        Name = organisation.Name
+        Id = organization.Id,
+        Name = organization.Name
     };
 }

@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using UvA.Workflow.DataNose;
-using UvA.Workflow.Organisations;
+using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Services;
 
@@ -14,7 +14,7 @@ public record AnswerInput(
 /// Service responsible for converting answer input data to BsonValue based on propertyDefinition data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
-public class AnswerConversionService(IUserService userService, IOrganisationService organisationService)
+public class AnswerConversionService(IUserService userService, IOrganizationService organizationService)
 {
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -65,7 +65,7 @@ public class AnswerConversionService(IUserService userService, IOrganisationServ
 
             DataType.User => await ConvertUser(value, ct),
 
-            DataType.Organisation => await ConvertOrganisation(value, ct),
+            DataType.Organization => await ConvertOrganization(value, ct),
 
             DataType.Object => await ConvertObject(value, propertyDefinition, ct),
 
@@ -138,19 +138,19 @@ public class AnswerConversionService(IUserService userService, IOrganisationServ
         }
     }
 
-    private async Task<BsonValue> ConvertOrganisation(JsonElement value, CancellationToken ct)
+    private async Task<BsonValue> ConvertOrganization(JsonElement value, CancellationToken ct)
     {
         try
         {
-            var instanceOrganisation = value.Deserialize<InstanceOrganisation>(Options);
-            if (instanceOrganisation == null || string.IsNullOrWhiteSpace(instanceOrganisation.Id))
+            var instanceOrganization = value.Deserialize<InstanceOrganization>(Options);
+            if (instanceOrganization == null || string.IsNullOrWhiteSpace(instanceOrganization.Id))
                 return BsonNull.Value;
 
-            var organisation = await organisationService.GetOrganisation(instanceOrganisation.Id, ct);
-            if (organisation == null)
+            var organization = await organizationService.GetOrganization(instanceOrganization.Id, ct);
+            if (organization == null)
                 return BsonNull.Value;
 
-            return BsonTypeMapper.MapToBsonValue(InstanceOrganisation.FromOrganisation(organisation).ToBsonDocument());
+            return BsonTypeMapper.MapToBsonValue(InstanceOrganization.FromOrganization(organization).ToBsonDocument());
         }
         catch
         {

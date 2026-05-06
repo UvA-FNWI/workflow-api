@@ -22,8 +22,8 @@ public class RightsService(
         impersonationContextService ?? new NoImpersonationContextService();
 
     public async Task<IEnumerable<string>> GetGlobalRoles() =>
-        (await userService.GetRolesOfCurrentUser()).ToList()
-        .Append("Registered");
+        //(await userService.GetRolesOfCurrentUser()).ToList()
+        Array.Empty<string>().Append("Registered");
 
     public WorkflowImpersonationRole[] GetWorkflowRelevantRoles(string workflowDefinition)
     {

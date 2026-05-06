@@ -8,6 +8,7 @@ pages:
       nl: Inhoud
     fields:
       - Title
+      - TestOrganization
       - Subject
       - Description
       - TestDocument

@@ -1,11 +1,11 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace UvA.Workflow.Organisations;
+namespace UvA.Workflow.Organizations;
 
 /// <summary>
-/// Represents an organisation in the workflow system.
+/// Represents an organization in the workflow system.
 /// </summary>
-public class Organisation
+public class Organization
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]

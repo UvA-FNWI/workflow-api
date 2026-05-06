@@ -94,7 +94,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         => type switch
         {
             DataType.User => array.Select(r => GetValue(r, type) as InstanceUser).ToArray(),
-            DataType.Organisation => array.Select(r => GetValue(r, type) as InstanceOrganisation).ToArray(),
+            DataType.Organization => array.Select(r => GetValue(r, type) as InstanceOrganization).ToArray(),
             DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
             DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
             DataType.String or DataType.Choice or DataType.Reference => array.Select(r => GetValue(r, type) as string)
@@ -113,7 +113,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
                 ? GetTypedArray(answer.AsBsonArray, type)
                 : GetTypedArray(new BsonArray { answer }, type),
             DataType.User => BsonSerializer.Deserialize<InstanceUser>(answer.AsBsonDocument),
-            DataType.Organisation => BsonSerializer.Deserialize<InstanceOrganisation>(answer.AsBsonDocument),
+            DataType.Organization => BsonSerializer.Deserialize<InstanceOrganization>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
             DataType.Object => answer.AsBsonDocument.ToDictionary(),

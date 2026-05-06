@@ -1,4 +1,4 @@
-using UvA.Workflow.Organisations;
+using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Persistence;
 
@@ -6,18 +6,18 @@ public class MongoDbIndexInitializer(IMongoDatabase database)
 {
     public async Task EnsureIndexes(CancellationToken ct = default)
     {
-        await OrganisationsIndexes(ct);
+        await OrganizationsIndexes(ct);
     }
 
-    private async Task OrganisationsIndexes(CancellationToken ct = default)
+    private async Task OrganizationsIndexes(CancellationToken ct = default)
     {
-        var collection = database.GetCollection<Organisation>("organisations");
+        var collection = database.GetCollection<Organization>("organisations");
 
-        var keys = Builders<Organisation>.IndexKeys.Ascending(o => o.Name);
+        var keys = Builders<Organization>.IndexKeys.Ascending(o => o.Name);
 
         var options = new CreateIndexOptions { Name = "organisations_name" };
 
-        await collection.Indexes.CreateOneAsync(new CreateIndexModel<Organisation>(keys, options),
+        await collection.Indexes.CreateOneAsync(new CreateIndexModel<Organization>(keys, options),
             cancellationToken: ct);
     }
 }

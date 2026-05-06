@@ -44,7 +44,7 @@ public static class ServiceCollectionExtensions
         // Register repositories - organized by domain feature
         services.AddScoped<IWorkflowInstanceRepository, WorkflowInstanceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IOrganisationRepository, OrganisationRepository>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<MongoDbIndexInitializer>();
         services.AddScoped<IInstanceEventRepository, InstanceEventRepository>();
         services.AddScoped<IJobRepository, JobRepository>();
@@ -63,7 +63,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WorkflowInstanceService>();
 
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IOrganisationService, OrganisationService>();
+        services.AddScoped<IOrganizationService, OrganizationService>();
 
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 

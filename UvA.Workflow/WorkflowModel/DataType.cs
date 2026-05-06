@@ -15,5 +15,5 @@ public enum DataType
     Int = 10,
     LocalString = 11,
     Boolean = 12,
-    Organisation = 13
+    Organization = 13
 }

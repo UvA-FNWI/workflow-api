@@ -7,7 +7,7 @@ using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
-using UvA.Workflow.Organisations;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Services;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
@@ -18,7 +18,7 @@ namespace UvA.Workflow.Tests.Controllers;
 
 public class AnswersControllerTests : ControllerTestsBase
 {
-    private readonly Mock<IOrganisationService> _organisationServiceMock = new();
+    private readonly Mock<IOrganizationService> _organizationServiceMock = new();
     private readonly SubmissionService _submissionService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
     private readonly ArtifactTokenService _artifactTokenService;
@@ -47,7 +47,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
 
         _answerConversionService =
-            new AnswerConversionService(_userServiceMock.Object, _organisationServiceMock.Object);
+            new AnswerConversionService(_userServiceMock.Object, _organizationServiceMock.Object);
         _answerService = new AnswerService(
             _submissionService,
             _modelService,
