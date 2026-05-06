@@ -2,30 +2,6 @@ using System.Net;
 
 namespace UvA.Workflow.Users.EduId;
 
-public enum EduIdInviteFailureReason
-{
-    InternalEmail,
-    PendingInvitation,
-    UserAlreadyExists,
-    MissingInvitationUrl
-}
-
-public class EduIdInviteException(EduIdInviteFailureReason reason, string message) : InvalidOperationException(message)
-{
-    public EduIdInviteFailureReason Reason { get; } = reason;
-}
-
-public record EduIdUserInviteResult(User User, string InvitationUrl);
-
-public interface IEduIdUserService
-{
-    bool IsInternalEmailAddress(string email);
-
-    Task<EduIdUserInviteResult> InviteUser(string email, string displayName, CancellationToken ct = default);
-
-    Task<User?> ResolveAuthenticatedUser(string uid, string displayName, string? email, CancellationToken ct = default);
-}
-
 public class EduIdUserService(
     IUserRepository userRepository,
     IEduIdInvitationClient invitationClient,
@@ -50,65 +26,49 @@ public class EduIdUserService(
     public async Task<EduIdUserInviteResult> InviteUser(string email, string displayName,
         CancellationToken ct = default)
     {
+        var result = await EnsureExternalAccount(email, displayName, EduIdInviteDeliveryMode.ReturnInvitationUrl, ct);
+        return result.Status switch
+        {
+            EduIdExternalAccountStatus.InternalEmail => throw new EduIdInviteException(
+                EduIdInviteFailureReason.InternalEmail,
+                $"The email address '{email.Trim()}' belongs to an internal domain."),
+            EduIdExternalAccountStatus.AlreadyActive => throw new EduIdInviteException(
+                EduIdInviteFailureReason.UserAlreadyExists,
+                $"A user with email '{email.Trim()}' already exists."),
+            EduIdExternalAccountStatus.PendingInvitation => throw new EduIdInviteException(
+                EduIdInviteFailureReason.PendingInvitation,
+                $"A pending EduID invitation already exists for '{email.Trim()}'."),
+            EduIdExternalAccountStatus.Invited when result.User != null &&
+                                                    !string.IsNullOrWhiteSpace(result.InvitationUrl) =>
+                new EduIdUserInviteResult(result.User, result.InvitationUrl),
+            EduIdExternalAccountStatus.Invited => throw new EduIdInviteException(
+                EduIdInviteFailureReason.MissingInvitationUrl,
+                $"The EduID invitation response did not contain an invitation URL for '{email.Trim()}'."),
+            _ => throw new InvalidOperationException($"Unsupported EduID invite status: {result.Status}.")
+        };
+    }
+
+    public async Task<EduIdExternalAccountResult> EnsureExternalAccount(
+        string email,
+        string displayName,
+        EduIdInviteDeliveryMode deliveryMode,
+        CancellationToken ct = default)
+    {
         var trimmedEmail = email.Trim();
         var resolvedDisplayName = string.IsNullOrWhiteSpace(displayName) ? trimmedEmail : displayName.Trim();
 
         if (IsInternalEmailAddress(trimmedEmail))
-            throw new EduIdInviteException(EduIdInviteFailureReason.InternalEmail,
-                $"The email address '{trimmedEmail}' belongs to an internal domain.");
+            return new EduIdExternalAccountResult(EduIdExternalAccountStatus.InternalEmail);
 
         var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
         if (existingUser != null)
         {
-            throw existingUser.IsActive
-                ? new EduIdInviteException(EduIdInviteFailureReason.UserAlreadyExists,
-                    $"A user with email '{trimmedEmail}' already exists.")
-                : new EduIdInviteException(EduIdInviteFailureReason.PendingInvitation,
-                    $"A pending EduID invitation already exists for '{trimmedEmail}'.");
+            return existingUser.IsActive
+                ? new EduIdExternalAccountResult(EduIdExternalAccountStatus.AlreadyActive, existingUser)
+                : new EduIdExternalAccountResult(EduIdExternalAccountStatus.PendingInvitation, existingUser);
         }
 
-        var user = new User
-        {
-            UserName = trimmedEmail,
-            DisplayName = resolvedDisplayName,
-            Email = trimmedEmail,
-            ProviderKey = EduIdDirectoryKeys.ProviderKey,
-            IsActive = false
-        };
-
-        var request = new EduIdInvitationRequest
-        {
-            IntendedAuthority = "GUEST",
-            Message = string.Empty,
-            Language = "en",
-            EnforceEmailEquality = true,
-            EduIdOnly = true,
-            GuestRoleIncluded = true,
-            SuppressSendingEmails = true,
-            Invites = [trimmedEmail],
-            RoleIdentifiers = [_options.RoleIdentifier],
-            RoleExpiryDate = DateTime.Now.AddDays(_options.RoleExpiryDays),
-            ExpiryDate = DateTime.Now.AddDays(_options.InvitationExpiryDays)
-        };
-
-        var response = await invitationClient.CreateInvitationAsync(request, ct);
-        if (response.Status != (int)HttpStatusCode.OK && response.Status != (int)HttpStatusCode.Created)
-            throw new InvalidOperationException($"Unexpected EduID invitation response status: {response.Status}.");
-
-        var invitationUrl = response.RecipientInvitationUrls?
-                                .FirstOrDefault(r =>
-                                    string.Equals(r.Recipient, trimmedEmail, StringComparison.OrdinalIgnoreCase))
-                                ?.InvitationUrl
-                            ?? response.RecipientInvitationUrls?.FirstOrDefault()?.InvitationUrl;
-
-        if (string.IsNullOrWhiteSpace(invitationUrl))
-            throw new EduIdInviteException(EduIdInviteFailureReason.MissingInvitationUrl,
-                $"The EduID invitation response did not contain an invitation URL for '{trimmedEmail}'.");
-
-        await userRepository.Create(user, ct);
-        logger.LogInformation("Created pending EduID user for {Email}", trimmedEmail);
-
-        return new EduIdUserInviteResult(user, invitationUrl);
+        return await CreateExternalAccount(trimmedEmail, resolvedDisplayName, deliveryMode, ct);
     }
 
     public async Task<User?> ResolveAuthenticatedUser(string uid,
@@ -179,5 +139,57 @@ public class EduIdUserService(
         }
 
         return user;
+    }
+
+    private async Task<EduIdExternalAccountResult> CreateExternalAccount(
+        string email,
+        string displayName,
+        EduIdInviteDeliveryMode deliveryMode,
+        CancellationToken ct)
+    {
+        var user = new User
+        {
+            UserName = email,
+            DisplayName = displayName,
+            Email = email,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
+            IsActive = false
+        };
+
+        var request = new EduIdInvitationRequest
+        {
+            IntendedAuthority = "GUEST",
+            Message = string.Empty,
+            Language = "en",
+            EnforceEmailEquality = true,
+            EduIdOnly = true,
+            GuestRoleIncluded = true,
+            SuppressSendingEmails = deliveryMode != EduIdInviteDeliveryMode.SendEmail,
+            Invites = [email],
+            RoleIdentifiers = [_options.RoleIdentifier],
+            RoleExpiryDate = DateTime.Now.AddDays(_options.RoleExpiryDays),
+            ExpiryDate = DateTime.Now.AddDays(_options.InvitationExpiryDays)
+        };
+
+        var response = await invitationClient.CreateInvitationAsync(request, ct);
+        if (response.Status != (int)HttpStatusCode.OK && response.Status != (int)HttpStatusCode.Created)
+            throw new InvalidOperationException($"Unexpected EduID invitation response status: {response.Status}.");
+
+        var invitationUrl = response.RecipientInvitationUrls?
+                                .FirstOrDefault(r =>
+                                    string.Equals(r.Recipient, email, StringComparison.OrdinalIgnoreCase))
+                                ?.InvitationUrl
+                            ?? response.RecipientInvitationUrls?.FirstOrDefault()?.InvitationUrl;
+
+        if (deliveryMode == EduIdInviteDeliveryMode.ReturnInvitationUrl && string.IsNullOrWhiteSpace(invitationUrl))
+        {
+            throw new EduIdInviteException(EduIdInviteFailureReason.MissingInvitationUrl,
+                $"The EduID invitation response did not contain an invitation URL for '{email}'.");
+        }
+
+        await userRepository.Create(user, ct);
+        logger.LogInformation("Created pending EduID user for {Email}", email);
+
+        return new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited, user, invitationUrl);
     }
 }

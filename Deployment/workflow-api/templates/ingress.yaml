@@ -13,6 +13,9 @@ spec:
   tls:
     - hosts:
         - "{{ .Values.hostname }}"
+      {{- if .Values.azure }}
+      secretName: ingress-tls-csi-workflow-api
+      {{- end }}
   rules:
     - host: "{{ .Values.hostname }}"
       http:
