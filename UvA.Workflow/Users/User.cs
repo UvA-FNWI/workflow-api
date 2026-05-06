@@ -18,6 +18,10 @@ public class User
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
 
+    [BsonElement("PreferredLanguage")]
+    [BsonIgnoreIfNull]
+    public string? PreferredLanguage { get; set; }
+
     [BsonElement("AuthProvider")]
     [JsonIgnore]
     public UserAuthProvider AuthProvider { get; set; } = UserAuthProvider.Internal;

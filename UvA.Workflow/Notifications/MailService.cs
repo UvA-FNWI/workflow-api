@@ -27,15 +27,18 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
         if (mail == null || (mail.To == null && mail.ToAddressTemplate == null))
             return null;
         var context = modelService.CreateContext(inst);
+        var recipientUser = mail.To != null ? context.Get(mail.To) as InstanceUser : null;
         var recipient = mail.To != null
-            ? MailRecipient.FromUser(context.Get(mail.To) as InstanceUser)
+            ? MailRecipient.FromUser(recipientUser)
             : new MailRecipient(mail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
+        var language = recipientUser?.PreferredLanguage;
         var attachment = mail.Attachments.FirstOrDefault();
 
         var (subject, body) = mail.TemplateKey != null
             ? await GenerateTemplate(mail.TemplateKey, inst, modelService, context)
-            : (mail.SubjectTemplate?.Apply(context).En, mail.BodyTemplate!.Apply(context).En);
+            : (mail.SubjectTemplate?.Apply(context).ForLanguage(language),
+                mail.BodyTemplate!.Apply(context).ForLanguage(language));
         var (_, attachmentContent) = attachment != null
             ? await GenerateTemplate(attachment.Template, inst, modelService, context)
             : (null, null);
