@@ -32,6 +32,11 @@ public record Answer(
         BilingualString? validationError = null)
     {
         var workflowDefinition = form.ActualForm.WorkflowDefinition.Name;
+
+        if (!isVisible)
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition,
+                false);
+
         var question = form.ActualForm.WorkflowDefinition.Properties.Get(questionName);
 
         if (question.DataType == DataType.Currency)
@@ -47,7 +52,7 @@ public record Answer(
 
         if (question.DataType == DataType.User && question.IsArray)
         {
-            var users = ObjectContext.GetValue(answer, question) as User[];
+            var users = ObjectContext.GetValue(answer, question) as InstanceUser[];
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: users == null
@@ -57,7 +62,7 @@ public record Answer(
 
         if (question.DataType == DataType.User)
         {
-            var user = ObjectContext.GetValue(answer, question) as User;
+            var user = ObjectContext.GetValue(answer, question) as InstanceUser;
             return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
                 validationError,
                 Value: user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options));
@@ -73,6 +78,15 @@ public record Answer(
                     ? []
                     : [value]
             );
+        }
+
+        if (question.DataType == DataType.Boolean)
+        {
+            // Default to false, not to null
+            var value = ObjectContext.GetValue(answer, question) as bool?;
+            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
+                validationError,
+                Value: JsonSerializer.SerializeToElement(value ?? false));
         }
 
         // Handle remaining types: String, DateTime, Date, Int, Double, Choice, Reference

@@ -86,11 +86,13 @@ public class WorkflowDefinition : INamed
     public Dictionary<string, string>[]? SeedData { get; set; }
 
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
+    [YamlIgnore] public string SourceFolder { get; set; } = null!;
 
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
+    [YamlIgnore] public List<SendMessage> Emails { get; set; } = null!;
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
     private static IEnumerable<Step> GetSteps(Step s) =>

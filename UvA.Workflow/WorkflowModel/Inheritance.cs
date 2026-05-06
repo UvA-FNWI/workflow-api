@@ -10,10 +10,12 @@ public partial class ModelParser
 
         foreach (var sourceForm in source.Forms)
         {
-            if (target.Forms.TryGetValue(sourceForm.Name, out var targetForm))
+            // Target form matches on inheritsFrom property on form or on form name
+            var targetForm = target.Forms.FirstOrDefault(tf => (tf.InheritsFrom ?? tf.Name) == sourceForm.Name);
+            if (targetForm != null)
                 ApplyInheritance(targetForm, sourceForm);
             else
-                target.Forms.Add(sourceForm);
+                target.Forms.Add(sourceForm.Clone());
         }
 
         foreach (var property in source.Properties.Where(p => !target.Properties.Contains(p.Name)))
@@ -25,6 +27,13 @@ public partial class ModelParser
                 ApplyInheritance(targetStep, sourceStep);
             else
                 target.AllSteps.Add(sourceStep);
+        }
+
+        foreach (var sourceMessage in source.Emails)
+        {
+            if (target.Emails.TryGetValue(sourceMessage.Name, out var targetMessage))
+                ApplyInheritance(targetMessage, sourceMessage);
+            else target.Emails.Add(sourceMessage);
         }
 
         foreach (var ev in source.Events)
@@ -52,9 +61,15 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
+        foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
+            target.Pages.Insert(0, sourcePage.Clone()); // prepend parent pages before child-specific ones
     }
 
     private void ApplyInheritance(Step target, Step source)
+    {
+    }
+
+    private void ApplyInheritance(SendMessage target, SendMessage source)
     {
     }
 }

@@ -2,7 +2,7 @@ hostname: workflow-api.local
 ingressClass: nginx
 repo: datanosecr.azurecr.io
 tag: latest
-certificateName: datanose-nl
+certificateName: milestones-tst-fnwi-uva-nl
 environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
@@ -22,6 +22,17 @@ graph:
 surfConext:
   baseUrl: https://connect.test.surfconext.nl
   clientId: datanose-api.local
+
+eduId:
+  authority: https://login.test.eduid.nl
+  invitationApiUrl: https://eduid-invite-proxy-tst.datanose.nl
+  roleIdentifier: 7040
+  invitationExpiryDays: 30
+  roleExpiryDays: 365
+  internalEmailDomains:
+    - uva.nl
+    - auc.nl
+    - amsterdamumc.nl
 
 canvasLti:
   clientId: "104400000000000348"
@@ -49,8 +60,10 @@ azure:
       key: DataNoseApi__ApiKey
     - name: workflow-encryption-secret
       key: Encryption__Secret
-    - name: workflow-surfconext-client-secret
+    - name: workflow-surfconext-client-secret-v2
       key: SurfConext__ClientSecret
+    - name: eduid-invite-proxy-milestones-role-token
+      key: EduId__InvitationApiToken
     - name: workflow-canvas-lti-key
       key: CanvasLti__Key
     - name: workflow-impersonation-key
