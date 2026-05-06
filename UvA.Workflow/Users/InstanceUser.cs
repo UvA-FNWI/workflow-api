@@ -2,6 +2,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Users;
 
+[BsonIgnoreExtraElements]
 public class InstanceUser
 {
     [BsonId]
