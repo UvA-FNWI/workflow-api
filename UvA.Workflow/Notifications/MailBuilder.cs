@@ -26,8 +26,8 @@ public class MailBuilder(
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
         var language = recipientUser?.PreferredLanguage;
 
-        var subject = resolvedMail.BodyTemplate?.Apply(context).ForLanguage(language) ?? "";
-        var bodyMarkdown = resolvedMail.BodyTemplate?.Apply(context).En ?? "";
+        var subject = resolvedMail.SubjectTemplate?.Apply(context).ForLanguage(language) ?? "";
+        var bodyMarkdown = resolvedMail.BodyTemplate?.Apply(context).ForLanguage(language) ?? "";
 
         var htmlBody = MarkdownRenderer.ToHtml(bodyMarkdown);
 
@@ -38,7 +38,7 @@ public class MailBuilder(
                 b.Intent))
             .ToList();
 
-        var layout = layoutResolver.Resolve(sendMail.Layout);
+        var layout = layoutResolver.Resolve(resolvedMail.Layout);
         var fullHtml = layout.Render(htmlBody, buttons);
 
         return new MailMessage(subject, fullHtml) { To = [recipient] };
