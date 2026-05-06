@@ -26,8 +26,8 @@ pages:
       - PartAbroad
       - City
       - Country
-      - ContactPersonDescription
       - ContactPersonEmail
+      - ContactPersonDescription
   - name: Planning
     title:
       en: Planning

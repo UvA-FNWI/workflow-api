@@ -46,8 +46,8 @@ properties:
   - name: ContactPersonDescription
     type: String
     text:
-      en: Description of optional contact person
-      nl: Omschrijving van eventuele contactpersoon
+      en: Description of contact person
+      nl: Omschrijving van contactpersoon
     layout:
       multiline: true
 
