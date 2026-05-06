@@ -31,6 +31,7 @@ public class EffectService(
     IInstanceEventService eventService,
     ModelService modelService,
     IMailService mailService,
+    IEduIdUserService eduIdUserService,
     MailBuilder mailBuilder,
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
@@ -50,6 +51,8 @@ public class EffectService(
         if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(instance, context, effect, ct);
+        if (effect.CreateExternalUserAccount != null)
+            await EnsureExternalAccounts(instance, effect.CreateExternalUserAccount, ct);
         var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
         var toast = effect.Toast == null
             ? null
@@ -121,6 +124,59 @@ public class EffectService(
     {
         instance.Properties[setProperty.Property] = BsonValue.Create(setProperty.ValueExpression.Execute(context));
         await instanceService.SaveValue(instance, null, setProperty.Property, ct);
+    }
+
+    private async Task EnsureExternalAccounts(
+        WorkflowInstance instance,
+        CreateExternalUserAccount effect,
+        CancellationToken ct)
+    {
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var property = workflowDefinition.Properties.GetOrDefault(effect.Role);
+        if (property == null)
+            throw new InvalidOperationException(
+                $"External account effect role '{effect.Role}' does not match a property on workflow '{workflowDefinition.Name}'.");
+
+        if (property.DataType != DataType.User)
+        {
+            throw new InvalidOperationException(
+                $"External account effect role '{effect.Role}' must target a property of type User or [User].");
+        }
+
+        if (!instance.Properties.TryGetValue(property.Name, out var rawValue) || rawValue is BsonNull)
+            return;
+
+        var recipients = ObjectContext.GetValue(rawValue, property) switch
+        {
+            InstanceUser single => [single],
+            InstanceUser[] multiple => multiple,
+            _ => throw new InvalidOperationException(
+                $"External account effect role '{effect.Role}' could not be resolved to workflow users.")
+        };
+
+        var normalizedRecipients = recipients
+            .Select(r => (Recipient: r, Email: r.Email?.Trim() ?? string.Empty))
+            .DistinctBy(r => r.Email, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (recipient, email) in normalizedRecipients)
+        {
+            try
+            {
+                _ = new System.Net.Mail.MailAddress(email);
+            }
+            catch (FormatException ex)
+            {
+                throw new InvalidOperationException(
+                    $"External account effect role '{effect.Role}' contains an invalid email address '{email}'.",
+                    ex);
+            }
+
+            _ = await eduIdUserService.EnsureExternalAccount(
+                email,
+                recipient.DisplayName,
+                EduIdInviteDeliveryMode.SendEmail,
+                ct);
+        }
     }
 
     private async Task ServiceCall(WorkflowInstance instance, ObjectContext context, Effect effect,
