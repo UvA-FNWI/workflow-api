@@ -47,6 +47,7 @@ public class SurfConextAuthenticationHandlerTests
         Assert.Equal("eduid-123", result.Principal?.Identity?.Name);
         Assert.Equal("eduid-123", result.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value);
         userServiceMock.Verify(s => s.AddOrUpdateUser(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<bool>(),
             It.IsAny<Organization?>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -96,6 +97,7 @@ public class SurfConextAuthenticationHandlerTests
         userServiceMock.Setup(s => s.AddOrUpdateUser("jdoe",
                 "Jane Doe",
                 "jane.doe@uva.nl",
+                false,
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User
