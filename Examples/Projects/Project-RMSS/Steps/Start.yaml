@@ -7,34 +7,16 @@ title:
   en: Submit proposal
 
 properties:
-  - name: ProjectLocation
-    type: ProjectLocationType!
-    text:
-      en: Is this an internal (UvA or VU) or external project?
-      nl: Is dit een intern (UvA of VU) of extern project?
-    layout:
-      type: RadioList
-    values:
-      - name: Internal
-        text:
-          en: Internal
-          nl: Intern
-      - name: External
-        text:
-          en: External
-          nl: Extern
-
-  - name: InstituteDepartment
+  - name: Topic
     type: String!
     text:
-      en: Institute and department/research group
-      nl: Instituut en afdeling/onderzoeksgroep
-
+      en: Topic
+      nl: Onderwerp
   - name: City
     type: String!
     text:
       en: City
-      nl: Stad
+      nl: Plaats
 
   - name: Country
     type: Country!
@@ -60,6 +42,20 @@ properties:
         text:
           en: No
           nl: Nee
+
+  - name: ContactPersonDescription
+    type: String
+    text:
+      en: Description of optional contact person
+      nl: Omschrijving van eventuele contactpersoon
+    layout:
+      multiline: true
+
+  - name: ContactPersonEmail
+    type: String
+    text:
+      en: Contact person email
+      nl: E-mailadres contactpersoon
 
   - name: Description
     type: File!
