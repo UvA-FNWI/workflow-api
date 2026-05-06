@@ -15,7 +15,8 @@ public record AssessmentDto(
 
 public record AssessmentGroupDto(
     string Id,
-    AssessmentDto[] Forms
+    AssessmentDto[] Forms,
+    decimal? TotalWeightedAverage
 );
 
 public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
@@ -51,8 +52,13 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
     public AssessmentGroupDto CreateGroup(string id, IEnumerable<SubmissionContext> contexts,
         string? pageName = null)
-        => new(
+    {
+        var forms = contexts.Select(c => Create(c, pageName)).ToArray();
+
+        return new(
             id,
-            contexts.Select(c => Create(c, pageName)).ToArray()
+            forms,
+            pageName == null ? AssessmentService.CalculateTotalWeightedAverage(forms.Select(f => f.Results)) : null
         );
+    }
 }

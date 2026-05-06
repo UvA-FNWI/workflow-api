@@ -31,7 +31,7 @@ properties:
       nl: Methods
     layout:
       type: Dropdown
-    weight: 1
+    weight: 2
     
   - name: ProductResults
     type: TenPoint!
@@ -49,7 +49,7 @@ properties:
       nl: Discussie en conclusie
     layout:
       type: Dropdown
-    weight: 1
+    weight: 2
     
   - name: ProductReadability
     type: TenPoint!
@@ -103,7 +103,7 @@ properties:
       nl: Interpreteren van resultaten
     layout:
       type: Dropdown
-    weight: 1
+    weight: 2
     
   - name: ProcessIndependenceInitiative
     type: TenPoint!
@@ -158,7 +158,7 @@ properties:
       nl: Omgaan met vragen
     layout:
       type: Dropdown
-    weight: 1
+    weight: 2
         
     # Summary
   - name: SummaryComments
