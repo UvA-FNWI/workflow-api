@@ -1,3 +1,4 @@
+using UvA.Workflow.Annotations;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
@@ -65,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
 
         services.AddScoped<IArtifactService, ArtifactService>();
+        services.AddScoped<IAnnotationRepository, AnnotationRepository>();
         services.AddScoped<AnswerService>();
         services.AddScoped<SubmissionService>();
         services.AddScoped<ArtifactTokenService>();
