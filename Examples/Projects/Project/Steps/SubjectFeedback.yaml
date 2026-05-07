@@ -2,6 +2,9 @@ name: SubjectFeedback
 title:
   nl: Beoordelen voorstel
   en: Assessment of proposal
+icon:
+  type: link-line
+  color: green
 
 actions:
 - name: ApproveSubject

@@ -18,6 +18,18 @@ public enum StepHeaderPillType
     Success
 }
 
+public enum IconColor
+{
+    Red,
+    Green
+}
+
+public record Icon
+{
+    public string Type { get; init; } = null!;
+    public IconColor Color { get; init; } = IconColor.Red;
+}
+
 public class Step : INamed
 {
     /// <summary>
@@ -30,7 +42,7 @@ public class Step : INamed
     /// </summary>
     public BilingualString? Title { get; set; }
 
-    public string? Icon { get; set; }
+    public Icon? Icon { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;
 

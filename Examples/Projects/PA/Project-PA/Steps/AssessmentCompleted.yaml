@@ -1,5 +1,6 @@
 name: AssessmentCompleted
-icon: sparkles-line
+icon: 
+  type: sparkles-line
 title:
   en: Grade registration (SIS)
   nl: Cijferregistratie (SIS)

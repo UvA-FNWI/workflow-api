@@ -1,5 +1,6 @@
 name: Start
-icon: article-line
+icon: 
+  type: square-grid-search-line
 title:
   nl: Indienen voorstel
   en: Subject proposal
