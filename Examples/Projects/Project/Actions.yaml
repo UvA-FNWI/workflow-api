@@ -29,3 +29,16 @@ globalActions:
             SubmissionId: TurnitinId
       - redirect:
           url: "{{ GetReportUrl.ReportUrl }}"
+  - name: TestDelayedJob
+    roles: [Coordinator]
+    type: Execute
+    label:
+      en: Test delayed job
+      nl: Test vertraagde taak
+    steps: [Start]
+    onAction:
+      - delay: 10s
+        sendMail:
+          to: Student
+          subject: "Test delayed job"
+          body: "This is a test delayed job"

@@ -11,6 +11,8 @@ public class JobWorker(
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
+        logger.LogInformation("JobWorker started for worker group '{WorkerGroup}'", workerOptions.Value.WorkerGroup);
+
         // TODO: is this safe or should it not be long-lived?
         var jobRepository = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IJobRepository>();
 
@@ -24,15 +26,22 @@ public class JobWorker(
                 continue;
             }
 
+            logger.LogInformation(
+                "[{WorkerGroup}] Claimed job {JobId} (source: {SourceType}/{SourceName}, instance: {InstanceId})",
+                workerOptions.Value.WorkerGroup, job.Id, job.SourceType, job.SourceName, job.InstanceId);
+
             var jobService = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<JobService>();
 
             try
             {
                 await jobService.RunJob(job, ct);
+                logger.LogInformation("[{WorkerGroup}], Completed job {JobId}", workerOptions.Value.WorkerGroup,
+                    job.Id);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error running job {JobId}", job.Id);
+                logger.LogError(ex, "[{WorkerGroup}] Error running job {JobId}", workerOptions.Value.WorkerGroup,
+                    job.Id);
                 job.Message = ex.ToString();
                 job.Status = JobStatus.Failed;
                 await jobRepository.Update(job, ct);
