@@ -47,7 +47,7 @@ public class Job
 
     public string? Message { get; set; }
 
-    public string WorkerGroup { get; set; }
+    public string WorkerGroup { get; set; } = null!;
 
     public DateTime? ClaimedUntil { get; set; }
 }
