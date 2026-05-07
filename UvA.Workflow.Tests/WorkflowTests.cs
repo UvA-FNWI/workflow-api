@@ -28,6 +28,7 @@ public class WorkflowTests
     readonly Mock<IInstanceEventRepository> _eventRepoMock;
     readonly Mock<IUserService> _userServiceMock;
     readonly Mock<IMailService> _mailServiceMock;
+    readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
     readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     readonly Mock<IArtifactService> _artifactServiceMock;
     readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
@@ -66,6 +67,7 @@ public class WorkflowTests
         _eventRepoMock = new Mock<IInstanceEventRepository>();
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
+        _eduIdUserServiceMock = new Mock<IEduIdUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
@@ -91,7 +93,7 @@ public class WorkflowTests
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            mailBuilder, _artifactServiceMock.Object,
+            _eduIdUserServiceMock.Object, mailBuilder, _artifactServiceMock.Object,
             _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
             {
                 TenantId = "tenant",
@@ -204,7 +206,7 @@ public class WorkflowTests
         var assessmentForm = assessmentPb.Forms.Single(f => f.Name == "Assessment");
 
         Assert.Equal("PB/Assessment-PB", assessmentPb.SourceFolder);
-        Assert.Equal(3, assessmentForm.Pages.Count);
+        Assert.Equal(4, assessmentForm.Pages.Count);
         Assert.Equal("Practical", assessmentForm.Pages[^1].Name);
 
         var projectAi = _modelService.WorkflowDefinitions["Project-AI"];

@@ -61,6 +61,11 @@ public class AnswerConversionService(IUserService userService, IOrganizationServ
                     ? dt
                     : BsonNull.Value,
 
+            DataType.Boolean =>
+                value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                    ? value.GetBoolean()
+                    : BsonNull.Value,
+
             DataType.Currency => ConvertCurrency(value),
 
             DataType.User => await ConvertUser(value, ct),
@@ -128,7 +133,7 @@ public class AnswerConversionService(IUserService userService, IOrganizationServ
             // Try to get user or create a new one if it doesn't exist'
             var user = await userService.GetUser(userSearchResult.UserName, ct);
             user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
-                userSearchResult.Email, ct);
+                userSearchResult.Email, userSearchResult.IsExternal, userSearchResult.Organization, ct);
 
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }

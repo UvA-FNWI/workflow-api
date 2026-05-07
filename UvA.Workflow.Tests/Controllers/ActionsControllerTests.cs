@@ -38,7 +38,7 @@ public class ActionsControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData("Coordinator", "ApproveCoordinator", "ApprovalCoordinator")]
+    [InlineData("Coordinator", "CoordinatorApproved", "ApprovalCoordinator")]
     public async Task Actions_ExecuteAction_AllowedForUser(string role, string actionName, string stepName)
     {
         // Arrange
@@ -126,6 +126,32 @@ public class ActionsControllerTests : ControllerTestsBase
 
         var badRequest = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status400BadRequest, badRequest.StatusCode);
+    }
+
+    [Fact]
+    public async Task Actions_ExecuteAction_CreateExternalSupervisorAccount_RunsEffectAndLogsEvent()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "SubjectFeedback");
+        instance.Properties["Supervisor"] =
+            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org");
+        _eduIdUserServiceMock.Setup(s => s.EnsureExternalAccount(
+                "supervisor@external.org",
+                "External Supervisor",
+                EduIdInviteDeliveryMode.SendEmail,
+                _ct))
+            .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited));
+
+        var result = await controller.ExecuteAction(
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "ApproveSubject"),
+            _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
+        _eduIdUserServiceMock.VerifyAll();
+        _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
+            It.Is<InstanceEvent>(e => e.Id == "ApproveSubject"),
+            ControllerTestsHelpers.AdminUser,
+            _ct), Times.Once);
     }
 
     private (ActionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(

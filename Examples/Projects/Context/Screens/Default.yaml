@@ -1,4 +1,3 @@
-name: Contexts
 workflowDefinition: Context
 columns:
   - property: Name
