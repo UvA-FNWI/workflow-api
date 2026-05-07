@@ -23,6 +23,7 @@ public class InstanceUserStorageTests
             UserName = "jdoe",
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
+            PreferredLanguage = "nl-NL",
             AuthProvider = UserAuthProvider.EduId,
             IsActive = false
         };
@@ -34,9 +35,11 @@ public class InstanceUserStorageTests
         Assert.Equal("jdoe", instanceUser.UserName);
         Assert.Equal("Jane Doe", instanceUser.DisplayName);
         Assert.Equal("j.doe@uva.nl", instanceUser.Email);
+        Assert.Equal("nl-NL", instanceUser.PreferredLanguage);
         Assert.True(bson["IsExternal"].AsBoolean);
         Assert.Equal(BsonNull.Value, bson["Organization"]);
-        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "Organization", "IsExternal"], bson.Names);
+        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "PreferredLanguage", "Organization", "IsExternal"],
+            bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
     }
@@ -50,6 +53,7 @@ public class InstanceUserStorageTests
             UserName = "jdoe",
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
+            PreferredLanguage = "nl",
             Organization = new Organization("Org-1", "Test University"),
             AuthProvider = UserAuthProvider.EduId,
             IsActive = false
@@ -72,11 +76,13 @@ public class InstanceUserStorageTests
         var bson = result.AsBsonDocument;
         var org = bson["Organization"].AsBsonDocument;
 
-        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "Organization", "IsExternal"], bson.Names);
+        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "PreferredLanguage", "Organization", "IsExternal"],
+            bson.Names);
         Assert.Equal(user.Id, bson["_id"].ToString());
         Assert.Equal("jdoe", bson["UserName"].AsString);
         Assert.Equal("Jane Doe", bson["DisplayName"].AsString);
         Assert.Equal("j.doe@uva.nl", bson["Email"].AsString);
+        Assert.Equal("nl", bson["PreferredLanguage"].AsString);
         Assert.Equal("Org-1", org["_id"].AsString);
         Assert.Equal("Test University", org["Name"].AsString);
         Assert.True(bson["IsExternal"].AsBoolean);

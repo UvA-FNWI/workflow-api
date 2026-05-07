@@ -17,6 +17,10 @@ public class User
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
 
+    [BsonElement("PreferredLanguage")]
+    [BsonIgnoreIfNull]
+    public string? PreferredLanguage { get; set; }
+
     [BsonElement("Organization")] public Organization? Organization { get; set; }
 
     [BsonElement("AuthProvider")]

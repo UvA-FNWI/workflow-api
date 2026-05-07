@@ -8,6 +8,7 @@ public record UserDto(
     string UserName,
     string DisplayName,
     string Email,
+    string? PreferredLanguage,
     Organization? Organization,
     bool IsExternal
 )
@@ -22,6 +23,7 @@ public record UserDto(
             user.UserName,
             user.DisplayName,
             user.Email,
+            user.PreferredLanguage,
             user.Organization,
             user.AuthProvider == UserAuthProvider.EduId
         );
