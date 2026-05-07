@@ -8,7 +8,9 @@ public record UserDto(
     string UserName,
     string DisplayName,
     string Email,
-    string? PreferredLanguage
+    string? PreferredLanguage,
+    Organization? Organization,
+    bool IsExternal
 )
 {
     /// <summary>
@@ -21,7 +23,9 @@ public record UserDto(
             user.UserName,
             user.DisplayName,
             user.Email,
-            user.PreferredLanguage
+            user.PreferredLanguage,
+            user.Organization,
+            user.AuthProvider == UserAuthProvider.EduId
         );
     }
 }
