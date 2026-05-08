@@ -1,5 +1,3 @@
-using UvA.Workflow.Organizations;
-
 namespace UvA.Workflow.Persistence;
 
 public class MongoDbIndexInitializer(IMongoDatabase database)

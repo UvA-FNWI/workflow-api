@@ -55,7 +55,7 @@ public class InstanceUserStorageTests
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
             PreferredLanguage = "nl",
-            Organization = new Organization("Org-1", "Test University"),
+            Organization = new Organization { Id = "Org-1", Name = "Test University" },
             AuthProvider = UserAuthProvider.EduId,
             IsActive = false
         };
@@ -98,8 +98,7 @@ public class InstanceUserStorageTests
         var organization = new Organization
         {
             Id = ObjectId.GenerateNewId().ToString(),
-            Name = "FNWI",
-            IsActive = false
+            Name = "FNWI"
         };
 
         var instanceOrganization = InstanceOrganization.FromOrganization(organization);
@@ -117,8 +116,7 @@ public class InstanceUserStorageTests
         var organization = new Organization
         {
             Id = ObjectId.GenerateNewId().ToString(),
-            Name = "FNWI",
-            IsActive = false
+            Name = "FNWI"
         };
         var userService = new Mock<IUserService>();
         var organizationService = new Mock<IOrganizationService>();

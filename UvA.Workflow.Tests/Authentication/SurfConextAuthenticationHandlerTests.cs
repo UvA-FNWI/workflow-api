@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Authentication;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Authentication;
