@@ -288,6 +288,10 @@
             "null"
           ],
           "description": "The weight of a field for result calculation"
+        },
+        "allowsExternalUsers": {
+          "type": "boolean",
+          "description": "Determines if a user-valued property may reference a user outside the university"
         }
       }
     },
@@ -1242,6 +1246,39 @@
         "currentStep": {
           "type": "boolean",
           "description": "If true, display the current step in this field"
+        }
+      }
+    },
+    "Result": {
+      "title": "Result",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "weight"
+      ],
+      "properties": {
+        "title": {
+          "description": "Localized title of this result shown to the user",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "description": "List of questions that are included in this result entry",
+          "items": {
+            "type": "string"
+          }
+        },
+        "weight": {
+          "type": "number",
+          "description": "Weight of this result entry"
         }
       }
     },

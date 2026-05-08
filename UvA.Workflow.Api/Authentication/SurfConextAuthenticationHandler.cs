@@ -93,7 +93,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         }
         else
         {
-            await userService.AddOrUpdateUser(uid, resp.FullName, resp.Email);
+            await userService.AddOrUpdateUser(uid, resp.FullName, resp.Email, false);
         }
 
         var principal = CreateClaimsPrincipal(resp);

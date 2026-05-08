@@ -19,12 +19,18 @@ public class InstanceUser
     [BsonIgnoreIfNull]
     public string? PreferredLanguage { get; set; }
 
+    [BsonElement("Organization")] public Organization? Organization { get; set; }
+
+    [BsonElement("IsExternal")] public bool IsExternal { get; set; }
+
     public static InstanceUser FromUser(User user) => new()
     {
         Id = user.Id,
         UserName = user.UserName,
         DisplayName = user.DisplayName,
         Email = user.Email,
-        PreferredLanguage = user.PreferredLanguage
+        PreferredLanguage = user.PreferredLanguage,
+        Organization = user.Organization,
+        IsExternal = user.AuthProvider == UserAuthProvider.EduId
     };
 }

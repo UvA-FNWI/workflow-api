@@ -22,6 +22,8 @@ public class User
     [BsonIgnoreIfNull]
     public string? PreferredLanguage { get; set; }
 
+    [BsonElement("Organization")] public Organization? Organization { get; set; }
+
     [BsonElement("AuthProvider")]
     [JsonIgnore]
     public UserAuthProvider AuthProvider { get; set; } = UserAuthProvider.Internal;
