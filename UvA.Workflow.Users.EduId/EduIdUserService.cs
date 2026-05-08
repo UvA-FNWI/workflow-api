@@ -81,7 +81,7 @@ public class EduIdUserService(
         var resolvedDisplayName = string.IsNullOrWhiteSpace(displayName) ? trimmedUid : displayName.Trim();
 
         var existingByUid = await userRepository.GetByExternalId(trimmedUid, ct);
-        if (string.Equals(existingByUid?.ProviderKey, EduIdDirectoryKeys.ProviderKey, StringComparison.Ordinal))
+        if (existingByUid != null && EduIdDirectoryKeys.IsEduId(existingByUid.ProviderKey))
             return await ActivateUser(existingByUid, trimmedUid, resolvedDisplayName, trimmedEmail, ct);
 
         if (string.IsNullOrWhiteSpace(trimmedEmail))
@@ -120,7 +120,7 @@ public class EduIdUserService(
             changed = true;
         }
 
-        if (!string.Equals(user.ProviderKey, EduIdDirectoryKeys.ProviderKey, StringComparison.Ordinal))
+        if (!EduIdDirectoryKeys.IsEduId(user.ProviderKey))
         {
             user.ProviderKey = EduIdDirectoryKeys.ProviderKey;
             changed = true;

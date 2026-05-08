@@ -24,7 +24,7 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
     public async Task<User?> GetCurrentUser(CancellationToken ct = default)
     {
         var user = DummyUsers.First();
-        return await AddOrUpdateUser(user.UserName, user.DisplayName, user.Email, false, null, ct);
+        return await AddOrUpdateUser(user.UserName, user.DisplayName, user.Email, UserProviderKeys.Internal, null, ct);
     }
 
     public Task<IEnumerable<string>> GetRolesOfCurrentUser(CancellationToken ct = default) => Task.FromResult(Roles);

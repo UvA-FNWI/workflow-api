@@ -13,6 +13,7 @@ public class EduIdUserDirectory(IUserRepository userRepository) : IUserRoleSourc
             .Select(user => new UserSearchResult(user.UserName,
                 user.DisplayName,
                 user.Email,
-                EduIdDirectoryKeys.SourceKey))
+                EduIdDirectoryKeys.SourceKey,
+                EduIdDirectoryKeys.ProviderKey))
             .ToArray();
 }

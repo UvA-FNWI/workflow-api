@@ -14,7 +14,7 @@ public class CanvasClaimsResolver(
             launchInfo.UvanetId,
             launchInfo.DisplayName,
             launchInfo.Email,
-            false);
+            UserProviderKeys.Internal);
         var target = await targetResolver.ResolveTarget(user, launchInfo, CancellationToken.None);
 
         return new Dictionary<string, object>

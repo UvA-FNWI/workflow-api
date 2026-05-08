@@ -94,19 +94,79 @@ public class UserServiceEduIdTests
                 Assert.Equal("internal-1", result.UserName);
                 Assert.Equal("duplicate@example.org", result.Email);
                 Assert.Equal(DataNoseDirectoryKeys.SourceKey, result.SourceKey);
+                Assert.False(result.IsExternal);
             },
             result =>
             {
                 Assert.Equal("internal-2", result.UserName);
                 Assert.Equal("internal2@example.org", result.Email);
                 Assert.Equal(DataNoseDirectoryKeys.SourceKey, result.SourceKey);
+                Assert.False(result.IsExternal);
             },
             result =>
             {
                 Assert.Equal("external-unique", result.UserName);
                 Assert.Equal("unique@example.org", result.Email);
                 Assert.Equal(EduIdDirectoryKeys.SourceKey, result.SourceKey);
+                Assert.True(result.IsExternal);
             });
+    }
+
+    [Fact]
+    public async Task AddOrUpdateUser_ExternalUser_CreatesWithEduIdProviderKey()
+    {
+        var userRepositoryMock = new Mock<IUserRepository>();
+        User? createdUser = null;
+        userRepositoryMock.Setup(r => r.GetByExternalId("external-123", CancellationToken.None))
+            .ReturnsAsync((User?)null);
+        userRepositoryMock.Setup(r => r.Create(It.IsAny<User>(), CancellationToken.None))
+            .Callback<User, CancellationToken>((user, _) => createdUser = user)
+            .Returns(Task.CompletedTask);
+        var service = new UserService(Mock.Of<ICurrentUserAccessor>(),
+            userRepositoryMock.Object,
+            new MemoryCache(new MemoryCacheOptions()),
+            [],
+            []);
+
+        var result = await service.AddOrUpdateUser("external-123",
+            "External User",
+            "external@example.org",
+            EduIdDirectoryKeys.ProviderKey,
+            null,
+            CancellationToken.None);
+
+        Assert.Same(createdUser, result);
+        Assert.Equal(EduIdDirectoryKeys.ProviderKey, createdUser?.ProviderKey);
+    }
+
+    [Fact]
+    public async Task AddOrUpdateUser_ExistingExternalUser_UpdatesProviderKey()
+    {
+        var user = new User
+        {
+            UserName = "external-123",
+            DisplayName = "External User",
+            Email = "external@example.org",
+            ProviderKey = UserProviderKeys.Internal
+        };
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock.Setup(r => r.GetByExternalId("external-123", CancellationToken.None))
+            .ReturnsAsync(user);
+        var service = new UserService(Mock.Of<ICurrentUserAccessor>(),
+            userRepositoryMock.Object,
+            new MemoryCache(new MemoryCacheOptions()),
+            [],
+            []);
+
+        await service.AddOrUpdateUser("external-123",
+            "External User",
+            "external@example.org",
+            EduIdDirectoryKeys.ProviderKey,
+            null,
+            CancellationToken.None);
+
+        Assert.Equal(EduIdDirectoryKeys.ProviderKey, user.ProviderKey);
+        userRepositoryMock.Verify(r => r.Update(user, CancellationToken.None), Times.Once);
     }
 
     [Fact]
