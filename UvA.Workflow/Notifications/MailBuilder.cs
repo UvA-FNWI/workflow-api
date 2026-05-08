@@ -19,19 +19,21 @@ public class MailBuilder(
         if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
             context.Values["FrontendBaseUrl"] = frontendBaseUrl;
 
+        var recipientUser = sendMail.To != null ? context.Get(sendMail.To) as InstanceUser : null;
         var recipient = resolvedMail.To != null
-            ? MailRecipient.FromUser(context.Get(resolvedMail.To) as InstanceUser)
+            ? MailRecipient.FromUser(recipientUser)
             : new MailRecipient(resolvedMail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
+        var language = recipientUser?.PreferredLanguage;
 
-        var subject = resolvedMail.SubjectTemplate?.Apply(context).En ?? "";
-        var bodyMarkdown = resolvedMail.BodyTemplate?.Apply(context).En ?? "";
+        var subject = resolvedMail.SubjectTemplate?.Apply(context).ForLanguage(language) ?? "";
+        var bodyMarkdown = resolvedMail.BodyTemplate?.Apply(context).ForLanguage(language) ?? "";
 
         var htmlBody = MarkdownRenderer.ToHtml(bodyMarkdown);
 
         var buttons = resolvedMail.Buttons
             .Select(b => new MailButton(
-                b.LabelTemplate.Apply(context).En,
+                b.LabelTemplate.Apply(context).ForLanguage(language),
                 b.UrlTemplate.Execute(context),
                 b.Intent))
             .ToList();

@@ -1,8 +1,10 @@
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver.GridFS;
 using Serilog;
 
 namespace UvA.Workflow.Persistence;
 
+[BsonIgnoreExtraElements]
 public record ArtifactInfo(ObjectId Id, string Name);
 
 public record Artifact(ArtifactInfo Info, byte[] Content);

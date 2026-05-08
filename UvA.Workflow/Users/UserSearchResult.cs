@@ -1,3 +1,9 @@
 namespace UvA.Workflow.Users;
 
-public record UserSearchResult(string UserName, string DisplayName, string Email, string SourceKey);
+public record UserSearchResult(
+    string UserName,
+    string DisplayName,
+    string Email,
+    string SourceKey,
+    Organization? Organization = null,
+    bool IsExternal = false);

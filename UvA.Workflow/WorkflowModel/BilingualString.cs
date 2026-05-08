@@ -15,6 +15,15 @@ public class BilingualString
         Nl = nl;
     }
 
+    public string ForLanguage(string? language)
+    {
+        if (language?.StartsWith("nl", StringComparison.OrdinalIgnoreCase) == true
+            && !string.IsNullOrWhiteSpace(Nl))
+            return Nl;
+
+        return En;
+    }
+
     public static implicit operator BilingualString(string text) => new() { En = text, Nl = text };
 
     public static BilingualString operator +(BilingualString s1, BilingualString? s2)

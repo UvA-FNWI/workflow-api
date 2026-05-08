@@ -13,7 +13,8 @@ public class CanvasClaimsResolver(
         var user = await userService.AddOrUpdateUser(
             launchInfo.UvanetId,
             launchInfo.DisplayName,
-            launchInfo.Email);
+            launchInfo.Email,
+            false);
         var target = await targetResolver.ResolveTarget(user, launchInfo, CancellationToken.None);
 
         return new Dictionary<string, object>

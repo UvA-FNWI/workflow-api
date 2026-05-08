@@ -25,6 +25,7 @@ public class InstanceUserStorageTests
             UserName = "jdoe",
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
+            PreferredLanguage = "nl-NL",
             ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = false
         };
@@ -36,7 +37,11 @@ public class InstanceUserStorageTests
         Assert.Equal("jdoe", instanceUser.UserName);
         Assert.Equal("Jane Doe", instanceUser.DisplayName);
         Assert.Equal("j.doe@uva.nl", instanceUser.Email);
-        Assert.Equal(["_id", "UserName", "DisplayName", "Email"], bson.Names);
+        Assert.Equal("nl-NL", instanceUser.PreferredLanguage);
+        Assert.True(bson["IsExternal"].AsBoolean);
+        Assert.Equal(BsonNull.Value, bson["Organization"]);
+        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "PreferredLanguage", "Organization", "IsExternal"],
+            bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
     }
@@ -51,6 +56,8 @@ public class InstanceUserStorageTests
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
             ProviderKey = EduIdDirectoryKeys.ProviderKey,
+            PreferredLanguage = "nl",
+            Organization = new Organization("Org-1", "Test University"),
             IsActive = false
         };
         var userService = new Mock<IUserService>();
@@ -62,18 +69,25 @@ public class InstanceUserStorageTests
                                        {
                                          "userName": "jdoe",
                                          "displayName": "Jane Doe",
-                                         "email": "j.doe@uva.nl"
+                                         "email": "j.doe@uva.nl",
+                                         "searchSource": "DataNose"
                                        }
                                        """).RootElement;
 
         var result = await service.ConvertToValue(value, property, CancellationToken.None);
         var bson = result.AsBsonDocument;
+        var org = bson["Organization"].AsBsonDocument;
 
-        Assert.Equal(["_id", "UserName", "DisplayName", "Email"], bson.Names);
+        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "PreferredLanguage", "Organization", "IsExternal"],
+            bson.Names);
         Assert.Equal(user.Id, bson["_id"].ToString());
         Assert.Equal("jdoe", bson["UserName"].AsString);
         Assert.Equal("Jane Doe", bson["DisplayName"].AsString);
         Assert.Equal("j.doe@uva.nl", bson["Email"].AsString);
+        Assert.Equal("nl", bson["PreferredLanguage"].AsString);
+        Assert.Equal("Org-1", org["_id"].AsString);
+        Assert.Equal("Test University", org["Name"].AsString);
+        Assert.True(bson["IsExternal"].AsBoolean);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
     }
@@ -180,7 +194,7 @@ public class InstanceUserStorageTests
         await service.Create("Project", user, CancellationToken.None, userProperty: "Supervisor");
 
         var bson = Assert.IsType<BsonDocument>(created!.Properties["Supervisor"]);
-        Assert.Equal(["_id", "UserName", "DisplayName", "Email"], bson.Names);
+        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "Organization", "IsExternal"], bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
     }
@@ -207,7 +221,7 @@ public class InstanceUserStorageTests
         await service.Create("Project", user, CancellationToken.None, userProperty: "Student");
 
         var bson = Assert.IsType<BsonDocument>(created!.Properties["Student"]);
-        Assert.Equal(["_id", "UserName", "DisplayName", "Email"], bson.Names);
+        Assert.Equal(["_id", "UserName", "DisplayName", "Email", "Organization", "IsExternal"], bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
     }

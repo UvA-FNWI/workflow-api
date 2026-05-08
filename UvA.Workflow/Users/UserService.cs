@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace UvA.Workflow.Users;
@@ -17,9 +18,12 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     /// <param name="username">A string representing the unique external identifier for the user.</param>
     /// <param name="displayName">A string representing the display name of the user.</param>
     /// <param name="email">A string containing the email address of the user.</param>
+    /// <param name="isExternal">Indicates whether the user is internal or external.</param>
+    /// <param name="organization">An Organization object containing the id and name of the user's organization.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
-    public async Task<User> AddOrUpdateUser(string username, string displayName, string email, CancellationToken ct)
+    public async Task<User> AddOrUpdateUser(string username, string displayName, string email, bool isExternal,
+        Organization? organization, CancellationToken ct)
     {
         var cacheKey = GetCacheKeyForUser(username);
         if (!memoryCache.TryGetValue(cacheKey, out User? user))
@@ -34,7 +38,8 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 UserName = username,
                 DisplayName = displayName,
                 Email = email,
-                ProviderKey = UserProviderKeys.Internal,
+                ProviderKey = isExternal ? UserProviderKeys.EduId : UserProviderKeys.Internal,
+                Organization = organization,
                 IsActive = true
             };
             await UserRepository.Create(user, ct);
@@ -52,6 +57,12 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
             {
                 changed = true;
                 user.Email = email;
+            }
+
+            if (organization != null && user.Organization?.Id != organization.Id)
+            {
+                changed = true;
+                user.Organization = organization;
             }
 
             if (changed) await UserRepository.Update(user, ct);
@@ -84,7 +95,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
 }
 
 public class UserService(
-    ICurrentUserAccessor currentUserAccessor,
+    IHttpContextAccessor httpContextAccessor,
     IUserRepository userRepository,
     IMemoryCache cache,
     IEnumerable<IUserRoleSource> userRoleSources,
@@ -104,10 +115,9 @@ public class UserService(
     /// <returns>A <see cref="User"/> object representing the current user if authenticated, or null if the user is not authenticated or not found.</returns>
     public async Task<User?> GetCurrentUser(CancellationToken ct = default)
     {
-        var userName = currentUserAccessor.GetCurrentUserName();
-        return string.IsNullOrWhiteSpace(userName)
-            ? null
-            : await GetUser(userName, ct);
+        var principal = httpContextAccessor.HttpContext.User;
+        if (!(principal?.Identity?.IsAuthenticated ?? false)) return null;
+        return await GetUser(principal.Identity.Name!, ct);
     }
 
 
@@ -119,8 +129,7 @@ public class UserService(
             roles = ["Api"];
         else
         {
-            var roleSource = _userRoleSources.FirstOrDefault(source =>
-                string.Equals(source.ProviderKey, user.ProviderKey, StringComparison.OrdinalIgnoreCase));
+            var roleSource = _userRoleSources.FirstOrDefault(source => source.CanResolve(user));
             roles = roleSource == null
                 ? []
                 : (await roleSource.GetRoles(user, ct)).ToArray();
