@@ -93,7 +93,12 @@ public class WorkflowTests
             .ReturnsAsync(new MailDispatchResult([], [], [], null));
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
             _eduIdUserServiceMock.Object, mailBuilder, _artifactServiceMock.Object,
-            _mailLogRepositoryMock.Object, _configurationMock.Object, NullLogger<EffectService>.Instance);
+            _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
+            {
+                TenantId = "tenant",
+                ClientId = "client",
+                UserAccount = "user@mail.com",
+            }), _configurationMock.Object, factory.CreateLogger<EffectService>());
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService);
