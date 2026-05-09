@@ -11,7 +11,28 @@ actions:
   - roles: [Student]
     type: Submit
     form: Start
-
+  - roles: [Student]
+    type: Execute
+    name: SubmitFinalGrade
+    label:
+      en: Submit grade
+      nl: Beoordeling indienen
+    onAction:
+    - name: SubmitFinalGrade
+      serviceCall:
+        service: DataNose
+        operation: FinalGradeSubmission
+        inputs:
+          CourseExternalId: Course.ExternalId
+          Student: Student
+          Grade: =9
+          ExamDate: EndDate
+          Title: Title
+          Supervisor: Supervisor
+          Examiner: Examiner
+          ExamType: =Exam
+    - redirect:
+        url: "{{ SubmitFinalGrade.SigningUrl }}"
 properties:
   - name: Subject
     type: String!
