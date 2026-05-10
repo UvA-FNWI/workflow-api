@@ -1,8 +1,8 @@
+using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ArtifactTokenService>();
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
+        services.AddScoped<AssessmentDtoFactory>();
         services.AddScoped<StepHeaderStatusResolver>();
         services.AddScoped<WorkflowInstanceDtoFactory>();
 
