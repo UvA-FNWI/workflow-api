@@ -1,8 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Moq;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.Tests.Builders;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 
@@ -125,6 +126,76 @@ public class MailBuilderTests
         Assert.Single(result.To);
         Assert.Equal("j.doe@uva.nl", result.To[0].MailAddress);
         Assert.Equal("Jane Doe", result.To[0].DisplayName);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithPreferredLanguage_UsesRecipientLanguage()
+    {
+        var (builder, layout, _) = CreateBuilder();
+        var userDoc = new MongoDB.Bson.BsonDocument
+        {
+            { "_id", MongoDB.Bson.ObjectId.GenerateNewId() },
+            { "UserName", "jdoe" },
+            { "DisplayName", "Jane Doe" },
+            { "Email", "j.doe@uva.nl" },
+            { "PreferredLanguage", "nl-NL" }
+        };
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(
+                ("Supervisor", _ => userDoc),
+                ("Title", b => b.Value("Mijn scriptie")))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "Supervisor",
+            Subject = new BilingualString("Thesis: {{ Title }}", "Scriptie: {{ Title }}"),
+            Body = new BilingualString("English body", "Nederlandse **tekst**"),
+            Buttons =
+            [
+                new SendMessageButton
+                {
+                    Url = "https://example.com",
+                    Label = new BilingualString("Open", "Openen")
+                }
+            ]
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal("Scriptie: Mijn scriptie", result.Subject);
+        Assert.NotNull(layout.CapturedBody);
+        Assert.Contains("Nederlandse <strong>tekst</strong>", layout.CapturedBody);
+        var button = Assert.Single(layout.CapturedButtons!);
+        Assert.Equal("Openen", button.Label);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithPreferredLanguage_FallsBackToEnglishWhenTranslationIsEmpty()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var userDoc = new MongoDB.Bson.BsonDocument
+        {
+            { "_id", MongoDB.Bson.ObjectId.GenerateNewId() },
+            { "UserName", "jdoe" },
+            { "DisplayName", "Jane Doe" },
+            { "Email", "j.doe@uva.nl" },
+            { "PreferredLanguage", "nl" }
+        };
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("Supervisor", _ => userDoc))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "Supervisor",
+            Subject = new BilingualString("English subject", ""),
+            Body = new BilingualString("English body", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal("English subject", result.Subject);
     }
 
     [Fact]

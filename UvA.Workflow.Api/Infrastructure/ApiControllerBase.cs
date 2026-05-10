@@ -5,7 +5,7 @@ using UvA.Workflow.Api.Authentication;
 namespace UvA.Workflow.Api.Infrastructure;
 
 [ApiController]
-[Authorize(AuthenticationSchemes = AuthenticationExtensions.SurfConextOrCanvasScheme)]
+[Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.UserScheme)]
 [Route("[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {

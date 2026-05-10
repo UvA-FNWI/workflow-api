@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
 public record FormDto(
@@ -83,7 +85,8 @@ public record QuestionDto(
     QuestionDto[]? SubProperties,
     bool HideInResults,
     int? Weight,
-    int? MaxLength)
+    int? MaxLength,
+    bool? AllowsExternalUsers)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
@@ -100,7 +103,8 @@ public record QuestionDto(
             : null,
         propertyDefinition.HideInResults,
         propertyDefinition.Weight,
-        propertyDefinition.Validation?.Value?.MaxLength
+        propertyDefinition.Validation?.Value?.MaxLength,
+        propertyDefinition.AllowsExternalUsers
     );
 }
 

@@ -1,6 +1,6 @@
 using System.Reflection;
 using NJsonSchema;
-using UvA.Workflow.Entities.Domain;
+using UvA.Workflow.WorkflowModel;
 using YamlDotNet.Serialization;
 
 namespace UvA.Workflow.SchemaGenerator.Generation;

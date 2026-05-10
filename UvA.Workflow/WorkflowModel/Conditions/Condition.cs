@@ -1,8 +1,7 @@
 using System.Collections;
 using UvA.Workflow.Expressions;
-using UvA.Workflow.WorkflowModel.Conditions;
 
-namespace UvA.Workflow.Entities.Domain.Conditions;
+namespace UvA.Workflow.WorkflowModel.Conditions;
 
 /// <summary>
 /// Represents a logical condition

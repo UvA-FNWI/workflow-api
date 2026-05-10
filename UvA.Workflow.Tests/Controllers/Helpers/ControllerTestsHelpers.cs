@@ -1,5 +1,4 @@
 using MongoDB.Bson;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Controllers.Helpers;
