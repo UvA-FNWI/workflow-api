@@ -1,10 +1,10 @@
 using Serilog;
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization.NamingConventions;
 using Path = System.IO.Path;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public partial class ModelParser
 {

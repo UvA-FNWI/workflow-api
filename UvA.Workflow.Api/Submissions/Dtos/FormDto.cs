@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
 public record FormDto(

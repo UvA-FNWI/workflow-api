@@ -31,6 +31,6 @@ public class InstanceUser
         Email = user.Email,
         PreferredLanguage = user.PreferredLanguage,
         Organization = user.Organization,
-        IsExternal = user.AuthProvider == UserAuthProvider.EduId
+        IsExternal = UserProviderKeys.IsExternal(user.ProviderKey)
     };
 }

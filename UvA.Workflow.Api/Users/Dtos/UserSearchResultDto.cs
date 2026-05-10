@@ -4,12 +4,16 @@ public record UserSearchResultDto(
     string UserName,
     string DisplayName,
     string Email,
-    UserSearchSource SearchSource,
-    Organization? Organization)
+    string SourceKey,
+    string ProviderKey,
+    Organization? Organization,
+    bool IsExternal)
 {
     public static UserSearchResultDto Create(UserSearchResult userSearchResult) => new(userSearchResult.UserName,
         userSearchResult.DisplayName,
         userSearchResult.Email,
-        userSearchResult.SearchSource,
-        userSearchResult.Organization);
+        userSearchResult.SourceKey,
+        userSearchResult.ProviderKey,
+        userSearchResult.Organization,
+        userSearchResult.IsExternal);
 }

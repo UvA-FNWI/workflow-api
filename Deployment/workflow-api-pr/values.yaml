@@ -64,7 +64,6 @@ apiPaths:
   - /Assessments
   - /oidc
   - /signin-oidc
-  - /Invites
 
 azure:
   keyvaultName: keyvaultName

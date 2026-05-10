@@ -25,7 +25,7 @@ public record UserDto(
             user.Email,
             user.PreferredLanguage,
             user.Organization,
-            user.AuthProvider == UserAuthProvider.EduId
+            UserProviderKeys.IsExternal(user.ProviderKey)
         );
     }
 }

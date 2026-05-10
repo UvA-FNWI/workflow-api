@@ -1,6 +1,6 @@
 using Moq;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 

@@ -24,9 +24,9 @@ public class User
 
     [BsonElement("Organization")] public Organization? Organization { get; set; }
 
-    [BsonElement("AuthProvider")]
+    [BsonElement("ProviderKey")]
     [JsonIgnore]
-    public UserAuthProvider AuthProvider { get; set; } = UserAuthProvider.Internal;
+    public string ProviderKey { get; set; } = UserProviderKeys.Internal;
 
     [BsonElement("IsActive")] [JsonIgnore] public bool IsActive { get; set; } = true;
 }

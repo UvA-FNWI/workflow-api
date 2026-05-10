@@ -1,5 +1,4 @@
-using UvA.Workflow.Entities.Domain;
-using UvA.Workflow.Services;
+using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowInstances.ServiceCalls;
 
 namespace UvA.Workflow.Tests.WorkflowInstances;

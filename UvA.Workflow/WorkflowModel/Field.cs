@@ -1,7 +1,6 @@
 using UvA.Workflow.Expressions;
-using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class Field
 {
