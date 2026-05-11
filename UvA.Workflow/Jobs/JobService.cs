@@ -77,7 +77,13 @@ public class JobService(
         }
 
         // TODO: allow jobs without a user
-        var user = await userRepository.GetById(job.CreatedBy!, ct) ?? throw new Exception();
+        var user = await userRepository.GetById(job.CreatedBy!, ct);
+        if (user == null)
+        {
+            logger.LogError("Job {Job}: user {UserId} not found", job.Id, job.CreatedBy);
+            throw new Exception($"User {job.CreatedBy} not found");
+        }
+
         var effects = job.SourceType switch
         {
             JobSource.Action => modelService.WorkflowDefinitions[instance.WorkflowDefinition]
