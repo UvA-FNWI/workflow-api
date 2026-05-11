@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
-using Action = UvA.Workflow.Entities.Domain.Action;
+using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Jobs;
 

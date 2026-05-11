@@ -1,7 +1,6 @@
 using UvA.Workflow.Expressions;
-using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public enum PageLayout
 {
@@ -14,6 +13,12 @@ public enum FormLayout
     Normal,
     SinglePage,
     Modal
+}
+
+public enum FormType
+{
+    Normal,
+    AssessmentOverview
 }
 
 /// <summary>
@@ -104,6 +109,11 @@ public class Form : INamed
     /// </summary>
     [YamlMember(Alias = "targetForm")]
     public string? TargetFormName { get; set; }
+
+    /// <summary>
+    /// Type of the form to be rendered by the front-end.
+    /// </summary>
+    public FormType FormType { get; set; } = FormType.Normal;
 
     /// <summary>
     /// Step this form belongs to

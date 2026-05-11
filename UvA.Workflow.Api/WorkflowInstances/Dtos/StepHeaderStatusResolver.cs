@@ -1,4 +1,5 @@
 using UvA.Workflow.Events;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 

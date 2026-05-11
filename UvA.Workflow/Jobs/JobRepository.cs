@@ -1,5 +1,3 @@
-using ZstdSharp.Unsafe;
-
 namespace UvA.Workflow.Jobs;
 
 public interface IJobRepository
