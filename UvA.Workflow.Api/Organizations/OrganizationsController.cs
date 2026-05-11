@@ -1,6 +1,5 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Organizations.Dtos;
-using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Api.Organizations;
 

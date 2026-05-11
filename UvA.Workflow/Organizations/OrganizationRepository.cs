@@ -7,12 +7,10 @@ namespace UvA.Workflow.Organizations;
 /// </summary>
 public class OrganizationRepository(IMongoDatabase database) : IOrganizationRepository
 {
-    private readonly IMongoCollection<Organization> _collection = database.GetCollection<Organization>("organisations");
+    private readonly IMongoCollection<Organization> _collection = database.GetCollection<Organization>("organizations");
 
     public async Task Create(Organization organization, CancellationToken ct)
-    {
-        await _collection.InsertOneAsync(organization, cancellationToken: ct);
-    }
+        => await _collection.InsertOneAsync(organization, cancellationToken: ct);
 
     public async Task<Organization?> GetById(string id, CancellationToken ct)
     {
@@ -20,6 +18,16 @@ public class OrganizationRepository(IMongoDatabase database) : IOrganizationRepo
             return null;
 
         var filter = Builders<Organization>.Filter.Eq("_id", objectId);
+        return await _collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<Organization?> GetByName(string name, CancellationToken ct)
+    {
+        var trimmedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+            return null;
+
+        var filter = Builders<Organization>.Filter.Eq(o => o.Name, trimmedName);
         return await _collection.Find(filter).FirstOrDefaultAsync(ct);
     }
 

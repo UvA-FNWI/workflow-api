@@ -30,18 +30,11 @@ properties:
     text:
       en: Test document
       nl: Testdocument
-  - name: TestOrganization
-    type: Organization!
-    text:
-      en: Test organisation
-      nl: Test organisatie
-
   - name: Deadline
     type: Date!
     text:
       en: Important deadline
       nl: Belangrijke deadline
-      
   - name: CanBePublished
     type: Boolean!
     text:
