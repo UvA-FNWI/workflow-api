@@ -48,6 +48,7 @@ public class InstanceUserStorageTests
     [Fact]
     public async Task ConvertToValue_ForUser_StoresLeanInstanceUserDocument()
     {
+        var orgId = ObjectId.GenerateNewId().ToString();
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -55,7 +56,7 @@ public class InstanceUserStorageTests
             DisplayName = "Jane Doe",
             Email = "j.doe@uva.nl",
             PreferredLanguage = "nl",
-            Organization = new Organization { Id = "Org-1", Name = "Test University" },
+            Organization = new Organization { Id = orgId, Name = "Test University" },
             AuthProvider = UserAuthProvider.EduId,
             IsActive = false
         };
@@ -70,9 +71,10 @@ public class InstanceUserStorageTests
                                          "userName": "jdoe",
                                          "displayName": "Jane Doe",
                                          "email": "j.doe@uva.nl",
-                                         "searchSource": "DataNose"
+                                         "searchSource": "DataNose",
+                                         "organization": { "id": "orgId", "name": "Test University" }
                                        }
-                                       """).RootElement;
+                                       """.Replace("orgId", orgId)).RootElement;
 
         var result = await service.ConvertToValue(value, property, CancellationToken.None);
         var bson = result.AsBsonDocument;
@@ -85,7 +87,7 @@ public class InstanceUserStorageTests
         Assert.Equal("Jane Doe", bson["DisplayName"].AsString);
         Assert.Equal("j.doe@uva.nl", bson["Email"].AsString);
         Assert.Equal("nl", bson["PreferredLanguage"].AsString);
-        Assert.Equal("Org-1", org["_id"].AsString);
+        Assert.Equal(orgId, org["_id"].ToString());
         Assert.Equal("Test University", org["Name"].AsString);
         Assert.True(bson["IsExternal"].AsBoolean);
         Assert.False(bson.Contains("AuthProvider"));
