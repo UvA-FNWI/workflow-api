@@ -4,6 +4,9 @@ icon:
 title:
   nl: Indienen voorstel
   en: Subject proposal
+progressText:
+  en: Writing proposal
+  nl: Schrijft voorstel
 
 condition: 
   deadline: addMonths(CreateDate, 2)

@@ -42,6 +42,10 @@ public class Step : INamed
     /// </summary>
     public BilingualString? Title { get; set; }
 
+    public BilingualString? ProgressText { get; set; }
+
+    [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(ProgressText);
+
     public Icon? Icon { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;

@@ -49,6 +49,10 @@ properties:
       en: Please explain, be as specific as possible
     layout:
       multiline: true
+      
+progressText:
+  en: "Waits ({{ formatDate(StartEvent, =dd/MM) }}) for approval"
+  nl: "Wacht ({{ formatDate(StartEvent, =dd-MM) }}) op goedkeuring"
 
 ends: 
   logical:

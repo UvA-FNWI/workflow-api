@@ -48,9 +48,8 @@ public record ScreenColumnDto(
         if (column.ValueTemplate != null)
             return DataType.String;
 
-        // CurrentStep is always string
         if (column.CurrentStep)
-            return DataType.LocalString;
+            return DataType.Object;
 
         // Event columns are DateTime
         if (column.Property != null && column.Property.EndsWith("Event"))

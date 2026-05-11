@@ -94,7 +94,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? GetDisplayTitleCurrentStep(screen, column.GetValue(context) as string ?? "")
+                    ? GetCurrentStepInfo(screen, column.GetValue(context) as string ?? "", context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -110,6 +110,7 @@ public class ScreenDataService(
         // Build projection based on screen columns, always including CurrentStep for grouping
         var projection = BuildProjection(screen.Columns, workflowDefinition);
         projection.TryAdd("CurrentStep", "$CurrentStep");
+        projection.TryAdd("Events", "$Events");
 
         // Build authorization filter to restrict instances to those the user can view
         var authorizationFilter =
@@ -203,7 +204,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? GetDisplayTitleCurrentStep(screen, column.GetValue(context) as string ?? "")
+                    ? GetCurrentStepInfo(screen, column.GetValue(context) as string ?? "", context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -229,12 +230,24 @@ public class ScreenDataService(
         return mapping;
     }
 
-    private BilingualString GetDisplayTitleCurrentStep(Screen screen, string internalName)
+    private record CurrentStepInfo(
+        BilingualString ProgressText,
+        bool IsStudentAction
+    );
+
+    private CurrentStepInfo GetCurrentStepInfo(Screen screen, string internalName, ObjectContext context)
     {
-        if (string.IsNullOrEmpty(internalName) ||
-            string.IsNullOrEmpty(screen.WorkflowDefinition) ||
+        if (string.IsNullOrEmpty(screen.WorkflowDefinition) ||
             !modelService.WorkflowDefinitions.TryGetValue(screen.WorkflowDefinition, out var workflowDef))
-            return internalName;
-        return workflowDef.AllSteps.Find(s => s.Name == internalName)?.DisplayTitle ?? internalName;
+            return new CurrentStepInfo(internalName, false);
+
+        var currentStep = workflowDef.AllSteps.Find(s => s.Name == internalName);
+        var progressText = currentStep?.ProgressTextTemplate?.Apply(context) ??
+                           currentStep?.DisplayTitle ?? internalName;
+
+        return new CurrentStepInfo(
+            progressText,
+            currentStep?.Actions.Any(a => a.Roles.Contains("Student")) ?? false
+        );
     }
 }

@@ -13,5 +13,9 @@ properties:
   - name: AssessmentSupervisor
     type: Assessment!
 
+progressText:
+  en: "Waits ({{ formatDate(UploadEvent, =dd/MM) }}) for assessment"
+  nl: "Wacht ({{ formatDate(UploadEvent, =dd-MM) }}) op beoordeling"
+  
 ends:
   event: AssessmentSupervisor
