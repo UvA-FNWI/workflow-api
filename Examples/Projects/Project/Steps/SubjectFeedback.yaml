@@ -51,8 +51,8 @@ properties:
       multiline: true
       
 progressText:
-  en: "Waits ({{ formatDate(StartEvent, =dd/MM) }}) for approval"
-  nl: "Wacht ({{ formatDate(StartEvent, =dd-MM) }}) op goedkeuring"
+  en: Waits {{ coalesce(formatDate(StartEvent, =dd/MM), =) }} for approval
+  nl: Wacht {{ coalesce(formatDate(StartEvent, =dd-MM), =) }} op goedkeuring
 
 ends: 
   logical:
