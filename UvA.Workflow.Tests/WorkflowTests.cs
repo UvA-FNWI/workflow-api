@@ -12,6 +12,7 @@ using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Notifications.Graph;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Users;

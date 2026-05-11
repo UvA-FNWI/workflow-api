@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
@@ -59,7 +60,6 @@ public class InstanceUserStorageTests
             ProviderKey = EduIdDirectoryKeys.ProviderKey,
             PreferredLanguage = "nl",
             Organization = new Organization { Id = orgId, Name = "Test University" },
-            AuthProvider = UserAuthProvider.EduId,
             IsActive = false
         };
         var userService = new Mock<IUserService>();

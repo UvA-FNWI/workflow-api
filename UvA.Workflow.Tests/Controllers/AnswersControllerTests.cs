@@ -8,7 +8,6 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Organizations;
-using UvA.Workflow.Services;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Versioning;
