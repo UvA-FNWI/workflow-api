@@ -12,6 +12,7 @@ frontendBaseUrl: "http://localhost:5173"
 
 datanoseApi:
   baseAddress: https://api-v2-tst.datanose.nl/
+  dn1Url: https://tst.datanose.nl/
 
 graph:
   tenantId: tenantId
@@ -68,3 +69,5 @@ azure:
       key: CanvasLti__Key
     - name: workflow-impersonation-key
       key: ImpersonationKey
+    - name: dn2-api-key
+      key: Services__DataNose__Token

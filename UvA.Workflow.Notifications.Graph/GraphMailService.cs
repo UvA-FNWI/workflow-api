@@ -1,0 +1,139 @@
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Users.Item.SendMail;
+using Microsoft.Identity.Client;
+using Microsoft.Kiota.Abstractions.Authentication;
+
+namespace UvA.Workflow.Notifications.Graph;
+
+internal class TokenProvider(Func<CancellationToken, Task<string>> getToken) : IAccessTokenProvider
+{
+    public AllowedHostsValidator AllowedHostsValidator { get; } = new(["graph.microsoft.com"]);
+
+    public Task<string> GetAuthorizationTokenAsync(Uri uri,
+        Dictionary<string, object>? additionalAuthenticationContext = null,
+        CancellationToken cancellationToken = default)
+        => getToken(cancellationToken);
+}
+
+public class GraphMailService : IMailService
+{
+    private static readonly string[] MailSendScopes = ["Mail.Send.Shared"];
+    private static readonly TimeSpan TokenRefreshBuffer = TimeSpan.FromMinutes(5);
+
+    private readonly GraphMailOptions _options;
+    private readonly GraphServiceClient _graphClient;
+    private readonly IPublicClientApplication _publicClientApplication;
+    private readonly IGraphMailTokenStore _tokenStore;
+
+    private AuthenticationResult? _cachedAuthenticationResult;
+
+    public GraphMailService(
+        IOptions<GraphMailOptions> graphOptions,
+        IGraphMailTokenStore tokenStore)
+    {
+        _options = graphOptions.Value;
+        GraphMailOptions.Validate(_options);
+
+        _tokenStore = tokenStore;
+
+        var accessTokenProvider = new BaseBearerTokenAuthenticationProvider(new TokenProvider(GetToken));
+        _graphClient = new GraphServiceClient(accessTokenProvider);
+
+        _publicClientApplication = PublicClientApplicationBuilder
+            .Create(_options.ClientId)
+            .WithTenantId(_options.TenantId)
+            .WithRedirectUri("http://localhost:8050")
+            .Build();
+    }
+
+    private async Task<string> GetToken(CancellationToken ct = default)
+    {
+        if (_cachedAuthenticationResult?.ExpiresOn > DateTimeOffset.UtcNow.Add(TokenRefreshBuffer))
+            return _cachedAuthenticationResult.AccessToken;
+
+        var tokenCache = await _tokenStore.GetTokenCache(ct);
+
+        _publicClientApplication.UserTokenCache.SetBeforeAccess(args =>
+            args.TokenCache.DeserializeMsalV3(tokenCache));
+
+        _cachedAuthenticationResult = await _publicClientApplication.AcquireTokenSilent(
+            MailSendScopes,
+            _options.UserAccount
+        ).ExecuteAsync(ct);
+
+        return _cachedAuthenticationResult.AccessToken;
+    }
+
+    public async Task<MailDispatchResult> Send(MailMessage mail, CancellationToken ct = default)
+    {
+        var dispatchResult = BuildDispatchResult(mail, _options.OverrideRecipient);
+        var graphMessage = BuildGraphMessage(mail, dispatchResult);
+
+        await _graphClient.Users[MailSender.MilestonesGeneral.GetUserId()]
+            .SendMail
+            .PostAsync(
+                new SendMailPostRequestBody
+                {
+                    Message = graphMessage,
+                    SaveToSentItems = true
+                },
+                cancellationToken: ct);
+
+        return dispatchResult;
+    }
+
+    public static Message BuildGraphMessage(MailMessage mail, string? overrideRecipient)
+        => BuildGraphMessage(mail, BuildDispatchResult(mail, overrideRecipient));
+
+    internal static Message BuildGraphMessage(MailMessage mail, MailDispatchResult dispatchResult)
+    {
+        var graphMessage = new Message
+        {
+            Subject = mail.Subject,
+            Body = new ItemBody
+            {
+                Content = mail.Body,
+                ContentType = BodyType.Html
+            },
+            ToRecipients = BuildRecipients(dispatchResult.To),
+            CcRecipients = BuildRecipients(dispatchResult.Cc),
+            BccRecipients = BuildRecipients(dispatchResult.Bcc),
+            Attachments = BuildAttachments(mail.Attachments)
+        };
+        return graphMessage;
+    }
+
+    internal static MailDispatchResult BuildDispatchResult(MailMessage mail, string? overrideRecipient)
+        => new(
+            MailDeliveryResolver.GetEffectiveRecipients(mail.To, overrideRecipient),
+            MailDeliveryResolver.GetEffectiveRecipients(mail.Cc, overrideRecipient),
+            MailDeliveryResolver.GetEffectiveRecipients(mail.Bcc, overrideRecipient),
+            overrideRecipient);
+
+    private static List<Recipient> BuildRecipients(IEnumerable<MailRecipient> recipients)
+        => recipients
+            .Select(ToRecipient)
+            .ToList();
+
+    private static List<Microsoft.Graph.Models.Attachment> BuildAttachments(IEnumerable<MailAttachment>? attachments)
+        => attachments?
+            .Select<MailAttachment, Microsoft.Graph.Models.Attachment>(attachment => new FileAttachment
+            {
+                OdataType = "#microsoft.graph.fileAttachment",
+                Name = attachment.FileName,
+                ContentType = "application/octet-stream",
+                ContentBytes = attachment.Content
+            })
+            .ToList() ?? [];
+
+    private static Recipient ToRecipient(MailRecipient recipient)
+        => new()
+        {
+            EmailAddress = new EmailAddress
+            {
+                Address = recipient.MailAddress,
+                Name = recipient.DisplayName
+            }
+        };
+}

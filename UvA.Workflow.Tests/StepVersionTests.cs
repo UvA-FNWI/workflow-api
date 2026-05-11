@@ -1,5 +1,4 @@
 using MongoDB.Bson;
-using UvA.Workflow.Entities.Domain.Conditions;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;

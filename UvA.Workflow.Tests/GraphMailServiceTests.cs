@@ -1,5 +1,6 @@
 using Microsoft.Graph.Models;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Notifications.Graph;
 
 namespace UvA.Workflow.Tests;
 

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Versions;
 

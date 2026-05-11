@@ -1,3 +1,6 @@
+using UvA.Workflow.WorkflowModel;
+using SortDirection = UvA.Workflow.WorkflowModel.SortDirection;
+
 namespace UvA.Workflow.Api.Screens.Dtos;
 
 public record ScreenDataDto(
@@ -22,7 +25,7 @@ public record ScreenColumnDto(
     string? Property,
     FilterType FilterType,
     DisplayType DisplayType,
-    UvA.Workflow.Entities.Domain.SortDirection? DefaultSort,
+    SortDirection? DefaultSort,
     bool Link,
     bool IsCurrentStep,
     DataType DataType)

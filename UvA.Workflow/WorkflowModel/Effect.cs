@@ -1,6 +1,7 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class EndStep;
 

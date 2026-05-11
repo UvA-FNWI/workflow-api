@@ -1,5 +1,5 @@
 using UvA.Workflow.Expressions;
-using Action = UvA.Workflow.Entities.Domain.Action;
+using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowModel;
 

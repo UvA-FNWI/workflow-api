@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Users.EduId;
 
 namespace UvA.Workflow.Api.Invites;
 
