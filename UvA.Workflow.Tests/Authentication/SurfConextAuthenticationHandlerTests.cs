@@ -9,8 +9,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Authentication;
+using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Organizations;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.EduId;
 
 namespace UvA.Workflow.Tests.Authentication;
 
@@ -29,7 +31,7 @@ public class SurfConextAuthenticationHandlerTests
             {
                 UserName = "eduid-123",
                 Email = "external@example.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = true
             });
 
@@ -48,7 +50,7 @@ public class SurfConextAuthenticationHandlerTests
         Assert.Equal("eduid-123", result.Principal?.Identity?.Name);
         Assert.Equal("eduid-123", result.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value);
         userServiceMock.Verify(s => s.AddOrUpdateUser(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<bool>(),
+            It.IsAny<string>(),
             It.IsAny<Organization?>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -66,7 +68,7 @@ public class SurfConextAuthenticationHandlerTests
             {
                 UserName = "eduid-123",
                 Email = "external@example.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = true
             });
 
@@ -98,14 +100,14 @@ public class SurfConextAuthenticationHandlerTests
         userServiceMock.Setup(s => s.AddOrUpdateUser("jdoe",
                 "Jane Doe",
                 "jane.doe@uva.nl",
-                false,
+                UserProviderKeys.Internal,
                 null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User
             {
                 UserName = "jdoe",
                 Email = "jane.doe@uva.nl",
-                AuthProvider = UserAuthProvider.Internal,
+                ProviderKey = UserProviderKeys.Internal,
                 IsActive = true
             });
 

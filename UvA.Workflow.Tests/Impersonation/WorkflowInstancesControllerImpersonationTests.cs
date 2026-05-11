@@ -5,9 +5,9 @@ using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests.Impersonation;
 

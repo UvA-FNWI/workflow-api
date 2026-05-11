@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Api.Users;
 

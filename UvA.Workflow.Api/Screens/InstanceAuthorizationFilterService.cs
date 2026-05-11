@@ -1,4 +1,4 @@
-using Action = UvA.Workflow.Entities.Domain.Action;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Screens;
 

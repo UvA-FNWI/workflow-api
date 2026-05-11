@@ -7,7 +7,6 @@ using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Users;

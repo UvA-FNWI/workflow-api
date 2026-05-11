@@ -1,14 +1,15 @@
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.StaticFiles;
 using UvA.Workflow.Events;
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowInstances.ServiceCalls;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.WorkflowInstances;
@@ -34,11 +35,9 @@ public class EffectService(
     MailBuilder mailBuilder,
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
-    IOptions<GraphMailOptions> graphMailOptions,
     IConfiguration configuration,
     ILogger<EffectService> logger)
 {
-    private readonly GraphMailOptions _graphMailOptions = graphMailOptions.Value;
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
     public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
@@ -49,7 +48,7 @@ public class EffectService(
         if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
         if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
-        if (effect.ServiceCall != null) await ServiceCall(context, effect, ct);
+        if (effect.ServiceCall != null) await ServiceCall(instance, context, effect, ct);
         if (effect.CreateExternalUserAccount != null)
             await EnsureExternalAccounts(instance, effect.CreateExternalUserAccount, ct);
         var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
@@ -67,7 +66,7 @@ public class EffectService(
             throw new Exception("Mail message not provided");
 
         mail ??= await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
-        await mailService.Send(mail);
+        var dispatchResult = await mailService.Send(mail, ct);
 
         var attachments = new List<ArtifactInfo>();
         if (mail.Attachments is { Count: > 0 } mailAttachments)
@@ -85,19 +84,19 @@ public class EffectService(
             WorkflowDefinition = instance.WorkflowDefinition,
             ExecutedBy = user.Id,
             JobId = jobId,
-            OverrideRecipient = _graphMailOptions.OverrideRecipient,
+            OverrideRecipient = dispatchResult.AppliedRecipientOverride,
             Subject = mail.Subject,
             Body = mail.Body,
             AttachmentTemplate = mail.AttachmentTemplate,
-            To = mail.To
+            To = dispatchResult.To
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
                 .ToArray(),
-            Cc = mail.Cc?
+            Cc = dispatchResult.Cc
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
-                .ToArray() ?? [],
-            Bcc = mail.Bcc?
+                .ToArray(),
+            Bcc = dispatchResult.Bcc
                 .Select(r => new MailLogRecipient(r.MailAddress, r.DisplayName))
-                .ToArray() ?? [],
+                .ToArray(),
             Attachments = attachments.ToArray()
         }, ct);
     }
@@ -178,11 +177,16 @@ public class EffectService(
         }
     }
 
-    private async Task ServiceCall(ObjectContext context, Effect effect, CancellationToken ct)
+    private async Task ServiceCall(WorkflowInstance instance, ObjectContext context, Effect effect,
+        CancellationToken ct)
     {
         var serviceCall = effect.ServiceCall!;
         var service = modelService.Services.Get(serviceCall.Service);
         var operation = service.Operations.Get(serviceCall.Operation);
+        var inputs = new ServiceCallInputs(serviceCall.Inputs);
+
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        await instanceService.Enrich(workflowDefinition, [context], inputs.Lookups, ct, replaceStep: false);
 
         var optionContext = new ObjectContext(
             configuration
@@ -211,15 +215,7 @@ public class EffectService(
         foreach (var header in service.Headers)
             client.DefaultRequestHeaders.Add(header.Key, Template.Create(header.Value).Apply(optionContext));
 
-        var resolvedInputs = new Dictionary<Lookup, object?>();
-        var missingInputs = new List<string>();
-        foreach (var input in serviceCall.Inputs)
-        {
-            var value = context.Get(input.Value);
-            resolvedInputs[input.Key] = value;
-            if (value == null)
-                missingInputs.Add($"{input.Key}<-{input.Value}");
-        }
+        var missingInputs = inputs.GetMissingInputs(context);
 
         if (missingInputs.Count > 0)
         {
@@ -227,8 +223,7 @@ public class EffectService(
                 $"Service call {serviceCall.Service}.{serviceCall.Operation} has unresolved inputs: {string.Join(", ", missingInputs)}");
         }
 
-        var requestContext = new ObjectContext(resolvedInputs);
-
+        var requestContext = inputs.CreateRequestContext(context);
         var request = new HttpRequestMessage(new HttpMethod(operation.Method),
             Template.Create(operation.Url).Apply(requestContext));
         request.Content = await BuildRequestContent(operation, requestContext, ct);
@@ -252,25 +247,45 @@ public class EffectService(
                     serviceCall.Service, serviceCall.Operation);
             }
 
-            logger.LogError(e,
-                "Service call {Service}.{Operation} failed. Method: {Method}, Url: {Url}, StatusCode: {StatusCode}, ReasonPhrase: {ReasonPhrase}, ResponseBody: {ResponseBody}",
-                serviceCall.Service,
-                serviceCall.Operation,
-                request.Method.Method,
-                request.RequestUri?.ToString(),
-                (int?)result.StatusCode,
-                result.ReasonPhrase,
-                responseBody);
-            throw;
+            var message = $"Service call {serviceCall.Service}.{serviceCall.Operation} failed. " +
+                          $"Method: {request.Method.Method}, Url: {request.RequestUri}, " +
+                          $"StatusCode: {(int?)result.StatusCode}, ReasonPhrase: {result.ReasonPhrase}, " +
+                          $"ResponseBody: {responseBody}";
+
+            logger.LogError(e, message);
+            throw new HttpRequestException(message, e, result.StatusCode);
         }
 
 
         if (operation.Outputs.Any())
         {
             var body = await result.Content.ReadFromJsonAsync<JsonDocument>(ct);
+
+            ObjectContext? responseContext = null;
+            if (operation.Outputs.Any(o => o.Template != null))
+            {
+                // Build a merged context for output template evaluation.
+                // Priority (highest wins on key collision):
+                //   JSON response root > service config (optionContext) > main workflow context
+                // JSON response root has the highest priority as it is the direct subject of the output.
+                // Service config values (base URLs, tokens, etc.) come next.
+                // Workflow instance properties are available as a lower-priority fallback.
+
+                responseContext = new ObjectContext(
+                    context.Values
+                        .Concat(optionContext.Values)
+                        .Concat(body!.RootElement.EnumerateObject()
+                            .ToDictionary(Lookup (p) => p.Name, object? (p) => p.Value.ToString()))
+                        .GroupBy(p => p.Key)
+                        .ToDictionary(g => g.Key, g => g.Last().Value)
+                );
+            }
+
             context.Values.Add(effect.Name ?? operation.Name, operation.Outputs.ToDictionary(
                 Lookup (o) => o.Name,
-                object (o) => body?.RootElement.GetProperty(o.Path).GetString()!)
+                object (o) => o.Template != null
+                    ? Template.Create(o.Template).Apply(responseContext!)
+                    : body?.RootElement.GetProperty(o.Path!).ToString()!)
             );
         }
     }

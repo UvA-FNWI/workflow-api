@@ -2,6 +2,7 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Submissions;

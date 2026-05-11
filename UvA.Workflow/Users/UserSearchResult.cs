@@ -4,6 +4,9 @@ public record UserSearchResult(
     string UserName,
     string DisplayName,
     string Email,
-    UserSearchSource SearchSource,
-    Organization? Organization = null,
-    bool IsExternal = false);
+    string SourceKey,
+    string ProviderKey = UserProviderKeys.Internal,
+    Organization? Organization = null)
+{
+    public bool IsExternal => UserProviderKeys.IsExternal(ProviderKey);
+}
