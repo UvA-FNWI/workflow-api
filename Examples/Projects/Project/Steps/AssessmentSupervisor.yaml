@@ -1,7 +1,7 @@
 name: AssessmentSupervisor
 title: Assessment by supervisor
 icon:
-  type: checkmark-line
+  type: law-balance-line
 
 actions:
   - roles: [Supervisor]

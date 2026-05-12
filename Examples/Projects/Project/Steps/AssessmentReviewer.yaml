@@ -1,7 +1,7 @@
 name: AssessmentReviewer
 title: Assessment by reviewer
 icon:
-  type: checkmark-line
+  type: law-balance-line
 
 actions:
   - roles: [Reviewer]
