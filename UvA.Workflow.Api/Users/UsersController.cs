@@ -32,7 +32,9 @@ public class UsersController(
             UserName = dto.UserName,
             DisplayName = dto.DisplayName,
             Email = dto.Email,
-            PreferredLanguage = dto.PreferredLanguage
+            PreferredLanguage = dto.PreferredLanguage,
+            Organization = dto.Organization,
+            ProviderKey = dto.IsExternal == true ? UserProviderKeys.External : UserProviderKeys.Internal
         };
 
         await userRepository.Create(user, ct);

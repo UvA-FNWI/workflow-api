@@ -123,14 +123,18 @@ public class AnswerConversionService(IUserService userService, IOrganizationServ
     {
         try
         {
-            var userSearchResult = value.Deserialize<UserSearchResult>(Options);
-            if (userSearchResult == null)
+            var instanceUser = value.Deserialize<InstanceUser>(Options);
+            if (instanceUser == null)
                 return BsonNull.Value;
 
             // Try to get user or create a new one if it doesn't exist'
-            var user = await userService.GetUser(userSearchResult.UserName, ct);
-            user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
-                userSearchResult.Email, userSearchResult.ProviderKey, userSearchResult.Organization, ct);
+            var user = await userService.GetUser(instanceUser.UserName, ct);
+            user ??= await userService.AddOrUpdateUser(
+                instanceUser.UserName,
+                instanceUser.DisplayName,
+                instanceUser.Email,
+                instanceUser.IsExternal ? UserProviderKeys.External : UserProviderKeys.Internal,
+                instanceUser.Organization, ct);
 
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }
