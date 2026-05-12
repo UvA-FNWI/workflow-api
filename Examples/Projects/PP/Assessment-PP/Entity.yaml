@@ -12,9 +12,30 @@ properties:
       en: Abstract
       nl: Abstract
     layout:
-      type: Dropdown
+      type: Rubric
     weight: 1
-
+    rubric:
+      - name: Good
+        description:
+          en: The abstract provides a clear and concise summary of the research, including the main objectives, methods, results, and conclusions. It effectively captures the essence of the study and engages the reader's interest.
+          nl: Het abstract biedt een duidelijke en beknopte samenvatting van het onderzoek, inclusief de belangrijkste doelstellingen, methoden, resultaten en conclusies. Het vangt effectief de essentie van de studie en wekt de interesse van de lezer.
+        grades: ["8", "9", "10"]
+      - name: Sufficient
+        description:
+          en: The abstract provides a summary of the research, but it may lack clarity or conciseness. It includes the main objectives, methods, results, and conclusions, but some details may be missing or not well-articulated.
+          nl: Het abstract biedt een samenvatting van het onderzoek, maar het kan gebrek aan duidelijkheid of beknoptheid hebben. Het bevat de belangrijkste doelstellingen, methoden, resultaten en conclusies, maar sommige details kunnen ontbreken of niet goed geformuleerd zijn.
+        grades: ["5", "6", "7"]
+      - name: Insufficient
+        description:
+          en: The abstract is unclear, incomplete, or fails to provide a coherent summary of the research. It may omit key components such as objectives, methods, results, or conclusions, making it difficult for the reader to understand the purpose and findings of the study.
+          nl: Het abstract is onduidelijk, onvolledig of slaagt er niet in een samenhangende samenvatting van het onderzoek te bieden. Het kan belangrijke componenten zoals doelstellingen, methoden, resultaten of conclusies weglaten, waardoor het moeilijk is voor de lezer om het doel en de bevindingen van de studie te begrijpen.
+        grades: ["1", "2", "3", "4"] 
+      - name: Not Applicable
+        description:
+          en: The abstract is not applicable to the research or is missing entirely.
+          nl: Het abstract is niet van toepassing op het onderzoek of ontbreekt volledig.
+        grades: ["N/A"]
+          
   - name: ProductIntroduction
     type: TenPoint!
     text:
