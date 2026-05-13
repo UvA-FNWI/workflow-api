@@ -13,9 +13,11 @@ properties:
   - name: AssessmentSupervisor
     type: Assessment!
 
-progressText:
-  en: Waits {{ coalesce(formatDate(UploadEvent, =dd/MM), =) }} for assessment
-  nl: Wacht {{ coalesce(formatDate(UploadEvent, =dd-MM), =) }} op beoordeling
+progress:
+  color: red
+  text:
+    en: Waits {{ coalesce(formatDate(UploadEvent, =dd/MM), =) }} for assessment
+    nl: Wacht {{ coalesce(formatDate(UploadEvent, =dd-MM), =) }} op beoordeling
   
 ends:
   event: AssessmentSupervisor

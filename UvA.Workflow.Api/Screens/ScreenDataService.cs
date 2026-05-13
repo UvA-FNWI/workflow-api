@@ -94,7 +94,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? GetCurrentStepInfo(screen, column.GetValue(context) as string ?? "", context)
+                    ? GetCurrentStepProgress(screen, column.GetValue(context) as string ?? "", context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -204,7 +204,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? GetCurrentStepInfo(screen, column.GetValue(context) as string ?? "", context)
+                    ? GetCurrentStepProgress(screen, column.GetValue(context) as string ?? "", context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -230,24 +230,28 @@ public class ScreenDataService(
         return mapping;
     }
 
-    private record CurrentStepInfo(
-        BilingualString ProgressText,
-        bool IsStudentAction
-    );
+    public record ProgressInformationDto(
+        BilingualString Text,
+        StatusColor? Color)
+    {
+        public static ProgressInformationDto Create(Step step, ObjectContext context)
+        {
+            var displayText = step.Progress?.ProgressTextTemplate?.Apply(context)
+                              ?? step.DisplayTitle;
+            return new ProgressInformationDto(displayText, step.Progress?.Color);
+        }
+    }
 
-    private CurrentStepInfo GetCurrentStepInfo(Screen screen, string internalName, ObjectContext context)
+    private ProgressInformationDto GetCurrentStepProgress(Screen screen, string internalName, ObjectContext context)
     {
         if (string.IsNullOrEmpty(screen.WorkflowDefinition) ||
             !modelService.WorkflowDefinitions.TryGetValue(screen.WorkflowDefinition, out var workflowDef))
-            return new CurrentStepInfo(internalName, false);
+            return new ProgressInformationDto(new BilingualString(internalName, internalName), null);
 
         var currentStep = workflowDef.AllSteps.Find(s => s.Name == internalName);
-        var progressText = currentStep?.ProgressTextTemplate?.Apply(context) ??
-                           currentStep?.DisplayTitle ?? internalName;
 
-        return new CurrentStepInfo(
-            progressText,
-            currentStep?.Actions.Any(a => a.Roles.Contains("Student")) ?? false
-        );
+        return currentStep == null
+            ? new ProgressInformationDto(new BilingualString(internalName, internalName), null)
+            : ProgressInformationDto.Create(currentStep, context);
     }
 }

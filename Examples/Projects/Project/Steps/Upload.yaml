@@ -10,5 +10,8 @@ actions:
     type: Submit
     form: Upload
 
+progress:
+  color: green
+
 ends:
   event: Upload
