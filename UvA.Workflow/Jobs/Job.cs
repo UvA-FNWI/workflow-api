@@ -37,7 +37,7 @@ public class Job
 
     public DateTime? ExecutedOn { get; set; }
 
-    public JobStatus Status { get; set; }
+    [BsonRepresentation(BsonType.String)] public JobStatus Status { get; set; }
 
     public List<JobStep> Steps { get; set; } = new();
 
