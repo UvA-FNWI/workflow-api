@@ -65,8 +65,7 @@ public class InstanceUserStorageTests
         var userService = new Mock<IUserService>();
         userService.Setup(s => s.GetUser("jdoe", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        var organizationService = new Mock<IOrganizationService>();
-        var service = new AnswerConversionService(userService.Object, organizationService.Object);
+        var service = new AnswerConversionService(userService.Object);
         var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
@@ -126,7 +125,7 @@ public class InstanceUserStorageTests
         var organizationService = new Mock<IOrganizationService>();
         organizationService.Setup(r => r.GetOrganization(organization.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(organization);
-        var service = new AnswerConversionService(userService.Object, organizationService.Object);
+        var service = new AnswerConversionService(userService.Object);
         var property = new PropertyDefinition { Name = "Faculty", Type = "Organization!" };
         var value = JsonDocument.Parse($$"""
                                          {
@@ -200,7 +199,7 @@ public class InstanceUserStorageTests
         var organizationService = new Mock<IOrganizationService>();
         organizationService.Setup(r => r.GetOrganization(organizationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Organization?)null);
-        var service = new AnswerConversionService(userService.Object, organizationService.Object);
+        var service = new AnswerConversionService(userService.Object);
         var property = new PropertyDefinition { Name = "Faculty", Type = "Organization!" };
         var value = JsonDocument.Parse($$"""
                                          {

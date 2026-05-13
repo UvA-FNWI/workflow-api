@@ -11,7 +11,7 @@ public record AnswerInput(
 /// Service responsible for converting answer input data to BsonValue based on propertyDefinition data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
-public class AnswerConversionService(IUserService userService, IOrganizationService organizationService)
+public class AnswerConversionService(IUserService userService)
 {
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -66,8 +66,6 @@ public class AnswerConversionService(IUserService userService, IOrganizationServ
             DataType.Currency => ConvertCurrency(value),
 
             DataType.User => await ConvertUser(value, ct),
-
-            DataType.Organization => await ConvertOrganization(value, ct),
 
             DataType.Object => await ConvertObject(value, propertyDefinition, ct),
 
@@ -133,30 +131,10 @@ public class AnswerConversionService(IUserService userService, IOrganizationServ
                 instanceUser.UserName,
                 instanceUser.DisplayName,
                 instanceUser.Email,
-                instanceUser.IsExternal ? UserProviderKeys.External : UserProviderKeys.Internal,
+                instanceUser.Provider ?? UserProviderKeys.Internal,
                 instanceUser.Organization, ct);
 
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
-        }
-        catch
-        {
-            return BsonNull.Value;
-        }
-    }
-
-    private async Task<BsonValue> ConvertOrganization(JsonElement value, CancellationToken ct)
-    {
-        try
-        {
-            var instanceOrganization = value.Deserialize<InstanceOrganization>(Options);
-            if (instanceOrganization == null || string.IsNullOrWhiteSpace(instanceOrganization.Id))
-                return BsonNull.Value;
-
-            var organization = await organizationService.GetOrganization(instanceOrganization.Id, ct);
-            if (organization == null)
-                return BsonNull.Value;
-
-            return BsonTypeMapper.MapToBsonValue(InstanceOrganization.FromOrganization(organization).ToBsonDocument());
         }
         catch
         {

@@ -69,26 +69,6 @@ public record Answer(
                 Value: user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options));
         }
 
-        if (question.DataType == DataType.Organization && question.IsArray)
-        {
-            var organizations = ObjectContext.GetValue(answer, question) as InstanceOrganization[];
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-                validationError,
-                Value: organizations == null
-                    ? null
-                    : JsonSerializer.SerializeToElement(organizations, AnswerConversionService.Options));
-        }
-
-        if (question.DataType == DataType.Organization)
-        {
-            var organization = ObjectContext.GetValue(answer, question) as InstanceOrganization;
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-                validationError,
-                Value: organization == null
-                    ? null
-                    : JsonSerializer.SerializeToElement(organization, AnswerConversionService.Options));
-        }
-
         if (question.DataType == DataType.File)
         {
             var value = ObjectContext.GetValue(answer, question) as ArtifactInfo;

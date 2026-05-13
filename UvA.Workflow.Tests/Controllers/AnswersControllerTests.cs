@@ -46,7 +46,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
 
         _answerConversionService =
-            new AnswerConversionService(_userServiceMock.Object, _organizationServiceMock.Object);
+            new AnswerConversionService(_userServiceMock.Object);
         _answerService = new AnswerService(
             _submissionService,
             _modelService,

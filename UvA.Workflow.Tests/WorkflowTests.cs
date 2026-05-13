@@ -102,7 +102,7 @@ public class WorkflowTests
             new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
         _answerConversionService =
-            new AnswerConversionService(_userServiceMock.Object, _organizationServiceMock.Object);
+            new AnswerConversionService(_userServiceMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
             _instanceJournalServiceMock.Object);
