@@ -33,7 +33,6 @@ eduId:
   internalEmailDomains:
     - uva.nl
     - auc.nl
-    - amsterdamumc.nl
 
 canvasLti:
   clientId: "104400000000000348"

@@ -15,6 +15,7 @@ public static class WorkflowServiceCollectionExtensions
 
         services.AddScoped<ICurrentUserAccessor, NullCurrentUserAccessor>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IUserSearchSource, RepositoryUserSearchSource>();
 
         services.AddScoped<WorkflowInstanceService>();
         services.AddScoped<InstanceService>();
