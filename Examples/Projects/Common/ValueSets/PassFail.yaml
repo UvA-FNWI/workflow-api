@@ -1,0 +1,9 @@
+values:
+  - name: "AVV+"
+    value: 10
+  - name: "AVV"
+    value: 6
+  - name: "NAV"
+    value: 4
+  - name: "N/A"
+    value: 1
