@@ -24,7 +24,7 @@ public class ActionsControllerTests : ControllerTestsBase
     public ActionsControllerTests() : base()
     {
         var submissionDtoFactory =
-            new SubmissionDtoFactory(new S3ArtifactTokenService(_s3OptionsMonitor), _modelService);
+            new SubmissionDtoFactory(new ArtifactTokenService(_s3OptionsMonitor), _modelService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,

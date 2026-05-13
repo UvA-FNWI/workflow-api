@@ -24,7 +24,7 @@ public class AnswersControllerTests : ControllerTestsBase
 
     public AnswersControllerTests() : base()
     {
-        _artifactTokenService = new S3ArtifactTokenService(_s3OptionsMonitor);
+        _artifactTokenService = new ArtifactTokenService(_s3OptionsMonitor);
         _submissionService =
             new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);

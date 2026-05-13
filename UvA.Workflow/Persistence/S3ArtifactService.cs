@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Minio;
 using Minio.DataModel.Args;
-using Minio.DataModel;
 using Serilog;
 using UvA.Workflow.Infrastructure.S3;
 
@@ -12,9 +11,8 @@ public class S3ArtifactService : IArtifactService
     private readonly IMinioClient _minioClient;
 
     private readonly record struct SaveArtifactRequest(
-        ObjectId Id,
+        string ArtifactId,
         Stream Stream,
-        string Key,
         string FileName,
         string ContentType,
         long FileSize);
@@ -32,51 +30,46 @@ public class S3ArtifactService : IArtifactService
             .Build();
     }
 
-    public async Task<ArtifactInfo?> GetArtifactInfo(string key, CancellationToken ct)
+    public async Task<ArtifactInfo?> GetArtifactInfo(string artifactId, CancellationToken ct)
     {
         // First, get the object metadata
         var statObjectArgs = new StatObjectArgs()
             .WithBucket(Buckets.Milestones)
-            .WithObject(key);
+            .WithObject(artifactId);
 
         var objectStat = await _minioClient.StatObjectAsync(statObjectArgs, ct);
-        objectStat.MetaData.TryGetValue("id", out var objectId);
         objectStat.MetaData.TryGetValue("filename", out var filename);
         objectStat.MetaData.TryGetValue("type", out var contentType);
 
         return new ArtifactInfo(
-            ObjectId.Parse(objectId),
-            filename ?? key,
+            artifactId,
+            filename ?? artifactId,
             contentType ?? "application/octet-stream");
     }
 
-    public async Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, string artifactName,
+    public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName,
         byte[] contents)
-        => await SaveArtifact(instanceId, propertyName, artifactName, new MemoryStream(contents));
+        => await SaveArtifact(artifactId, artifactName, new MemoryStream(contents));
 
-    public async Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, string artifactName,
+    public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName,
         Stream stream)
     {
-        var id = ObjectId.GenerateNewId();
         return await SaveArtifact(new SaveArtifactRequest
         {
-            Id = id,
+            ArtifactId = artifactId,
             Stream = stream,
-            Key = IArtifactService.ToObjectKey(instanceId, propertyName, id),
             FileName = artifactName,
             ContentType = "application/pdf",
             FileSize = stream.Length
         });
     }
 
-    public async Task<ArtifactInfo> SaveArtifact(string instanceId, string propertyName, IFormFile formFile)
+    public async Task<ArtifactInfo> SaveArtifact(string artifactId, IFormFile formFile)
     {
-        var id = ObjectId.GenerateNewId();
         return await SaveArtifact(new SaveArtifactRequest
         {
-            Id = id,
+            ArtifactId = artifactId,
             Stream = formFile.OpenReadStream(),
-            Key = IArtifactService.ToObjectKey(instanceId, propertyName, id),
             FileName = formFile.FileName,
             ContentType = formFile.ContentType,
             FileSize = formFile.Length
@@ -87,40 +80,38 @@ public class S3ArtifactService : IArtifactService
     {
         await UploadFileAsync(
             Buckets.Milestones,
-            request.Key,
+            request.ArtifactId,
             request.Stream,
             request.ContentType,
             new Dictionary<string, string>
             {
-                ["id"] = request.Id.ToString(),
                 ["filename"] = request.FileName,
                 ["type"] = request.ContentType
             });
 
         return new ArtifactInfo(
-            request.Id,
+            request.ArtifactId,
             request.FileName,
-            request.Key,
             request.ContentType,
             request.FileSize,
             DateTime.UtcNow);
     }
 
-    public async Task<Artifact?> GetArtifact(string key, CancellationToken ct)
+    public async Task<Artifact?> GetArtifact(string artifactId, CancellationToken ct)
     {
-        var info = await GetArtifactInfo(key, ct);
+        var info = await GetArtifactInfo(artifactId, ct);
         if (info is null) return null;
 
-        return await GetArtifactAsync(key, info, ct);
+        return await GetArtifactAsync(artifactId, info, ct);
     }
 
-    private async Task<Artifact?> GetArtifactAsync(string key, ArtifactInfo info, CancellationToken ct)
+    private async Task<Artifact?> GetArtifactAsync(string artifactId, ArtifactInfo info, CancellationToken ct)
     {
         var ms = new MemoryStream();
         await _minioClient.GetObjectAsync(
             new GetObjectArgs()
                 .WithBucket(Buckets.Milestones)
-                .WithObject(key)
+                .WithObject(artifactId)
                 .WithCallbackStream(stream => stream.CopyTo(ms)),
             ct);
         ms.Position = 0;
@@ -128,38 +119,32 @@ public class S3ArtifactService : IArtifactService
         return new Artifact(info, await IArtifactService.ToByteArray(ms));
     }
 
-    public async Task DeleteArtifact(string key, CancellationToken ct)
+    public async Task DeleteArtifact(string artifactId, CancellationToken ct)
     {
         await _minioClient.RemoveObjectAsync(
             new RemoveObjectArgs()
                 .WithBucket(Buckets.Milestones)
-                .WithObject(key),
+                .WithObject(artifactId),
             ct);
     }
 
-    /// Attempts to delete an artifact from the storage system using the specified identifier.
-    /// The deletion process internally calls the DeleteArtifact method and logs any exception
-    /// that occurs during the operation. If an error is encountered, the method returns false.
-    /// <param name="key">The identifier of the instance that is used for the artifact key.</param>
-    /// <param name="ct">An optional cancellation token to cancel the operation if required.</param>
-    /// <returns>True if the artifact is successfully deleted; otherwise, false.</returns>
-    public async Task<bool> TryDeleteArtifact(string key, CancellationToken ct = default)
+    public async Task<bool> TryDeleteArtifact(string artifactId, CancellationToken ct = default)
     {
         try
         {
-            await DeleteArtifact(key, ct);
+            await DeleteArtifact(artifactId, ct);
             return true;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error deleting artifact {ArtifactId}", key);
+            Log.Error(ex, "Error deleting artifact {ArtifactId}", artifactId);
             return false;
         }
     }
 
     private async Task UploadFileAsync(
         string bucketName,
-        string key,
+        string artifactId,
         Stream fileStream,
         string contentType,
         Dictionary<string, string>? metadata = null,
@@ -169,7 +154,7 @@ public class S3ArtifactService : IArtifactService
 
         var putObjectArgs = new PutObjectArgs()
             .WithBucket(bucketName)
-            .WithObject(key)
+            .WithObject(artifactId)
             .WithStreamData(fileStream)
             .WithObjectSize(fileStream.Length)
             .WithContentType(contentType);
@@ -192,4 +177,7 @@ public class S3ArtifactService : IArtifactService
         if (!found)
             throw new InvalidOperationException($"Bucket {bucketName} does not exist");
     }
+
+    public static string ToArtifactId(string instanceId, string? propertyName, ObjectId? id = null)
+        => $"{instanceId}_{propertyName ?? "global"}_{id ?? ObjectId.GenerateNewId()}";
 }

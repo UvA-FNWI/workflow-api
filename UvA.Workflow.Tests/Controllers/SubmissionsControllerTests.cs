@@ -28,7 +28,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
             new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
         _submissionDtoFactory =
-            new SubmissionDtoFactory(new S3ArtifactTokenService(_s3OptionsMonitor), _modelService);
+            new SubmissionDtoFactory(new ArtifactTokenService(_s3OptionsMonitor), _modelService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,

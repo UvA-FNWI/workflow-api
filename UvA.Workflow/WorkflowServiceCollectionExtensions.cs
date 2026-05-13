@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
 
@@ -20,6 +21,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<InstanceService>();
         services.AddScoped<IInstanceEventService, InstanceEventService>();
         services.AddScoped<IStepVersionService, StepVersionService>();
+        services.AddScoped<IArtifactService, S3ArtifactService>();
 
         services.AddScoped<IMailService, DummyMailService>();
         services.AddScoped<INamedMailLayout, DefaultMailLayout>();

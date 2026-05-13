@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Serilog;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
@@ -18,13 +19,6 @@ public class EffectServiceMailLoggingTests
     [Fact]
     public async Task RunEffects_WithMailEffect_SendsMailAndLogsFullContent()
     {
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.Console()
-            .WriteTo.Debug()
-            .CreateLogger();
-        var factory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
-
         var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
@@ -72,11 +66,10 @@ public class EffectServiceMailLoggingTests
         mailService.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MailDispatchResult(mail.To, mail.Cc!, mail.Bcc!, "testen-dn-fnwi@uva.nl"));
 
-        var id = MongoDB.Bson.ObjectId.GenerateNewId();
         artifactService
-            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
-            .ReturnsAsync((string instanceId, string propertyName, string name, byte[] _) =>
-                new ArtifactInfo(id, name, IArtifactService.ToObjectKey(instanceId, propertyName, id)));
+            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
+            .ReturnsAsync((string artifactId, string name, byte[] _) =>
+                new ArtifactInfo(artifactId, name));
 
         MailLogEntry? loggedEntry = null;
         mailLogRepository

@@ -57,9 +57,11 @@ public class AnswerService(
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
 
             if (currentAnswer != null && newAnswer.IsBsonNull && question.DataType == DataType.File)
-                await artifactService.TryDeleteArtifact(
-                    IArtifactService.ToObjectKey(instance.Id, form.PropertyName, currentAnswer["_id"].AsObjectId),
-                    ct);
+            {
+                var info = ArtifactInfo.FromBson(currentAnswer);
+                if (info != null)
+                    await artifactService.TryDeleteArtifact(info.ArtifactId, ct);
+            }
 
             // if the form is submitted, then log the change
             if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
@@ -82,54 +84,49 @@ public class AnswerService(
 
     public async Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct)
     {
-        var artifactObjectId = new ObjectId(artifactId);
-
         var (instance, _, form, question) = context;
 
-        var value = instance!.GetProperty(form!.PropertyName, question.Name);
+        var value = instance.GetProperty(form.PropertyName, question.Name);
         if (value == null) return null;
         if (question.IsArray)
         {
             var array = value as BsonArray ?? [];
-            if (array.All(a => a["_id"].AsString != artifactId)) return null;
+            if (array.All(a => ArtifactInfo.FromBson(a)?.ArtifactId != artifactId)) return null;
         }
         else
         {
-            if (value["_id"].AsObjectId != artifactObjectId) return null;
+            var info = ArtifactInfo.FromBson(value);
+            if (info?.ArtifactId != artifactId) return null;
         }
 
-        return await artifactService.GetArtifact(
-            IArtifactService.ToObjectKey(instance.Id, question.Name, artifactObjectId), ct);
+        return await artifactService.GetArtifact(artifactId, ct);
     }
 
     public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents,
         CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
-        var artifactInfo = await artifactService.SaveArtifact(
-            instance.Id,
-            propertyDefinition.Name,
-            artifactName,
-            contents);
+        var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
+        var artifactInfo = await artifactService.SaveArtifact(artifactId, artifactName, contents);
         await SaveArtifact(context, artifactInfo, ct);
     }
 
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
-        var artifactInfo = await artifactService.SaveArtifact(
-            instance.Id,
-            propertyDefinition.Name,
-            formFile);
+        var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
+        var artifactInfo = await artifactService.SaveArtifact(artifactId, formFile);
+
         await SaveArtifact(context, artifactInfo, ct);
     }
 
     private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)
     {
         var (instance, _, form, question) = context;
-        string? keyOldArtifact = null;
+        string? oldArtifactId = null;
 
         var value = instance.GetProperty(form.PropertyName, question.Name);
+
         if (question.IsArray)
         {
             var array = value as BsonArray ?? [];
@@ -139,46 +136,44 @@ public class AnswerService(
         else
         {
             instance.SetProperty(artifactInfo.ToBsonDocument(), form.PropertyName, question.Name);
-            keyOldArtifact = value is BsonDocument doc ? doc["Key"].AsString : null;
+            oldArtifactId = ArtifactInfo.FromBson(value)?.ArtifactId;
         }
 
         await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
 
-        if (keyOldArtifact != null)
+        if (oldArtifactId != null)
         {
-            await artifactService.TryDeleteArtifact(keyOldArtifact, ct);
+            await artifactService.TryDeleteArtifact(oldArtifactId, ct);
         }
     }
 
     public async Task DeleteArtifact(QuestionContext context, string artifactId, CancellationToken ct)
     {
-        var artifactObjectId = new ObjectId(artifactId);
         var (instance, _, form, question) = context;
 
-        var value = instance!.GetProperty(form.PropertyName, question.Name);
+        var value = instance.GetProperty(form.PropertyName, question.Name);
         if (value == null)
             throw new EntityNotFoundException("Artifact", "Artifact not found");
 
         if (question.IsArray)
         {
             var array = value as BsonArray ?? [];
-            var artifactRef = array.FirstOrDefault(a => a["_id"].AsString == artifactId);
+            var artifactRef = array.FirstOrDefault(a => ArtifactInfo.FromBson(a)?.ArtifactId == artifactId);
             if (artifactRef == null)
             {
                 Log.Error("Artifact {ArtifactId} not found in array", artifactId);
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
             }
 
-            await artifactService.TryDeleteArtifact(
-                IArtifactService.ToObjectKey(instance.Id, form.PropertyName, new ObjectId(artifactId)), ct);
+            await artifactService.TryDeleteArtifact(artifactId, ct);
             array.Remove(artifactRef);
             instance.SetProperty(array, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
         }
         else
         {
-            var oid = value["_id"].AsObjectId;
-            if (oid != artifactObjectId)
+            var oid = ArtifactInfo.FromBson(value)?.ArtifactId;
+            if (oid != artifactId)
             {
                 Log.Error("Artifact {ArtifactId} not found in object or data store", artifactId);
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
@@ -186,8 +181,7 @@ public class AnswerService(
 
             await instanceService.UnsetValue(instance, form.PropertyName, question.Name, ct);
             instance.ClearProperty(question.Name);
-            await artifactService.TryDeleteArtifact(
-                IArtifactService.ToObjectKey(instance.Id, form.PropertyName, new ObjectId(artifactId)), ct);
+            await artifactService.TryDeleteArtifact(artifactId, ct);
         }
     }
 }

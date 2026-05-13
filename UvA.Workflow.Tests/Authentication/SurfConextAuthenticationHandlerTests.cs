@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.SurfConext;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
 

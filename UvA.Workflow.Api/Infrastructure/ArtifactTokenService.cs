@@ -7,7 +7,7 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
-public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
+public class ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
     : IArtifactTokenService
 {
     private const string TokenIssuer = "workflow";
@@ -19,9 +19,8 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
     {
         var claims = new List<Claim>
         {
-            new("type", ResourceType),
-            new("bucket", Buckets.Milestones),
-            new("key", artifactInfo.Id.ToString()),
+            new("artifactId", artifactInfo.ArtifactId),
+            new("type", ResourceType)
         };
 
         var token = new JwtSecurityToken(
@@ -37,10 +36,10 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
         return handler.WriteToken(token);
     }
 
-    public async Task<bool> ValidateAccessToken(string artifactKey, string token)
+    public async Task<bool> ValidateAccessToken(string artifactId, string token)
     {
         if (string.IsNullOrWhiteSpace(token) ||
-            string.IsNullOrWhiteSpace(artifactKey))
+            string.IsNullOrWhiteSpace(artifactId))
             return false;
         var handler = new JwtSecurityTokenHandler();
         var result = await handler.ValidateTokenAsync(token, new TokenValidationParameters
@@ -52,7 +51,7 @@ public class S3ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
             ValidateLifetime = true,
         });
         return result.IsValid
-               && result.Claims["key"]?.ToString() == artifactKey
+               && result.Claims["artifactId"]?.ToString() == artifactId
                && result.Claims["type"]?.ToString() == ResourceType;
     }
 }
