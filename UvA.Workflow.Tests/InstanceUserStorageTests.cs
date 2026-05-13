@@ -61,9 +61,10 @@ public class InstanceUserStorageTests
             IsActive = false
         };
         var userService = new Mock<IUserService>();
+        var userRepository = new Mock<IUserRepository>();
         userService.Setup(s => s.GetUser("jdoe", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        var service = new AnswerConversionService(userService.Object);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
         var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
@@ -90,6 +91,136 @@ public class InstanceUserStorageTests
         Assert.True(bson["IsExternal"].AsBoolean);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
+    }
+
+    [Fact]
+    public async Task ConvertToValue_ForMissingExternalUser_DoesNotCreateFromAnswerPayload()
+    {
+        var userService = new Mock<IUserService>();
+        var userRepository = new Mock<IUserRepository>();
+        userService.Setup(s => s.GetUser("external@example.org", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        userRepository.Setup(r => r.GetByEmail("external@example.org", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
+        var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
+        var value = JsonDocument.Parse("""
+                                       {
+                                         "userName": "external@example.org",
+                                         "displayName": "External User",
+                                         "email": "external@example.org",
+                                         "providerKey": "eduid",
+                                         "isExternal": true
+                                       }
+                                       """).RootElement;
+
+        var result = await service.ConvertToValue(value, property, CancellationToken.None);
+
+        Assert.Equal(BsonNull.Value, result);
+        userService.Verify(s => s.AddOrUpdateUser(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<Organization?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ConvertToValue_ForActivatedExternalUser_FallsBackToEmailLookup()
+    {
+        var user = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "eduid-123",
+            DisplayName = "External User",
+            Email = "external@example.org",
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
+            Organization = new Organization("org-1", "External Org"),
+            IsActive = true
+        };
+        var userService = new Mock<IUserService>();
+        var userRepository = new Mock<IUserRepository>();
+        userService.Setup(s => s.GetUser("external@example.org", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        userRepository.Setup(r => r.GetByEmail("external@example.org", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
+        var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
+        var value = JsonDocument.Parse("""
+                                       {
+                                         "userName": "external@example.org",
+                                         "displayName": "External User",
+                                         "email": "external@example.org",
+                                         "providerKey": "eduid",
+                                         "isExternal": true
+                                       }
+                                       """).RootElement;
+
+        var result = await service.ConvertToValue(value, property, CancellationToken.None);
+
+        var bson = result.AsBsonDocument;
+        Assert.Equal(user.Id, bson["_id"].ToString());
+        Assert.Equal("eduid-123", bson["UserName"].AsString);
+        Assert.Equal("external@example.org", bson["Email"].AsString);
+        Assert.True(bson["IsExternal"].AsBoolean);
+        userService.Verify(s => s.AddOrUpdateUser(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<Organization?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ConvertToValue_ForMissingInternalUser_IgnoresSubmittedProviderKey()
+    {
+        var user = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "student-123",
+            DisplayName = "Student Name",
+            Email = "student@uva.nl",
+            ProviderKey = UserProviderKeys.Internal
+        };
+        var userService = new Mock<IUserService>();
+        var userRepository = new Mock<IUserRepository>();
+        userService.Setup(s => s.GetUser("student-123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        userService.Setup(s => s.AddOrUpdateUser(
+                "student-123",
+                "Student Name",
+                "student@uva.nl",
+                UserProviderKeys.Internal,
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
+        var property = new PropertyDefinition { Name = "Student", Type = "User!" };
+        var value = JsonDocument.Parse("""
+                                       {
+                                         "userName": "student-123",
+                                         "displayName": "Student Name",
+                                         "email": "student@uva.nl",
+                                         "providerKey": "eduid",
+                                         "isExternal": false
+                                       }
+                                       """).RootElement;
+
+        var result = await service.ConvertToValue(value, property, CancellationToken.None);
+
+        Assert.False(result.AsBsonDocument["IsExternal"].AsBoolean);
+        userService.Verify(s => s.AddOrUpdateUser(
+                "student-123",
+                "Student Name",
+                "student@uva.nl",
+                UserProviderKeys.Internal,
+                null,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]

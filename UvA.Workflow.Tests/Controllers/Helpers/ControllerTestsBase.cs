@@ -21,6 +21,7 @@ public abstract class ControllerTestsBase
     protected readonly Mock<IUserService> _userServiceMock;
     protected readonly Mock<IMailService> _mailServiceMock;
     protected readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
+    protected readonly Mock<IExternalUserService> _externalUserServiceMock;
     protected readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     protected readonly Mock<IArtifactService> _artifactServiceMock;
     protected readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
@@ -58,6 +59,7 @@ public abstract class ControllerTestsBase
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
         _eduIdUserServiceMock = new Mock<IEduIdUserService>();
+        _externalUserServiceMock = new Mock<IExternalUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
