@@ -5,9 +5,9 @@ namespace UvA.Workflow.Jobs;
 public enum JobStatus
 {
     Pending,
-    Running,
     Completed,
-    Failed
+    Failed,
+    Running
 }
 
 public enum JobSource
