@@ -1,7 +1,6 @@
-using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class ModelService(ModelParser parser)
 {
@@ -15,7 +14,10 @@ public class ModelService(ModelParser parser)
         return form ?? throw new ArgumentException($"Form {formName} not found");
     }
 
-    public IEnumerable<Form> GetForms(WorkflowInstance instance, string formName)
+    public Form? TryGetForm(WorkflowInstance instance, string formName)
+        => WorkflowDefinitions[instance.WorkflowDefinition].Forms.GetOrDefault(formName);
+
+    public IEnumerable<Form> GetDerivedForms(WorkflowInstance instance, string formName)
         => WorkflowDefinitions[instance.WorkflowDefinition].Forms
             .Where(f => f.Name == formName || f.TargetFormName == formName);
 

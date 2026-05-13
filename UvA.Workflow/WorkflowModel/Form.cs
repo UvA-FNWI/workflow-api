@@ -1,7 +1,6 @@
 using UvA.Workflow.Expressions;
-using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public enum PageLayout
 {
@@ -16,10 +15,16 @@ public enum FormLayout
     Modal
 }
 
+public enum FormType
+{
+    Normal,
+    AssessmentOverview
+}
+
 /// <summary>
 /// Represents a page in a form
 /// </summary>
-public class Page
+public class Page : INamed
 {
     /// <summary>
     /// Internal name of the page
@@ -59,6 +64,13 @@ public class Page
     public BilingualString DisplayTitle => Title ?? Name;
 
     public bool HasResults => Fields.Any(f => f.Weight.HasValue);
+
+    public Page Clone()
+    {
+        var clone = (Page)MemberwiseClone();
+        clone.Fields = [];
+        return clone;
+    }
 }
 
 public class Form : INamed
@@ -74,6 +86,11 @@ public class Form : INamed
     public BilingualString? Title { get; set; }
 
     public BilingualString DisplayName => Title ?? Name;
+
+    /// <summary>
+    ///  Name of the parent form to inherit pages from
+    /// </summary>
+    public string? InheritsFrom { get; set; }
 
     /// <summary>
     /// Sets whether this form shows as multi-page layout with navigation bor or shows all pages at once
@@ -92,6 +109,11 @@ public class Form : INamed
     /// </summary>
     [YamlMember(Alias = "targetForm")]
     public string? TargetFormName { get; set; }
+
+    /// <summary>
+    /// Type of the form to be rendered by the front-end.
+    /// </summary>
+    public FormType FormType { get; set; } = FormType.Normal;
 
     /// <summary>
     /// Step this form belongs to
@@ -120,4 +142,13 @@ public class Form : INamed
     public Effect[] OnSave { get; set; } = [];
 
     public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields);
+
+    public Form Clone()
+    {
+        var clone = (Form)MemberwiseClone();
+        clone.WorkflowDefinition = null!;
+        clone.TargetForm = null;
+        clone.Pages = Pages.Select(p => p.Clone()).ToList();
+        return clone;
+    }
 }

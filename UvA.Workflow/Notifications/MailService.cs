@@ -1,14 +1,19 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Notifications;
 
 public class DummyMailService : IMailService
 {
-    public Task Send(MailMessage mail)
+    public Task<MailDispatchResult> Send(MailMessage mail, CancellationToken ct = default)
     {
         Console.WriteLine(
             $"Sending mail to {mail.To.ToSeparatedString(t => t.MailAddress)}: {mail.Subject}\n{mail.Body}");
-        return Task.CompletedTask;
+        return Task.FromResult(new MailDispatchResult(
+            mail.To,
+            mail.Cc ?? [],
+            mail.Bcc ?? [],
+            null));
     }
 }
 
@@ -20,6 +25,21 @@ public record MailRecipient(string MailAddress, string? DisplayName = null)
 
 public record MailAttachment(string FileName, byte[] Content);
 
+public enum MailSender
+{
+    MilestonesGeneral,
+}
+
+public static class MailSenderExtensions
+{
+    public static string GetUserId(this MailSender sender) => sender switch
+    {
+        MailSender.MilestonesGeneral =>
+            "0c6948d0-009a-4796-9d94-e0b56bc3ea9c", // TODO: Replace with milestones mail
+        _ => throw new ArgumentOutOfRangeException(nameof(sender), sender, null)
+    };
+}
+
 public record Mail(MailRecipient[] To, string Subject, string Body, string? AttachmentTemplate)
 {
     public static async Task<Mail?> FromModel(WorkflowInstance inst, SendMessage? mail, ModelService modelService)
@@ -27,15 +47,18 @@ public record Mail(MailRecipient[] To, string Subject, string Body, string? Atta
         if (mail == null || (mail.To == null && mail.ToAddressTemplate == null))
             return null;
         var context = modelService.CreateContext(inst);
+        var recipientUser = mail.To != null ? context.Get(mail.To) as InstanceUser : null;
         var recipient = mail.To != null
-            ? MailRecipient.FromUser(context.Get(mail.To) as InstanceUser)
+            ? MailRecipient.FromUser(recipientUser)
             : new MailRecipient(mail.ToAddressTemplate!.Execute(context));
         recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
+        var language = recipientUser?.PreferredLanguage;
         var attachment = mail.Attachments.FirstOrDefault();
 
         var (subject, body) = mail.TemplateKey != null
             ? await GenerateTemplate(mail.TemplateKey, inst, modelService, context)
-            : (mail.SubjectTemplate?.Apply(context).En, mail.BodyTemplate!.Apply(context).En);
+            : (mail.SubjectTemplate?.Apply(context).ForLanguage(language),
+                mail.BodyTemplate!.Apply(context).ForLanguage(language));
         var (_, attachmentContent) = attachment != null
             ? await GenerateTemplate(attachment.Template, inst, modelService, context)
             : (null, null);
@@ -75,6 +98,7 @@ public record MailMessage(
     string? AttachmentTemplate = null
 )
 {
+    public MailSender? Sender { get; set; }
     public List<MailRecipient> To { get; set; } = [];
     public List<MailRecipient>? Cc { get; set; }
     public List<MailRecipient>? Bcc { get; set; }

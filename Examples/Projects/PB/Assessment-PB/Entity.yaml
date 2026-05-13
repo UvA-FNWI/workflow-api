@@ -18,21 +18,3 @@ properties:
 
   - name: Bananas
     type: FourPoint!
-
-#results:
-#  - title: Report
-#    fields:
-#      - Structure
-#      - Polishing
-#      - Nose
-#    weight: 70
-#  - title: Presentation
-#    fields:
-#      - Loudness
-#      - Style
-#      - Contents
-#    weight: 20
-#  - title: Practical work
-#    fields:
-#      - Bananas
-#    weight: 10

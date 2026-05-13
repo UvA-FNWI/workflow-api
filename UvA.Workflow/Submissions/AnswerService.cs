@@ -6,6 +6,7 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Submissions;
 
@@ -76,7 +77,7 @@ public class AnswerService(
         var updates = modelService.GetQuestionStatus(instance, form, canViewHidden, questionsToUpdate);
 
         // Build response
-        return Answer.Create(instance, form.TargetForm ?? form, updates);
+        return Answer.Create(instance, form, updates);
     }
 
     public async Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct)

@@ -1,6 +1,6 @@
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Expressions;
-using UvA.Workflow.Services;
+using UvA.Workflow.Tools;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 

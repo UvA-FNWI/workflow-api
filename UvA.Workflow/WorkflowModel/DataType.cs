@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public enum DataType
 {
@@ -13,5 +13,6 @@ public enum DataType
     Object = 8,
     Reference = 9,
     Int = 10,
-    LocalString = 11
+    LocalString = 11,
+    Boolean = 12
 }

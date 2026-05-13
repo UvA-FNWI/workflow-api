@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 

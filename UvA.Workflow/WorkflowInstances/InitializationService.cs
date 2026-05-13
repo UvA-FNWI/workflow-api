@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.WorkflowInstances;
 
 public class InitializationService(ModelService modelService, IWorkflowInstanceRepository instanceRepository)

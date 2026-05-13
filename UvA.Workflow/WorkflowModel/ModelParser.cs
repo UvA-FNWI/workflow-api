@@ -1,10 +1,10 @@
 using Serilog;
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization.NamingConventions;
 using Path = System.IO.Path;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public partial class ModelParser
 {
@@ -25,6 +25,7 @@ public partial class ModelParser
         _contentProvider = contentProvider;
         Roles = Read<Role>();
         Services = Read<Service>();
+        ValidateServices(Services);
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
@@ -51,6 +52,7 @@ public partial class ModelParser
             definition.Forms = Read<Form>(definition.SourceFolder);
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
+            definition.Emails = Read<SendMessage>(definition.SourceFolder);
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
                 NamedConditions.Add(entry);
@@ -289,6 +291,21 @@ public partial class ModelParser
         PreProcess(choice.Condition);
     }
 
+    private static void ValidateServices(List<Service> services)
+    {
+        foreach (var service in services)
+        foreach (var operation in service.Operations)
+        foreach (var output in operation.Outputs)
+        {
+            if (output.Path != null && output.Template != null)
+                throw new Exception(
+                    $"ServiceOutput '{output.Name}' in '{service.Name}.{operation.Name}' has both 'path' and 'template' set — use one or the other.");
+            if (output.Path == null && output.Template == null)
+                throw new Exception(
+                    $"ServiceOutput '{output.Name}' in '{service.Name}.{operation.Name}' requires either 'path' or 'template'.");
+        }
+    }
+
     private T Parse<T>(string file)
     {
         try
@@ -311,6 +328,7 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         var folder = typeName switch
         {
+            "SendMessage" => "Emails",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };
@@ -322,12 +340,9 @@ public partial class ModelParser
             if (obj == null)
                 throw new Exception($"Invalid file: {filePath}");
 
-            // If the object has a name property, set it to the entity name
-            if (nameProperty?.PropertyType == typeof(string))
-            {
-                var entityName = Path.GetFileNameWithoutExtension(filePath);
-                nameProperty.SetValue(obj, entityName);
-            }
+            // Set the entity name to the filename when the name is not defined in the file
+            if (nameProperty?.PropertyType == typeof(string) && nameProperty.GetValue(obj)?.ToString() == null)
+                nameProperty.SetValue(obj, Path.GetFileNameWithoutExtension(filePath));
 
             result.Add(obj);
         }

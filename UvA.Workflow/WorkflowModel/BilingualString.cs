@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class BilingualString
 {
@@ -13,6 +13,15 @@ public class BilingualString
     {
         En = en;
         Nl = nl;
+    }
+
+    public string ForLanguage(string? language)
+    {
+        if (language?.StartsWith("nl", StringComparison.OrdinalIgnoreCase) == true
+            && !string.IsNullOrWhiteSpace(Nl))
+            return Nl;
+
+        return En;
     }
 
     public static implicit operator BilingualString(string text) => new() { En = text, Nl = text };

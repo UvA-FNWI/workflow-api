@@ -77,6 +77,26 @@ public class UsersControllerTests : ControllerTestsBase
         Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
     }
 
+    [Fact]
+    public async Task Users_Find_PreservesExternalFlag()
+    {
+        _userServiceMock.Setup(s => s.FindUsers("external", _ct))
+            .ReturnsAsync([
+                new UserSearchResult("external-123",
+                    "External User",
+                    "external@example.org",
+                    "eduid",
+                    "eduid")
+            ]);
+        var controller = new UsersController(_userServiceMock.Object, _userRepoMock.Object, _rightsService);
+
+        var result = await controller.Find("external", _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
+        Assert.True(user.IsExternal);
+    }
+
     private UsersController BuildControllerWithRoles(
         string[] roles)
     {

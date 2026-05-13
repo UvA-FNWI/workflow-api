@@ -1,16 +1,15 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Moq;
-using Serilog;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 
@@ -32,6 +31,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
@@ -48,16 +48,10 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            eduIdUserService.Object,
             mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
-            Options.Create(new GraphMailOptions
-            {
-                TenantId = "tenant",
-                ClientId = "client",
-                UserAccount = "user@mail.com",
-                OverrideRecipient = "testen-dn-fnwi@uva.nl"
-            }),
             configuration.Object,
             NullLogger<EffectService>.Instance
         );
@@ -75,6 +69,8 @@ public class EffectServiceMailLoggingTests
             Bcc = [new MailRecipient("bcc@uva.nl", "Bcc User")],
             Attachments = [new MailAttachment("test.txt", attachmentBytes)]
         };
+        mailService.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MailDispatchResult(mail.To, mail.Cc!, mail.Bcc!, "testen-dn-fnwi@uva.nl"));
 
         var id = MongoDB.Bson.ObjectId.GenerateNewId();
         artifactService
@@ -97,7 +93,7 @@ public class EffectServiceMailLoggingTests
             modelService.CreateContext(instance),
             CancellationToken.None);
 
-        mailService.Verify(m => m.Send(It.IsAny<MailMessage>()), Times.Once);
+        mailService.Verify(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Once);
         mailLogRepository.Verify(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
 
         Assert.NotNull(loggedEntry);
@@ -135,6 +131,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
@@ -150,16 +147,10 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            eduIdUserService.Object,
             mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
-            Options.Create(new GraphMailOptions
-            {
-                TenantId = "tenant",
-                ClientId = "client",
-                UserAccount = "user@mail.com",
-                OverrideRecipient = null
-            }),
             configuration.Object,
             NullLogger<EffectService>.Instance);
 
@@ -172,6 +163,8 @@ public class EffectServiceMailLoggingTests
         {
             To = [new MailRecipient("to@uva.nl", "To User")]
         };
+        mailService.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MailDispatchResult(mail.To, [], [], null));
 
         MailLogEntry? loggedEntry = null;
         mailLogRepository
@@ -200,6 +193,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
+        var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
 
@@ -216,15 +210,10 @@ public class EffectServiceMailLoggingTests
             eventService.Object,
             modelService,
             mailService.Object,
+            eduIdUserService.Object,
             mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
-            Options.Create(new GraphMailOptions
-            {
-                TenantId = "tenant",
-                ClientId = "client",
-                UserAccount = "user@mail.com",
-            }),
             configuration.Object,
             NullLogger<EffectService>.Instance
         );

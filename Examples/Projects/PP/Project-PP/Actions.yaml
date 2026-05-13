@@ -1,0 +1,10 @@
+globalActions:
+  - roles: [Student, Coordinator, Examiner, SecondReviewer, DailySupervisor, Supervisor]
+    type: View
+    forms: [Start, AssessmentExaminer, AssessmentSecondreader, AssessmentSupervisor]
+  - roles: [Registered]
+    type: CreateInstance
+    userProperty: Student
+  - roles: [Coordinator]
+    type: Edit
+    forms: [Start]

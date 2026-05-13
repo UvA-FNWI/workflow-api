@@ -13,6 +13,7 @@ frontendBaseUrl: "http://localhost:5173"
 
 datanoseApi:
   baseAddress: https://api-v2-tst.datanose.nl/
+  dn1Url: https://tst.datanose.nl/
 
 graph:
   tenantId: tenantId
@@ -63,7 +64,6 @@ apiPaths:
   - /Assessments
   - /oidc
   - /signin-oidc
-  - /Invites
 
 azure:
   keyvaultName: keyvaultName
@@ -93,3 +93,5 @@ azure:
       key: S3__SecretKey
     - name: workflow-s3-signing-key
       key: S3__SigningKey
+    - name: dn2-api-key
+      key: Services__DataNose__Token
