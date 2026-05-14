@@ -57,7 +57,7 @@ azure:
   secrets:
     - name: workflow-db-password
       key: Mongo__Password
-    - name: dn2-api-key
+    - name: workflow-dn2-api-key
       key: DataNoseApi__ApiKey
     - name: workflow-encryption-secret
       key: Encryption__Secret
@@ -69,5 +69,5 @@ azure:
       key: CanvasLti__Key
     - name: workflow-impersonation-key
       key: ImpersonationKey
-    - name: dn2-api-key
+    - name: workflow-dn2-api-key
       key: Services__DataNose__Token
