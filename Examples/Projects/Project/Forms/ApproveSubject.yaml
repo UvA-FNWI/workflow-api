@@ -9,3 +9,7 @@ pages:
     introduction:
       nl: Weet je zeker dat je het onderwerp voor {{ Student.DisplayName }} wil goedkeuren?
       en: Are you sure you want to approve the subject for {{ Student.DisplayName }}?
+      
+onSubmit:
+  - createExternalUserAccount:
+      role: Supervisor
