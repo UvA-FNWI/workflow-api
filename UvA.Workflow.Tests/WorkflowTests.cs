@@ -1,21 +1,18 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using Serilog;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Persistence;
-using UvA.Workflow.Services;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
@@ -28,6 +25,7 @@ public class WorkflowTests
     readonly Mock<IInstanceEventRepository> _eventRepoMock;
     readonly Mock<IUserService> _userServiceMock;
     readonly Mock<IMailService> _mailServiceMock;
+    readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
     readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     readonly Mock<IArtifactService> _artifactServiceMock;
     readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
@@ -65,6 +63,7 @@ public class WorkflowTests
         _eventRepoMock = new Mock<IInstanceEventRepository>();
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
+        _eduIdUserServiceMock = new Mock<IEduIdUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
@@ -88,14 +87,11 @@ public class WorkflowTests
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
+        _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MailDispatchResult([], [], [], null));
         _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            mailBuilder, _artifactServiceMock.Object,
-            _mailLogRepositoryMock.Object, Options.Create(new GraphMailOptions
-            {
-                TenantId = "tenant",
-                ClientId = "client",
-                UserAccount = "user@mail.com",
-            }), _configurationMock.Object, NullLogger<EffectService>.Instance);
+            _eduIdUserServiceMock.Object, mailBuilder, _artifactServiceMock.Object,
+            _mailLogRepositoryMock.Object, _configurationMock.Object, factory.CreateLogger<EffectService>());
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService);
@@ -201,7 +197,7 @@ public class WorkflowTests
         var assessmentForm = assessmentPb.Forms.Single(f => f.Name == "Assessment");
 
         Assert.Equal("PB/Assessment-PB", assessmentPb.SourceFolder);
-        Assert.Equal(3, assessmentForm.Pages.Count);
+        Assert.Equal(4, assessmentForm.Pages.Count);
         Assert.Equal("Practical", assessmentForm.Pages[^1].Name);
 
         var projectAi = _modelService.WorkflowDefinitions["Project-AI"];

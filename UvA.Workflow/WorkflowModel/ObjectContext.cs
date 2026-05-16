@@ -1,10 +1,8 @@
 using System.Collections;
 using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
-using UvA.Workflow.Tools;
-using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class ObjectContext(Dictionary<Lookup, object?> values)
 {
@@ -120,6 +118,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),
+            DataType.Boolean => BsonConversionTools.ConvertBasicBsonValue(answer),
             _ => throw new NotImplementedException()
         };
     }

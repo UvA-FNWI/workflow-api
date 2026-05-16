@@ -1,9 +1,7 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Http;
-using UvA.Workflow.DataNose;
+using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Services;
+namespace UvA.Workflow.WorkflowInstances;
 
 public record AnswerInput(
     JsonElement? Value,
@@ -58,6 +56,11 @@ public class AnswerConversionService(IUserService userService)
             DataType.DateTime or DataType.Date =>
                 value.ValueKind == JsonValueKind.String && DateTime.TryParse(value.GetString(), out var dt)
                     ? dt
+                    : BsonNull.Value,
+
+            DataType.Boolean =>
+                value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                    ? value.GetBoolean()
                     : BsonNull.Value,
 
             DataType.Currency => ConvertCurrency(value),
@@ -125,7 +128,7 @@ public class AnswerConversionService(IUserService userService)
             // Try to get user or create a new one if it doesn't exist'
             var user = await userService.GetUser(userSearchResult.UserName, ct);
             user ??= await userService.AddOrUpdateUser(userSearchResult.UserName, userSearchResult.DisplayName,
-                userSearchResult.Email, ct);
+                userSearchResult.Email, userSearchResult.ProviderKey, userSearchResult.Organization, ct);
 
             return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
         }

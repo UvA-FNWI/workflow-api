@@ -1,4 +1,6 @@
-namespace UvA.Workflow.Entities.Domain;
+using UvA.Workflow.WorkflowModel.Conditions;
+
+namespace UvA.Workflow.WorkflowModel;
 
 public class Role : INamed
 {

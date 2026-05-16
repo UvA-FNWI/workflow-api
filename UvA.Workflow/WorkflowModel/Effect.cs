@@ -1,6 +1,7 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public class EndStep;
 
@@ -52,6 +53,11 @@ public class Effect
     public Redirect? Redirect { get; set; }
 
     /// <summary>
+    /// Create external login access for the assigned user or users of a workflow role
+    /// </summary>
+    public CreateExternalUserAccount? CreateExternalUserAccount { get; set; }
+
+    /// <summary>
     /// Complete an event
     /// </summary>
     public string? Event { get; set; }
@@ -101,6 +107,7 @@ public class Effect
         { ShowConfetti: not null } => "ShowConfetti",
         { Toast: not null } => $"Toast:{Toast.Type}:{Toast.Message.En}:{Toast.Message.Nl}",
         { Redirect: not null } => "Redirect",
+        { CreateExternalUserAccount: not null } => $"CreateExternalUserAccount:{CreateExternalUserAccount.Role}",
         _ => throw new InvalidOperationException("Invalid effect")
     };
 
@@ -108,7 +115,16 @@ public class Effect
     /// Determines whether this event is logged in the job log.
     /// Trivial/client side effects do not need to be logged
     /// </summary>
-    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null;
+    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null ||
+                            CreateExternalUserAccount != null;
+}
+
+public class CreateExternalUserAccount
+{
+    /// <summary>
+    /// Name of the workflow role/property that holds the target user or users
+    /// </summary>
+    public string Role { get; set; } = null!;
 }
 
 public class Toast
@@ -161,8 +177,9 @@ public class Http
     public Template UrlTemplate => _urlTemplate ??= new Template(Url);
 }
 
-public class SendMessage
+public class SendMessage : INamed
 {
+    public string Name { get; set; } = null!;
     public string? To { get; set; } = null!;
     public string? ToAddress { get; set; }
     public BilingualString? Subject { get; set; }

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 

@@ -5,6 +5,7 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.EduId;
 
 namespace UvA.Workflow.Tests.Users;
 
@@ -20,7 +21,7 @@ public class EduIdUserServiceTests
             Mock.Of<ILogger<EduIdUserService>>());
 
     [Fact]
-    public async Task InviteUser_CreatesPendingUser_AndBuildsExpectedInvitation()
+    public async Task EnsureExternalAccount_CreatesPendingUser_AndBuildsExpectedInvitation()
     {
         var userRepositoryMock = new Mock<IUserRepository>();
         var invitationClientMock = new Mock<IEduIdInvitationClient>();
@@ -47,13 +48,17 @@ public class EduIdUserServiceTests
 
         var service = CreateService(userRepositoryMock, invitationClientMock, options);
 
-        var result = await service.InviteUser("newuser@external.org", "New User", CancellationToken.None);
+        var result = await service.EnsureExternalAccount(
+            "newuser@external.org",
+            "New User",
+            EduIdInviteDeliveryMode.SendEmail,
+            CancellationToken.None);
 
         Assert.NotNull(createdUser);
         Assert.Equal("newuser@external.org", createdUser!.UserName);
         Assert.Equal("New User", createdUser.DisplayName);
         Assert.Equal("newuser@external.org", createdUser.Email);
-        Assert.Equal(UserAuthProvider.EduId, createdUser.AuthProvider);
+        Assert.Equal(EduIdDirectoryKeys.ProviderKey, createdUser.ProviderKey);
         Assert.False(createdUser.IsActive);
 
         Assert.NotNull(capturedRequest);
@@ -63,25 +68,29 @@ public class EduIdUserServiceTests
         Assert.True(capturedRequest.EnforceEmailEquality);
         Assert.True(capturedRequest.EduIdOnly);
         Assert.True(capturedRequest.GuestRoleIncluded);
-        Assert.True(capturedRequest.SuppressSendingEmails);
+        Assert.False(capturedRequest.SuppressSendingEmails);
         Assert.Equal(["newuser@external.org"], capturedRequest.Invites);
         Assert.Equal([7040], capturedRequest.RoleIdentifiers);
         Assert.NotNull(capturedRequest.RoleExpiryDate);
+        Assert.Equal(EduIdExternalAccountStatus.Invited, result.Status);
         Assert.Equal("https://invite.example/hash", result.InvitationUrl);
     }
 
     [Fact]
-    public async Task InviteUser_InternalEmail_Throws()
+    public async Task EnsureExternalAccount_InternalEmail_ReturnsSkippedStatus()
     {
         var userRepositoryMock = new Mock<IUserRepository>();
         var invitationClientMock = new Mock<IEduIdInvitationClient>();
         var service = CreateService(userRepositoryMock, invitationClientMock,
             new EduIdOptions { InternalEmailDomains = ["internal.org"] });
 
-        var ex = await Assert.ThrowsAsync<EduIdInviteException>(() =>
-            service.InviteUser("person@internal.org", "Internal Person", CancellationToken.None));
+        var result = await service.EnsureExternalAccount(
+            "person@internal.org",
+            "Internal Person",
+            EduIdInviteDeliveryMode.SendEmail,
+            CancellationToken.None);
 
-        Assert.Equal(EduIdInviteFailureReason.InternalEmail, ex.Reason);
+        Assert.Equal(EduIdExternalAccountStatus.InternalEmail, result.Status);
         invitationClientMock.Verify(
             c => c.CreateInvitationAsync(It.IsAny<EduIdInvitationRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -89,7 +98,7 @@ public class EduIdUserServiceTests
     }
 
     [Fact]
-    public async Task InviteUser_PendingUser_Throws()
+    public async Task EnsureExternalAccount_PendingUser_ReturnsSkippedStatus()
     {
         var userRepositoryMock = new Mock<IUserRepository>();
         var invitationClientMock = new Mock<IEduIdInvitationClient>();
@@ -98,20 +107,23 @@ public class EduIdUserServiceTests
             {
                 UserName = "pending@external.org",
                 Email = "pending@external.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = false
             });
 
         var service = CreateService(userRepositoryMock, invitationClientMock);
 
-        var ex = await Assert.ThrowsAsync<EduIdInviteException>(() =>
-            service.InviteUser("pending@external.org", "Pending User", CancellationToken.None));
+        var result = await service.EnsureExternalAccount(
+            "pending@external.org",
+            "Pending User",
+            EduIdInviteDeliveryMode.SendEmail,
+            CancellationToken.None);
 
-        Assert.Equal(EduIdInviteFailureReason.PendingInvitation, ex.Reason);
+        Assert.Equal(EduIdExternalAccountStatus.PendingInvitation, result.Status);
     }
 
     [Fact]
-    public async Task InviteUser_ActiveUser_Throws()
+    public async Task EnsureExternalAccount_ActiveUser_ReturnsSkippedStatus()
     {
         var userRepositoryMock = new Mock<IUserRepository>();
         var invitationClientMock = new Mock<IEduIdInvitationClient>();
@@ -120,16 +132,19 @@ public class EduIdUserServiceTests
             {
                 UserName = "active-user",
                 Email = "active@external.org",
-                AuthProvider = UserAuthProvider.EduId,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
                 IsActive = true
             });
 
         var service = CreateService(userRepositoryMock, invitationClientMock);
 
-        var ex = await Assert.ThrowsAsync<EduIdInviteException>(() =>
-            service.InviteUser("active@external.org", "Active User", CancellationToken.None));
+        var result = await service.EnsureExternalAccount(
+            "active@external.org",
+            "Active User",
+            EduIdInviteDeliveryMode.SendEmail,
+            CancellationToken.None);
 
-        Assert.Equal(EduIdInviteFailureReason.UserAlreadyExists, ex.Reason);
+        Assert.Equal(EduIdExternalAccountStatus.AlreadyActive, result.Status);
     }
 
     [Fact]
@@ -184,13 +199,13 @@ public class EduIdUserServiceTests
             UserName = "pending@external.org",
             DisplayName = "Pending User",
             Email = "pending@external.org",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = false
         };
 
         userRepositoryMock.Setup(r => r.GetByExternalId("eduid-123", CancellationToken.None))
             .ReturnsAsync((User?)null);
-        userRepositoryMock.Setup(r => r.GetByEmailAndProvider("pending@external.org", UserAuthProvider.EduId,
+        userRepositoryMock.Setup(r => r.GetByEmailAndProvider("pending@external.org", EduIdDirectoryKeys.ProviderKey,
                 CancellationToken.None))
             .ReturnsAsync(pendingUser);
         userRepositoryMock.Setup(r => r.Update(pendingUser, CancellationToken.None))
@@ -222,7 +237,7 @@ public class EduIdUserServiceTests
             UserName = "eduid-123",
             DisplayName = "External User",
             Email = "external@example.org",
-            AuthProvider = UserAuthProvider.EduId,
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
             IsActive = true
         };
 
@@ -257,7 +272,31 @@ public class EduIdUserServiceTests
             CancellationToken.None);
 
         Assert.Null(result);
-        userRepositoryMock.Verify(r => r.GetByEmailAndProvider(It.IsAny<string>(), It.IsAny<UserAuthProvider>(),
+        userRepositoryMock.Verify(r => r.GetByEmailAndProvider(It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task InviteUser_ReturnsInvitationUrl_AndKeepsStrictBehavior()
+    {
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var invitationClientMock = new Mock<IEduIdInvitationClient>();
+
+        userRepositoryMock.Setup(r => r.GetByEmail("newuser@external.org", CancellationToken.None))
+            .ReturnsAsync((User?)null);
+        invitationClientMock.Setup(c =>
+                c.CreateInvitationAsync(It.IsAny<EduIdInvitationRequest>(), CancellationToken.None))
+            .ReturnsAsync(new EduIdInvitationResponse((int)HttpStatusCode.Created,
+                [new EduIdRecipientInvitationUrl("newuser@external.org", "https://invite.example/hash")]));
+
+        var service = CreateService(userRepositoryMock, invitationClientMock);
+
+        var result = await service.InviteUser("newuser@external.org", "New User", CancellationToken.None);
+
+        Assert.Equal("https://invite.example/hash", result.InvitationUrl);
+        invitationClientMock.Verify(c => c.CreateInvitationAsync(
+                It.Is<EduIdInvitationRequest>(r => r.SuppressSendingEmails == true),
+                CancellationToken.None),
+            Times.Once);
     }
 }

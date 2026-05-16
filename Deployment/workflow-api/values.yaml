@@ -2,7 +2,7 @@ hostname: workflow-api.local
 ingressClass: nginx
 repo: datanosecr.azurecr.io
 tag: latest
-certificateName: datanose-nl
+certificateName: milestones-tst-fnwi-uva-nl
 environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
@@ -12,6 +12,7 @@ frontendBaseUrl: "http://localhost:5173"
 
 datanoseApi:
   baseAddress: https://api-v2-tst.datanose.nl/
+  dn1Url: https://tst.datanose.nl/
 
 graph:
   tenantId: tenantId
@@ -56,7 +57,7 @@ azure:
   secrets:
     - name: workflow-db-password
       key: Mongo__Password
-    - name: dn2-api-key
+    - name: workflow-dn2-api-key
       key: DataNoseApi__ApiKey
     - name: workflow-encryption-secret
       key: Encryption__Secret
@@ -68,3 +69,5 @@ azure:
       key: CanvasLti__Key
     - name: workflow-impersonation-key
       key: ImpersonationKey
+    - name: workflow-dn2-api-key
+      key: Services__DataNose__Token

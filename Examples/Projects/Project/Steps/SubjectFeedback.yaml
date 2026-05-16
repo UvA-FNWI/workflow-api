@@ -11,6 +11,9 @@ actions:
   label:
     en: Approve
     nl: Goedkeuren
+  onAction:
+    - createExternalUserAccount:
+        role: Supervisor
 - name: Reject
   type: Submit
   form: RejectSubject

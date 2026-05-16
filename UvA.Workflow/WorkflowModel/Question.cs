@@ -1,6 +1,6 @@
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public enum PropertyVisibility
 {
@@ -88,7 +88,7 @@ public class PropertyDefinition : INamed
     public BilingualString? ShortText { get; set; }
 
     /// <summary>
-    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,
+    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean
     /// or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate
     /// a required value.
     /// </summary>
@@ -128,6 +128,7 @@ public class PropertyDefinition : INamed
         "File" => DataType.File,
         "User" => DataType.User,
         "Currency" => DataType.Currency,
+        "Boolean" => DataType.Boolean,
         _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
         _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,
@@ -170,6 +171,11 @@ public class PropertyDefinition : INamed
     /// The weight of a field for result calculation
     /// </summary>
     public int? Weight { get; set; }
+
+    /// <summary>
+    /// Determines if the propertyDefinition allows external users
+    /// </summary>
+    public bool? AllowsExternalUsers { get; set; } = false;
 }
 
 public class Choice : INamed
