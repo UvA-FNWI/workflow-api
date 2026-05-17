@@ -49,7 +49,29 @@ public class SubmissionsControllerTests : ControllerTestsBase
     {
         // Arrange
         const string submissionId = "Start";
-        var (controller, instance) = BuildControllerWithRoles([role], submissionId);
+        var (controller, instance) = BuildControllerWithRoles([role],
+            b => b.WithId(submissionId).AsCompleted(DateTime.Now));
+
+        // Act
+        var result = await controller.GetSubmission(instance.Id, submissionId, null, _ct);
+
+        //Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<SubmissionDto>(okResult.Value);
+        Assert.Equal(submissionId, payload.Id);
+        Assert.Equal(instance.Id, payload.InstanceId);
+        Assert.Equal(submissionId, payload.FormName);
+        Assert.NotNull(payload.Form);
+        Assert.NotNull(payload.Answers);
+    }
+
+    [Fact]
+    public async Task Submissions_GetSubmission_AllowWithSubmitRights()
+    {
+        // Arrange
+        const string submissionId = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId);
+
         // Act
         var result = await controller.GetSubmission(instance.Id, submissionId, null, _ct);
 
@@ -152,6 +174,11 @@ public class SubmissionsControllerTests : ControllerTestsBase
     private (SubmissionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string submissionId, string stepName = "Start",
         params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
+        => BuildControllerWithRoles(roles, b => b.WithId(submissionId), stepName, props);
+
+    private (SubmissionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
+        string[] roles, Func<EventBuilder, EventBuilder> eventBuilder, string stepName = "Start",
+        params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
     {
         var courseInstance = new WorkflowInstanceBuilder()
             .With("Context", "Start")
@@ -166,7 +193,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: stepName)
-            .WithEvents(b => b.WithId(submissionId))
+            .WithEvents(eventBuilder)
             .WithProperties(("Course", _ => courseInstance.Id))
             .WithProperties(props)
             .Build();
