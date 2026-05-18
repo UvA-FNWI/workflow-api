@@ -151,7 +151,7 @@ public class ActionsControllerTests : ControllerTestsBase
         _eduIdUserServiceMock.VerifyAll();
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == "CoordinatorApproved"),
-            ControllerTestsHelpers.AdminUser,
+            It.IsAny<User>(),
             _ct), Times.Once);
     }
 

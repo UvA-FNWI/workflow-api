@@ -114,7 +114,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
             ("Subject", _ => "Subject"),
             ("Description", _ => new BsonDocument
             {
-                { "Key", "Key" },
+                { "ArtifactId", "ArtifactId" },
                 { "Name", "Name" }
             }),
             ("Examiner", _ => new BsonDocument()),
