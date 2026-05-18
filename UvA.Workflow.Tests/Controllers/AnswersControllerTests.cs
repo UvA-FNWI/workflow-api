@@ -17,7 +17,7 @@ public class AnswersControllerTests : ControllerTestsBase
 {
     private readonly SubmissionService _submissionService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
-    private readonly IArtifactTokenService _artifactTokenService;
+    private readonly ArtifactTokenService _artifactTokenService;
     private readonly WorkflowInstanceDtoFactory _workflowInstanceDtoFactory;
     private readonly AnswerService _answerService;
     private readonly AnswerConversionService _answerConversionService;

@@ -190,7 +190,7 @@ public class StepHeaderStatusTests
             rightsService,
             new MailBuilder(layoutResolver.Object, configuration)
         );
-        var artifactTokenService = new Mock<IArtifactTokenService>();
+        var artifactTokenService = new Mock<ArtifactTokenService>();
         var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService.Object, modelService);
         var stepVersionService = new Mock<IStepVersionService>();
         stepVersionService

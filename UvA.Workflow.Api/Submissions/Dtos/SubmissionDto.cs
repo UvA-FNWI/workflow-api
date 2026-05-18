@@ -1,7 +1,6 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -14,7 +13,7 @@ public record SubmissionDto(
     FormDto Form,
     RoleAction[] Permissions);
 
-public class SubmissionDtoFactory(IArtifactTokenService artifactTokenService, ModelService modelService)
+public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 

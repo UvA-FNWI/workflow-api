@@ -2,7 +2,6 @@ using System.Net;
 using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Submissions;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -20,7 +19,7 @@ public record AnswerDto(
     string[]? VisibleChoices = null
 );
 
-public class AnswerDtoFactory(IArtifactTokenService artifactTokenService)
+public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
 {
     public AnswerDto Create(Answer answer)
     {
