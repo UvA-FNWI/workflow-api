@@ -6,6 +6,9 @@ actions:
     type: Execute
     label: Approve (coordinator)
     name: CoordinatorApproved
+    onAction:
+      - createExternalUserAccount:
+          role: Supervisor
 
 ends:
   event: CoordinatorApproved

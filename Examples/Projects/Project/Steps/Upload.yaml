@@ -1,7 +1,7 @@
 name: Upload
 title:
-  en: Upload final version
-  nl: Eindversie uploaden
+  en: Final version
+  nl: Eindversie
 icon: download-line
 
 actions:
