@@ -21,7 +21,7 @@ public static class AssessmentService
                 page => page.Fields.Where(field => field.Weight.HasValue) // Filter out fields without a weight
                     .Select(field =>
                     {
-                        var answer =
+                        var answerKey =
                             submissionContext.Instance.GetProperty(submissionContext.Form.PropertyName, field.Name);
 
                         return new Result
@@ -31,7 +31,10 @@ public static class AssessmentService
                             Percentage = totalWeight == 0
                                 ? 0
                                 : (decimal)field.Weight.GetValueOrDefault() / totalWeight * 100,
-                            Answer = answer is null || answer.IsBsonNull ? 0 : answer.ToDouble()
+                            Answer = answerKey is null || answerKey.IsBsonNull
+                                ? 0
+                                : field.Values?.FirstOrDefault(v => v.Name == answerKey.AsString)?.Value ??
+                                  answerKey.ToDouble()
                         };
                     })
                     .ToArray()
