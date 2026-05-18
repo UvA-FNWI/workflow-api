@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -259,11 +260,108 @@ public class AnswersControllerTests : ControllerTestsBase
         MockCurrentUser(roles);
 
         var controller =
-            new AnswersController(_userServiceMock.Object, _answerService, _rightsService,
+            new AnswersController(_userServiceMock.Object, _answerService, _answerConversionService, _rightsService,
                 _externalUserServiceMock.Object, _artifactTokenService,
                 _submissionDtoFactory, _submissionService, _instanceService, _modelService,
                 _workflowInstanceRepoMock.Object);
 
         return (controller, instance);
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_RejectsSelectedExternalUser_WhenExternalUsersAreNotAllowed()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        _userServiceMock.Setup(s => s.GetUser("external@example.org", _ct))
+            .ReturnsAsync(new User
+            {
+                UserName = "external@example.org",
+                DisplayName = "External User",
+                Email = "external@example.org",
+                ProviderKey = "eduid"
+            });
+
+        var result = await controller.SaveAnswer(
+            instance.Id,
+            "Start",
+            "Reviewer",
+            new SaveAnswerRequest(
+                Value: JsonSerializer.SerializeToElement(new UserSearchResultDto(
+                    "external@example.org",
+                    "External User",
+                    "external@example.org",
+                    UserSearchSources.Repository,
+                    null,
+                    true))),
+            _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status422UnprocessableEntity, objectResult.StatusCode);
+        var error = Assert.IsType<Error>(objectResult.Value);
+        Assert.Equal("ExternalUsersNotAllowed", error.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_AllowsSelectedExternalUser_WhenExternalUsersAreAllowed()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        _userServiceMock.Setup(s => s.GetUser("external@example.org", _ct))
+            .ReturnsAsync(new User
+            {
+                UserName = "external@example.org",
+                DisplayName = "External User",
+                Email = "external@example.org",
+                ProviderKey = "eduid"
+            });
+
+        var result = await controller.SaveAnswer(
+            instance.Id,
+            "Start",
+            "Supervisor",
+            new SaveAnswerRequest(
+                Value: JsonSerializer.SerializeToElement(new UserSearchResultDto(
+                    "external@example.org",
+                    "External User",
+                    "external@example.org",
+                    UserSearchSources.Repository,
+                    null,
+                    true))),
+            _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
+        Assert.True(response.Success);
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_AllowsSelectedInternalUser_WhenExternalUsersAreNotAllowed()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        _userServiceMock.Setup(s => s.GetUser("internal-123", _ct))
+            .ReturnsAsync(new User
+            {
+                UserName = "internal-123",
+                DisplayName = "Internal User",
+                Email = "internal@example.org",
+                ProviderKey = UserProviderKeys.Internal
+            });
+
+        var result = await controller.SaveAnswer(
+            instance.Id,
+            "Start",
+            "Reviewer",
+            new SaveAnswerRequest(
+                Value: JsonSerializer.SerializeToElement(new UserSearchResultDto(
+                    "internal-123",
+                    "Internal User",
+                    "internal@example.org",
+                    UserSearchSources.Repository,
+                    null,
+                    false))),
+            _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
+        Assert.True(response.Success);
     }
 }

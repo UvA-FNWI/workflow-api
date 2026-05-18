@@ -214,7 +214,7 @@ public class UsersControllerTests : ControllerTestsBase
     [Fact]
     public async Task Users_Find_PreservesExternalFlag()
     {
-        _userServiceMock.Setup(s => s.FindUsers("external", _ct))
+        _userServiceMock.Setup(s => s.FindUsers("external", true, _ct))
             .ReturnsAsync([
                 new UserSearchResult("external-123",
                     "External User",
@@ -224,11 +224,43 @@ public class UsersControllerTests : ControllerTestsBase
             ]);
         var controller = BuildControllerWithRoles(["Student"]);
 
-        var result = await controller.Find("external", _ct);
+        var result = await controller.Find("external", true, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.True(user.IsExternal);
+    }
+
+    [Fact]
+    public async Task Users_Find_DefaultsToIncludingExternalUsers()
+    {
+        _userServiceMock.Setup(s => s.FindUsers("external", true, _ct))
+            .ReturnsAsync([]);
+        var controller = BuildControllerWithRoles(["Student"]);
+
+        await controller.Find("external", ct: _ct);
+
+        _userServiceMock.Verify(s => s.FindUsers("external", true, _ct), Times.Once);
+    }
+
+    [Fact]
+    public async Task Users_Find_CanExcludeExternalUsers()
+    {
+        _userServiceMock.Setup(s => s.FindUsers("external", false, _ct))
+            .ReturnsAsync([
+                new UserSearchResult("internal-123",
+                    "Internal User",
+                    "internal@example.org",
+                    UserSearchSources.Repository)
+            ]);
+        var controller = BuildControllerWithRoles(["Student"]);
+
+        var result = await controller.Find("external", false, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
+        Assert.False(user.IsExternal);
+        _userServiceMock.Verify(s => s.FindUsers("external", false, _ct), Times.Once);
     }
 
     private UsersController BuildControllerWithRoles(

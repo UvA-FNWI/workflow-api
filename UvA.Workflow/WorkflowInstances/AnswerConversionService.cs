@@ -154,6 +154,44 @@ public class AnswerConversionService(IUserService userService, IUserRepository u
         return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
     }
 
+    public async Task<bool> ContainsExternalUserSelection(JsonElement value, bool isArray, CancellationToken ct)
+    {
+        if (isArray && value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var userValue in value.EnumerateArray())
+            {
+                if (await IsExternalUserSelection(userValue, ct))
+                    return true;
+            }
+
+            return false;
+        }
+
+        return await IsExternalUserSelection(value, ct);
+    }
+
+    private async Task<bool> IsExternalUserSelection(JsonElement value, CancellationToken ct)
+    {
+        UserAnswerInput? userInput;
+        try
+        {
+            userInput = value.Deserialize<UserAnswerInput>(Options);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        if (userInput == null)
+            return false;
+
+        if (userInput.IsExternal)
+            return true;
+
+        var resolvedUser = await userService.GetUser(userInput.UserName, ct);
+        return resolvedUser != null && UserProviderKeys.IsExternal(resolvedUser.ProviderKey);
+    }
+
     private sealed record UserAnswerInput(
         string UserName,
         string DisplayName,

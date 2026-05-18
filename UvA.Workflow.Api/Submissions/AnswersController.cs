@@ -11,6 +11,7 @@ namespace UvA.Workflow.Api.Submissions;
 public class AnswersController(
     IUserService userService,
     AnswerService answerService,
+    AnswerConversionService answerConversionService,
     RightsService rightsService,
     IExternalUserService externalUserService,
     ArtifactTokenService artifactTokenService,
@@ -63,6 +64,13 @@ public class AnswersController(
                 return MapExternalUserCreationError(ex);
             }
         }
+
+        if (context.PropertyDefinition.DataType == DataType.User &&
+            context.PropertyDefinition.AllowsExternalUsers != true &&
+            value is JsonElement userValue &&
+            await answerConversionService.ContainsExternalUserSelection(userValue, context.PropertyDefinition.IsArray,
+                ct))
+            return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
 
         var answers = await answerService.SaveAnswer(context, value, user, ct);
         var (instance, _, form, _) =
