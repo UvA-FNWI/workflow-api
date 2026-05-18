@@ -49,6 +49,9 @@ public class InstanceUserStorageTests
     [Fact]
     public async Task ConvertToValue_ForUser_StoresLeanInstanceUserDocument()
     {
+        var organization = new Organization(
+            ObjectId.GenerateNewId().ToString(),
+            "Test University");
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -57,7 +60,7 @@ public class InstanceUserStorageTests
             Email = "j.doe@uva.nl",
             ProviderKey = EduIdDirectoryKeys.ProviderKey,
             PreferredLanguage = "nl",
-            Organization = new Organization("Org-1", "Test University"),
+            Organization = organization,
             IsActive = false
         };
         var userService = new Mock<IUserService>();
@@ -85,7 +88,7 @@ public class InstanceUserStorageTests
         Assert.Equal("Jane Doe", bson["DisplayName"].AsString);
         Assert.Equal("j.doe@uva.nl", bson["Email"].AsString);
         Assert.Equal("nl", bson["PreferredLanguage"].AsString);
-        Assert.Equal("Org-1", org["_id"].AsString);
+        Assert.Equal(organization.Id, org["_id"].ToString());
         Assert.Equal("Test University", org["Name"].AsString);
         Assert.True(bson["IsExternal"].AsBoolean);
         Assert.False(bson.Contains("AuthProvider"));
