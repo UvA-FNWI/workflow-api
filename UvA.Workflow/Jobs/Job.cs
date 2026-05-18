@@ -6,7 +6,8 @@ public enum JobStatus
 {
     Pending,
     Completed,
-    Failed
+    Failed,
+    Running
 }
 
 public enum JobSource
@@ -36,7 +37,7 @@ public class Job
 
     public DateTime? ExecutedOn { get; set; }
 
-    public JobStatus Status { get; set; }
+    [BsonRepresentation(BsonType.String)] public JobStatus Status { get; set; }
 
     public List<JobStep> Steps { get; set; } = new();
 
@@ -45,6 +46,10 @@ public class Job
     public bool IsSynchronous { get; set; }
 
     public string? Message { get; set; }
+
+    public string WorkerGroup { get; set; } = null!;
+
+    public DateTime? ClaimedUntil { get; set; }
 }
 
 public class JobStep
