@@ -2,6 +2,7 @@ name: Assessment
 title:
   en: Assessment
   nl: Beoordeling
+icon: graduate-cap-line
 
 children:
   - AssessmentReviewer

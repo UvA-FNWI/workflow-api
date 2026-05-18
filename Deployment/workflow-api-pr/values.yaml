@@ -13,6 +13,7 @@ frontendBaseUrl: "http://localhost:5173"
 
 datanoseApi:
   baseAddress: https://api-v2-tst.datanose.nl/
+  dn1Url: https://tst.datanose.nl/
 
 graph:
   tenantId: tenantId
@@ -63,7 +64,6 @@ apiPaths:
   - /Assessments
   - /oidc
   - /signin-oidc
-  - /Invites
 
 azure:
   keyvaultName: keyvaultName
@@ -75,7 +75,7 @@ azure:
   secrets:
     - name: workflow-db-password
       key: Mongo__Password
-    - name: dn2-api-key
+    - name: workflow-dn2-api-key
       key: DatanoseApi__ApiKey
     - name: workflow-encryption-secret
       key: Encryption__Secret
@@ -89,3 +89,5 @@ azure:
       key: ImpersonationKey
     - name: workflow-turnitin-token
       key: Services__Turnitin__Token
+    - name: workflow-dn2-api-key
+      key: Services__DataNose__Token

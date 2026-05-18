@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Api.Users;
 
@@ -30,7 +31,8 @@ public class UsersController(
         {
             UserName = dto.UserName,
             DisplayName = dto.DisplayName,
-            Email = dto.Email
+            Email = dto.Email,
+            PreferredLanguage = dto.PreferredLanguage
         };
 
         await userRepository.Create(user, ct);

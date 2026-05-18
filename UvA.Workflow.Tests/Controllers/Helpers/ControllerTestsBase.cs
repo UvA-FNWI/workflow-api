@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Serilog;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
@@ -70,6 +69,10 @@ public abstract class ControllerTestsBase
 
         _configurationMock = new Mock<IConfiguration>();
         _configurationMock.SetupGet(c => c["FileKey"]).Returns(ImpersonationTestHelpers.SigningKey);
+        _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MailDispatchResult([], [], [], null));
+        _mailLogRepositoryMock.Setup(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         _modelParser = ControllerTestsHelpers.CreateModelParser();
 
@@ -102,12 +105,6 @@ public abstract class ControllerTestsBase
                 mailBuilder,
                 _artifactServiceMock.Object,
                 _mailLogRepositoryMock.Object,
-                Options.Create(new GraphMailOptions
-                {
-                    TenantId = "tenant",
-                    ClientId = "client",
-                    UserAccount = "user@mail.com",
-                }),
                 _configurationMock.Object,
                 _loggerFactory.CreateLogger<EffectService>());
 
@@ -115,7 +112,7 @@ public abstract class ControllerTestsBase
             new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
                 _workflowInstanceRepoMock.Object, userRepository: _userRepoMock.Object,
                 _loggerFactory.CreateLogger<JobService>(),
-                _instanceService);
+                _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
     }
 
     protected void MockCurrentUser(params string[] roles)

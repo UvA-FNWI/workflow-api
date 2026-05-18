@@ -2,6 +2,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Users;
 
+[BsonIgnoreExtraElements]
 public class InstanceUser
 {
     [BsonId]
@@ -14,11 +15,22 @@ public class InstanceUser
 
     [BsonElement("Email")] public string Email { get; set; } = null!;
 
+    [BsonElement("PreferredLanguage")]
+    [BsonIgnoreIfNull]
+    public string? PreferredLanguage { get; set; }
+
+    [BsonElement("Organization")] public Organization? Organization { get; set; }
+
+    [BsonElement("IsExternal")] public bool IsExternal { get; set; }
+
     public static InstanceUser FromUser(User user) => new()
     {
         Id = user.Id,
         UserName = user.UserName,
         DisplayName = user.DisplayName,
-        Email = user.Email
+        Email = user.Email,
+        PreferredLanguage = user.PreferredLanguage,
+        Organization = user.Organization,
+        IsExternal = UserProviderKeys.IsExternal(user.ProviderKey)
     };
 }

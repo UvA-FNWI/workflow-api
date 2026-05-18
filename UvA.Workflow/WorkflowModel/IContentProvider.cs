@@ -1,4 +1,4 @@
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 /// <summary>
 /// Represents a way to get yaml files from a content source.

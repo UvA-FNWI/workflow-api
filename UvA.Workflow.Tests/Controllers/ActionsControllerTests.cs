@@ -7,7 +7,6 @@ using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.Entities.Domain;
 using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Users;
@@ -131,7 +130,7 @@ public class ActionsControllerTests : ControllerTestsBase
     [Fact]
     public async Task Actions_ExecuteAction_CreateExternalSupervisorAccount_RunsEffectAndLogsEvent()
     {
-        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "SubjectFeedback");
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
         instance.Properties["Supervisor"] =
             new PropertyBuilder().Person("External Supervisor", "supervisor@external.org");
         _eduIdUserServiceMock.Setup(s => s.EnsureExternalAccount(
@@ -142,14 +141,14 @@ public class ActionsControllerTests : ControllerTestsBase
             .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited));
 
         var result = await controller.ExecuteAction(
-            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "ApproveSubject"),
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "CoordinatorApproved"),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
         _eduIdUserServiceMock.VerifyAll();
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
-            It.Is<InstanceEvent>(e => e.Id == "ApproveSubject"),
+            It.Is<InstanceEvent>(e => e.Id == "CoordinatorApproved"),
             ControllerTestsHelpers.AdminUser,
             _ct), Times.Once);
     }

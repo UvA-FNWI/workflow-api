@@ -8,5 +8,6 @@ namespace UvA.Workflow.Api.Users.Dtos;
 public record CreateUserDto(
     [Required] string UserName,
     [Required] string DisplayName,
-    [Required] [EmailAddress] string Email
+    [Required] [EmailAddress] string Email,
+    string? PreferredLanguage = null
 );

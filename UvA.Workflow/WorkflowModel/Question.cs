@@ -1,6 +1,6 @@
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
-namespace UvA.Workflow.Entities.Domain;
+namespace UvA.Workflow.WorkflowModel;
 
 public enum PropertyVisibility
 {
@@ -171,6 +171,11 @@ public class PropertyDefinition : INamed
     /// The weight of a field for result calculation
     /// </summary>
     public int? Weight { get; set; }
+
+    /// <summary>
+    /// Determines if the propertyDefinition allows external users
+    /// </summary>
+    public bool? AllowsExternalUsers { get; set; } = false;
 }
 
 public class Choice : INamed
