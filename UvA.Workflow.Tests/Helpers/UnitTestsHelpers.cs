@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Helpers;
@@ -25,4 +26,14 @@ internal static class UnitTestsHelpers
 
         public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
+
+    public static TestOptionsMonitor<S3Config> TestS3Config => new(
+        new S3Config
+        {
+            ServiceUrl = "http://serviceurl",
+            AuthenticationRegion = "EU",
+            AccessKey = "zh7F5ZZxmchb3We49nGVMhESZhRtxhWuZhQCDSQak5M", // Dummy AccessKey
+            SecretKey = "LaIhdtuPhgkbczwo9ZcDkFI5E6Cdn7QoN30nP3LUQgM", // Dummy SecretKey
+            SigningKey = "criXzMbgewG6VC1ebBcmSN92bl496oc0xNOaM6cCS7e" // Dummy SigningKey
+        });
 }

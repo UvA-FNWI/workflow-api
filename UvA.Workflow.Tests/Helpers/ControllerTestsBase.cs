@@ -44,16 +44,6 @@ public abstract class ControllerTestsBase
 
     protected readonly CancellationToken _ct = new CancellationTokenSource().Token;
 
-    protected readonly IOptionsMonitor<S3Config> _s3OptionsMonitor =
-        new UnitTestsHelpers.TestOptionsMonitor<S3Config>(new S3Config
-        {
-            ServiceUrl = "http://serviceurl",
-            AuthenticationRegion = "EU",
-            AccessKey = "zh7F5ZZxmchb3We49nGVMhESZhRtxhWuZhQCDSQak5M", // Dummy AccessKey
-            SecretKey = "LaIhdtuPhgkbczwo9ZcDkFI5E6Cdn7QoN30nP3LUQgM", // Dummy SecretKey
-            SigningKey = "criXzMbgewG6VC1ebBcmSN92bl496oc0xNOaM6cCS7e" // Dummy SigningKey
-        });
-
     protected ControllerTestsBase() : base()
     {
         Log.Logger = new LoggerConfiguration()
