@@ -22,7 +22,9 @@ public class SubmissionsController(
         var (instance, submission, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, version, ct);
 
-        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
+        // If the form is not yet submitted, you can view it with submit permissions. After that, view permissions apply
+        await rightsService.EnsureAuthorizedForAction(instance,
+            submission?.Date == null ? RoleAction.Submit : RoleAction.View, form.Name);
 
         var dto = submissionDtoFactory.Create(instance, form, submission,
             modelService.GetQuestionStatus(instance, form, true));

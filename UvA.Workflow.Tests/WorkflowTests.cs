@@ -102,7 +102,7 @@ public class WorkflowTests
             factory.CreateLogger<EffectService>());
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
-            _instanceService);
+            _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
         _submissionService =
             new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);

@@ -75,7 +75,7 @@ azure:
   secrets:
     - name: workflow-db-password
       key: Mongo__Password
-    - name: dn2-api-key
+    - name: workflow-dn2-api-key
       key: DatanoseApi__ApiKey
     - name: workflow-encryption-secret
       key: Encryption__Secret
@@ -93,5 +93,5 @@ azure:
       key: S3__SecretKey
     - name: workflow-s3-signing-key
       key: S3__SigningKey
-    - name: dn2-api-key
+    - name: workflow-dn2-api-key
       key: Services__DataNose__Token
