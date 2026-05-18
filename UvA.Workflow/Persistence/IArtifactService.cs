@@ -13,14 +13,15 @@ public record ArtifactInfo(
 {
     public static ArtifactInfo? FromBson(BsonValue? value)
     {
-        if (value == null) return null;
+        if (value == null || value.IsBsonNull)
+            return null;
 
         return new ArtifactInfo(
-            value["artifactId"].AsString,
-            value["name"].AsString,
-            value["type"].AsString,
-            value["length"].AsInt64,
-            value["createdOn"].AsUniversalTime);
+            value["ArtifactId"].ToString()!,
+            value["Name"].AsString,
+            value["ContentType"].AsString,
+            value["Length"].AsInt64,
+            value["CreatedOn"].AsUniversalTime);
     }
 }
 
