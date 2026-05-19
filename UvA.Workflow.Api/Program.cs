@@ -10,6 +10,7 @@ using UvA.Workflow.Persistence;
 using UvA.Workflow.Persistence.Mongo;
 using UvA.Workflow.Users.DataNose;
 using UvA.Workflow.Users.EduId;
+using UvA.Workflow.Jobs;
 
 string corsPolicyName = "_CorsPolicy";
 
@@ -40,6 +41,7 @@ builder.Services
     .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 
 builder.Services.AddWorkflowAuthenticationSelector(builder.Environment, builder.Configuration);
 builder.Services.AddWorkflowMongoPersistence(builder.Configuration);
