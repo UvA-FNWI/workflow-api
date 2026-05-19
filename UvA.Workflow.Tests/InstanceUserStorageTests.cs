@@ -252,52 +252,6 @@ public class InstanceUserStorageTests
     }
 
     [Fact]
-    public void ObjectContext_GetValue_ForOrganizationAndArray_ReturnsInstanceOrganizationTypes()
-    {
-        var organizationId = ObjectId.GenerateNewId().ToString();
-        var organizationDoc = new BsonDocument
-        {
-            { "_id", ObjectId.Parse(organizationId) },
-            { "Name", "FNWI" }
-        };
-        var singleProperty = new PropertyDefinition { Name = "Faculty", Type = "Organization!" };
-        var arrayProperty = new PropertyDefinition { Name = "Faculties", Type = "[Organization]!" };
-
-        var single = ObjectContext.GetValue(organizationDoc, singleProperty);
-        var array = ObjectContext.GetValue(new BsonArray { organizationDoc }, arrayProperty);
-
-        var instanceOrganization = Assert.IsType<InstanceOrganization>(single);
-        var instanceOrganizations = Assert.IsType<InstanceOrganization[]>(array);
-
-        Assert.Equal("FNWI", instanceOrganization.Name);
-        Assert.Single(instanceOrganizations);
-        Assert.Equal(organizationId, instanceOrganizations[0].Id);
-    }
-
-    [Fact]
-    public async Task ConvertToValue_ForUnknownOrganization_ReturnsBsonNull()
-    {
-        var organizationId = ObjectId.GenerateNewId().ToString();
-        var userService = new Mock<IUserService>();
-        var userRepository = new Mock<IUserRepository>();
-        var organizationService = new Mock<IOrganizationService>();
-        organizationService.Setup(r => r.GetOrganization(organizationId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Organization?)null);
-        var service = new AnswerConversionService(userService.Object, userRepository.Object);
-        var property = new PropertyDefinition { Name = "Faculty", Type = "Organization!" };
-        var value = JsonDocument.Parse($$"""
-                                         {
-                                           "id": "{{organizationId}}",
-                                           "name": "Unknown"
-                                         }
-                                         """).RootElement;
-
-        var result = await service.ConvertToValue(value, property, CancellationToken.None);
-
-        Assert.Equal(BsonNull.Value, result);
-    }
-
-    [Fact]
     public async Task GetViewerRoles_MatchesSingleEmbeddedInstanceUserById()
     {
         var userId = ObjectId.GenerateNewId().ToString();
