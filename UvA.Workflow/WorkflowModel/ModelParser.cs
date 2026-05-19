@@ -42,7 +42,7 @@ public partial class ModelParser
         {
             Log.Debug("Processing definition {Name}", definition.Name);
             foreach (var file in contentProvider.GetFiles(definition.SourceFolder)
-                         .Where(f => Path.GetFileNameWithoutExtension(f) != "Entity.yaml"))
+                         .Where(f => Path.GetFileName(f) != "Entity.yaml"))
             {
                 var content = Parse<WorkflowDefinition>(file);
                 if (content.Properties.Count > 0) definition.Properties = content.Properties;
