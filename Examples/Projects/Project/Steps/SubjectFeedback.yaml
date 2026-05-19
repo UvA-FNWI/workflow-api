@@ -7,15 +7,13 @@ icon:
   color: green
 
 actions:
-- name: ApproveSubject
-  type: Execute
+- name: Approve
+  type: Submit
+  form: ApproveSubject
   roles: [Coordinator]
   label:
     en: Approve
     nl: Goedkeuren
-  onAction:
-    - createExternalUserAccount:
-        role: Supervisor
 - name: Reject
   type: Submit
   form: RejectSubject

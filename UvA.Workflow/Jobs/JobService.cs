@@ -15,7 +15,8 @@ public class JobService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IUserRepository userRepository,
     ILogger<JobService> logger,
-    InstanceService instanceService)
+    InstanceService instanceService,
+    IOptions<WorkerOptions> workerOptions)
 {
     public Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, Action action, User user,
         JobInput? input, CancellationToken ct)
@@ -37,6 +38,7 @@ public class JobService(
             InstanceId = instance.Id,
             Input = input,
             IsSynchronous = true,
+            WorkerGroup = workerOptions.Value.WorkerGroup,
             Steps = steps.Keys.ToList()
         };
 
@@ -59,6 +61,7 @@ public class JobService(
                 InstanceId = instance.Id,
                 Input = input,
                 IsSynchronous = false,
+                WorkerGroup = workerOptions.Value.WorkerGroup,
                 Steps = delayGroup.Select(e => new JobStep { Identifier = e.Identifier }).ToList()
             }, ct);
 
@@ -75,7 +78,13 @@ public class JobService(
         }
 
         // TODO: allow jobs without a user
-        var user = await userRepository.GetById(job.CreatedBy!, ct) ?? throw new Exception();
+        var user = await userRepository.GetById(job.CreatedBy!, ct);
+        if (user == null)
+        {
+            logger.LogError("Job {Job}: user {UserId} not found", job.Id, job.CreatedBy);
+            throw new Exception($"User {job.CreatedBy} not found");
+        }
+
         var effects = job.SourceType switch
         {
             JobSource.Action => modelService.WorkflowDefinitions[instance.WorkflowDefinition]
