@@ -3,15 +3,11 @@ using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-public record AnswerInput(
-    JsonElement? Value,
-    int? DeleteFileId = null);
-
 /// <summary>
 /// Service responsible for converting answer input data to BsonValue based on propertyDefinition data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
-public class AnswerConversionService(IUserService userService)
+public class AnswerConversionService(IUserService userService, IUserRepository userRepository)
 {
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -119,26 +115,87 @@ public class AnswerConversionService(IUserService userService)
     /// </summary>
     private async Task<BsonValue> ConvertUser(JsonElement value, CancellationToken ct)
     {
+        UserAnswerInput? userInput;
         try
         {
-            var instanceUser = value.Deserialize<InstanceUser>(Options);
-            if (instanceUser == null)
-                return BsonNull.Value;
-
-            // Try to get user or create a new one if it doesn't exist'
-            var user = await userService.GetUser(instanceUser.UserName, ct);
-            user ??= await userService.AddOrUpdateUser(
-                instanceUser.UserName,
-                instanceUser.DisplayName,
-                instanceUser.Email,
-                instanceUser.Provider ?? UserProviderKeys.Internal,
-                instanceUser.Organization, ct);
-
-            return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
+            userInput = value.Deserialize<UserAnswerInput>(Options);
         }
-        catch
+        catch (JsonException)
         {
             return BsonNull.Value;
         }
+
+        if (userInput == null)
+            return BsonNull.Value;
+
+        var user = await userService.GetUser(userInput.UserName, ct);
+        if (user == null)
+        {
+            if (userInput.IsExternal && !string.IsNullOrWhiteSpace(userInput.Email))
+            {
+                var existingExternalUser = await userRepository.GetByEmail(userInput.Email, ct);
+                if (existingExternalUser != null && UserProviderKeys.IsExternal(existingExternalUser.ProviderKey))
+                    user = existingExternalUser;
+            }
+
+            // External users must already exist; don't recreate them from answer payloads.
+            if (user == null && userInput.IsExternal)
+                return BsonNull.Value;
+
+            user ??= await userService.AddOrUpdateUser(
+                userInput.UserName,
+                userInput.DisplayName,
+                userInput.Email,
+                UserProviderKeys.Internal,
+                userInput.Organization,
+                ct);
+        }
+
+        return BsonTypeMapper.MapToBsonValue(InstanceUser.FromUser(user).ToBsonDocument());
     }
+
+    public async Task<bool> ContainsExternalUserSelection(JsonElement value, bool isArray, CancellationToken ct)
+    {
+        if (isArray && value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var userValue in value.EnumerateArray())
+            {
+                if (await IsExternalUserSelection(userValue, ct))
+                    return true;
+            }
+
+            return false;
+        }
+
+        return await IsExternalUserSelection(value, ct);
+    }
+
+    private async Task<bool> IsExternalUserSelection(JsonElement value, CancellationToken ct)
+    {
+        UserAnswerInput? userInput;
+        try
+        {
+            userInput = value.Deserialize<UserAnswerInput>(Options);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        if (userInput == null)
+            return false;
+
+        if (userInput.IsExternal)
+            return true;
+
+        var resolvedUser = await userService.GetUser(userInput.UserName, ct);
+        return resolvedUser != null && UserProviderKeys.IsExternal(resolvedUser.ProviderKey);
+    }
+
+    private sealed record UserAnswerInput(
+        string UserName,
+        string DisplayName,
+        string Email,
+        bool IsExternal = false,
+        Organization? Organization = null);
 }

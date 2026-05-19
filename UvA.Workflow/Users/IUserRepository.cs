@@ -15,6 +15,6 @@ public interface IUserRepository
     Task<User?> GetByExternalId(string externalId, CancellationToken ct);
     Task<User?> GetByEmail(string email, CancellationToken ct);
     Task<User?> GetByEmailAndProvider(string email, string providerKey, CancellationToken ct);
-    Task<IEnumerable<User>> SearchByQuery(string query, string providerKey, CancellationToken ct);
+    Task<IEnumerable<User>> SearchByQuery(string query, CancellationToken ct);
     Task<IEnumerable<User>> GetByIds(IReadOnlyList<string> ids, CancellationToken ct);
 }

@@ -158,28 +158,31 @@ public class UserService(
         return user is null ? [] : await GetRoles(user, ct);
     }
 
-    public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct)
+    public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers,
+        CancellationToken ct)
     {
-        var resultsBySource = new List<UserSearchResult>();
-        foreach (var searchSource in _userSearchSources)
-            resultsBySource.AddRange(await searchSource.FindUsers(query, ct));
+        var resultsBySource = await Task.WhenAll(_userSearchSources.Select(searchSource =>
+            searchSource.FindUsers(query, ct)));
 
         var results = new List<UserSearchResult>();
         var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenUserNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var user in resultsBySource)
+        foreach (var users in resultsBySource)
         {
-            if (!string.IsNullOrWhiteSpace(user.Email))
+            foreach (var user in users)
             {
-                if (!seenEmails.Add(user.Email))
+                if (!includeExternalUsers && user.IsExternal)
                     continue;
+
+                if (!string.IsNullOrWhiteSpace(user.Email) && !seenEmails.Add(user.Email))
+                    continue;
+
+                if (!seenUserNames.Add(user.UserName))
+                    continue;
+
+                results.Add(user);
             }
-
-            if (!seenUserNames.Add(user.UserName))
-                continue;
-
-            results.Add(user);
         }
 
         return results;

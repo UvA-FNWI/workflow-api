@@ -61,15 +61,15 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         return await _collection.Find(filter).FirstOrDefaultAsync(ct);
     }
 
-    public async Task<IEnumerable<User>> SearchByQuery(string query, string providerKey, CancellationToken ct)
+    public async Task<IEnumerable<User>> SearchByQuery(string query, CancellationToken ct)
     {
         var trimmedQuery = query.Trim();
-        var filter = Builders<User>.Filter.Eq(x => x.ProviderKey, providerKey);
+        var filter = Builders<User>.Filter.Empty;
 
         if (!string.IsNullOrWhiteSpace(trimmedQuery))
         {
             var regex = new BsonRegularExpression(Regex.Escape(trimmedQuery), "i");
-            filter &= Builders<User>.Filter.Or(
+            filter = Builders<User>.Filter.Or(
                 Builders<User>.Filter.Regex(x => x.DisplayName, regex),
                 Builders<User>.Filter.Regex(x => x.Email, regex),
                 Builders<User>.Filter.Regex(x => x.UserName, regex));
