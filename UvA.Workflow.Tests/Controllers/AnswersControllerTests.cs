@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
@@ -88,7 +89,7 @@ public class AnswersControllerTests : ControllerTestsBase
     public async Task Answers_SaveAnswer_CreatesExternalUser_AndSavesAnswer()
     {
         var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
-        var organization = new Organization("org-1", "External Org");
+        var organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "External Org" };
         var createdExternalUser = new User
         {
             Id = "665f35fb3f1b3c6d4b3d0f12",

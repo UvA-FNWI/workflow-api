@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using Moq;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
 
@@ -19,7 +21,7 @@ public class EduIdUserServiceExternalUserTests
     [Fact]
     public async Task CreateOrUpdateExternalUser_CreatesInactiveEduIdUser()
     {
-        var organization = new Organization("org-1", "External Org");
+        var organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "External Org" };
         var userRepositoryMock = new Mock<IUserRepository>();
         User? createdUser = null;
         userRepositoryMock.Setup(r => r.GetByEmail("external@example.org", CancellationToken.None))
@@ -105,7 +107,7 @@ public class EduIdUserServiceExternalUserTests
     [Fact]
     public async Task CreateOrUpdateExternalUser_UpdatesInactiveEduIdDuplicate()
     {
-        var organization = new Organization("org-1", "External Org");
+        var organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "External Org" };
         var existingUser = new User
         {
             UserName = "external@example.org",

@@ -140,7 +140,7 @@ public class InstanceUserStorageTests
             DisplayName = "External User",
             Email = "external@example.org",
             ProviderKey = EduIdDirectoryKeys.ProviderKey,
-            Organization = new Organization("org-1", "External Org"),
+            Organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "External Org" },
             IsActive = true
         };
         var userService = new Mock<IUserService>();
@@ -279,10 +279,11 @@ public class InstanceUserStorageTests
     {
         var organizationId = ObjectId.GenerateNewId().ToString();
         var userService = new Mock<IUserService>();
+        var userRepository = new Mock<IUserRepository>();
         var organizationService = new Mock<IOrganizationService>();
         organizationService.Setup(r => r.GetOrganization(organizationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Organization?)null);
-        var service = new AnswerConversionService(userService.Object);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
         var property = new PropertyDefinition { Name = "Faculty", Type = "Organization!" };
         var value = JsonDocument.Parse($$"""
                                          {
