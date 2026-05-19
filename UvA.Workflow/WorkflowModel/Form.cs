@@ -11,7 +11,7 @@ public enum PageLayout
 public enum FormLayout
 {
     Normal,
-    SinglePage,
+    Compact,
     Modal
 }
 
@@ -93,7 +93,7 @@ public class Form : INamed
     public string? InheritsFrom { get; set; }
 
     /// <summary>
-    /// Sets whether this form shows as multi-page layout with navigation bor or shows all pages at once
+    /// Sets whether this form shows the inherited pages in a normal layout or a compact layout, or opens in a modal
     /// </summary>
     public FormLayout Layout { get; set; }
 

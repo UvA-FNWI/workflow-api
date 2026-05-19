@@ -45,11 +45,6 @@ properties:
       type: Rubric
     weight: 1
     rubric:
-      - name: Excellent
-        description:
-          en: The introduction provides a comprehensive and engaging overview of the research topic, clearly stating the research question, objectives, and significance of the study. It effectively sets the context for the research and captures the reader's interest.
-          nl: De inleiding biedt een uitgebreid en boeiend overzicht van het onderzoeksonderwerp, waarbij duidelijk de onderzoeksvraag, doelstellingen en relevantie van de studie worden vermeld. Het zet effectief de context voor het onderzoek en wekt de interesse van de lezer.
-        grades: [ "AVV+" ]
       - name: AVV
         description:
           en: The introduction provides a clear overview of the research topic, stating the research question, objectives, and significance of the study. It sets the context for the research and engages the reader's interest.
