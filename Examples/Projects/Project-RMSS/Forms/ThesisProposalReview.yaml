@@ -5,6 +5,9 @@ title:
   en: Research proposal and ethics review
   nl: Onderzoeksvoorstel en ethiek beoordeling
 
+emitFormSubmitEvent: false
+submittedWhenEvents: [ApproveSupervisor, RejectSupervisor]
+
 onSubmit:
   - condition:
       logical:

@@ -1,5 +1,4 @@
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 
@@ -18,7 +17,7 @@ public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, Mod
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 
-    public SubmissionDto Create(WorkflowInstance inst, Form form, InstanceEvent? submission,
+    public SubmissionDto Create(WorkflowInstance inst, Form form, FormSubmissionState submissionState,
         Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null)
     {
         var context = modelService.CreateContext(inst);
@@ -27,7 +26,7 @@ public class SubmissionDtoFactory(ArtifactTokenService artifactTokenService, Mod
             form.Name,
             inst.Id,
             answers.Select(a => _answerDtoFactory.Create(a)).ToArray(),
-            submission?.Date,
+            submissionState.DateSubmitted,
             FormDto.Create(form, context),
             permissions ?? []
         );

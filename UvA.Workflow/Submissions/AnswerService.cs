@@ -10,7 +10,7 @@ namespace UvA.Workflow.Submissions;
 
 public record QuestionContext(
     WorkflowInstance Instance,
-    InstanceEvent? Submission,
+    FormSubmissionState SubmissionState,
     Form Form,
     PropertyDefinition PropertyDefinition);
 
@@ -27,7 +27,7 @@ public class AnswerService(
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
-        var (instance, submission, form, _) =
+        var (instance, submissionState, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
 
         // Get the propertyDefinition
@@ -35,7 +35,7 @@ public class AnswerService(
         if (question == null)
             throw new EntityNotFoundException("PropertyDefinition", questionName);
 
-        return new QuestionContext(instance, submission, form, question);
+        return new QuestionContext(instance, submissionState, form, question);
     }
 
     public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, User user, CancellationToken ct)
@@ -55,7 +55,7 @@ public class AnswerService(
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
 
             // if the form is submitted, then log the change
-            if (await instanceEventService.WasEventEverTriggered(instance.Id, form.Name, ct))
+            if (await WasFormEverSubmitted(instance.Id, form, ct))
             {
                 await instanceJournalService.LogPropertyChange(instance.Id,
                     PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
@@ -71,6 +71,15 @@ public class AnswerService(
 
         // Build response
         return Answer.Create(instance, form, updates);
+    }
+
+    private async Task<bool> WasFormEverSubmitted(string instanceId, Form form, CancellationToken ct)
+    {
+        foreach (var eventId in FormSubmissionState.GetSubmissionEventIds(form))
+            if (await instanceEventService.WasEventEverTriggered(instanceId, eventId, ct))
+                return true;
+
+        return false;
     }
 
     public async Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct)

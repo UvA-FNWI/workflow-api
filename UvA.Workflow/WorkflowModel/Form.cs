@@ -137,6 +137,17 @@ public class Form : INamed
     public Effect[] OnSubmit { get; set; } = [];
 
     /// <summary>
+    /// Whether submitting the form should emit the form-name event.
+    /// </summary>
+    public bool EmitFormSubmitEvent { get; set; } = true;
+
+    /// <summary>
+    /// Event ids that determine whether the form is considered submitted.
+    /// If omitted, the form-name event is used.
+    /// </summary>
+    public string[]? SubmittedWhenEvents { get; set; }
+
+    /// <summary>
     /// Effect to run when a change is made in the form
     /// </summary>
     public Effect[] OnSave { get; set; } = [];

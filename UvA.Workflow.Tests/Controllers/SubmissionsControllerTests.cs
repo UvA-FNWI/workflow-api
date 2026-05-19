@@ -7,6 +7,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
@@ -141,6 +142,112 @@ public class SubmissionsControllerTests : ControllerTestsBase
         Assert.Null(submissionResult.ValidationErrors);
     }
 
+    [Fact]
+    public async Task Submissions_SubmitSubmission_UsesConfiguredSubmittedWhen_WhenFormEventIsNotEmitted()
+    {
+        const string submissionId = "Start";
+        const string markerEventId = "SubmittedByEffect";
+        ConfigureAlternateSubmissionMarker(submissionId, markerEventId);
+
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
+            RequiredStartProperties());
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var submissionResult = Assert.IsType<SubmitSubmissionResult>(okResult.Value);
+
+        Assert.True(submissionResult.Success);
+        Assert.Null(instance.Events[submissionId].Date);
+        Assert.Equal(instance.Events[markerEventId].Date, submissionResult.Submission.DateSubmitted);
+    }
+
+    [Fact]
+    public async Task Submissions_SubmitSubmission_ThrowsWhenNoSubmissionMarkerIsActivated()
+    {
+        const string submissionId = "Start";
+        ConfigureAlternateSubmissionMarker(submissionId, "SubmittedByEffect", emitOnSubmit: false);
+
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
+            RequiredStartProperties());
+
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            controller.SubmitSubmission(instance.Id, submissionId, _ct));
+
+        Assert.Contains("did not activate any submission event", exception.Message);
+    }
+
+    [Fact]
+    public async Task Submissions_SubmitSubmission_DeniesDuplicateSubmit_WhenConfiguredMarkerIsActive()
+    {
+        const string submissionId = "Start";
+        const string markerEventId = "SubmittedByEffect";
+        ConfigureAlternateSubmissionMarker(submissionId, markerEventId);
+
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
+            RequiredStartProperties());
+        instance.Events[markerEventId] = new InstanceEvent
+        {
+            Id = markerEventId,
+            Date = DateTime.UtcNow.AddMinutes(-5)
+        };
+
+        await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            controller.SubmitSubmission(instance.Id, submissionId, _ct));
+    }
+
+    [Fact]
+    public async Task Submissions_SubmitSubmission_AllowsResubmission_WhenConfiguredMarkerIsSuppressed()
+    {
+        const string submissionId = "Start";
+        const string markerEventId = "SubmittedByEffect";
+        const string suppressingEventId = "RejectedAfterSubmit";
+        ConfigureAlternateSubmissionMarker(submissionId, markerEventId, suppressingEventId);
+
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
+            RequiredStartProperties());
+        instance.Events[markerEventId] = new InstanceEvent
+        {
+            Id = markerEventId,
+            Date = DateTime.UtcNow.AddMinutes(-10)
+        };
+        instance.Events[suppressingEventId] = new InstanceEvent
+        {
+            Id = suppressingEventId,
+            Date = DateTime.UtcNow.AddMinutes(-5)
+        };
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var submissionResult = Assert.IsType<SubmitSubmissionResult>(okResult.Value);
+
+        Assert.True(submissionResult.Success);
+        Assert.True(EventSuppressionHelper.IsEventActive(markerEventId, instance,
+            _modelService.WorkflowDefinitions[instance.WorkflowDefinition]));
+    }
+
+    [Fact]
+    public async Task GetAllowedSubmissions_UsesConfiguredSubmittedWhenEvents()
+    {
+        const string submissionId = "Start";
+        const string markerEventId = "SubmittedByEffect";
+        ConfigureAlternateSubmissionMarker(submissionId, markerEventId);
+        MockCurrentUser("Student");
+
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithEvents(b => b.WithId(submissionId))
+            .WithEvent(markerEventId, DateTime.UtcNow.AddMinutes(-1))
+            .Build();
+
+        var submissions = (await _instanceService.GetAllowedSubmissions(instance, _ct)).ToArray();
+
+        var submission = Assert.Single(submissions);
+        Assert.Equal(submissionId, submission.Form.Name);
+        Assert.Equal(instance.Events[markerEventId].Date, submission.SubmissionState.DateSubmitted);
+    }
+
     [Theory]
     [InlineData("Coordinator", "Start")]
     [InlineData("Student", "Upload")]
@@ -208,4 +315,53 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
         return (controller, instance);
     }
+
+    private void ConfigureAlternateSubmissionMarker(string formName, string markerEventId,
+        string? suppressingEventId = null, bool emitOnSubmit = true)
+    {
+        var workflowDef = _modelService.WorkflowDefinitions["Project"];
+        var form = workflowDef.Forms.Single(f => f.Name == formName);
+
+        form.EmitFormSubmitEvent = false;
+        form.SubmittedWhenEvents = [markerEventId];
+        form.OnSubmit = emitOnSubmit ? [new Effect { Event = markerEventId }] : [];
+
+        var markerEvent = workflowDef.Events.FirstOrDefault(e => e.Name == markerEventId);
+        if (markerEvent == null)
+        {
+            markerEvent = new EventDefinition { Name = markerEventId };
+            workflowDef.Events.Add(markerEvent);
+        }
+
+        if (suppressingEventId != null)
+        {
+            markerEvent.Suppresses = [suppressingEventId];
+
+            var suppressingEvent = workflowDef.Events.FirstOrDefault(e => e.Name == suppressingEventId);
+            if (suppressingEvent == null)
+            {
+                suppressingEvent = new EventDefinition { Name = suppressingEventId };
+                workflowDef.Events.Add(suppressingEvent);
+            }
+
+            suppressingEvent.Suppresses = [markerEventId];
+        }
+    }
+
+    private static (string name, Func<PropertyBuilder, BsonValue> builder)[] RequiredStartProperties() =>
+    [
+        ("Title", _ => "Title"),
+        ("Subject", _ => "Subject"),
+        ("Description", _ => new BsonDocument
+        {
+            { "Name", "Name" }
+        }),
+        ("Examiner", _ => new BsonDocument()),
+        ("Reviewer", _ => new BsonDocument()),
+        ("Supervisor", _ => new BsonDocument()),
+        ("StartDate", _ => new DateTime(2056, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+        ("EndDate", _ => new DateTime(2057, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+        ("Deadline", _ => new DateTime(2058, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+        ("EC", _ => 1)
+    ];
 }

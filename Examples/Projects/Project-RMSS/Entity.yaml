@@ -18,7 +18,7 @@ fields:
 
 events:
   - name: Start
-    suppresses: [RejectSupervisor, RejectProposalReviewer, ApproveSupervisor, ApproveProposalReviewer, ThesisProposalReview, ProposalReviewerReview]
+    suppresses: [RejectSupervisor, RejectProposalReviewer, ApproveSupervisor, ApproveProposalReviewer]
   - name: RejectSupervisor
     suppresses: [Start, ApproveSupervisor]
   - name: RejectProposalReviewer

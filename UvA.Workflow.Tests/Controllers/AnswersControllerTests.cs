@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Moq;
+using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Versioning;
@@ -78,6 +81,35 @@ public class AnswersControllerTests : ControllerTestsBase
             controller.GetChoices(instance.Id, submissionId, questionName, _ct));
     }
 
+    [Fact]
+    public async Task SaveAnswer_LogsPropertyChange_WhenConfiguredSubmittedWhenWasTriggered()
+    {
+        const string submissionId = "Start";
+        const string markerEventId = "SubmittedByEffect";
+        ConfigureAlternateSubmissionMarker(submissionId, markerEventId);
+
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithEvents(b => b.WithId(submissionId))
+            .WithProperties(("Title", b => b.Value("Old title")))
+            .Build();
+
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser("Student");
+        _instanceEventService
+            .Setup(s => s.WasEventEverTriggered(instance.Id, markerEventId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var context = await _answerService.GetQuestionContext(instance.Id, submissionId, "Title", _ct);
+        using var payload = JsonDocument.Parse("\"New title\"");
+
+        await _answerService.SaveAnswer(context, payload.RootElement, ControllerTestsHelpers.AdminUser, _ct);
+
+        _instanceJournalServiceMock.Verify(s => s.LogPropertyChange(instance.Id,
+            It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private (AnswersController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string submissionId, string stepName = "Start")
     {
@@ -94,9 +126,21 @@ public class AnswersControllerTests : ControllerTestsBase
 
         var controller =
             new AnswersController(_userServiceMock.Object, _answerService, _rightsService, _artifactTokenService,
-                _submissionDtoFactory, _submissionService, _instanceService, _modelService,
+                _submissionDtoFactory, _instanceService, _modelService,
                 _workflowInstanceRepoMock.Object);
 
         return (controller, instance);
+    }
+
+    private void ConfigureAlternateSubmissionMarker(string formName, string markerEventId)
+    {
+        var workflowDef = _modelService.WorkflowDefinitions["Project"];
+        var form = workflowDef.Forms.Single(f => f.Name == formName);
+
+        form.EmitFormSubmitEvent = false;
+        form.SubmittedWhenEvents = [markerEventId];
+
+        if (workflowDef.Events.All(e => e.Name != markerEventId))
+            workflowDef.Events.Add(new EventDefinition { Name = markerEventId });
     }
 }
