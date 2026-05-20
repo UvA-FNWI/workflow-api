@@ -197,7 +197,7 @@ public class WorkflowTests
         var assessmentForm = assessmentPb.Forms.Single(f => f.Name == "Assessment");
 
         Assert.Equal("PB/Assessment-PB", assessmentPb.SourceFolder);
-        Assert.Equal(5, assessmentForm.Pages.Count);
+        Assert.Equal(4, assessmentForm.Pages.Count);
         Assert.Equal("Practical", assessmentForm.Pages[^1].Name);
 
         var projectAi = _modelService.WorkflowDefinitions["Project-AI"];
