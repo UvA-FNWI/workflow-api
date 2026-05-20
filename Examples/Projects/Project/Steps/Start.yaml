@@ -1,8 +1,14 @@
 name: Start
-icon: article-line
+icon: 
+  type: square-grid-search-line
 title:
   nl: Indienen voorstel
   en: Subject proposal
+progress:
+  color: green
+  text:
+    en: Writing proposal
+    nl: Schrijft voorstel
 
 condition: 
   deadline: addMonths(CreateDate, 2)
