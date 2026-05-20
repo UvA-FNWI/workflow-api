@@ -3,7 +3,7 @@ This folder contains config files for configuring Milestones in Canvas per envir
 The JSON contains all the configuration needed for the LTI key, except for the redirect URI, which should be set to `/signin-oidc` on the API:
 - Production (<https://canvas.uva.nl>): `https://api.milestones.uva.nl/signin-oidc`
 - Acceptance (<https://uvadlo.test.instructure.com>): `https://workflow-api-acc.datanose.nl/signin-oidc`
-- Test (<https://uvadlo-dev.instructure.com>): `https://workflow-api-tst.datanose.nl/signin-oidc`
+- Test (<https://uvadlo-dev.instructure.com>): `https://api.milestones-tst.fnwi.uva.nl/signin-oidc`
 
 ## Local testing
 Local development and testing is possible using the `dev.json` config file. 
