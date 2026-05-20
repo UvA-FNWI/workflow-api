@@ -1,5 +1,6 @@
 name: Subject
-icon: article-line
+icon: 
+  type: article-line
 
 title:
   nl: Onderwerp

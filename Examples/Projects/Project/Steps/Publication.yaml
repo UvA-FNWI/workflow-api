@@ -2,7 +2,9 @@ name: Publication
 title:
   en: Publication
   nl: Publicatie
-icon: sparkles-line
+  
+icon: 
+  type: sparkles-line
   
 condition:
   logical:
