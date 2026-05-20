@@ -2,8 +2,10 @@ namespace UvA.Workflow.Users;
 
 public class RepositoryUserSearchSource(IUserRepository userRepository) : IUserSearchSource
 {
+    private const string EduIdProviderKey = "eduid";
+
     public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct = default)
-        => (await userRepository.SearchByQuery(query, ct))
+        => (await userRepository.SearchByQueryAndProvider(query, EduIdProviderKey, ct))
             .Select(CreateSearchResult)
             .ToArray();
 
