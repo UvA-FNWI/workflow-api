@@ -42,11 +42,22 @@ public partial class ModelParser
         {
             Log.Debug("Processing definition {Name}", definition.Name);
             foreach (var file in contentProvider.GetFiles(definition.SourceFolder)
-                         .Where(f => Path.GetFileNameWithoutExtension(f) != "Entity.yaml"))
+                         .Where(f => Path.GetFileName(f) != "Entity.yaml"))
             {
                 var content = Parse<WorkflowDefinition>(file);
-                if (content.Properties.Count > 0) definition.Properties = content.Properties;
-                if (content.GlobalActions.Count > 0) definition.GlobalActions = content.GlobalActions;
+                foreach (var prop in content.Properties)
+                {
+                    if (definition.Properties.Contains(prop.Name))
+                        throw new Exception(
+                            $"Definition '{definition.Name}' defines property '{prop.Name}' in multiple files.");
+                    definition.Properties.Add(prop);
+                }
+
+                if (content.GlobalActions.Count == 0) continue;
+                if (definition.GlobalActions.Count > 0)
+                    throw new Exception(
+                        $"Definition '{definition.Name}' defines globalActions in multiple files.");
+                definition.GlobalActions = content.GlobalActions;
             }
 
             definition.Forms = Read<Form>(definition.SourceFolder);
