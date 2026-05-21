@@ -16,13 +16,22 @@ namespace UvA.Workflow.WorkflowInstances;
 
 public record ToastResult(ToastType Type, BilingualString Message);
 
-public record EffectResult(string? RedirectUrl = null, bool? ShowConfetti = null, ToastResult? Toast = null)
+public record EffectError(int Code, string Message, bool IsExternal);
+
+public record EffectResult(
+    string? RedirectUrl = null,
+    bool? ShowConfetti = null,
+    ToastResult? Toast = null,
+    EffectError? Error = null)
 {
+    public EffectError? Error { get; set; }
+
     public static EffectResult operator +(EffectResult result, EffectResult other)
         => new(
             result.RedirectUrl ?? other.RedirectUrl,
             result.ShowConfetti ?? other.ShowConfetti,
-            result.Toast ?? other.Toast
+            result.Toast ?? other.Toast,
+            result.Error ?? other.Error
         );
 }
 

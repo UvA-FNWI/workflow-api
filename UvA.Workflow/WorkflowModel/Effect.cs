@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -117,6 +118,12 @@ public class Effect
     /// </summary>
     public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null ||
                             CreateExternalUserAccount != null;
+
+    /// <summary>
+    /// Determines whether this effect makes an external call.
+    /// Failed external effects are reported as <see cref="JobFailedException"/>.
+    /// </summary>
+    public bool IsExternal => ServiceCall != null || SendMail != null || CreateExternalUserAccount != null;
 }
 
 public class CreateExternalUserAccount
