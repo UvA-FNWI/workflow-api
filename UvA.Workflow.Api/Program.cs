@@ -33,7 +33,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
-builder.Services.AddWorkflowCore();
+builder.Services.AddWorkflowCore(builder.Configuration);
 builder.Services.AddWorkflowApiCore();
 builder.Services
     .AddControllers()

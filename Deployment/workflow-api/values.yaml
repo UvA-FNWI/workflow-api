@@ -69,5 +69,9 @@ azure:
       key: CanvasLti__Key
     - name: workflow-impersonation-key
       key: ImpersonationKey
+    - name: workflow-s3-secret-key
+      key: S3__SecretKey
+    - name: workflow-s3-signing-key
+      key: S3__SigningKey
     - name: workflow-dn2-api-key
       key: Services__DataNose__Token
