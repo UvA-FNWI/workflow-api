@@ -356,6 +356,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         ("Subject", _ => "Subject"),
         ("Description", _ => new BsonDocument
         {
+            { "ArtifactId", "ArtifactId" },
             { "Name", "Name" }
         }),
         ("Examiner", _ => new BsonDocument()),

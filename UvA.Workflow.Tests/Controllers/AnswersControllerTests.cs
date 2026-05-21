@@ -105,7 +105,7 @@ public class AnswersControllerTests : ControllerTestsBase
         var context = await _answerService.GetQuestionContext(instance.Id, submissionId, "Title", _ct);
         using var payload = JsonDocument.Parse("\"New title\"");
 
-        await _answerService.SaveAnswer(context, payload.RootElement, ControllerTestsHelpers.AdminUser, _ct);
+        await _answerService.SaveAnswer(context, payload.RootElement, UnitTestsHelpers.AdminUser, _ct);
 
         _instanceJournalServiceMock.Verify(s => s.LogPropertyChange(instance.Id,
             It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()), Times.Once);
