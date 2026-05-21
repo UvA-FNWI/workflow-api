@@ -21,8 +21,7 @@ public record EffectError(int Code, string Message, bool IsExternal);
 public record EffectResult(
     string? RedirectUrl = null,
     bool? ShowConfetti = null,
-    ToastResult? Toast = null,
-    EffectError? Error = null)
+    ToastResult? Toast = null)
 {
     public EffectError? Error { get; set; }
 
@@ -30,9 +29,10 @@ public record EffectResult(
         => new(
             result.RedirectUrl ?? other.RedirectUrl,
             result.ShowConfetti ?? other.ShowConfetti,
-            result.Toast ?? other.Toast,
-            result.Error ?? other.Error
-        );
+            result.Toast ?? other.Toast)
+        {
+            Error = result.Error ?? other.Error
+        };
 }
 
 public class EffectService(
