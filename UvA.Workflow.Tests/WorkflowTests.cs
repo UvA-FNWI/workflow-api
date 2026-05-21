@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -89,9 +90,16 @@ public class WorkflowTests
             _instanceJournalServiceMock.Object);
         _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MailDispatchResult([], [], [], null));
-        _effectService = new EffectService(_instanceService, _eventService, _modelService, _mailServiceMock.Object,
-            _eduIdUserServiceMock.Object, mailBuilder, _artifactServiceMock.Object,
-            _mailLogRepositoryMock.Object, _configurationMock.Object, factory.CreateLogger<EffectService>());
+        _effectService = new EffectService(_instanceService,
+            _eventService,
+            _modelService,
+            _mailServiceMock.Object,
+            _eduIdUserServiceMock.Object,
+            mailBuilder,
+            _artifactServiceMock.Object,
+            _mailLogRepositoryMock.Object,
+            _configurationMock.Object,
+            factory.CreateLogger<EffectService>());
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
@@ -172,9 +180,12 @@ public class WorkflowTests
         await writer.FlushAsync(_ct);
         const string fileName = "test.pdf";
 
+        var fileId = ObjectId.GenerateNewId();
+        var artifactId = S3ArtifactService.ToArtifactId(instance.Id, null, fileId);
+
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
-        _artifactServiceMock.Setup(a => a.SaveArtifact(fileName, It.IsAny<Stream>()))
-            .ReturnsAsync(new ArtifactInfo(ObjectId.GenerateNewId(), fileName));
+        _artifactServiceMock.Setup(a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()))
+            .ReturnsAsync(new ArtifactInfo(artifactId, fileName));
 
         // Act
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
@@ -184,7 +195,8 @@ public class WorkflowTests
         Assert.Contains(instance.Properties, p => p.Key == "Report");
         var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
         Assert.Equal(fileName, report.Name);
-        _artifactServiceMock.Verify(a => a.SaveArtifact(fileName, It.IsAny<Stream>()), Times.Once);
+        _artifactServiceMock.Verify(
+            a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()), Times.Once);
         _instanceRepoMock.Verify(
             r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()), Times.Once);

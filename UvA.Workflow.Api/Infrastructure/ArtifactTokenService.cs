@@ -1,32 +1,39 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
-public class ArtifactTokenService(IConfiguration config)
+public class ArtifactTokenService(IOptionsMonitor<S3Config> s3ConfigOptions)
+    : IArtifactTokenService
 {
-    private const string ResourceType = "artefact";
     private const string TokenIssuer = "workflow";
-    private readonly SymmetricSecurityKey signingKey = new(Encoding.ASCII.GetBytes(config["FileKey"]!));
+    private const string ResourceType = "artefact";
+
+    private readonly S3Config _s3ConfigOptions = s3ConfigOptions.CurrentValue;
 
     public string CreateAccessToken(ArtifactInfo artifactInfo)
     {
-        var claims = new Dictionary<string, object>
+        var claims = new List<Claim>
         {
-            ["id"] = artifactInfo.Id.ToString(),
-            ["type"] = ResourceType
+            new("artifactId", artifactInfo.ArtifactId),
+            new("type", ResourceType)
         };
 
+        var token = new JwtSecurityToken(
+            issuer: TokenIssuer,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(60),
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_s3ConfigOptions.SigningKey)),
+                SecurityAlgorithms.HmacSha256)
+        );
+
         var handler = new JwtSecurityTokenHandler();
-        return handler.CreateEncodedJwt(new SecurityTokenDescriptor
-        {
-            Expires = DateTime.UtcNow.AddHours(1),
-            Issuer = TokenIssuer,
-            SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha512Signature),
-            Claims = claims
-        });
+        return handler.WriteToken(token);
     }
 
     public async Task<bool> ValidateAccessToken(string artifactId, string token)
@@ -37,13 +44,14 @@ public class ArtifactTokenService(IConfiguration config)
         var handler = new JwtSecurityTokenHandler();
         var result = await handler.ValidateTokenAsync(token, new TokenValidationParameters
         {
-            IssuerSigningKey = signingKey,
-            ValidateIssuer = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_s3ConfigOptions.SigningKey)),
+            ValidateIssuer = false,
             ValidateAudience = false,
-            ValidIssuer = TokenIssuer
+            ValidateLifetime = true,
         });
         return result.IsValid
-               && result.Claims["id"]?.ToString() == artifactId
+               && result.Claims["artifactId"]?.ToString() == artifactId
                && result.Claims["type"]?.ToString() == ResourceType;
     }
 }
