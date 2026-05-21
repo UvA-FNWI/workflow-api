@@ -1,1 +1,36 @@
-// TODO
+{
+  "title": "Milestones",
+  "description": "Milestones (production environment)",
+  "target_link_uri": "https://milestones.uva.nl/canvas",
+  "oidc_initiation_url": "https://api.milestones.uva.nl/oidc",
+  "oidc_initiation_urls": {},
+  "public_jwk_url": "https://api.milestones.uva.nl/jwks",
+  "public_jwk": {},
+  "custom_fields": {
+    "courseId": "$Canvas.course.id"
+  },
+  "scopes": [],
+  "extensions": [
+    {
+      "domain": "",
+      "tool_id": "",
+      "privacy_level": "public",
+      "platform": "canvas.instructure.com",
+      "settings": {
+        "platform": "canvas.instructure.com",
+        "placements": [
+          {
+            "labels": {
+              "en": "Milestones",
+              "nl": "Milestones"
+            },
+            "placement": "course_navigation",
+            "visibility": "members",
+            "display_type": "full_width_in_context",
+            "message_type": "LtiResourceLinkRequest"
+          }
+        ]
+      }
+    }
+  ]
+}
