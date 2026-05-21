@@ -82,7 +82,9 @@ public class EffectService(
         {
             foreach (var a in mailAttachments)
             {
-                var artifact = await artifactService.SaveArtifact(a.FileName, a.Content);
+                var artifactId = S3ArtifactService.ToArtifactId(instance.Id, "mailAttachment");
+                var artifact =
+                    await artifactService.SaveArtifact(artifactId, a.FileName, a.Content);
                 attachments.Add(artifact);
             }
         }
@@ -313,9 +315,9 @@ public class EffectService(
         if (requestContext.Get(fileInput.Name) is not ArtifactInfo fileInfo)
             return null;
 
-        var artifact = await artifactService.GetArtifact(fileInfo.Id, ct);
+        var artifact = await artifactService.GetArtifact(fileInfo.ArtifactId, ct);
         if (artifact == null)
-            throw new EntityNotFoundException("Artifact", fileInfo.Id.ToString());
+            throw new EntityNotFoundException("Artifact", fileInfo.ArtifactId);
 
         var content = new ByteArrayContent(artifact.Content);
         var contentType = ContentTypeProvider.TryGetContentType(fileInfo.Name, out var mimeType)

@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Events;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
@@ -23,7 +24,7 @@ public class EventsControllerTests : ControllerTestsBase
         //Assert
         Assert.IsType<OkResult>(result);
         _eventRepoMock.Verify(r =>
-                r.DeleteEvent(instance, It.Is<InstanceEvent>(e => e.Id == eventName), ControllerTestsHelpers.AdminUser,
+                r.DeleteEvent(instance, It.Is<InstanceEvent>(e => e.Id == eventName), UnitTestsHelpers.AdminUser,
                     _ct),
             Times.Once);
     }
@@ -77,7 +78,7 @@ public class EventsControllerTests : ControllerTestsBase
             .Build();
 
         _eventRepoMock.Setup(r =>
-            r.DeleteEvent(instance, It.IsAny<InstanceEvent>(), ControllerTestsHelpers.AdminUser, _ct));
+            r.DeleteEvent(instance, It.IsAny<InstanceEvent>(), UnitTestsHelpers.AdminUser, _ct));
 
         MockInstance(instance);
         MockEmptyEventLog(instance);

@@ -4,10 +4,12 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Serilog;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Tests.Impersonation;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
@@ -74,7 +76,7 @@ public abstract class ControllerTestsBase
         _mailLogRepositoryMock.Setup(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _modelParser = ControllerTestsHelpers.CreateModelParser();
+        _modelParser = UnitTestsHelpers.CreateModelParser();
 
         // Services
         _modelService = new ModelService(_modelParser);
@@ -120,7 +122,7 @@ public abstract class ControllerTestsBase
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles);
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ControllerTestsHelpers.AdminUser);
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
     }
 
     protected void MockInstance(WorkflowInstance instance)
