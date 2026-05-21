@@ -1,5 +1,6 @@
 name: UploadFinalThesis
-icon: download-line
+icon: 
+  type: download-line
 title:
   en: Upload final thesis
   nl: Eindversie scriptie uploaden

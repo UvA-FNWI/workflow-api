@@ -1,7 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Submissions;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Submissions;
 
@@ -43,8 +43,7 @@ public class AnswersController(
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
 
-        await using var contents = request.File.OpenReadStream();
-        await answerService.SaveArtifact(context, request.File.FileName, contents, ct);
+        await answerService.SaveArtifact(context, request.File, ct);
         return Ok(new SaveAnswerFileResponse(true));
     }
 
@@ -59,6 +58,7 @@ public class AnswersController(
         return Ok(new SaveAnswerFileResponse(true));
     }
 
+    [AllowAnonymous]
     [HttpGet("{instanceId}/{submissionId}/{questionName}/artifacts/{artifactId}")]
     public async Task<IActionResult> GetAnswerFile(string instanceId, string submissionId, string questionName,
         string artifactId, [FromQuery] string token, CancellationToken ct)
@@ -70,11 +70,10 @@ public class AnswersController(
         }
 
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedForAction(context, RoleAction.View);
-
         var file = await answerService.GetArtifact(context, artifactId, ct);
         if (file == null) return NotFound();
-        return File(file.Content, "application/pdf", file.Info.Name);
+
+        return File(file.Content, file.Info.ContentType, file.Info.Name);
     }
 
     [HttpGet("{instanceId}/{submissionId}/{questionName}/Choices")]

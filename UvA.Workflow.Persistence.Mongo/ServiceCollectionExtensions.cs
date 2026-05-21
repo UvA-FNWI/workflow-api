@@ -21,7 +21,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInstanceJournalService, InstanceJournalService>();
         services.AddScoped<IMailLogRepository, MailLogRepository>();
         services.AddScoped<ISettingsStore, SettingsStore>();
-        services.AddScoped<IArtifactService, ArtifactService>();
 
         return services;
     }

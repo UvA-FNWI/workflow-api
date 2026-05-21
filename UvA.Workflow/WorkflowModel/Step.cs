@@ -18,6 +18,25 @@ public enum StepHeaderPillType
     Success
 }
 
+public enum StatusColor
+{
+    Red,
+    Green
+}
+
+public record Icon
+{
+    public string Type { get; init; } = null!;
+    public StatusColor Color { get; init; } = StatusColor.Red;
+}
+
+public record ProgressInformation
+{
+    public StatusColor? Color { get; init; }
+    public BilingualString? Text { get; init; } = null!;
+    [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(Text);
+}
+
 public class Step : INamed
 {
     /// <summary>
@@ -30,7 +49,15 @@ public class Step : INamed
     /// </summary>
     public BilingualString? Title { get; set; }
 
-    public string? Icon { get; set; }
+    /// <summary>
+    /// The progress information about the step
+    /// </summary>
+    public ProgressInformation? Progress { get; set; }
+
+    /// <summary>
+    /// The icon of the step
+    /// </summary>
+    public Icon? Icon { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;
 

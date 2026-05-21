@@ -49,6 +49,17 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
                 var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
                 return GetValue(t.Value, prop?.DataType ?? DataType.String, prop);
             });
+
+        // Adds the date of the event to the properties so it can be used in templates
+        if (rawData.TryGetValue("Events", out var eventsValue) && eventsValue is BsonDocument eventsDoc)
+        {
+            eventsDoc.Elements
+                .Select(ev => (ev.Name, Date: (ev.Value as BsonDocument)?["Date"]))
+                .Where(x => x.Date != null && !x.Date.IsBsonNull)
+                .ToList()
+                .ForEach(x => dict.TryAdd(x.Name + "Event", x.Date!.AsBsonDateTime.ToLocalTime()));
+        }
+
         return new ObjectContext(dict);
     }
 
