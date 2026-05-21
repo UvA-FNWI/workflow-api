@@ -121,7 +121,6 @@ public class Effect
 
     /// <summary>
     /// Determines whether this effect makes an external call.
-    /// Failed external effects are reported as <see cref="JobFailedException"/>.
     /// </summary>
     public bool IsExternal => ServiceCall != null || SendMail != null || CreateExternalUserAccount != null;
 }
