@@ -171,7 +171,7 @@ public class PropertyDefinition : INamed
     /// <summary>
     /// The weight of a field for result calculation
     /// </summary>
-    public int? Weight { get; set; }
+    public decimal? Weight { get; set; }
 
     /// <summary>
     /// Determines if the propertyDefinition allows external users

@@ -9,7 +9,7 @@ public static class AssessmentService
     {
         var pages = submissionContext.Form.ActualForm.Pages.ToArray();
 
-        int totalWeight = pages
+        decimal totalWeight = pages
             .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
             .Sum(field => field.Weight ?? 0);
 
@@ -44,7 +44,7 @@ public static class AssessmentService
     private static decimal WeightedAverage(IEnumerable<Result> results)
     {
         var list = results.ToList();
-        int totalWeight = list.Sum(r => r.Weight);
+        decimal totalWeight = list.Sum(r => r.Weight);
         decimal weightedSum = list.Sum(r => (decimal)r.Answer * r.Weight);
 
         return totalWeight == 0
@@ -84,7 +84,7 @@ public static class AssessmentService
         // Only return a meaningful total if every page was filled in by at least one form
         if (pageAggregates.Any(p => p.Average == null)) return 0;
 
-        int totalWeight = pageAggregates.Sum(r => r.Weight);
+        decimal totalWeight = pageAggregates.Sum(r => r.Weight);
         decimal weightedSum = pageAggregates.Sum(p => p.Average!.Value * p.Weight);
         return totalWeight == 0 ? 0 : Math.Round(weightedSum / totalWeight, 2, MidpointRounding.AwayFromZero);
     }

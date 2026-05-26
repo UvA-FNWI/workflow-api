@@ -84,7 +84,7 @@ public record QuestionDto(
     Dictionary<string, object>? Layout,
     QuestionDto[]? SubProperties,
     bool HideInResults,
-    int? Weight,
+    decimal? Weight,
     int? MaxLength,
     bool? AllowsExternalUsers,
     List<RubricEntry>? Rubric)
