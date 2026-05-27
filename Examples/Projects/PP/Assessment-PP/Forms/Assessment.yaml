@@ -33,4 +33,4 @@ pages:
       - Presentation
       - DoctrinalAnalysis
       - Motivation
-    sources: [ AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer ]
+    sources: [ AssessmentSupervisor, AssessmentExaminer ]
