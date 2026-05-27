@@ -68,6 +68,11 @@ public class JobService(
         return result;
     }
 
+    public Task<Job?> GetById(string id, CancellationToken ct) => repository.GetById(id, ct);
+
+    public Task<IReadOnlyList<Job>> GetList(string? instanceId, CancellationToken ct) =>
+        repository.GetList(instanceId, ct);
+
     public async Task RunJob(Job job, CancellationToken ct)
     {
         var instance = await workflowInstanceRepository.GetById(job.InstanceId, ct);
