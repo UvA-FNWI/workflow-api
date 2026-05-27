@@ -2,6 +2,12 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Users;
 
+public enum UserInvitationState
+{
+    Required,
+    Pending
+}
+
 /// <summary>
 /// Represents a user in the workflow system.
 /// </summary>
@@ -29,4 +35,10 @@ public class User
     public string ProviderKey { get; set; } = UserProviderKeys.Internal;
 
     [BsonElement("IsActive")] [JsonIgnore] public bool IsActive { get; set; } = true;
+
+    [BsonElement("InvitationState")]
+    [BsonRepresentation(BsonType.String)]
+    [BsonIgnoreIfNull]
+    [JsonIgnore]
+    public UserInvitationState? InvitationState { get; set; } = null;
 }
