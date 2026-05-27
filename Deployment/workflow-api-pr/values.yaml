@@ -62,6 +62,7 @@ apiPaths:
   - /Submissions
   - /Artifacts
   - /Assessments
+  - /Jobs
   - /oidc
   - /signin-oidc
 
