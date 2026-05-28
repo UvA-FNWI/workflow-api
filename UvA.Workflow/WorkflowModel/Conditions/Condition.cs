@@ -111,11 +111,6 @@ public class EventCondition : ConditionPart
     /// </summary>
     public string Id { get; set; } = null!;
 
-    /// <summary>
-    /// If set, the event specified by Id must have occurred on or after the event specified by this property
-    /// </summary>
-    public string? NotBefore { get; set; } = null!;
-
     public override bool IsMet(ObjectContext context)
     {
         // Check if event exists and is active (not suppressed)
@@ -126,18 +121,6 @@ public class EventCondition : ConditionPart
         var date = context.Get(Id + "Event") as DateTime?;
         if (date == null)
             return false;
-
-        // Check notBefore constraint if specified
-        if (NotBefore != null)
-        {
-            var notBeforeActive = context.Get(NotBefore + "EventActive") as bool? ?? false;
-            if (!notBeforeActive)
-                return true; // NotBefore event doesn't exist or is suppressed, constraint satisfied
-
-            var notBeforeDate = context.Get(NotBefore + "Event") as DateTime?;
-            if (date < notBeforeDate)
-                return false;
-        }
 
         return true;
     }
