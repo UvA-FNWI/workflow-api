@@ -19,12 +19,18 @@ public class RightsService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IImpersonationContextService? impersonationContextService = null)
 {
-    private readonly IImpersonationContextService impersonationContextService =
+    private IEnumerable<string>? _currentUserRoles;
+
+    private readonly IImpersonationContextService _impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
-    public async Task<IEnumerable<string>> GetGlobalRoles() =>
-        (await userService.GetRolesOfCurrentUser()).ToList()
-        .Append("Registered");
+    public async Task<IEnumerable<string>> GetGlobalRoles()
+    {
+        _currentUserRoles ??= (await userService.GetRolesOfCurrentUser()).ToList()
+            .Append("Registered");
+
+        return _currentUserRoles;
+    }
 
     public WorkflowImpersonationRole[] GetWorkflowRelevantRoles(string workflowDefinition)
     {
@@ -168,7 +174,7 @@ public class RightsService(
         WorkflowInstance instance,
         params RoleAction[] actions)
     {
-        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance);
+        var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance);
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetAllowedActionsForRealUser(instance, actions);
 
