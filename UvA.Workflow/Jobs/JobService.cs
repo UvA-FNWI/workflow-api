@@ -64,19 +64,22 @@ public class JobService(
                 });
 
             var summary = string.Join(Environment.NewLine, failedDescriptions);
+            var jobFailedErrorMessage = new BilingualString(
+                "The form was submitted successfully, but a background task has failed.",
+                "Het formulier is succesvol ingeleverd, maar een achtergrondtaak is mislukt.");
 
             if (failedEffects?.All(e => e?.IsExternal == true) == true)
             {
                 logger.LogError("Job {job.Id} failed due to external service(s):{Environment.NewLine}{summary}", job.Id,
                     Environment.NewLine, summary);
-                result.Error = new EffectError("An external job effect failed",
+                result.Error = new EffectError(jobFailedErrorMessage,
                     true, instance.Id);
                 return result;
             }
 
             logger.LogError("Job {job.Id} failed: {Environment.NewLine}{summary}", job.Id, Environment.NewLine,
                 summary);
-            result.Error = new EffectError("An unknown error occurred", false, instance.Id);
+            result.Error = new EffectError(jobFailedErrorMessage, false, instance.Id);
             return result;
         }
 
