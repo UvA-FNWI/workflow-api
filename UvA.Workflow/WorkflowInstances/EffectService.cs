@@ -16,7 +16,7 @@ namespace UvA.Workflow.WorkflowInstances;
 
 public record ToastResult(ToastType Type, BilingualString Message);
 
-public record EffectError(int Code, string Message, bool IsExternal);
+public record EffectError(string Message, bool IsExternal, string? InstanceId = null);
 
 public record EffectResult(
     string? RedirectUrl = null,

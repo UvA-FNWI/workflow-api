@@ -69,14 +69,14 @@ public class JobService(
             {
                 logger.LogError("Job {job.Id} failed due to external service(s):{Environment.NewLine}{summary}", job.Id,
                     Environment.NewLine, summary);
-                result.Error = new EffectError((int)HttpStatusCode.InternalServerError, "An external job effect failed",
-                    true);
+                result.Error = new EffectError("An external job effect failed",
+                    true, instance.Id);
                 return result;
             }
 
             logger.LogError("Job {job.Id} failed: {Environment.NewLine}{summary}", job.Id, Environment.NewLine,
                 summary);
-            result.Error = new EffectError((int)HttpStatusCode.InternalServerError, "An unknown error occurred", false);
+            result.Error = new EffectError("An unknown error occurred", false, instance.Id);
             return result;
         }
 
@@ -159,7 +159,8 @@ public class JobService(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error running effect {Effect}", effect.Identifier);
-                step.Message = ex.GetType().Name;
+                step.Message = step.Message = $"{ex.GetType().Name}: {ex.Message}";
+                ;
                 job.Status = JobStatus.Failed;
                 continue;
             }
