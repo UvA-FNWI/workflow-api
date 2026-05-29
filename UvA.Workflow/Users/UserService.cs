@@ -65,7 +65,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 user.ProviderKey = providerKey;
             }
 
-            if (organization != null && user.Organization?.Id != organization.Id)
+            if (organization != null && user.Organization == null)
             {
                 changed = true;
                 user.Organization = organization;

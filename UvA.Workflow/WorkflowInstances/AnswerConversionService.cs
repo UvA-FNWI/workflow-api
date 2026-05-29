@@ -7,7 +7,10 @@ namespace UvA.Workflow.WorkflowInstances;
 /// Service responsible for converting answer input data to BsonValue based on propertyDefinition data types.
 /// Handles proper type conversion and user resolution through the user cache.
 /// </summary>
-public class AnswerConversionService(IUserService userService, IUserRepository userRepository)
+public class AnswerConversionService(
+    IUserService userService,
+    IUserRepository userRepository,
+    IUserOrganizationDefaults userOrganizationDefaults)
 {
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -147,7 +150,7 @@ public class AnswerConversionService(IUserService userService, IUserRepository u
                 userInput.DisplayName,
                 userInput.Email,
                 UserProviderKeys.Internal,
-                userInput.Organization,
+                userOrganizationDefaults.ApplyDefault(UserProviderKeys.Internal, userInput.Organization),
                 ct);
         }
 

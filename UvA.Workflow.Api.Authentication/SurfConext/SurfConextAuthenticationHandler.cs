@@ -20,6 +20,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         IHttpClientFactory httpClientFactory,
         IUserService userService,
         IEduIdUserService eduIdUserService,
+        IUserOrganizationDefaults userOrganizationDefaults,
         IOptions<EduIdOptions> eduIdOptions,
         IMemoryCache cache)
         : base(options, logger, encoder)
@@ -27,6 +28,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         this.httpClient = httpClientFactory.CreateClient(SchemeName);
         this.userService = userService;
         this.eduIdUserService = eduIdUserService;
+        this.userOrganizationDefaults = userOrganizationDefaults;
         this.eduIdOptions = eduIdOptions.Value;
         this.cache = cache;
     }
@@ -34,6 +36,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
     private readonly HttpClient httpClient;
     private readonly IUserService userService;
     private readonly IEduIdUserService eduIdUserService;
+    private readonly IUserOrganizationDefaults userOrganizationDefaults;
     private readonly EduIdOptions eduIdOptions;
     private readonly IMemoryCache cache;
     private static readonly int CacheExpirationMinutes = 10;
@@ -92,7 +95,12 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         }
         else
         {
-            await userService.AddOrUpdateUser(uid, resp.FullName, resp.Email, UserProviderKeys.Internal);
+            await userService.AddOrUpdateUser(
+                uid,
+                resp.FullName,
+                resp.Email,
+                UserProviderKeys.Internal,
+                userOrganizationDefaults.ApplyDefault(UserProviderKeys.Internal, null));
         }
 
         var principal = CreateClaimsPrincipal(resp);

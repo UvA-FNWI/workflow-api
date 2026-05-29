@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Controllers;
@@ -203,7 +204,8 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _rightsService,
-            _eduIdUserServiceMock.Object);
+            _eduIdUserServiceMock.Object,
+            TestUserOrganizationDefaults.Instance);
 
         var result = await controller.GetLoggedInUser(_ct);
 
@@ -228,6 +230,49 @@ public class UsersControllerTests : ControllerTestsBase
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
+        Assert.True(user.IsExternal);
+    }
+
+    [Fact]
+    public async Task Users_Find_AppliesDefaultOrganizationToInternalUsers()
+    {
+        _userServiceMock.Setup(s => s.FindUsers("internal", true, _ct))
+            .ReturnsAsync([
+                new UserSearchResult("internal-123",
+                    "Internal User",
+                    "internal@uva.nl",
+                    UserSearchSources.Repository)
+            ]);
+        var controller = BuildControllerWithRoles(["Student"]);
+
+        var result = await controller.Find("internal", true, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
+        Assert.NotNull(user.Organization);
+        Assert.Equal("uva", user.Organization!.Id);
+        Assert.Equal("UvA", user.Organization.Name);
+        Assert.False(user.IsExternal);
+    }
+
+    [Fact]
+    public async Task Users_Find_DoesNotApplyDefaultOrganizationToExternalUsers()
+    {
+        _userServiceMock.Setup(s => s.FindUsers("external", true, _ct))
+            .ReturnsAsync([
+                new UserSearchResult("external-123",
+                    "External User",
+                    "external@example.org",
+                    UserSearchSources.Repository,
+                    "eduid")
+            ]);
+        var controller = BuildControllerWithRoles(["Student"]);
+
+        var result = await controller.Find("external", true, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
+        Assert.Null(user.Organization);
         Assert.True(user.IsExternal);
     }
 
@@ -273,7 +318,8 @@ public class UsersControllerTests : ControllerTestsBase
         return new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _rightsService,
-            _eduIdUserServiceMock.Object);
+            _eduIdUserServiceMock.Object,
+            TestUserOrganizationDefaults.Instance);
     }
 
     private static bool IsConfiguredInternalEmail(string email)

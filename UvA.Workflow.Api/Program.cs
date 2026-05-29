@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.CanvasLti;
 using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Users;
 using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Persistence.Mongo;
 using UvA.Workflow.Users.DataNose;
@@ -34,6 +35,7 @@ var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflowCore();
 builder.Services.AddWorkflowApiCore();
+builder.Services.AddSingleton<IUserOrganizationDefaults, UserOrganizationDefaults>();
 builder.Services
     .AddControllers()
     .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
