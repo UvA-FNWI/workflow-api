@@ -17,6 +17,7 @@ public enum JobSource
     Save
 }
 
+[BsonIgnoreExtraElements]
 public class Job
 {
     [BsonId]
