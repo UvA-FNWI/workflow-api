@@ -13,22 +13,87 @@ namespace UvA.Workflow.Tests.Controllers;
 
 public class JobsControllerTests : ControllerTestsBase
 {
+    private const string InstanceId = "507f1f77bcf86cd799439012";
+    private const string JobId = "507f1f77bcf86cd799439011";
+
     [Theory]
     [InlineData("Api")]
     [InlineData("Coordinator")]
     public async Task Jobs_GetList_AllowedWithViewAdminRights(string role)
     {
         var job = CreateJob();
-        _jobRepositoryMock.Setup(r => r.GetList(null, It.IsAny<CancellationToken>()))
+        _jobRepositoryMock.Setup(r => r.GetList(InstanceId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([job]);
+        _userRepoMock.Setup(r => r.GetByIds(It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([UnitTestsHelpers.AdminUser]);
 
         var controller = BuildController([role]);
-        var result = await controller.GetList(null, _ct);
+        var result = await controller.GetList(InstanceId, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobs = Assert.IsAssignableFrom<IEnumerable<JobDto>>(okResult.Value).ToList();
         Assert.Single(jobs);
         Assert.Equal(job.Id, jobs[0].Id);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobs[0].CreatedBy);
+        Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, jobs[0].CreatedByDisplayName);
+    }
+
+    [Fact]
+    public async Task Jobs_GetList_BatchesUserLookupByCreatedBy()
+    {
+        var job = CreateJob();
+        _jobRepositoryMock.Setup(r => r.GetList(InstanceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([job]);
+        _userRepoMock.Setup(r => r.GetByIds(It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([UnitTestsHelpers.AdminUser]);
+
+        var controller = BuildController(["Api"]);
+        await controller.GetList(InstanceId, _ct);
+
+        _userRepoMock.Verify(r => r.GetByIds(
+                It.Is<IReadOnlyList<string>>(ids => ids.Count == 1 && ids[0] == UnitTestsHelpers.AdminUser.Id),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _userRepoMock.Verify(r => r.GetById(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Jobs_GetList_ReturnsNullCreatedByDisplayName_WhenUserNotFound()
+    {
+        var job = CreateJob();
+        _jobRepositoryMock.Setup(r => r.GetList(InstanceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([job]);
+        _userRepoMock.Setup(r => r.GetByIds(It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var controller = BuildController(["Api"]);
+        var result = await controller.GetList(InstanceId, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var jobs = Assert.IsAssignableFrom<IEnumerable<JobDto>>(okResult.Value).ToList();
+        Assert.Single(jobs);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobs[0].CreatedBy);
+        Assert.Null(jobs[0].CreatedByDisplayName);
+    }
+
+    [Fact]
+    public async Task Jobs_GetList_ReturnsNullCreatedByDisplayName_WhenCreatedByIsMissing()
+    {
+        var job = CreateJob();
+        job.CreatedBy = null;
+        _jobRepositoryMock.Setup(r => r.GetList(InstanceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([job]);
+
+        var controller = BuildController(["Api"]);
+        var result = await controller.GetList(InstanceId, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var jobs = Assert.IsAssignableFrom<IEnumerable<JobDto>>(okResult.Value).ToList();
+        Assert.Single(jobs);
+        Assert.Null(jobs[0].CreatedBy);
+        Assert.Null(jobs[0].CreatedByDisplayName);
+        _userRepoMock.Verify(r => r.GetByIds(It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
@@ -36,43 +101,65 @@ public class JobsControllerTests : ControllerTestsBase
     {
         var controller = BuildController(["Student"]);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.GetList(null, _ct));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.GetList(InstanceId, _ct));
     }
 
     [Fact]
-    public async Task Jobs_GetById_ReturnsJob()
+    public async Task Jobs_GetById_ReturnsJobWithResolvedDisplayName()
     {
         var job = CreateJob();
-        _jobRepositoryMock.Setup(r => r.GetById(job.Id, It.IsAny<CancellationToken>()))
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);
+        _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
 
         var controller = BuildController(["Api"]);
-        var result = await controller.GetById(job.Id, _ct);
+        var result = await controller.GetById(InstanceId, job.Id, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobDto = Assert.IsType<JobDto>(okResult.Value);
         Assert.Equal(job.Id, jobDto.Id);
         Assert.Equal(job.InstanceId, jobDto.InstanceId);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobDto.CreatedBy);
+        Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, jobDto.CreatedByDisplayName);
+    }
+
+    [Fact]
+    public async Task Jobs_GetById_ReturnsNullCreatedByDisplayName_WhenUserNotFound()
+    {
+        var job = CreateJob();
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(job);
+        _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        var controller = BuildController(["Api"]);
+        var result = await controller.GetById(InstanceId, job.Id, _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var jobDto = Assert.IsType<JobDto>(okResult.Value);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobDto.CreatedBy);
+        Assert.Null(jobDto.CreatedByDisplayName);
     }
 
     [Fact]
     public async Task Jobs_GetById_ReturnsNotFound_WhenJobDoesNotExist()
     {
-        _jobRepositoryMock.Setup(r => r.GetById("missing", It.IsAny<CancellationToken>()))
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, "missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Job?)null);
 
         var controller = BuildController(["Api"]);
-        var result = await controller.GetById("missing", _ct);
+        var result = await controller.GetById(InstanceId, "missing", _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
     }
 
     [Fact]
-    public async Task Jobs_Run_ExecutesJobAndReturnsUpdatedJob()
+    public async Task Jobs_Run_ExecutesJobAndReturnsUpdatedJobWithDisplayName()
     {
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "ApprovalCoordinator")
+            .With(workflowDefinition: "Project", currentStep: "ApprovalCoordinator", id: InstanceId)
             .Build();
         MockInstance(instance);
         MockEmptyRelatedInstanceLookups();
@@ -82,32 +169,33 @@ public class JobsControllerTests : ControllerTestsBase
             .ReturnsAsync(UnitTestsHelpers.AdminUser);
 
         var job = CreateJob();
-        job.InstanceId = instance.Id;
         job.SourceName = "CoordinatorApproved";
         job.Steps = [];
 
-        _jobRepositoryMock.Setup(r => r.GetById(job.Id, It.IsAny<CancellationToken>()))
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);
         _jobRepositoryMock.Setup(r => r.Update(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var controller = BuildController(["Api"]);
-        var result = await controller.Run(job.Id, _ct);
+        var result = await controller.Run(InstanceId, job.Id, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobDto = Assert.IsType<JobDto>(okResult.Value);
         Assert.Equal(JobStatus.Completed, jobDto.Status);
         Assert.NotNull(jobDto.ExecutedOn);
+        Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, jobDto.CreatedByDisplayName);
+        _jobRepositoryMock.Verify(r => r.GetById(InstanceId, job.Id, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
     public async Task Jobs_Run_ReturnsNotFound_WhenJobDoesNotExist()
     {
-        _jobRepositoryMock.Setup(r => r.GetById("missing", It.IsAny<CancellationToken>()))
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, "missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Job?)null);
 
         var controller = BuildController(["Api"]);
-        var result = await controller.Run("missing", _ct);
+        var result = await controller.Run(InstanceId, "missing", _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
@@ -115,8 +203,8 @@ public class JobsControllerTests : ControllerTestsBase
 
     private static Job CreateJob() => new()
     {
-        Id = "507f1f77bcf86cd799439011",
-        InstanceId = "507f1f77bcf86cd799439012",
+        Id = JobId,
+        InstanceId = InstanceId,
         SourceType = JobSource.Action,
         SourceName = "CoordinatorApproved",
         StartOn = DateTime.UtcNow,
@@ -129,6 +217,6 @@ public class JobsControllerTests : ControllerTestsBase
     private JobsController BuildController(string[] roles)
     {
         MockCurrentUser(roles);
-        return new JobsController(_jobService, _rightsService);
+        return new JobsController(_jobService, _rightsService, _jobRepositoryMock.Object, _userRepoMock.Object);
     }
 }

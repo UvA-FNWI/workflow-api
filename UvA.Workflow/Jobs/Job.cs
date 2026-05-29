@@ -35,8 +35,6 @@ public class Job
     [BsonRepresentation(BsonType.ObjectId)]
     public string? CreatedBy { get; set; }
 
-    public string? CreatedByDisplayName { get; set; }
-
     public DateTime? ExecutedOn { get; set; }
 
     [BsonRepresentation(BsonType.String)] public JobStatus Status { get; set; }

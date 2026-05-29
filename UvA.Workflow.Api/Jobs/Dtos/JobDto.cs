@@ -27,7 +27,7 @@ public record JobDto(
     string WorkerGroup,
     DateTime? ClaimedUntil)
 {
-    public static JobDto Create(Job job) =>
+    public static JobDto Create(Job job, string? createdByDisplayName = null) =>
         new(
             job.Id,
             job.InstanceId,
@@ -35,7 +35,7 @@ public record JobDto(
             job.SourceName,
             job.StartOn,
             job.CreatedBy,
-            job.CreatedByDisplayName,
+            createdByDisplayName,
             job.ExecutedOn,
             job.Status,
             job.Steps.Select(JobStepDto.Create).ToList(),

@@ -34,7 +34,6 @@ public class JobService(
             SourceType = sourceType,
             SourceName = sourceName,
             CreatedBy = user.Id,
-            CreatedByDisplayName = user.DisplayName,
             StartOn = DateTime.Now,
             InstanceId = instance.Id,
             Input = input,
@@ -58,7 +57,6 @@ public class JobService(
                 SourceType = sourceType,
                 SourceName = sourceName,
                 CreatedBy = user.Id,
-                CreatedByDisplayName = user.DisplayName,
                 StartOn = DateTime.Now.Add(delayGroup.Key),
                 InstanceId = instance.Id,
                 Input = input,
@@ -69,11 +67,6 @@ public class JobService(
 
         return result;
     }
-
-    public Task<Job?> GetById(string id, CancellationToken ct) => repository.GetById(id, ct);
-
-    public Task<IReadOnlyList<Job>> GetList(string? instanceId, CancellationToken ct) =>
-        repository.GetList(instanceId, ct);
 
     public async Task RunJob(Job job, CancellationToken ct)
     {
@@ -91,9 +84,6 @@ public class JobService(
             logger.LogError("Job {Job}: user {UserId} not found", job.Id, job.CreatedBy);
             throw new Exception($"User {job.CreatedBy} not found");
         }
-
-        if (string.IsNullOrWhiteSpace(job.CreatedByDisplayName))
-            job.CreatedByDisplayName = user.DisplayName;
 
         var effects = job.SourceType switch
         {
