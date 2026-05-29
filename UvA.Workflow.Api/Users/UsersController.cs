@@ -19,7 +19,10 @@ public class UsersController(
         if (user == null)
             return UserNotFound;
 
-        return Ok(UserDto.Create(user));
+        // A globally-scoped ViewAdminTools right marks a system administrator (e.g. the SystemAdmin
+        // role), as opposed to admin rights scoped to a specific workflow definition.
+        var isAdmin = await rightsService.CanAny(null, RoleAction.ViewAdminTools);
+        return Ok(UserDto.Create(user, isAdmin));
     }
 
     [HttpPost]

@@ -33,6 +33,23 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Theory]
+    [InlineData("SystemAdmin", true)]
+    [InlineData("Coordinator", true)]
+    [InlineData("Student", false)]
+    [InlineData("RandomPerson", false)]
+    public async Task Users_GetLoggedInUser_SetsIsAdmin_ForGlobalAdminTools(string role, bool expectedIsAdmin)
+    {
+        // Arrange
+        var controller = BuildControllerWithRoles([role]);
+        // Act
+        var result = await controller.GetLoggedInUser(_ct);
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var userDto = Assert.IsType<UserDto>(okResult.Value);
+        Assert.Equal(expectedIsAdmin, userDto.IsAdmin);
+    }
+
+    [Theory]
     [InlineData("Student")]
     [InlineData("RandomPerson")]
     public async Task Users_Create_ThrowUnauthorizedException(string role)
