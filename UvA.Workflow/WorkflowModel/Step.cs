@@ -96,6 +96,11 @@ public class Step : INamed
     /// </summary>
     public List<PropertyDefinition> Properties { get; set; } = new();
 
+    /// <summary>
+    /// Events defined within this step. These will be merged into the workflow definition's events.
+    /// </summary>
+    public List<EventDefinition> Events { get; set; } = new();
+
     public IEnumerable<Lookup> Lookups =>
     [
         ..Ends?.Properties ?? [],

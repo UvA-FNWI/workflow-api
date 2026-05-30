@@ -71,6 +71,4 @@ properties:
       nl: "Scriptie mag gepubliceerd worden"
 
 ends:
-  event:
-    id: Start
-    notBefore: RejectSubject
+   event: Start
