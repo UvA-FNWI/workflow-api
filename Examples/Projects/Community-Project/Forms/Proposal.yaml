@@ -3,23 +3,32 @@ step: Proposal_Submit
 
 pages:
   - name: Request
-    title:
-      en: Request
-      nl: Request
+    title: Request
+    introduction: |
+      For more information and the CP/I Guidelines, visit <https://student.auc.nl/>.
     fields:
       - GuidelinesRead
-      - Period
+      - ProjectPeriod
       - CrossPeriod
+      - OtherCrossStart
+      - OtherCrossEnd
+      - StartDate
+      - EndDate
+      - Title
+      - Organisation
+      - City
+      - Country
       - Supervisor
+      - GraduationDate
+      - AdditionalRemarks
   - name: Proposal
-    title:
-      en: Proposal
-      nl: Proposal
+    title: Proposal
     fields:
-      - ProjectDescription
-  - name: Planning
-    fields:
-      - EC
+      - Description
+      - Motivation
+      - LearningObjectives
+      - HoursBreakdown
+      - SupervisorAcceptanceForm
 
 onSubmit:
   - toast:
