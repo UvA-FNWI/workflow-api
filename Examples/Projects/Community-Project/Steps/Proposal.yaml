@@ -1,0 +1,18 @@
+name: Proposal
+icon: 
+  type: article-line
+
+title:
+  nl: Proposal
+  en: Proposal
+
+children:
+  - Proposal_Submit
+  - Proposal_Feedback
+
+headerStatus:
+  - event: Proposal
+    type: Info
+    label:
+      en: Wait for coordinator feedback
+      nl: Wait for coordinator feedback

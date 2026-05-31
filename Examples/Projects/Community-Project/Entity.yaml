@@ -1,0 +1,22 @@
+name: Community-Project
+titlePlural: Community Projects
+instanceTitle: '{{ Title }}'
+
+fields:
+ - property: Course.Name
+   title: Course
+ - property: Student.DisplayName
+   title: Student
+ - property: Student.Email
+   title: Email
+ - property: Title
+
+steps:
+  - Proposal
+
+events:
+  - name: Proposal_Submit
+    suppresses: [RejectProposal]
+  - name: RejectProposal
+    suppresses: [Proposal_Submit]
+  - name: ApproveProposal

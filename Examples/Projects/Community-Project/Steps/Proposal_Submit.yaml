@@ -1,0 +1,59 @@
+name: Proposal_Submit
+
+title:
+  nl: Proposal Submission
+  en: Proposal Submission
+
+actions:
+  - roles: [Student]
+    type: Submit
+    form: Proposal
+  
+properties:
+  - name: GuidelinesRead
+    type: Boolean!
+    text:
+      en: I have read the Internship and community projects application guidelines
+      nl: I have read the Internship and community projects application guidelines
+  - name: Period
+    type: PeriodType!
+    values:
+    - name: Cross
+      text: Cross-period
+    - name: Autumn
+      text: Autumn
+    - name: January
+      text: January
+    - name: Spring
+      text: Spring
+    - name: June
+      text: June
+    text:
+      en: Period
+      nl: Period
+    layout:
+      type: Dropdown
+
+  - name: CrossPeriod
+    type: CrossPeriodType!
+    values:
+      - name: AutumnJan
+        text: Autumn - January
+    condition:
+      value:
+        property: Period
+        equal: =Cross
+    
+    
+
+  - name: ProjectDescription
+    type: String!
+    text:
+      en: Project description
+      nl: Projectomschrijving
+
+
+ends:
+  event:
+    id: Proposal
+

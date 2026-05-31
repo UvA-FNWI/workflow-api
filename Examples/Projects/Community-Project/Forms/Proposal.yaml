@@ -1,0 +1,29 @@
+name: Proposal
+step: Proposal_Submit
+
+pages:
+  - name: Request
+    title:
+      en: Request
+      nl: Request
+    fields:
+      - GuidelinesRead
+      - Period
+      - CrossPeriod
+      - Supervisor
+  - name: Proposal
+    title:
+      en: Proposal
+      nl: Proposal
+    fields:
+      - ProjectDescription
+  - name: Planning
+    fields:
+      - EC
+
+onSubmit:
+  - toast:
+      type: Success
+      message:
+        en: "Nice work 👍! You've submitted your topic. You will also receive a confirmation email."
+        nl: "Goed bezig 👍! Je hebt je onderwerp ingeleverd. Je krijgt hiervan ook een bevestigingsmail."
