@@ -4,7 +4,6 @@ using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Tests.Builders;
-using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
 using UvA.Workflow.WorkflowInstances;
@@ -65,8 +64,7 @@ public class InstanceUserStorageTests
         var userRepository = new Mock<IUserRepository>();
         userService.Setup(s => s.GetUser("jdoe", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        var service = new AnswerConversionService(userService.Object, userRepository.Object,
-            TestUserOrganizationDefaults.Instance);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
         var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
@@ -104,8 +102,7 @@ public class InstanceUserStorageTests
             .ReturnsAsync((User?)null);
         userRepository.Setup(r => r.GetByEmail("external@example.org", It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
-        var service = new AnswerConversionService(userService.Object, userRepository.Object,
-            TestUserOrganizationDefaults.Instance);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
         var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
@@ -149,8 +146,7 @@ public class InstanceUserStorageTests
             .ReturnsAsync((User?)null);
         userRepository.Setup(r => r.GetByEmail("external@example.org", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        var service = new AnswerConversionService(userService.Object, userRepository.Object,
-            TestUserOrganizationDefaults.Instance);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
         var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
@@ -199,11 +195,10 @@ public class InstanceUserStorageTests
                 "Student Name",
                 "student@uva.nl",
                 UserProviderKeys.Internal,
-                It.Is<Organization?>(o => o != null && o.Id == "uva" && o.Name == "UvA"),
+                It.Is<Organization?>(o => o == null),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        var service = new AnswerConversionService(userService.Object, userRepository.Object,
-            TestUserOrganizationDefaults.Instance);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
         var property = new PropertyDefinition { Name = "Student", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
@@ -223,7 +218,7 @@ public class InstanceUserStorageTests
                 "Student Name",
                 "student@uva.nl",
                 UserProviderKeys.Internal,
-                It.Is<Organization?>(o => o != null && o.Id == "uva" && o.Name == "UvA"),
+                It.Is<Organization?>(o => o == null),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -253,8 +248,7 @@ public class InstanceUserStorageTests
                 organization,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        var service = new AnswerConversionService(userService.Object, userRepository.Object,
-            TestUserOrganizationDefaults.Instance);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
         var property = new PropertyDefinition { Name = "Student", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {

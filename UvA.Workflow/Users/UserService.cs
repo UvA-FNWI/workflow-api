@@ -187,4 +187,23 @@ public class UserService(
 
         return results;
     }
+
+    public async Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(uid))
+            return null;
+
+        try
+        {
+            var matches = await FindUsers(uid, includeExternalUsers: false, ct);
+            return matches
+                .FirstOrDefault(u => string.Equals(u.UserName, uid, StringComparison.OrdinalIgnoreCase))
+                ?.Organization;
+        }
+        catch
+        {
+            // Directory lookup unavailable (e.g. DataNose down). Don't block login, leave it unset.
+            return null;
+        }
+    }
 }

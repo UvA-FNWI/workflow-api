@@ -35,7 +35,6 @@ var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflowCore();
 builder.Services.AddWorkflowApiCore();
-builder.Services.AddSingleton<IUserOrganizationDefaults, UserOrganizationDefaults>();
 builder.Services
     .AddControllers()
     .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });

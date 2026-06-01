@@ -65,8 +65,18 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
             .Select(p => new UserSearchResult((p.EmployeeUvAnetId ?? p.StudentId)!,
                 p.FullName,
                 p.Email!,
-                DataNoseDirectoryKeys.SourceKey));
+                DataNoseDirectoryKeys.SourceKey,
+                Organization: CreateOrganization(p.Department)));
     }
+
+    /// <summary>
+    /// Builds an <see cref="Organization"/> from the DataNose department code (e.g. "FNWI/CoI", "FEB").
+    /// Returns null when no department is known.
+    /// </summary>
+    private static Organization? CreateOrganization(string? department)
+        => string.IsNullOrWhiteSpace(department)
+            ? null
+            : new Organization(department.Trim(), department.Trim());
 
     #region DTO
 
@@ -82,7 +92,7 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         string? StudentId,
         string? EmployeeUvAnetId,
         string? Email,
-        string Department,
+        string? Department,
         int? StaffId,
         bool IsActiveEmployee,
         bool IsActiveStudent,

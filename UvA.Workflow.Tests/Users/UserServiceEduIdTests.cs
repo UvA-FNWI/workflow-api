@@ -233,6 +233,45 @@ public class UserServiceEduIdTests
     }
 
     [Fact]
+    public async Task GetOrganizationForUser_ReturnsOrganization_FromDataNoseMatch()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        dataNoseApiClientMock.Setup(c => c.SearchPeople("jdoe", CancellationToken.None))
+            .ReturnsAsync([
+                new UserSearchResult("jdoe", "Jane Doe", "jane@uva.nl", DataNoseDirectoryKeys.SourceKey,
+                    Organization: new Organization("FNWI", "FNWI"))
+            ]);
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider("jdoe", "eduid", CancellationToken.None))
+            .ReturnsAsync([]);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+
+        var organization = await service.GetOrganizationForUser("jdoe", CancellationToken.None);
+
+        Assert.NotNull(organization);
+        Assert.Equal("FNWI", organization!.Id);
+        Assert.Equal("FNWI", organization.Name);
+    }
+
+    [Fact]
+    public async Task GetOrganizationForUser_ReturnsNull_WhenDataNoseHasNoOrganization()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        dataNoseApiClientMock.Setup(c => c.SearchPeople("jdoe", CancellationToken.None))
+            .ReturnsAsync([
+                new UserSearchResult("jdoe", "Jane Doe", "jane@uva.nl", DataNoseDirectoryKeys.SourceKey)
+            ]);
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider("jdoe", "eduid", CancellationToken.None))
+            .ReturnsAsync([]);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+
+        var organization = await service.GetOrganizationForUser("jdoe", CancellationToken.None);
+
+        Assert.Null(organization);
+    }
+
+    [Fact]
     public async Task AddOrUpdateUser_ExternalUser_CreatesWithEduIdProviderKey()
     {
         var userRepositoryMock = new Mock<IUserRepository>();

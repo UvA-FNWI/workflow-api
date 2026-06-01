@@ -11,7 +11,6 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
-using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
@@ -49,8 +48,7 @@ public class AnswersControllerTests : ControllerTestsBase
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
-            _userRepoMock.Object,
-            TestUserOrganizationDefaults.Instance);
+            _userRepoMock.Object);
         _answerService = new AnswerService(
             _submissionService,
             _modelService,

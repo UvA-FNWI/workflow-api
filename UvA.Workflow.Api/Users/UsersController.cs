@@ -9,8 +9,7 @@ public class UsersController(
     IUserService userService,
     IUserRepository userRepository,
     RightsService rightsService,
-    IEduIdUserService eduIdUserService,
-    IUserOrganizationDefaults userOrganizationDefaults) : ApiControllerBase
+    IEduIdUserService eduIdUserService) : ApiControllerBase
 {
     private const string ValidEmailStatus = "Valid";
     private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
@@ -87,9 +86,7 @@ public class UsersController(
         [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
     {
         var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
-        return Ok(searchResults
-            .Select(userOrganizationDefaults.ApplyDefault)
-            .Select(UserSearchResultDto.Create));
+        return Ok(searchResults.Select(UserSearchResultDto.Create));
     }
 
     private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct)

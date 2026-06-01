@@ -14,7 +14,6 @@ using UvA.Workflow.Notifications;
 using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
-using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
@@ -101,8 +100,7 @@ public class WorkflowTests
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
-            _userRepoMock.Object,
-            TestUserOrganizationDefaults.Instance);
+            _userRepoMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
             _instanceJournalServiceMock.Object);
