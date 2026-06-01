@@ -61,19 +61,36 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         return await _collection.Find(filter).FirstOrDefaultAsync(ct);
     }
 
-    public async Task<IEnumerable<User>> SearchByQuery(string query, string providerKey, CancellationToken ct)
+    public async Task<IEnumerable<User>> SearchByQuery(string query, CancellationToken ct)
+        => await SearchByQuery(query, null, ct);
+
+    public async Task<IEnumerable<User>> SearchByQueryAndProvider(string query, string providerKey,
+        CancellationToken ct)
+        => await SearchByQuery(query, providerKey, ct);
+
+    private async Task<IEnumerable<User>> SearchByQuery(string query, string? providerKey, CancellationToken ct)
     {
         var trimmedQuery = query.Trim();
-        var filter = Builders<User>.Filter.Eq(x => x.ProviderKey, providerKey);
+        var filters = new List<FilterDefinition<User>>();
 
         if (!string.IsNullOrWhiteSpace(trimmedQuery))
         {
             var regex = new BsonRegularExpression(Regex.Escape(trimmedQuery), "i");
-            filter &= Builders<User>.Filter.Or(
+            filters.Add(Builders<User>.Filter.Or(
                 Builders<User>.Filter.Regex(x => x.DisplayName, regex),
                 Builders<User>.Filter.Regex(x => x.Email, regex),
-                Builders<User>.Filter.Regex(x => x.UserName, regex));
+                Builders<User>.Filter.Regex(x => x.UserName, regex)));
         }
+
+        if (!string.IsNullOrWhiteSpace(providerKey))
+            filters.Add(Builders<User>.Filter.Eq(x => x.ProviderKey, providerKey));
+
+        var filter = filters.Count switch
+        {
+            0 => Builders<User>.Filter.Empty,
+            1 => filters[0],
+            _ => Builders<User>.Filter.And(filters)
+        };
 
         return await _collection.Find(filter)
             .SortBy(x => x.DisplayName)

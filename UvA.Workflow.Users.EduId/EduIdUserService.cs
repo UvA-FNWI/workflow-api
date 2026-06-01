@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net;
+using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Users.EduId;
 
@@ -6,8 +8,9 @@ public class EduIdUserService(
     IUserRepository userRepository,
     IEduIdInvitationClient invitationClient,
     IOptions<EduIdOptions> options,
-    ILogger<EduIdUserService> logger) : IEduIdUserService
+    ILogger<EduIdUserService> logger) : IEduIdUserService, IExternalUserService
 {
+    private static readonly EmailAddressAttribute EmailAddressAttribute = new();
     private readonly EduIdOptions _options = options.Value;
 
     public bool IsInternalEmailAddress(string email)
@@ -218,6 +221,17 @@ public class EduIdUserService(
 
         return user;
     }
+
+    private static bool CanUpdateExternalPlaceholder(User user)
+        => !user.IsActive && EduIdDirectoryKeys.IsEduId(user.ProviderKey);
+
+    private static UserSearchResult CreateSearchResult(User user) => new(
+        user.UserName,
+        user.DisplayName,
+        user.Email,
+        UserSearchSources.Repository,
+        user.ProviderKey,
+        user.Organization);
 
     private async Task<EduIdExternalAccountResult> CreateExternalAccount(
         string email,

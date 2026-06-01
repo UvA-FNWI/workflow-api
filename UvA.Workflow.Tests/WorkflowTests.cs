@@ -13,8 +13,10 @@ using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Notifications.Graph;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
@@ -33,6 +35,7 @@ public class WorkflowTests
     readonly Mock<IInstanceEventService> _instanceEventService;
     readonly Mock<IJobRepository> _jobRepositoryMock;
     readonly Mock<IUserRepository> _userRepoMock;
+    readonly Mock<IOrganizationService> _organizationServiceMock;
     readonly Mock<IConfiguration> _configurationMock;
 
 
@@ -71,6 +74,7 @@ public class WorkflowTests
         _instanceEventService = new Mock<IInstanceEventService>();
         _configurationMock = new Mock<IConfiguration>();
         _userRepoMock = new Mock<IUserRepository>();
+        _organizationServiceMock = new Mock<IOrganizationService>();
         _jobRepositoryMock = new Mock<IJobRepository>();
 
         // Services
@@ -106,7 +110,10 @@ public class WorkflowTests
         _submissionService =
             new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
-        _answerConversionService = new AnswerConversionService(_userServiceMock.Object);
+        _answerConversionService = new AnswerConversionService(
+            _userServiceMock.Object,
+            _userRepoMock.Object,
+            TestUserOrganizationDefaults.Instance);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
             _instanceJournalServiceMock.Object);

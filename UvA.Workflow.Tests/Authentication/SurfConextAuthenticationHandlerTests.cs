@@ -101,7 +101,7 @@ public class SurfConextAuthenticationHandlerTests
                 "Jane Doe",
                 "jane.doe@uva.nl",
                 UserProviderKeys.Internal,
-                null,
+                It.Is<Organization?>(o => o != null && o.Id == "uva" && o.Name == "UvA"),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User
             {
@@ -209,6 +209,7 @@ public class SurfConextAuthenticationHandlerTests
             httpClientFactoryMock.Object,
             userService,
             eduIdUserService,
+            TestUserOrganizationDefaults.Instance,
             Options.Create(new EduIdOptions { Authority = "https://login.test.eduid.nl" }),
             new MemoryCache(new MemoryCacheOptions()));
 
