@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowModel;
@@ -31,12 +32,17 @@ public class WorkflowInstanceDtoFactory(
             RoleAction.ViewAdminTools,
             RightsEvaluationMode.RealUser);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
+
         var context = modelService.CreateContext(instance);
+        var relatedUserLookups = workflowDefinition.RelatedUsers
+            .Select(r => (Lookup)new PropertyLookup(r.Property));
         await instanceService.Enrich(workflowDefinition, [context],
-            workflowDefinition.Steps.SelectMany(f => f.Lookups), ct);
+            workflowDefinition.Steps.SelectMany(f => f.Lookups).Concat(relatedUserLookups), ct);
 
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
+
+        var relatedUsers = GetRelatedUsers(workflowDefinition, context);
 
         var x = new WorkflowInstanceDto(
             instance.Id,
@@ -56,7 +62,8 @@ public class WorkflowInstanceDtoFactory(
                 .ToArray(),
             permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray(),
             canUseAdminTools,
-            viewerRoles
+            viewerRoles,
+            relatedUsers
         );
         return x;
     }
@@ -200,5 +207,37 @@ public class WorkflowInstanceDtoFactory(
                 stepVersion.VersionNumber);
             throw;
         }
+    }
+
+    private RelatedUserGroupsDto GetRelatedUsers(WorkflowDefinition workflowDefinition, ObjectContext context)
+    {
+        // Resolve each RelatedUser to its user value, keyed by group name
+        var usersByGroup = workflowDefinition.RelatedUsers
+            .Select(relatedUser =>
+            {
+                var value = context.Get(relatedUser.Property);
+                if (value is not InstanceUser user) return null;
+
+                return new
+                {
+                    relatedUser.Group,
+                    Dto = new RelatedUserDto(relatedUser.DisplayTitle, UserDto.CreateFromInstanceUser(user))
+                };
+            })
+            .Where(x => x is not null)
+            .GroupBy(x => x!.Group)
+            .ToDictionary(g => g.Key, g => g.Select(x => x!.Dto).ToArray());
+
+        // Build groups in the order defined, only including those with at least one resolved user
+        var groups = (workflowDefinition.RelatedUserGrouping?.Groups ?? [])
+            .Where(g => usersByGroup.ContainsKey(g.Name))
+            .Select(g => new RelatedUserGroupDto(
+                g.Name,
+                g.Title,
+                usersByGroup[g.Name]
+            ))
+            .ToArray();
+
+        return new RelatedUserGroupsDto(groups);
     }
 }

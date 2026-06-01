@@ -12,9 +12,35 @@ fields:
  - property: Title
  - currentStep: true
  - property: TurnitinId
-
+   
 steps:
   - Subject
   - Upload
   - Assessment
   - Publication
+    
+relatedUsers:
+  - property: Supervisor
+    group: default
+  - property: Examiner
+    group: default
+  - property: Reviewer
+    group: default
+  - property: Course.ConfidentialAdviser
+    group: support
+    text:
+      en: Confidential adviser
+      nl: Vertrouwenspersoon
+  - property: Course.StudyAdvisor
+    group: support
+    text:
+      en: Study advisor
+      nl: Studieadviseur
+      
+relatedUserGrouping:
+  groups:
+    - name: default
+    - name: support
+      title: 
+        en: Other involved staff
+        nl: Andere betrokkenen

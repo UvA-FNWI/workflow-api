@@ -17,3 +17,9 @@ properties:
 
   - name: Coordinator
     type: "[User]!"
+    
+  - name: ConfidentialAdviser
+    type: User!
+
+  - name: StudyAdvisor
+    type: User!
