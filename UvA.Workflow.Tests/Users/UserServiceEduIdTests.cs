@@ -59,7 +59,7 @@ public class UserServiceEduIdTests
                 new UserSearchResult("internal-2", "Internal Two", "internal2@example.org",
                     DataNoseDirectoryKeys.SourceKey)
             ]);
-        userRepositoryMock.Setup(r => r.SearchByQuery("query", CancellationToken.None))
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider("query", "eduid", CancellationToken.None))
             .ReturnsAsync([
                 new User
                 {
@@ -120,7 +120,7 @@ public class UserServiceEduIdTests
         var query = "Doctor";
         dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
             .ReturnsAsync([]);
-        userRepositoryMock.Setup(r => r.SearchByQuery(query, CancellationToken.None))
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
             .ReturnsAsync([
                 new User
                 {
@@ -135,37 +135,24 @@ public class UserServiceEduIdTests
         var result = Assert.Single(await service.FindUsers(query, true, CancellationToken.None));
 
         Assert.Equal("doctor@amsterdamumc.nl", result.Email);
-        userRepositoryMock.Verify(r => r.SearchByQuery(query, CancellationToken.None), Times.Once);
+        userRepositoryMock.Verify(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None), Times.Once);
     }
 
     [Fact]
-    public async Task FindUsers_PartialEmailAddressQuery_ReturnsExistingInternalRepositoryUser()
+    public async Task FindUsers_PartialEmailAddressQuery_DoesNotReturnStaleInternalRepositoryUser()
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
         var query = "student@uv";
         dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
             .ReturnsAsync([]);
-        userRepositoryMock.Setup(r => r.SearchByQuery(query, CancellationToken.None))
-            .ReturnsAsync([
-                new User
-                {
-                    UserName = "student-123",
-                    DisplayName = "Student Name",
-                    Email = "student@uva.nl",
-                    ProviderKey = UserProviderKeys.Internal
-                }
-            ]);
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
+            .ReturnsAsync([]);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
 
-        var result = Assert.Single(await service.FindUsers(query, true, CancellationToken.None));
+        Assert.Empty(await service.FindUsers(query, true, CancellationToken.None));
 
-        Assert.Equal("student-123", result.UserName);
-        Assert.Equal("Student Name", result.DisplayName);
-        Assert.Equal("student@uva.nl", result.Email);
-        Assert.Equal(UserProviderKeys.Internal, result.ProviderKey);
-        Assert.Equal(UserSearchSources.Repository, result.SourceKey);
-        Assert.False(result.IsExternal);
+        userRepositoryMock.Verify(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None), Times.Once);
     }
 
     [Fact]
@@ -181,16 +168,8 @@ public class UserServiceEduIdTests
                     "student@uva.nl",
                     DataNoseDirectoryKeys.SourceKey)
             ]);
-        userRepositoryMock.Setup(r => r.SearchByQuery(query, CancellationToken.None))
-            .ReturnsAsync([
-                new User
-                {
-                    UserName = "student-123",
-                    DisplayName = "Student Name",
-                    Email = "student@uva.nl",
-                    ProviderKey = UserProviderKeys.Internal
-                }
-            ]);
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
+            .ReturnsAsync([]);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
 
         var result = Assert.Single(await service.FindUsers(query, true, CancellationToken.None));
@@ -210,7 +189,7 @@ public class UserServiceEduIdTests
                 new UserSearchResult("internal-2", "Internal Two", "internal2@example.org",
                     DataNoseDirectoryKeys.SourceKey)
             ]);
-        userRepositoryMock.Setup(r => r.SearchByQuery("query", CancellationToken.None))
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider("query", "eduid", CancellationToken.None))
             .ReturnsAsync([
                 new User
                 {
@@ -234,6 +213,23 @@ public class UserServiceEduIdTests
         Assert.Collection(results,
             result => Assert.Equal("internal-1", result.UserName),
             result => Assert.Equal("internal-2", result.UserName));
+    }
+
+    [Fact]
+    public async Task FindUsers_DoesNotSurfaceInternalRepositoryUsers_WhenDataNoseReturnsNoMatches()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var query = "student@uv";
+        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
+            .ReturnsAsync([]);
+        userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
+            .ReturnsAsync([]);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+
+        Assert.Empty(await service.FindUsers(query, true, CancellationToken.None));
+
+        userRepositoryMock.Verify(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None), Times.Once);
     }
 
     [Fact]
