@@ -132,7 +132,7 @@ public class Action
     public int? Limit { get; set; }
 
     public bool MatchesForm(string form)
-        => Forms.Contains(form) || Form == form || Form == All;
+        => AllForms.Length == 0 || Forms.Contains(form) || Form == form || Form == All;
 
     public bool MatchesCollection(string property)
         => Collections.Contains(property);
