@@ -9,7 +9,8 @@ public class JobsController(
     JobService jobService,
     RightsService rightsService,
     IJobRepository jobsRepository,
-    IUserRepository userRepository) : ApiControllerBase
+    IUserRepository userRepository,
+    IUserService userService) : ApiControllerBase
 {
     [HttpGet("{instanceId}")]
     public async Task<ActionResult<IEnumerable<JobDto>>> GetList(string instanceId, CancellationToken ct)
@@ -41,11 +42,31 @@ public class JobsController(
         if (job == null)
             return JobNotFound;
 
-        await jobService.RunJob(job, ct);
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            return UserNotFound;
 
-        var updatedJob = await jobsRepository.GetById(instanceId, jobId, ct);
+        var copy = CopyJobForRerun(job, user.Id);
+        await jobsRepository.Add(copy, ct);
+        await jobService.RunJob(copy, ct);
+
+        var updatedJob = await jobsRepository.GetById(instanceId, copy.Id, ct);
         return Ok(await ToDto(updatedJob!, ct));
     }
+
+    private static Job CopyJobForRerun(Job job, string createdBy) => new()
+    {
+        InstanceId = job.InstanceId,
+        SourceType = job.SourceType,
+        SourceName = job.SourceName,
+        StartOn = DateTime.Now,
+        CreatedBy = createdBy,
+        Status = JobStatus.Pending,
+        Steps = job.Steps.Select(s => new JobStep { Identifier = s.Identifier }).ToList(),
+        Input = job.Input,
+        IsSynchronous = job.IsSynchronous,
+        WorkerGroup = job.WorkerGroup
+    };
 
     private async Task<JobDto> ToDto(Job job, CancellationToken ct)
     {

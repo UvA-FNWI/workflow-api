@@ -156,7 +156,7 @@ public class JobsControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Jobs_Run_ExecutesJobAndReturnsUpdatedJobWithDisplayName()
+    public async Task Jobs_Run_CopiesJobExecutesCopyAndReturnsUpdatedCopyWithDisplayName()
     {
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "ApprovalCoordinator", id: InstanceId)
@@ -172,8 +172,15 @@ public class JobsControllerTests : ControllerTestsBase
         job.SourceName = "CoordinatorApproved";
         job.Steps = [];
 
+        Job? runCopy = null;
+        _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+            .Callback<Job, CancellationToken>((j, _) => runCopy = j)
+            .Returns(Task.CompletedTask);
         _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, It.Is<string>(id => id != job.Id),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, CancellationToken _) => runCopy);
         _jobRepositoryMock.Setup(r => r.Update(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -182,10 +189,15 @@ public class JobsControllerTests : ControllerTestsBase
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobDto = Assert.IsType<JobDto>(okResult.Value);
+        Assert.NotEqual(job.Id, jobDto.Id);
         Assert.Equal(JobStatus.Completed, jobDto.Status);
         Assert.NotNull(jobDto.ExecutedOn);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobDto.CreatedBy);
         Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, jobDto.CreatedByDisplayName);
-        _jobRepositoryMock.Verify(r => r.GetById(InstanceId, job.Id, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _jobRepositoryMock.Verify(r => r.GetById(InstanceId, job.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _jobRepositoryMock.Verify(r =>
+            r.Add(It.Is<Job>(j => j.Id != job.Id && j.CreatedBy == UnitTestsHelpers.AdminUser.Id),
+                It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -217,6 +229,7 @@ public class JobsControllerTests : ControllerTestsBase
     private JobsController BuildController(string[] roles)
     {
         MockCurrentUser(roles);
-        return new JobsController(_jobService, _rightsService, _jobRepositoryMock.Object, _userRepoMock.Object);
+        return new JobsController(_jobService, _rightsService, _jobRepositoryMock.Object, _userRepoMock.Object,
+            _userServiceMock.Object);
     }
 }
