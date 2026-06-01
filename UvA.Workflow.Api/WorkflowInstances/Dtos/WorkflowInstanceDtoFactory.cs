@@ -213,20 +213,25 @@ public class WorkflowInstanceDtoFactory(
     {
         // Resolve each RelatedUser to its user value, keyed by group name
         var usersByGroup = workflowDefinition.RelatedUsers
-            .Select(relatedUser =>
+            .SelectMany(relatedUser =>
             {
                 var value = context.Get(relatedUser.Property);
-                if (value is not InstanceUser user) return null;
 
-                return new
+                var users = value switch
+                {
+                    InstanceUser user => [user],
+                    InstanceUser[] arr => arr,
+                    _ => []
+                };
+
+                return users.Select(user => new
                 {
                     relatedUser.Group,
                     Dto = new RelatedUserDto(relatedUser.DisplayTitle, UserDto.CreateFromInstanceUser(user))
-                };
+                });
             })
-            .Where(x => x is not null)
-            .GroupBy(x => x!.Group)
-            .ToDictionary(g => g.Key, g => g.Select(x => x!.Dto).ToArray());
+            .GroupBy(x => x.Group)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Dto).ToArray());
 
         // Build groups in the order defined, only including those with at least one resolved user
         var groups = (workflowDefinition.RelatedUserGrouping?.Groups ?? [])

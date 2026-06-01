@@ -26,6 +26,11 @@ relatedUsers:
     group: default
   - property: Reviewer
     group: default
+  - property: Course.Coordinator
+    group: support
+    text:
+      en: Coordinator
+      nl: Coördinator
   - property: Course.ConfidentialAdviser
     group: support
     text:
