@@ -39,6 +39,13 @@ properties:
     text: 
       en: Reviewer
       nl: Beoordelaar
+        
+  - name: SecondReader
+    type: User!
+    text: 
+      en: Second reader
+      nl: Tweede beoordelaar
+      
   - name: Student
     type: User!
 

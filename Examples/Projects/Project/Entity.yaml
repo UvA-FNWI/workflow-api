@@ -26,6 +26,8 @@ relatedUsers:
     group: default
   - property: Reviewer
     group: default
+  - property: SecondReader
+    group: default
   - property: Course.Coordinator
     group: support
     text:

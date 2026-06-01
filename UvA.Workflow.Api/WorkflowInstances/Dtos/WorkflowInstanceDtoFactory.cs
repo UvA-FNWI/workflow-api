@@ -224,6 +224,10 @@ public class WorkflowInstanceDtoFactory(
                     _ => []
                 };
 
+                // Always emit at least one entry with null user if nothing resolved
+                if (users.Length == 0)
+                    return [new { relatedUser.Group, Dto = new RelatedUserDto(relatedUser.DisplayTitle, null) }];
+
                 return users.Select(user => new
                 {
                     relatedUser.Group,

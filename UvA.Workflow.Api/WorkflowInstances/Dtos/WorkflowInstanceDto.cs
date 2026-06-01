@@ -121,7 +121,7 @@ public record InstanceEventDto(
 
 public record RelatedUserDto(
     BilingualString Title,
-    UserDto User
+    UserDto? User
 );
 
 public record RelatedUserGroupDto(
