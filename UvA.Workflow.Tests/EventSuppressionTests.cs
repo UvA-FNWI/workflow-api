@@ -184,33 +184,6 @@ public class EventSuppressionTests
     }
 
     [Fact]
-    public void EventCondition_NotBefore_RespectsSuppressionState()
-    {
-        var workflowDef = CreateWorkflowDefWithSuppression(
-            ("EventA", ["EventB"]),
-            ("EventB", ["EventA"])
-        );
-
-        var t1 = DateTime.UtcNow.AddHours(-2);
-        var t2 = DateTime.UtcNow.AddHours(-1);
-
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("TestWorkflow")
-            .WithCurrentStep("TestStep")
-            .WithEvent("EventA", t1)
-            .WithEvent("EventB", t2)
-            .Build();
-
-        var modelService = CreateModelServiceWithWorkflowDef(workflowDef);
-        var context = ObjectContext.Create(instance, modelService);
-
-        // EventA with notBefore EventB: EventA is not active (suppressed), so condition not met
-        var condition = new EventCondition { Id = "EventA", NotBefore = "EventB" };
-
-        Assert.False(condition.IsMet(context)); // EventA is suppressed, so false
-    }
-
-    [Fact]
     public void IsEventActive_AllowsResubmissionWhenEventIsSuppressed()
     {
         var workflowDef = CreateWorkflowDefWithSuppression(

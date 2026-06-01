@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
 
@@ -9,7 +11,7 @@ namespace UvA.Workflow;
 
 public static class WorkflowServiceCollectionExtensions
 {
-    public static IServiceCollection AddWorkflowCore(this IServiceCollection services)
+    public static IServiceCollection AddWorkflowCore(this IServiceCollection services, IConfiguration config)
     {
         services.AddMemoryCache();
 
@@ -21,6 +23,9 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<InstanceService>();
         services.AddScoped<IInstanceEventService, InstanceEventService>();
         services.AddScoped<IStepVersionService, StepVersionService>();
+
+        services.Configure<S3Config>(config.GetSection(S3Config.S3));
+        services.AddScoped<IArtifactService, S3ArtifactService>();
 
         services.AddScoped<IMailService, DummyMailService>();
         services.AddScoped<INamedMailLayout, DefaultMailLayout>();

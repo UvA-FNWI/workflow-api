@@ -8,7 +8,9 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
@@ -22,7 +24,7 @@ public class ActionsControllerTests : ControllerTestsBase
     public ActionsControllerTests() : base()
     {
         var submissionDtoFactory =
-            new SubmissionDtoFactory(new ArtifactTokenService(_configurationMock.Object), _modelService);
+            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,
@@ -54,7 +56,7 @@ public class ActionsControllerTests : ControllerTestsBase
         Assert.NotNull(payload.Instance);
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == actionName),
-            ControllerTestsHelpers.AdminUser,
+            UnitTestsHelpers.AdminUser,
             _ct), Times.Once);
     }
 
@@ -130,7 +132,7 @@ public class ActionsControllerTests : ControllerTestsBase
     [Fact]
     public async Task Actions_ExecuteAction_CreateExternalSupervisorAccount_RunsEffectAndLogsEvent()
     {
-        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "SubjectFeedback");
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
         instance.Properties["Supervisor"] =
             new PropertyBuilder().Person("External Supervisor", "supervisor@external.org");
         _eduIdUserServiceMock.Setup(s => s.EnsureExternalAccount(
@@ -141,15 +143,15 @@ public class ActionsControllerTests : ControllerTestsBase
             .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited));
 
         var result = await controller.ExecuteAction(
-            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "ApproveSubject"),
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, "CoordinatorApproved"),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
         _eduIdUserServiceMock.VerifyAll();
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
-            It.Is<InstanceEvent>(e => e.Id == "ApproveSubject"),
-            ControllerTestsHelpers.AdminUser,
+            It.Is<InstanceEvent>(e => e.Id == "CoordinatorApproved"),
+            It.IsAny<User>(),
             _ct), Times.Once);
     }
 

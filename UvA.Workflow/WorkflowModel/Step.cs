@@ -18,6 +18,25 @@ public enum StepHeaderPillType
     Success
 }
 
+public enum StatusColor
+{
+    Red,
+    Green
+}
+
+public record Icon
+{
+    public string Type { get; init; } = null!;
+    public StatusColor Color { get; init; } = StatusColor.Red;
+}
+
+public record ProgressInformation
+{
+    public StatusColor? Color { get; init; }
+    public BilingualString? Text { get; init; } = null!;
+    [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(Text);
+}
+
 public class Step : INamed
 {
     /// <summary>
@@ -30,7 +49,15 @@ public class Step : INamed
     /// </summary>
     public BilingualString? Title { get; set; }
 
-    public string? Icon { get; set; }
+    /// <summary>
+    /// The progress information about the step
+    /// </summary>
+    public ProgressInformation? Progress { get; set; }
+
+    /// <summary>
+    /// The icon of the step
+    /// </summary>
+    public Icon? Icon { get; set; }
 
     public BilingualString DisplayTitle => Title ?? Name;
 
@@ -68,6 +95,11 @@ public class Step : INamed
     /// Properties related to this step. These will become properties of the corresponding entity 
     /// </summary>
     public List<PropertyDefinition> Properties { get; set; } = new();
+
+    /// <summary>
+    /// Events defined within this step. These will be merged into the workflow definition's events.
+    /// </summary>
+    public List<EventDefinition> Events { get; set; } = new();
 
     public IEnumerable<Lookup> Lookups =>
     [

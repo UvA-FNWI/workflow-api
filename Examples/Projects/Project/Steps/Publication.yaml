@@ -3,6 +3,9 @@ title:
   en: Publication
   nl: Publicatie
   
+icon: 
+  type: sparkles-line
+  
 condition:
   logical:
     operator: And

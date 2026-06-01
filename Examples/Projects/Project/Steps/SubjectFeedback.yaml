@@ -2,17 +2,18 @@ name: SubjectFeedback
 title:
   nl: Beoordelen voorstel
   en: Assessment of proposal
+icon:
+  type: link-line
+  color: green
 
 actions:
-- name: ApproveSubject
-  type: Execute
+- name: Approve
+  type: Submit
+  form: ApproveSubject
   roles: [Coordinator]
   label:
     en: Approve
     nl: Goedkeuren
-  onAction:
-    - createExternalUserAccount:
-        role: Supervisor
 - name: Reject
   type: Submit
   form: RejectSubject
@@ -46,6 +47,12 @@ properties:
       en: Please explain, be as specific as possible
     layout:
       multiline: true
+      
+progress:
+  color: red
+  text:
+    en: Waits {{ coalesce(formatDate(StartEvent, =dd/MM), =) }} for approval
+    nl: Wacht {{ coalesce(formatDate(StartEvent, =dd-MM), =) }} op goedkeuring
 
 ends: 
   logical:

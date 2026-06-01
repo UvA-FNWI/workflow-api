@@ -78,7 +78,7 @@ azure:
       key: DatanoseApi__ApiKey
     - name: workflow-encryption-secret
       key: Encryption__Secret
-    - name: workflow-surfconext-client-secret-v2
+    - name: workflow-surfconext-client-secret
       key: SurfConext__ClientSecret
     - name: eduid-invite-proxy-milestones-role-token
       key: EduId__InvitationApiToken
@@ -88,5 +88,9 @@ azure:
       key: ImpersonationKey
     - name: workflow-turnitin-token
       key: Services__Turnitin__Token
+    - name: workflow-s3-secret-key
+      key: S3__SecretKey
+    - name: workflow-s3-signing-key
+      key: S3__SigningKey
     - name: workflow-dn2-api-key
       key: Services__DataNose__Token

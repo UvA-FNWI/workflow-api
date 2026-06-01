@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.SurfConext;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
 
@@ -200,7 +201,7 @@ public class SurfConextAuthenticationHandlerTests
             .Returns(httpClient);
 
         var handler = new SurfConextAuthenticationHandler(
-            new TestOptionsMonitor<SurfConextOptions>(new SurfConextOptions
+            new UnitTestsHelpers.TestOptionsMonitor<SurfConextOptions>(new SurfConextOptions
             {
                 BaseUrl = "https://connect.test.surfconext.nl",
                 ClientId = "client-id",
@@ -254,14 +255,5 @@ public class SurfConextAuthenticationHandlerTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
             CancellationToken cancellationToken)
             => Task.FromResult(responder(request));
-    }
-
-    private sealed class TestOptionsMonitor<T>(T currentValue) : IOptionsMonitor<T>
-    {
-        public T CurrentValue { get; } = currentValue;
-
-        public T Get(string? name) => CurrentValue;
-
-        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 }

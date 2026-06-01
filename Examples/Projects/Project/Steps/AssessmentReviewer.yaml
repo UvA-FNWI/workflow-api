@@ -1,5 +1,7 @@
 name: AssessmentReviewer
 title: Assessment by reviewer
+icon:
+  type: law-balance-line
 
 actions:
   - roles: [Reviewer]
@@ -10,6 +12,12 @@ actions:
 properties:
   - name: AssessmentReviewer
     type: Assessment!
+    
+progress:
+  color: red
+  text:
+    en: Waits {{ coalesce(formatDate(UploadEvent, =dd/MM), =) }} for assessment
+    nl: Wacht {{ coalesce(formatDate(UploadEvent, =dd-MM), =) }} op beoordeling
 
 ends:
   event: AssessmentReviewer
