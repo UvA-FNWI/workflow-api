@@ -10,7 +10,8 @@ public record UserDto(
     string Email,
     string? PreferredLanguage,
     Organization? Organization,
-    bool IsExternal
+    bool IsExternal,
+    bool IsPending
 )
 {
     /// <summary>
@@ -25,7 +26,8 @@ public record UserDto(
             user.Email,
             user.PreferredLanguage,
             user.Organization,
-            UserProviderKeys.IsExternal(user.ProviderKey)
+            UserProviderKeys.IsExternal(user.ProviderKey),
+            user.InvitationState == UserInvitationState.Pending
         );
     }
 
@@ -33,5 +35,6 @@ public record UserDto(
     /// Creates a UserDto from an Instance User entity
     /// </summary>
     public static UserDto CreateFromInstanceUser(InstanceUser u) =>
-        new(u.Id, u.UserName, u.DisplayName, u.Email, u.PreferredLanguage, u.Organization, u.IsExternal);
+        new(u.Id, u.UserName, u.DisplayName, u.Email, u.PreferredLanguage, u.Organization, u.IsExternal,
+            u.InvitationState == UserInvitationState.Pending);
 }
