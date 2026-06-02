@@ -2,6 +2,8 @@ name: AssessmentSecondreader
 title:
   en: Assessment (Second Reader)
   nl: Beoordeling (Tweede lezer)
+icon:
+  type: law-balance-line
 
 properties:
   - name: AssessmentSecondreader

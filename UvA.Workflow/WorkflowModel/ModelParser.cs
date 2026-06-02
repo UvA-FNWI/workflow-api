@@ -273,6 +273,9 @@ public partial class ModelParser
             propertyDefinition.Values = set.Values;
         if (WorkflowDefinitions.TryGetValue(propertyDefinition.UnderlyingType, out var type))
             propertyDefinition.WorkflowDefinition = type;
+
+        if (propertyDefinition.Rubric != null)
+            PreProcess(propertyDefinition.Rubric, propertyDefinition);
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
 
@@ -319,6 +322,47 @@ public partial class ModelParser
     private void PreProcess(Choice choice)
     {
         PreProcess(choice.Condition);
+    }
+
+    private void PreProcess(List<RubricEntry> rubric, PropertyDefinition propertyDefinition)
+    {
+        if (propertyDefinition.Values == null)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric entries defined but no values. Rubrics can only be used on properties with predefined values.");
+
+        var layoutType = propertyDefinition.Layout?.GetValueOrDefault("type")?.ToString();
+
+        if (layoutType == "Rubric" && rubric == null)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has layout type 'Rubric' but no rubric entries defined.");
+
+        if (propertyDefinition.Rubric != null && layoutType != "Rubric")
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric entries but layout type is '{layoutType ?? "not set"}'. Set layout type to 'Rubric'.");
+
+        var validNames = propertyDefinition.Values.Select(v => v.Name).ToHashSet();
+        var unknownGrades = rubric
+            .SelectMany(e => e.Grades
+                .Where(g => !validNames.Contains(g))
+                .Select(g => $"'{g}' in entry '{e.Name}'"))
+            .ToList();
+
+        if (unknownGrades.Count > 0)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric grades not found in type '{propertyDefinition.UnderlyingType}': " +
+                $"{string.Join(", ", unknownGrades)}. Valid options are: {string.Join(", ", validNames)}");
+
+        var duplicateGrades = rubric
+            .SelectMany(e => e.Grades.Select(g => (Grade: g, Entry: e.Name)))
+            .GroupBy(g => g.Grade)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"'{g.Key}' in entries {string.Join(", ", g.Select(x => $"'{x.Entry}'"))}")
+            .ToList();
+
+        if (duplicateGrades.Count > 0)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric grades assigned to multiple entries: " +
+                $"{string.Join(", ", duplicateGrades)}");
     }
 
     private static void ValidateServices(List<Service> services)
