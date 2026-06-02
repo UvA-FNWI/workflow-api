@@ -13,4 +13,11 @@ public class Organization
     public string Id { get; set; } = null!;
 
     [BsonElement("Name")] public string Name { get; set; } = null!;
+
+
+    public static Organization Create(string name) => new()
+    {
+        Id = ObjectId.GenerateNewId().ToString(),
+        Name = name
+    };
 }
