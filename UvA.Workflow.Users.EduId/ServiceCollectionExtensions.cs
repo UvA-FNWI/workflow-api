@@ -11,7 +11,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExternalUserService>(sp => sp.GetRequiredService<EduIdUserService>());
 
         services.AddScoped<EduIdUserDirectory>();
-        services.AddScoped<IUserRoleSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
+        services.AddScoped<IUserDirectory>(sp => sp.GetRequiredService<EduIdUserDirectory>());
 
         services.AddHttpClient(EduIdInvitationClient.HttpClientName, (provider, http) =>
         {

@@ -27,10 +27,10 @@ public class UsersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var userDto = Assert.IsType<UserDto>(okResult.Value);
 
-        Assert.Equal(ControllerTestsHelpers.AdminUser.Id, userDto.Id);
-        Assert.Equal(ControllerTestsHelpers.AdminUser.Email, userDto.Email);
-        Assert.Equal(ControllerTestsHelpers.AdminUser.UserName, userDto.UserName);
-        Assert.Equal(ControllerTestsHelpers.AdminUser.DisplayName, userDto.DisplayName);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, userDto.Id);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Email, userDto.Email);
+        Assert.Equal(UnitTestsHelpers.AdminUser.UserName, userDto.UserName);
+        Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, userDto.DisplayName);
     }
 
     [Theory]
@@ -204,8 +204,7 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _rightsService,
-            _eduIdUserServiceMock.Object,
-            TestUserOrganizationDefaults.Instance);
+            _eduIdUserServiceMock.Object);
 
         var result = await controller.GetLoggedInUser(_ct);
 
@@ -234,14 +233,17 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Users_Find_AppliesDefaultOrganizationToInternalUsers()
+    public async Task Users_Find_PassesThroughOrganizationFromSearchSource()
     {
+        // The organisation is now sourced upstream (the DataNose search source); the controller
+        // must surface whatever the search returns without modifying it.
         _userServiceMock.Setup(s => s.FindUsers("internal", true, _ct))
             .ReturnsAsync([
                 new UserSearchResult("internal-123",
                     "Internal User",
                     "internal@uva.nl",
-                    UserSearchSources.Repository)
+                    UserSearchSources.Repository,
+                    Organization: new Organization("FNWI/CoI", "FNWI/CoI"))
             ]);
         var controller = BuildControllerWithRoles(["Student"]);
 
@@ -250,13 +252,13 @@ public class UsersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.NotNull(user.Organization);
-        Assert.Equal("uva", user.Organization!.Id);
-        Assert.Equal("UvA", user.Organization.Name);
+        Assert.Equal("FNWI/CoI", user.Organization!.Id);
+        Assert.Equal("FNWI/CoI", user.Organization.Name);
         Assert.False(user.IsExternal);
     }
 
     [Fact]
-    public async Task Users_Find_DoesNotApplyDefaultOrganizationToExternalUsers()
+    public async Task Users_Find_DoesNotInventOrganizationWhenSearchReturnsNone()
     {
         _userServiceMock.Setup(s => s.FindUsers("external", true, _ct))
             .ReturnsAsync([
@@ -318,8 +320,7 @@ public class UsersControllerTests : ControllerTestsBase
         return new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _rightsService,
-            _eduIdUserServiceMock.Object,
-            TestUserOrganizationDefaults.Instance);
+            _eduIdUserServiceMock.Object);
     }
 
     private static bool IsConfiguredInternalEmail(string email)

@@ -1,5 +1,7 @@
 name: AssessmentSupervisor
 title: Assessment by supervisor
+icon:
+  type: law-balance-line
 
 actions:
   - roles: [Supervisor]
@@ -11,5 +13,11 @@ properties:
   - name: AssessmentSupervisor
     type: Assessment!
 
+progress:
+  color: red
+  text:
+    en: Waits {{ coalesce(formatDate(UploadEvent, =dd/MM), =) }} for assessment
+    nl: Wacht {{ coalesce(formatDate(UploadEvent, =dd-MM), =) }} op beoordeling
+  
 ends:
   event: AssessmentSupervisor

@@ -35,9 +35,8 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 var config = builder.Configuration;
 config.AddJsonFile("appsettings.local.json", true, true);
-builder.Services.AddWorkflowCore();
+builder.Services.AddWorkflowCore(builder.Configuration);
 builder.Services.AddWorkflowApiCore();
-builder.Services.AddSingleton<IUserOrganizationDefaults, UserOrganizationDefaults>();
 builder.Services
     .AddControllers()
     .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });

@@ -1,5 +1,8 @@
 name: ApprovalCoordinator
 title: Approval (coordinator)
+icon:
+  type: checkmark-line
+  color: green
 
 actions:
   - roles: [Coordinator]

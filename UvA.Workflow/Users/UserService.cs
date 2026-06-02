@@ -104,12 +104,12 @@ public class UserService(
     ICurrentUserAccessor currentUserAccessor,
     IUserRepository userRepository,
     IMemoryCache cache,
-    IEnumerable<IUserRoleSource> userRoleSources,
+    IEnumerable<IUserDirectory> userDirectories,
     IEnumerable<IUserSearchSource> userSearchSources)
     : UserServiceBase(userRepository, cache), IUserService
 {
     private readonly IMemoryCache _cache = cache;
-    private readonly IReadOnlyList<IUserRoleSource> _userRoleSources = userRoleSources.ToList();
+    private readonly IReadOnlyList<IUserDirectory> _userDirectories = userDirectories.ToList();
     private readonly IReadOnlyList<IUserSearchSource> _userSearchSources = userSearchSources.ToList();
     private static string GetCacheKeyForRoles(string userName) => $"roles:{userName}";
     private static TimeSpan RolesCacheExpiration => TimeSpan.FromMinutes(15);
@@ -136,11 +136,11 @@ public class UserService(
             roles = ["Api"];
         else
         {
-            var roleSource = _userRoleSources.FirstOrDefault(source =>
+            var directory = _userDirectories.FirstOrDefault(source =>
                 UserProviderKeys.AreEqual(source.ProviderKey, user.ProviderKey));
-            roles = roleSource == null
+            roles = directory == null
                 ? []
-                : (await roleSource.GetRoles(user, ct)).ToArray();
+                : (await directory.GetRoles(user, ct)).ToArray();
         }
 
         _cache.Set(cacheKey, roles, RolesCacheExpiration);
@@ -186,5 +186,28 @@ public class UserService(
         }
 
         return results;
+    }
+
+    public async Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(uid))
+            return null;
+
+        try
+        {
+            foreach (var directory in _userDirectories)
+            {
+                var organization = await directory.GetOrganization(uid, ct);
+                if (organization != null)
+                    return organization;
+            }
+
+            return null;
+        }
+        catch
+        {
+            // Directory lookup unavailable (e.g. DataNose down). Don't block login, leave it unset.
+            return null;
+        }
     }
 }

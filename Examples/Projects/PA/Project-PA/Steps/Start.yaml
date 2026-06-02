@@ -1,6 +1,7 @@
 name: Start
 
-icon: article-line
+icon: 
+  type: article-line
 
 title:
   nl: Voorstel indienen

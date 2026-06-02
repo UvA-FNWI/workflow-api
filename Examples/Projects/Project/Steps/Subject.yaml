@@ -1,5 +1,6 @@
 name: Subject
-icon: article-line
+icon: 
+  type: article-line
 
 title:
   nl: Onderwerp
@@ -8,7 +9,14 @@ title:
 children:
   - Start
   - SubjectFeedback
-
+  
+events:
+  - name: Start
+    suppresses: [RejectSubject]
+  - name: RejectSubject
+    suppresses: [Start]
+  - name: ApproveSubject
+    
 headerStatus:
   - event: Start
     type: Info

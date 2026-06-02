@@ -44,7 +44,7 @@ public record StepHeaderStatusDto(
 public record StepDto(
     string Id,
     BilingualString Title,
-    string? Icon,
+    Icon? Icon,
     string? Event,
     DateTime? DateCompleted,
     DateTime? Deadline,

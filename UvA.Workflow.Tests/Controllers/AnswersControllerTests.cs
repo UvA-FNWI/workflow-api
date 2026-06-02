@@ -32,7 +32,7 @@ public class AnswersControllerTests : ControllerTestsBase
 
     public AnswersControllerTests() : base()
     {
-        _artifactTokenService = new ArtifactTokenService(_configurationMock.Object);
+        _artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         _submissionService =
             new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
@@ -52,8 +52,7 @@ public class AnswersControllerTests : ControllerTestsBase
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
-            _userRepoMock.Object,
-            TestUserOrganizationDefaults.Instance);
+            _userRepoMock.Object);
         _answerService = new AnswerService(
             _submissionService,
             _modelService,

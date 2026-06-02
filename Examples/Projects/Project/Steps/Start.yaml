@@ -1,8 +1,14 @@
 name: Start
-icon: article-line
+icon: 
+  type: square-grid-search-line
 title:
   nl: Indienen voorstel
   en: Subject proposal
+progress:
+  color: green
+  text:
+    en: Writing proposal
+    nl: Schrijft voorstel
 
 condition: 
   deadline: addMonths(CreateDate, 2)
@@ -67,6 +73,4 @@ properties:
       nl: "Scriptie mag gepubliceerd worden"
 
 ends:
-  event:
-    id: Start
-    notBefore: RejectSubject
+   event: Start

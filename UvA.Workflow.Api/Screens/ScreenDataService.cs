@@ -94,7 +94,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? GetDisplayTitleCurrentStep(screen, column.GetValue(context) as string ?? "")
+                    ? GetCurrentStepProgress(screen, column.GetValue(context) as string ?? "", context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -110,6 +110,7 @@ public class ScreenDataService(
         // Build projection based on screen columns, always including CurrentStep for grouping
         var projection = BuildProjection(screen.Columns, workflowDefinition);
         projection.TryAdd("CurrentStep", "$CurrentStep");
+        projection.TryAdd("Events", "$Events");
 
         // Build authorization filter to restrict instances to those the user can view
         var authorizationFilter =
@@ -203,7 +204,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? GetDisplayTitleCurrentStep(screen, column.GetValue(context) as string ?? "")
+                    ? GetCurrentStepProgress(screen, column.GetValue(context) as string ?? "", context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -229,12 +230,28 @@ public class ScreenDataService(
         return mapping;
     }
 
-    private BilingualString GetDisplayTitleCurrentStep(Screen screen, string internalName)
+    public record ProgressInformationDto(
+        BilingualString Text,
+        StatusColor? Color)
     {
-        if (string.IsNullOrEmpty(internalName) ||
-            string.IsNullOrEmpty(screen.WorkflowDefinition) ||
+        public static ProgressInformationDto Create(Step step, ObjectContext context)
+        {
+            var displayText = step.Progress?.ProgressTextTemplate?.Apply(context)
+                              ?? step.DisplayTitle;
+            return new ProgressInformationDto(displayText, step.Progress?.Color);
+        }
+    }
+
+    private ProgressInformationDto GetCurrentStepProgress(Screen screen, string internalName, ObjectContext context)
+    {
+        if (string.IsNullOrEmpty(screen.WorkflowDefinition) ||
             !modelService.WorkflowDefinitions.TryGetValue(screen.WorkflowDefinition, out var workflowDef))
-            return internalName;
-        return workflowDef.AllSteps.Find(s => s.Name == internalName)?.DisplayTitle ?? internalName;
+            return new ProgressInformationDto(new BilingualString(internalName, internalName), null);
+
+        var currentStep = workflowDef.AllSteps.Find(s => s.Name == internalName);
+
+        return currentStep == null
+            ? new ProgressInformationDto(new BilingualString(internalName, internalName), null)
+            : ProgressInformationDto.Create(currentStep, context);
     }
 }

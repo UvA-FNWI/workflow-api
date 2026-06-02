@@ -4,9 +4,11 @@ using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
@@ -191,7 +193,8 @@ public class StepHeaderStatusTests
             new MailBuilder(layoutResolver.Object, configuration)
         );
 
-        var submissionDtoFactory = new SubmissionDtoFactory(new ArtifactTokenService(configuration), modelService);
+        var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
+        var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService);
         var stepVersionService = new Mock<IStepVersionService>();
         stepVersionService
             .Setup(s => s.GetStepVersions(It.IsAny<WorkflowInstance>(), It.IsAny<string>(),

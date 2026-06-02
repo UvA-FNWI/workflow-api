@@ -1,10 +1,10 @@
 {
-  "title": "Milestones (test)",
-  "description": "Milestones (test environment)",
-  "target_link_uri": "https://milestones-tst.fnwi.uva.nl/canvas",
-  "oidc_initiation_url": "https://api.milestones-tst.fnwi.uva.nl/oidc",
+  "title": "Milestones (acc)",
+  "description": "Milestones (acc environment)",
+  "target_link_uri": "https://milestones-acc.fnwi.uva.nl/canvas",
+  "oidc_initiation_url": "https://api.milestones-acc.fnwi.uva.nl/oidc",
   "oidc_initiation_urls": {},
-  "public_jwk_url": "https://api.milestones-tst.fnwi.uva.nl/jwks",
+  "public_jwk_url": "https://api.milestones-acc.fnwi.uva.nl/jwks",
   "public_jwk": {},
   "custom_fields": {
     "courseId": "$Canvas.course.id"

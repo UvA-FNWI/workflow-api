@@ -17,7 +17,7 @@ public class UserServiceEduIdTests
             userRepositoryMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [
-                new DataNoseUserRoleSource(dataNoseApiClientMock.Object),
+                new DataNoseUserDirectory(dataNoseApiClientMock.Object),
                 new EduIdUserDirectory()
             ],
             [
@@ -230,6 +230,37 @@ public class UserServiceEduIdTests
         Assert.Empty(await service.FindUsers(query, true, CancellationToken.None));
 
         userRepositoryMock.Verify(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOrganizationForUser_ReturnsOrganization_FromDataNoseLookup()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        dataNoseApiClientMock.Setup(c => c.GetOrganizationForUser("jdoe", CancellationToken.None))
+            .ReturnsAsync(new Organization("FNWI", "FNWI"));
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+
+        var organization = await service.GetOrganizationForUser("jdoe", CancellationToken.None);
+
+        Assert.NotNull(organization);
+        Assert.Equal("FNWI", organization!.Id);
+        Assert.Equal("FNWI", organization.Name);
+        dataNoseApiClientMock.Verify(c => c.GetOrganizationForUser("jdoe", CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOrganizationForUser_ReturnsNull_WhenDataNoseHasNoOrganization()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        dataNoseApiClientMock.Setup(c => c.GetOrganizationForUser("jdoe", CancellationToken.None))
+            .ReturnsAsync((Organization?)null);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+
+        var organization = await service.GetOrganizationForUser("jdoe", CancellationToken.None);
+
+        Assert.Null(organization);
     }
 
     [Fact]

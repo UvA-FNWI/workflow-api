@@ -9,8 +9,7 @@ namespace UvA.Workflow.WorkflowInstances;
 /// </summary>
 public class AnswerConversionService(
     IUserService userService,
-    IUserRepository userRepository,
-    IUserOrganizationDefaults userOrganizationDefaults)
+    IUserRepository userRepository)
 {
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -150,7 +149,7 @@ public class AnswerConversionService(
                 userInput.DisplayName,
                 userInput.Email,
                 UserProviderKeys.Internal,
-                userOrganizationDefaults.ApplyDefault(UserProviderKeys.Internal, userInput.Organization),
+                userInput.Organization,
                 ct);
         }
 

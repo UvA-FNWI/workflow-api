@@ -25,6 +25,6 @@ properties:
   - name: AssessmentSupervisor
     type: Assessment-PP!
   - name: AssessmentSecondreader
-    type: Assessment-PP!  
+    type: Assessment-PP!
   - name: AssessmentExaminer
     type: Assessment-PP!
