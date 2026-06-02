@@ -34,10 +34,10 @@ public class UsersControllerTests : ControllerTestsBase
 
     [Theory]
     [InlineData("SystemAdmin", true)]
-    [InlineData("Coordinator", true)]
+    [InlineData("Coordinator", false)]
     [InlineData("Student", false)]
     [InlineData("RandomPerson", false)]
-    public async Task Users_GetLoggedInUser_SetsIsAdmin_ForGlobalAdminTools(string role, bool expectedIsAdmin)
+    public async Task Users_GetLoggedInUser_SetsIsSuperAdmin_ForSystemAdminRole(string role, bool expectedIsSuperAdmin)
     {
         // Arrange
         var controller = BuildControllerWithRoles([role]);
@@ -46,7 +46,7 @@ public class UsersControllerTests : ControllerTestsBase
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var userDto = Assert.IsType<UserDto>(okResult.Value);
-        Assert.Equal(expectedIsAdmin, userDto.IsAdmin);
+        Assert.Equal(expectedIsSuperAdmin, userDto.IsSuperAdmin);
     }
 
     [Theory]
