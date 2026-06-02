@@ -21,8 +21,8 @@ headerStatus:
   - event: Start
     type: Info
     label:
-      en: Wait for approval
-      nl: Wacht op goedkeuring
+      en: Wait for approval until {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd-MM), =the deadline) }}
+      nl: Wacht op goedkeuring voor {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd-MM), =the deadline) }}
   - event: RejectSubject
     type: Attention
     label:
