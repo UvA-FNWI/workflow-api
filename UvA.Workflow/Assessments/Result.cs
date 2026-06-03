@@ -10,7 +10,7 @@ public class Result
     /// <summary>
     /// The weight of the question
     /// </summary>
-    public int Weight { get; set; }
+    public decimal Weight { get; set; }
 
     /// <summary>
     /// The percentage of the weight of the answer in relation to all other questions in the form

@@ -2,6 +2,9 @@ name: AssessmentExaminer
 title:
   en: Assessment (Examiner)
   nl: Beoordeling (Examiner)
+icon:
+  type: law-balance-line
+  color: green
 
 properties:
   - name: AssessmentExaminer
