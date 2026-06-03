@@ -4,6 +4,7 @@ using Moq;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Controllers;
@@ -25,10 +26,27 @@ public class UsersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var userDto = Assert.IsType<UserDto>(okResult.Value);
 
-        Assert.Equal(ControllerTestsHelpers.AdminUser.Id, userDto.Id);
-        Assert.Equal(ControllerTestsHelpers.AdminUser.Email, userDto.Email);
-        Assert.Equal(ControllerTestsHelpers.AdminUser.UserName, userDto.UserName);
-        Assert.Equal(ControllerTestsHelpers.AdminUser.DisplayName, userDto.DisplayName);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, userDto.Id);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Email, userDto.Email);
+        Assert.Equal(UnitTestsHelpers.AdminUser.UserName, userDto.UserName);
+        Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, userDto.DisplayName);
+    }
+
+    [Theory]
+    [InlineData("SystemAdmin", true)]
+    [InlineData("Coordinator", false)]
+    [InlineData("Student", false)]
+    [InlineData("RandomPerson", false)]
+    public async Task Users_GetLoggedInUser_SetsIsSuperAdmin_ForSystemAdminRole(string role, bool expectedIsSuperAdmin)
+    {
+        // Arrange
+        var controller = BuildControllerWithRoles([role]);
+        // Act
+        var result = await controller.GetLoggedInUser(_ct);
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var userDto = Assert.IsType<UserDto>(okResult.Value);
+        Assert.Equal(expectedIsSuperAdmin, userDto.IsSuperAdmin);
     }
 
     [Theory]

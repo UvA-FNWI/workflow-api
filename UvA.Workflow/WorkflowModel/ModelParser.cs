@@ -217,9 +217,28 @@ public partial class ModelParser
     {
         PreProcess(step.Condition);
         PreProcess(step.Ends);
+
+        foreach (var ev in step.Events)
+        {
+            var existing = workflowDefinition.Events.Find(e => e.Name == ev.Name);
+            if (existing != null)
+            {
+                if (existing.Suppresses != null && ev.Suppresses != null)
+                    throw new InvalidOperationException(
+                        $"Event '{ev.Name}' in workflow '{workflowDefinition.Name}' already has a suppresses value defined.");
+                if (ev.Suppresses != null)
+                    existing.Suppresses = ev.Suppresses;
+            }
+            else
+            {
+                workflowDefinition.Events.Add(ev);
+            }
+        }
+
         foreach (var ev in step.Actions.SelectMany(a => a.OnAction.Select(t => t.Event)).Where(t => t != null))
             if (workflowDefinition.Events.All(e => e.Name != ev!))
                 workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
+
         foreach (var child in step.Children)
             PreProcess(child, workflowDefinition);
     }

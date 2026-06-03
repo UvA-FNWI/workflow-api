@@ -8,7 +8,9 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
@@ -22,7 +24,7 @@ public class ActionsControllerTests : ControllerTestsBase
     public ActionsControllerTests() : base()
     {
         var submissionDtoFactory =
-            new SubmissionDtoFactory(new ArtifactTokenService(_configurationMock.Object), _modelService);
+            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,
@@ -54,7 +56,7 @@ public class ActionsControllerTests : ControllerTestsBase
         Assert.NotNull(payload.Instance);
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == actionName),
-            ControllerTestsHelpers.AdminUser,
+            UnitTestsHelpers.AdminUser,
             _ct), Times.Once);
     }
 
@@ -149,7 +151,7 @@ public class ActionsControllerTests : ControllerTestsBase
         _eduIdUserServiceMock.VerifyAll();
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == "CoordinatorApproved"),
-            ControllerTestsHelpers.AdminUser,
+            It.IsAny<User>(),
             _ct), Times.Once);
     }
 
