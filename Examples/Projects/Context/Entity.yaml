@@ -17,3 +17,6 @@ properties:
 
   - name: Coordinator
     type: "[User]!"
+    
+  - name: StudyManual
+    type: String!
