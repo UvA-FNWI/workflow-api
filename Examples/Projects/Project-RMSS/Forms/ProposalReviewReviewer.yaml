@@ -1,0 +1,22 @@
+name: ProposalReviewReviewer
+property: ReviewerProposalReview
+targetForm: ProposalReview
+title:
+  en: Proposal assessment
+  nl: Beoordeling voorstel
+
+emitFormSubmitEvent: false
+submittedWhenEvents: [ProposalApprovedReviewer, ProposalRejectedReviewer]
+
+onSubmit:
+  - condition:
+      value:
+        property: ReviewerProposalReview.Sufficient
+        equal: =Pass
+    event: ProposalApprovedReviewer
+  - condition:
+      not: true
+      value:
+        property: ReviewerProposalReview.Sufficient
+        equal: =Pass
+    event: ProposalRejectedReviewer

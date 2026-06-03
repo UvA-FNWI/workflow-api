@@ -1,0 +1,36 @@
+name: Ethics
+
+icon:
+  type: law-balance-line
+
+title:
+  en: Ethics
+  nl: Ethiek
+
+hierarchyMode: Parallel
+
+children:
+  - EthicsAssessmentSupervisor
+  - EthicsAssessmentReviewer
+
+headerStatus:
+  - event: EthicsRejectedSupervisor
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  - event: EthicsRejectedReviewer
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  - event: EthicsApprovedSupervisor
+    type: Success
+    label:
+      en: Approved on {{ formatDate(EthicsApprovedSupervisorEvent,=dd-MM-yyyy) }}
+      nl: Goedgekeurd op {{ formatDate(EthicsApprovedSupervisorEvent,=dd-MM-yyyy) }}
+  - event: EthicsApprovedReviewer
+    type: Success
+    label:
+      en: Approved on {{ formatDate(EthicsApprovedReviewerEvent,=dd-MM-yyyy) }}
+      nl: Goedgekeurd op {{ formatDate(EthicsApprovedReviewerEvent,=dd-MM-yyyy) }}

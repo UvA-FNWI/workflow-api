@@ -24,8 +24,8 @@ pages:
       nl: Onderzoekslocatie
     fields:
       - PartAbroad
-      - City
       - Country
+      - City
       - ContactPersonEmail
       - ContactPersonDescription
   - name: Planning
@@ -35,4 +35,3 @@ pages:
     fields:
       - StartDate
       - PlannedEndDate
-      - Interruptions

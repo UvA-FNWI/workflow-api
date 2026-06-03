@@ -1,0 +1,22 @@
+name: EthicsReviewReviewer
+property: ReviewerEthicsReview
+targetForm: EthicsReview
+title:
+  en: Ethics assessment
+  nl: Beoordeling ethiek
+
+emitFormSubmitEvent: false
+submittedWhenEvents: [EthicsApprovedReviewer, EthicsRejectedReviewer]
+
+onSubmit:
+  - condition:
+      value:
+        property: ReviewerEthicsReview.Sufficient
+        equal: =Pass
+    event: EthicsApprovedReviewer
+  - condition:
+      not: true
+      value:
+        property: ReviewerEthicsReview.Sufficient
+        equal: =Pass
+    event: EthicsRejectedReviewer

@@ -1,0 +1,42 @@
+name: ProposalPhase
+
+icon:
+  type: article-line
+
+title:
+  en: Proposal
+  nl: Voorstel
+
+hierarchyMode: Parallel
+
+children:
+  - Start
+  - ProposalAssessmentSupervisor
+  - ProposalAssessmentReviewer
+
+headerStatus:
+  - event: Start
+    type: Info
+    label:
+      en: Waiting for approval
+      nl: Wacht op goedkeuring
+  - event: ProposalRejectedSupervisor
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  - event: ProposalRejectedReviewer
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  - event: ProposalApprovedSupervisor
+    type: Success
+    label:
+      en: Approved on {{ formatDate(ProposalApprovedSupervisorEvent,=dd-MM-yyyy) }}
+      nl: Goedgekeurd op {{ formatDate(ProposalApprovedSupervisorEvent,=dd-MM-yyyy) }}
+  - event: ProposalApprovedReviewer
+    type: Success
+    label:
+      en: Approved on {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
+      nl: Goedgekeurd op {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
