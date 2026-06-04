@@ -40,3 +40,13 @@ headerStatus:
     label:
       en: Approved on {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
       nl: Goedgekeurd op {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
+  - event: EthicsRejectedSupervisor
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  - event: EthicsRejectedReviewer
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
