@@ -43,7 +43,7 @@ grouping:
         nl: Beoordeling in behandeling
       steps:
         - Assessment
-        - AssessmentSecondreader
+        - AssessmentSecondReader
         - AssessmentSupervisor        
         - ApprovalCoordinator
     

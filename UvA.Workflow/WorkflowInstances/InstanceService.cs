@@ -1,5 +1,6 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 using Domain_Action = UvA.Workflow.WorkflowModel.Action;
@@ -186,8 +187,8 @@ public class InstanceService(
         actions.AddRange(allowed
             .Where(a => a.Type == RoleAction.Submit)
             .SelectMany(a => a.AllForms.Select(f => new { Action = a, Form = f }))
-            .Where(f => instance.Events.WhereActive(instance, workflowDef).ToDictionary().GetValueOrDefault(f.Form)
-                ?.Date == null)
+            .Where(f => !FormSubmissionState.Resolve(instance, modelService.GetForm(instance, f.Form), workflowDef)
+                .IsSubmitted)
             .Distinct()
             .Select(f =>
             {
@@ -242,7 +243,10 @@ public class InstanceService(
         }
     }
 
-    public record AllowedSubmission(InstanceEvent Event, Form Form, Dictionary<string, QuestionStatus> QuestionStatus);
+    public record AllowedSubmission(
+        FormSubmissionState SubmissionState,
+        Form Form,
+        Dictionary<string, QuestionStatus> QuestionStatus);
 
     public async Task<IEnumerable<AllowedSubmission>> GetAllowedSubmissions(WorkflowInstance instance,
         CancellationToken ct)
@@ -261,15 +265,18 @@ public class InstanceService(
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        // Only include active (non-suppressed) submissions
-        var subs = instance.Events
-            .Select(e => e.Value)
-            .WhereActive(instance, workflowDef)
-            .Where(s => forms.ContainsKey(s.Id))
-            .OrderBy(s => s.Date)
-            .ToList();
-        return subs.Select(s => new AllowedSubmission(s, forms[s.Id],
-            modelService.GetQuestionStatus(instance, forms[s.Id], hiddenForms.Contains(s.Id))));
+        return forms
+            .Values
+            .Distinct()
+            .Select(form => new
+            {
+                Form = form,
+                State = FormSubmissionState.Resolve(instance, form, workflowDef)
+            })
+            .Where(x => x.State.IsSubmitted)
+            .OrderBy(x => x.State.DateSubmitted)
+            .Select(x => new AllowedSubmission(x.State, x.Form,
+                modelService.GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name))));
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,

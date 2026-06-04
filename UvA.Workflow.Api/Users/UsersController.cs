@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.DataNose;
 
 namespace UvA.Workflow.Api.Users;
 
@@ -19,7 +20,11 @@ public class UsersController(
         if (user == null)
             return UserNotFound;
 
-        return Ok(UserDto.Create(user));
+        // Developer tooling is restricted to DataNose super admins (the SystemAdmin role). The role
+        // name arrives from DataNose via GetRolesForUser; see DataNoseDirectoryKeys.
+        var roles = await userService.GetRolesOfCurrentUser(ct);
+        var isSuperAdmin = roles.Contains(DataNoseDirectoryKeys.SuperAdminRoleName, StringComparer.OrdinalIgnoreCase);
+        return Ok(UserDto.Create(user, isSuperAdmin));
     }
 
     [HttpPost]

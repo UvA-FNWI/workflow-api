@@ -144,9 +144,12 @@ public class WorkflowInstancesController(
             p => entity.GetKey(p)
         ), ct);
 
-        return Ok(res.Select(i => i.ToDictionary(
-            k => k.Key == "_id" ? "Id" : k.Key,
-            v => BsonConversionTools.ConvertBasicBsonValue(v.Value)))
+        return Ok(res
+            // Most recently created instances first (ObjectId is ordered by creation time)
+            .OrderByDescending(i => i.GetValueOrDefault("_id"))
+            .Select(i => i.ToDictionary(
+                k => k.Key == "_id" ? "Id" : k.Key,
+                v => BsonConversionTools.ConvertBasicBsonValue(v.Value)))
         );
     }
 }
