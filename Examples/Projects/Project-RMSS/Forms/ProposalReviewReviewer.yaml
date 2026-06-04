@@ -2,8 +2,8 @@ name: ProposalReviewReviewer
 property: ReviewerProposalReview
 targetForm: ProposalReview
 title:
-  en: Proposal assessment
-  nl: Beoordeling voorstel
+  en: Proposal assessment second reviewer
+  nl: Beoordeling voorstel tweede beoordelaar
 
 emitFormSubmitEvent: false
 submittedWhenEvents: [ProposalApprovedReviewer, ProposalRejectedReviewer]

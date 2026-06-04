@@ -2,8 +2,8 @@ name: ProposalReviewSupervisor
 property: SupervisorProposalReview
 targetForm: ProposalReview
 title:
-  en: Proposal assessment
-  nl: Beoordeling voorstel
+  en: Proposal assessment supervisor
+  nl: Beoordeling voorstel supervisor
 
 emitFormSubmitEvent: false
 submittedWhenEvents: [ProposalApprovedSupervisor, ProposalRejectedSupervisor]

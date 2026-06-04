@@ -26,10 +26,12 @@ public record FormDto(
             .SelectMany(p => p.Fields)
             .ToDictionary(q => q, q => QuestionDto.Create(q, context));
         var formType = form.FormType;
+        // Prefer the overriding form's own title; fall back to the target form's title, then its name.
+        var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         form = form.ActualForm;
         return new FormDto(
             form.Name,
-            form.Title ?? form.Name,
+            title,
             allPages.Select((p, i) =>
             {
                 var isInCurrentForm = currentFormPages.Any(page => page.Name == p.Name);
