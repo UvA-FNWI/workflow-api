@@ -8,7 +8,7 @@ fields:
  - property: Course.StudyManual
    title: 
     en: Study Manual
-    nl: Studiegids
+    nl: Studiehandleiding
  - property: Student.DisplayName
    title: Student
  - property: Student.Email
