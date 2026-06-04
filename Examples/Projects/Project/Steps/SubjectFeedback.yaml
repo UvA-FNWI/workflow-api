@@ -1,9 +1,9 @@
 name: SubjectFeedback
 title:
-  nl: Beoordelen voorstel
-  en: Assessment of proposal
+  nl: Goedkeuren voorstel
+  en: Approve proposal
 icon:
-  type: link-line
+  type: checkmark-line
   color: green
 
 actions:
@@ -24,22 +24,6 @@ actions:
     nl: Afkeuren
 
 properties:
-  - name: SubjectRejectTarget
-    type: "[RejectOption]!"
-    text: 
-      nl: Wat keur je af?
-      en: Which part are you rejecting?
-    values:
-      - name: Contents
-        text:
-          en: Contents
-          nl: Inhoud
-      - name: Staff
-        text:
-          en: Staff
-          nl: Medewerkers
-      - name: Planning
-        text: Planning      
   - name: SubjectRejectReason
     type: String!
     text:

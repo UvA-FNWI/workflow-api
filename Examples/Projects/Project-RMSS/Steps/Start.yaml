@@ -1,0 +1,106 @@
+name: Start
+
+icon:
+  type: article-line
+
+title:
+  nl: Voorstel indienen
+  en: Submit proposal
+
+properties:
+  - name: Topic
+    type: String!
+    text:
+      en: Topic
+      nl: Onderwerp
+  - name: City
+    type: String!
+    text:
+      en: City
+      nl: Plaats
+
+  - name: Country
+    type: Country!
+    text:
+      en: Country
+      nl: Land
+    layout:
+      type: Dropdown
+
+  - name: PartAbroad
+    type: PartAbroadType!
+    text:
+      en: Will part of the project take place abroad?
+      nl: Zal een deel van het project in het buitenland plaatsvinden?
+    layout:
+      type: RadioList
+    values:
+      - name: Yes
+        text:
+          en: Yes
+          nl: Ja
+      - name: No
+        text:
+          en: No
+          nl: Nee
+
+  - name: ContactPersonDescription
+    type: String
+    text:
+      en: Description of contact person
+      nl: Omschrijving van contactpersoon
+    layout:
+      multiline: true
+
+  - name: ContactPersonEmail
+    type: String
+    text:
+      en: Contact person email
+      nl: E-mailadres contactpersoon
+
+  - name: Description
+    type: File!
+    text:
+      en: Upload a description
+      nl: Upload een beschrijving
+
+  - name: EmergencyPhoneNumber
+    type: String!
+    text:
+      en: Emergency phone number
+      nl: Telefoonnummer voor noodgevallen
+
+  - name: StartDate
+    type: Date!
+    text:
+      en: Start date
+      nl: Startdatum
+    validation:
+      message:
+        en: Start date must be in the future
+        nl: Startdatum moet in de toekomst liggen
+      value:
+        property: StartDate
+        greaterThan: now
+
+  - name: PlannedEndDate
+    type: Date!
+    text:
+      en: Planned end date
+      nl: Geplande einddatum
+    validation:
+      message:
+        en: End date must be after start date
+        nl: Einddatum moet na de startdatum zijn
+      value:
+        property: PlannedEndDate
+        greaterThan: StartDate
+
+  - name: Interruptions
+    type: Date
+    text:
+      en: Interruptions
+      nl: Onderbrekingen
+
+ends:
+  event: Start

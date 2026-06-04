@@ -26,10 +26,12 @@ public class StepHeaderStatusTests
 
         var status = resolver.Resolve(GetStep(modelService, "Subject"), instance);
 
+        var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
+
         Assert.NotNull(status);
         Assert.Equal(StepHeaderPillType.Info, status!.Type);
-        Assert.Equal("Wait for approval", status.Label.En);
-        Assert.Equal("Wacht op goedkeuring", status.Label.Nl);
+        Assert.Equal($"Wait for approval before {deadlineDate:dd/MM}", status.Label.En);
+        Assert.Equal($"Wacht op goedkeuring voor {deadlineDate:dd-MM}", status.Label.Nl);
     }
 
     [Fact]
@@ -86,10 +88,12 @@ public class StepHeaderStatusTests
 
         var status = resolver.Resolve(GetStep(modelService, "Subject"), instance);
 
+        var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
+
         Assert.NotNull(status);
         Assert.Equal(StepHeaderPillType.Info, status!.Type);
-        Assert.Equal("Wait for approval", status.Label.En);
-        Assert.Equal("Wacht op goedkeuring", status.Label.Nl);
+        Assert.Equal($"Wait for approval before {deadlineDate:dd/MM}", status.Label.En);
+        Assert.Equal($"Wacht op goedkeuring voor {deadlineDate:dd-MM}", status.Label.Nl);
     }
 
     [Fact]
@@ -115,10 +119,12 @@ public class StepHeaderStatusTests
 
         var status = resolver.Resolve(step, instance);
 
+        var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
+
         Assert.NotNull(status);
         Assert.Equal(StepHeaderPillType.Attention, status!.Type);
-        Assert.Equal("Wait for approval", status.Label.En);
-        Assert.Equal("Wacht op goedkeuring", status.Label.Nl);
+        Assert.Equal($"Wait for approval before {deadlineDate:dd/MM}", status.Label.En);
+        Assert.Equal($"Wacht op goedkeuring voor {deadlineDate:dd-MM}", status.Label.Nl);
     }
 
     [Fact]
@@ -160,7 +166,7 @@ public class StepHeaderStatusTests
 
         Assert.NotNull(subject.HeaderStatus);
         Assert.Equal(StepHeaderPillType.Info, subject.HeaderStatus!.Type);
-        Assert.Equal("Wait for approval", subject.HeaderStatus.Label.En);
+        Assert.Contains("Wait for approval", subject.HeaderStatus.Label.En);
         Assert.Null(subject.Versions);
     }
 

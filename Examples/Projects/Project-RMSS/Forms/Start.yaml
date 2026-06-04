@@ -1,0 +1,38 @@
+name: Start
+step: Start
+
+pages:
+  - name: Contents
+    title:
+      en: Proposal
+      nl: Voorstel
+    fields:
+      - Title
+      - EC
+      - Topic
+      - Description
+  - name: Staff
+    title:
+      en: Staff
+      nl: Begeleiding
+    fields:
+      - Supervisor
+      - EmergencyPhoneNumber
+  - name: ResearchLocation
+    title:
+      en: Research location
+      nl: Onderzoekslocatie
+    fields:
+      - PartAbroad
+      - City
+      - Country
+      - ContactPersonEmail
+      - ContactPersonDescription
+  - name: Planning
+    title:
+      en: Planning
+      nl: Planning
+    fields:
+      - StartDate
+      - PlannedEndDate
+      - Interruptions
