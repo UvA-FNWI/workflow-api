@@ -55,7 +55,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var screenDataDto = Assert.IsType<GroupedScreenDataDto>(okResult.Value);
         Assert.Equal(screenName, screenDataDto.Name);
         Assert.Equal(3, screenDataDto.Groups.Length);
-        Assert.Contains(screenDataDto.Groups, g => g.Name == "assign-subject");
+        Assert.Contains(screenDataDto.Groups, g => g.Name == "approve-subject");
         Assert.Contains(screenDataDto.Groups, g => g.Name == "thesis-in-progress");
         Assert.Contains(screenDataDto.Groups, g => g.Name == "completed");
     }

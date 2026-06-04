@@ -86,9 +86,10 @@ public record QuestionDto(
     Dictionary<string, object>? Layout,
     QuestionDto[]? SubProperties,
     bool HideInResults,
-    int? Weight,
+    decimal? Weight,
     int? MaxLength,
-    bool? AllowsExternalUsers)
+    bool? AllowsExternalUsers,
+    List<RubricEntry>? Rubric)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
@@ -106,7 +107,8 @@ public record QuestionDto(
         propertyDefinition.HideInResults,
         propertyDefinition.Weight,
         propertyDefinition.Validation?.Value?.MaxLength,
-        propertyDefinition.AllowsExternalUsers
+        propertyDefinition.AllowsExternalUsers,
+        propertyDefinition.Rubric
     );
 }
 

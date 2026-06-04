@@ -128,7 +128,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
             DataType.Object => answer.AsBsonDocument.ToDictionary(),
-            DataType.Reference => answer.AsString,
+            DataType.Reference => answer.ToString(),
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
