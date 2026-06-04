@@ -11,9 +11,4 @@ pages:
     fields:
       - Sufficient
       - Explanation
-  - name: Document
-    title:
-      en: Document
-      nl: Document
-    fields:
       - Document
