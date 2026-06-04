@@ -157,6 +157,9 @@ public partial class ModelParser
     {
         form.WorkflowDefinition = workflowDefinition;
 
+        if (form.SubmittedWhenEvents is { Length: 0 })
+            throw new Exception($"Form {form.Name} has an empty submittedWhenEvents list");
+
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
@@ -174,6 +177,8 @@ public partial class ModelParser
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
+        EnsureEffectEventsExist(form.OnSubmit, workflowDefinition);
+        EnsureEffectEventsExist(form.OnSave, workflowDefinition);
 
         if (form is { PropertyName: not null, TargetFormName: not null })
             form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType]
@@ -209,8 +214,38 @@ public partial class ModelParser
             PreProcess(step, workflowDefinition);
         foreach (var field in workflowDefinition.Fields)
             PreProcess(field, workflowDefinition);
+        foreach (var form in workflowDefinition.Forms)
+            ValidateSubmittedWhenEvents(form, workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
+    {
+        foreach (var eventId in effects
+                     .SelectMany(effect => new[] { effect.Event, effect.UndoEvent })
+                     .Where(eventId => !string.IsNullOrWhiteSpace(eventId))
+                     .Cast<string>())
+        {
+            if (workflowDefinition.Events.All(e => e.Name != eventId))
+                workflowDefinition.Events.Add(new EventDefinition { Name = eventId });
+        }
+    }
+
+    private static void ValidateSubmittedWhenEvents(Form form, WorkflowDefinition workflowDefinition)
+    {
+        if (form.SubmittedWhenEvents == null)
+            return;
+
+        var unknownEvents = form.SubmittedWhenEvents
+            .Where(string.IsNullOrWhiteSpace)
+            .Concat(form.SubmittedWhenEvents.Where(eventId => workflowDefinition.Events.All(e => e.Name != eventId)))
+            .Distinct()
+            .ToArray();
+
+        if (unknownEvents.Any())
+            throw new Exception(
+                $"Form {form.Name} references unknown submittedWhenEvents event {unknownEvents.ToSeparatedString()}");
     }
 
     private void PreProcess(Step step, WorkflowDefinition workflowDefinition)

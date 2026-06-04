@@ -11,7 +11,6 @@ public class AnswersController(
     RightsService rightsService,
     ArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
-    SubmissionService submissionService,
     InstanceService instanceService,
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository) : ApiControllerBase
@@ -29,10 +28,8 @@ public class AnswersController(
         await EnsureAuthorizedToEdit(context);
 
         var answers = await answerService.SaveAnswer(context, input.Value, user, ct);
-        var (instance, submission, form, _) =
-            await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
-        var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.Submission,
-            modelService.GetQuestionStatus(instance, form, true));
+        var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
+            modelService.GetQuestionStatus(context.Instance, context.Form, true));
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
     }
 
@@ -124,7 +121,7 @@ public class AnswersController(
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
         await EnsureAuthorizedForAction(context,
-            context.Submission?.Date == null ? RoleAction.Submit : RoleAction.Edit);
+            context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
 
     private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>
         await rightsService.EnsureAuthorizedForAction(context.Instance, action, RightsEvaluationMode.RequestContext,
