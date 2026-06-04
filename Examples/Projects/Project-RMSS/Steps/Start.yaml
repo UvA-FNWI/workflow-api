@@ -13,6 +13,8 @@ properties:
     text:
       en: Topic
       nl: Onderwerp
+    layout:
+      multiline: true
   - name: PartAbroad
     type: PartAbroadType!
     text:
