@@ -13,9 +13,4 @@ pages:
       nl: De ethiek in dit onderzoek wordt beoordeeld.
     fields:
       - Sufficient
-  - name: Explanation
-    title:
-      en: Explanation
-      nl: Toelichting
-    fields:
       - Explanation
