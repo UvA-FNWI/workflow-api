@@ -1,7 +1,7 @@
 globalActions:
-  - roles: [Student, Coordinator, Examiner, SecondReviewer, DailySupervisor, Supervisor]
+  - roles: [Student, Coordinator, Examiner, SecondReviewer, DailySupervisor, Supervisor, CoSupervisor]
     type: View
-    forms: [Start, AssessmentExaminer, AssessmentSecondreader, AssessmentSupervisor]
+    forms: [Start, UploadFinalThesis, AssessmentPresentation, AssessmentSecondReader, AssessmentSupervisor]
   - roles: [Registered]
     type: CreateInstance
     userProperty: Student

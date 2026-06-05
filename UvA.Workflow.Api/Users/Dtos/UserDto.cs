@@ -10,13 +10,16 @@ public record UserDto(
     string Email,
     string? PreferredLanguage,
     Organization? Organization,
-    bool IsExternal
+    bool IsExternal,
+    bool IsSuperAdmin
 )
 {
     /// <summary>
-    /// Creates a UserDto from a User domain entity
+    /// Creates a UserDto from a User domain entity.
+    /// <paramref name="isSuperAdmin"/> reflects whether the *current* request's user is a DataNose
+    /// super admin, so it is only meaningful on the /me endpoint; it defaults to false elsewhere.
     /// </summary>
-    public static UserDto Create(User user)
+    public static UserDto Create(User user, bool isSuperAdmin = false)
     {
         return new UserDto(
             user.Id,
@@ -25,7 +28,8 @@ public record UserDto(
             user.Email,
             user.PreferredLanguage,
             user.Organization,
-            UserProviderKeys.IsExternal(user.ProviderKey)
+            UserProviderKeys.IsExternal(user.ProviderKey),
+            isSuperAdmin
         );
     }
 }

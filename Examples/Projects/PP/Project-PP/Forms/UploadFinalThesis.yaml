@@ -11,6 +11,3 @@ pages:
     fields:
       - Title
       - Report
-      - Abstract
-      - Language
-      - Publish

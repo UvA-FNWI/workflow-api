@@ -104,7 +104,7 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
     private static Organization? CreateOrganization(string? department)
         => string.IsNullOrWhiteSpace(department)
             ? null
-            : new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = department.Trim() };
+            : Organization.Create(department.Trim());
 
     #region DTO
 
