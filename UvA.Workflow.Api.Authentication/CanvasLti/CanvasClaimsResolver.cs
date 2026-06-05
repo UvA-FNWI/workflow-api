@@ -10,11 +10,13 @@ public class CanvasClaimsResolver(
     public async Task<Dictionary<string, object>> ResolveClaims(LtiPrincipal principal)
     {
         var launchInfo = CanvasLaunchInfo.FromPrincipal(principal);
+        var organization = await userService.GetOrganizationForUser(launchInfo.UvanetId);
         var user = await userService.AddOrUpdateUser(
             launchInfo.UvanetId,
             launchInfo.DisplayName,
             launchInfo.Email,
-            UserProviderKeys.Internal);
+            UserProviderKeys.Internal,
+            organization);
         var target = await targetResolver.ResolveTarget(user, launchInfo, CancellationToken.None);
 
         return new Dictionary<string, object>
