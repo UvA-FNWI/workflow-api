@@ -1,0 +1,10 @@
+properties:
+  - name: Course
+    type: Context!
+    inheritedRoles: [Coordinator]
+
+  - name: ProposalReviewer
+    type: User!
+    text:
+      en: Proposal reviewer
+      nl: Voorstel beoordelaar

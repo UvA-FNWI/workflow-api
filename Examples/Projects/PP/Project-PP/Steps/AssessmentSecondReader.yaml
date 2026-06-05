@@ -1,20 +1,22 @@
-name: AssessmentSecondreader
+name: AssessmentSecondReader
 title:
   en: Assessment (Second Reader)
   nl: Beoordeling (Tweede lezer)
+icon:
+  type: law-balance-line
 
 properties:
-  - name: AssessmentSecondreader
+  - name: AssessmentSecondReader
     type: Assessment-PP!
 
 actions:
-  - name: AssessmentSecondreader
+  - name: AssessmentSecondReader
     type: Submit
     roles: [SecondReviewer]
-    form: AssessmentSecondreader
+    form: AssessmentSecondReader
     label:
       en: Submit assessment
       nl: Beoordeling indienen
 
 ends:
-  event: AssessmentSecondreader
+  event: AssessmentSecondReader

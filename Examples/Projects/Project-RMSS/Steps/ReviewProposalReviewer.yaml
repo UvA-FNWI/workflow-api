@@ -1,0 +1,23 @@
+name: ReviewProposalReviewer
+title:
+  en: Review (proposal reviewer)
+  nl: Beoordeling (voorstelbeoordelaar)
+
+actions:
+  - type: Submit
+    roles: [ProposalReviewer]
+    form: ProposalReviewerReview
+    label:
+      en: Submit review
+      nl: Beoordeling indienen
+
+properties:
+  - name: ProposalReviewerReview
+    type: ProposalReview!
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: RejectProposalReviewer
+      - event: ApproveProposalReviewer

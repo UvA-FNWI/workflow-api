@@ -15,7 +15,6 @@ public class AnswersController(
     IExternalUserService externalUserService,
     ArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
-    SubmissionService submissionService,
     InstanceService instanceService,
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository) : ApiControllerBase
@@ -71,11 +70,9 @@ public class AnswersController(
                 ct))
             return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
 
-        var answers = await answerService.SaveAnswer(context, value, user, ct);
-        var (instance, _, form, _) =
-            await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
-        var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.Submission,
-            modelService.GetQuestionStatus(instance, form, true));
+        var answers = await answerService.SaveAnswer(context, input.Value, user, ct);
+        var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
+            modelService.GetQuestionStatus(context.Instance, context.Form, true));
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, User: createdUser));
     }
 
@@ -167,7 +164,7 @@ public class AnswersController(
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
         await EnsureAuthorizedForAction(context,
-            context.Submission?.Date == null ? RoleAction.Submit : RoleAction.Edit);
+            context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
 
     private ObjectResult MapExternalUserCreationError(ExternalUserCreationException ex) => ex.Reason switch
     {

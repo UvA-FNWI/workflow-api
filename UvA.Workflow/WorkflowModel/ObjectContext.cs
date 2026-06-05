@@ -24,8 +24,12 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             var type = res.GetType();
             if (res is Dictionary<Lookup, object> dict)
                 res = dict.GetValueOrDefault(part);
+            else if (res is Dictionary<string, object> stringDict)
+                res = stringDict.GetValueOrDefault(part);
             else if (res is Dictionary<Lookup, object>[] dicts)
                 res = dicts.Select(d => d.GetValueOrDefault(part)).ToArray();
+            else if (res is Dictionary<string, object>[] stringDicts)
+                res = stringDicts.Select(d => d.GetValueOrDefault(part)).ToArray();
             else if (type.IsArray)
                 res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s))
                     .ToArray();
@@ -124,7 +128,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
             DataType.Object => answer.AsBsonDocument.ToDictionary(),
-            DataType.Reference => answer.AsString,
+            DataType.Reference => answer.ToString(),
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),

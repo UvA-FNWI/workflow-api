@@ -133,20 +133,45 @@ public class WorkflowInstancesController(
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
     [HttpGet("instances/{workflowDefinition}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string workflowDefinition,
-        [FromQuery] string[] properties, CancellationToken ct)
+        [FromQuery] string[] properties, CancellationToken ct, [FromQuery] bool includeTitle = false)
     {
         if (!await rightsService.CanAny(workflowDefinition, RoleAction.ViewAdminTools))
             return Forbidden();
 
         var entity = modelService.WorkflowDefinitions[workflowDefinition];
-        var res = await repository.GetAllByType(workflowDefinition, properties.ToDictionary(
-            p => p,
-            p => entity.GetKey(p)
-        ), ct);
 
-        return Ok(res.Select(i => i.ToDictionary(
-            k => k.Key == "_id" ? "Id" : k.Key,
-            v => BsonConversionTools.ConvertBasicBsonValue(v.Value)))
-        );
+        // Title is rendered from a per-definition template, so it's opt-in
+        var titleTemplate = includeTitle ? entity.InstanceTitleTemplate : null;
+        var titleProperties = titleTemplate is null
+            ? []
+            : titleTemplate.Properties
+                .OfType<PropertyLookup>()
+                .Select(p => p.Parts[0])
+                // Id maps to the always-present _id
+                .Where(p => p != "Id");
+
+        var projection = properties
+            .Append("CreatedOn")
+            .Concat(titleProperties)
+            .Distinct()
+            .ToDictionary(p => p, entity.GetKey);
+
+        var res = await repository.GetAllByType(workflowDefinition, projection, ct);
+
+        return Ok(res
+            .OrderByDescending(i => i.GetValueOrDefault("_id"))
+            .Select(i =>
+            {
+                var row = i.ToDictionary(
+                    k => k.Key == "_id" ? "Id" : k.Key,
+                    v => BsonConversionTools.ConvertBasicBsonValue(v.Value));
+                if (titleTemplate != null)
+                    row["Title"] = titleTemplate.Apply(modelService.CreateContext(workflowDefinition, i));
+                return row;
+            })
+            .Select(row => row.ToDictionary(
+                k => char.ToLowerInvariant(k.Key[0]) + k.Key[1..],
+                v => v.Value
+            )));
     }
 }

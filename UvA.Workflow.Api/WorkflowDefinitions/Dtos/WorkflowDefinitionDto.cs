@@ -10,10 +10,12 @@ public record WorkflowDefinitionDto(
     bool IsAlwaysVisible,
     string? InheritsFrom,
     bool IsEmbedded,
-    string[] Screens
+    string[] Screens,
+    bool CanCreateInstance
 )
 {
-    public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition)
+    public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition,
+        bool canCreateInstance = false)
     {
         return new WorkflowDefinitionDto(
             workflowDefinition.Name,
@@ -23,7 +25,8 @@ public record WorkflowDefinitionDto(
             workflowDefinition.IsAlwaysVisible,
             workflowDefinition.InheritsFrom,
             workflowDefinition.IsEmbedded,
-            workflowDefinition.Screens.Select(s => s.Name).ToArray()
+            workflowDefinition.Screens.Select(s => s.Name).ToArray(),
+            canCreateInstance
         );
     }
 }

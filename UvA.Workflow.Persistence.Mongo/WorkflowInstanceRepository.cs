@@ -121,10 +121,16 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             })
             : new BsonDocument { ["WorkflowDefinition"] = workflowDefinition };
 
+        // An empty $project is invalid in MongoDB; when no properties are requested, return just the
+        // identifier so callers can still list instances of a type.
+        var projectionDoc = projection.Count == 0
+            ? new BsonDocument { ["_id"] = 1 }
+            : projection.ToBsonDocument();
+
         BsonDocument[] pipeline =
         [
             new("$match", matchFilter),
-            new("$project", projection.ToBsonDocument())
+            new("$project", projectionDoc)
         ];
 
         return await instanceCollection.Aggregate<Dictionary<string, BsonValue>>(pipeline).ToListAsync(ct);

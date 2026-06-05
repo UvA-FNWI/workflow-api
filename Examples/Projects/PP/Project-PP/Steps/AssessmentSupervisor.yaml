@@ -2,6 +2,8 @@ name: AssessmentSupervisor
 title:
   en: Assessment (Supervisor)
   nl: Beoordeling (Supervisor)
+icon:
+  type: law-balance-line
   
 properties:
   - name: AssessmentSupervisor
