@@ -47,6 +47,11 @@ mongo:
   host: host
   port: 27017
 
+s3:
+  serviceUrl: https://28a4a3bb78d84983ada53ddac7c7c6be.ams.objectstore.eu
+  authenticationRegion: EU
+  accessKey: 961536c212464fcca2219b08315ef5b8
+
 azure:
   keyvaultName: keyvaultName
   resourceGroup: resourceGroupName
