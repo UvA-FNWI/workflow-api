@@ -18,7 +18,6 @@ graph:
   tenantId: tenantId
   clientId: clientId
   userAccount: datanose@amsuni.onmicrosoft.com
-  overrideRecipient: testen-dn-fnwi@uva.nl
   
 surfConext:
   baseUrl: https://connect.test.surfconext.nl
