@@ -266,9 +266,16 @@ public class AnswersControllerTests : ControllerTestsBase
         MockCurrentUser(roles);
 
         var controller =
-            new AnswersController(_userServiceMock.Object, _answerService, _answerConversionService, _rightsService,
-                _externalUserServiceMock.Object, _artifactTokenService,
-                _submissionDtoFactory, _submissionService, _instanceService, _modelService,
+            new AnswersController(
+                _userServiceMock.Object,
+                _answerService,
+                _answerConversionService,
+                _rightsService,
+                _externalUserServiceMock.Object,
+                _artifactTokenService,
+                _submissionDtoFactory,
+                _instanceService,
+                _modelService,
                 _workflowInstanceRepoMock.Object);
 
         return (controller, instance);
