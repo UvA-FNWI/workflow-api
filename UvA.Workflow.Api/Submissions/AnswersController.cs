@@ -70,7 +70,7 @@ public class AnswersController(
                 ct))
             return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
 
-        var answers = await answerService.SaveAnswer(context, input.Value, user, ct);
+        var answers = await answerService.SaveAnswer(context, value, user, ct);
         var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
             modelService.GetQuestionStatus(context.Instance, context.Form, true));
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, User: createdUser));
