@@ -64,9 +64,21 @@ public class JobService(
                 });
 
             var summary = string.Join(Environment.NewLine, failedDescriptions);
-            var jobFailedErrorMessage = new BilingualString(
-                "The form was submitted successfully, but a background task has failed.",
-                "Het formulier is succesvol ingeleverd, maar een achtergrondtaak is mislukt.");
+            var jobFailedErrorMessage = job.SourceType switch
+            {
+                JobSource.Submit => new BilingualString(
+                    "The form was submitted successfully, but a background task has failed.",
+                    "Het formulier is succesvol ingeleverd, maar een achtergrondtaak is mislukt."),
+                JobSource.Save => new BilingualString(
+                    "The form was saved successfully, but a background task has failed.",
+                    "Het formulier is succesvol opgeslagen, maar een achtergrondtaak is mislukt."),
+                JobSource.Action => new BilingualString(
+                    "The action was executed successfully, but a background task has failed.",
+                    "De actie is succesvol uitgevoerd, maar een achtergrondtaak is mislukt."),
+                _ => new BilingualString(
+                    "A background task has failed.",
+                    "Een achtergrondtaak is mislukt.")
+            };
 
             if (failedEffects?.All(e => e?.IsExternal == true) == true)
             {
