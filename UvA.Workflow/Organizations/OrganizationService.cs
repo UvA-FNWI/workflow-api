@@ -2,12 +2,9 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace UvA.Workflow.Organizations;
 
-public class OrganizationService(IOrganizationRepository organizationRepository, IMemoryCache memoryCache)
+public class OrganizationService(IOrganizationRepository organizationRepository)
     : IOrganizationService
 {
-    private static TimeSpan OrganizationCacheExpiration => TimeSpan.FromMinutes(15);
-    private static string GetCacheKey(string organizationId) => $"organization:{organizationId}";
-
     public async Task<Organization> CreateOrganization(string name, CancellationToken ct = default)
     {
         var organization = await organizationRepository.GetByName(name, ct);
@@ -20,22 +17,12 @@ public class OrganizationService(IOrganizationRepository organizationRepository,
         };
 
         await organizationRepository.Create(organization, ct);
-        memoryCache.Set(GetCacheKey(organization.Id), organization, OrganizationCacheExpiration);
 
         return organization;
     }
 
-    public async Task<Organization?> GetOrganization(string id, CancellationToken ct)
-    {
-        var cacheKey = GetCacheKey(id);
-        if (memoryCache.TryGetValue(cacheKey, out Organization? organization))
-            return organization;
-
-        organization = await organizationRepository.GetById(id, ct);
-        if (organization != null)
-            memoryCache.Set(cacheKey, organization, OrganizationCacheExpiration);
-        return organization;
-    }
+    public Task<Organization?> GetOrganization(string id, CancellationToken ct)
+        => organizationRepository.GetById(id, ct);
 
     public Task<Organization?> GetOrganizationByName(string name, CancellationToken ct)
         => organizationRepository.GetByName(name, ct);
