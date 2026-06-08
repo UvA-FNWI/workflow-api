@@ -1,0 +1,23 @@
+name: ReviewSupervisor
+title:
+  en: Review (supervisor)
+  nl: Beoordeling (supervisor)
+
+actions:
+  - type: Submit
+    roles: [Supervisor]
+    form: ThesisProposalReview
+    label:
+      en: Submit review
+      nl: Beoordeling indienen
+
+properties:
+  - name: SupervisorReview
+    type: ProposalReview!
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: RejectSupervisor
+      - event: ApproveSupervisor

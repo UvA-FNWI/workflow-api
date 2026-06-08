@@ -4,7 +4,15 @@ public interface IUserService
 {
     Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default);
 
-    Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct);
+    Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers, CancellationToken ct);
+
+    /// <summary>
+    /// Looks up an internal user's organisation from the external directory (DataNose) by their uid.
+    /// Returns null when the directory has no organisation for them, or the lookup is unavailable.
+    /// </summary>
+    /// <param name="uid">The user's external identifier (UvAnetID).</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
+    Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves the current authenticated user from the HTTP context or cache. If the user is not present in cache, it retrieves the user from the repository and caches the result for a specified duration.

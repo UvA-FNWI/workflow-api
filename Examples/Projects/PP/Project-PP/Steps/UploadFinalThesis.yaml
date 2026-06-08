@@ -34,36 +34,5 @@ properties:
       en: Final version report
       nl: Eindversie verslag
 
-  - name: Abstract
-    type: String!
-    text:
-      en: Abstract
-      nl: Samenvatting
-    layout:
-      multiline: true
-
-  - name: Language
-    type: Language!
-    text:
-      en: Language
-      nl: Taal
-
-  - name: Publish
-    type: ConsentPublicationType!
-    text:
-      en: Do you consent to publication of this thesis in the UvA thesis database?
-      nl: Geef je toestemming voor publicatie van deze scriptie in de UvA scriptiedatabase?
-    layout:
-      type: RadioList
-    values:
-      - name: Yes
-        text:
-          en: Yes
-          nl: Ja
-      - name: No
-        text:
-          en: No
-          nl: Nee
-
 ends:
   event: UploadFinalThesis

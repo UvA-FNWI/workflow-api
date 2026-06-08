@@ -19,3 +19,5 @@ values:
     value: 9
   - name: "10"
     value: 10
+  - name: "N/A"
+    value: -1

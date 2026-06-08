@@ -29,6 +29,9 @@ onSubmit:
 
 pages:
   - name: Upload
+    title:
+      en: Final version
+      nl: Eindversie
     fields:
       - Title
       - Report

@@ -2,52 +2,35 @@ name: Assessment
 title:
   en: Assessment
   nl: Beoordeling
+layout: Compact
 
 pages:
-  - name: Report
-    title:
-      en: Report
-      nl: Verslag
+  - name: Content
+    title: Content
     fields:
-      - ProductAbstract          
-      - ProductIntroduction
-      - ProductMethods
-      - ProductResults
-      - ProductDiscussionConclusion
-      - ProductReadability
-      - ProductComments
-    sources: [AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer]
+      - ProblemStatement          
+      - TheoreticalFramework
+      - Methods
+      - AnalysisEvaluationResults
+      - ArgumentationCreativity
+      - ConclusionDiscussion
+      - ContentComments
+    sources: [AssessmentSupervisor, AssessmentSecondReader, AssessmentExaminer]
 
-  - name: Process
-    title:
-      en: Process
-      nl: Proces
+  - name: Form
+    title: Form
     fields:
-      - ProcessPreparationMethodology
-      - ProcessExperimentalSkills
-      - ProcessReliabilityReproducibility
-      - ProcessInterpretingResults
-      - ProcessIndependenceInitiative
-      - ProcessCommunicationCollaboration
-      - ProcessPlanningTimeManagement
+      - Structure
+      - LayoutLanguage
+      - FormComments
     sources: [AssessmentSupervisor, AssessmentExaminer]
     
-  - name: Presentation
-    title:
-      en: Presentation
-      nl: Presentatie
+  - name: FinalDetails
+    title: Final details
     fields:
-      - PresentationContextualizationDelivery
-      - PresentationClarityStyle
-      - PresentationHandlingQuestions
-    sources: [ AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer ]
-
-
-  - name: FinalRemarks
-    title:
-      en: Final Remarks
-      nl: Eindopmerkingen
-    fields:
-      - SummaryComments 
-      - Laudatio     
-    sources: [AssessmentSupervisor, AssessmentExaminer]
+      - APA
+      - Process
+      - Presentation
+      - DoctrinalAnalysis
+      - Motivation
+    sources: [ AssessmentSupervisor, AssessmentExaminer ]

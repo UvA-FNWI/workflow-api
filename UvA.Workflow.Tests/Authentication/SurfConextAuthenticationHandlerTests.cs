@@ -97,11 +97,14 @@ public class SurfConextAuthenticationHandlerTests
     {
         var userServiceMock = new Mock<IUserService>();
         var eduIdUserServiceMock = new Mock<IEduIdUserService>();
+        var organization = new Organization("FNWI", "FNWI");
+        userServiceMock.Setup(s => s.GetOrganizationForUser("jdoe", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(organization);
         userServiceMock.Setup(s => s.AddOrUpdateUser("jdoe",
                 "Jane Doe",
                 "jane.doe@uva.nl",
                 UserProviderKeys.Internal,
-                null,
+                organization,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User
             {

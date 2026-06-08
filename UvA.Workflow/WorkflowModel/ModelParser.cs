@@ -157,6 +157,9 @@ public partial class ModelParser
     {
         form.WorkflowDefinition = workflowDefinition;
 
+        if (form.SubmittedWhenEvents is { Length: 0 })
+            throw new Exception($"Form {form.Name} has an empty submittedWhenEvents list");
+
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
@@ -174,6 +177,8 @@ public partial class ModelParser
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
+        EnsureEffectEventsExist(form.OnSubmit, workflowDefinition);
+        EnsureEffectEventsExist(form.OnSave, workflowDefinition);
 
         if (form is { PropertyName: not null, TargetFormName: not null })
             form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType]
@@ -209,17 +214,66 @@ public partial class ModelParser
             PreProcess(step, workflowDefinition);
         foreach (var field in workflowDefinition.Fields)
             PreProcess(field, workflowDefinition);
+        foreach (var form in workflowDefinition.Forms)
+            ValidateSubmittedWhenEvents(form, workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
+    {
+        foreach (var eventId in effects
+                     .SelectMany(effect => new[] { effect.Event, effect.UndoEvent })
+                     .Where(eventId => !string.IsNullOrWhiteSpace(eventId))
+                     .Cast<string>())
+        {
+            if (workflowDefinition.Events.All(e => e.Name != eventId))
+                workflowDefinition.Events.Add(new EventDefinition { Name = eventId });
+        }
+    }
+
+    private static void ValidateSubmittedWhenEvents(Form form, WorkflowDefinition workflowDefinition)
+    {
+        if (form.SubmittedWhenEvents == null)
+            return;
+
+        var unknownEvents = form.SubmittedWhenEvents
+            .Where(string.IsNullOrWhiteSpace)
+            .Concat(form.SubmittedWhenEvents.Where(eventId => workflowDefinition.Events.All(e => e.Name != eventId)))
+            .Distinct()
+            .ToArray();
+
+        if (unknownEvents.Any())
+            throw new Exception(
+                $"Form {form.Name} references unknown submittedWhenEvents event {unknownEvents.ToSeparatedString()}");
     }
 
     private void PreProcess(Step step, WorkflowDefinition workflowDefinition)
     {
         PreProcess(step.Condition);
         PreProcess(step.Ends);
+
+        foreach (var ev in step.Events)
+        {
+            var existing = workflowDefinition.Events.Find(e => e.Name == ev.Name);
+            if (existing != null)
+            {
+                if (existing.Suppresses != null && ev.Suppresses != null)
+                    throw new InvalidOperationException(
+                        $"Event '{ev.Name}' in workflow '{workflowDefinition.Name}' already has a suppresses value defined.");
+                if (ev.Suppresses != null)
+                    existing.Suppresses = ev.Suppresses;
+            }
+            else
+            {
+                workflowDefinition.Events.Add(ev);
+            }
+        }
+
         foreach (var ev in step.Actions.SelectMany(a => a.OnAction.Select(t => t.Event)).Where(t => t != null))
             if (workflowDefinition.Events.All(e => e.Name != ev!))
                 workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
+
         foreach (var child in step.Children)
             PreProcess(child, workflowDefinition);
     }
@@ -254,6 +308,9 @@ public partial class ModelParser
             propertyDefinition.Values = set.Values;
         if (WorkflowDefinitions.TryGetValue(propertyDefinition.UnderlyingType, out var type))
             propertyDefinition.WorkflowDefinition = type;
+
+        if (propertyDefinition.Rubric != null)
+            PreProcess(propertyDefinition.Rubric, propertyDefinition);
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
 
@@ -300,6 +357,47 @@ public partial class ModelParser
     private void PreProcess(Choice choice)
     {
         PreProcess(choice.Condition);
+    }
+
+    private void PreProcess(List<RubricEntry> rubric, PropertyDefinition propertyDefinition)
+    {
+        if (propertyDefinition.Values == null)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric entries defined but no values. Rubrics can only be used on properties with predefined values.");
+
+        var layoutType = propertyDefinition.Layout?.GetValueOrDefault("type")?.ToString();
+
+        if (layoutType == "Rubric" && rubric == null)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has layout type 'Rubric' but no rubric entries defined.");
+
+        if (propertyDefinition.Rubric != null && layoutType != "Rubric")
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric entries but layout type is '{layoutType ?? "not set"}'. Set layout type to 'Rubric'.");
+
+        var validNames = propertyDefinition.Values.Select(v => v.Name).ToHashSet();
+        var unknownGrades = rubric
+            .SelectMany(e => e.Grades
+                .Where(g => !validNames.Contains(g))
+                .Select(g => $"'{g}' in entry '{e.Name}'"))
+            .ToList();
+
+        if (unknownGrades.Count > 0)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric grades not found in type '{propertyDefinition.UnderlyingType}': " +
+                $"{string.Join(", ", unknownGrades)}. Valid options are: {string.Join(", ", validNames)}");
+
+        var duplicateGrades = rubric
+            .SelectMany(e => e.Grades.Select(g => (Grade: g, Entry: e.Name)))
+            .GroupBy(g => g.Grade)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"'{g.Key}' in entries {string.Join(", ", g.Select(x => $"'{x.Entry}'"))}")
+            .ToList();
+
+        if (duplicateGrades.Count > 0)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' has rubric grades assigned to multiple entries: " +
+                $"{string.Join(", ", duplicateGrades)}");
     }
 
     private static void ValidateServices(List<Service> services)

@@ -40,5 +40,9 @@ data:
   
   Services__DataNose__BaseUrl: "{{ .Values.datanoseApi.baseAddress }}api"
   Services__DataNose__DN1BaseUrl: "{{ .Values.datanoseApi.dn1Url }}"
-  
+
+  S3__ServiceUrl: "{{ .Values.s3.serviceUrl }}"
+  S3__AuthenticationRegion: "{{ .Values.s3.authenticationRegion }}"
+  S3__AccessKey: "{{ .Values.s3.accessKey }}"
+
   Worker__WorkerGroup: "{{ .Release.Namespace }}"
