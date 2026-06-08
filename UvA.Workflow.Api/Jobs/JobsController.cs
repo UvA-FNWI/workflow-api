@@ -1,7 +1,6 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Jobs.Dtos;
 using UvA.Workflow.Jobs;
-using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Api.Jobs;
 
@@ -50,8 +49,7 @@ public class JobsController(
         await jobsRepository.Add(copy, ct);
         await jobService.RunJob(copy, ct);
 
-        var updatedJob = await jobsRepository.GetById(instanceId, copy.Id, ct);
-        return Ok(await ToDto(updatedJob!, ct));
+        return Ok(await ToDto(copy, ct));
     }
 
     private static Job CopyJobForRerun(Job job, string createdBy) => new()
@@ -62,7 +60,7 @@ public class JobsController(
         StartOn = DateTime.Now,
         CreatedBy = createdBy,
         Status = JobStatus.Pending,
-        Steps = job.Steps.Select(s => new JobStep { Identifier = s.Identifier }).ToList(),
+        Steps = job.Steps.Select(s => new JobStep { Identifier = s.Identifier, Status = JobStatus.Pending }).ToList(),
         Input = job.Input,
         IsSynchronous = job.IsSynchronous,
         WorkerGroup = job.WorkerGroup

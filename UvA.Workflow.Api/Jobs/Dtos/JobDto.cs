@@ -5,10 +5,11 @@ namespace UvA.Workflow.Api.Jobs.Dtos;
 public record JobStepDto(
     string Identifier,
     string? Message,
+    string Status,
     Dictionary<string, object>? Outputs)
 {
     public static JobStepDto Create(JobStep step) =>
-        new(step.Identifier, step.Message, step.Outputs);
+        new(step.Identifier, step.Message, step.Status.ToString(), step.Outputs);
 }
 
 public record JobDto(
