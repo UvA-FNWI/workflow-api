@@ -71,8 +71,12 @@ public class AnswersController(
             return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
 
         var answers = await answerService.SaveAnswer(context, value, user, ct);
+        var permissions =
+            await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
+                RoleAction.Edit);
         var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
-            modelService.GetQuestionStatus(context.Instance, context.Form, true));
+            modelService.GetQuestionStatus(context.Instance, context.Form, true),
+            permissions.Select(p => p.Type).ToArray());
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, User: createdUser));
     }
 
