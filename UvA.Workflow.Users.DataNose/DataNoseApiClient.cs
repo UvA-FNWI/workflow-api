@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.WebUtilities;
@@ -65,8 +66,43 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
             .Select(p => new UserSearchResult((p.EmployeeUvAnetId ?? p.StudentId)!,
                 p.FullName,
                 p.Email!,
-                DataNoseDirectoryKeys.SourceKey));
+                DataNoseDirectoryKeys.SourceKey,
+                Organization: CreateOrganization(p.Department)));
     }
+
+    public async Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
+    {
+        var url = QueryHelpers.AddQueryString(
+            "api/Common/People/GetOrganizationForUser",
+            new Dictionary<string, string?>
+            {
+                ["Uid"] = uid
+            });
+        var http = httpFactory.CreateClient(Name);
+        var response = await http.GetAsync(url, ct);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            throw new HttpRequestException(
+                $"GetOrganizationForUser failed: {(int)response.StatusCode} {response.ReasonPhrase}. Body: {body}");
+        }
+
+        var dto = await response.Content.ReadFromJsonAsync<GetOrganizationForUserResponse>(JsonOptions, ct);
+        return CreateOrganization(dto?.Department);
+    }
+
+    /// <summary>
+    /// Builds an <see cref="Organization"/> from the DataNose department code (e.g. "FNWI/CoI", "FEB").
+    /// Returns null when no department is known.
+    /// </summary>
+    private static Organization? CreateOrganization(string? department)
+        => string.IsNullOrWhiteSpace(department)
+            ? null
+            : new Organization(department.Trim(), department.Trim());
 
     #region DTO
 
@@ -77,12 +113,14 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         public record RoleDto(string Name, string? DepartmentCode);
     }
 
+    private record GetOrganizationForUserResponse(string? Department);
+
     private record PeopleIndexEntry(
         int? Id,
         string? StudentId,
         string? EmployeeUvAnetId,
         string? Email,
-        string Department,
+        string? Department,
         int? StaffId,
         bool IsActiveEmployee,
         bool IsActiveStudent,

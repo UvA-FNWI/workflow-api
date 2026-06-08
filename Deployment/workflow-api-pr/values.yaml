@@ -19,7 +19,6 @@ graph:
   tenantId: tenantId
   clientId: clientId
   userAccount: datanose@amsuni.onmicrosoft.com
-  overrideRecipient: testen-dn-fnwi@uva.nl
   
 surfConext:
   baseUrl: https://connect.test.surfconext.nl
@@ -35,7 +34,6 @@ eduId:
   internalEmailDomains:
     - uva.nl
     - auc.nl
-    - amsterdamumc.nl
 
 canvasLti:
   clientId: "104400000000000348"

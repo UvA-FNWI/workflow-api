@@ -12,7 +12,7 @@ public static class ServiceRegistations
         IConfiguration configuration)
     {
         services.AddScoped<IDataNoseApiClient, DataNoseApiClient>();
-        services.AddScoped<IUserRoleSource, DataNoseUserRoleSource>();
+        services.AddScoped<IUserDirectory, DataNoseUserDirectory>();
         services.AddScoped<IUserSearchSource, DataNoseUserSearchSource>();
 
         var section = configuration.GetSection(DataNoseApiClientOptions.Section);
