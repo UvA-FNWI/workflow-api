@@ -97,6 +97,31 @@ public class EduIdUserServiceTests
         userRepositoryMock.Verify(r => r.Create(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Theory]
+    [InlineData("person@uva.nl")]
+    [InlineData("person@sub.uva.nl")]
+    [InlineData("person@UVA.NL")]
+    public void IsInternalEmailAddress_DefaultBlockedDomains_BlocksUvaAndSubdomains(string email)
+    {
+        var service = CreateService(new Mock<IUserRepository>(),
+            new Mock<IEduIdInvitationClient>(),
+            new EduIdOptions { InternalEmailDomains = ["uva.nl", "auc.nl"] });
+
+        Assert.True(service.IsInternalEmailAddress(email));
+    }
+
+    [Theory]
+    [InlineData("doctor@amsterdamumc.nl")]
+    [InlineData("doctor@dept.amsterdamumc.nl")]
+    public void IsInternalEmailAddress_DefaultBlockedDomains_AllowsAmsterdamUmc(string email)
+    {
+        var service = CreateService(new Mock<IUserRepository>(),
+            new Mock<IEduIdInvitationClient>(),
+            new EduIdOptions { InternalEmailDomains = ["uva.nl", "auc.nl"] });
+
+        Assert.False(service.IsInternalEmailAddress(email));
+    }
+
     [Fact]
     public async Task EnsureExternalAccount_PendingUser_ReturnsSkippedStatus()
     {
@@ -224,6 +249,45 @@ public class EduIdUserServiceTests
         Assert.Equal("pending@external.org", pendingUser.Email);
         Assert.True(pendingUser.IsActive);
         userRepositoryMock.Verify(r => r.Update(pendingUser, CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResolveAuthenticatedUser_AmsterdamUmcManualUser_MatchesByEmailAndKeepsSameUserId()
+    {
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var invitationClientMock = new Mock<IEduIdInvitationClient>();
+        var userId = ObjectId.GenerateNewId().ToString();
+        var manualUser = new User
+        {
+            Id = userId,
+            UserName = "doctor@amsterdamumc.nl",
+            DisplayName = "Doctor Name",
+            Email = "doctor@amsterdamumc.nl",
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
+            IsActive = true
+        };
+
+        userRepositoryMock.Setup(r => r.GetByExternalId("eduid-456", CancellationToken.None))
+            .ReturnsAsync((User?)null);
+        userRepositoryMock.Setup(r => r.GetByEmailAndProvider("doctor@amsterdamumc.nl",
+                EduIdDirectoryKeys.ProviderKey,
+                CancellationToken.None))
+            .ReturnsAsync(manualUser);
+        userRepositoryMock.Setup(r => r.Update(manualUser, CancellationToken.None))
+            .Returns(Task.CompletedTask);
+
+        var service = CreateService(userRepositoryMock, invitationClientMock);
+
+        var result = await service.ResolveAuthenticatedUser("eduid-456",
+            "Doctor Name",
+            "doctor@amsterdamumc.nl",
+            CancellationToken.None);
+
+        Assert.Same(manualUser, result);
+        Assert.Equal(userId, result!.Id);
+        Assert.Equal("eduid-456", manualUser.UserName);
+        Assert.Equal("doctor@amsterdamumc.nl", manualUser.Email);
+        userRepositoryMock.Verify(r => r.Update(manualUser, CancellationToken.None), Times.Once);
     }
 
     [Fact]
