@@ -13,6 +13,7 @@ using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Notifications.Graph;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Users;
@@ -33,6 +34,7 @@ public class WorkflowTests
     readonly Mock<IInstanceEventService> _instanceEventService;
     readonly Mock<IJobRepository> _jobRepositoryMock;
     readonly Mock<IUserRepository> _userRepoMock;
+    readonly Mock<IOrganizationService> _organizationServiceMock;
     readonly Mock<IConfiguration> _configurationMock;
 
 
@@ -71,6 +73,7 @@ public class WorkflowTests
         _instanceEventService = new Mock<IInstanceEventService>();
         _configurationMock = new Mock<IConfiguration>();
         _userRepoMock = new Mock<IUserRepository>();
+        _organizationServiceMock = new Mock<IOrganizationService>();
         _jobRepositoryMock = new Mock<IJobRepository>();
 
         // Services

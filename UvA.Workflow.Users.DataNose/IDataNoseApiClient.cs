@@ -1,3 +1,5 @@
+using UvA.Workflow.Organizations;
+
 namespace UvA.Workflow.Users.DataNose;
 
 public interface IDataNoseApiClient
