@@ -161,6 +161,7 @@ public class JobService(
                     step.Identifier,
                     string.Join(", ", effects.Select(e => e.Identifier)));
                 step.Message = $"Effect '{step.Identifier}' not found in the workflow definition";
+                step.Status = JobStatus.Failed;
                 job.Status = JobStatus.Failed;
                 return result;
             }
@@ -174,8 +175,8 @@ public class JobService(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error running effect {Effect}", effect.Identifier);
-                step.Message = step.Message = $"{ex.GetType().Name}: {ex.Message}";
-                ;
+                step.Message = ex.ToString();
+                step.Status = JobStatus.Failed;
                 job.Status = JobStatus.Failed;
                 continue;
             }
@@ -183,6 +184,7 @@ public class JobService(
             var outputs = context.Get(effect.Name ?? effect.ServiceCall?.Operation ?? "__invalid")
                 as Dictionary<Lookup, object>;
             step.Outputs = outputs?.ToDictionary(o => o.Key.ToString(), o => o.Value);
+            step.Status = JobStatus.Completed;
         }
 
         if (job.Status != JobStatus.Failed)
