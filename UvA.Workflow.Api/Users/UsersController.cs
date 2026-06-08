@@ -1,14 +1,28 @@
+using System.ComponentModel.DataAnnotations;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.DataNose;
 
 namespace UvA.Workflow.Api.Users;
 
 public class UsersController(
     IUserService userService,
     IUserRepository userRepository,
-    RightsService rightsService) : ApiControllerBase
+    RightsService rightsService,
+    IEduIdUserService eduIdUserService) : ApiControllerBase
 {
+    private const string ValidEmailStatus = "Valid";
+    private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
+    private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
+    private const string InvalidEmailAddressCode = "InvalidEmailAddress";
+
+    private const string InternalEmailMessage = "Internal email address";
+    private const string DuplicateEmailMessage = "Email already exists";
+    private const string InvalidEmailMessage = "Invalid email address";
+
+    private static readonly EmailAddressAttribute EmailAddressAttribute = new();
+
     /// <summary>
     /// Returns the currently authenticated user.
     /// </summary>
@@ -19,7 +33,11 @@ public class UsersController(
         if (user == null)
             return UserNotFound;
 
-        return Ok(UserDto.Create(user));
+        // Developer tooling is restricted to DataNose super admins (the SystemAdmin role). The role
+        // name arrives from DataNose via GetRolesForUser; see DataNoseDirectoryKeys.
+        var roles = await userService.GetRolesOfCurrentUser(ct);
+        var isSuperAdmin = roles.Contains(DataNoseDirectoryKeys.SuperAdminRoleName, StringComparer.OrdinalIgnoreCase);
+        return Ok(UserDto.Create(user, isSuperAdmin));
     }
 
     [HttpPost]
@@ -27,11 +45,15 @@ public class UsersController(
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
 
+        var emailValidationResult = await ValidateEmail(dto.Email, ct);
+        if (emailValidationResult != null)
+            return emailValidationResult;
+
         var user = new User
         {
             UserName = dto.UserName,
             DisplayName = dto.DisplayName,
-            Email = dto.Email,
+            Email = dto.Email.Trim(),
             PreferredLanguage = dto.PreferredLanguage
         };
 
@@ -39,6 +61,19 @@ public class UsersController(
         var userDto = UserDto.Create(user);
 
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, userDto);
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<ActionResult<VerifyEmailResponse>> VerifyEmail(
+        [FromBody] VerifyEmailRequest? request,
+        CancellationToken ct)
+    {
+        var email = request?.Email.Trim() ?? string.Empty;
+        var emailValidationResult = await ValidateEmail(email, ct);
+        if (emailValidationResult != null)
+            return emailValidationResult;
+
+        return Ok(new VerifyEmailResponse(email, ValidEmailStatus));
     }
 
     [HttpGet("{id}")]
@@ -52,9 +87,26 @@ public class UsersController(
     }
 
     [HttpGet("find")]
-    public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query, CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
+        [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
     {
-        var searchResults = await userService.FindUsers(query, ct);
+        var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
         return Ok(searchResults.Select(UserSearchResultDto.Create));
+    }
+
+    private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct)
+    {
+        var trimmedEmail = email.Trim();
+        if (!EmailAddressAttribute.IsValid(trimmedEmail))
+            return BadRequest(InvalidEmailAddressCode, InvalidEmailMessage);
+
+        if (eduIdUserService.IsInternalEmailAddress(trimmedEmail))
+            return BadRequest(ManualUserInternalEmailCode, InternalEmailMessage);
+
+        var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
+        if (existingUser != null)
+            return Conflict(ManualUserEmailAlreadyExistsCode, DuplicateEmailMessage);
+
+        return null;
     }
 }

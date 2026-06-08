@@ -26,7 +26,10 @@ public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
         ArtifactReference[]? files = null;
         if (answer.Files != null && answer.Files.Length != 0)
         {
-            files = answer.Files
+            var validFiles = answer.Files
+                .Where(f => !string.IsNullOrWhiteSpace(f.ArtifactId))
+                .ToArray();
+            files = validFiles
                 .Select(f => new ArtifactReference(f.ArtifactId, f.Name,
                     WebUtility.UrlEncode(artifactTokenService.CreateAccessToken(f))))
                 .ToArray();

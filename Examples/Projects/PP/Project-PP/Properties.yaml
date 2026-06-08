@@ -4,7 +4,7 @@ properties:
     inheritedRoles: [Coordinator]
 
   - name: Student
-    type: "[User]!"
+    type: User!
 
   - name: WorkingTitle
     type: String!
@@ -18,16 +18,14 @@ properties:
       en: EC
       nl: EC
 
-  - name: Examiner
+  - name: CoSupervisor
     type: User!
-    text:
-      en: Examiner
-      nl: Examinator
+    text: Co-supervisor
 
   - name: SecondReviewer
     type: User!
     text:
-      en: Second reviewer
+      en: Second reader
       nl: Tweede beoordelaar
 
   - name: DailySupervisor

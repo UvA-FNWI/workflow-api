@@ -19,16 +19,16 @@ public class SubmissionsController(
         [FromQuery] int? version = null,
         CancellationToken ct = default)
     {
-        var (instance, submission, form, _) =
+        var (instance, submissionState, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, version, ct);
 
         // If the form is not yet submitted, you can view it with submit permissions. After that, view permissions apply
         await rightsService.EnsureAuthorizedForAction(instance,
-            submission?.Date == null ? RoleAction.Submit : RoleAction.View, form.Name);
+            submissionState.DateSubmitted == null ? RoleAction.Submit : RoleAction.View, form.Name);
 
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
-        var dto = submissionDtoFactory.Create(instance, form, submission,
+        var dto = submissionDtoFactory.Create(instance, form, submissionState,
             modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
         return Ok(dto);
     }
@@ -42,7 +42,7 @@ public class SubmissionsController(
             return Unauthorized();
 
         var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
-        var (instance, sub, form, _) = context;
+        var (instance, _, form, _) = context;
 
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.Submit, form.Name);
         var permissions =
@@ -52,13 +52,13 @@ public class SubmissionsController(
 
         if (!result.Success)
         {
-            var submissionDto = submissionDtoFactory.Create(instance, form, sub,
+            var submissionDto = submissionDtoFactory.Create(instance, form, result.SubmissionState,
                 modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
 
             return UnprocessableEntity(new SubmitSubmissionResult(submissionDto, null, result.Errors, false));
         }
 
-        var finalSubmissionDto = submissionDtoFactory.Create(instance, form, instance.Events[submissionId],
+        var finalSubmissionDto = submissionDtoFactory.Create(instance, form, result.SubmissionState,
             modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
         var updatedInstanceDto = await workflowInstanceDtoFactory.Create(instance, ct);
 
