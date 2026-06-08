@@ -16,7 +16,9 @@ public partial class ModelParser
                 target.Forms.Add(sourceForm.Clone());
         }
 
-        foreach (var property in source.Properties.Where(p => !target.Properties.Contains(p.Name)))
+        foreach (var property in source.Properties.Where(p =>
+                     !target.Properties.Contains(p.Name) && !target.AllSteps.SelectMany(s => s.Properties)
+                         .Select(s => s.Name).Contains(p.Name)))
             target.Properties.Add(property);
 
         foreach (var sourceStep in source.AllSteps)
