@@ -26,8 +26,10 @@ public class SubmissionsController(
         await rightsService.EnsureAuthorizedForAction(instance,
             submission?.Date == null ? RoleAction.Submit : RoleAction.View, form.Name);
 
+        var permissions =
+            await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
         var dto = submissionDtoFactory.Create(instance, form, submission,
-            modelService.GetQuestionStatus(instance, form, true));
+            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
         return Ok(dto);
     }
 
@@ -43,19 +45,21 @@ public class SubmissionsController(
         var (instance, sub, form, _) = context;
 
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.Submit, form.Name);
+        var permissions =
+            await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
 
         var result = await submissionService.SubmitSubmission(context, user, ct);
 
         if (!result.Success)
         {
             var submissionDto = submissionDtoFactory.Create(instance, form, sub,
-                modelService.GetQuestionStatus(instance, form, true));
+                modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
 
             return UnprocessableEntity(new SubmitSubmissionResult(submissionDto, null, result.Errors, false));
         }
 
         var finalSubmissionDto = submissionDtoFactory.Create(instance, form, instance.Events[submissionId],
-            modelService.GetQuestionStatus(instance, form, true));
+            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
         var updatedInstanceDto = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto,

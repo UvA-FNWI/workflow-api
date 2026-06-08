@@ -31,8 +31,10 @@ public class AnswersController(
         var answers = await answerService.SaveAnswer(context, input.Value, user, ct);
         var (instance, submission, form, _) =
             await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+        var permissions =
+            await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
         var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.Submission,
-            modelService.GetQuestionStatus(instance, form, true));
+            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
         return Ok(new SaveAnswerResponse(true, answers, updatedSubmission));
     }
 
