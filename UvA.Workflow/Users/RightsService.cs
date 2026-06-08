@@ -19,6 +19,12 @@ public class RightsService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IImpersonationContextService? impersonationContextService = null)
 {
+    // Used only for the impersonation role picker: show roles that would have
+    // actual access on this instance, not roles that only manage/administer access.
+    private static readonly RoleAction[] ImpersonationTargetAccessActions = Enum.GetValues<RoleAction>()
+        .Except([RoleAction.ViewAdminTools, RoleAction.CreateInstance, RoleAction.ImpersonateRoles])
+        .ToArray();
+
     private readonly IImpersonationContextService impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
@@ -26,7 +32,7 @@ public class RightsService(
         (await userService.GetRolesOfCurrentUser()).ToList()
         .Append("Registered");
 
-    public WorkflowImpersonationRole[] GetWorkflowRelevantRoles(string workflowDefinition)
+    private WorkflowImpersonationRole[] GetImpersonationCandidateRoles(string workflowDefinition)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
             return [];
@@ -50,8 +56,17 @@ public class RightsService(
             .ToArray();
     }
 
-    public WorkflowImpersonationRole? NormalizeWorkflowRelevantRole(string workflowDefinition, string roleName)
-        => GetWorkflowRelevantRoles(workflowDefinition)
+    public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
+        => GetImpersonationCandidateRoles(instance.WorkflowDefinition)
+            .Where(r =>
+            {
+                var role = modelService.Roles.GetValueOrDefault(r.Name);
+                return role != null && GetAllowedActions(instance, [role], ImpersonationTargetAccessActions).Any();
+            })
+            .ToArray();
+
+    public WorkflowImpersonationRole? NormalizeImpersonationTargetRole(WorkflowInstance instance, string roleName)
+        => GetImpersonationTargetRoles(instance)
             .FirstOrDefault(r => string.Equals(r.Name, roleName, StringComparison.OrdinalIgnoreCase));
 
 
@@ -172,7 +187,7 @@ public class RightsService(
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetAllowedActionsForRealUser(instance, actions);
 
-        var normalizedRoleName = NormalizeWorkflowRelevantRole(instance.WorkflowDefinition, impersonatedRoleName);
+        var normalizedRoleName = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
         if (normalizedRoleName == null) return [];
 
         var role = modelService.Roles.GetValueOrDefault(normalizedRoleName.Name);
