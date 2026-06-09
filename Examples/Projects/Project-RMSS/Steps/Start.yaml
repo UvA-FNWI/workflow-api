@@ -79,6 +79,9 @@ properties:
     text:
       en: Emergency phone number
       nl: Telefoonnummer voor noodgevallen
+    description:
+      en: A phone number on which you can be reached in case of an emergency during your research.
+      nl: Een telefoonnummer waarop je tijdens je onderzoek bij nood bereikbaar bent.
 
   - name: StartDate
     type: Date!

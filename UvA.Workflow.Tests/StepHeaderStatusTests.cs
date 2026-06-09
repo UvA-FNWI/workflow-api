@@ -12,6 +12,8 @@ using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
 
@@ -170,6 +172,101 @@ public class StepHeaderStatusTests
         Assert.Null(subject.Versions);
     }
 
+    [Fact]
+    public void Resolver_RmssProposal_StaysWaitingUntilBothApprovalsArePresent()
+    {
+        var modelService = CreateExampleModelService();
+        var resolver = new StepHeaderStatusResolver(modelService);
+        var instance = CreateRmssInstance(
+            ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc))
+        );
+
+        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Info, status!.Type);
+        Assert.Equal("Waiting for approval", status.Label.En);
+    }
+
+    [Fact]
+    public void Resolver_RmssProposal_ApprovedOnlyWhenBothReviewersApprove()
+    {
+        var modelService = CreateExampleModelService();
+        var resolver = new StepHeaderStatusResolver(modelService);
+        var instance = CreateRmssInstance(
+            ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedReviewer", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc))
+        );
+
+        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Success, status!.Type);
+        Assert.Equal("Approved on 14-04-2026", status.Label.En);
+    }
+
+    [Fact]
+    public void Resolver_RmssProposal_ShowsChangesNeededWhenAReviewerRejects()
+    {
+        var modelService = CreateExampleModelService();
+        var resolver = new StepHeaderStatusResolver(modelService);
+        var instance = CreateRmssInstance(
+            ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalRejectedReviewer", new DateTime(2026, 04, 13, 9, 0, 0, DateTimeKind.Utc))
+        );
+
+        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Attention, status!.Type);
+        Assert.Equal("Changes needed", status.Label.En);
+    }
+
+    [Fact]
+    public void Resolver_EvaluatesArbitraryConditionBlocks()
+    {
+        var modelService = CreateExampleModelService();
+        var step = GetRmssStep(modelService, "ProposalPhase");
+
+        // Replace the header status with an arbitrary Or condition to prove the full
+        // condition model (not just AND) is honoured: only one of the two events is active.
+        step.HeaderStatus =
+        [
+            new Step.StepHeaderStatusConfiguration
+            {
+                Condition = new Condition
+                {
+                    Logical = new Logical
+                    {
+                        Operator = LogicalOperator.Or,
+                        Children =
+                        [
+                            new Condition { Event = new EventCondition { Id = "ProposalApprovedSupervisor" } },
+                            new Condition { Event = new EventCondition { Id = "ProposalApprovedReviewer" } }
+                        ]
+                    }
+                },
+                Type = StepHeaderPillType.Success,
+                Label = new BilingualString("At least one approval", "Minstens één goedkeuring")
+            }
+        ];
+
+        var resolver = new StepHeaderStatusResolver(modelService);
+        var instance = CreateRmssInstance(
+            ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc))
+        );
+
+        var status = resolver.Resolve(step, instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Success, status!.Type);
+        Assert.Equal("At least one approval", status.Label.En);
+    }
+
     private static WorkflowInstanceDtoFactory CreateWorkflowInstanceDtoFactory(
         ModelService modelService,
         Mock<IWorkflowInstanceRepository> repository)
@@ -232,14 +329,24 @@ public class StepHeaderStatusTests
     private static Step GetStep(ModelService modelService, string stepName)
         => modelService.WorkflowDefinitions["Project"].AllSteps.Single(s => s.Name == stepName);
 
+    private static Step GetRmssStep(ModelService modelService, string stepName)
+        => modelService.WorkflowDefinitions["Project-RMSS"].AllSteps.Single(s => s.Name == stepName);
+
+    private static WorkflowInstance CreateRmssInstance(params (string EventId, DateTime Date)[] events)
+        => CreateInstance("Project-RMSS", "ProposalPhase", events);
+
     private static Step.StepHeaderStatusConfiguration GetHeaderStatusConfiguration(Step step, string eventId)
         => step.HeaderStatus!.Single(configuration => configuration.Event == eventId);
 
     private static WorkflowInstance CreateProjectInstance(params (string EventId, DateTime Date)[] events)
+        => CreateInstance("Project", "Subject", events);
+
+    private static WorkflowInstance CreateInstance(string workflowDefinition, string currentStep,
+        (string EventId, DateTime Date)[] events)
     {
         var builder = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project")
-            .WithCurrentStep("Subject");
+            .WithWorkflowDefinition(workflowDefinition)
+            .WithCurrentStep(currentStep);
 
         foreach (var (eventId, date) in events)
             builder.WithEvent(eventId, date);
