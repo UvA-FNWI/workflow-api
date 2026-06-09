@@ -250,6 +250,10 @@ public class UserServiceEduIdTests
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
         var organizationServiceMock = new Mock<IOrganizationService>();
+
+        organizationServiceMock.Setup(s => s.GetOrCreateOrganization(dataNodeOrganization.Name, CancellationToken.None))
+            .ReturnsAsync(dataNodeOrganization);
+
         dataNoseApiClientMock.Setup(c => c.GetOrganizationForUser("jdoe", CancellationToken.None))
             .ReturnsAsync(dataNodeOrganization);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
