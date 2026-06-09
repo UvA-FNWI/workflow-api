@@ -8,5 +8,5 @@ public interface IDataNoseApiClient
 
     Task<IEnumerable<UserSearchResult>> SearchPeople(string query, CancellationToken ct = default);
 
-    Task<DirectoryOrganization?> GetOrganizationForUser(string uid, CancellationToken ct = default);
+    Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default);
 }

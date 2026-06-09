@@ -9,6 +9,6 @@ public class DataNoseUserDirectory(IDataNoseApiClient dataNoseApiClient) : IUser
     public Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default)
         => dataNoseApiClient.GetRolesByUser(user.UserName, ct);
 
-    public Task<DirectoryOrganization?> GetOrganization(string uid, CancellationToken ct = default)
+    public Task<Organization?> GetOrganization(string uid, CancellationToken ct = default)
         => dataNoseApiClient.GetOrganizationForUser(uid, ct);
 }

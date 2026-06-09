@@ -14,5 +14,5 @@ public interface IUserDirectory
     /// Looks up a user's organisation by their uid. Returns null when the directory has no
     /// organisation for them.
     /// </summary>
-    Task<DirectoryOrganization?> GetOrganization(string uid, CancellationToken ct = default);
+    Task<Organization?> GetOrganization(string uid, CancellationToken ct = default);
 }

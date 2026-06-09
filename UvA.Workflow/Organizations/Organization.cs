@@ -14,7 +14,6 @@ public class Organization
 
     [BsonElement("Name")] public string Name { get; set; } = null!;
 
-
     public static Organization Create(string name) => new()
     {
         Name = name

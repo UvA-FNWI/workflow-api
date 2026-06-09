@@ -69,10 +69,10 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
                 p.FullName,
                 p.Email!,
                 DataNoseDirectoryKeys.SourceKey,
-                Organization: p.Department != null ? Organization.Create(p.Department) : null));
+                Organization: CreateOrganization(p.Department)));
     }
 
-    public async Task<DirectoryOrganization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
+    public async Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
     {
         var url = QueryHelpers.AddQueryString(
             "api/Common/People/GetOrganizationForUser",
@@ -102,10 +102,10 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
     /// Builds an <see cref="Organization"/> from the DataNose department code (e.g. "FNWI/CoI", "FEB").
     /// Returns null when no department is known.
     /// </summary>
-    private static DirectoryOrganization? CreateOrganization(string? department)
+    private static Organization? CreateOrganization(string? department)
         => string.IsNullOrWhiteSpace(department)
             ? null
-            : new DirectoryOrganization(null, department.Trim());
+            : Organization.Create(department.Trim());
 
     #region DTO
 
