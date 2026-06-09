@@ -1,9 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Moq;
 using UvA.Workflow.Notifications;
-using UvA.Workflow.Persistence;
-using UvA.Workflow.Tests.Builders;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 
