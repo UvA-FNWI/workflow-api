@@ -19,12 +19,6 @@ public class RightsService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IImpersonationContextService? impersonationContextService = null)
 {
-    // Used only for the impersonation role picker: show roles that would have
-    // actual access on this instance, not roles that only manage/administer access.
-    private static readonly RoleAction[] ImpersonationTargetAccessActions = Enum.GetValues<RoleAction>()
-        .Except([RoleAction.ViewAdminTools, RoleAction.CreateInstance, RoleAction.ImpersonateRoles])
-        .ToArray();
-
     private readonly IImpersonationContextService impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
@@ -56,12 +50,14 @@ public class RightsService(
             .ToArray();
     }
 
+    // Only roles that can actually view this instance are useful to impersonate; if a role can't
+    // see anything there's no point loading the page as it.
     public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
         => GetImpersonationCandidateRoles(instance.WorkflowDefinition)
             .Where(r =>
             {
                 var role = modelService.Roles.GetValueOrDefault(r.Name);
-                return role != null && GetAllowedActions(instance, [role], ImpersonationTargetAccessActions).Any();
+                return role != null && GetAllowedActions(instance, [role], RoleAction.View).Any();
             })
             .ToArray();
 

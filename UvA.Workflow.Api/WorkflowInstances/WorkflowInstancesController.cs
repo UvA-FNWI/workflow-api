@@ -90,10 +90,6 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        var currentUser = await userService.GetCurrentUser(ct);
-        if (currentUser == null)
-            return Unauthorized();
-
         if (!await rightsService.Can(instance, RoleAction.ImpersonateRoles, RightsEvaluationMode.RealUser))
             return Forbidden();
 
