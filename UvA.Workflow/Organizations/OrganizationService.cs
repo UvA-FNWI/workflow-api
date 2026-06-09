@@ -1,11 +1,9 @@
-using Microsoft.Extensions.Caching.Memory;
-
 namespace UvA.Workflow.Organizations;
 
 public class OrganizationService(IOrganizationRepository organizationRepository)
     : IOrganizationService
 {
-    public async Task<Organization> CreateOrganization(string name, CancellationToken ct = default)
+    public async Task<Organization> GetOrCreateOrganization(string name, CancellationToken ct = default)
     {
         var organization = await organizationRepository.GetByName(name, ct);
         if (organization != null)
