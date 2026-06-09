@@ -50,7 +50,11 @@ public class InstanceUserStorageTests
     [Fact]
     public async Task ConvertToValue_ForUser_StoresLeanInstanceUserDocument()
     {
-        var organization = Organization.Create("Test University");
+        var organization = new Organization
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            Name = "Test University"
+        };
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -236,7 +240,7 @@ public class InstanceUserStorageTests
             DisplayName = "Student Name",
             Email = "student2@uva.nl",
             ProviderKey = UserProviderKeys.Internal,
-            Organization = Organization.Create("FNWI")
+            Organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "FNWI" }
         };
         var userService = new Mock<IUserService>();
         var userRepository = new Mock<IUserRepository>();
