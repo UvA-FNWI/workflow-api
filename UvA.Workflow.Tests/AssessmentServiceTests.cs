@@ -5,18 +5,40 @@ namespace UvA.Workflow.Tests;
 public class AssessmentServiceTests
 {
     // Helper to build a page's results concisely
-    private static Result[] Page(params (int weight, double answer)[] fields) =>
-        fields.Select(f => new Result { Weight = f.weight, Answer = f.answer }).ToArray();
+    private static QuestionResult[] Page(params (int weight, double answer)[] fields) =>
+        fields.Select(f => new QuestionResult { Weight = f.weight, Answer = f.answer }).ToArray();
+
+    // Builds a SourceResult from named pages, computing Weight and WeightedAverage per page
+    private static SourceResult Source(string name, params (string pageName, QuestionResult[] questions)[] pages)
+    {
+        var pageResults = pages.Select(p =>
+        {
+            var weight = p.questions.Sum(q => q.Weight);
+            var avg = weight == 0
+                ? 0
+                : Math.Round(
+                    p.questions.Sum(q => (decimal)q.Answer * q.Weight) / weight,
+                    2, MidpointRounding.AwayFromZero);
+            return new PageResult
+            {
+                PageName = p.pageName,
+                Weight = weight,
+                WeightedAverage = avg,
+                QuestionResults = p.questions.ToList()
+            };
+        }).ToList();
+
+        return new SourceResult { SourceName = name, PageResults = pageResults };
+    }
 
     [Fact]
     public void CalculateTotalWeightedAverage_SingleFormAllPagesFilled_ReturnsCorrectAverage()
     {
-        var form = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 3), (1, 3), (2, 4), (1, 5), (2, 4), (1, 7)), // avg = 4.25, weight = 8
-            ["Process"] = Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7)), // avg = 7, weight = 8
-            ["Presentation"] = Page((1, 6), (1, 5), (2, 4)) // avg = 4.75, weight = 4
-        };
+        var form = Source("form",
+            ("Report", Page((1, 3), (1, 3), (2, 4), (1, 5), (2, 4), (1, 7))), // avg = 4.25, weight = 8
+            ("Process", Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7))), // avg = 7, weight = 8
+            ("Presentation", Page((1, 6), (1, 5), (2, 4))) // avg = 4.75, weight = 4
+        );
 
         var result = AssessmentService.CalculateTotalWeightedAverage([form]);
 
@@ -27,12 +49,11 @@ public class AssessmentServiceTests
     [Fact]
     public void CalculateTotalWeightedAverage_SingleFormNotAllPagesFilled_ReturnsZero()
     {
-        var form = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7)), // filled
-            ["Process"] = Page((1, 0), (1, 0), (1, 0), (2, 0), (1, 0), (1, 0), (1, 0)), // empty
-            ["Presentation"] = Page((1, 5), (1, 6), (2, 7)) // filled
-        };
+        var form = Source("form",
+            ("Report", Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7))), // filled
+            ("Process", Page((1, 0), (1, 0), (1, 0), (2, 0), (1, 0), (1, 0), (1, 0))), // empty
+            ("Presentation", Page((1, 5), (1, 6), (2, 7))) // filled
+        );
 
         var result = AssessmentService.CalculateTotalWeightedAverage([form]);
 
@@ -42,19 +63,16 @@ public class AssessmentServiceTests
     [Fact]
     public void CalculateTotalWeightedAverage_TwoForms_BothFullyFilled_CombinesResults()
     {
-        var form1 = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 3), (1, 3), (2, 4), (1, 5), (2, 4), (1, 7)), // avg = 4.25, weight = 8
-            ["Process"] = Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7)), // avg = 7, weight = 8
-            ["Presentation"] = Page((1, 6), (1, 5), (2, 4)) // avg = 4.75, weight = 4
-        };
-
-        var form2 = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7)), // avg = 6.875, weight = 8
-            ["Process"] = Page((1, 5), (1, 5), (1, 5), (2, 5), (1, 5), (1, 5), (1, 5)), // avg = 5, weight = 8
-            ["Presentation"] = Page((1, 5), (1, 6), (2, 7)) // avg = 6.25, weight = 4
-        };
+        var form1 = Source("form1",
+            ("Report", Page((1, 3), (1, 3), (2, 4), (1, 5), (2, 4), (1, 7))), // avg = 4.25, weight = 8
+            ("Process", Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7))), // avg = 7, weight = 8
+            ("Presentation", Page((1, 6), (1, 5), (2, 4))) // avg = 4.75, weight = 4
+        );
+        var form2 = Source("form2",
+            ("Report", Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7))), // avg = 6.875, weight = 8
+            ("Process", Page((1, 5), (1, 5), (1, 5), (2, 5), (1, 5), (1, 5), (1, 5))), // avg = 5, weight = 8
+            ("Presentation", Page((1, 5), (1, 6), (2, 7))) // avg = 6.25, weight = 4
+        );
 
         var result = AssessmentService.CalculateTotalWeightedAverage([form1, form2]);
 
@@ -68,19 +86,16 @@ public class AssessmentServiceTests
     [Fact]
     public void CalculateTotalWeightedAverage_TwoForms_OneFullOnePartial_CombinesBothForms()
     {
-        var supervisor = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 3), (1, 3), (2, 4), (1, 5), (2, 4), (1, 7)), // avg = 4.25, weight = 8
-            ["Process"] = Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7)), // avg = 7, weight = 8
-            ["Presentation"] = Page((1, 6), (1, 5), (2, 4)) // avg = 4.75, weight = 4
-        };
-
-        var secondReader = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7)), // avg = 6.875, weight = 8
-            ["Process"] = Page((1, 0), (1, 0), (1, 0), (2, 0), (1, 0), (1, 0), (1, 0)), // empty
-            ["Presentation"] = Page((1, 5), (1, 6), (2, 7)) // avg = 6.25, weight = 4
-        };
+        var supervisor = Source("supervisor",
+            ("Report", Page((1, 3), (1, 3), (2, 4), (1, 5), (2, 4), (1, 7))), // avg = 4.25, weight = 8
+            ("Process", Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7))), // avg = 7, weight = 8
+            ("Presentation", Page((1, 6), (1, 5), (2, 4))) // avg = 4.75, weight = 4
+        );
+        var secondReader = Source("secondReader",
+            ("Report", Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7))), // avg = 6.875, weight = 8
+            ("Process", Page((1, 0), (1, 0), (1, 0), (2, 0), (1, 0), (1, 0), (1, 0))), // empty
+            ("Presentation", Page((1, 5), (1, 6), (2, 7))) // avg = 6.25, weight = 4
+        );
 
         var result = AssessmentService.CalculateTotalWeightedAverage([supervisor, secondReader]);
 
@@ -95,19 +110,16 @@ public class AssessmentServiceTests
     public void
         CalculateTotalWeightedAverage_TwoFormsNeitherFullyFilled_ButTogetherCoverAllPages_ReturnsCorrectAverage()
     {
-        var form1 = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7)), // avg = 6.875, weight = 8
-            ["Process"] = Page((1, 0), (1, 0), (1, 0), (2, 0), (1, 0), (1, 0), (1, 0)), // empty
-            ["Presentation"] = Page((1, 5), (1, 6), (2, 7)) // avg = 6.25, weight = 4
-        };
-
-        var form2 = new Dictionary<string, Result[]>
-        {
-            ["Report"] = Page((1, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0)), // empty
-            ["Process"] = Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7)), // avg = 7, weight = 8
-            ["Presentation"] = Page((1, 0), (1, 0), (2, 0)) // empty
-        };
+        var form1 = Source("form1",
+            ("Report", Page((1, 6), (1, 7), (2, 7), (1, 7), (2, 7), (1, 7))), // avg = 6.875, weight = 8
+            ("Process", Page((1, 0), (1, 0), (1, 0), (2, 0), (1, 0), (1, 0), (1, 0))), // empty
+            ("Presentation", Page((1, 5), (1, 6), (2, 7))) // avg = 6.25, weight = 4
+        );
+        var form2 = Source("form2",
+            ("Report", Page((1, 0), (1, 0), (2, 0), (1, 0), (2, 0), (1, 0))), // empty
+            ("Process", Page((1, 7), (1, 7), (1, 7), (2, 7), (1, 7), (1, 7), (1, 7))), // avg = 7, weight = 8
+            ("Presentation", Page((1, 0), (1, 0), (2, 0))) // empty
+        );
 
         var result = AssessmentService.CalculateTotalWeightedAverage([form1, form2]);
 

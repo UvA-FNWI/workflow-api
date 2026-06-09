@@ -14,24 +14,24 @@ public class AssessmentsController(
     RightsService rightsService) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}/Results")]
-    public async Task<ActionResult<AssessmentGroupDto>> GetSubmissionResults(string instanceId, string submissionId,
+    public async Task<ActionResult<AssessmentDto>> GetSubmissionResults(string instanceId, string submissionId,
         CancellationToken ct)
     {
         var currentUser = await userService.GetCurrentUser(ct);
         if (currentUser == null)
             return Unauthorized();
 
-        var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
+        var (contexts, assessmentConfig) = await ResolveAssessmentContexts(instanceId, submissionId, ct);
 
         await Task.WhenAll(contexts.Select(context =>
             rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name)));
 
-        var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts);
+        var dto = assessmentDtoFactory.Create(submissionId, contexts, assessmentConfig);
         return Ok(dto);
     }
 
     [HttpGet("{instanceId}/{submissionId}/Results/{pageName}")]
-    public async Task<ActionResult<AssessmentGroupDto>> GetSubmissionResults(string instanceId, string submissionId,
+    public async Task<ActionResult<AssessmentDto>> GetSubmissionResults(string instanceId, string submissionId,
         string pageName,
         CancellationToken ct)
     {
@@ -39,31 +39,32 @@ public class AssessmentsController(
         if (currentUser == null)
             return Unauthorized();
 
-        var contexts = await ResolveAssessmentContexts(instanceId, submissionId, ct);
+        var (contexts, assessmentConfig) = await ResolveAssessmentContexts(instanceId, submissionId, ct);
 
         await Task.WhenAll(contexts.Select(context =>
             rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name)));
 
-        var dto = assessmentDtoFactory.CreateGroup(submissionId, contexts, pageName);
+        var dto = assessmentDtoFactory.Create(submissionId, contexts, assessmentConfig, pageName);
         return Ok(dto);
     }
 
-    private async Task<SubmissionContext[]> ResolveAssessmentContexts(
-        string instanceId,
-        string requestedId,
-        CancellationToken ct)
+    private async Task<(SubmissionContext[] Contexts, AssessmentConfiguration? assessmentConfig)>
+        ResolveAssessmentContexts(
+            string instanceId,
+            string requestedId,
+            CancellationToken ct)
     {
         var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
+        var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
+
         // If the form with the name exists, return the single form
         if (modelService.TryGetForm(instance, requestedId) != null)
         {
-            return
-            [
-                await submissionService.GetSubmissionContext(instanceId, requestedId, null, ct)
-            ];
+            var context = await submissionService.GetSubmissionContext(instanceId, requestedId, null, ct);
+            return ([context], assessmentConfig);
         }
 
         // Otherwise treat requestedId as base form and resolve child forms
@@ -71,8 +72,10 @@ public class AssessmentsController(
         if (childForms.Length == 0)
             throw new ArgumentException($"Form with {requestedId} not found");
 
-        return await Task.WhenAll(
+        var contexts = await Task.WhenAll(
             childForms.Select(f => submissionService.GetSubmissionContext(instanceId, f.Name, null, ct))
         );
+
+        return (contexts, assessmentConfig);
     }
 }

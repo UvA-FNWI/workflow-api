@@ -26,3 +26,17 @@ properties:
     type: Assessment-PP!
   - name: AssessmentSecondReader
     type: Assessment-PP!
+    
+assessments:
+  parts:
+    - name: AssessmentThesis
+      weight: 0.9
+      sources:
+        - name: AssessmentSupervisor
+          weight: 2
+        - name: AssessmentSecondReader
+          weight: 1
+    - name: AssessmentPresentation
+      weight: 0.1
+      sources:
+        - name: AssessmentSupervisor

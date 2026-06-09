@@ -5,28 +5,26 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Assessments.Dtos;
 
-public record AssessmentDto(
+public record AssessmentPartDto(
     string Id,
-    BilingualString FormTitle,
-    Dictionary<string, Result[]> Results, // <Page name, Results for all questions of that page>
-    Dictionary<string, decimal> WeightedAverages, // <Page name, weighted average for all questions on that page>
+    BilingualString SourceTitle,
+    SourceResult SourceResults,
     AnswerDto[] Answers
 );
 
-public record AssessmentGroupDto(
+public record AssessmentDto(
     string Id,
-    AssessmentDto[] Forms,
-    decimal? TotalWeightedAverage
+    AssessmentPartDto[] Parts,
+    decimal? FinalGrade
 );
 
 public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 
-    public AssessmentDto Create(SubmissionContext submissionContext, string? pageName = null)
+    public AssessmentPartDto Create(SubmissionContext submissionContext, string? pageName = null)
     {
-        var results = AssessmentService.CalculateFormResults(submissionContext, pageName);
-        var weightedAverages = AssessmentService.CalculateWeightedAverages(results);
+        var results = AssessmentService.CalculateSourceResults(submissionContext, pageName);
 
         var shownQuestionIds =
             modelService.GetQuestionStatus(submissionContext.Instance, submissionContext.Form, true);
@@ -37,28 +35,31 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
         var answers = Answer.Create(submissionContext.Instance, submissionContext.Form, shownQuestionIds)
             .Where(a => questionNamesInForm.Contains(a.QuestionName)).ToArray();
 
-        results.Values
-            .SelectMany(arr => arr)
-            .ForEach(r => r.Percentage = Math.Round(r.Percentage, 2, MidpointRounding.AwayFromZero));
-
         return new(
             submissionContext.Form.Name,
             submissionContext.Form.DisplayName,
             results,
-            weightedAverages,
             answers.Select(a => _answerDtoFactory.Create(a)).ToArray()
         );
     }
 
-    public AssessmentGroupDto CreateGroup(string id, IEnumerable<SubmissionContext> contexts,
+    public AssessmentDto Create(string id, IEnumerable<SubmissionContext> contexts,
+        AssessmentConfiguration? assessmentConfig = null,
         string? pageName = null)
     {
-        var forms = contexts.Select(c => Create(c, pageName)).ToArray();
+        var parts = contexts.Select(c => Create(c, pageName)).ToArray();
+        var sourceResults = parts.Select(p => p.SourceResults);
+
+        decimal? finalGrade = pageName != null ? null :
+            assessmentConfig != null ? AssessmentService.CalculateFinalGrade(assessmentConfig, sourceResults) :
+            AssessmentService.CalculateTotalWeightedAverage(sourceResults);
 
         return new(
             id,
-            forms,
-            pageName == null ? AssessmentService.CalculateTotalWeightedAverage(forms.Select(f => f.Results)) : null
+            parts,
+            pageName == null
+                ? AssessmentService.CalculateTotalWeightedAverage(parts.Select(f => f.SourceResults))
+                : null
         );
     }
 }
