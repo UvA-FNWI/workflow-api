@@ -200,10 +200,8 @@ public class UserService(
             foreach (var directory in _userDirectories)
             {
                 var directoryOrganization = await directory.GetOrganization(uid, ct);
-                if (directoryOrganization == null)
-                    return null;
-
-                return await organizationService.GetOrCreateOrganization(directoryOrganization.Name, ct);
+                if (directoryOrganization != null)
+                    return await organizationService.GetOrCreateOrganization(directoryOrganization.Name, ct);
             }
 
             return null;
