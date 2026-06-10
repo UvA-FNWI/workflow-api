@@ -61,10 +61,45 @@ public class AssessmentsController(
 
         var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
 
+        // Is submissionId an assessment part name rather than a direct source form?
+        var matchingPart = assessmentConfig?.Parts.FirstOrDefault(p => p.Name == submissionId);
+        if (matchingPart != null)
+        {
+            // Authorize at instance level — there's no single form name for a part
+            await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, matchingPart.Name);
+            var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, ct);
+            return Ok(assessmentDtoFactory.Create(instanceId, contexts,
+                new AssessmentConfiguration { Parts = [matchingPart] }));
+        }
+
         var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
         var dto = assessmentDtoFactory.Create(instanceId, [context], assessmentConfig);
         return Ok(dto);
+    }
+
+    /// <summary>
+    /// Returns SubmissionContexts for all sources in the given part that have already
+    /// been submitted. Sources not yet submitted are silently skipped
+    /// </summary>
+    private async Task<SubmissionContext[]> LoadSubmittedSourceContexts(
+        WorkflowInstance instance,
+        AssessmentPart part,
+        CancellationToken ct)
+    {
+        // Find out which forms have been submitted for this instance
+        var allowedSubmissions = await instanceService.GetAllowedSubmissions(instance, ct);
+        var submittedFormNames = allowedSubmissions.Select(s => s.Form.Name).ToHashSet();
+
+        // Only fetch contexts for sources that have already been submitted
+        var submittedSources = part.Sources
+            .Where(source => submittedFormNames.Contains(source.Name))
+            .ToList();
+
+        return await Task.WhenAll(
+            submittedSources.Select(source =>
+                submissionService.GetSubmissionContext(instance.Id, source.Name, null, ct))
+        );
     }
 
     [HttpGet("{instanceId}/{submissionId}/{pageName}")]

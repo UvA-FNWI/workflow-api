@@ -31,7 +31,7 @@ properties:
     
 assessments:
   parts:
-    - name: Thesis
+    - name: AssessmentThesis
       weight: 0.9
       sources:
         - name: AssessmentSupervisor
