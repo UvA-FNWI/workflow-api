@@ -13,15 +13,15 @@ public record AssessmentDto(
 
 public record AssessmentPartDto(
     string Id,
-    BilingualString SourceTitle,
+    BilingualString Title,
     SourceResultDto[] SourceResults,
     decimal? WeightedAverage
 );
 
 public record SourceResultDto(
     string Id,
-    BilingualString SourceTitle,
-    PageResult[] Results,
+    BilingualString Title,
+    PageResult[] PageResults,
     AnswerDto[] Answers,
     decimal? WeightedAverage
 );
@@ -85,6 +85,12 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             : (decimal?)null;
 
         return new(id, parts.ToArray(), finalGrade);
+    }
+
+    public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
+    {
+        var sourceResult = AssessmentService.CalculateSourceResult(context, pageName);
+        return MapToSourceResultDto(context, sourceResult, pageName);
     }
 
     // Takes a pre-computed SourceResult — the service already did the math.

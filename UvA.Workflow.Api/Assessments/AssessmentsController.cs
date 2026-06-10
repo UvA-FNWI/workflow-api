@@ -30,7 +30,6 @@ public class AssessmentsController(
 
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
-
         var contexts = new List<SubmissionContext>();
         foreach (var form in submissions.Select(s => s.Form))
         {
@@ -40,7 +39,7 @@ public class AssessmentsController(
             if (assessmentConfig?.Parts.SelectMany(p => p.Sources).Any(s => s.Name == form.Name) != true)
                 continue;
 
-            var (context, _) = await ResolveAssessmentContexts(instanceId, form.Name, ct);
+            var context = await ResolveAssessmentContexts(instanceId, form.Name, ct);
             contexts.AddRange(context);
         }
 
@@ -48,7 +47,7 @@ public class AssessmentsController(
         return Ok(dto);
     }
 
-    [HttpGet("{instanceId}/{submissionId}/Results")]
+    [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<AssessmentDto>> GetSubmissionResults(string instanceId, string submissionId,
         CancellationToken ct)
     {
@@ -56,17 +55,20 @@ public class AssessmentsController(
         if (currentUser == null)
             return Unauthorized();
 
-        var (contexts, assessmentConfig) = await ResolveAssessmentContexts(instanceId, submissionId, ct);
+        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
+        if (instance == null)
+            throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
-        await Task.WhenAll(contexts.Select(context =>
-            rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name)));
+        var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
 
-        var dto = assessmentDtoFactory.Create(submissionId, contexts, assessmentConfig);
+        var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+        await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
+        var dto = assessmentDtoFactory.Create(instanceId, [context], assessmentConfig);
         return Ok(dto);
     }
 
-    [HttpGet("{instanceId}/{submissionId}/Results/{pageName}")]
-    public async Task<ActionResult<AssessmentDto>> GetSubmissionResults(string instanceId, string submissionId,
+    [HttpGet("{instanceId}/{submissionId}/{pageName}")]
+    public async Task<ActionResult<SourceResultDto>> GetSubmissionResults(string instanceId, string submissionId,
         string pageName,
         CancellationToken ct)
     {
@@ -74,32 +76,27 @@ public class AssessmentsController(
         if (currentUser == null)
             return Unauthorized();
 
-        var (contexts, assessmentConfig) = await ResolveAssessmentContexts(instanceId, submissionId, ct);
+        var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+        await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
 
-        await Task.WhenAll(contexts.Select(context =>
-            rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name)));
-
-        var dto = assessmentDtoFactory.Create(submissionId, contexts, assessmentConfig, pageName);
+        var dto = assessmentDtoFactory.CreateSourceResults(context, pageName);
         return Ok(dto);
     }
 
-    private async Task<(SubmissionContext[] Contexts, AssessmentConfiguration? assessmentConfig)>
-        ResolveAssessmentContexts(
-            string instanceId,
-            string requestedId,
-            CancellationToken ct)
+    private async Task<SubmissionContext[]> ResolveAssessmentContexts(
+        string instanceId,
+        string requestedId,
+        CancellationToken ct)
     {
         var instance = await workflowInstanceRepository.GetById(instanceId, ct);
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
-        var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
-
         // If the form with the name exists, return the single form
         if (modelService.TryGetForm(instance, requestedId) != null)
         {
             var context = await submissionService.GetSubmissionContext(instanceId, requestedId, null, ct);
-            return ([context], assessmentConfig);
+            return [context];
         }
 
         // Otherwise treat requestedId as base form and resolve child forms
@@ -111,6 +108,6 @@ public class AssessmentsController(
             childForms.Select(f => submissionService.GetSubmissionContext(instanceId, f.Name, null, ct))
         );
 
-        return (contexts, assessmentConfig);
+        return contexts;
     }
 }
