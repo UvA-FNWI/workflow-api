@@ -61,6 +61,7 @@ public class EduIdUserService(
                 Email = trimmedEmail,
                 Organization = organization,
                 ProviderKey = EduIdDirectoryKeys.ProviderKey,
+                InvitationState = UserInvitationState.Required,
                 IsActive = false
             };
 
