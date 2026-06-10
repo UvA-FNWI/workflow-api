@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net;
+using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Users.EduId;
 

@@ -180,6 +180,13 @@ public class RightsService(
         return GetAllowedActions(instance, [role], actions);
     }
 
+    public async Task<Domain_Action[]> GetAllowedActionsForForm(WorkflowInstance instance, Form form,
+        params RoleAction[] actions)
+    {
+        var allActions = await GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
+        return allActions.Where(p => p.MatchesForm(form.Name)).ToArray();
+    }
+
     public Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
         => GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
 

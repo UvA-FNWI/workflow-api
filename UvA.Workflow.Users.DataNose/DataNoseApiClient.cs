@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.WebUtilities;
+using MongoDB.Bson;
+using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Users.DataNose;
 
@@ -102,7 +104,7 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
     private static Organization? CreateOrganization(string? department)
         => string.IsNullOrWhiteSpace(department)
             ? null
-            : new Organization(department.Trim(), department.Trim());
+            : Organization.Create(department.Trim());
 
     #region DTO
 

@@ -30,7 +30,6 @@ public class DataNoseApiClientTests
         var user = Assert.Single(await client.SearchPeople("emp"));
 
         Assert.NotNull(user.Organization);
-        Assert.Equal("FNWI/CoI", user.Organization!.Id);
         Assert.Equal("FNWI/CoI", user.Organization.Name);
     }
 

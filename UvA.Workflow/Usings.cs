@@ -4,6 +4,7 @@ global using MongoDB.Bson.Serialization;
 global using YamlDotNet.Serialization;
 global using UvA.Workflow.WorkflowInstances;
 global using UvA.Workflow.Users;
+global using UvA.Workflow.Organizations;
 global using UvA.Workflow.Tools;
 global using System.Text.Json.Serialization;
 global using Microsoft.Extensions.Configuration;
