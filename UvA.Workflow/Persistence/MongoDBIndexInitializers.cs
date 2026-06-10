@@ -15,7 +15,7 @@ public class MongoDbIndexInitializer(IMongoDatabase database)
     {
         var collection = database.GetCollection<Organization>("organizations");
         var keys = Builders<Organization>.IndexKeys.Ascending(o => o.Name);
-        var options = new CreateIndexOptions { Name = "organizations_name", Unique = true };
+        var options = new CreateIndexOptions { Name = "organizations_name" };
 
         await CreateOrUpdateIndexAsync(collection, new CreateIndexModel<Organization>(keys, options), ct);
     }
