@@ -1,4 +1,7 @@
 name: Country
+sorting:
+  field: Text
+  direction: Ascending
 values:
   - name: AD
     text:
