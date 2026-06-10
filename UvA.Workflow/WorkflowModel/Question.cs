@@ -101,6 +101,13 @@ public class PropertyDefinition : INamed
     public List<Choice>? Values { get; set; }
 
     /// <summary>
+    /// Determines how the choices should be sorted when shown in a selector.
+    /// Inherited from the referenced value set; not authored on the property itself.
+    /// </summary>
+    [YamlIgnore]
+    public ValueSetSorting? Sorting { get; set; }
+
+    /// <summary>
     /// Localized extended description text for the propertyDefinition.
     /// </summary>
     public BilingualString? Description { get; set; }

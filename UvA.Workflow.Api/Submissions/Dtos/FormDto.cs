@@ -89,14 +89,16 @@ public record QuestionDto(
     decimal? Weight,
     int? MaxLength,
     bool? AllowsExternalUsers,
-    List<RubricEntry>? Rubric)
+    List<RubricEntry>? Rubric,
+    ValueSetSorting? Sorting)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
         propertyDefinition.Name,
         propertyDefinition.DisplayName,
         propertyDefinition.DataType, propertyDefinition.IsRequired, propertyDefinition.IsArray,
-        propertyDefinition.Values?.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
+        propertyDefinition.Values?.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description, v.Value))
+            .ToArray(),
         propertyDefinition.WorkflowDefinition?.Name,
         propertyDefinition.Description,
         propertyDefinition.ShortDisplayName,
@@ -108,8 +110,9 @@ public record QuestionDto(
         propertyDefinition.Weight,
         propertyDefinition.Validation?.Value?.MaxLength,
         propertyDefinition.AllowsExternalUsers,
-        propertyDefinition.Rubric
+        propertyDefinition.Rubric,
+        propertyDefinition.Sorting
     );
 }
 
-public record ChoiceDto(string Name, BilingualString Text, BilingualString? Description);
+public record ChoiceDto(string Name, BilingualString Text, BilingualString? Description, double? Value);
