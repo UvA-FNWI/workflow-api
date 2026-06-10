@@ -1,6 +1,6 @@
 name: AssessmentSupervisor
 title:
-  en: 1st assessment (Supervisor)
-  nl: 1e beoordeling (Supervisor)
+  en: Assessment Supervisor
+  nl: Beoordeling Supervisor
 property: AssessmentSupervisor
 targetForm: Assessment

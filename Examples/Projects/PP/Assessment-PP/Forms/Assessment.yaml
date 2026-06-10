@@ -15,7 +15,7 @@ pages:
       - ArgumentationCreativity
       - ConclusionDiscussion
       - ContentComments
-    sources: [AssessmentSupervisor, AssessmentSecondReader, AssessmentExaminer]
+    sources: [AssessmentSupervisor, AssessmentSecondReader, AssessmentThesis]
 
   - name: Form
     title: Form
@@ -23,7 +23,7 @@ pages:
       - Structure
       - LayoutLanguage
       - FormComments
-    sources: [AssessmentSupervisor, AssessmentExaminer]
+    sources: [AssessmentSupervisor, AssessmentThesis]
     
   - name: FinalDetails
     title: Final details
@@ -33,4 +33,4 @@ pages:
       - Presentation
       - DoctrinalAnalysis
       - Motivation
-    sources: [ AssessmentSupervisor, AssessmentExaminer ]
+    sources: [ AssessmentSupervisor, AssessmentThesis ]

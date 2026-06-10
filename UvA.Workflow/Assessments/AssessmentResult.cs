@@ -1,35 +1,35 @@
 namespace UvA.Workflow.Assessments;
 
-public class AssessmentPartResult
+public class AssessmentPartResult : INamed
 {
-    public string PartName { get; set; } = null!;
+    public string Name { get; set; } = null!;
 
-    public decimal Score { get; set; }
+    public decimal WeightedAverage { get; set; }
 
     public List<SourceResult> SourceResults { get; set; } = [];
 }
 
-public class SourceResult
+public class SourceResult : INamed
 {
-    public string SourceName { get; set; } = null!;
-    public decimal Score { get; set; }
+    public string Name { get; set; } = null!;
+    public decimal WeightedAverage { get; set; }
     public List<PageResult> PageResults { get; set; } = [];
 }
 
-public class PageResult
+public class PageResult : INamed
 {
-    public string PageName { get; set; } = null!;
+    public string Name { get; set; } = null!;
     public decimal Weight { get; set; }
     public decimal WeightedAverage { get; set; }
     public List<QuestionResult> QuestionResults { get; set; } = [];
 }
 
-public class QuestionResult
+public class QuestionResult : INamed
 {
     /// <summary>
     /// The question this result belongs to
     /// </summary>
-    public string QuestionName { get; set; } = null!;
+    public string Name { get; set; } = null!;
 
     /// <summary>
     /// The weight of the question

@@ -5,61 +5,112 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Assessments.Dtos;
 
-public record AssessmentPartDto(
-    string Id,
-    BilingualString SourceTitle,
-    SourceResult SourceResults,
-    AnswerDto[] Answers
-);
-
 public record AssessmentDto(
     string Id,
     AssessmentPartDto[] Parts,
     decimal? FinalGrade
 );
 
+public record AssessmentPartDto(
+    string Id,
+    BilingualString SourceTitle,
+    SourceResultDto[] SourceResults,
+    decimal? WeightedAverage
+);
+
+public record SourceResultDto(
+    string Id,
+    BilingualString SourceTitle,
+    PageResult[] Results,
+    AnswerDto[] Answers,
+    decimal? WeightedAverage
+);
+
 public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 
-    public AssessmentPartDto Create(SubmissionContext submissionContext, string? pageName = null)
+    public AssessmentDto Create(
+        string id,
+        IEnumerable<SubmissionContext> contexts,
+        AssessmentConfiguration? assessmentConfig,
+        string? pageName = null)
     {
-        var results = AssessmentService.CalculateSourceResults(submissionContext, pageName);
+        var contextList = contexts.ToList();
+        var parts = new List<AssessmentPartDto>();
+        // We need this separate list to pass domain types into CalculateFinalGrade
+        var domainPartResults = new List<AssessmentPartResult>();
 
-        var shownQuestionIds =
-            modelService.GetQuestionStatus(submissionContext.Instance, submissionContext.Form, true);
-        var questionNamesInForm = submissionContext.Form.ActualForm.Pages
+        foreach (var partConfig in assessmentConfig?.Parts ?? [])
+        {
+            // 1. Find the contexts that belong to this part's sources
+            var partContexts = partConfig.Sources
+                .Select(source => contextList.FirstOrDefault(c => c.Form.Name == source.Name))
+                .Where(c => c != null)
+                .Cast<SubmissionContext>()
+                .ToList();
+
+            // 2. Service calculates pure domain results (numbers only, no API concerns)
+            var sourceResults = partContexts
+                .Select(c => AssessmentService.CalculateSourceResult(c, pageName))
+                .ToList();
+
+            // 3. Service calculates the part average from those domain results
+            var partAverage = AssessmentService.CalculatePartWeightedAverage(partConfig, sourceResults);
+
+            // 4. Store domain result so CalculateFinalGrade can use it later
+            domainPartResults.Add(new AssessmentPartResult
+            {
+                Name = partConfig.Name,
+                WeightedAverage = partAverage,
+                SourceResults = sourceResults
+            });
+
+            // 5. Map domain results → DTOs (this is where we add answers and display data)
+            var sourceResultDtos = partContexts
+                .Select((context, i) => MapToSourceResultDto(context, sourceResults[i], pageName))
+                .ToArray();
+
+            parts.Add(new AssessmentPartDto(
+                partConfig.Name,
+                partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
+                sourceResultDtos,
+                partAverage
+            ));
+        }
+
+        // 6. Final grade uses domain results — NOT the DTOs
+        var finalGrade = assessmentConfig != null
+            ? AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults)
+            : (decimal?)null;
+
+        return new(id, parts.ToArray(), finalGrade);
+    }
+
+    // Takes a pre-computed SourceResult — the service already did the math.
+    // This method only adds the API-specific data: answers and display title.
+    private SourceResultDto MapToSourceResultDto(
+        SubmissionContext context,
+        SourceResult sourceResult,
+        string? pageName)
+    {
+        var shownQuestionIds = modelService.GetQuestionStatus(context.Instance, context.Form, true);
+        var questionNamesOnPage = context.Form.ActualForm.Pages
             .Where(p => string.IsNullOrEmpty(pageName) || p.Name == pageName)
             .SelectMany(p => p.Fields)
             .Select(f => f.Name);
-        var answers = Answer.Create(submissionContext.Instance, submissionContext.Form, shownQuestionIds)
-            .Where(a => questionNamesInForm.Contains(a.QuestionName)).ToArray();
+
+        var answers = Answer.Create(context.Instance, context.Form, shownQuestionIds)
+            .Where(a => questionNamesOnPage.Contains(a.QuestionName))
+            .Select(a => _answerDtoFactory.Create(a))
+            .ToArray();
 
         return new(
-            submissionContext.Form.Name,
-            submissionContext.Form.DisplayName,
-            results,
-            answers.Select(a => _answerDtoFactory.Create(a)).ToArray()
-        );
-    }
-
-    public AssessmentDto Create(string id, IEnumerable<SubmissionContext> contexts,
-        AssessmentConfiguration? assessmentConfig = null,
-        string? pageName = null)
-    {
-        var parts = contexts.Select(c => Create(c, pageName)).ToArray();
-        var sourceResults = parts.Select(p => p.SourceResults);
-
-        decimal? finalGrade = pageName != null ? null :
-            assessmentConfig != null ? AssessmentService.CalculateFinalGrade(assessmentConfig, sourceResults) :
-            AssessmentService.CalculateTotalWeightedAverage(sourceResults);
-
-        return new(
-            id,
-            parts,
-            pageName == null
-                ? AssessmentService.CalculateTotalWeightedAverage(parts.Select(f => f.SourceResults))
-                : null
+            context.Form.Name,
+            context.Form.DisplayName,
+            sourceResult.PageResults.ToArray(), // PageResult is simple data — fine to reuse directly
+            answers,
+            sourceResult.WeightedAverage
         );
     }
 }

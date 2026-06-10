@@ -1,0 +1,7 @@
+name: AssessmentThesis
+title:
+  en: Assessment Thesis
+  nl: Beoordeling scriptie
+property: AssessmentThesis
+targetForm: Assessment
+formType: AssessmentOverview
