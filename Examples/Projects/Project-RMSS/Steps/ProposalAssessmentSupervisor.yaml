@@ -1,0 +1,26 @@
+name: ProposalAssessmentSupervisor
+title:
+  en: Assessment (supervisor)
+  nl: Beoordeling (begeleider)
+
+condition:
+  event: Start
+
+actions:
+  - type: Submit
+    roles: [Supervisor]
+    form: ProposalReviewSupervisor
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+properties:
+  - name: SupervisorProposalReview
+    type: ProposalReview!
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: ProposalApprovedSupervisor
+      - event: ProposalRejectedSupervisor
