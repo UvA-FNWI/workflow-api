@@ -15,7 +15,8 @@ public record AssessmentPartDto(
     string Id,
     BilingualString Title,
     SourceResultDto[] SourceResults,
-    decimal? WeightedAverage
+    decimal? WeightedAverage,
+    decimal? Percentage
 );
 
 public record SourceResultDto(
@@ -23,7 +24,8 @@ public record SourceResultDto(
     BilingualString Title,
     PageResult[] PageResults,
     AnswerDto[] Answers,
-    decimal? WeightedAverage
+    decimal? WeightedAverage,
+    decimal? Percentage
 );
 
 public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
@@ -40,6 +42,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
         var parts = new List<AssessmentPartDto>();
         // We need this separate list to pass domain types into CalculateFinalGrade
         var domainPartResults = new List<AssessmentPartResult>();
+
+        decimal totalPartWeight = assessmentConfig?.Parts.Sum(p => p.Weight) ?? 0;
 
         foreach (var partConfig in assessmentConfig?.Parts ?? [])
         {
@@ -66,16 +70,30 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 SourceResults = sourceResults
             });
 
-            // 5. Map domain results → DTOs (this is where we add answers and display data)
+            // percentage of this part within the whole assessment
+            decimal partPercentage = totalPartWeight > 0
+                ? Math.Round(partConfig.Weight / totalPartWeight * 100, 2, MidpointRounding.AwayFromZero)
+                : 0;
+
+            // percentage of each source within this part
+            decimal totalSourceWeight = partConfig.Sources.Sum(s => s.Weight);
             var sourceResultDtos = partContexts
-                .Select((context, i) => MapToSourceResultDto(context, sourceResults[i], pageName))
+                .Select((context, i) =>
+                {
+                    var sourceConfig = partConfig.Sources.FirstOrDefault(s => s.Name == context.Form.Name);
+                    decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
+                        ? Math.Round(sourceConfig.Weight / totalSourceWeight * 100, 2, MidpointRounding.AwayFromZero)
+                        : 0;
+                    return MapToSourceResultDto(context, sourceResults[i], pageName, sourcePercentage);
+                })
                 .ToArray();
 
             parts.Add(new AssessmentPartDto(
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
-                partAverage
+                partAverage,
+                partPercentage
             ));
         }
 
@@ -98,7 +116,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
     private SourceResultDto MapToSourceResultDto(
         SubmissionContext context,
         SourceResult sourceResult,
-        string? pageName)
+        string? pageName,
+        decimal? percentage = null)
     {
         var shownQuestionIds = modelService.GetQuestionStatus(context.Instance, context.Form, true);
         var questionNamesOnPage = context.Form.ActualForm.Pages
@@ -116,7 +135,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             context.Form.DisplayName,
             sourceResult.PageResults.ToArray(), // PageResult is simple data — fine to reuse directly
             answers,
-            sourceResult.WeightedAverage
+            sourceResult.WeightedAverage,
+            percentage
         );
     }
 }
