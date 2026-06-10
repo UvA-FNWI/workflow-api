@@ -5,7 +5,8 @@ namespace UvA.Workflow.Users;
 public enum UserInvitationState
 {
     Required,
-    Pending
+    Pending,
+    Completed
 }
 
 /// <summary>
@@ -39,6 +40,5 @@ public class User
     [BsonElement("InvitationState")]
     [BsonRepresentation(BsonType.String)]
     [BsonIgnoreIfNull]
-    [JsonIgnore]
     public UserInvitationState? InvitationState { get; set; } = null;
 }
