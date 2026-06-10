@@ -255,9 +255,12 @@ public class EduIdUserService(
             IsActive = false
         };
 
-        await userRepository.Create(user, ct);
+        var result = await InviteExternalAccount(user, deliveryMode, ct);
 
-        return await InviteExternalAccount(user, deliveryMode, ct);
+        if (result.Status == EduIdExternalAccountStatus.Invited)
+            await userRepository.Create(user, ct);
+
+        return result;
     }
 
     private async Task<EduIdExternalAccountResult> InviteExternalAccount(
@@ -296,8 +299,11 @@ public class EduIdUserService(
                 $"The EduID invitation response did not contain an invitation URL for '{user.Email}'.");
         }
 
-        user.InvitationState = UserInvitationState.Pending;
-        await userRepository.Update(user, ct);
+        if (user.InvitationState != UserInvitationState.Pending)
+        {
+            user.InvitationState = UserInvitationState.Pending;
+            await userRepository.Update(user, ct);
+        }
 
         logger.LogInformation("Created pending EduID user for {Email}", user.Email);
 
