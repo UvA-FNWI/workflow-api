@@ -27,10 +27,15 @@ public class WorkflowInstanceDtoFactory(
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
-        var canUseAdminTools = await rightsService.Can(
+        // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
+        // active impersonation); resolve them in a single pass over the instance's roles.
+        var realUserActions = await rightsService.GetAllowedActions(
             instance,
+            RightsEvaluationMode.RealUser,
             RoleAction.ViewAdminTools,
-            RightsEvaluationMode.RealUser);
+            RoleAction.ImpersonateRoles);
+        var canUseAdminTools = realUserActions.Any(a => a.Type == RoleAction.ViewAdminTools);
+        var canImpersonate = realUserActions.Any(a => a.Type == RoleAction.ImpersonateRoles);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
         var context = modelService.CreateContext(instance);
         await instanceService.Enrich(workflowDefinition, [context],
@@ -57,6 +62,7 @@ public class WorkflowInstanceDtoFactory(
                 .ToArray(),
             permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray(),
             canUseAdminTools,
+            canImpersonate,
             viewerRoles
         );
         return x;

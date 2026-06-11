@@ -2,12 +2,13 @@ globalActions:
   - roles: [Student, Supervisor, ProposalReviewer]
     type: View
     forms: [Start]
-  - roles: [Supervisor]
+  - roles: [Student, Supervisor, ProposalReviewer]
     type: View
-    forms: [ThesisProposalReview]
-  - roles: [ProposalReviewer]
-    type: View
-    forms: [ProposalReviewerReview]
+    forms:
+      - ProposalReviewSupervisor
+      - ProposalReviewReviewer
+      - EthicsReviewSupervisor
+      - EthicsReviewReviewer
   - roles: [Registered]
     type: CreateInstance
     userProperty: Student

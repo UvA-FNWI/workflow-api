@@ -26,10 +26,12 @@ public record FormDto(
             .SelectMany(p => p.Fields)
             .ToDictionary(q => q, q => QuestionDto.Create(q, context));
         var formType = form.FormType;
+        // Prefer the overriding form's own title; fall back to the target form's title, then its name.
+        var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         form = form.ActualForm;
         return new FormDto(
             form.Name,
-            form.Title ?? form.Name,
+            title,
             allPages.Select((p, i) =>
             {
                 var isInCurrentForm = currentFormPages.Any(page => page.Name == p.Name);
@@ -87,14 +89,16 @@ public record QuestionDto(
     decimal? Weight,
     int? MaxLength,
     bool? AllowsExternalUsers,
-    List<RubricEntryDto>? Rubric)
+    List<RubricEntryDto>? Rubric,
+    ValueSetSorting? Sorting)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
         propertyDefinition.Name,
         propertyDefinition.DisplayName,
         propertyDefinition.DataType, propertyDefinition.IsRequired, propertyDefinition.IsArray,
-        propertyDefinition.Values?.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description)).ToArray(),
+        propertyDefinition.Values?.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description, v.Value))
+            .ToArray(),
         propertyDefinition.WorkflowDefinition?.Name,
         propertyDefinition.Description,
         propertyDefinition.ShortDisplayName,
@@ -106,11 +110,12 @@ public record QuestionDto(
         propertyDefinition.Weight,
         propertyDefinition.Validation?.Value?.MaxLength,
         propertyDefinition.AllowsExternalUsers,
-        propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList()
+        propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList(),
+        propertyDefinition.Sorting
     );
 }
 
-public record ChoiceDto(string Name, BilingualString Text, BilingualString? Description);
+public record ChoiceDto(string Name, BilingualString Text, BilingualString? Description, double? Value);
 
 public record RubricEntryDto(string Name, BilingualString Description, List<RubricGradeDto> Grades)
 {

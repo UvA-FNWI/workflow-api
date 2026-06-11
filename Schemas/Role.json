@@ -208,7 +208,8 @@
         "ViewAnswerMessages",
         "AssignMessages",
         "CreateInstance",
-        "CreateRelatedInstance"
+        "CreateRelatedInstance",
+        "ImpersonateRoles"
       ]
     },
     "Condition": {

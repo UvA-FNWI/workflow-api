@@ -18,17 +18,37 @@ fields:
 
 events:
   - name: Start
-    suppresses: [RejectSupervisor, RejectProposalReviewer, ApproveSupervisor, ApproveProposalReviewer]
-  - name: RejectSupervisor
-    suppresses: [Start, ApproveSupervisor]
-  - name: RejectProposalReviewer
-    suppresses: [Start, ApproveProposalReviewer]
-  - name: ApproveSupervisor
-    suppresses: [RejectSupervisor]
-  - name: ApproveProposalReviewer
-    suppresses: [RejectProposalReviewer]
+    suppresses:
+      - ProposalApprovedSupervisor
+      - ProposalRejectedSupervisor
+      - ProposalApprovedReviewer
+      - ProposalRejectedReviewer
+      - EthicsApprovedSupervisor
+      - EthicsRejectedSupervisor
+      - EthicsApprovedReviewer
+      - EthicsRejectedReviewer
+
+  - name: ProposalRejectedSupervisor
+    suppresses: [Start, ProposalApprovedSupervisor]
+  - name: ProposalApprovedSupervisor
+    suppresses: [ProposalRejectedSupervisor]
+
+  - name: ProposalRejectedReviewer
+    suppresses: [Start, ProposalApprovedReviewer]
+  - name: ProposalApprovedReviewer
+    suppresses: [ProposalRejectedReviewer]
+
+  - name: EthicsRejectedSupervisor
+    suppresses: [Start, EthicsApprovedSupervisor]
+  - name: EthicsApprovedSupervisor
+    suppresses: [EthicsRejectedSupervisor]
+
+  - name: EthicsRejectedReviewer
+    suppresses: [Start, EthicsApprovedReviewer]
+  - name: EthicsApprovedReviewer
+    suppresses: [EthicsRejectedReviewer]
 
 steps:
-  - Start
-  - Review
+  - ProposalPhase
+  - Ethics
   - Finish
