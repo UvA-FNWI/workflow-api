@@ -11,7 +11,7 @@ public enum PageLayout
 public enum FormLayout
 {
     Normal,
-    SinglePage,
+    Compact,
     Modal
 }
 
@@ -93,7 +93,7 @@ public class Form : INamed
     public string? InheritsFrom { get; set; }
 
     /// <summary>
-    /// Sets whether this form shows as multi-page layout with navigation bor or shows all pages at once
+    /// Sets whether this form shows the inherited pages in a normal layout or a compact layout, or opens in a modal
     /// </summary>
     public FormLayout Layout { get; set; }
 
@@ -135,6 +135,17 @@ public class Form : INamed
     /// Effect to run when the form is submitted
     /// </summary>
     public Effect[] OnSubmit { get; set; } = [];
+
+    /// <summary>
+    /// Whether submitting the form should emit the form-name event.
+    /// </summary>
+    public bool EmitFormSubmitEvent { get; set; } = true;
+
+    /// <summary>
+    /// Event ids that determine whether the form is considered submitted.
+    /// If omitted, the form-name event is used.
+    /// </summary>
+    public string[]? SubmittedWhenEvents { get; set; }
 
     /// <summary>
     /// Effect to run when a change is made in the form

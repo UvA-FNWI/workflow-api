@@ -2,13 +2,12 @@ name: RejectSubject
 step: Subject
 layout: Modal
 title:
-  en: Reject subject
-  nl: Onderwerp afkeuren
+  en: Feedback subject
+  nl: Feedback onderwerp
 pages:
   - name: Reject
     introduction:
       nl: Je wilt het onderwerp van {{ Student.DisplayName }} afkeuren
       en: You want to reject the subject of {{ Student.DisplayName }}
     fields:
-    - SubjectRejectTarget
     - SubjectRejectReason

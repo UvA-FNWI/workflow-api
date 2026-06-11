@@ -5,7 +5,6 @@ public record UserSearchResultDto(
     string DisplayName,
     string Email,
     string SourceKey,
-    string ProviderKey,
     Organization? Organization,
     bool IsExternal)
 {
@@ -13,7 +12,6 @@ public record UserSearchResultDto(
         userSearchResult.DisplayName,
         userSearchResult.Email,
         userSearchResult.SourceKey,
-        userSearchResult.ProviderKey,
         userSearchResult.Organization,
         userSearchResult.IsExternal);
 }

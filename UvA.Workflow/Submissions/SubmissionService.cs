@@ -7,9 +7,17 @@ using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Submissions;
 
-public record SubmissionContext(WorkflowInstance Instance, InstanceEvent? Submission, Form Form, string SubmissionId);
+public record SubmissionContext(
+    WorkflowInstance Instance,
+    FormSubmissionState SubmissionState,
+    Form Form,
+    string SubmissionId);
 
-public record SubmissionResult(bool Success, InvalidQuestion[] Errors, EffectResult? EffectResult = null);
+public record SubmissionResult(
+    bool Success,
+    InvalidQuestion[] Errors,
+    FormSubmissionState SubmissionState,
+    EffectResult? EffectResult = null);
 
 public record InvalidQuestion(
     string QuestionName,
@@ -38,31 +46,24 @@ public class SubmissionService(
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        // Get the submission
-        var submission = instance.Events.WhereActive(instance, workflowDef).ToDictionary()
-            .GetValueOrDefault(submissionId);
-
         var form = modelService.GetForm(instance, submissionId);
         if (form == null)
             throw new EntityNotFoundException("Form", $"instanceId:{instanceId},submission:{submissionId}");
 
-        return new SubmissionContext(instance, submission, form, submissionId);
+        var submissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
+
+        return new SubmissionContext(instance, submissionState, form, submissionId);
     }
 
     public async Task<SubmissionResult> SubmitSubmission(SubmissionContext context, User user, CancellationToken ct)
     {
-        var (instance, submission, form, submissionId) = context;
+        var (instance, submissionState, form, submissionId) = context;
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
         // Check if already submitted
-        if (submission?.Date != null)
-        {
-            var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-            if (EventSuppressionHelper.IsEventActive(submissionId, instance, workflowDef))
-            {
-                throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
-                    "Submission already submitted");
-            }
-        }
+        if (submissionState.IsSubmitted)
+            throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
+                "Submission already submitted");
 
         var objectContext = modelService.CreateContext(instance);
 
@@ -86,17 +87,26 @@ public class SubmissionService(
 
         if (validationErrors.Any())
         {
-            return new SubmissionResult(false, validationErrors);
+            return new SubmissionResult(false, validationErrors, submissionState);
         }
 
-        await effectService.AddEvent(instance, submissionId, user, ct);
+        if (form.EmitFormSubmitEvent)
+            await effectService.AddEvent(instance, submissionId, user, ct);
 
         var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
             form.Name, form.OnSubmit, user, null, ct);
 
+        var finalSubmissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
+        if (!finalSubmissionState.IsSubmitted)
+        {
+            throw new InvalidWorkflowStateException(instance.Id, "SubmissionStateNotResolved",
+                $"Submitting form {form.Name} did not activate any submission event. " +
+                $"Expected one of: {string.Join(", ", finalSubmissionState.SubmissionEventIds)}");
+        }
+
         // Save the updated instance
         await instanceService.UpdateCurrentStep(instance, ct);
         await instanceJournalService.IncrementVersion(instance.Id, ct);
-        return new SubmissionResult(true, [], result);
+        return new SubmissionResult(true, [], finalSubmissionState, result);
     }
 }

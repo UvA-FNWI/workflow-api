@@ -1,5 +1,5 @@
-using UvA.Workflow.Events;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -10,17 +10,34 @@ public class StepHeaderStatusResolver(ModelService modelService)
         if (step.HeaderStatus == null || step.HeaderStatus.Count == 0)
             return null;
 
-        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = ObjectContext.Create(instance, modelService);
         var matchedStatus = step.HeaderStatus
-            .Select(configuration => new
+            .Select(configuration =>
             {
-                Configuration = configuration,
-                Event = instance.Events.GetValueOrDefault(configuration.Event)
+                var condition = configuration.EffectiveCondition;
+
+                var isMet = condition != null && condition.IsMet(context);
+
+                // Recency key: the most recent active event referenced by the condition.
+                // The context only exposes dates for events that are active (not suppressed).
+                var eventIds = isMet ? condition!.GetAllEventIds().ToArray() : [];
+                var dates = eventIds
+                    .Select(id => context.Get(id + "Event") as DateTime?)
+                    .Where(date => date != null)
+                    .ToList();
+
+                return new
+                {
+                    Configuration = configuration,
+                    IsMet = isMet,
+                    Date = dates.Count > 0 ? dates.Max() : null,
+                    Specificity = eventIds.Length
+                };
             })
-            .Where(x => x.Event?.Date != null)
-            .Where(x => EventSuppressionHelper.IsEventActive(x.Configuration.Event, instance, workflowDefinition))
-            .OrderByDescending(x => x.Event!.Date)
+            .Where(x => x.IsMet)
+            // Most recent wins; on a tie, the more specific (multi-event) status takes precedence.
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.Specificity)
             .FirstOrDefault();
 
         if (matchedStatus == null)

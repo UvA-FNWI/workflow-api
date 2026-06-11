@@ -1,0 +1,17 @@
+globalActions:
+  - roles: [Student, Supervisor, ProposalReviewer]
+    type: View
+    forms: [Start]
+  - roles: [Student, Supervisor, ProposalReviewer]
+    type: View
+    forms:
+      - ProposalReviewSupervisor
+      - ProposalReviewReviewer
+      - EthicsReviewSupervisor
+      - EthicsReviewReviewer
+  - roles: [Registered]
+    type: CreateInstance
+    userProperty: Student
+  - roles: [Coordinator]
+    type: Edit
+    forms: [Start]

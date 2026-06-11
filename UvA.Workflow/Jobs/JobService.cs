@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Extensions.Logging;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel;
@@ -43,11 +44,56 @@ public class JobService(
         };
 
         var result = await RunJob(job, instance, effects, user, ct);
+        var jobStepsBeforeFiltering = job.Steps;
         job.Steps = job.Steps.Where(s => steps[s].IsLogged).ToList();
         if (job.Steps.Count > 0)
             await repository.Add(job, ct);
         if (job.Status == JobStatus.Failed)
-            throw new Exception($"Job {job.Id} failed");
+        {
+            var failedSteps = jobStepsBeforeFiltering.FindAll(s => s.Message != null);
+            var failedEffects = failedSteps.Count > 0
+                ? failedSteps.Select(s => steps.Values.SingleOrDefault(e => e.Identifier == s.Identifier)).ToList()
+                : null;
+
+            var failedDescriptions = failedSteps
+                .Select(s =>
+                {
+                    var effect = failedEffects?.SingleOrDefault(e => e?.Identifier == s.Identifier);
+                    var kind = effect?.IsExternal == true ? "external" : "internal";
+                    return $"  - [{kind}] {s.Identifier}: {s.Message}";
+                });
+
+            var summary = string.Join(Environment.NewLine, failedDescriptions);
+            var jobFailedErrorMessage = job.SourceType switch
+            {
+                JobSource.Submit => new BilingualString(
+                    "The form was submitted successfully, but a background task has failed.",
+                    "Het formulier is succesvol ingeleverd, maar een achtergrondtaak is mislukt."),
+                JobSource.Save => new BilingualString(
+                    "The form was saved successfully, but a background task has failed.",
+                    "Het formulier is succesvol opgeslagen, maar een achtergrondtaak is mislukt."),
+                JobSource.Action => new BilingualString(
+                    "The action was executed successfully, but a background task has failed.",
+                    "De actie is succesvol uitgevoerd, maar een achtergrondtaak is mislukt."),
+                _ => new BilingualString(
+                    "A background task has failed.",
+                    "Een achtergrondtaak is mislukt.")
+            };
+
+            if (failedEffects?.All(e => e?.IsExternal == true) == true)
+            {
+                logger.LogError("Job {job.Id} failed due to external service(s):{Environment.NewLine}{summary}", job.Id,
+                    Environment.NewLine, summary);
+                result.Error = new EffectError(jobFailedErrorMessage,
+                    true, instance.Id);
+                return result;
+            }
+
+            logger.LogError("Job {job.Id} failed: {Environment.NewLine}{summary}", job.Id, Environment.NewLine,
+                summary);
+            result.Error = new EffectError(jobFailedErrorMessage, false, instance.Id);
+            return result;
+        }
 
         foreach (var delayGroup in effects
                      .Where(e => e.DelayAsTimeSpan != null)
@@ -115,6 +161,7 @@ public class JobService(
                     step.Identifier,
                     string.Join(", ", effects.Select(e => e.Identifier)));
                 step.Message = $"Effect '{step.Identifier}' not found in the workflow definition";
+                step.Status = JobStatus.Failed;
                 job.Status = JobStatus.Failed;
                 return result;
             }
@@ -129,20 +176,19 @@ public class JobService(
             {
                 logger.LogError(ex, "Error running effect {Effect}", effect.Identifier);
                 step.Message = ex.ToString();
+                step.Status = JobStatus.Failed;
                 job.Status = JobStatus.Failed;
-#if DEBUG
-                throw;
-#else
-                return result;
-#endif
+                continue;
             }
 
             var outputs = context.Get(effect.Name ?? effect.ServiceCall?.Operation ?? "__invalid")
                 as Dictionary<Lookup, object>;
             step.Outputs = outputs?.ToDictionary(o => o.Key.ToString(), o => o.Value);
+            step.Status = JobStatus.Completed;
         }
 
-        job.Status = JobStatus.Completed;
+        if (job.Status != JobStatus.Failed)
+            job.Status = JobStatus.Completed;
         job.ExecutedOn = DateTime.Now;
         return result;
     }

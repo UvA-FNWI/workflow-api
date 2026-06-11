@@ -1,0 +1,54 @@
+name: Project-RMSS
+title:
+  en: Project (RMSS)
+  nl: Project (RMSS)
+titlePlural:
+  en: Projectss (RMSS)
+  nl: Projecten (RMSS)
+instanceTitle: '{{ WorkingTitle }}'
+inheritsFrom: Project
+fields:
+  - property: Course.Name
+    title: Course
+  - property: Student.DisplayName
+    title: Student
+  - property: WorkingTitle
+    title: Working Title
+  - currentStep: true
+
+events:
+  - name: Start
+    suppresses:
+      - ProposalApprovedSupervisor
+      - ProposalRejectedSupervisor
+      - ProposalApprovedReviewer
+      - ProposalRejectedReviewer
+      - EthicsApprovedSupervisor
+      - EthicsRejectedSupervisor
+      - EthicsApprovedReviewer
+      - EthicsRejectedReviewer
+
+  - name: ProposalRejectedSupervisor
+    suppresses: [Start, ProposalApprovedSupervisor]
+  - name: ProposalApprovedSupervisor
+    suppresses: [ProposalRejectedSupervisor]
+
+  - name: ProposalRejectedReviewer
+    suppresses: [Start, ProposalApprovedReviewer]
+  - name: ProposalApprovedReviewer
+    suppresses: [ProposalRejectedReviewer]
+
+  - name: EthicsRejectedSupervisor
+    suppresses: [Start, EthicsApprovedSupervisor]
+  - name: EthicsApprovedSupervisor
+    suppresses: [EthicsRejectedSupervisor]
+
+  - name: EthicsRejectedReviewer
+    suppresses: [Start, EthicsApprovedReviewer]
+  - name: EthicsApprovedReviewer
+    suppresses: [EthicsRejectedReviewer]
+
+steps:
+  - ProposalPhase
+  - Ethics
+  - Finish

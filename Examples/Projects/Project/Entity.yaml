@@ -5,6 +5,10 @@ instanceTitle: '{{ Title }}'
 fields:
  - property: Course.Name
    title: Course
+ - property: Course.StudyManual
+   title: 
+    en: Study Manual
+    nl: Studiehandleiding
  - property: Student.DisplayName
    title: Student
  - property: Student.Email
@@ -12,7 +16,7 @@ fields:
  - property: Title
  - currentStep: true
  - property: TurnitinId
-   
+
 steps:
   - Subject
   - Upload

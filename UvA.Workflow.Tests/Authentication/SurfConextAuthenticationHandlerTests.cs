@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.SurfConext;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
@@ -97,11 +99,14 @@ public class SurfConextAuthenticationHandlerTests
     {
         var userServiceMock = new Mock<IUserService>();
         var eduIdUserServiceMock = new Mock<IEduIdUserService>();
+        var organization = Organization.Create("FNWI");
+        userServiceMock.Setup(s => s.GetOrganizationForUser("jdoe", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(organization);
         userServiceMock.Setup(s => s.AddOrUpdateUser("jdoe",
                 "Jane Doe",
                 "jane.doe@uva.nl",
                 UserProviderKeys.Internal,
-                null,
+                organization,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User
             {

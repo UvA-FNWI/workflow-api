@@ -26,7 +26,7 @@ public class RightsService(
         (await userService.GetRolesOfCurrentUser()).ToList()
         .Append("Registered");
 
-    public WorkflowImpersonationRole[] GetWorkflowRelevantRoles(string workflowDefinition)
+    private WorkflowImpersonationRole[] GetImpersonationCandidateRoles(string workflowDefinition)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
             return [];
@@ -50,8 +50,19 @@ public class RightsService(
             .ToArray();
     }
 
-    public WorkflowImpersonationRole? NormalizeWorkflowRelevantRole(string workflowDefinition, string roleName)
-        => GetWorkflowRelevantRoles(workflowDefinition)
+    // Only roles that can actually view this instance are useful to impersonate; if a role can't
+    // see anything there's no point loading the page as it.
+    public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
+        => GetImpersonationCandidateRoles(instance.WorkflowDefinition)
+            .Where(r =>
+            {
+                var role = modelService.Roles.GetValueOrDefault(r.Name);
+                return role != null && GetAllowedActions(instance, [role], RoleAction.View).Any();
+            })
+            .ToArray();
+
+    public WorkflowImpersonationRole? NormalizeImpersonationTargetRole(WorkflowInstance instance, string roleName)
+        => GetImpersonationTargetRoles(instance)
             .FirstOrDefault(r => string.Equals(r.Name, roleName, StringComparison.OrdinalIgnoreCase));
 
 
@@ -172,12 +183,19 @@ public class RightsService(
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetAllowedActionsForRealUser(instance, actions);
 
-        var normalizedRoleName = NormalizeWorkflowRelevantRole(instance.WorkflowDefinition, impersonatedRoleName);
+        var normalizedRoleName = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
         if (normalizedRoleName == null) return [];
 
         var role = modelService.Roles.GetValueOrDefault(normalizedRoleName.Name);
         if (role == null) return [];
         return GetAllowedActions(instance, [role], actions);
+    }
+
+    public async Task<Domain_Action[]> GetAllowedActionsForForm(WorkflowInstance instance, Form form,
+        params RoleAction[] actions)
+    {
+        var allActions = await GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
+        return allActions.Where(p => p.MatchesForm(form.Name)).ToArray();
     }
 
     public Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)

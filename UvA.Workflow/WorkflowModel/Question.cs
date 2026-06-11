@@ -11,7 +11,8 @@ public enum PropertyVisibility
 public enum ChoiceLayoutType
 {
     Dropdown,
-    RadioList
+    RadioList,
+    Rubric
 }
 
 public enum TableLayout
@@ -100,6 +101,13 @@ public class PropertyDefinition : INamed
     public List<Choice>? Values { get; set; }
 
     /// <summary>
+    /// Determines how the choices should be sorted when shown in a selector.
+    /// Inherited from the referenced value set; not authored on the property itself.
+    /// </summary>
+    [YamlIgnore]
+    public ValueSetSorting? Sorting { get; set; }
+
+    /// <summary>
     /// Localized extended description text for the propertyDefinition.
     /// </summary>
     public BilingualString? Description { get; set; }
@@ -170,12 +178,17 @@ public class PropertyDefinition : INamed
     /// <summary>
     /// The weight of a field for result calculation
     /// </summary>
-    public int? Weight { get; set; }
+    public decimal? Weight { get; set; }
 
     /// <summary>
     /// Determines if the propertyDefinition allows external users
     /// </summary>
     public bool? AllowsExternalUsers { get; set; } = false;
+
+    /// <summary>
+    /// Rubric entries that describe grading criteria for this property
+    /// </summary>
+    public List<RubricEntry>? Rubric { get; set; }
 }
 
 public class Choice : INamed
@@ -206,4 +219,13 @@ public class Choice : INamed
     public Condition? Condition { get; set; }
 
     public static implicit operator Choice(string value) => new Choice { Text = value };
+}
+
+public class RubricEntry : INamed
+{
+    public string Name { get; set; } = null!;
+
+    public required BilingualString Description { get; set; }
+
+    public required List<string> Grades { get; set; }
 }

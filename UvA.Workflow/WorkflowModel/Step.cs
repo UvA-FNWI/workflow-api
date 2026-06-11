@@ -183,9 +183,29 @@ public class Step : INamed
 
     public class StepHeaderStatusConfiguration
     {
-        public string Event { get; set; } = null!;
+        /// <summary>
+        /// Shorthand for a status that applies when a single event is active.
+        /// For arbitrary logic (AND/OR/NOT over multiple events) use <see cref="Condition"/> instead.
+        /// </summary>
+        public string? Event { get; set; }
+
+        /// <summary>
+        /// Condition that determines whether this status applies. Supports the full condition model
+        /// (logical AND/OR, NOT, events, ...). Takes precedence over <see cref="Event"/> when set.
+        /// </summary>
+        public Condition? Condition { get; set; }
+
         public StepHeaderPillType Type { get; set; }
         public BilingualString Label { get; set; } = null!;
         public BilingualTemplate LabelTemplate => field ??= BilingualTemplate.Create(Label)!;
+
+        /// <summary>
+        /// The effective condition for this status: the explicit <see cref="Condition"/> when set,
+        /// otherwise the <see cref="Event"/> shorthand normalised to an event condition.
+        /// </summary>
+        [YamlIgnore]
+        public Condition? EffectiveCondition
+            => field ??= Condition ??
+                         (Event != null ? new Condition { Event = new EventCondition { Id = Event } } : null);
     }
 }

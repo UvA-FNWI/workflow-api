@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net;
+using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Users.EduId;
 
@@ -6,8 +8,9 @@ public class EduIdUserService(
     IUserRepository userRepository,
     IEduIdInvitationClient invitationClient,
     IOptions<EduIdOptions> options,
-    ILogger<EduIdUserService> logger) : IEduIdUserService
+    ILogger<EduIdUserService> logger) : IEduIdUserService, IExternalUserService
 {
+    private static readonly EmailAddressAttribute EmailAddressAttribute = new();
     private readonly EduIdOptions _options = options.Value;
 
     public bool IsInternalEmailAddress(string email)
@@ -21,6 +24,82 @@ public class EduIdUserService(
         return _options.InternalEmailDomains.Any(internalDomain =>
             domain.Equals(internalDomain, StringComparison.OrdinalIgnoreCase) ||
             domain.EndsWith($".{internalDomain}", StringComparison.OrdinalIgnoreCase));
+    }
+
+    public async Task<UserSearchResult> CreateOrUpdateExternalUser(
+        string displayName,
+        string email,
+        Organization? organization,
+        CancellationToken ct = default)
+    {
+        var trimmedEmail = email.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedEmail) || !EmailAddressAttribute.IsValid(trimmedEmail))
+        {
+            throw new ExternalUserCreationException(
+                ExternalUserCreationFailureReason.InvalidEmailAddress,
+                "Invalid email address");
+        }
+
+        if (IsInternalEmailAddress(trimmedEmail))
+        {
+            throw new ExternalUserCreationException(
+                ExternalUserCreationFailureReason.InternalEmailAddress,
+                "Internal email address");
+        }
+
+        var resolvedDisplayName = string.IsNullOrWhiteSpace(displayName)
+            ? trimmedEmail
+            : displayName.Trim();
+        var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
+
+        if (existingUser == null)
+        {
+            var user = new User
+            {
+                UserName = trimmedEmail,
+                DisplayName = resolvedDisplayName,
+                Email = trimmedEmail,
+                Organization = organization,
+                ProviderKey = EduIdDirectoryKeys.ProviderKey,
+                IsActive = false
+            };
+
+            await userRepository.Create(user, ct);
+            logger.LogInformation("Created external EduID user placeholder for {Email}", trimmedEmail);
+
+            return CreateSearchResult(user);
+        }
+
+        if (!CanUpdateExternalPlaceholder(existingUser))
+        {
+            throw new ExternalUserCreationException(
+                ExternalUserCreationFailureReason.UserAlreadyExists,
+                "Email already exists");
+        }
+
+        var changed = false;
+        if (!string.Equals(existingUser.DisplayName, resolvedDisplayName, StringComparison.Ordinal))
+        {
+            existingUser.DisplayName = resolvedDisplayName;
+            changed = true;
+        }
+
+        if (!string.Equals(existingUser.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            existingUser.Email = trimmedEmail;
+            changed = true;
+        }
+
+        if (existingUser.Organization != organization)
+        {
+            existingUser.Organization = organization;
+            changed = true;
+        }
+
+        if (changed)
+            await userRepository.Update(existingUser, ct);
+
+        return CreateSearchResult(existingUser);
     }
 
     public async Task<EduIdUserInviteResult> InviteUser(string email, string displayName,
@@ -140,6 +219,17 @@ public class EduIdUserService(
 
         return user;
     }
+
+    private static bool CanUpdateExternalPlaceholder(User user)
+        => !user.IsActive && EduIdDirectoryKeys.IsEduId(user.ProviderKey);
+
+    private static UserSearchResult CreateSearchResult(User user) => new(
+        user.UserName,
+        user.DisplayName,
+        user.Email,
+        UserSearchSources.Repository,
+        user.ProviderKey,
+        user.Organization);
 
     private async Task<EduIdExternalAccountResult> CreateExternalAccount(
         string email,

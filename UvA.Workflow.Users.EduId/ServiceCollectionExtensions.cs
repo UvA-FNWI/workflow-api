@@ -6,11 +6,12 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<EduIdOptions>(config.GetSection(EduIdOptions.Section));
         services.AddScoped<IEduIdInvitationClient, EduIdInvitationClient>();
-        services.AddScoped<IEduIdUserService, EduIdUserService>();
+        services.AddScoped<EduIdUserService>();
+        services.AddScoped<IEduIdUserService>(sp => sp.GetRequiredService<EduIdUserService>());
+        services.AddScoped<IExternalUserService>(sp => sp.GetRequiredService<EduIdUserService>());
 
         services.AddScoped<EduIdUserDirectory>();
-        services.AddScoped<IUserRoleSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
-        services.AddScoped<IUserSearchSource>(sp => sp.GetRequiredService<EduIdUserDirectory>());
+        services.AddScoped<IUserDirectory>(sp => sp.GetRequiredService<EduIdUserDirectory>());
 
         services.AddHttpClient(EduIdInvitationClient.HttpClientName, (provider, http) =>
         {
