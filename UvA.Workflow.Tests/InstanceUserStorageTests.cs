@@ -411,4 +411,40 @@ public class InstanceUserStorageTests
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
     }
+
+    [Fact]
+    public async Task Create_WithUserProperty_DoesNotClobberSuppliedValue()
+    {
+        WorkflowInstance? created = null;
+        var repository = new Mock<IWorkflowInstanceRepository>();
+        repository.Setup(r => r.Create(It.IsAny<WorkflowInstance>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, CancellationToken>((instance, _) => created = instance)
+            .Returns(Task.CompletedTask);
+        var service = new WorkflowInstanceService(ModelService, repository.Object, Mock.Of<IInstanceJournalService>());
+        var creator = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "__ApiUser",
+            DisplayName = "Api",
+            Email = "api@invalid.uva.nl"
+        };
+
+        // An API caller (e.g. DN2) supplies the actual student in the initial properties.
+        var suppliedStudent = InstanceUser.FromUser(new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "student",
+            DisplayName = "Real Student",
+            Email = "s.tudent@uva.nl",
+            ProviderKey = EduIdDirectoryKeys.ProviderKey
+        }).ToBsonDocument();
+        var initialProperties = new Dictionary<string, BsonValue> { ["Student"] = suppliedStudent };
+
+        await service.Create("Project", creator, CancellationToken.None, userProperty: "Student",
+            initialProperties: initialProperties);
+
+        var bson = Assert.IsType<BsonDocument>(created!.Properties["Student"]);
+        Assert.Equal("student", bson["UserName"].AsString);
+        Assert.Equal("Real Student", bson["DisplayName"].AsString);
+    }
 }
