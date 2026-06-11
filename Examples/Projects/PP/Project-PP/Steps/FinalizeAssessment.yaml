@@ -1,0 +1,11 @@
+name: FinalizeAssessment
+title:
+  en: Finalize Assessment
+  nl: Beoordeling afronden
+  
+icon: 
+  type: law-balance-line
+
+children:
+  - AssessmentThesis
+  - FinalGrade

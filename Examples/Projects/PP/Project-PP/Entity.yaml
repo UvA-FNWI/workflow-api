@@ -20,6 +20,7 @@ steps:
 #  - Start
   - UploadFinalThesis
   - Assessment
+  - FinalizeAssessment
     
 properties:
   - name: AssessmentSupervisor
@@ -32,6 +33,9 @@ properties:
 assessments:
   parts:
     - name: AssessmentThesis
+      title: 
+        en: Thesis
+        nl: Scriptie
       weight: 0.9
       sources:
         - name: AssessmentSupervisor
@@ -39,6 +43,9 @@ assessments:
         - name: AssessmentSecondReader
           weight: 1
     - name: Presentation
+      title: 
+        en: Presentation
+        nl: Presentatie
       weight: 0.1
       sources:
         - name: AssessmentPresentation

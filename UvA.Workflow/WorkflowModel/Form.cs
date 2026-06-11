@@ -18,7 +18,8 @@ public enum FormLayout
 public enum FormType
 {
     Normal,
-    AssessmentOverview
+    AssessmentPartOverview,
+    AssessmentFinalOverview
 }
 
 /// <summary>
