@@ -17,6 +17,9 @@ properties:
 
   - name: Coordinator
     type: "[User]!"
-    
+
+  - name: Impersonator
+    type: "[User]!"
+
   - name: StudyManual
     type: String!

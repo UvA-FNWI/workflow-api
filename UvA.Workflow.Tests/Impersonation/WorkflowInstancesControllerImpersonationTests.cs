@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Moq;
+using MongoDB.Bson;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
@@ -66,8 +67,14 @@ public class WorkflowInstancesControllerImpersonationTests
         return controller;
     }
 
-    private static (WorkflowInstancesController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
-        string[] roles,
+    /// <summary>
+    /// Builds a controller for a Project instance that references a Course (Context). Whether the current
+    /// user may impersonate is decided locally: <paramref name="isImpersonator"/> puts them in the Course's
+    /// provisioned <c>Impersonator</c> list, which grants the inherited <c>Impersonator</c> role (and thus
+    /// the <c>ImpersonateRoles</c> action) on the Project.
+    /// </summary>
+    private static (WorkflowInstancesController Controller, WorkflowInstance Instance) BuildController(
+        bool isImpersonator = false,
         string? headerToken = null)
     {
         var modelService = ImpersonationTestHelpers.CreateModelService();
@@ -75,15 +82,40 @@ public class WorkflowInstancesControllerImpersonationTests
         var userService = new Mock<IUserService>();
         var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
 
+        var userId = ObjectId.GenerateNewId().ToString();
+        var courseId = ObjectId.GenerateNewId().ToString();
+
         var instance = ImpersonationTestHelpers.CreateProjectInstance();
+        instance.Properties["Course"] = courseId;
         repository.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(instance);
+
+        // The referenced Course (Context) carries the provisioned Impersonator list pushed by DataNose.
+        var impersonators = new BsonArray();
+        if (isImpersonator)
+            impersonators.Add(new BsonDocument
+            {
+                ["_id"] = new ObjectId(userId),
+                ["UserName"] = "admin"
+            });
+        repository.Setup(r => r.GetAllById(
+                It.Is<string[]>(ids => ids.Contains(courseId)),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new Dictionary<string, BsonValue>
+                {
+                    ["_id"] = new ObjectId(courseId),
+                    ["Impersonator"] = impersonators
+                }
+            ]);
+
         userService.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(roles);
+            .ReturnsAsync(["Student"]);
         userService.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User
             {
-                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                Id = userId,
                 UserName = "admin"
             });
 
@@ -99,9 +131,9 @@ public class WorkflowInstancesControllerImpersonationTests
     }
 
     [Fact]
-    public async Task GetImpersonationRoles_WithoutAdminTools_ReturnsForbidden()
+    public async Task GetImpersonationRoles_WithoutImpersonatorRole_ReturnsForbidden()
     {
-        var (controller, instance) = BuildControllerWithRoles(["Student"]);
+        var (controller, instance) = BuildController();
 
         var result = await controller.GetImpersonationRoles(instance.Id, CancellationToken.None);
 
@@ -110,9 +142,9 @@ public class WorkflowInstancesControllerImpersonationTests
     }
 
     [Fact]
-    public async Task GetImpersonationRoles_WithAdminTools_ReturnsRoles()
+    public async Task GetImpersonationRoles_WithImpersonatorRole_ReturnsRoles()
     {
-        var (controller, instance) = BuildControllerWithRoles(["Coordinator"]);
+        var (controller, instance) = BuildController(isImpersonator: true);
 
         var result = await controller.GetImpersonationRoles(instance.Id, CancellationToken.None);
 
@@ -120,12 +152,15 @@ public class WorkflowInstancesControllerImpersonationTests
         var roles = Assert.IsAssignableFrom<IEnumerable<ImpersonationRoleDto>>(okResult.Value);
         Assert.Contains(roles, r => r.Name == "Student");
         Assert.Contains(roles, r => r.Name == "Coordinator");
+        // Registered has no real access; Impersonator only manages access, neither is a target.
+        Assert.DoesNotContain(roles, r => r.Name == "Registered");
+        Assert.DoesNotContain(roles, r => r.Name == "Impersonator");
     }
 
     [Fact]
     public async Task StartImpersonation_InvalidRole_ReturnsBadRequest()
     {
-        var (controller, instance) = BuildControllerWithRoles(["Coordinator"]);
+        var (controller, instance) = BuildController(isImpersonator: true);
 
         var result = await controller.StartImpersonation(
             instance.Id,
@@ -141,7 +176,7 @@ public class WorkflowInstancesControllerImpersonationTests
     [Fact]
     public async Task StartImpersonation_ValidRole_ReturnsToken()
     {
-        var (controller, instance) = BuildControllerWithRoles(["Coordinator"]);
+        var (controller, instance) = BuildController(isImpersonator: true);
 
         var result = await controller.StartImpersonation(
             instance.Id,
@@ -157,10 +192,10 @@ public class WorkflowInstancesControllerImpersonationTests
     }
 
     [Fact]
-    public async Task StartImpersonation_WithoutAdminTools_ReturnsForbidden_EvenWithHeader()
+    public async Task StartImpersonation_WithoutImpersonatorRole_ReturnsForbidden_EvenWithHeader()
     {
         var token = CreateToken("admin", "other-instance", "Student");
-        var (controller, instance) = BuildControllerWithRoles(["Student"], token);
+        var (controller, instance) = BuildController(headerToken: token);
 
         var result = await controller.StartImpersonation(
             instance.Id,
