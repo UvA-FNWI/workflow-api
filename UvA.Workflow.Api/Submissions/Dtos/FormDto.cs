@@ -89,7 +89,7 @@ public record QuestionDto(
     decimal? Weight,
     int? MaxLength,
     bool? AllowsExternalUsers,
-    List<RubricEntry>? Rubric,
+    List<RubricEntryDto>? Rubric,
     ValueSetSorting? Sorting)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
@@ -110,9 +110,29 @@ public record QuestionDto(
         propertyDefinition.Weight,
         propertyDefinition.Validation?.Value?.MaxLength,
         propertyDefinition.AllowsExternalUsers,
-        propertyDefinition.Rubric,
+        propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList(),
         propertyDefinition.Sorting
     );
 }
 
 public record ChoiceDto(string Name, BilingualString Text, BilingualString? Description, double? Value);
+
+public record RubricEntryDto(string Name, BilingualString Description, List<RubricGradeDto> Grades)
+{
+    public static RubricEntryDto Create(RubricEntry entry, List<Choice>? choices)
+    {
+        // Grades reference choice names, so the localized label comes from the matching choice's bilingual text, falling back to the name.
+        var labels = choices?.ToDictionary(c => c.Name, c => c.Text ?? c.Name);
+        return new RubricEntryDto(
+            entry.Name,
+            entry.Description,
+            entry.Grades
+                .Select(g => new RubricGradeDto(
+                    g,
+                    labels != null && labels.TryGetValue(g, out var text) ? text : g))
+                .ToList()
+        );
+    }
+}
+
+public record RubricGradeDto(string Name, BilingualString Text);
