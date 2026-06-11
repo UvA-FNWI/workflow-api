@@ -3,6 +3,7 @@ title:
   en: Final Grade
   nl: Eindcijfer
 formType: AssessmentFinalOverview
+layout: Compact
 
 pages:
   - name: FinalGradePage
