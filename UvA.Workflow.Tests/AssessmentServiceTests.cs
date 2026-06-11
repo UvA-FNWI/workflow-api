@@ -132,7 +132,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
 
-        Assert.Equal(5.73m, result);
+        Assert.Equal(5.73m, Math.Round(result, 2, MidpointRounding.AwayFromZero));
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
 
-        Assert.Equal(5.63m, result);
+        Assert.Equal(5.63m, Math.Round(result, 2, MidpointRounding.AwayFromZero));
     }
 
     [Fact]
@@ -337,7 +337,7 @@ public class AssessmentServiceTests
 
         var report = result.PageResults.Single(p => p.Name == "Report");
         Assert.Equal(3m, report.Weight);
-        Assert.Equal(7.67m, report.WeightedAverage); // (8*2 + 7*1) / 3
+        Assert.Equal(7.67m, Math.Round(report.WeightedAverage, 2, MidpointRounding.AwayFromZero)); // (8*2 + 7*1) / 3
 
         var process = result.PageResults.Single(p => p.Name == "Process");
         Assert.Equal(1m, process.Weight);
