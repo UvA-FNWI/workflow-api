@@ -7,17 +7,25 @@ public record ScreenDataDto(
     string Name,
     string WorkflowDefinition,
     ScreenColumnDto[] Columns,
-    ScreenRowDto[] Rows)
+    ScreenRowDto[] Rows,
+    ScreenGroupDto[]? Groups = null)
 {
-    public static ScreenDataDto Create(Screen screen, ScreenColumnDto[] columns, ScreenRowDto[] rows)
+    public static ScreenDataDto Create(Screen screen, ScreenColumnDto[] columns, ScreenRowDto[] rows,
+        ScreenGroupDto[]? groups = null)
     {
         return new ScreenDataDto(
             screen.Name,
             screen.WorkflowDefinition ?? "",
             columns,
-            rows);
+            rows,
+            groups);
     }
 }
+
+public record ScreenGroupDto(
+    string Name,
+    BilingualString Title,
+    ScreenRowDto[] Rows);
 
 public record ScreenColumnDto(
     int Id,
