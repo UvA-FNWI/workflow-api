@@ -13,20 +13,8 @@ properties:
     text:
       en: Topic
       nl: Onderwerp
-  - name: City
-    type: String!
-    text:
-      en: City
-      nl: Plaats
-
-  - name: Country
-    type: Country!
-    text:
-      en: Country
-      nl: Land
     layout:
-      type: Dropdown
-
+      multiline: true
   - name: PartAbroad
     type: PartAbroadType!
     text:
@@ -43,6 +31,28 @@ properties:
         text:
           en: No
           nl: Nee
+
+  - name: Country
+    type: Country!
+    text:
+      en: Country
+      nl: Land
+    layout:
+      type: Dropdown
+    condition:
+      value:
+        property: PartAbroad
+        equal: =Yes
+
+  - name: City
+    type: String!
+    text:
+      en: City
+      nl: Plaats
+    condition:
+      value:
+        property: PartAbroad
+        equal: =Yes
 
   - name: ContactPersonDescription
     type: String
@@ -69,6 +79,9 @@ properties:
     text:
       en: Emergency phone number
       nl: Telefoonnummer voor noodgevallen
+    description:
+      en: A phone number on which you can be reached in case of an emergency during your research.
+      nl: Een telefoonnummer waarop je tijdens je onderzoek bij nood bereikbaar bent.
 
   - name: StartDate
     type: Date!
@@ -86,8 +99,11 @@ properties:
   - name: PlannedEndDate
     type: Date!
     text:
-      en: Planned end date
-      nl: Geplande einddatum
+      en: Planned end date of the full thesis
+      nl: Geplande einddatum van het volledige scriptietraject
+    description:
+      en: This is the planned end date for the entire thesis, not only for the fieldwork period.
+      nl: Dit is de geplande einddatum van het volledige scriptietraject, niet alleen van de veldwerkperiode.
     validation:
       message:
         en: End date must be after start date
@@ -95,12 +111,6 @@ properties:
       value:
         property: PlannedEndDate
         greaterThan: StartDate
-
-  - name: Interruptions
-    type: Date
-    text:
-      en: Interruptions
-      nl: Onderbrekingen
 
 ends:
   event: Start

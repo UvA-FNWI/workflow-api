@@ -7,8 +7,6 @@ namespace UvA.Workflow.Tests;
 public class JobWorkerTests
 {
     private readonly Mock<IJobRepository> _jobRepositoryMock = new();
-    private readonly Mock<JobService> _jobServiceMock;
-    private readonly WorkerOptions _workerOptions = new() { WorkerGroup = "test" };
 
     [Fact]
     public async Task TryClaimJob_ReturnsJob_WhenPendingJobExistsForWorkerGroup()

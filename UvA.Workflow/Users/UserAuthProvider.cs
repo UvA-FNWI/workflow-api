@@ -3,6 +3,7 @@ namespace UvA.Workflow.Users;
 public static class UserProviderKeys
 {
     public const string Internal = "internal";
+    public const string External = "external";
 
     public static string Normalize(string? providerKey)
         => string.IsNullOrWhiteSpace(providerKey) ? Internal : providerKey.Trim();

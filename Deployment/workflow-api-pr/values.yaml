@@ -56,10 +56,12 @@ apiPaths:
   - /Submissions
   - /WorkflowDefinitions
   - /Users
+  - /Organizations
   - /WorkflowInstances
   - /Submissions
   - /Artifacts
   - /Assessments
+  - /Jobs
   - /oidc
   - /signin-oidc
 

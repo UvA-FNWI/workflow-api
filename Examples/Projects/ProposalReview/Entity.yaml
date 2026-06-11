@@ -2,11 +2,11 @@ name: ProposalReview
 isEmbedded: true
 
 properties:
-  - name: ProposalSufficient
+  - name: Sufficient
     type: ReviewSufficientType!
     text:
-      en: Is the proposal sufficient?
-      nl: Is het voorstel voldoende?
+      en: Is this sufficient?
+      nl: Is dit voldoende?
     layout:
       type: RadioList
     values:
@@ -19,35 +19,16 @@ properties:
           en: Fail
           nl: Onvoldoende
 
-  - name: ProposalFeedback
+  - name: Explanation
     type: String
     text:
-      en: Feedback on proposal
-      nl: Feedback op voorstel
+      en: Explanation
+      nl: Toelichting
     layout:
       multiline: true
 
-  - name: EthicsSufficient
-    type: ReviewSufficientType!
+  - name: Document
+    type: File
     text:
-      en: Is the ethics declaration sufficient?
-      nl: Is de ethiek verklaring voldoende?
-    layout:
-      type: RadioList
-    values:
-      - name: Pass
-        text:
-          en: Pass
-          nl: Voldoende
-      - name: Fail
-        text:
-          en: Fail
-          nl: Onvoldoende
-
-  - name: EthicsFeedback
-    type: String
-    text:
-      en: Feedback on ethics
-      nl: Feedback op ethiek
-    layout:
-      multiline: true
+      en: Upload document
+      nl: Document uploaden

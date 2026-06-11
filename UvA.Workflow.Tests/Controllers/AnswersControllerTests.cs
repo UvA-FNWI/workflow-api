@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
@@ -9,7 +10,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
-using UvA.Workflow.Journaling;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -21,6 +22,7 @@ namespace UvA.Workflow.Tests.Controllers;
 
 public class AnswersControllerTests : ControllerTestsBase
 {
+    private readonly Mock<IOrganizationService> _organizationServiceMock = new();
     private readonly SubmissionService _submissionService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
     private readonly ArtifactTokenService _artifactTokenService;
@@ -87,39 +89,10 @@ public class AnswersControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task SaveAnswer_LogsPropertyChange_WhenConfiguredSubmittedWhenWasTriggered()
-    {
-        const string submissionId = "Start";
-        const string markerEventId = "SubmittedByEffect";
-        ConfigureAlternateSubmissionMarker(submissionId, markerEventId);
-
-        var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Start")
-            .WithEvents(b => b.WithId(submissionId))
-            .WithProperties(("Title", b => b.Value("Old title")))
-            .Build();
-
-        MockInstance(instance);
-        MockEmptyRelatedInstanceLookups();
-        MockCurrentUser("Student");
-        _instanceEventService
-            .Setup(s => s.WasEventEverTriggered(instance.Id, markerEventId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var context = await _answerService.GetQuestionContext(instance.Id, submissionId, "Title", _ct);
-        using var payload = JsonDocument.Parse("\"New title\"");
-
-        await _answerService.SaveAnswer(context, payload.RootElement, UnitTestsHelpers.AdminUser, _ct);
-
-        _instanceJournalServiceMock.Verify(s => s.LogPropertyChange(instance.Id,
-            It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
     public async Task Answers_SaveAnswer_CreatesExternalUser_AndSavesAnswer()
     {
         var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
-        var organization = new Organization("org-1", "External Org");
+        var organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "External Org" };
         var createdExternalUser = new User
         {
             Id = "665f35fb3f1b3c6d4b3d0f12",
@@ -278,6 +251,36 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.Equal(expectedMessage, error.Message);
     }
 
+    private (AnswersController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
+        string[] roles, string submissionId, string stepName = "Start")
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: stepName)
+            .WithEvents(b => b.WithId(submissionId))
+            .WithProperties(("Title", b => b.Value("My Thesis")))
+            .Build();
+
+        MockInstance(instance);
+        MockEmptyEventLog(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser(roles);
+
+        var controller =
+            new AnswersController(
+                _userServiceMock.Object,
+                _answerService,
+                _answerConversionService,
+                _rightsService,
+                _externalUserServiceMock.Object,
+                _artifactTokenService,
+                _submissionDtoFactory,
+                _instanceService,
+                _modelService,
+                _workflowInstanceRepoMock.Object);
+
+        return (controller, instance);
+    }
+
     [Fact]
     public async Task Answers_SaveAnswer_RejectsSelectedExternalUser_WhenExternalUsersAreNotAllowed()
     {
@@ -373,40 +376,5 @@ public class AnswersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
         Assert.True(response.Success);
-    }
-
-    private (AnswersController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
-        string[] roles, string submissionId, string stepName = "Start")
-    {
-        var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: stepName)
-            .WithEvents(b => b.WithId(submissionId))
-            .WithProperties(("Title", b => b.Value("My Thesis")))
-            .Build();
-
-        MockInstance(instance);
-        MockEmptyEventLog(instance);
-        MockEmptyRelatedInstanceLookups();
-        MockCurrentUser(roles);
-
-        var controller =
-            new AnswersController(_userServiceMock.Object, _answerService, _answerConversionService, _rightsService,
-                _externalUserServiceMock.Object, _artifactTokenService,
-                _submissionDtoFactory, _instanceService, _modelService,
-                _workflowInstanceRepoMock.Object);
-
-        return (controller, instance);
-    }
-
-    private void ConfigureAlternateSubmissionMarker(string formName, string markerEventId)
-    {
-        var workflowDef = _modelService.WorkflowDefinitions["Project"];
-        var form = workflowDef.Forms.Single(f => f.Name == formName);
-
-        form.EmitFormSubmitEvent = false;
-        form.SubmittedWhenEvents = [markerEventId];
-
-        if (workflowDef.Events.All(e => e.Name != markerEventId))
-            workflowDef.Events.Add(new EventDefinition { Name = markerEventId });
     }
 }

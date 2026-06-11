@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.DataNose;
 using UvA.Workflow.Users.EduId;
@@ -235,17 +237,18 @@ public class UserServiceEduIdTests
     [Fact]
     public async Task GetOrganizationForUser_ReturnsOrganization_FromDataNoseLookup()
     {
+        var dataNodeOrganization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "FNWI" };
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
         dataNoseApiClientMock.Setup(c => c.GetOrganizationForUser("jdoe", CancellationToken.None))
-            .ReturnsAsync(new Organization("FNWI", "FNWI"));
+            .ReturnsAsync(dataNodeOrganization);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
 
         var organization = await service.GetOrganizationForUser("jdoe", CancellationToken.None);
 
         Assert.NotNull(organization);
-        Assert.Equal("FNWI", organization!.Id);
-        Assert.Equal("FNWI", organization.Name);
+        Assert.Equal(dataNodeOrganization.Id, organization!.Id);
+        Assert.Equal(dataNodeOrganization.Name, organization.Name);
         dataNoseApiClientMock.Verify(c => c.GetOrganizationForUser("jdoe", CancellationToken.None), Times.Once);
     }
 

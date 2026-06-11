@@ -4,6 +4,7 @@ using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -252,6 +253,7 @@ public class UsersControllerTests : ControllerTestsBase
     [Fact]
     public async Task Users_Find_PassesThroughOrganizationFromSearchSource()
     {
+        var organization = Organization.Create("FNWI");
         // The organisation is now sourced upstream (the DataNose search source); the controller
         // must surface whatever the search returns without modifying it.
         _userServiceMock.Setup(s => s.FindUsers("internal", true, _ct))
@@ -260,7 +262,7 @@ public class UsersControllerTests : ControllerTestsBase
                     "Internal User",
                     "internal@uva.nl",
                     UserSearchSources.Repository,
-                    Organization: new Organization("FNWI/CoI", "FNWI/CoI"))
+                    Organization: organization)
             ]);
         var controller = BuildControllerWithRoles(["Student"]);
 
@@ -269,8 +271,8 @@ public class UsersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.NotNull(user.Organization);
-        Assert.Equal("FNWI/CoI", user.Organization!.Id);
-        Assert.Equal("FNWI/CoI", user.Organization.Name);
+        Assert.Equal(organization.Id, user.Organization!.Id);
+        Assert.Equal(organization.Name, user.Organization.Name);
         Assert.False(user.IsExternal);
     }
 

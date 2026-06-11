@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
@@ -49,9 +50,7 @@ public class InstanceUserStorageTests
     [Fact]
     public async Task ConvertToValue_ForUser_StoresLeanInstanceUserDocument()
     {
-        var organization = new Organization(
-            ObjectId.GenerateNewId().ToString(),
-            "Test University");
+        var organization = Organization.Create("Test University");
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -74,9 +73,10 @@ public class InstanceUserStorageTests
                                          "userName": "jdoe",
                                          "displayName": "Jane Doe",
                                          "email": "j.doe@uva.nl",
-                                         "searchSource": "DataNose"
+                                         "searchSource": "DataNose",
+                                         "organization": { "id": "orgId", "name": "Test University" }
                                        }
-                                       """).RootElement;
+                                       """.Replace("orgId", organization.Id)).RootElement;
 
         var result = await service.ConvertToValue(value, property, CancellationToken.None);
         var bson = result.AsBsonDocument;
@@ -140,7 +140,7 @@ public class InstanceUserStorageTests
             DisplayName = "External User",
             Email = "external@example.org",
             ProviderKey = EduIdDirectoryKeys.ProviderKey,
-            Organization = new Organization("org-1", "External Org"),
+            Organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "External Org" },
             IsActive = true
         };
         var userService = new Mock<IUserService>();
@@ -229,7 +229,6 @@ public class InstanceUserStorageTests
     [Fact]
     public async Task ConvertToValue_ForMissingInternalUser_PreservesExplicitOrganization()
     {
-        var organization = new Organization("faculty-fnwi", "FNWI");
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -237,7 +236,7 @@ public class InstanceUserStorageTests
             DisplayName = "Student Name",
             Email = "student2@uva.nl",
             ProviderKey = UserProviderKeys.Internal,
-            Organization = organization
+            Organization = Organization.Create("FNWI")
         };
         var userService = new Mock<IUserService>();
         var userRepository = new Mock<IUserRepository>();
@@ -248,7 +247,7 @@ public class InstanceUserStorageTests
                 "Student Name",
                 "student2@uva.nl",
                 UserProviderKeys.Internal,
-                organization,
+                It.Is<Organization>(o => o.Id == user.Organization.Id && o.Name == "FNWI"),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
@@ -260,11 +259,11 @@ public class InstanceUserStorageTests
                                          "email": "student2@uva.nl",
                                          "isExternal": false,
                                          "organization": {
-                                           "id": "faculty-fnwi",
+                                           "id": "orgId",
                                            "name": "FNWI"
                                          }
                                        }
-                                       """).RootElement;
+                                       """.Replace("orgId", user.Organization.Id)).RootElement;
 
         var result = await service.ConvertToValue(value, property, CancellationToken.None);
 
@@ -274,7 +273,7 @@ public class InstanceUserStorageTests
                 "Student Name",
                 "student2@uva.nl",
                 UserProviderKeys.Internal,
-                organization,
+                It.Is<Organization>(o => o.Id == user.Organization.Id && o.Name == "FNWI"),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

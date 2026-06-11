@@ -1,0 +1,45 @@
+name: ProposalPhase
+
+icon:
+  type: article-line
+
+title:
+  en: Proposal
+  nl: Voorstel
+
+hierarchyMode: Parallel
+
+children:
+  - Start
+  - ProposalAssessmentSupervisor
+  - ProposalAssessmentReviewer
+
+headerStatus:
+  # Approved only once both the supervisor and the proposal reviewer have approved.
+  - condition:
+      logical:
+        operator: And
+        children:
+          - event: ProposalApprovedSupervisor
+          - event: ProposalApprovedReviewer
+    type: Success
+    label:
+      en: Approved on {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
+      nl: Goedgekeurd op {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
+  # Changes needed if either reviewer rejects.
+  - condition:
+      logical:
+        operator: Or
+        children:
+          - event: ProposalRejectedSupervisor
+          - event: ProposalRejectedReviewer
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  # Stays "waiting" while one approval is still outstanding.
+  - event: Start
+    type: Info
+    label:
+      en: Waiting for approval
+      nl: Wacht op goedkeuring

@@ -54,7 +54,8 @@ public class UsersController(
             UserName = dto.UserName,
             DisplayName = dto.DisplayName,
             Email = dto.Email.Trim(),
-            PreferredLanguage = dto.PreferredLanguage
+            PreferredLanguage = dto.PreferredLanguage,
+            Organization = dto.Organization
         };
 
         await userRepository.Create(user, ct);

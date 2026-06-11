@@ -1,3 +1,5 @@
+using UvA.Workflow.Organizations;
+
 namespace UvA.Workflow.Persistence.Mongo;
 
 public static class ServiceCollectionExtensions
@@ -14,8 +16,10 @@ public static class ServiceCollectionExtensions
             return client.GetDatabase(options.Database);
         });
 
+        services.AddScoped<MongoDbIndexInitializer>();
         services.AddScoped<IWorkflowInstanceRepository, WorkflowInstanceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IInstanceEventRepository, InstanceEventRepository>();
         services.AddScoped<IJobRepository, JobRepository>();
         services.AddScoped<IInstanceJournalService, InstanceJournalService>();
