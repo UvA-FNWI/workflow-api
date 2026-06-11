@@ -135,6 +135,7 @@ public class AnswersController(
         return Ok(insts.Select(i => new ChoiceDto(
             i.Id,
             definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",
+            null,
             null))
         );
     }
@@ -162,6 +163,7 @@ public class AnswersController(
         return Ok(insts.Select(i => new ChoiceDto(
             i.Id,
             definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "",
+            null,
             null)
         ));
     }

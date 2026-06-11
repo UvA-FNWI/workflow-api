@@ -17,17 +17,17 @@ pages:
       nl: Begeleiding
     fields:
       - Supervisor
-      - EmergencyPhoneNumber
   - name: ResearchLocation
     title:
       en: Research location
       nl: Onderzoekslocatie
     fields:
       - PartAbroad
-      - City
       - Country
+      - City
       - ContactPersonEmail
       - ContactPersonDescription
+      - EmergencyPhoneNumber
   - name: Planning
     title:
       en: Planning
@@ -35,4 +35,3 @@ pages:
     fields:
       - StartDate
       - PlannedEndDate
-      - Interruptions

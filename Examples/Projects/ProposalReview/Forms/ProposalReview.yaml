@@ -1,20 +1,14 @@
 name: ProposalReview
 title:
-  en: Research proposal and ethics review
-  nl: Onderzoeksvoorstel en ethiek beoordeling
+  en: Proposal assessment
+  nl: Beoordeling voorstel
 
 pages:
-  - name: Ethics
+  - name: Assessment
     title:
-      en: Ethics
-      nl: Ethiek
+      en: Assessment
+      nl: Beoordeling
     fields:
-      - EthicsSufficient
-      - EthicsFeedback
-  - name: Proposal
-    title:
-      en: Proposal
-      nl: Voorstel
-    fields:
-      - ProposalSufficient
-      - ProposalFeedback
+      - Sufficient
+      - Explanation
+      - Document

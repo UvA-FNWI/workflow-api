@@ -1,0 +1,23 @@
+name: EthicsAssessmentSupervisor
+title:
+  en: Ethics (supervisor)
+  nl: Ethiek (begeleider)
+
+actions:
+  - type: Submit
+    roles: [Supervisor]
+    form: EthicsReviewSupervisor
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+properties:
+  - name: SupervisorEthicsReview
+    type: ProposalReview!
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: EthicsApprovedSupervisor
+      - event: EthicsRejectedSupervisor

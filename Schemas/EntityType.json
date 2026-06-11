@@ -899,7 +899,8 @@
         "ViewAnswerMessages",
         "AssignMessages",
         "CreateInstance",
-        "CreateRelatedInstance"
+        "CreateRelatedInstance",
+        "ImpersonateRoles"
       ]
     },
     "Field": {
