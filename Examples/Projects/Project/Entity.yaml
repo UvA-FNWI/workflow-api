@@ -26,12 +26,24 @@ steps:
 relatedUsers:
   - property: Supervisor
     group: default
+    text:
+      en: Supervisor
+      nl: Begeleider
   - property: Examiner
     group: default
+    text:
+      en: Examiner
+      nl: Examinator
   - property: Reviewer
     group: default
+    text:
+      en: Reviewer
+      nl: Beoordelaar
   - property: SecondReader
     group: default
+    text:
+      en: Second reader
+      nl: 2e lezer
   - property: Course.Coordinator
     group: support
     text:

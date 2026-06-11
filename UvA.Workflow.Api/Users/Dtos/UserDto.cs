@@ -40,5 +40,5 @@ public record UserDto(
     /// </summary>
     public static UserDto CreateFromInstanceUser(InstanceUser u) =>
         new(u.Id, u.UserName, u.DisplayName, u.Email, u.PreferredLanguage, u.Organization, u.IsExternal,
-            u.InvitationState == UserInvitationState.Pending);
+            false, u.InvitationState == UserInvitationState.Pending);
 }

@@ -230,16 +230,7 @@ public class WorkflowInstanceDtoFactory(
             {
                 var value = context.Get(relatedUser.Property);
 
-                var users = value switch
-                {
-                    InstanceUser user => [user],
-                    InstanceUser[] arr => arr,
-                    _ => []
-                };
-
-                // Always emit at least one entry with null user if nothing resolved
-                if (users.Length == 0)
-                    return [new { relatedUser.Group, Dto = new RelatedUserDto(relatedUser.DisplayTitle, null) }];
+                var users = value is InstanceUser u ? [u] : value as InstanceUser[] ?? [];
 
                 return users.Select(user => new
                 {
