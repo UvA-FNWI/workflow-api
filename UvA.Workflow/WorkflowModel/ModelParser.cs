@@ -151,6 +151,29 @@ public partial class ModelParser
     {
         foreach (var entry in set.Values)
             PreProcess(entry);
+
+        ValidateSorting(set);
+    }
+
+    private static readonly Dictionary<ChoiceSortField, Func<Choice, object?>> ChoiceFieldSelectors = new()
+    {
+        [ChoiceSortField.Name] = c => c.Name,
+        [ChoiceSortField.Text] = c => c.Text,
+        [ChoiceSortField.Value] = c => c.Value,
+        [ChoiceSortField.Description] = c => c.Description
+    };
+
+    private static void ValidateSorting(ValueSet set)
+    {
+        if (set.Sorting == null)
+            return;
+
+        var selector = ChoiceFieldSelectors[set.Sorting.Field];
+        var missing = set.Values.Where(v => selector(v) == null).Select(v => v.Name).ToList();
+        if (missing.Count > 0)
+            throw new Exception(
+                $"ValueSet '{set.Name}': cannot sort on field '{set.Sorting.Field}' because it is not present on all values. " +
+                $"Missing for: {string.Join(", ", missing)}");
     }
 
     private void PreProcess(Form form, WorkflowDefinition workflowDefinition)
@@ -305,7 +328,11 @@ public partial class ModelParser
             PreProcess(entry);
 
         if (ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out var set))
+        {
             propertyDefinition.Values = set.Values;
+            propertyDefinition.Sorting = set.Sorting;
+        }
+
         if (WorkflowDefinitions.TryGetValue(propertyDefinition.UnderlyingType, out var type))
             propertyDefinition.WorkflowDefinition = type;
 
