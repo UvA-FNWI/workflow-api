@@ -32,6 +32,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 
+    private decimal RoundToTwo(decimal input) => Math.Round(input, 2, MidpointRounding.AwayFromZero);
+
     public AssessmentDto Create(
         string id,
         IEnumerable<SubmissionContext> contexts,
@@ -72,7 +74,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
             // percentage of this part within the whole assessment
             decimal partPercentage = totalPartWeight > 0
-                ? Math.Round(partConfig.Weight / totalPartWeight * 100, 2, MidpointRounding.AwayFromZero)
+                ? partConfig.Weight / totalPartWeight * 100
                 : 0;
 
             // percentage of each source within this part
@@ -82,7 +84,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 {
                     var sourceConfig = partConfig.Sources.FirstOrDefault(s => s.Name == context.Form.Name);
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
-                        ? Math.Round(sourceConfig.Weight / totalSourceWeight * 100, 2, MidpointRounding.AwayFromZero)
+                        ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
                     return MapToSourceResultDto(context, sourceResults[i], pageName, sourcePercentage);
                 })
@@ -92,17 +94,17 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
-                partAverage,
-                partPercentage
+                RoundToTwo(partAverage),
+                RoundToTwo(partPercentage)
             ));
         }
 
-        // 6. Final grade uses domain results — NOT the DTOs
+        // 6. Final grade uses domain results, not the DTOs
         var finalGrade = assessmentConfig != null
             ? AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults)
             : (decimal?)null;
 
-        return new(id, parts.ToArray(), finalGrade);
+        return new(id, parts.ToArray(), RoundToTwo(finalGrade ?? 0));
     }
 
     public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
@@ -130,13 +132,31 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             .Select(a => _answerDtoFactory.Create(a))
             .ToArray();
 
+        var roundedPageResults = sourceResult.PageResults
+            .Select(pr => new PageResult
+            {
+                Name = pr.Name,
+                Weight = pr.Weight,
+                WeightedAverage = RoundToTwo(pr.WeightedAverage),
+                QuestionResults = pr.QuestionResults
+                    .Select(qr => new QuestionResult
+                    {
+                        Name = qr.Name,
+                        Weight = qr.Weight,
+                        Percentage = RoundToTwo(qr.Percentage),
+                        Answer = qr.Answer
+                    })
+                    .ToList()
+            })
+            .ToArray();
+
         return new(
             context.Form.Name,
             context.Form.DisplayName,
-            sourceResult.PageResults.ToArray(), // PageResult is simple data — fine to reuse directly
+            roundedPageResults,
             answers,
-            sourceResult.WeightedAverage,
-            percentage
+            RoundToTwo(sourceResult.WeightedAverage),
+            percentage != null ? RoundToTwo(percentage.Value) : null
         );
     }
 }

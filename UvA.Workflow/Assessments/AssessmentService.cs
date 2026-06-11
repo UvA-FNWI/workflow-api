@@ -22,7 +22,7 @@ public static class AssessmentService
         var weightedSum = partsWithResults
             .Sum(pair => pair.Result!.WeightedAverage * pair.Part.Weight);
 
-        return Math.Round(weightedSum / submittedWeight, 2, MidpointRounding.AwayFromZero);
+        return weightedSum / submittedWeight;
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public static class AssessmentService
 
         return totalSourceWeight == 0
             ? 0
-            : Math.Round(weightedSum / totalSourceWeight, 2, MidpointRounding.AwayFromZero);
+            : weightedSum / totalSourceWeight;
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public static class AssessmentService
 
         return totalWeight == 0
             ? 0
-            : Math.Round(weightedSum / totalWeight, 2, MidpointRounding.AwayFromZero);
+            : weightedSum / totalWeight;
     }
 
 
@@ -130,6 +130,6 @@ public static class AssessmentService
         if (totalWeight == 0) return 0;
 
         decimal weightedSum = pageList.Sum(p => p.WeightedAverage * p.Weight);
-        return Math.Round(weightedSum / totalWeight, 2, MidpointRounding.AwayFromZero);
+        return weightedSum / totalWeight;
     }
 }
