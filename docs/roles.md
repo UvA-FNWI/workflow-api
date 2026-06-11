@@ -77,6 +77,7 @@ Each action in the `actions` list has a `type` and optional scope:
 | `AssignMessages` | Can assign messages |
 | `CreateInstance` | Can create new workflow instances |
 | `CreateRelatedInstance` | Can create related instances |
+| `ImpersonateRoles` | Can impersonate workflow roles |
 
 Actions can be scoped to specific forms or steps:
 

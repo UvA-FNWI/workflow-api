@@ -23,6 +23,7 @@ public record WorkflowInstanceDto(
     SubmissionDto[] Submissions,
     RoleAction[] Permissions,
     bool CanUseAdminTools,
+    bool CanImpersonate,
     string[] ViewerRoles
 );
 
