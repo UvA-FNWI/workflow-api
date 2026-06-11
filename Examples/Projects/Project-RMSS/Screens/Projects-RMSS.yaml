@@ -1,10 +1,10 @@
 name: Projects-RMSS
 workflowDefinition: Project-RMSS
 columns:
-  - property: WorkingTitle
+  - property: Title
     title:
-      en: Working Title
-      nl: Werktitel
+      en: Title
+      nl: Titel
     link: true
   - property: Course.Name
     title:
