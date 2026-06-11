@@ -61,11 +61,9 @@ public class AssessmentsController(
 
         var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
 
-        // Is submissionId an assessment part name rather than a direct source form?
         var matchingPart = assessmentConfig?.Parts.FirstOrDefault(p => p.Name == submissionId);
         if (matchingPart != null)
         {
-            // Authorize at instance level — there's no single form name for a part
             await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, matchingPart.Name);
             var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, ct);
             return Ok(assessmentDtoFactory.Create(instanceId, contexts,

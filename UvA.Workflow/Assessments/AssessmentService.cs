@@ -25,10 +25,6 @@ public static class AssessmentService
         return weightedSum / submittedWeight;
     }
 
-    /// <summary>
-    /// Calculates the score for a single assessment part by combining its sources
-    /// by their relative weights. Skips sources that haven't submitted yet.
-    /// </summary>
     public static decimal CalculatePartWeightedAverage(
         AssessmentPart partConfig,
         IEnumerable<SourceResult> sourceResults)
@@ -51,9 +47,6 @@ public static class AssessmentService
             : weightedSum / totalSourceWeight;
     }
 
-    /// <summary>
-    /// Calculates the total weighted average score for every page in a form
-    /// </summary>
     public static SourceResult CalculateSourceResult(SubmissionContext submissionContext,
         string? pageName)
     {
@@ -116,11 +109,6 @@ public static class AssessmentService
             : weightedSum / totalWeight;
     }
 
-
-    /// <summary>
-    /// Computes the page-weighted total score for one source's pages.
-    /// Returns 0 if any page has all-zero answers (not yet filled in).
-    /// </summary>
     private static decimal CalculateSourceWeightedAverage(IEnumerable<PageResult> pages)
     {
         var pageList = pages.ToList();
