@@ -2,10 +2,18 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Users;
 
+/// <summary>
+/// A state to represent a possible invitation for an (external) user.
+/// </summary>
 public enum UserInvitationState
 {
+    ///<summary>When a user still 'requires' an invitation.</summary>
     Required,
+
+    ///<summary>The user already has a 'pending' invitation.</summary>
     Pending,
+
+    ///<summary>The user has already been invited and 'completed' this by logging in.</summary>
     Completed
 }
 
