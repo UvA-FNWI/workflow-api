@@ -56,7 +56,12 @@ public class AnswerService(
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
 
-            if (currentAnswer != null && newAnswer.IsBsonNull && question.DataType == DataType.File)
+            var wasSubmitted = await WasFormEverSubmitted(instance.Id, form, ct);
+
+            // Only delete the old file if the form was never submitted; otherwise it is
+            // part of a stored version and must be retained.
+            if (!wasSubmitted && currentAnswer != null && newAnswer.IsBsonNull
+                && question.DataType == DataType.File)
             {
                 var info = ArtifactInfo.FromBson(currentAnswer);
                 if (info != null)
@@ -64,7 +69,7 @@ public class AnswerService(
             }
 
             // if the form is submitted, then log the change
-            if (await WasFormEverSubmitted(instance.Id, form, ct))
+            if (wasSubmitted)
             {
                 await instanceJournalService.LogPropertyChange(instance.Id,
                     PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
@@ -150,7 +155,8 @@ public class AnswerService(
 
         await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
 
-        if (oldArtifactId != null)
+        // Retain the replaced file if the form was ever submitted (it is part of a stored version).
+        if (oldArtifactId != null && !await WasFormEverSubmitted(instance.Id, form, ct))
         {
             await artifactService.TryDeleteArtifact(oldArtifactId, ct);
         }
@@ -164,6 +170,10 @@ public class AnswerService(
         if (value == null)
             throw new EntityNotFoundException("Artifact", "Artifact not found");
 
+        // Retain the file if the form was ever submitted (it is part of a stored version);
+        // either way the reference is removed from the current instance properties below.
+        var wasSubmitted = await WasFormEverSubmitted(instance.Id, form, ct);
+
         if (question.IsArray)
         {
             var array = value as BsonArray ?? [];
@@ -174,7 +184,8 @@ public class AnswerService(
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
             }
 
-            await artifactService.TryDeleteArtifact(artifactId, ct);
+            if (!wasSubmitted)
+                await artifactService.TryDeleteArtifact(artifactId, ct);
             array.Remove(artifactRef);
             instance.SetProperty(array, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
@@ -190,7 +201,8 @@ public class AnswerService(
 
             await instanceService.UnsetValue(instance, form.PropertyName, question.Name, ct);
             instance.ClearProperty(question.Name);
-            await artifactService.TryDeleteArtifact(artifactId, ct);
+            if (!wasSubmitted)
+                await artifactService.TryDeleteArtifact(artifactId, ct);
         }
     }
 }
