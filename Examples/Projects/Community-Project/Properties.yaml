@@ -16,11 +16,26 @@ properties:
     text:
       en: Start date
       nl: Startdatum
+    validation:
+      message:
+        en: Start date must be in the future
+        nl: Startdatum moet in de toekomst liggen
+      value:
+        property: StartDate
+        greaterThan: now
+        
   - name: EndDate
     type: Date!
     text:
       en: End date
       nl: Einddatum
+    validation:
+      message:
+        en: End date must be after start date
+        nl: Einddatum moet na de startdatum zijn
+      value:
+        property: PlannedEndDate
+        greaterThan: StartDate
 
   - name: Examiner
     type: User!
