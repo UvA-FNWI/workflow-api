@@ -379,91 +379,98 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.True(response.Success);
     }
 
-    // ===== File retention on delete/replace must be consistent with versioning =====
-    // A file is only physically deleted when its form has never been submitted; once the
-    // form has been submitted the file is part of a stored version and must be retained,
-    // while the reference in the current instance properties is still removed/updated.
+    // File retention on delete and replace.
+    // We keep a file in storage only if it was there when the form was last submitted. A file uploaded
+    // after that, or while the form was never submitted, is just a draft, so we delete it. Either way the
+    // reference on the instance gets removed.
+
+    private static readonly DateTime SubmittedAt = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
 
     [Theory]
-    [InlineData(false, 1)] // never submitted -> old file is deleted
-    [InlineData(true, 0)] // submitted -> old file is retained
-    public async Task Answers_DeleteArtifact_Single_RespectsSubmissionState(bool submitted, int deleteCalls)
+    [InlineData(-60, true, 0)] // uploaded before submission, so it was submitted: keep it
+    [InlineData(60, true, 1)] // uploaded after submission, so it's just a draft: delete it
+    [InlineData(-60, false, 1)] // form was never submitted: delete it
+    public async Task Answers_DeleteArtifact_Single_RetainsOnlyVersionedFiles(
+        int createdMinutesFromSubmission, bool submitted, int deleteCalls)
     {
-        var (_, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var instance = BuildInstance(submitted ? SubmittedAt : (DateTime?)null);
         var context = await _answerService.GetQuestionContext(instance.Id, "Start", "Description", _ct);
-        SeedSingleFile(instance, context, "art-1");
-        if (submitted) MockFormEverSubmitted();
+        SeedSingleFile(instance, context, "art-1", SubmittedAt.AddMinutes(createdMinutesFromSubmission));
 
         await _answerService.DeleteArtifact(context, "art-1", _ct);
 
         _artifactServiceMock.Verify(s => s.TryDeleteArtifact("art-1", It.IsAny<CancellationToken>()),
             Times.Exactly(deleteCalls));
-        // The reference is always removed from the current instance regardless of retention.
+        // The reference always goes, whether or not we keep the file.
         Assert.Null(instance.GetProperty(context.Form.PropertyName, "Description"));
     }
 
     [Theory]
-    [InlineData(false, 1)]
-    [InlineData(true, 0)]
-    public async Task Answers_DeleteArtifact_Array_RespectsSubmissionState(bool submitted, int deleteCalls)
+    [InlineData(-60, true, 0)]
+    [InlineData(60, true, 1)]
+    [InlineData(-60, false, 1)]
+    public async Task Answers_DeleteArtifact_Array_RetainsOnlyVersionedFiles(
+        int createdMinutesFromSubmission, bool submitted, int deleteCalls)
     {
-        var (_, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var instance = BuildInstance(submitted ? SubmittedAt : (DateTime?)null);
         var baseContext = await _answerService.GetQuestionContext(instance.Id, "Start", "Description", _ct);
         var context = baseContext with
         {
             PropertyDefinition = new PropertyDefinition { Name = "Attachments", Type = "[File]" }
         };
 
-        var keep = new ArtifactInfo("keep-art", "keep.pdf", "application/pdf", 1, DateTime.UtcNow);
-        var remove = new ArtifactInfo("remove-art", "remove.pdf", "application/pdf", 1, DateTime.UtcNow);
+        var keep = new ArtifactInfo("keep-art", "keep.pdf", "application/pdf", 1, SubmittedAt.AddMinutes(-120));
+        var remove = new ArtifactInfo("remove-art", "remove.pdf", "application/pdf", 1,
+            SubmittedAt.AddMinutes(createdMinutesFromSubmission));
         instance.SetProperty(new BsonArray { keep.ToBsonDocument(), remove.ToBsonDocument() },
             context.Form.PropertyName, "Attachments");
-        if (submitted) MockFormEverSubmitted();
 
         await _answerService.DeleteArtifact(context, "remove-art", _ct);
 
         _artifactServiceMock.Verify(s => s.TryDeleteArtifact("remove-art", It.IsAny<CancellationToken>()),
             Times.Exactly(deleteCalls));
-        // The removed file is always dropped from the array; only the physical bytes may be retained.
+        // The file always leaves the array; only the stored bytes might stick around.
         var array = instance.GetProperty(context.Form.PropertyName, "Attachments") as BsonArray;
         Assert.NotNull(array);
         Assert.Equal("keep-art", Assert.Single(array.Select(a => ArtifactInfo.FromBson(a)?.ArtifactId)));
     }
 
     [Theory]
-    [InlineData(false, 1)]
-    [InlineData(true, 0)]
-    public async Task Answers_SaveArtifact_Replace_RespectsSubmissionState(bool submitted, int deleteCalls)
+    [InlineData(-60, true, 0)]
+    [InlineData(60, true, 1)]
+    [InlineData(-60, false, 1)]
+    public async Task Answers_SaveArtifact_Replace_RetainsOnlyVersionedFiles(
+        int createdMinutesFromSubmission, bool submitted, int deleteCalls)
     {
-        var (_, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var instance = BuildInstance(submitted ? SubmittedAt : (DateTime?)null);
         var context = await _answerService.GetQuestionContext(instance.Id, "Start", "Description", _ct);
-        SeedSingleFile(instance, context, "old-art");
+        SeedSingleFile(instance, context, "old-art", SubmittedAt.AddMinutes(createdMinutesFromSubmission));
 
-        var newInfo = new ArtifactInfo("new-art", "new.pdf", "application/pdf", 200, DateTime.UtcNow);
+        var newInfo = new ArtifactInfo("new-art", "new.pdf", "application/pdf", 200, SubmittedAt.AddMinutes(120));
         _artifactServiceMock
             .Setup(s => s.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()))
             .ReturnsAsync(newInfo);
-        if (submitted) MockFormEverSubmitted();
 
         using var stream = new MemoryStream([1, 2, 3]);
         await _answerService.SaveArtifact(context, "new.pdf", stream, _ct);
 
         _artifactServiceMock.Verify(s => s.TryDeleteArtifact("old-art", It.IsAny<CancellationToken>()),
             Times.Exactly(deleteCalls));
-        // The new file always becomes the current value.
+        // The new file is now the current value.
         Assert.Equal("new-art",
             ArtifactInfo.FromBson(instance.GetProperty(context.Form.PropertyName, "Description"))?.ArtifactId);
     }
 
     [Theory]
-    [InlineData(false, 1)]
-    [InlineData(true, 0)]
-    public async Task Answers_SaveAnswer_ClearFile_RespectsSubmissionState(bool submitted, int deleteCalls)
+    [InlineData(-60, true, 0)]
+    [InlineData(60, true, 1)]
+    [InlineData(-60, false, 1)]
+    public async Task Answers_SaveAnswer_ClearFile_RetainsOnlyVersionedFiles(
+        int createdMinutesFromSubmission, bool submitted, int deleteCalls)
     {
-        var (_, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var instance = BuildInstance(submitted ? SubmittedAt : (DateTime?)null);
         var context = await _answerService.GetQuestionContext(instance.Id, "Start", "Description", _ct);
-        SeedSingleFile(instance, context, "art-1");
-        if (submitted) MockFormEverSubmitted();
+        SeedSingleFile(instance, context, "art-1", SubmittedAt.AddMinutes(createdMinutesFromSubmission));
 
         await _answerService.SaveAnswer(context, value: null, UnitTestsHelpers.AdminUser, _ct);
 
@@ -471,52 +478,57 @@ public class AnswersControllerTests : ControllerTestsBase
             Times.Exactly(deleteCalls));
     }
 
-    // Retention must follow the event log ("was it ever submitted"), not the currently-active
-    // submission state: a form that was submitted and later reverted no longer has an active
-    // submission event, but a stored version still exists, so its files must be retained.
+    // When a step is rejected, the submission event is suppressed but not removed (RejectSubject suppresses
+    // Start), so the form stops counting as submitted. We still want to keep the file that was there at
+    // submission time, and still delete one uploaded later. Since retention looks at the submission event's
+    // date and not at whether it's currently active, the rejection doesn't change anything.
     [Theory]
-    [InlineData(1, 0)] // recorded in the event log (submission since reverted) -> file retained
-    [InlineData(0, 1)] // never recorded in the event log -> file deleted
-    public async Task Answers_DeleteArtifact_RetainsFile_BasedOnEventLog_NotActiveSubmission(
-        long eventLogCount, int deleteCalls)
+    [InlineData(-60, 0)] // was there at the submission that's now suppressed: keep it
+    [InlineData(60, 1)] // uploaded after the submission: delete it
+    public async Task Answers_DeleteArtifact_RetainsAcrossRejection(
+        int createdMinutesFromSubmission, int deleteCalls)
     {
-        // Use the real InstanceEventService so retention is driven by the event log
-        // (CountEventLogFor) rather than a mocked boolean.
-        var answerService = new AnswerService(
-            _submissionService, _modelService, _instanceService, _rightsService,
-            _artifactServiceMock.Object, _answerConversionService,
-            _eventService, _instanceJournalServiceMock.Object);
-
-        // Instance has no active "Start" submission event (e.g. submitted then reverted).
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithEvents(
+                b => b.WithId("Start").AsCompleted(SubmittedAt),
+                b => b.WithId("RejectSubject").AsCompleted(SubmittedAt.AddMinutes(30)))
             .Build();
         MockInstance(instance);
 
-        _eventRepoMock
-            .Setup(r => r.CountEventLogFor(instance.Id, "Start", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(eventLogCount);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Start", "Description", _ct);
+        SeedSingleFile(instance, context, "art-1", SubmittedAt.AddMinutes(createdMinutesFromSubmission));
 
-        var context = await answerService.GetQuestionContext(instance.Id, "Start", "Description", _ct);
-        SeedSingleFile(instance, context, "art-1");
+        await _answerService.DeleteArtifact(context, "art-1", _ct);
 
-        await answerService.DeleteArtifact(context, "art-1", _ct);
-
-        // The form is not currently submitted, yet retention follows the event log.
+        // The form no longer counts as submitted because the rejection suppressed it.
         Assert.False(context.SubmissionState.IsSubmitted);
+        // We still keep or delete based on the original submission date.
         _artifactServiceMock.Verify(s => s.TryDeleteArtifact("art-1", It.IsAny<CancellationToken>()),
             Times.Exactly(deleteCalls));
         Assert.Null(instance.GetProperty(context.Form.PropertyName, "Description"));
     }
 
-    private void MockFormEverSubmitted()
-        => _instanceEventService
-            .Setup(s => s.WasEventEverTriggered(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-    private static void SeedSingleFile(WorkflowInstance instance, QuestionContext context, string artifactId)
+    private WorkflowInstance BuildInstance(DateTime? submittedAt)
     {
-        var info = new ArtifactInfo(artifactId, "old.pdf", "application/pdf", 123, DateTime.UtcNow);
+        var builder = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("Title", b => b.Value("My Thesis")));
+        if (submittedAt is { } date)
+            builder.WithEvents(b => b.WithId("Start").AsCompleted(date));
+
+        var instance = builder.Build();
+        MockInstance(instance);
+        MockEmptyEventLog(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser("Student");
+        return instance;
+    }
+
+    private static void SeedSingleFile(WorkflowInstance instance, QuestionContext context, string artifactId,
+        DateTime createdOn)
+    {
+        var info = new ArtifactInfo(artifactId, "old.pdf", "application/pdf", 123, createdOn);
         instance.SetProperty(info.ToBsonDocument(), context.Form.PropertyName, context.PropertyDefinition.Name);
     }
 }

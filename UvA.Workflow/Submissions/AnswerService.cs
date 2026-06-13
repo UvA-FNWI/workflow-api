@@ -56,20 +56,12 @@ public class AnswerService(
             instance.SetProperty(newAnswer, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
 
-            var wasSubmitted = await WasFormEverSubmitted(instance.Id, form, ct);
+            // Only remove the cleared file from storage if it wasn't part of a submitted version.
+            if (currentAnswer != null && newAnswer.IsBsonNull && question.DataType == DataType.File)
+                await DeleteArtifactIfNotVersioned(instance, form, ArtifactInfo.FromBson(currentAnswer), ct);
 
-            // Only delete the old file if the form was never submitted; otherwise it is
-            // part of a stored version and must be retained.
-            if (!wasSubmitted && currentAnswer != null && newAnswer.IsBsonNull
-                && question.DataType == DataType.File)
-            {
-                var info = ArtifactInfo.FromBson(currentAnswer);
-                if (info != null)
-                    await artifactService.TryDeleteArtifact(info.ArtifactId, ct);
-            }
-
-            // if the form is submitted, then log the change
-            if (wasSubmitted)
+            // if the form was ever submitted, then log the change
+            if (await WasFormEverSubmitted(instance.Id, form, ct))
             {
                 await instanceJournalService.LogPropertyChange(instance.Id,
                     PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
@@ -94,6 +86,31 @@ public class AnswerService(
                 return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// When the form was last submitted, taken from its submission event(s). We read the event date
+    /// ourselves rather than using FormSubmissionState.DateSubmitted because a rejection suppresses the
+    /// submission event instead of removing it, and we still want to keep files from a rejected submission.
+    /// Null if the form was never submitted.
+    /// </summary>
+    private static DateTime? GetLastSubmissionDate(WorkflowInstance instance, Form form)
+        => FormSubmissionState.GetSubmissionEventIds(form).Select(instance.GetEventDate).Max();
+
+    /// <summary>
+    /// Removes the file from storage unless it was part of a submitted version, meaning it was already there
+    /// when the form was last submitted. Anything added after that, or before the form was ever submitted, is
+    /// just a draft and gets deleted. The caller still updates the property that points to the file.
+    /// </summary>
+    private async Task DeleteArtifactIfNotVersioned(WorkflowInstance instance, Form form, ArtifactInfo? info,
+        CancellationToken ct)
+    {
+        if (info == null)
+            return;
+
+        var lastSubmissionDate = GetLastSubmissionDate(instance, form);
+        if (lastSubmissionDate == null || info.CreatedOn > lastSubmissionDate)
+            await artifactService.TryDeleteArtifact(info.ArtifactId, ct);
     }
 
     public async Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct)
@@ -137,7 +154,7 @@ public class AnswerService(
     private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)
     {
         var (instance, _, form, question) = context;
-        string? oldArtifactId = null;
+        ArtifactInfo? oldArtifact = null;
 
         var value = instance.GetProperty(form.PropertyName, question.Name);
 
@@ -150,16 +167,13 @@ public class AnswerService(
         else
         {
             instance.SetProperty(artifactInfo.ToBsonDocument(), form.PropertyName, question.Name);
-            oldArtifactId = ArtifactInfo.FromBson(value)?.ArtifactId;
+            oldArtifact = ArtifactInfo.FromBson(value);
         }
 
         await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
 
-        // Retain the replaced file if the form was ever submitted (it is part of a stored version).
-        if (oldArtifactId != null && !await WasFormEverSubmitted(instance.Id, form, ct))
-        {
-            await artifactService.TryDeleteArtifact(oldArtifactId, ct);
-        }
+        // The file we just replaced only gets removed if it wasn't part of a submitted version.
+        await DeleteArtifactIfNotVersioned(instance, form, oldArtifact, ct);
     }
 
     public async Task DeleteArtifact(QuestionContext context, string artifactId, CancellationToken ct)
@@ -170,10 +184,8 @@ public class AnswerService(
         if (value == null)
             throw new EntityNotFoundException("Artifact", "Artifact not found");
 
-        // Retain the file if the form was ever submitted (it is part of a stored version);
-        // either way the reference is removed from the current instance properties below.
-        var wasSubmitted = await WasFormEverSubmitted(instance.Id, form, ct);
-
+        // We always remove the reference below. The file itself stays in storage if it was part of a
+        // submitted version.
         if (question.IsArray)
         {
             var array = value as BsonArray ?? [];
@@ -184,16 +196,15 @@ public class AnswerService(
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
             }
 
-            if (!wasSubmitted)
-                await artifactService.TryDeleteArtifact(artifactId, ct);
+            await DeleteArtifactIfNotVersioned(instance, form, ArtifactInfo.FromBson(artifactRef), ct);
             array.Remove(artifactRef);
             instance.SetProperty(array, form.PropertyName, question.Name);
             await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
         }
         else
         {
-            var oid = ArtifactInfo.FromBson(value)?.ArtifactId;
-            if (oid != artifactId)
+            var info = ArtifactInfo.FromBson(value);
+            if (info?.ArtifactId != artifactId)
             {
                 Log.Error("Artifact {ArtifactId} not found in object or data store", artifactId);
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
@@ -201,8 +212,7 @@ public class AnswerService(
 
             await instanceService.UnsetValue(instance, form.PropertyName, question.Name, ct);
             instance.ClearProperty(question.Name);
-            if (!wasSubmitted)
-                await artifactService.TryDeleteArtifact(artifactId, ct);
+            await DeleteArtifactIfNotVersioned(instance, form, info, ct);
         }
     }
 }
