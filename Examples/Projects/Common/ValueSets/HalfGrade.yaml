@@ -2,26 +2,44 @@ values:
   - name: "10"
     value: 10
   - name: "9,5"
+    text:
+      en: "9.5"
+      nl: "9,5"
     value: 9.5
   - name: "9"
     value: 9
   - name: "8,5"
+    text:
+      en: "8.5"
+      nl: "8,5"
     value: 8.5
   - name: "8"
     value: 8
   - name: "7,5"
+    text:
+      en: "7.5"
+      nl: "7,5"
     value: 7.5
   - name: "7"
     value: 7
   - name: "6,5"
+    text:
+      en: "6.5"
+      nl: "6,5"
     value: 6.5
   - name: "6"
     value: 6
   - name: "5,5"
+    text:
+      en: "5.5"
+      nl: "5,5"
     value: 5.5
   - name: "5"
     value: 5
   - name: "4,5"
+    text:
+      en: "4.5"
+      nl: "4,5"
     value: 4.5
   - name: "4"
     value: 4
