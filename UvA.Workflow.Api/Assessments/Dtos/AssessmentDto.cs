@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Assessments;
@@ -124,6 +125,19 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             .Select(a => _answerDtoFactory.Create(a))
             .ToArray();
 
+        if (sourceResult.IsCombined)
+        {
+            var relevantQuestions =
+                sourceResult.PageResults.SelectMany(p => p.QuestionResults).ToDictionary(q => q.Name);
+            answers = answers
+                .Where(a => relevantQuestions.ContainsKey(a.QuestionName))
+                .Select(a => a with
+                {
+                    Value = JsonSerializer.SerializeToElement(Math.Round(relevantQuestions[a.QuestionName].Answer, 2))
+                })
+                .ToArray();
+        }
+
         var roundedPageResults = sourceResult.PageResults
             .Select(pr => new PageResult
             {
@@ -137,15 +151,15 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                         Name = qr.Name,
                         Weight = qr.Weight,
                         Percentage = RoundToTwo(qr.Percentage),
-                        Answer = qr.Answer
+                        Answer = Math.Round(qr.Answer, 2)
                     })
                     .ToList()
             })
             .ToArray();
 
         return new(
-            context.Form.Name,
-            sourceResult.Name == SourceResult.Combined ? new("Average", "Gemiddelde") : context.Form.DisplayName,
+            sourceResult.IsCombined ? "Combined" : context.Form.Name,
+            sourceResult.IsCombined ? new("Average", "Gemiddelde") : context.Form.DisplayName,
             roundedPageResults,
             answers,
             RoundToTwo(sourceResult.WeightedAverage),

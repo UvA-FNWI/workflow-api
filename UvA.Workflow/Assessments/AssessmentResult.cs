@@ -15,6 +15,7 @@ public class SourceResult : INamed
 {
     public const string Combined = "Combined";
 
+    public bool IsCombined => Name == Combined;
     public string Name { get; set; } = null!;
     public decimal WeightedAverage { get; set; }
     public List<PageResult> PageResults { get; set; } = [];
