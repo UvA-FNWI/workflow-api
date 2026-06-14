@@ -107,7 +107,7 @@ public record QuestionDto(
             ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context)).ToArray()
             : null,
         propertyDefinition.HideInResults,
-        propertyDefinition.Weight,
+        propertyDefinition.Calculation?.Weight,
         propertyDefinition.Validation?.Value?.MaxLength,
         propertyDefinition.AllowsExternalUsers,
         propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList(),

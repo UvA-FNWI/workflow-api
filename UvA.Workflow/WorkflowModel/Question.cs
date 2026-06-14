@@ -176,9 +176,9 @@ public class PropertyDefinition : INamed
     public bool HideInResults { get; set; }
 
     /// <summary>
-    /// The weight of a field for result calculation
+    /// Settings for result calculation
     /// </summary>
-    public decimal? Weight { get; set; }
+    public CalculationSettings? Calculation { get; set; }
 
     /// <summary>
     /// Determines if the propertyDefinition allows external users
@@ -189,6 +189,27 @@ public class PropertyDefinition : INamed
     /// Rubric entries that describe grading criteria for this property
     /// </summary>
     public List<RubricEntry>? Rubric { get; set; }
+}
+
+public enum CalculationType
+{
+    Normal,
+    Add,
+    Subtract
+}
+
+public class CalculationSettings
+{
+    /// <summary>
+    /// The weight of this field
+    /// </summary>
+    public decimal? Weight { get; set; }
+
+    /// <summary>
+    /// Determines how this field is used in the calculation. For Normal, set a weight to use it in a weighted average.
+    /// For Add or Subtract, the weight is ignored.
+    /// </summary>
+    public CalculationType Type { get; set; }
 }
 
 public class Choice : INamed

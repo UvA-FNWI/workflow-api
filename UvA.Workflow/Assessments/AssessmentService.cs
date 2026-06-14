@@ -52,28 +52,30 @@ public static class AssessmentService
     {
         var pages = submissionContext.Form.ActualForm.Pages.ToArray();
 
-        decimal totalWeight = pages
-            .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
-            .Sum(field => field.Weight ?? 0);
+        var totalWeight = pages
+            .SelectMany(page => page.Fields.Where(field => field.Calculation?.Weight != null))
+            .Sum(field => field.Calculation!.Weight!.Value);
 
         var pageResults = pages
-            .Where(page => page.Fields.Any(field => field.Weight.HasValue)) // Filter out pages without a weight
+            .Where(page => page.Fields.Any(field => field.Calculation != null)) // Filter out pages without calculation
             .Where(page => string.IsNullOrEmpty(pageName) || page.Name == pageName)
             .Select(page =>
             {
                 var questions = page.Fields
-                    .Where(field => field.Weight.HasValue)
+                    .Where(field => field.Calculation != null)
                     .Select(field =>
                     {
                         var answerKey =
                             submissionContext.Instance.GetProperty(submissionContext.Form.PropertyName, field.Name);
+                        var weight = field.Calculation?.Weight;
                         return new QuestionResult
                         {
                             Name = field.Name,
-                            Weight = field.Weight ?? 0,
-                            Percentage = totalWeight == 0
-                                ? 0
-                                : (decimal)field.Weight.GetValueOrDefault() / totalWeight * 100,
+                            Weight = weight,
+                            Type = field.Calculation!.Type,
+                            Percentage = totalWeight == 0 || weight == null
+                                ? null
+                                : weight / totalWeight * 100,
                             Answer = answerKey is null || answerKey.IsBsonNull
                                 ? 0
                                 : field.Values?.FirstOrDefault(v => v.Name == answerKey.AsString)?.Value ??
@@ -84,8 +86,11 @@ public static class AssessmentService
                 return new PageResult
                 {
                     Name = page.Name,
-                    Weight = questions.Sum(q => q.Weight),
+                    Weight = questions.Any(q => q.Weight != null)
+                        ? questions.Where(q => q.Weight != null).Sum(q => q.Weight)
+                        : null,
                     WeightedAverage = CalculatePageWeightedAverage(questions),
+                    Sum = CalculatePageSum(questions),
                     QuestionResults = questions
                 };
             }).ToList();
@@ -98,15 +103,17 @@ public static class AssessmentService
         };
     }
 
-    private static decimal CalculatePageWeightedAverage(IEnumerable<QuestionResult> results)
-    {
-        var list = results.ToList();
-        decimal totalWeight = list.Sum(r => r.Weight);
-        decimal weightedSum = list.Sum(r => (decimal)r.Answer * r.Weight);
+    private static decimal CalculatePageSum(ICollection<QuestionResult> results) =>
+        results
+            .Where(r => r.Type is CalculationType.Add or CalculationType.Subtract)
+            .Sum(r => (decimal)Math.Abs(r.Answer) * (r.Type == CalculationType.Subtract ? -1 : 1));
 
-        return totalWeight == 0
-            ? 0
-            : weightedSum / totalWeight;
+    private static decimal? CalculatePageWeightedAverage(ICollection<QuestionResult> results)
+    {
+        var totalWeight = results.Where(r => r.Weight != null).Sum(r => r.Weight);
+        var weightedSum = results.Where(r => r.Weight != null).Sum(r => (decimal)r.Answer * r.Weight);
+
+        return totalWeight == 0 ? null : weightedSum / totalWeight;
     }
 
     private static decimal CalculateSourceWeightedAverage(IEnumerable<PageResult> pages)
@@ -114,10 +121,12 @@ public static class AssessmentService
         var pageList = pages.ToList();
         if (pageList.Any(p => p.QuestionResults.All(q => q.Answer == 0))) return 0;
 
-        decimal totalWeight = pageList.Sum(p => p.Weight);
+        decimal totalWeight = pageList.Where(p => p.Weight != null).Sum(p => p.Weight!.Value);
         if (totalWeight == 0) return 0;
 
-        decimal weightedSum = pageList.Sum(p => p.WeightedAverage * p.Weight);
-        return weightedSum / totalWeight;
+        decimal weightedSum = pageList
+            .Where(p => p.Weight != null && p.WeightedAverage != null)
+            .Sum(p => p.WeightedAverage!.Value * p.Weight!.Value);
+        return weightedSum / totalWeight + pageList.Sum(s => s.Sum);
     }
 }

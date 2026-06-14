@@ -9,7 +9,8 @@ properties:
     text: Problem statement
     layout:
       type: Rubric
-    weight: 0.1
+    calculation: 
+      weight: 0.1
     rubric:
       - name: Excellent
         description: |
@@ -24,7 +25,7 @@ properties:
           - Adequate hypotheses are formulated (if applicable)
           - The problem statement, research question(s) and hypotheses are consistent with each other
           - The interdisciplinary character of the research is stated
-        grades: ["7,5", "7", "6,5", "6", "5,5"] 
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
       - name: Insufficient
         description: |
           - No interdisciplinary character of research ; problem statement is very broad and lacks focus; 
@@ -37,7 +38,8 @@ properties:
     text: Theoretical framework
     layout:
       type: Rubric
-    weight: 0.1
+    calculation: 
+      weight: 0.15
     rubric:
       - name: Excellent
         description: |
@@ -69,7 +71,8 @@ properties:
     text: Methods
     layout:
       type: Rubric
-    weight: 0.1
+    calculation: 
+      weight: 0.15
     rubric:
       - name: Excellent
         description: |
@@ -98,7 +101,8 @@ properties:
     text: Analysis / Evaluation of the Results
     layout:
       type: Rubric
-    weight: 0.15
+    calculation: 
+      weight: 0.15
     rubric:
       - name: Excellent
         description: |
@@ -132,7 +136,8 @@ properties:
     text: Argumentation and creativity
     layout:
       type: Rubric
-    weight: 0.25
+    calculation: 
+      weight: 0.25
     rubric:
       - name: Excellent
         description: |
@@ -162,7 +167,8 @@ properties:
     text: Conclusion and discussion
     layout:
       type: Rubric
-    weight: 0.1
+    calculation: 
+      weight: 0.1
     rubric:
       - name: Excellent
         description: |
@@ -190,7 +196,8 @@ properties:
     text: Structure
     layout:
       type: Rubric
-    weight: 0.1
+    calculation: 
+      weight: 0.05
     rubric:
       - name: Excellent
         description: |
@@ -216,7 +223,8 @@ properties:
     text: Layout and language
     layout:
       type: Rubric
-    weight: 0.1
+    calculation: 
+      weight: 0.05
     rubric:
       - name: Excellent
         description: |
@@ -259,6 +267,8 @@ properties:
       If too many incorrect or missing citations in text and bibliography are identified, the grade may be adjusted negatively (max -0,5); this is at the discretion of supervisors
     layout:
       type: Rubric
+    calculation:
+      type: Subtract
     values:
     - name: "0"
       value: 0
@@ -291,6 +301,8 @@ properties:
     type: MalusOne!
     layout:
       type: Rubric
+    calculation:
+      type: Subtract
     values:
     - name: "0"
       value: 0

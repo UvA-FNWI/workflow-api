@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Assessments;
 
 public class AssessmentPartResult : INamed
@@ -19,9 +21,10 @@ public class SourceResult : INamed
 public class PageResult : INamed
 {
     public string Name { get; set; } = null!;
-    public decimal Weight { get; set; }
-    public decimal WeightedAverage { get; set; }
+    public decimal? Weight { get; set; }
+    public decimal? WeightedAverage { get; set; }
     public List<QuestionResult> QuestionResults { get; set; } = [];
+    public decimal Sum { get; set; }
 }
 
 public class QuestionResult : INamed
@@ -34,15 +37,17 @@ public class QuestionResult : INamed
     /// <summary>
     /// The weight of the question
     /// </summary>
-    public decimal Weight { get; set; }
+    public decimal? Weight { get; set; }
 
     /// <summary>
     /// The percentage of the weight of the answer in relation to all other questions in the form
     /// </summary>
-    public decimal Percentage { get; set; }
+    public decimal? Percentage { get; set; }
 
     /// <summary>
     /// The given answer
     /// </summary>
     public double Answer { get; set; }
+
+    public CalculationType Type { get; set; }
 }

@@ -64,7 +64,7 @@ public class Page : INamed
 
     public BilingualString DisplayTitle => Title ?? Name;
 
-    public bool HasResults => Fields.Any(f => f.Weight.HasValue);
+    public bool HasResults => Fields.Count(f => f.Calculation?.Weight != null) > 1;
 
     public Page Clone()
     {
@@ -153,7 +153,7 @@ public class Form : INamed
     /// </summary>
     public Effect[] OnSave { get; set; } = [];
 
-    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields);
+    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields).Distinct();
 
     public Form Clone()
     {

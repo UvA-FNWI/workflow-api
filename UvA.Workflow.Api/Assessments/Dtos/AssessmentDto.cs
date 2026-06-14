@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Assessments;
@@ -32,7 +33,9 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 
-    private decimal RoundToTwo(decimal input) => Math.Round(input, 2, MidpointRounding.AwayFromZero);
+    [return: NotNullIfNotNull(nameof(input))]
+    private decimal? RoundToTwo(decimal? input) =>
+        input == null ? null : Math.Round(input.Value, 2, MidpointRounding.AwayFromZero);
 
     public AssessmentDto Create(
         string id,
@@ -128,6 +131,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 Name = pr.Name,
                 Weight = pr.Weight,
                 WeightedAverage = RoundToTwo(pr.WeightedAverage),
+                Sum = RoundToTwo(pr.Sum).Value,
                 QuestionResults = pr.QuestionResults
                     .Select(qr => new QuestionResult
                     {
