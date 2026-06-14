@@ -55,7 +55,7 @@ public static class AssessmentService
         {
             Name = SourceResult.Combined,
             WeightedAverage = CalculatePartWeightedAverage(partConfig, sourceResults),
-            PageResults = sourceResults.First().PageResults
+            PageResults = sourceResults.FirstOrDefault()?.PageResults
                 .Select(p =>
                 {
                     var results = sourceResults
@@ -79,7 +79,8 @@ public static class AssessmentService
                     };
                 })
                 .Where(p => p != null)
-                .ToList()!
+                .Cast<PageResult>()
+                .ToList() ?? []
         };
     }
 

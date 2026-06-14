@@ -49,7 +49,7 @@ public class AssessmentsController(
 
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<AssessmentDto>> GetSubmissionResults(string instanceId, string submissionId,
-        CancellationToken ct)
+        CancellationToken ct, bool combine = false)
     {
         var currentUser = await userService.GetCurrentUser(ct);
         if (currentUser == null)
@@ -61,7 +61,9 @@ public class AssessmentsController(
 
         var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
 
-        var matchingPart = assessmentConfig?.Parts.FirstOrDefault(p => p.Sources.Any(s => s.Name == submissionId));
+        var matchingPart = combine
+            ? assessmentConfig?.Parts.FirstOrDefault(p => p.Sources.Any(s => s.Name == submissionId))
+            : null;
         if (matchingPart != null)
         {
             await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View);

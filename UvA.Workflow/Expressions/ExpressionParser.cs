@@ -91,6 +91,7 @@ public class ExpressionParser
     {
         if (exp == null)
             return null;
+        exp = exp.Trim();
         return Cache.GetOrAdd(exp, s =>
         {
             var parser = new ExpressionParser();

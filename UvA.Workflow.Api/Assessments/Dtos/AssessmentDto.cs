@@ -17,7 +17,7 @@ public record AssessmentPartDto(
     string Id,
     BilingualString Title,
     SourceResultDto[] SourceResults,
-    SourceResultDto Combined,
+    SourceResultDto? Combined,
     decimal? Percentage
 );
 
@@ -90,7 +90,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
-                MapToSourceResultDto(partContexts[0], result.Combined, null),
+                partContexts.Count > 0 ? MapToSourceResultDto(partContexts[0], result.Combined, null) : null,
                 RoundToTwo(partPercentage)
             ));
         }
