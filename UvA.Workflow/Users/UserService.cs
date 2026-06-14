@@ -24,6 +24,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     public async Task<User> AddOrUpdateUser(string username, string displayName, string email, string providerKey,
         Organization? organization, CancellationToken ct)
     {
+        username = username.ToLower();
         providerKey = UserProviderKeys.Normalize(providerKey);
         var cacheKey = GetCacheKeyForUser(username);
         if (!memoryCache.TryGetValue(cacheKey, out User? user))
@@ -87,6 +88,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     public async Task<User?> GetUser(string username, CancellationToken ct)
     {
+        username = username.ToLower();
         var cacheKey = GetCacheKeyForUser(username);
         if (memoryCache.TryGetValue(cacheKey, out User? user)) return user;
         if (username == ApiUserName)
