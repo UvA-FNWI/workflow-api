@@ -24,7 +24,8 @@ public class AnswerService(
     IArtifactService artifactService,
     AnswerConversionService answerConversionService,
     IInstanceEventService instanceEventService,
-    IInstanceJournalService instanceJournalService)
+    IInstanceJournalService instanceJournalService,
+    IUserService userService)
 {
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
@@ -40,7 +41,48 @@ public class AnswerService(
         return new QuestionContext(instance, submissionState, form, question);
     }
 
-    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, User user, CancellationToken ct)
+    private async Task SaveAndLogAnswer(QuestionContext context, BsonValue? currentAnswer, BsonValue newAnswer,
+        CancellationToken ct)
+    {
+        var (instance, _, form, question) = context;
+        if (newAnswer != currentAnswer)
+        {
+            var user = await userService.GetCurrentUser(ct);
+            if (user == null)
+                throw new Exception("User not logged in, should not get here");
+
+            instance.SetProperty(newAnswer, form.PropertyName, question.Name);
+            await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
+
+            // if the form was ever submitted, then log the change
+            var wasSubmitted = await WasFormEverSubmitted(instance.Id, form, ct);
+            var isReplaced = !wasSubmitted; // if the form was not submitted, the old value is not stored
+            if (wasSubmitted)
+            {
+                // if the journal entry was replaced, the old value isn't stored either
+                isReplaced = await instanceJournalService.LogPropertyChange(instance.Id,
+                    PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
+            }
+
+            // delete any replaced file
+            if (isReplaced && question.DataType == DataType.File)
+            {
+                var oldArtifact = currentAnswer is BsonDocument ? ArtifactInfo.FromBson(currentAnswer) : null;
+                if (currentAnswer is BsonArray array)
+                {
+                    var newArray = (newAnswer as BsonArray)?.Select(ArtifactInfo.FromBson) ?? [];
+                    oldArtifact = array
+                        .Select(ArtifactInfo.FromBson)
+                        .FirstOrDefault(a => newArray.All(b => b?.ArtifactId != a?.ArtifactId));
+                }
+
+                if (oldArtifact != null)
+                    await artifactService.TryDeleteArtifact(oldArtifact.ArtifactId, ct);
+            }
+        }
+    }
+
+    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
     {
         var (instance, _, form, question) = context;
 
@@ -51,22 +93,7 @@ public class AnswerService(
         var newAnswer = await answerConversionService.ConvertToValue(value, question, ct);
 
         // Save if value changed
-        if (newAnswer != currentAnswer)
-        {
-            instance.SetProperty(newAnswer, form.PropertyName, question.Name);
-            await instanceService.SaveValue(instance, form.PropertyName, question!.Name, ct);
-
-            // Only remove the cleared file from storage if it wasn't part of a submitted version.
-            if (currentAnswer != null && newAnswer.IsBsonNull && question.DataType == DataType.File)
-                await DeleteArtifactIfNotVersioned(instance, form, ArtifactInfo.FromBson(currentAnswer), ct);
-
-            // if the form was ever submitted, then log the change
-            if (await WasFormEverSubmitted(instance.Id, form, ct))
-            {
-                await instanceJournalService.LogPropertyChange(instance.Id,
-                    PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
-            }
-        }
+        await SaveAndLogAnswer(context, currentAnswer, newAnswer, ct);
 
         // Get questions to update (including dependent questions)
         var questionsToUpdate = question.DependentQuestions.Append(question).Distinct().ToArray();
@@ -89,6 +116,9 @@ public class AnswerService(
     }
 
     /// <summary>
+    /// TODO: do we want to replace the existing logic based on WasFormEverSubmitted by something based on this?
+    /// (See DN-3796)
+    /// 
     /// When the form was last submitted, taken from its submission event(s). We read the event date
     /// ourselves rather than using FormSubmissionState.DateSubmitted because a rejection suppresses the
     /// submission event instead of removing it, and we still want to keep files from a rejected submission.
@@ -96,22 +126,6 @@ public class AnswerService(
     /// </summary>
     private static DateTime? GetLastSubmissionDate(WorkflowInstance instance, Form form)
         => FormSubmissionState.GetSubmissionEventIds(form).Select(instance.GetEventDate).Max();
-
-    /// <summary>
-    /// Removes the file from storage unless it was part of a submitted version, meaning it was already there
-    /// when the form was last submitted. Anything added after that, or before the form was ever submitted, is
-    /// just a draft and gets deleted. The caller still updates the property that points to the file.
-    /// </summary>
-    private async Task DeleteArtifactIfNotVersioned(WorkflowInstance instance, Form form, ArtifactInfo? info,
-        CancellationToken ct)
-    {
-        if (info == null)
-            return;
-
-        var lastSubmissionDate = GetLastSubmissionDate(instance, form);
-        if (lastSubmissionDate == null || info.CreatedOn > lastSubmissionDate)
-            await artifactService.TryDeleteArtifact(info.ArtifactId, ct);
-    }
 
     public async Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct)
     {
@@ -154,41 +168,36 @@ public class AnswerService(
     private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)
     {
         var (instance, _, form, question) = context;
-        ArtifactInfo? oldArtifact = null;
 
-        var value = instance.GetProperty(form.PropertyName, question.Name);
+        var currentAnswer = instance.GetProperty(form.PropertyName, question.Name);
+        BsonValue newAnswer;
 
         if (question.IsArray)
         {
-            var array = value as BsonArray ?? [];
+            var array = currentAnswer as BsonArray ?? [];
             array.Add(artifactInfo.ToBsonDocument());
-            instance.SetProperty(array, form.PropertyName, question.Name);
+            newAnswer = array;
         }
         else
-        {
-            instance.SetProperty(artifactInfo.ToBsonDocument(), form.PropertyName, question.Name);
-            oldArtifact = ArtifactInfo.FromBson(value);
-        }
+            newAnswer = artifactInfo.ToBsonDocument();
 
-        await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
-
-        // The file we just replaced only gets removed if it wasn't part of a submitted version.
-        await DeleteArtifactIfNotVersioned(instance, form, oldArtifact, ct);
+        await SaveAndLogAnswer(context, currentAnswer, newAnswer, ct);
     }
 
     public async Task DeleteArtifact(QuestionContext context, string artifactId, CancellationToken ct)
     {
         var (instance, _, form, question) = context;
 
-        var value = instance.GetProperty(form.PropertyName, question.Name);
-        if (value == null)
+        var currentAnswer = instance.GetProperty(form.PropertyName, question.Name);
+        if (currentAnswer == null)
             throw new EntityNotFoundException("Artifact", "Artifact not found");
+        BsonValue newAnswer;
 
         // We always remove the reference below. The file itself stays in storage if it was part of a
         // submitted version.
         if (question.IsArray)
         {
-            var array = value as BsonArray ?? [];
+            var array = currentAnswer as BsonArray ?? [];
             var artifactRef = array.FirstOrDefault(a => ArtifactInfo.FromBson(a)?.ArtifactId == artifactId);
             if (artifactRef == null)
             {
@@ -196,23 +205,21 @@ public class AnswerService(
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
             }
 
-            await DeleteArtifactIfNotVersioned(instance, form, ArtifactInfo.FromBson(artifactRef), ct);
             array.Remove(artifactRef);
-            instance.SetProperty(array, form.PropertyName, question.Name);
-            await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
+            newAnswer = array;
         }
         else
         {
-            var info = ArtifactInfo.FromBson(value);
+            var info = ArtifactInfo.FromBson(currentAnswer);
             if (info?.ArtifactId != artifactId)
             {
                 Log.Error("Artifact {ArtifactId} not found in object or data store", artifactId);
                 throw new EntityNotFoundException("Artifact", "Artifact not found");
             }
 
-            await instanceService.UnsetValue(instance, form.PropertyName, question.Name, ct);
-            instance.ClearProperty(question.Name);
-            await DeleteArtifactIfNotVersioned(instance, form, info, ct);
+            newAnswer = BsonNull.Value;
         }
+
+        await SaveAndLogAnswer(context, currentAnswer, newAnswer, ct);
     }
 }

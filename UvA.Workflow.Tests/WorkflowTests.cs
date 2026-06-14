@@ -114,7 +114,7 @@ public class WorkflowTests
             _userRepoMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
-            _instanceJournalServiceMock.Object);
+            _instanceJournalServiceMock.Object, _userServiceMock.Object);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class WorkflowTests
 
         // Act
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Title", _ct);
-        await _answerService.SaveAnswer(questionContext, value, new User(), _ct);
+        await _answerService.SaveAnswer(questionContext, value, _ct);
 
         // Assert
         Assert.Contains(instance.Properties, p => p.Key == "Title" && p.Value.ToString() == "title");
