@@ -53,3 +53,4 @@ grouping:
         nl: Voltooid
       steps:
         - Publication
+        - null

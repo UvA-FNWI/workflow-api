@@ -9,6 +9,8 @@ public class ScreenDataService(
     IWorkflowInstanceRepository repository,
     InstanceAuthorizationFilterService instanceAuthorizationFilterService)
 {
+    private static readonly string EmptyStepId = "null";
+
     /// <summary>
     /// Gets screen data for the given screen. When the screen defines a grouping configuration,
     /// the rows are partitioned into groups by their current workflow step (and the flat row list
@@ -156,7 +158,7 @@ public class ScreenDataService(
 
         foreach (var context in contexts)
         {
-            var stepValue = context.Get("CurrentStep")?.ToString() ?? "Draft";
+            var stepValue = context.Get("CurrentStep")?.ToString() ?? EmptyStepId;
 
             // Only include rows that match a configured group
             if (!stepGroupMapping.TryGetValue(stepValue, out var groupName))
@@ -188,12 +190,15 @@ public class ScreenDataService(
         {
             foreach (var step in group.Steps)
             {
-                mapping[step] = group.Name;
+                mapping[step ?? EmptyStepId] = group.Name;
             }
         }
 
         return mapping;
     }
+
+    private static readonly ProgressInformationDto CompletedProgressInformationDto =
+        new(new BilingualString("Completed", "Afgerond"), StatusColor.Green);
 
     public record ProgressInformationDto(
         BilingualString Text,
@@ -216,7 +221,7 @@ public class ScreenDataService(
         var currentStep = workflowDef.AllSteps.Find(s => s.Name == internalName);
 
         return currentStep == null
-            ? new ProgressInformationDto(new BilingualString(internalName, internalName), null)
+            ? CompletedProgressInformationDto
             : ProgressInformationDto.Create(currentStep, context);
     }
 }
