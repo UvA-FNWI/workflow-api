@@ -14,9 +14,11 @@ public class UserServiceEduIdTests
 {
     private static UserService CreateService(
         Mock<IDataNoseApiClient> dataNoseApiClientMock,
-        Mock<IUserRepository> userRepositoryMock)
+        Mock<IUserRepository> userRepositoryMock,
+        Mock<IOrganizationService> organizationServiceMock)
         => new(Mock.Of<ICurrentUserAccessor>(),
             userRepositoryMock.Object,
+            organizationServiceMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [
                 new DataNoseUserDirectory(dataNoseApiClientMock.Object),
@@ -32,7 +34,8 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var organizationServiceMock = new Mock<IOrganizationService>();
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
         var user = new User
         {
             UserName = "eduid-123",
@@ -54,6 +57,8 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
+
         dataNoseApiClientMock.Setup(c => c.SearchPeople("query", CancellationToken.None))
             .ReturnsAsync([
                 new UserSearchResult("internal-1", "Internal One", "duplicate@example.org",
@@ -86,8 +91,7 @@ public class UserServiceEduIdTests
                 }
             ]);
 
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
-
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
         var results = (await service.FindUsers("query", true, CancellationToken.None)).ToArray();
 
         Assert.Collection(results,
@@ -119,6 +123,7 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "Doctor";
         dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
             .ReturnsAsync([]);
@@ -132,7 +137,7 @@ public class UserServiceEduIdTests
                     ProviderKey = EduIdDirectoryKeys.ProviderKey
                 }
             ]);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
         var result = Assert.Single(await service.FindUsers(query, true, CancellationToken.None));
 
@@ -145,12 +150,13 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "student@uv";
         dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
             .ReturnsAsync([]);
         userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
             .ReturnsAsync([]);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
         Assert.Empty(await service.FindUsers(query, true, CancellationToken.None));
 
@@ -162,6 +168,7 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "uva.nl";
         dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
             .ReturnsAsync([
@@ -172,7 +179,7 @@ public class UserServiceEduIdTests
             ]);
         userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
             .ReturnsAsync([]);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
         var result = Assert.Single(await service.FindUsers(query, true, CancellationToken.None));
 
@@ -184,6 +191,7 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         dataNoseApiClientMock.Setup(c => c.SearchPeople("query", CancellationToken.None))
             .ReturnsAsync([
                 new UserSearchResult("internal-1", "Internal One", "duplicate@example.org",
@@ -208,7 +216,7 @@ public class UserServiceEduIdTests
                     ProviderKey = EduIdDirectoryKeys.ProviderKey
                 }
             ]);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
         var results = (await service.FindUsers("query", false, CancellationToken.None)).ToArray();
 
@@ -222,12 +230,13 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "student@uv";
         dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
             .ReturnsAsync([]);
         userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
             .ReturnsAsync([]);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
         Assert.Empty(await service.FindUsers(query, true, CancellationToken.None));
 
@@ -240,9 +249,14 @@ public class UserServiceEduIdTests
         var dataNodeOrganization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "FNWI" };
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
+
+        organizationServiceMock.Setup(s => s.GetOrCreateOrganization(dataNodeOrganization.Name, CancellationToken.None))
+            .ReturnsAsync(dataNodeOrganization);
+
         dataNoseApiClientMock.Setup(c => c.GetOrganizationForUser("jdoe", CancellationToken.None))
             .ReturnsAsync(dataNodeOrganization);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
         var organization = await service.GetOrganizationForUser("jdoe", CancellationToken.None);
 
@@ -257,9 +271,10 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         dataNoseApiClientMock.Setup(c => c.GetOrganizationForUser("jdoe", CancellationToken.None))
             .ReturnsAsync((Organization?)null);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
         var organization = await service.GetOrganizationForUser("jdoe", CancellationToken.None);
 
@@ -270,6 +285,8 @@ public class UserServiceEduIdTests
     public async Task AddOrUpdateUser_ExternalUser_CreatesWithEduIdProviderKey()
     {
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
+
         User? createdUser = null;
         userRepositoryMock.Setup(r => r.GetByExternalId("external-123", CancellationToken.None))
             .ReturnsAsync((User?)null);
@@ -278,6 +295,7 @@ public class UserServiceEduIdTests
             .Returns(Task.CompletedTask);
         var service = new UserService(Mock.Of<ICurrentUserAccessor>(),
             userRepositoryMock.Object,
+            organizationServiceMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [],
             []);
@@ -306,8 +324,10 @@ public class UserServiceEduIdTests
         var userRepositoryMock = new Mock<IUserRepository>();
         userRepositoryMock.Setup(r => r.GetByExternalId("external-123", CancellationToken.None))
             .ReturnsAsync(user);
+        var organizationServiceMock = new Mock<IOrganizationService>();
         var service = new UserService(Mock.Of<ICurrentUserAccessor>(),
             userRepositoryMock.Object,
+            organizationServiceMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [],
             []);
@@ -328,9 +348,10 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         dataNoseApiClientMock.Setup(c => c.GetRolesByUser("internal-123", CancellationToken.None))
             .ReturnsAsync(["Coordinator"]);
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock);
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
         var user = new User
         {
             UserName = "internal-123",
@@ -351,8 +372,10 @@ public class UserServiceEduIdTests
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
         var service = new UserService(Mock.Of<ICurrentUserAccessor>(),
             userRepositoryMock.Object,
+            organizationServiceMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [new EduIdUserDirectory()],
             []);

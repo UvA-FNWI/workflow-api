@@ -13,7 +13,7 @@ public class OrganizationsController(
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
 
-        var organization = await organizationService.CreateOrganization(dto.Name, ct);
+        var organization = await organizationService.GetOrCreateOrganization(dto.Name, ct);
 
         var organizationDto = OrganizationDto.Create(organization);
         return CreatedAtAction(nameof(GetById), new { id = organization.Id }, organizationDto);
