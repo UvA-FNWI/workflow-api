@@ -1,0 +1,23 @@
+name: EthicsAssessmentReviewer
+title:
+  en: Ethics (proposal reviewer)
+  nl: Ethiek (voorstelbeoordelaar)
+
+actions:
+  - type: Submit
+    roles: [ProposalReviewer]
+    form: EthicsReviewReviewer
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+properties:
+  - name: ReviewerEthicsReview
+    type: ProposalReview!
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: EthicsApprovedReviewer
+      - event: EthicsRejectedReviewer

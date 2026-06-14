@@ -1,7 +1,26 @@
 properties:
   - name: Course
     type: Context!
-    inheritedRoles: [Coordinator]
+    inheritedRoles: [Coordinator, Impersonator]
+
+  - name: EC
+    type: EcType!
+    text:
+      en: Fieldwork EC
+      nl: Veldwerk EC
+    layout:
+      type: RadioList
+    values:
+      - name: "12"
+        text:
+          en: 12 EC
+          nl: 12 EC
+        value: 12
+      - name: "24"
+        text:
+          en: 24 EC
+          nl: 24 EC
+        value: 24
 
   - name: ProposalReviewer
     type: User!

@@ -50,7 +50,11 @@ public class InstanceUserStorageTests
     [Fact]
     public async Task ConvertToValue_ForUser_StoresLeanInstanceUserDocument()
     {
-        var organization = Organization.Create("Test University");
+        var organization = new Organization
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            Name = "Test University"
+        };
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -236,7 +240,7 @@ public class InstanceUserStorageTests
             DisplayName = "Student Name",
             Email = "student2@uva.nl",
             ProviderKey = UserProviderKeys.Internal,
-            Organization = Organization.Create("FNWI")
+            Organization = new Organization { Id = ObjectId.GenerateNewId().ToString(), Name = "FNWI" }
         };
         var userService = new Mock<IUserService>();
         var userRepository = new Mock<IUserRepository>();
@@ -410,5 +414,41 @@ public class InstanceUserStorageTests
         Assert.Equal(["_id", "UserName", "DisplayName", "Email", "Organization", "IsExternal"], bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
+    }
+
+    [Fact]
+    public async Task Create_WithUserProperty_DoesNotClobberSuppliedValue()
+    {
+        WorkflowInstance? created = null;
+        var repository = new Mock<IWorkflowInstanceRepository>();
+        repository.Setup(r => r.Create(It.IsAny<WorkflowInstance>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, CancellationToken>((instance, _) => created = instance)
+            .Returns(Task.CompletedTask);
+        var service = new WorkflowInstanceService(ModelService, repository.Object, Mock.Of<IInstanceJournalService>());
+        var creator = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "__ApiUser",
+            DisplayName = "Api",
+            Email = "api@invalid.uva.nl"
+        };
+
+        // An API caller (e.g. DN2) supplies the actual student in the initial properties.
+        var suppliedStudent = InstanceUser.FromUser(new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "student",
+            DisplayName = "Real Student",
+            Email = "s.tudent@uva.nl",
+            ProviderKey = EduIdDirectoryKeys.ProviderKey
+        }).ToBsonDocument();
+        var initialProperties = new Dictionary<string, BsonValue> { ["Student"] = suppliedStudent };
+
+        await service.Create("Project", creator, CancellationToken.None, userProperty: "Student",
+            initialProperties: initialProperties);
+
+        var bson = Assert.IsType<BsonDocument>(created!.Properties["Student"]);
+        Assert.Equal("student", bson["UserName"].AsString);
+        Assert.Equal("Real Student", bson["DisplayName"].AsString);
     }
 }

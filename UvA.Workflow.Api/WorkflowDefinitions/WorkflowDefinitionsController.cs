@@ -1,11 +1,15 @@
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowDefinitions;
 
-public class WorkflowDefinitionsController(ModelService modelService, RightsService rightsService)
+public class WorkflowDefinitionsController(
+    ModelService modelService,
+    RightsService rightsService,
+    InstanceAuthorizationFilterService authorizationFilterService)
     : ApiControllerBase
 {
     [HttpGet]
@@ -37,5 +41,29 @@ public class WorkflowDefinitionsController(ModelService modelService, RightsServ
         var canCreateInstance = await rightsService.CanAny(name, RoleAction.CreateInstance);
         var dto = WorkflowDefinitionDto.Create(workflowDefinition, canCreateInstance);
         return Ok(dto);
+    }
+
+    /// <summary>
+    /// Returns the workflow definitions that contain screens and that the current user can actually see data
+    /// for (i.e. has at least one visible instance, or unconditional view access). Used by the
+    /// frontend landing page to redirect a user to their course screen.
+    /// </summary>
+    [HttpGet("Accessible")]
+    public async Task<ActionResult<IEnumerable<WorkflowDefinitionDto>>> GetAccessible(CancellationToken ct)
+    {
+        var definitions = modelService.WorkflowDefinitions.Values
+            .Where(t => t.Screens.Any())
+            .OrderBy(et => et.Index ?? int.MaxValue)
+            .ThenBy(et => et.Name)
+            .ToArray();
+
+        var dtos = new List<WorkflowDefinitionDto>(definitions.Length);
+        foreach (var definition in definitions)
+        {
+            if (await authorizationFilterService.HasVisibleInstances(definition.Name, ct))
+                dtos.Add(WorkflowDefinitionDto.Create(definition));
+        }
+
+        return Ok(dtos);
     }
 }

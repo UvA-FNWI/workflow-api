@@ -16,6 +16,17 @@
       "items": {
         "$ref": "#/definitions/Choice"
       }
+    },
+    "sorting": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Determines how the choices should be sorted when shown in a selector",
+          "$ref": "#/definitions/ValueSetSorting"
+        }
+      ]
     }
   },
   "definitions": {
@@ -323,6 +334,37 @@
           "type": "string"
         }
       }
+    },
+    "ValueSetSorting": {
+      "title": "ValueSetSorting",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "description": "Field of the choice to sort on",
+          "$ref": "#/definitions/ChoiceSortField"
+        },
+        "direction": {
+          "description": "Direction to sort in",
+          "$ref": "#/definitions/SortDirection"
+        }
+      }
+    },
+    "ChoiceSortField": {
+      "type": "string",
+      "enum": [
+        "Name",
+        "Text",
+        "Value",
+        "Description"
+      ]
+    },
+    "SortDirection": {
+      "type": "string",
+      "enum": [
+        "Ascending",
+        "Descending"
+      ]
     }
   }
 }
