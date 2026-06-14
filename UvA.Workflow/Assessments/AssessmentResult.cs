@@ -6,13 +6,15 @@ public class AssessmentPartResult : INamed
 {
     public string Name { get; set; } = null!;
 
-    public decimal WeightedAverage { get; set; }
+    public SourceResult Combined { get; set; } = null!;
 
     public List<SourceResult> SourceResults { get; set; } = [];
 }
 
 public class SourceResult : INamed
 {
+    public const string Combined = "Combined";
+
     public string Name { get; set; } = null!;
     public decimal WeightedAverage { get; set; }
     public List<PageResult> PageResults { get; set; } = [];

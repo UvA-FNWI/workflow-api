@@ -13,14 +13,14 @@ public static class AssessmentService
 
         var partsWithResults = config.Parts
             .Select(part => (Part: part, Result: partResults.FirstOrDefault(r => r.Name == part.Name)))
-            .Where(pair => pair.Result != null && pair.Result.WeightedAverage != 0)
+            .Where(pair => pair.Result != null && pair.Result.Combined.WeightedAverage != 0)
             .ToList();
 
         if (partsWithResults.Count == 0) return 0;
 
         var submittedWeight = partsWithResults.Sum(pair => pair.Part.Weight);
         var weightedSum = partsWithResults
-            .Sum(pair => pair.Result!.WeightedAverage * pair.Part.Weight);
+            .Sum(pair => pair.Result!.Combined.WeightedAverage * pair.Part.Weight);
 
         return weightedSum / submittedWeight;
     }
@@ -45,6 +45,42 @@ public static class AssessmentService
         return totalSourceWeight == 0
             ? 0
             : weightedSum / totalSourceWeight;
+    }
+
+    public static SourceResult CalculateCombined(AssessmentPart partConfig, ICollection<SourceResult> sourceResults)
+    {
+        var totalWeight = partConfig.Sources.Sum(x => x.Weight);
+
+        return new SourceResult
+        {
+            Name = SourceResult.Combined,
+            WeightedAverage = CalculatePartWeightedAverage(partConfig, sourceResults),
+            PageResults = sourceResults.First().PageResults
+                .Select(p =>
+                {
+                    var results = sourceResults
+                        .ToDictionary(s => s.Name, s => s.PageResults.FirstOrDefault(q => q.Name == p.Name)!);
+                    if (partConfig.Sources.Any(x => results.GetValueOrDefault(x.Name) == null))
+                        return null;
+                    return new PageResult
+                    {
+                        Name = p.Name,
+                        WeightedAverage = results.Values.Any(v => v.WeightedAverage != null)
+                            ? partConfig.Sources.Sum(x => results[x.Name].WeightedAverage * x.Weight) / totalWeight
+                            : null,
+                        Sum = partConfig.Sources.Sum(x => results[x.Name].Sum * x.Weight) / totalWeight,
+                        QuestionResults = p.QuestionResults.Select(q => new QuestionResult
+                        {
+                            Name = q.Name,
+                            Answer = partConfig.Sources.Sum(x =>
+                                (results[x.Name].QuestionResults.FirstOrDefault(z => z.Name == q.Name)?.Answer ?? 0) *
+                                (double)x.Weight) / (double)totalWeight
+                        }).ToList()
+                    };
+                })
+                .Where(p => p != null)
+                .ToList()!
+        };
     }
 
     public static SourceResult CalculateSourceResult(SubmissionContext submissionContext,

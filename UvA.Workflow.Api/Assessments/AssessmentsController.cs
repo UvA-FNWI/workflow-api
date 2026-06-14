@@ -61,10 +61,10 @@ public class AssessmentsController(
 
         var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
 
-        var matchingPart = assessmentConfig?.Parts.FirstOrDefault(p => p.Name == submissionId);
+        var matchingPart = assessmentConfig?.Parts.FirstOrDefault(p => p.Sources.Any(s => s.Name == submissionId));
         if (matchingPart != null)
         {
-            await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, matchingPart.Name);
+            await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View);
             var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, ct);
             return Ok(assessmentDtoFactory.Create(instanceId, contexts,
                 new AssessmentConfiguration { Parts = [matchingPart] }));

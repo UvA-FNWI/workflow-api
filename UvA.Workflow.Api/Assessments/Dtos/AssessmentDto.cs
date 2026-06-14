@@ -16,7 +16,7 @@ public record AssessmentPartDto(
     string Id,
     BilingualString Title,
     SourceResultDto[] SourceResults,
-    decimal? WeightedAverage,
+    SourceResultDto Combined,
     decimal? Percentage
 );
 
@@ -61,14 +61,13 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 .Select(c => AssessmentService.CalculateSourceResult(c, pageName))
                 .ToList();
 
-            var partAverage = AssessmentService.CalculatePartWeightedAverage(partConfig, sourceResults);
-
-            domainPartResults.Add(new AssessmentPartResult
+            var result = new AssessmentPartResult
             {
                 Name = partConfig.Name,
-                WeightedAverage = partAverage,
+                Combined = AssessmentService.CalculateCombined(partConfig, sourceResults),
                 SourceResults = sourceResults
-            });
+            };
+            domainPartResults.Add(result);
 
             decimal partPercentage = totalPartWeight > 0
                 ? partConfig.Weight / totalPartWeight * 100
@@ -90,7 +89,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
-                RoundToTwo(partAverage),
+                MapToSourceResultDto(partContexts[0], result.Combined, null),
                 RoundToTwo(partPercentage)
             ));
         }
@@ -146,7 +145,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
         return new(
             context.Form.Name,
-            context.Form.DisplayName,
+            sourceResult.Name == SourceResult.Combined ? new("Average", "Gemiddelde") : context.Form.DisplayName,
             roundedPageResults,
             answers,
             RoundToTwo(sourceResult.WeightedAverage),
