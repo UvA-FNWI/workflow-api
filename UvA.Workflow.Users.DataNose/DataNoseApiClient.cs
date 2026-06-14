@@ -94,6 +94,7 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         }
 
         var dto = await response.Content.ReadFromJsonAsync<GetOrganizationForUserResponse>(JsonOptions, ct);
+
         return CreateOrganization(dto?.Department);
     }
 
