@@ -13,11 +13,11 @@ public class AssessmentServiceTests
     {
         var pageResults = pages.Select(p =>
         {
-            var weight = p.questions.Sum(q => q.Weight);
+            var weight = p.questions.Sum(q => q.Weight!.Value);
             var avg = weight == 0
                 ? 0
                 : Math.Round(
-                    p.questions.Sum(q => (decimal)q.Answer * q.Weight) / weight,
+                    p.questions.Sum(q => (decimal)q.Answer * q.Weight!.Value) / weight,
                     2, MidpointRounding.AwayFromZero);
             return new PageResult
             {
@@ -29,11 +29,11 @@ public class AssessmentServiceTests
         }).ToList();
 
         var hasEmptyPage = pageResults.Any(p => p.QuestionResults.All(q => q.Answer == 0));
-        var totalWeight = pageResults.Sum(p => p.Weight);
+        var totalWeight = pageResults.Sum(p => p.Weight!.Value);
         var sourceAverage = hasEmptyPage || totalWeight == 0
             ? 0
             : Math.Round(
-                pageResults.Sum(p => p.WeightedAverage * p.Weight) / totalWeight,
+                pageResults.Sum(p => p.WeightedAverage!.Value * p.Weight!.Value) / totalWeight,
                 2, MidpointRounding.AwayFromZero);
 
         return new SourceResult { Name = name, WeightedAverage = sourceAverage, PageResults = pageResults };
@@ -74,7 +74,11 @@ public class AssessmentServiceTests
             {
                 Name = p.pageName,
                 Fields = p.questions
-                    .Select(q => new PropertyDefinition { Name = q.fieldName, Weight = q.weight })
+                    .Select(q => new PropertyDefinition
+                    {
+                        Name = q.fieldName,
+                        Calculation = new CalculationSettings { Weight = q.weight }
+                    })
                     .ToArray()
             }).ToList()
         };
@@ -337,7 +341,8 @@ public class AssessmentServiceTests
 
         var report = result.PageResults.Single(p => p.Name == "Report");
         Assert.Equal(3m, report.Weight);
-        Assert.Equal(7.67m, Math.Round(report.WeightedAverage, 2, MidpointRounding.AwayFromZero)); // (8*2 + 7*1) / 3
+        Assert.Equal(7.67m,
+            Math.Round(report.WeightedAverage!.Value, 2, MidpointRounding.AwayFromZero)); // (8*2 + 7*1) / 3
 
         var process = result.PageResults.Single(p => p.Name == "Process");
         Assert.Equal(1m, process.Weight);
