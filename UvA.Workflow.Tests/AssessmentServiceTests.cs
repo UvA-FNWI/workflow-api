@@ -56,7 +56,7 @@ public class AssessmentServiceTests
 
     // Builds an AssessmentPartResult with a pre-computed weighted average
     private static AssessmentPartResult PartResult(string name, decimal weightedAverage)
-        => new() { Name = name, WeightedAverage = weightedAverage };
+        => new() { Name = name, Combined = new() { WeightedAverage = weightedAverage } };
 
     // Builds a SubmissionContext from a simple description of pages and answers.
     // Answers are stored in the instance under propertyName (nested) so that
