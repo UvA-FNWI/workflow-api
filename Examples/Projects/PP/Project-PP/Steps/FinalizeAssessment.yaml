@@ -1,11 +1,15 @@
 name: FinalizeAssessment
 title:
-  en: Finalize Assessment
+  en: Finalize sssessment
   nl: Beoordeling afronden
   
 icon: 
   type: law-balance-line
+  
+actions:
+  - type: View
+    roles: [Supervisor]
+    forms: [AssessmentPresentation, AssessmentSecondReader]
 
 children:
-  - AssessmentThesis
   - FinalGrade

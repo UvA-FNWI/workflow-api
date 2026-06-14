@@ -5,9 +5,6 @@ title:
   en: Upload final thesis
   nl: Eindversie scriptie uploaden
 
-condition:
-  deadline: "=2026-09-01"
-
 actions:
   - name: SubmitFinalThesis
     type: Submit

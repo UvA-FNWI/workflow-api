@@ -19,7 +19,8 @@ fields:
 steps:
 #  - Start
   - UploadFinalThesis
-  - Assessment
+  - AssessmentThesis
+  - AssessmentPresentation
   - FinalizeAssessment
     
 properties:
@@ -27,7 +28,7 @@ properties:
     type: Assessment-PP!
   - name: AssessmentSecondReader
     type: Assessment-PP!
-  - name: AssessmentThesis
+  - name: AssessmentCombined
     type: Assessment-PP!
     
 assessments:
@@ -40,7 +41,7 @@ assessments:
       sources:
         - name: AssessmentSupervisor
           weight: 2
-        - name: AssessmentSecondReader
+        - name: AssessmentSecondReader 
           weight: 1
     - name: Presentation
       title: 

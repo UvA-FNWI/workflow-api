@@ -2,6 +2,7 @@ name: Assessment-PP
 title:
   en: Assessment
   nl: Beoordeling
+isEmbedded: true
 
 properties:
   - name: ProblemStatement
@@ -32,6 +33,12 @@ properties:
           - There is a misalignment between problem statement, research question, and hypotheses; 
           - There is no or hardly any theoretical basis for the problem statement 
         grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: ProblemStatementComments
+    type: String
+    text: Comments on problem statement
+    layout:
+      multiline: true
 
   - name: TheoreticalFramework
     type: HalfGrade!
@@ -66,6 +73,12 @@ properties:
           - Too much space used for explanation of irrelevant elements of the theory
         grades: ["5", "4,5", "4", "3", "2", "1"]
 
+  - name: TheoreticalFrameworkComments
+    type: String
+    text: Comments on theoretical framework
+    layout:
+      multiline: true
+
   - name: Methods
     type: HalfGrade!
     text: Methods
@@ -95,6 +108,12 @@ properties:
           - The methods is not justified
           - The description of the methods is not clear enough to make the research repeatable
         grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: MethodsComments
+    type: String
+    text: Comments on methods
+    layout:
+      multiline: true
 
   - name: AnalysisEvaluationResults
     type: HalfGrade!
@@ -131,6 +150,12 @@ properties:
           - The results contain no/hardly any connection to the theoretical framework
         grades: ["5", "4,5", "4", "3", "2", "1"]
 
+  - name: AnalysisEvaluationResultsComments
+    type: String
+    text: Comments on analysis / evaluation of the results
+    layout:
+      multiline: true
+
   - name: ArgumentationCreativity
     type: HalfGrade!
     text: Argumentation and creativity
@@ -162,6 +187,12 @@ properties:
           - The argumentation heavily relies on common sense and subjective judgement
         grades: ["5", "4,5", "4", "3", "2", "1"]
 
+  - name: ArgumentationCreativityComments
+    type: String
+    text: Comments on argumentation and creativity
+    layout:
+      multiline: true
+
   - name: ConclusionDiscussion
     type: HalfGrade!
     text: Conclusion and discussion
@@ -191,6 +222,12 @@ properties:
           - The conclusion doesn't reflect upon the interdisciplinary character of the project
         grades: ["5", "4,5", "4", "3", "2", "1"]
 
+  - name: ConclusionDiscussionComments
+    type: String
+    text: Comments on conclusion and discussion
+    layout:
+      multiline: true
+
   - name: Structure
     type: HalfGrade!
     text: Structure
@@ -217,6 +254,12 @@ properties:
           - The ordering of the sections is not logical
           - Paragraphs are poorly organized
         grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: StructureComments
+    type: String
+    text: Comments on structure
+    layout:
+      multiline: true
 
   - name: LayoutLanguage
     type: HalfGrade!
@@ -246,17 +289,10 @@ properties:
           - The text is clotted and wordy
           - There are many grammatical/spelling errors
         grades: ["5", "4,5", "4", "3", "2", "1"]
-        
-    # Summary
-  - name: ContentComments
-    type: String
-    text: Comments on content
-    layout:
-      multiline: true
 
-  - name: FormComments
+  - name: LayoutLanguageComments
     type: String
-    text: Comments on form
+    text: Comments on layout and language
     layout:
       multiline: true
 
@@ -339,12 +375,6 @@ properties:
         - The student made no use of the feedback and guidance provided during the process; 
         - Deadlines were not met during the process
        grades: ["-0,1", "-0,2", "-0,3", "-0,4", "-0,5", "-0,6", "-0,7", "-0,8", "-0,9", "-1,0"]
-  
-  - name: Presentation
-    description: Has the student orally presented their thesis? If this is a fail, the thesis final grade CANNOT be administred.
-    layout:
-      type: Dropdown
-    type: PassFail!
   
   - name: DoctrinalAnalysis
     text: Does the thesis meet the requirement of containing 50% doctrinal analysis

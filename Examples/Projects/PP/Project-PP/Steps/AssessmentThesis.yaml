@@ -1,22 +1,8 @@
 name: AssessmentThesis
 title:
-  en: Assessment Thesis
+  en: Assessment thesis
   nl: Beoordeling scriptie
-icon:
-  type: law-balance-line
 
-properties:
-  - name: AssessmentThesis
-    type: Assessment-PP!
-
-actions:
-  - name: AssessmentThesis
-    type: Submit
-    roles: [Supervisor]
-    form: AssessmentThesis
-    label:
-      en: Finalize assessment
-      nl: Beoordeling afronden
-
-ends:
-  event: AssessmentThesis
+children:
+  - AssessmentIndividual
+  - AssessmentCombined
