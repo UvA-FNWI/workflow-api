@@ -1,10 +1,6 @@
 name: Project-PP
-title: 
-  en: Project (PP)
-  nl: Project (PP)
-titlePlural: 
-  en: Projects (PP)
-  nl: Projecten (PP)
+title: Thesis PPLE
+titlePlural: 3803THQPVY
 instanceTitle: '{{ WorkingTitle }}'
 
 fields:
