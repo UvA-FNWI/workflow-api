@@ -17,6 +17,7 @@ public enum JobSource
     Save
 }
 
+[BsonIgnoreExtraElements]
 public class Job
 {
     [BsonId]
@@ -56,5 +57,6 @@ public class JobStep
 {
     public string Identifier { get; set; } = null!;
     public string? Message { get; set; }
+    [BsonRepresentation(BsonType.String)] public JobStatus Status { get; set; } = JobStatus.Pending;
     public Dictionary<string, object>? Outputs { get; set; }
 }

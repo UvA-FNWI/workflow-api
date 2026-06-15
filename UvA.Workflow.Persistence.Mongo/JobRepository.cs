@@ -8,6 +8,23 @@ public class JobRepository(IMongoDatabase database, IOptions<WorkerOptions> work
     public Task Add(Job job, CancellationToken ct)
         => _jobCollection.InsertOneAsync(job, cancellationToken: ct);
 
+    public async Task<Job?> GetById(string instanceId, string jobId, CancellationToken ct)
+    {
+        var filter = Builders<Job>.Filter.And(
+            Builders<Job>.Filter.Eq(j => j.InstanceId, instanceId),
+            Builders<Job>.Filter.Eq(j => j.Id, jobId));
+
+        return await _jobCollection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Job>> GetList(string instanceId, CancellationToken ct)
+    {
+        var filter = Builders<Job>.Filter.Eq(j => j.InstanceId, instanceId);
+        return await _jobCollection.Find(filter)
+            .SortByDescending(j => j.StartOn)
+            .ToListAsync(ct);
+    }
+
     public async Task<Job?> TryClaimJob(CancellationToken ct)
     {
         var now = DateTime.UtcNow;

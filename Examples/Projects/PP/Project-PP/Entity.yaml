@@ -18,13 +18,11 @@ fields:
     
 steps:
 #  - Start
-#  - UploadFinalThesis
+  - UploadFinalThesis
   - Assessment
     
 properties:
   - name: AssessmentSupervisor
     type: Assessment-PP!
-  - name: AssessmentSecondreader
-    type: Assessment-PP!
-  - name: AssessmentExaminer
+  - name: AssessmentSecondReader
     type: Assessment-PP!

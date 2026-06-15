@@ -26,10 +26,10 @@ columns:
 
 grouping:
   groups:
-    - name: assign-subject
+    - name: approve-subject
       title:
-        en: Assign Subject
-        nl: Onderwerp toewijzen
+        en: Approve Subject
+        nl: Onderwerp goedkeuren
       steps:
         - Start
         - Subject
@@ -38,7 +38,7 @@ grouping:
     - name: thesis-in-progress
       title:
         en: Thesis in Progress
-        nl: Scriptie in behandeling
+        nl: Bezig met scriptie
       steps:
         - Proposal
         - Upload
@@ -50,6 +50,7 @@ grouping:
     - name: completed
       title:
         en: Completed
-        nl: Voltooid
+        nl: Afgerond
       steps:
         - Publication
+        - null

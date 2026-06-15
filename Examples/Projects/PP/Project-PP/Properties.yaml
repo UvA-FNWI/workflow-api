@@ -1,7 +1,7 @@
 properties:
   - name: Course
     type: Context!
-    inheritedRoles: [Coordinator]
+    inheritedRoles: [Coordinator, Impersonator]
 
   - name: Student
     type: User!
@@ -18,16 +18,14 @@ properties:
       en: EC
       nl: EC
 
-  - name: Examiner
+  - name: CoSupervisor
     type: User!
-    text:
-      en: Examiner
-      nl: Examinator
+    text: Co-supervisor
 
   - name: SecondReviewer
     type: User!
     text:
-      en: Second reviewer
+      en: Second reader
       nl: Tweede beoordelaar
 
   - name: DailySupervisor

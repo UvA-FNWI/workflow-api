@@ -9,6 +9,13 @@ public class ScreenDataService(
     IWorkflowInstanceRepository repository,
     InstanceAuthorizationFilterService instanceAuthorizationFilterService)
 {
+    private static readonly string EmptyStepId = "null";
+
+    /// <summary>
+    /// Gets screen data for the given screen. When the screen defines a grouping configuration,
+    /// the rows are partitioned into groups by their current workflow step (and the flat row list
+    /// is left empty); otherwise a flat row list is returned.
+    /// </summary>
     public async Task<ScreenDataDto> GetScreenData(string screenName, string workflowDefinition, CancellationToken ct)
     {
         // Get the screen definition
@@ -21,8 +28,15 @@ public class ScreenDataService(
 
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
-        var rows = ProcessRows(contexts, screen, columns);
 
+        // When the screen is grouped, return groups instead of a flat row list
+        if (screen.Grouping != null)
+        {
+            var groups = BuildGroups(contexts, screen, columns);
+            return ScreenDataDto.Create(screen, columns, [], groups);
+        }
+
+        var rows = ProcessRows(contexts, screen, columns);
         return ScreenDataDto.Create(screen, columns, rows);
     }
 
@@ -127,34 +141,24 @@ public class ScreenDataService(
     }
 
     /// <summary>
-    /// Gets screen data grouped by workflow step using the grouping configuration from the screen definition.
-    /// CurrentStep is automatically fetched for grouping purposes, regardless of whether it's defined in the columns.
+    /// Partitions the loaded instances into the screen's configured groups, keyed by their current
+    /// workflow step. All configured groups are always included (even when empty); instances whose
+    /// step does not match any group are dropped.
     /// </summary>
-    /// <param name="screenName">The name of the screen</param>
-    /// <param name="workflowDefinition">The workflow definition</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Grouped screen data with bilingual titles for each group</returns>
-    public async Task<GroupedScreenDataDto> GetGroupedScreenData(string screenName, string workflowDefinition,
-        CancellationToken ct)
+    private ScreenGroupDto[] BuildGroups(
+        ICollection<ObjectContext> contexts,
+        Screen screen,
+        ScreenColumnDto[] columns)
     {
-        var screen = GetScreen(screenName, workflowDefinition);
-        if (screen == null)
-            throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
-
-        if (screen.Grouping == null)
-            throw new ArgumentException($"Screen '{screenName}' does not have grouping configuration");
-
-        var contexts = await LoadData(screen, workflowDefinition, ct);
-
         // Build step-to-group mapping from configuration
-        var stepGroupMapping = BuildStepGroupMapping(screen.Grouping);
+        var stepGroupMapping = BuildStepGroupMapping(screen.Grouping!);
 
         // Group raw rows by step
         var groupedContexts = new Dictionary<string, List<ObjectContext>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var context in contexts)
         {
-            var stepValue = context.Get("CurrentStep")?.ToString() ?? "Draft";
+            var stepValue = context.Get("CurrentStep")?.ToString() ?? EmptyStepId;
 
             // Only include rows that match a configured group
             if (!stepGroupMapping.TryGetValue(stepValue, out var groupName))
@@ -169,50 +173,13 @@ public class ScreenDataService(
             list.Add(context);
         }
 
-        // Process columns
-        var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
-
         // Build the result with group metadata (always include all configured groups)
-        var groups = screen.Grouping.Groups
+        return screen.Grouping!.Groups
             .Select(g => new ScreenGroupDto(
                 g.Name,
                 g.Title,
-                ProcessGroupRows(groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns)))
+                ProcessRows(groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns)))
             .ToArray();
-
-        return new GroupedScreenDataDto(
-            screen.Name,
-            screen.WorkflowDefinition ?? "",
-            columns,
-            groups);
-    }
-
-    private ScreenRowDto[] ProcessGroupRows(
-        ICollection<ObjectContext> contexts,
-        Screen screen,
-        ScreenColumnDto[] columns)
-    {
-        var rows = new List<ScreenRowDto>();
-
-        foreach (var context in contexts)
-        {
-            var id = context.Id ?? "Unknown";
-            var processedValues = new Dictionary<int, object?>();
-
-            for (int i = 0; i < screen.Columns.Length; i++)
-            {
-                var column = screen.Columns[i];
-                var columnId = columns[i].Id;
-                var value = columns[i].IsCurrentStep
-                    ? GetCurrentStepProgress(screen, column.GetValue(context) as string ?? "", context)
-                    : column.GetValue(context);
-                processedValues[columnId] = value;
-            }
-
-            rows.Add(ScreenRowDto.Create(id, processedValues));
-        }
-
-        return rows.ToArray();
     }
 
     private static Dictionary<string, string> BuildStepGroupMapping(ScreenGrouping grouping)
@@ -223,12 +190,15 @@ public class ScreenDataService(
         {
             foreach (var step in group.Steps)
             {
-                mapping[step] = group.Name;
+                mapping[step ?? EmptyStepId] = group.Name;
             }
         }
 
         return mapping;
     }
+
+    private static readonly ProgressInformationDto CompletedProgressInformationDto =
+        new(new BilingualString("Completed", "Afgerond"), StatusColor.Green);
 
     public record ProgressInformationDto(
         BilingualString Text,
@@ -251,7 +221,7 @@ public class ScreenDataService(
         var currentStep = workflowDef.AllSteps.Find(s => s.Name == internalName);
 
         return currentStep == null
-            ? new ProgressInformationDto(new BilingualString(internalName, internalName), null)
+            ? CompletedProgressInformationDto
             : ProgressInformationDto.Create(currentStep, context);
     }
 }

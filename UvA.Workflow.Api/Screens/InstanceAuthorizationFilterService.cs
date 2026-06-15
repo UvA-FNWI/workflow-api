@@ -44,6 +44,27 @@ public class InstanceAuthorizationFilterService(
         };
     }
 
+    /// <summary>
+    /// Whether the current user can see at least one instance of the given workflow definition
+    /// (either unconditional view access, or at least one instance they are authorized to view).
+    /// </summary>
+    public async Task<bool> HasVisibleInstances(string workflowDefinition, CancellationToken ct)
+    {
+        var authorizationFilter = await BuildAuthorizationFilter(workflowDefinition, ct);
+
+        // A null filter means the user has unconditional view access (sees all instances).
+        if (authorizationFilter == null)
+            return true;
+
+        var rows = await workflowInstanceRepository.GetAllByType(
+            workflowDefinition,
+            new Dictionary<string, string> { ["_id"] = "$_id" },
+            authorizationFilter,
+            ct);
+
+        return rows.Count > 0;
+    }
+
     private async Task<List<BsonDocument>> BuildInstanceRoleFilters(
         string workflowDefinition,
         User user)

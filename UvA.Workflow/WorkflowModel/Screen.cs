@@ -57,7 +57,7 @@ public class StepGroup
     /// <summary>
     /// Array of step names that belong to this group
     /// </summary>
-    public string[] Steps { get; set; } = [];
+    public string?[] Steps { get; set; } = [];
 }
 
 public enum FilterType

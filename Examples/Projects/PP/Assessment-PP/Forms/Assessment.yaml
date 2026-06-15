@@ -15,7 +15,7 @@ pages:
       - ArgumentationCreativity
       - ConclusionDiscussion
       - ContentComments
-    sources: [AssessmentSupervisor, AssessmentSecondreader, AssessmentExaminer]
+    sources: [AssessmentSupervisor, AssessmentSecondReader, AssessmentExaminer]
 
   - name: Form
     title: Form

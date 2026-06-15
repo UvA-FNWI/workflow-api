@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
@@ -26,10 +27,15 @@ public class WorkflowInstanceDtoFactory(
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
-        var canUseAdminTools = await rightsService.Can(
+        // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
+        // active impersonation); resolve them in a single pass over the instance's roles.
+        var realUserActions = await rightsService.GetAllowedActions(
             instance,
+            RightsEvaluationMode.RealUser,
             RoleAction.ViewAdminTools,
-            RightsEvaluationMode.RealUser);
+            RoleAction.ImpersonateRoles);
+        var canUseAdminTools = realUserActions.Any(a => a.Type == RoleAction.ViewAdminTools);
+        var canImpersonate = realUserActions.Any(a => a.Type == RoleAction.ImpersonateRoles);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
         var context = modelService.CreateContext(instance);
         await instanceService.Enrich(workflowDefinition, [context],
@@ -51,11 +57,12 @@ public class WorkflowInstanceDtoFactory(
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
                 .ToArray(),
             submissions
-                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.Event, s.QuestionStatus,
+                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
                 .ToArray(),
             permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray(),
             canUseAdminTools,
+            canImpersonate,
             viewerRoles
         );
         return x;
@@ -160,28 +167,23 @@ public class WorkflowInstanceDtoFactory(
             // Create a submission for each event in the version
             foreach (var eventId in stepVersion.EventIds)
             {
-                // Get the form for this event
-                Form? form;
-                try
-                {
-                    form = modelService.GetForm(instanceAtVersion, eventId);
-                }
-                catch (ArgumentException)
+                var form = ResolveSubmissionForm(instanceAtVersion, eventId);
+                if (form == null)
                 {
                     logger.LogWarning("Form not found for event {EventId} in version {VersionNumber}",
                         eventId, stepVersion.VersionNumber);
                     continue;
                 }
 
-                // Get the submission event from the versioned instance
-                var submission = instanceAtVersion.Events.GetValueOrDefault(eventId);
-
                 // Get question status with all fields visible (historical view)
                 var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false);
+                var workflowDef = modelService.WorkflowDefinitions[instanceAtVersion.WorkflowDefinition];
+                var submissionState = FormSubmissionState.Resolve(instanceAtVersion, form, workflowDef);
 
                 // Create the submission DTO with empty permissions (historical view)
                 var submissionDto =
-                    submissionDtoFactory.Create(instanceAtVersion, form, submission, questionStatus, permissions: []);
+                    submissionDtoFactory.Create(instanceAtVersion, form, submissionState, questionStatus,
+                        permissions: []);
 
                 submissions.Add(submissionDto);
             }
@@ -200,5 +202,16 @@ public class WorkflowInstanceDtoFactory(
                 stepVersion.VersionNumber);
             throw;
         }
+    }
+
+    private Form? ResolveSubmissionForm(WorkflowInstance instance, string eventId)
+    {
+        var directForm = modelService.TryGetForm(instance, eventId);
+        if (directForm != null)
+            return directForm;
+
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        return workflowDef.Forms.FirstOrDefault(form =>
+            FormSubmissionState.GetSubmissionEventIds(form).Contains(eventId));
     }
 }

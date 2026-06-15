@@ -64,6 +64,22 @@
         "$ref": "#/definitions/Effect"
       }
     },
+    "emitFormSubmitEvent": {
+      "type": "boolean",
+      "description": "Whether submitting the form emits the form-name event",
+      "default": true
+    },
+    "submittedWhenEvents": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Event ids that mark the form as submitted. If omitted, the form-name event is used.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
     "onSave": {
       "type": "array",
       "description": "Effect to run when a change is made in the form",

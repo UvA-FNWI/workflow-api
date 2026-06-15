@@ -5,7 +5,9 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.CanvasLti;
 using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Users;
 using UvA.Workflow.Notifications.Graph;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Persistence.Mongo;
 using UvA.Workflow.Users.DataNose;
 using UvA.Workflow.Users.EduId;
@@ -81,7 +83,9 @@ app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new Mode
     new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
 ));
 
-await app.Services.CreateScope().ServiceProvider.GetRequiredService<InitializationService>().CreateSeedData();
+using var scope = app.Services.CreateScope();
+await scope.ServiceProvider.GetRequiredService<MongoDbIndexInitializer>().EnsureIndexes();
+await scope.ServiceProvider.GetRequiredService<InitializationService>().CreateSeedData();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

@@ -1,0 +1,61 @@
+name: Projects-RMSS
+workflowDefinition: Project-RMSS
+columns:
+  - property: Title
+    title:
+      en: Title
+      nl: Titel
+    link: true
+  - property: Course.Name
+    title:
+      en: Course
+      nl: Vak
+  - property: Student.DisplayName
+    title:
+      en: Student
+      nl: Student
+  - property: Supervisor.DisplayName
+    title:
+      en: Supervisor
+      nl: Begeleider
+  - currentStep: true
+    filterType: Pick
+    default: Draft
+
+grouping:
+  groups:
+    - name: proposal
+      title:
+        en: Proposal
+        nl: Voorstel
+      steps:
+        - ProposalPhase
+        - Start
+        - ProposalAssessmentSupervisor
+        - ProposalAssessmentReviewer
+
+    - name: review
+      title:
+        en: Review
+        nl: Beoordeling
+      steps:
+        - Review
+        - ReviewSupervisor
+        - ReviewProposalReviewer
+
+    - name: ethics
+      title:
+        en: Ethics
+        nl: Ethiek
+      steps:
+        - Ethics
+        - EthicsAssessmentSupervisor
+        - EthicsAssessmentReviewer
+
+    - name: completed
+      title:
+        en: Completed
+        nl: Afgerond
+      steps:
+        - Finish
+        - null

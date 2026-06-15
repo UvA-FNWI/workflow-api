@@ -24,6 +24,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     public async Task<User> AddOrUpdateUser(string username, string displayName, string email, string providerKey,
         Organization? organization, CancellationToken ct)
     {
+        username = username.ToLower();
         providerKey = UserProviderKeys.Normalize(providerKey);
         var cacheKey = GetCacheKeyForUser(username);
         if (!memoryCache.TryGetValue(cacheKey, out User? user))
@@ -65,7 +66,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 user.ProviderKey = providerKey;
             }
 
-            if (organization != null && user.Organization?.Id != organization.Id)
+            if (organization != null && user.Organization == null)
             {
                 changed = true;
                 user.Organization = organization;
@@ -75,6 +76,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
         }
 
         memoryCache.Set(cacheKey, user, UserCacheExpiration);
+
         return user;
     }
 
@@ -86,6 +88,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     public async Task<User?> GetUser(string username, CancellationToken ct)
     {
+        username = username.ToLower();
         var cacheKey = GetCacheKeyForUser(username);
         if (memoryCache.TryGetValue(cacheKey, out User? user)) return user;
         if (username == ApiUserName)
@@ -103,13 +106,14 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
 public class UserService(
     ICurrentUserAccessor currentUserAccessor,
     IUserRepository userRepository,
+    IOrganizationService organizationService,
     IMemoryCache cache,
-    IEnumerable<IUserRoleSource> userRoleSources,
+    IEnumerable<IUserDirectory> userDirectories,
     IEnumerable<IUserSearchSource> userSearchSources)
     : UserServiceBase(userRepository, cache), IUserService
 {
     private readonly IMemoryCache _cache = cache;
-    private readonly IReadOnlyList<IUserRoleSource> _userRoleSources = userRoleSources.ToList();
+    private readonly IReadOnlyList<IUserDirectory> _userDirectories = userDirectories.ToList();
     private readonly IReadOnlyList<IUserSearchSource> _userSearchSources = userSearchSources.ToList();
     private static string GetCacheKeyForRoles(string userName) => $"roles:{userName}";
     private static TimeSpan RolesCacheExpiration => TimeSpan.FromMinutes(15);
@@ -136,11 +140,11 @@ public class UserService(
             roles = ["Api"];
         else
         {
-            var roleSource = _userRoleSources.FirstOrDefault(source =>
+            var directory = _userDirectories.FirstOrDefault(source =>
                 UserProviderKeys.AreEqual(source.ProviderKey, user.ProviderKey));
-            roles = roleSource == null
+            roles = directory == null
                 ? []
-                : (await roleSource.GetRoles(user, ct)).ToArray();
+                : (await directory.GetRoles(user, ct)).ToArray();
         }
 
         _cache.Set(cacheKey, roles, RolesCacheExpiration);
@@ -158,30 +162,56 @@ public class UserService(
         return user is null ? [] : await GetRoles(user, ct);
     }
 
-    public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct)
+    public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers,
+        CancellationToken ct)
     {
-        var resultsBySource = new List<UserSearchResult>();
-        foreach (var searchSource in _userSearchSources)
-            resultsBySource.AddRange(await searchSource.FindUsers(query, ct));
+        var resultsBySource = await Task.WhenAll(_userSearchSources.Select(searchSource =>
+            searchSource.FindUsers(query, ct)));
 
         var results = new List<UserSearchResult>();
         var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenUserNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var user in resultsBySource)
+        foreach (var users in resultsBySource)
         {
-            if (!string.IsNullOrWhiteSpace(user.Email))
+            foreach (var user in users)
             {
-                if (!seenEmails.Add(user.Email))
+                if (!includeExternalUsers && user.IsExternal)
                     continue;
+
+                if (!string.IsNullOrWhiteSpace(user.Email) && !seenEmails.Add(user.Email))
+                    continue;
+
+                if (!seenUserNames.Add(user.UserName))
+                    continue;
+
+                results.Add(user);
             }
-
-            if (!seenUserNames.Add(user.UserName))
-                continue;
-
-            results.Add(user);
         }
 
         return results;
+    }
+
+    public async Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(uid))
+            return null;
+
+        try
+        {
+            foreach (var directory in _userDirectories)
+            {
+                var directoryOrganization = await directory.GetOrganization(uid, ct);
+                if (directoryOrganization != null)
+                    return await organizationService.GetOrCreateOrganization(directoryOrganization.Name, ct);
+            }
+
+            return null;
+        }
+        catch
+        {
+            // Directory lookup unavailable (e.g. DataNose down). Don't block login, leave it unset.
+            return null;
+        }
     }
 }

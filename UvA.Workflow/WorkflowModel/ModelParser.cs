@@ -151,11 +151,37 @@ public partial class ModelParser
     {
         foreach (var entry in set.Values)
             PreProcess(entry);
+
+        ValidateSorting(set);
+    }
+
+    private static readonly Dictionary<ChoiceSortField, Func<Choice, object?>> ChoiceFieldSelectors = new()
+    {
+        [ChoiceSortField.Name] = c => c.Name,
+        [ChoiceSortField.Text] = c => c.Text,
+        [ChoiceSortField.Value] = c => c.Value,
+        [ChoiceSortField.Description] = c => c.Description
+    };
+
+    private static void ValidateSorting(ValueSet set)
+    {
+        if (set.Sorting == null)
+            return;
+
+        var selector = ChoiceFieldSelectors[set.Sorting.Field];
+        var missing = set.Values.Where(v => selector(v) == null).Select(v => v.Name).ToList();
+        if (missing.Count > 0)
+            throw new Exception(
+                $"ValueSet '{set.Name}': cannot sort on field '{set.Sorting.Field}' because it is not present on all values. " +
+                $"Missing for: {string.Join(", ", missing)}");
     }
 
     private void PreProcess(Form form, WorkflowDefinition workflowDefinition)
     {
         form.WorkflowDefinition = workflowDefinition;
+
+        if (form.SubmittedWhenEvents is { Length: 0 })
+            throw new Exception($"Form {form.Name} has an empty submittedWhenEvents list");
 
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
@@ -174,6 +200,8 @@ public partial class ModelParser
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
+        EnsureEffectEventsExist(form.OnSubmit, workflowDefinition);
+        EnsureEffectEventsExist(form.OnSave, workflowDefinition);
 
         if (form is { PropertyName: not null, TargetFormName: not null })
             form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType]
@@ -209,8 +237,38 @@ public partial class ModelParser
             PreProcess(step, workflowDefinition);
         foreach (var field in workflowDefinition.Fields)
             PreProcess(field, workflowDefinition);
+        foreach (var form in workflowDefinition.Forms)
+            ValidateSubmittedWhenEvents(form, workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
+    {
+        foreach (var eventId in effects
+                     .SelectMany(effect => new[] { effect.Event, effect.UndoEvent })
+                     .Where(eventId => !string.IsNullOrWhiteSpace(eventId))
+                     .Cast<string>())
+        {
+            if (workflowDefinition.Events.All(e => e.Name != eventId))
+                workflowDefinition.Events.Add(new EventDefinition { Name = eventId });
+        }
+    }
+
+    private static void ValidateSubmittedWhenEvents(Form form, WorkflowDefinition workflowDefinition)
+    {
+        if (form.SubmittedWhenEvents == null)
+            return;
+
+        var unknownEvents = form.SubmittedWhenEvents
+            .Where(string.IsNullOrWhiteSpace)
+            .Concat(form.SubmittedWhenEvents.Where(eventId => workflowDefinition.Events.All(e => e.Name != eventId)))
+            .Distinct()
+            .ToArray();
+
+        if (unknownEvents.Any())
+            throw new Exception(
+                $"Form {form.Name} references unknown submittedWhenEvents event {unknownEvents.ToSeparatedString()}");
     }
 
     private void PreProcess(Step step, WorkflowDefinition workflowDefinition)
@@ -270,7 +328,11 @@ public partial class ModelParser
             PreProcess(entry);
 
         if (ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out var set))
+        {
             propertyDefinition.Values = set.Values;
+            propertyDefinition.Sorting = set.Sorting;
+        }
+
         if (WorkflowDefinitions.TryGetValue(propertyDefinition.UnderlyingType, out var type))
             propertyDefinition.WorkflowDefinition = type;
 
