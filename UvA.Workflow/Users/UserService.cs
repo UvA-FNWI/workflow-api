@@ -7,7 +7,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     private IUserRepository UserRepository { get; } = userRepository;
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
     private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
-    public const string ApiUserName = "__ApiUser";
+    public const string ApiUserName = "__apiuser";
 
     /// <summary>
     /// Adds a new user or updates an existing user in the repository. If the user does not exist,
@@ -91,7 +91,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
         username = username.ToLower();
         var cacheKey = GetCacheKeyForUser(username);
         if (memoryCache.TryGetValue(cacheKey, out User? user)) return user;
-        if (username == ApiUserName.ToLower())
+        if (username == ApiUserName)
             user = new User { UserName = username, DisplayName = "Api", Email = "api@invalid.uva.nl" };
         else
             user = await UserRepository.GetByExternalId(username, ct);
