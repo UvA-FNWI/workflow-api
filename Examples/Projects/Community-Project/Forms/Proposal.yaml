@@ -1,0 +1,38 @@
+name: Proposal
+step: Proposal_Submit
+
+pages:
+  - name: Request
+    title: Request
+    introduction: |
+      For more information and the CP/I Guidelines, see [the AUC Student Information page](https://student.auc.nl/shared-content/a-z/community-projects-and-internships-cpi/community-projects-and-internships-cpi.html).
+    fields:
+      - GuidelinesRead
+      - ProjectPeriod
+      - CrossPeriod
+      - OtherCrossStart
+      - OtherCrossEnd
+      - StartDate
+      - EndDate
+      - Title
+      - Organisation
+      - City
+      - Country
+      - Supervisor
+      - GraduationDate
+      - AdditionalRemarks
+  - name: Proposal
+    title: Proposal
+    fields:
+      - Description
+      - Motivation
+      - LearningObjectives
+      - HoursBreakdown
+      - SupervisorAcceptanceForm
+
+onSubmit:
+  - toast:
+      type: Success
+      message:
+        en: "Nice work 👍! You've submitted your topic. You will also receive a confirmation email."
+        nl: "Goed bezig 👍! Je hebt je onderwerp ingeleverd. Je krijgt hiervan ook een bevestigingsmail."
