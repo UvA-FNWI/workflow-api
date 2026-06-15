@@ -22,6 +22,7 @@ public class ScreenDataService(
         var screen = GetScreen(screenName, workflowDefinition);
         if (screen == null)
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
+        var definition = modelService.WorkflowDefinitions[workflowDefinition];
 
         // Build projection based on screen columns
         var contexts = await LoadData(screen, workflowDefinition, ct);
@@ -33,11 +34,11 @@ public class ScreenDataService(
         if (screen.Grouping != null)
         {
             var groups = BuildGroups(contexts, screen, columns);
-            return ScreenDataDto.Create(screen, columns, [], groups);
+            return ScreenDataDto.Create(screen, definition, columns, [], groups);
         }
 
         var rows = ProcessRows(contexts, screen, columns);
-        return ScreenDataDto.Create(screen, columns, rows);
+        return ScreenDataDto.Create(screen, definition, columns, rows);
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)
