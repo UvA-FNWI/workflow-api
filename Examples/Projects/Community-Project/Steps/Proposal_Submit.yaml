@@ -176,7 +176,7 @@ properties:
   - name: SupervisorAcceptanceForm
     text: Supervisor acceptance form
     type: File!
-    description: Please upload form signed by your supervisor. [You can find the supervisor acceptance form on the CP/I page on student.auc.nl](https://student.auc.nl/shared-content/a-z/community-projects-and-internships-cpi/community-projects-and-internships-cpi.html)
+    description: Please upload form signed by your supervisor. You can find the supervisor acceptance form on [the CP/I page on student.auc.nl](https://student.auc.nl/shared-content/a-z/community-projects-and-internships-cpi/community-projects-and-internships-cpi.html)
 
 ends:
   event:

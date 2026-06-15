@@ -5,7 +5,7 @@ pages:
   - name: Request
     title: Request
     introduction: |
-      For more information and the CP/I Guidelines, visit <https://student.auc.nl/>.
+      For more information and the CP/I Guidelines, see [the AUC Student Information page](https://student.auc.nl/shared-content/a-z/community-projects-and-internships-cpi/community-projects-and-internships-cpi.html).
     fields:
       - GuidelinesRead
       - ProjectPeriod

@@ -1,5 +1,6 @@
 name: Community-Project
-titlePlural: Community Projects
+title: Community Project
+titlePlural: 900201CICY
 instanceTitle: '{{ Title }}'
 
 fields:
@@ -13,6 +14,10 @@ fields:
 
 steps:
   - Proposal
+  - LearningPlan
+  - InterimLearningPlan
+  - FinalReport
+  - Assessment
 
 events:
   - name: Proposal_Submit

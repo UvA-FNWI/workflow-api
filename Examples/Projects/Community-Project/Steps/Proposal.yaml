@@ -1,6 +1,7 @@
 name: Proposal
 icon: 
-  type: article-line
+  type: play-line
+  color: green
 
 title:
   nl: Proposal
