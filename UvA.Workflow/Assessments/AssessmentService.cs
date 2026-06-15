@@ -142,8 +142,8 @@ public static class AssessmentService
 
     private static decimal CalculatePageSum(ICollection<QuestionResult> results) =>
         results
-            .Where(r => r.Type is CalculationType.Add or CalculationType.Subtract)
-            .Sum(r => (decimal)Math.Abs(r.Answer) * (r.Type == CalculationType.Subtract ? -1 : 1));
+            .Where(r => r.Type is CalculationType.Sum)
+            .Sum(r => (decimal)r.Answer);
 
     private static decimal? CalculatePageWeightedAverage(ICollection<QuestionResult> results)
     {

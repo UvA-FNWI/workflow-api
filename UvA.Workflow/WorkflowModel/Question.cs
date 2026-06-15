@@ -193,9 +193,8 @@ public class PropertyDefinition : INamed
 
 public enum CalculationType
 {
-    Normal,
-    Add,
-    Subtract
+    Average,
+    Sum,
 }
 
 public class CalculationSettings
@@ -206,8 +205,8 @@ public class CalculationSettings
     public decimal? Weight { get; set; }
 
     /// <summary>
-    /// Determines how this field is used in the calculation. For Normal, set a weight to use it in a weighted average.
-    /// For Add or Subtract, the weight is ignored.
+    /// Determines how this field is used in the calculation. For Average, set a weight to use it in a weighted average.
+    /// For Sum, the weight is ignored.
     /// </summary>
     public CalculationType Type { get; set; }
 }
