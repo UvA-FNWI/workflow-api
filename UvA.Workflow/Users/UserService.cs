@@ -91,7 +91,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
         username = username.ToLower();
         var cacheKey = GetCacheKeyForUser(username);
         if (memoryCache.TryGetValue(cacheKey, out User? user)) return user;
-        if (username == ApiUserName)
+        if (username == ApiUserName.ToLower())
             user = new User { UserName = username, DisplayName = "Api", Email = "api@invalid.uva.nl" };
         else
             user = await UserRepository.GetByExternalId(username, ct);
