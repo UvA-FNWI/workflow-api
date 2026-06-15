@@ -60,7 +60,9 @@ public class ModelService(ModelParser parser)
             .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
             .Select(s => s.Name)
             .Append(instance.CurrentStep)
-            .ToArray();
+            .Append(step.ParentStep?.Name)
+            .Where(s => s != null)
+            .ToArray()!;
     }
 }
 

@@ -1,10 +1,9 @@
-name: Assessment
+name: AssessmentIndividual
 title:
-  en: Assessment
-  nl: Beoordeling
+  en: Assessment thesis
+  nl: Beoordeling scriptie
 hierarchyMode: Parallel
 
 children:
-  - AssessmentPresentation
   - AssessmentSupervisor
   - AssessmentSecondReader

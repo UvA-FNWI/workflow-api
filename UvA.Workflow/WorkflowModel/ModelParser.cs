@@ -207,9 +207,6 @@ public partial class ModelParser
             form.TargetForm = WorkflowDefinitions[workflowDefinition.Properties.Get(form.PropertyName).UnderlyingType]
                 .Forms.Get(form.TargetFormName);
 
-        if (form.PropertyDefinitions.GroupBy(q => q.Name).Any(g => g.Count() > 1))
-            throw new Exception($"Form {form.Name} has multiple questions with the same name");
-
         PreProcess(form.OnSubmit);
         PreProcess(form.OnSave);
     }
@@ -298,7 +295,10 @@ public partial class ModelParser
                 workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
 
         foreach (var child in step.Children)
+        {
+            child.ParentStep = step;
             PreProcess(child, workflowDefinition);
+        }
     }
 
     private void PreProcess(Field field, WorkflowDefinition workflowDefinition)

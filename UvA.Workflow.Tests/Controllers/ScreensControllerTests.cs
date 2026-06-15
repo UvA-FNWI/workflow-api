@@ -35,7 +35,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var screenDataDto = Assert.IsType<ScreenDataDto>(okResult.Value);
         Assert.Equal(screenName, screenDataDto.Name);
-        Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition);
+        Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition.Name);
         Assert.Equal(2, screenDataDto.Rows.Length);
         Assert.Null(screenDataDto.Groups);
     }
@@ -56,7 +56,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var screenDataDto = Assert.IsType<ScreenDataDto>(okResult.Value);
         Assert.Equal(screenName, screenDataDto.Name);
-        Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition);
+        Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition.Name);
         Assert.Empty(screenDataDto.Rows);
 
         var groups = screenDataDto.Groups;

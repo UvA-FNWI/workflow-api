@@ -1,51 +1,47 @@
 name: Projects-PP
 workflowDefinition: Project-PP
 columns:
-  - title:
-      en: Summary
-      nl: Samenvatting
-    value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
-    defaultSort: "Descending"
-  - property: Title
-    link: true
-    default: No title
-  - property: Course.Name
+  - property: Student.DisplayName
     title:
-      en: Course
-      nl: Vak
-  - property: StartEvent
+      en: Student
+      nl: Student
+    link: true
+  - property: Title
+    title:
+      en: Title
+      nl: Titel
+  - property: Supervisor.DisplayName
+    title:
+      en: Supervisor
+      nl: Begeleider
+  - property: SecondReviewer.DisplayName
+    title:
+      en: Second assessor
+      nl: Tweede beoordelaar
   - currentStep: true
     filterType: Pick
     default: Draft
 
 grouping:
   groups:
-    - name: assign-subject
+    - name: assessment-in-progress
       title:
-        en: Assign Subject
-        nl: Onderwerp toewijzen
+        en: Assessment in Progress
+        nl: Bezig met beoordeling
       steps:
-        - Start
-        - Subject
-        - SubjectFeedback
+        - Assessment
+        - AssessmentSecondReader
+        - AssessmentSupervisor
+        - AssessmentCombined
+        - AssessmentPresentation
 
     - name: thesis-in-progress
       title:
         en: Thesis in Progress
-        nl: Scriptie in behandeling
+        nl: Bezig met scriptie
       steps:
         - Proposal
         - Upload
-    
-    - name: assessment-in-progress
-      title:
-        en: Assessment in Progress
-        nl: Beoordeling in behandeling
-      steps:
-        - Assessment
-        - AssessmentSecondReader
-        - AssessmentSupervisor        
-        - ApprovalCoordinator
     
     - name: completed
       title:

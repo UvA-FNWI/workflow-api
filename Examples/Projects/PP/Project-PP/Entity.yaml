@@ -1,10 +1,6 @@
 name: Project-PP
-title: 
-  en: Project (PP)
-  nl: Project (PP)
-titlePlural: 
-  en: Projects (PP)
-  nl: Projecten (PP)
+title: Thesis PPLE
+titlePlural: 3803THQPVY
 instanceTitle: '{{ WorkingTitle }}'
 
 fields:
@@ -19,10 +15,34 @@ fields:
 steps:
 #  - Start
   - UploadFinalThesis
-  - Assessment
+  - AssessmentThesis
+  - AssessmentPresentation
+  - FinalizeAssessment
     
 properties:
   - name: AssessmentSupervisor
     type: Assessment-PP!
   - name: AssessmentSecondReader
     type: Assessment-PP!
+  - name: AssessmentCombined
+    type: Assessment-PP!
+    
+assessments:
+  parts:
+    - name: AssessmentThesis
+      title: 
+        en: Thesis
+        nl: Scriptie
+      weight: 0.9
+      sources:
+        - name: AssessmentSupervisor
+          weight: 2
+        - name: AssessmentSecondReader 
+          weight: 1
+    - name: Presentation
+      title: 
+        en: Presentation
+        nl: Presentatie
+      weight: 0.1
+      sources:
+        - name: AssessmentPresentation

@@ -131,8 +131,12 @@ public class EffectService(
     private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,
         CancellationToken ct)
     {
-        instance.Properties[setProperty.Property] = BsonValue.Create(setProperty.ValueExpression.Execute(context));
-        await instanceService.SaveValue(instance, null, setProperty.Property, ct);
+        var parts = setProperty.Property.Split('.');
+        instance.SetProperty(
+            BsonValue.Create(setProperty.ValueExpression.Execute(context)),
+            parts
+        );
+        await instanceService.SaveValue(instance, parts.Reverse().Skip(1).FirstOrDefault(), parts.Last(), ct);
     }
 
     private async Task EnsureExternalAccounts(

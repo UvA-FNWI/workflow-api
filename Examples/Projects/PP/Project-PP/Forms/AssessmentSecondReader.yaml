@@ -1,6 +1,53 @@
 name: AssessmentSecondReader
 title:
-  en: 2nd assessment (Second reader)
-  nl: 2e beoordeling (Tweede lezer)
+  en: Assessment Second Reader
+  nl: Beoordeling Tweede lezer
 property: AssessmentSecondReader
 targetForm: Assessment
+step: AssessmentSecondReader
+
+onSubmit:
+  - setProperty:
+      property: AssessmentCombined.ProblemStatementComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.ProblemStatementComments }}\nSecond reader: {{ AssessmentSecondReader.ProblemStatementComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.TheoreticalFrameworkComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.TheoreticalFrameworkComments }}\nSecond reader: {{ AssessmentSecondReader.TheoreticalFrameworkComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.MethodsComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.MethodsComments }}\nSecond reader: {{ AssessmentSecondReader.MethodsComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.AnalysisEvaluationResultsComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.AnalysisEvaluationResultsComments }}\nSecond reader: {{ AssessmentSecondReader.AnalysisEvaluationResultsComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.ArgumentationCreativityComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.ArgumentationCreativityComments }}\nSecond reader: {{ AssessmentSecondReader.ArgumentationCreativityComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.ConclusionDiscussionComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.ConclusionDiscussionComments }}\nSecond reader: {{ AssessmentSecondReader.ConclusionDiscussionComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.StructureComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.StructureComments }}\nSecond reader: {{ AssessmentSecondReader.StructureComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.LayoutLanguageComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.LayoutLanguageComments }}\nSecond reader: {{ AssessmentSecondReader.LayoutLanguageComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.MotivationComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.MotivationComments }}\nSecond reader: {{ AssessmentSecondReader.MotivationComments }}")

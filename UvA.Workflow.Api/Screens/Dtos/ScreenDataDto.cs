@@ -1,21 +1,22 @@
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using SortDirection = UvA.Workflow.WorkflowModel.SortDirection;
 
 namespace UvA.Workflow.Api.Screens.Dtos;
 
 public record ScreenDataDto(
     string Name,
-    string WorkflowDefinition,
+    WorkflowDefinitionDto WorkflowDefinition,
     ScreenColumnDto[] Columns,
     ScreenRowDto[] Rows,
     ScreenGroupDto[]? Groups = null)
 {
-    public static ScreenDataDto Create(Screen screen, ScreenColumnDto[] columns, ScreenRowDto[] rows,
+    public static ScreenDataDto Create(Screen screen, WorkflowDefinition definition, ScreenColumnDto[] columns,
+        ScreenRowDto[] rows,
         ScreenGroupDto[]? groups = null)
     {
         return new ScreenDataDto(
             screen.Name,
-            screen.WorkflowDefinition ?? "",
+            WorkflowDefinitionDto.Create(definition),
             columns,
             rows,
             groups);

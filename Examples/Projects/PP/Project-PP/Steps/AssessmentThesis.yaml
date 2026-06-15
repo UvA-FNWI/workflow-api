@@ -1,0 +1,13 @@
+name: AssessmentThesis
+title:
+  en: Assessment thesis
+  nl: Beoordeling scriptie
+
+actions:
+  - roles: [Supervisor]
+    type: Edit
+    form: AssessmentSupervisor
+
+children:
+  - AssessmentIndividual
+  - AssessmentCombined
