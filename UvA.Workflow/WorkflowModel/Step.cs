@@ -73,6 +73,7 @@ public class Step : INamed
     public string[] ChildNames { get; set; } = [];
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
+    [YamlIgnore] public Step? ParentStep { get; set; }
 
     public List<StepHeaderStatusConfiguration>? HeaderStatus { get; set; }
 

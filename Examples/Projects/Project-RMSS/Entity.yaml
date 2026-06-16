@@ -1,9 +1,7 @@
 name: Project-RMSS
-title:
-  en: Project (RMSS)
-  nl: Project (RMSS)
+title: Research Master Social Sciences
 titlePlural:
-  en: Projectss (RMSS)
+  en: Projects (RMSS)
   nl: Projecten (RMSS)
 instanceTitle: '{{ WorkingTitle }}'
 inheritsFrom: Project

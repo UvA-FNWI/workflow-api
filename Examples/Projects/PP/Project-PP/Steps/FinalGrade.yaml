@@ -1,0 +1,26 @@
+name: FinalGrade
+title:
+  en: Final Grade
+  nl: Eindcijfer
+icon:
+  type: graduate-cap-line
+
+properties:
+    - name: FinalGrade
+      text: Final grade
+      description: The final grade for this course, based on the thesis assessment and presentation.
+      type: HalfGrade!
+      layout:
+        type: Dropdown
+        
+actions:
+  - name: SubmitGrade
+    type: Submit
+    roles: [Supervisor]
+    form: FinalGrade
+    label:
+      en: Submit Grade
+      nl: Cijfer indienen
+
+ends:
+  event: SubmitGrade

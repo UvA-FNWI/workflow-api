@@ -33,7 +33,7 @@ public class ExpressionParser
 
     string ParseTemplate(Queue<string> tokens)
     {
-        var content = tokens.Dequeue().TrimStart('"').TrimEnd('"');
+        var content = tokens.Dequeue().TrimStart('"').TrimEnd('"').Replace("\\n", "\n");
         tokens.Dequeue();
         return content;
     }
@@ -91,6 +91,7 @@ public class ExpressionParser
     {
         if (exp == null)
             return null;
+        exp = exp.Trim();
         return Cache.GetOrAdd(exp, s =>
         {
             var parser = new ExpressionParser();
