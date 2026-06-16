@@ -156,7 +156,6 @@ public static class AssessmentService
     private static decimal CalculateSourceWeightedAverage(IEnumerable<PageResult> pages)
     {
         var pageList = pages.ToList();
-        if (pageList.Any(p => p.QuestionResults.All(q => q.Answer == 0))) return 0;
 
         decimal totalWeight = pageList.Where(p => p.Weight != null).Sum(p => p.Weight!.Value);
         if (totalWeight == 0) return 0;
