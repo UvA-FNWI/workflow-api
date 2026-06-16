@@ -8,7 +8,7 @@ title:
 actions:
   - name: SubmitFinalThesis
     type: Submit
-    roles: [Student]
+    roles: [Student, Coordinator]
     form: UploadFinalThesis
     label:
       en: Submit
