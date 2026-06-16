@@ -13,3 +13,18 @@ globalActions:
   - roles: [Coordinator]
     type: Edit
     forms: [Start]
+  - name: ViewTurnitinReport
+    roles: [Supervisor, ProposalReviewer, Coordinator]
+    type: Execute
+    label:
+      en: View Turnitin report
+      nl: Bekijk Turnitin-rapport
+    steps: [ProposalAssessmentSupervisor, ProposalAssessmentReviewer]
+    onAction:
+      - serviceCall:
+          service: Turnitin
+          operation: GetReportUrl
+          inputs:
+            SubmissionId: TurnitinId
+      - redirect:
+          url: "{{ GetReportUrl.ReportUrl }}"
