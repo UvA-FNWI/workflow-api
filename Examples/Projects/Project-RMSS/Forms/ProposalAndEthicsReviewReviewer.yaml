@@ -1,10 +1,11 @@
 name: ProposalAndEthicsReviewReviewer
 title:
-  en: Proposal and ethics review
-  nl: Beoordeling voorstel en ethiek
+  en: Proposal and ethics review (proposal reviewer)
+  nl: Beoordeling voorstel en ethiek (voorstelbeoordelaar)
 
 property: ReviewerProposalAndEthicsReview
 targetForm: ProposalAndEthicsReview
+step: ProposalAssessmentReviewer
 
 onSubmit:
   - condition:

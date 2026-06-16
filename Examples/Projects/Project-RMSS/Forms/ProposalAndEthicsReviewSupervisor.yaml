@@ -1,10 +1,11 @@
 name: ProposalAndEthicsReviewSupervisor
 title:
-  en: Proposal and ethics review
-  nl: Beoordeling voorstel en ethiek
+  en: Proposal and ethics review (supervisor)
+  nl: Beoordeling voorstel en ethiek (begeleider)
 
 property: SupervisorProposalAndEthicsReview
 targetForm: ProposalAndEthicsReview
+step: ProposalAssessmentSupervisor
 
 emitFormSubmitEvent: false
 submittedWhenEvents: [ProposalApprovedSupervisor, ProposalRejectedSupervisor]

@@ -30,9 +30,6 @@ grouping:
         nl: Voorstel
       steps:
         - ProposalPhase
-        - Start
-        - ProposalAssessmentSupervisor
-        - ProposalAssessmentReviewer
 
     - name: review
       title:

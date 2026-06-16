@@ -23,12 +23,12 @@ events:
       - ProposalRejectedReviewer
 
   - name: ProposalRejectedSupervisor
-    suppresses: [Start, ProposalApprovedSupervisor]
+    suppresses: [Start,ProposalApprovedSupervisor]
   - name: ProposalApprovedSupervisor
     suppresses: [ProposalRejectedSupervisor]
 
   - name: ProposalRejectedReviewer
-    suppresses: [Start, ProposalApprovedReviewer]
+    suppresses: [Start,ProposalApprovedReviewer]
   - name: ProposalApprovedReviewer
     suppresses: [ProposalRejectedReviewer]
 
