@@ -5,10 +5,8 @@ globalActions:
   - roles: [Student, Supervisor, ProposalReviewer]
     type: View
     forms:
-      - ProposalReviewSupervisor
-      - ProposalReviewReviewer
-      - EthicsReviewSupervisor
-      - EthicsReviewReviewer
+      - ProposalAndEthicsReviewSupervisor
+      - ProposalAndEthicsReviewReviewer
   - roles: [Registered]
     type: CreateInstance
     userProperty: Student

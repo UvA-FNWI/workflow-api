@@ -9,14 +9,14 @@ condition:
 actions:
   - type: Submit
     roles: [ProposalReviewer]
-    form: ProposalReviewReviewer
+    form: ProposalAndEthicsReviewReviewer
     label:
       en: Submit assessment
       nl: Beoordeling indienen
 
 properties:
-  - name: ReviewerProposalReview
-    type: ProposalReview!
+  - name: ReviewerProposalAndEthicsReview
+    type: ProposalAndEthicsReview!
 
 ends:
   logical:

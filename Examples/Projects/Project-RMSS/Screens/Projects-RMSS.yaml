@@ -43,15 +43,6 @@ grouping:
         - ReviewSupervisor
         - ReviewProposalReviewer
 
-    - name: ethics
-      title:
-        en: Ethics
-        nl: Ethiek
-      steps:
-        - Ethics
-        - EthicsAssessmentSupervisor
-        - EthicsAssessmentReviewer
-
     - name: completed
       title:
         en: Completed
