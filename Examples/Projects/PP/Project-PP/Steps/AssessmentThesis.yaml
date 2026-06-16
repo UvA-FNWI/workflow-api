@@ -7,6 +7,9 @@ actions:
   - roles: [Supervisor]
     type: Edit
     form: AssessmentSupervisor
+  - roles: [SecondReviewer]
+    type: Edit
+    form: AssessmentSecondReader
 
 children:
   - AssessmentIndividual
