@@ -11,8 +11,7 @@ body:
     Great work 👍 You've taken the first step!
     
     **What to expect next?**<br>
-    The coordinator of your program will review the information you submitted.<br> 
-    You will receive feedback within approximately 14 days.
+    The CP/I coordinators will review your application and share the outcome with you within the next few weeks.
   nl: |
     Beste {{ coalesce(Student.DisplayName, =student) }},
     
@@ -20,8 +19,8 @@ body:
     Goed bezig 👍 De eerste stap is gezet!
     
     **Wat kan je nu verwachten?**<br>
-    De coördinator van je opleiding kijkt naar de informatie die je hebt ingeleverd.<br>
-    Je krijgt ongeveer binnen 14 dagen feedback.
+    De CP/I coördinatoren kijken naar de informatie die je hebt ingeleverd.<br>
+    Je krijgt binnen enkele weken feedback.
 buttons:
   - label:
       en: "View your submission"
