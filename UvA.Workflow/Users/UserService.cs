@@ -7,7 +7,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     private IUserRepository UserRepository { get; } = userRepository;
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
     private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
-    public const string ApiUserName = "__ApiUser";
+    public const string ApiUserName = "__apiuser";
 
     /// <summary>
     /// Adds a new user or updates an existing user in the repository. If the user does not exist,

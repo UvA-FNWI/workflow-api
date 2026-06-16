@@ -41,7 +41,7 @@ grouping:
         nl: Bezig met scriptie
       steps:
         - Proposal
-        - Upload
+        - UploadFinalThesis
     
     - name: completed
       title:

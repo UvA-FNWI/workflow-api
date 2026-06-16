@@ -1,7 +1,7 @@
 properties:
   - name: Course
     type: Context!
-    inheritedRoles: [Coordinator]
+    inheritedRoles: [Coordinator, Impersonator]
     
   - name: Title
     type: String!
@@ -34,7 +34,7 @@ properties:
         en: End date must be after start date
         nl: Einddatum moet na de startdatum zijn
       value:
-        property: PlannedEndDate
+        property: EndDate
         greaterThan: StartDate
 
   - name: Examiner
@@ -44,6 +44,7 @@ properties:
       nl: Examinator
   - name: Supervisor
     type: User!
+    allowsExternalUsers: true
     text: 
       en: Supervisor
       nl: Begeleider
