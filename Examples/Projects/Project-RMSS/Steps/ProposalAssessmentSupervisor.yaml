@@ -9,6 +9,7 @@ condition:
 actions:
   - type: Submit
     roles: [Supervisor]
+    autoOpenForm: true
     form: ProposalAndEthicsReviewSupervisor
     label:
       en: Submit assessment

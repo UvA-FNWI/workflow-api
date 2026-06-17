@@ -118,6 +118,11 @@ public class Action
     public string[] Steps { get; set; } = [];
 
     /// <summary>
+    /// When true, the submit form opens automatically when it is the only submit action on the step
+    /// </summary>
+    public bool AutoOpenForm { get; set; }
+
+    /// <summary>
     /// Target property for the CreateRelatedInstance action
     /// </summary>
     public string? Property { get; set; }

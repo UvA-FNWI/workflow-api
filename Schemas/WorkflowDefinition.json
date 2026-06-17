@@ -111,6 +111,16 @@
       "items": {
         "$ref": "#/definitions/Dictionary`2"
       }
+    },
+    "assessments": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/AssessmentConfiguration"
+        }
+      ]
     }
   },
   "definitions": {
@@ -196,7 +206,7 @@
         },
         "type": {
           "type": "string",
-          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File,\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
         },
         "values": {
           "type": [
@@ -282,16 +292,33 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "weight": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "The weight of a field for result calculation"
+        "calculation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result calculation",
+              "$ref": "#/definitions/CalculationSettings"
+            }
+          ]
         },
         "allowsExternalUsers": {
-          "type": "boolean",
-          "description": "Determines if a user-valued property may reference a user outside the university"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Determines if the propertyDefinition allows external users"
+        },
+        "rubric": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Rubric entries that describe grading criteria for this property",
+          "items": {
+            "$ref": "#/definitions/RubricEntry"
+          }
         }
       }
     },
@@ -317,7 +344,8 @@
       "type": "string",
       "enum": [
         "Dropdown",
-        "RadioList"
+        "RadioList",
+        "Rubric"
       ]
     },
     "StringLayoutOptions": {
@@ -605,13 +633,6 @@
         "id": {
           "type": "string",
           "description": "Id of the event to check for"
-        },
-        "notBefore": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "If set, the event specified by Id must have occurred on or after the event specified by this property"
         }
       }
     },
@@ -778,7 +799,13 @@
       "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
+        "name": {
+          "type": "string"
+        },
         "to": {
           "type": [
             "null",
@@ -1013,6 +1040,61 @@
         }
       }
     },
+    "CalculationSettings": {
+      "title": "CalculationSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "weight": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "The weight of this field"
+        },
+        "type": {
+          "description": "Determines how this field is used in the calculation. For Average, set a weight to use it in a weighted average.\n            For Sum, the weight is ignored.",
+          "$ref": "#/definitions/CalculationType"
+        }
+      }
+    },
+    "CalculationType": {
+      "type": "string",
+      "enum": [
+        "Average",
+        "Sum"
+      ]
+    },
+    "RubricEntry": {
+      "title": "RubricEntry",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "grades": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "EventDefinition": {
       "title": "EventDefinition",
       "type": "object",
@@ -1139,6 +1221,10 @@
             "type": "string"
           }
         },
+        "autoOpenForm": {
+          "type": "boolean",
+          "description": "When true, the submit form opens automatically when it is the only submit action on the step"
+        },
         "property": {
           "type": [
             "null",
@@ -1250,39 +1336,6 @@
         }
       }
     },
-    "Result": {
-      "title": "Result",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "title",
-        "weight"
-      ],
-      "properties": {
-        "title": {
-          "description": "Localized title of this result shown to the user",
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "fields": {
-          "type": "array",
-          "description": "List of questions that are included in this result entry",
-          "items": {
-            "type": "string"
-          }
-        },
-        "weight": {
-          "type": "number",
-          "description": "Weight of this result entry"
-        }
-      }
-    },
     "Dictionary`2": {
       "title": "Dictionary`2",
       "type": "object",
@@ -1293,6 +1346,81 @@
             "null",
             "string"
           ]
+        }
+      }
+    },
+    "AssessmentConfiguration": {
+      "title": "AssessmentConfiguration",
+      "type": "object",
+      "description": "Configuration for the assessment of the entity",
+      "additionalProperties": false,
+      "properties": {
+        "parts": {
+          "type": "array",
+          "description": "The parts that together make up the assessment",
+          "items": {
+            "$ref": "#/definitions/AssessmentPart"
+          }
+        }
+      }
+    },
+    "AssessmentPart": {
+      "title": "AssessmentPart",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "weight"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal name of the assessment part"
+        },
+        "title": {
+          "description": "Localized title of the assessment part",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "weight": {
+          "type": "number",
+          "description": "Weight of this part in the final grade calculation"
+        },
+        "sources": {
+          "type": "array",
+          "description": "The assessor sources that contribute to this part",
+          "items": {
+            "$ref": "#/definitions/AssessmentSource"
+          }
+        }
+      }
+    },
+    "AssessmentSource": {
+      "title": "AssessmentSource",
+      "type": "object",
+      "description": "An assessor source within an assessment part, referencing a property by name",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "weight"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the property (assessor) that provides the score for this part"
+        },
+        "weight": {
+          "type": "number",
+          "description": "Relative weight of this source within the assessment part. Defaults to 1."
         }
       }
     }
