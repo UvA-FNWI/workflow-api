@@ -5,7 +5,6 @@ title:
 
 property: ReviewerProposalAndEthicsReview
 targetForm: ProposalAndEthicsReview
-step: ProposalAssessmentReviewer
 
 onSubmit:
   - condition:
