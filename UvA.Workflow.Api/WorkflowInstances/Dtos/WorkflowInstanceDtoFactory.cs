@@ -54,7 +54,8 @@ public class WorkflowInstanceDtoFactory(
             CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
             workflowDefinition.Steps
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context,
+                    submissions.Select(x => x.Form.Name).ToArray()))
                 .ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
@@ -128,7 +129,8 @@ public class WorkflowInstanceDtoFactory(
         Step step,
         WorkflowInstance instance,
         Dictionary<string, List<StepVersion>> stepVersionsMap,
-        ObjectContext context)
+        ObjectContext context,
+        string[] allowedForms)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var versions = stepVersionsMap.GetValueOrDefault(step.Name);
@@ -143,18 +145,19 @@ public class WorkflowInstanceDtoFactory(
             step.Children.Length != 0
                 ? step.Children
                     .Where(s => s.Condition.IsMet(context))
-                    .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
+                    .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, allowedForms))
                     .ToArray()
                 : null,
             stepHeaderStatusResolver.Resolve(step, instance),
-            versions?.Select(v => CreateStepVersionDto(v, instance)).ToList()
+            versions?.Select(v => CreateStepVersionDto(v, instance, allowedForms)).ToList()
         );
     }
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
     /// </summary>
-    private StepVersionDto CreateStepVersionDto(StepVersion stepVersion, WorkflowInstance instance)
+    private StepVersionDto CreateStepVersionDto(StepVersion stepVersion, WorkflowInstance instance,
+        string[] allowedForms)
     {
         try
         {
@@ -174,6 +177,9 @@ public class WorkflowInstanceDtoFactory(
                         eventId, stepVersion.VersionNumber);
                     continue;
                 }
+
+                if (!allowedForms.Contains(form.Name))
+                    continue;
 
                 // Get question status with all fields visible (historical view)
                 var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false);

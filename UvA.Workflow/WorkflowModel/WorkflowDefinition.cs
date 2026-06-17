@@ -85,6 +85,8 @@ public class WorkflowDefinition : INamed
     /// </summary>
     public Dictionary<string, string>[]? SeedData { get; set; }
 
+    [YamlMember(Alias = "assessments")] public AssessmentConfiguration? AssessmentConfiguration { get; set; }
+
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
     [YamlIgnore] public string SourceFolder { get; set; } = null!;
 

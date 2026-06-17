@@ -1,91 +1,168 @@
 using UvA.Workflow.Submissions;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Assessments;
 
 public static class AssessmentService
 {
-    public static Dictionary<string, Result[]> CalculateFormResults(SubmissionContext submissionContext,
+    public static decimal CalculateFinalGrade(AssessmentConfiguration config,
+        IEnumerable<AssessmentPartResult> partResults)
+    {
+        var totalPartWeight = config.Parts.Sum(p => p.Weight);
+        if (totalPartWeight <= 0) return 0;
+
+        var partsWithResults = config.Parts
+            .Select(part => (Part: part, Result: partResults.FirstOrDefault(r => r.Name == part.Name)))
+            .Where(pair => pair.Result != null && pair.Result.Combined.WeightedAverage != 0)
+            .ToList();
+
+        if (partsWithResults.Count == 0) return 0;
+
+        var submittedWeight = partsWithResults.Sum(pair => pair.Part.Weight);
+        var weightedSum = partsWithResults
+            .Sum(pair => pair.Result!.Combined.WeightedAverage * pair.Part.Weight);
+
+        return weightedSum / submittedWeight;
+    }
+
+    public static decimal CalculatePartWeightedAverage(
+        AssessmentPart partConfig,
+        IEnumerable<SourceResult> sourceResults)
+    {
+        var sourceList = sourceResults.ToList();
+        decimal totalSourceWeight = 0;
+        decimal weightedSum = 0;
+
+        foreach (var sourceConfig in partConfig.Sources)
+        {
+            var sourceResult = sourceList.FirstOrDefault(s => s.Name == sourceConfig.Name);
+            if (sourceResult == null || sourceResult.WeightedAverage == 0) continue;
+
+            weightedSum += sourceResult.WeightedAverage * sourceConfig.Weight;
+            totalSourceWeight += sourceConfig.Weight;
+        }
+
+        return totalSourceWeight == 0
+            ? 0
+            : weightedSum / totalSourceWeight;
+    }
+
+    public static SourceResult CalculateCombined(AssessmentPart partConfig, ICollection<SourceResult> sourceResults)
+    {
+        var totalWeight = partConfig.Sources.Sum(x => x.Weight);
+
+        return new SourceResult
+        {
+            Name = SourceResult.Combined,
+            WeightedAverage = CalculatePartWeightedAverage(partConfig, sourceResults),
+            PageResults = sourceResults.FirstOrDefault()?.PageResults
+                .Select(p =>
+                {
+                    var results = sourceResults
+                        .ToDictionary(s => s.Name, s => s.PageResults.FirstOrDefault(q => q.Name == p.Name)!);
+                    if (partConfig.Sources.Any(x => results.GetValueOrDefault(x.Name) == null))
+                        return null;
+                    return new PageResult
+                    {
+                        Name = p.Name,
+                        WeightedAverage = results.Values.Any(v => v.WeightedAverage != null)
+                            ? partConfig.Sources.Sum(x => results[x.Name].WeightedAverage * x.Weight) / totalWeight
+                            : null,
+                        Sum = partConfig.Sources.Sum(x => results[x.Name].Sum * x.Weight) / totalWeight,
+                        QuestionResults = p.QuestionResults.Select(q => new QuestionResult
+                        {
+                            Name = q.Name,
+                            Answer = partConfig.Sources.Sum(x =>
+                                (results[x.Name].QuestionResults.FirstOrDefault(z => z.Name == q.Name)?.Answer ?? 0) *
+                                (double)x.Weight) / (double)totalWeight
+                        }).ToList()
+                    };
+                })
+                .Where(p => p != null)
+                .Cast<PageResult>()
+                .ToList() ?? []
+        };
+    }
+
+    public static SourceResult CalculateSourceResult(SubmissionContext submissionContext,
         string? pageName)
     {
         var pages = submissionContext.Form.ActualForm.Pages.ToArray();
 
-        decimal totalWeight = pages
-            .SelectMany(page => page.Fields.Where(field => field.Weight.HasValue))
-            .Sum(field => field.Weight ?? 0);
+        var totalWeight = pages
+            .SelectMany(page => page.Fields.Where(field => field.Calculation?.Weight != null))
+            .Sum(field => field.Calculation!.Weight!.Value);
 
-        return pages
-            .Where(page => page.Fields.Any(field => field.Weight.HasValue)) // Filter out pages without a weight
+        var pageResults = pages
+            .Where(page => page.Fields.Any(field => field.Calculation != null)) // Filter out pages without calculation
             .Where(page => string.IsNullOrEmpty(pageName) || page.Name == pageName)
-            .ToDictionary(
-                page => page.Name,
-                page => page.Fields.Where(field => field.Weight.HasValue) // Filter out fields without a weight
+            .Select(page =>
+            {
+                var questions = page.Fields
+                    .Where(field => field.Calculation != null)
                     .Select(field =>
                     {
                         var answerKey =
                             submissionContext.Instance.GetProperty(submissionContext.Form.PropertyName, field.Name);
-
-                        return new Result
+                        var weight = field.Calculation?.Weight;
+                        return new QuestionResult
                         {
-                            QuestionName = field.Name,
-                            Weight = field.Weight ?? 0,
-                            Percentage = totalWeight == 0
-                                ? 0
-                                : (decimal)field.Weight.GetValueOrDefault() / totalWeight * 100,
+                            Name = field.Name,
+                            Weight = weight,
+                            Type = field.Calculation!.Type,
+                            Percentage = totalWeight == 0 || weight == null
+                                ? null
+                                : weight / totalWeight * 100,
                             Answer = answerKey is null || answerKey.IsBsonNull
                                 ? 0
                                 : field.Values?.FirstOrDefault(v => v.Name == answerKey.AsString)?.Value ??
                                   answerKey.ToDouble()
                         };
-                    })
-                    .ToArray()
-            );
-    }
+                    }).ToList();
 
-    private static decimal WeightedAverage(IEnumerable<Result> results)
-    {
-        var list = results.ToList();
-        decimal totalWeight = list.Sum(r => r.Weight);
-        decimal weightedSum = list.Sum(r => (decimal)r.Answer * r.Weight);
+                return new PageResult
+                {
+                    Name = page.Name,
+                    Weight = questions.Any(q => q.Weight != null)
+                        ? questions.Where(q => q.Weight != null).Sum(q => q.Weight)
+                        : null,
+                    WeightedAverage = CalculatePageWeightedAverage(questions),
+                    Sum = CalculatePageSum(questions),
+                    QuestionResults = questions
+                };
+            }).ToList();
 
-        return totalWeight == 0
-            ? 0
-            : Math.Round(weightedSum / totalWeight, 2, MidpointRounding.AwayFromZero);
-    }
-
-
-    public static Dictionary<string, decimal> CalculateWeightedAverages(Dictionary<string, Result[]> results) =>
-        results.ToDictionary(kvp => kvp.Key, kvp => WeightedAverage(kvp.Value));
-
-
-    public static decimal CalculateTotalWeightedAverage(IEnumerable<Dictionary<string, Result[]>> formResults)
-    {
-        // Materialize once so the collection can be safely iterated multiple times
-        var forms = formResults.ToList();
-        var allPageNames = forms.SelectMany(f => f.Keys).Distinct();
-
-        // For each page, compute the average weighted average across all forms that filled it.
-        // A page is considered filled if at least one of its answers is non-zero.
-        // If no form filled a page, the aggregate average is null — used later to return 0.
-        var pageAggregates = allPageNames.Select(page =>
+        return new SourceResult
         {
-            var filledPages = forms
-                .Where(f => f.TryGetValue(page, out var pageResults) && pageResults.Any(r => r.Answer != 0))
-                .Select(f => f[page])
-                .ToList();
-            if (filledPages.Count == 0)
-                return (Average: null, Weight: 0);
+            Name = submissionContext.Form.Name,
+            WeightedAverage = CalculateSourceWeightedAverage(pageResults),
+            PageResults = pageResults
+        };
+    }
 
-            var weight = filledPages[0].Sum(r => r.Weight);
-            var averageAnswer = filledPages.Average(WeightedAverage);
+    private static decimal CalculatePageSum(ICollection<QuestionResult> results) =>
+        results
+            .Where(r => r.Type is CalculationType.Sum)
+            .Sum(r => (decimal)r.Answer);
 
-            return (Average: (decimal?)averageAnswer, Weight: weight);
-        }).ToList();
+    private static decimal? CalculatePageWeightedAverage(ICollection<QuestionResult> results)
+    {
+        var totalWeight = results.Where(r => r.Weight != null).Sum(r => r.Weight);
+        var weightedSum = results.Where(r => r.Weight != null).Sum(r => (decimal)r.Answer * r.Weight);
 
-        // Only return a meaningful total if every page was filled in by at least one form
-        if (pageAggregates.Any(p => p.Average == null)) return 0;
+        return totalWeight == 0 ? null : weightedSum / totalWeight;
+    }
 
-        decimal totalWeight = pageAggregates.Sum(r => r.Weight);
-        decimal weightedSum = pageAggregates.Sum(p => p.Average!.Value * p.Weight);
-        return totalWeight == 0 ? 0 : Math.Round(weightedSum / totalWeight, 2, MidpointRounding.AwayFromZero);
+    private static decimal CalculateSourceWeightedAverage(IEnumerable<PageResult> pages)
+    {
+        var pageList = pages.ToList();
+
+        decimal totalWeight = pageList.Where(p => p.Weight != null).Sum(p => p.Weight!.Value);
+        if (totalWeight == 0) return 0;
+
+        decimal weightedSum = pageList
+            .Where(p => p.Weight != null && p.WeightedAverage != null)
+            .Sum(p => p.WeightedAverage!.Value * p.Weight!.Value);
+        return weightedSum / totalWeight + pageList.Sum(s => s.Sum);
     }
 }

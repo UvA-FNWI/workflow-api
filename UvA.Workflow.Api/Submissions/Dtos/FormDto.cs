@@ -24,10 +24,12 @@ public record FormDto(
 
         var questions = currentFormPages
             .SelectMany(p => p.Fields)
+            .Distinct()
             .ToDictionary(q => q, q => QuestionDto.Create(q, context));
         var formType = form.FormType;
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
         var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
+        var originalForm = form;
         form = form.ActualForm;
         return new FormDto(
             form.Name,
@@ -42,7 +44,7 @@ public record FormDto(
             }).ToArray(),
             form.Layout,
             formType,
-            form.Step
+            originalForm.Step
         );
     }
 }
@@ -107,7 +109,7 @@ public record QuestionDto(
             ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context)).ToArray()
             : null,
         propertyDefinition.HideInResults,
-        propertyDefinition.Weight,
+        propertyDefinition.Calculation?.Weight,
         propertyDefinition.Validation?.Value?.MaxLength,
         propertyDefinition.AllowsExternalUsers,
         propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList(),

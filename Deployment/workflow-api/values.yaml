@@ -78,3 +78,5 @@ azure:
       key: S3__SigningKey
     - name: workflow-dn2-api-key
       key: Services__DataNose__Token
+    - name: dn2-api-key
+      key: Authentication__ApiKey
