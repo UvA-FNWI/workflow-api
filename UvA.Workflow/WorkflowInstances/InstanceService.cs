@@ -149,7 +149,9 @@ public class InstanceService(
         var users = results
             .Select(r => r.GetValueOrDefault(property))
             .Where(r => r?.IsBsonNull == false)
-            .Select(r => BsonSerializer.Deserialize<InstanceUser>(r!.AsBsonDocument));
+            .SelectMany(r => r!.IsBsonArray
+                ? r.AsBsonArray.Select(v => BsonSerializer.Deserialize<InstanceUser>(v.AsBsonDocument))
+                : [BsonSerializer.Deserialize<InstanceUser>(r.AsBsonDocument)]);
         var user = await userService.GetCurrentUser(ct);
         return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
     }
@@ -187,8 +189,8 @@ public class InstanceService(
         actions.AddRange(allowed
             .Where(a => a.Type == RoleAction.Submit)
             .SelectMany(a => a.AllForms.Select(f => new { Action = a, Form = f }))
-            .Where(f => !FormSubmissionState.Resolve(instance, modelService.GetForm(instance, f.Form), workflowDef)
-                .IsSubmitted)
+            .Where(f => instance.Events.WhereActive(instance, workflowDef).ToDictionary().GetValueOrDefault(f.Form)
+                ?.Date == null)
             .Distinct()
             .Select(f =>
             {
@@ -244,8 +246,9 @@ public class InstanceService(
     }
 
     public record AllowedSubmission(
-        FormSubmissionState SubmissionState,
+        InstanceEvent Event,
         Form Form,
+        FormSubmissionState SubmissionState,
         Dictionary<string, QuestionStatus> QuestionStatus);
 
     public async Task<IEnumerable<AllowedSubmission>> GetAllowedSubmissions(WorkflowInstance instance,
@@ -265,18 +268,17 @@ public class InstanceService(
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        return forms
-            .Values
-            .Distinct()
-            .Select(form => new
-            {
-                Form = form,
-                State = FormSubmissionState.Resolve(instance, form, workflowDef)
-            })
-            .Where(x => x.State.IsSubmitted)
-            .OrderBy(x => x.State.DateSubmitted)
-            .Select(x => new AllowedSubmission(x.State, x.Form,
-                modelService.GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name))));
+        // Only include active (non-suppressed) submissions
+        var subs = instance.Events
+            .Select(e => e.Value)
+            .WhereActive(instance, workflowDef)
+            .Where(s => forms.ContainsKey(s.Id))
+            .OrderBy(s => workflowDef.Forms.FindIndex(f => f.Name == s.Id))
+            .ThenBy(s => s.Date)
+            .ToList();
+        return subs.Select(s => new AllowedSubmission(s, forms[s.Id],
+            FormSubmissionState.Resolve(instance, forms[s.Id], workflowDef),
+            modelService.GetQuestionStatus(instance, forms[s.Id], hiddenForms.Contains(s.Id))));
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,
