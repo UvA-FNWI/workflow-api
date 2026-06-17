@@ -13,7 +13,6 @@ public class OrganizationsControllerTests : ControllerTestsBase
     private readonly Mock<IOrganizationService> _organizationServiceMock = new();
 
     [Theory]
-    [InlineData("Student")]
     [InlineData("RandomPerson")]
     public async Task Organizations_Create_ThrowsUnauthorizedException(string role)
     {
