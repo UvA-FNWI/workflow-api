@@ -51,6 +51,7 @@ public record StepDto(
     DateTime? Deadline,
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
+    StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
     List<StepVersionDto>? Versions = null);
 
 public record ActionDto(
