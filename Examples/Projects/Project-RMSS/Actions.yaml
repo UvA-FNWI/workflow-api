@@ -19,7 +19,7 @@ globalActions:
     label:
       en: View Turnitin report
       nl: Bekijk Turnitin-rapport
-    steps: [ProposalAssessmentSupervisor, ProposalAssessmentReviewer]
+    steps: [ProposalAssessmentSupervisor, ProposalAssessmentReviewer, Finish]
     onAction:
       - serviceCall:
           service: Turnitin
