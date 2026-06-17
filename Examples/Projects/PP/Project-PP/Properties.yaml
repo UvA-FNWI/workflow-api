@@ -28,8 +28,8 @@ properties:
       en: Second reader
       nl: Tweede beoordelaar
 
-  - name: DailySupervisor
+  - name: Supervisor
     type: User!
     text:
-      en: Daily supervisor
-      nl: Dagelijks begeleider
+      en: Supervisor
+      nl: Begeleider
