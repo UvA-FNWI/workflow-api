@@ -34,7 +34,7 @@ assessments:
         en: Thesis
         nl: Scriptie
       weight: 0.9
-      maximumDiscrepancy: 1
+      maximumDiscrepancy: 2
       sources:
         - name: AssessmentSupervisor
           weight: 2
