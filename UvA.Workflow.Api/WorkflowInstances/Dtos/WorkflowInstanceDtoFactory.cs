@@ -25,6 +25,8 @@ public class WorkflowInstanceDtoFactory(
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
+        var allowedForms = (await rightsService.GetAllowedActions(instance, RoleAction.View))
+            .SelectMany(a => a.AllForms).ToArray();
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
@@ -54,8 +56,7 @@ public class WorkflowInstanceDtoFactory(
             CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
             workflowDefinition.Steps
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context,
-                    submissions.Select(x => x.Form.Name).ToArray()))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, allowedForms))
                 .ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
