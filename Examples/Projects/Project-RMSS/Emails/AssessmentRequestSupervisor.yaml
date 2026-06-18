@@ -7,13 +7,13 @@ body:
   en: |
     Dear {{ coalesce(Supervisor.DisplayName, =colleague) }},
 
-    **{{ Student.DisplayName }}** submitted a proposal and apppointed you<br>
+    **{{ Student.DisplayName }}** submitted a proposal on **{{ coalesce(formatDate(StartEvent, =dd-MM-yyyy), =the deadline) }}** and appointed you<br>
     as their thesis supervisor.
 
-    Review the proposal as soon as possible so the student<br>
-    can continue working on the thesis.
+    Review the proposal within 15 working days (**before {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd-MM-yyyy), =the deadline) }}**)<br>
+    so the student can continue working on the thesis.
 
-    Thanks you, also on behalf of the student.
+    Thank you, also on behalf of the student.
   nl: |
     Beste {{ coalesce(Supervisor.DisplayName, =collega) }},
 
