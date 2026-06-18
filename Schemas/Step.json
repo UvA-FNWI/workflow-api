@@ -1177,6 +1177,16 @@
           "items": {
             "$ref": "#/definitions/RubricEntry"
           }
+        },
+        "sources": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "If set, this question is included in a form only when editing a matching property",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

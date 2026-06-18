@@ -18,7 +18,8 @@ public record AssessmentPartDto(
     BilingualString Title,
     SourceResultDto[] SourceResults,
     SourceResultDto? Combined,
-    decimal? Percentage
+    decimal? Percentage,
+    bool ShowDiscrepancyWarning
 );
 
 public record SourceResultDto(
@@ -91,7 +92,11 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
                 partContexts.Count > 0 ? MapToSourceResultDto(partContexts[0], result.Combined, null) : null,
-                RoundToTwo(partPercentage)
+                RoundToTwo(partPercentage),
+                partConfig.MaximumDiscrepancy > 0 && sourceResultDtos.Any(s1 => s1.WeightedAverage != null
+                    && sourceResultDtos.Any(s2 =>
+                        s2.WeightedAverage != null && Math.Abs(s2.WeightedAverage.Value - s1.WeightedAverage.Value) >=
+                        partConfig.MaximumDiscrepancy))
             ));
         }
 

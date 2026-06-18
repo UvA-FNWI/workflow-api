@@ -319,6 +319,16 @@
           "items": {
             "$ref": "#/definitions/RubricEntry"
           }
+        },
+        "sources": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "If set, this question is included in a form only when editing a matching property",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -1370,7 +1380,8 @@
       "additionalProperties": false,
       "required": [
         "name",
-        "weight"
+        "weight",
+        "maximumDiscrepancy"
       ],
       "properties": {
         "name": {
@@ -1394,6 +1405,10 @@
         "weight": {
           "type": "number",
           "description": "Weight of this part in the final grade calculation"
+        },
+        "maximumDiscrepancy": {
+          "type": "number",
+          "description": "Show a warning if the discrepancy between the scores is larger than or equal to this value"
         },
         "sources": {
           "type": "array",
