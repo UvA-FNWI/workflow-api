@@ -21,32 +21,17 @@ events:
       - ProposalRejectedSupervisor
       - ProposalApprovedReviewer
       - ProposalRejectedReviewer
-      - EthicsApprovedSupervisor
-      - EthicsRejectedSupervisor
-      - EthicsApprovedReviewer
-      - EthicsRejectedReviewer
 
   - name: ProposalRejectedSupervisor
-    suppresses: [Start, ProposalApprovedSupervisor]
+    suppresses: [Start,ProposalApprovedSupervisor]
   - name: ProposalApprovedSupervisor
     suppresses: [ProposalRejectedSupervisor]
 
   - name: ProposalRejectedReviewer
-    suppresses: [Start, ProposalApprovedReviewer]
+    suppresses: [Start,ProposalApprovedReviewer]
   - name: ProposalApprovedReviewer
     suppresses: [ProposalRejectedReviewer]
 
-  - name: EthicsRejectedSupervisor
-    suppresses: [Start, EthicsApprovedSupervisor]
-  - name: EthicsApprovedSupervisor
-    suppresses: [EthicsRejectedSupervisor]
-
-  - name: EthicsRejectedReviewer
-    suppresses: [Start, EthicsApprovedReviewer]
-  - name: EthicsApprovedReviewer
-    suppresses: [EthicsRejectedReviewer]
-
 steps:
   - ProposalPhase
-  - Ethics
   - Finish

@@ -1,0 +1,36 @@
+name: ProposalAndEthicsReviewReviewer
+title:
+  en: Proposal and ethics review (proposal reviewer)
+  nl: Beoordeling voorstel en ethiek (voorstelbeoordelaar)
+
+property: ReviewerProposalAndEthicsReview
+targetForm: ProposalAndEthicsReview
+step: ProposalAssessmentReviewer
+
+emitFormSubmitEvent: false
+submittedWhenEvents: [ProposalApprovedReviewer, ProposalRejectedReviewer]
+
+onSubmit:
+  - condition:
+      logical:
+        operator: And
+        children:
+          - value:
+              property: ReviewerProposalAndEthicsReview.ProposalSufficient
+              equal: =Pass
+          - value:
+              property: ReviewerProposalAndEthicsReview.EthicsSufficient
+              equal: =Pass
+    event: ProposalApprovedReviewer
+
+  - condition:
+      logical:
+        operator: Or
+        children:
+          - value:
+              property: ReviewerProposalAndEthicsReview.ProposalSufficient
+              equal: =Fail
+          - value:
+              property: ReviewerProposalAndEthicsReview.EthicsSufficient
+              equal: =Fail
+    event: ProposalRejectedReviewer

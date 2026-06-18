@@ -30,9 +30,6 @@ grouping:
         nl: Voorstel
       steps:
         - ProposalPhase
-        - Start
-        - ProposalAssessmentSupervisor
-        - ProposalAssessmentReviewer
 
     - name: review
       title:
@@ -42,15 +39,6 @@ grouping:
         - Review
         - ReviewSupervisor
         - ReviewProposalReviewer
-
-    - name: ethics
-      title:
-        en: Ethics
-        nl: Ethiek
-      steps:
-        - Ethics
-        - EthicsAssessmentSupervisor
-        - EthicsAssessmentReviewer
 
     - name: completed
       title:

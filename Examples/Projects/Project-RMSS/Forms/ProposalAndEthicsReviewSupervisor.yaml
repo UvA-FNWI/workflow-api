@@ -1,0 +1,35 @@
+name: ProposalAndEthicsReviewSupervisor
+title:
+  en: Proposal and ethics review (supervisor)
+  nl: Beoordeling voorstel en ethiek (begeleider)
+
+property: SupervisorProposalAndEthicsReview
+targetForm: ProposalAndEthicsReview
+step: ProposalAssessmentSupervisor
+
+emitFormSubmitEvent: false
+submittedWhenEvents: [ProposalApprovedSupervisor, ProposalRejectedSupervisor]
+
+onSubmit:
+  - condition:
+      logical:
+        operator: And
+        children:
+          - value:
+              property: SupervisorProposalAndEthicsReview.ProposalSufficient
+              equal: =Pass
+          - value:
+              property: SupervisorProposalAndEthicsReview.EthicsSufficient
+              equal: =Pass
+    event: ProposalApprovedSupervisor
+  - condition:
+      logical:
+        operator: Or
+        children:
+          - value:
+              property: SupervisorProposalAndEthicsReview.ProposalSufficient
+              equal: =Fail
+          - value:
+              property: SupervisorProposalAndEthicsReview.EthicsSufficient
+              equal: =Fail
+    event: ProposalRejectedSupervisor

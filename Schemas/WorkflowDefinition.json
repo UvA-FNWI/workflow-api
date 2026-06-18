@@ -1231,6 +1231,10 @@
             "type": "string"
           }
         },
+        "noAutoOpenForm": {
+          "type": "boolean",
+          "description": "When true, the submit form does not automatically even if it is the only submit action in the step"
+        },
         "property": {
           "type": [
             "null",
