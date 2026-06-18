@@ -5,6 +5,10 @@ title:
 
 property: ReviewerProposalAndEthicsReview
 targetForm: ProposalAndEthicsReview
+step: ProposalAssessmentReviewer
+
+emitFormSubmitEvent: false
+submittedWhenEvents: [ProposalApprovedReviewer, ProposalRejectedReviewer]
 
 onSubmit:
   - condition:
@@ -30,6 +34,3 @@ onSubmit:
               property: ReviewerProposalAndEthicsReview.EthicsSufficient
               equal: =Fail
     event: ProposalRejectedReviewer
-
-emitFormSubmitEvent: false
-submittedWhenEvents: [ProposalApprovedReviewer, ProposalRejectedReviewer]

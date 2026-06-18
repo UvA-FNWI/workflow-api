@@ -1,6 +1,9 @@
 name: Start
 step: Start
-
+title:
+  en: Proposal (student)
+  nl: Voorstel (student)
+  
 pages:
   - name: Contents
     title:

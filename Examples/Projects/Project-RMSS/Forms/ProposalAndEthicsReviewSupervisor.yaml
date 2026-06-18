@@ -5,6 +5,7 @@ title:
 
 property: SupervisorProposalAndEthicsReview
 targetForm: ProposalAndEthicsReview
+step: ProposalAssessmentSupervisor
 
 emitFormSubmitEvent: false
 submittedWhenEvents: [ProposalApprovedSupervisor, ProposalRejectedSupervisor]
