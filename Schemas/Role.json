@@ -160,9 +160,9 @@
             "type": "string"
           }
         },
-        "autoOpenForm": {
+        "noAutoOpenForm": {
           "type": "boolean",
-          "description": "When true, the submit form opens automatically when it is the only submit action on the step"
+          "description": "When true, the submit form does not automatically even if it is the only submit action in the step"
         },
         "property": {
           "type": [

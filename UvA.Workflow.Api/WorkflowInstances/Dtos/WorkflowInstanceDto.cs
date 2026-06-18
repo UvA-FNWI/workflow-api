@@ -91,7 +91,7 @@ public record ActionDto(
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
                 Form: action.Form?.Name,
                 FormLayout: action.Form?.Layout,
-                AutoOpenForm: action.Action.AutoOpenForm
+                AutoOpenForm: !action.Action.NoAutoOpenForm
             ),
             _ => throw new ArgumentOutOfRangeException()
         };

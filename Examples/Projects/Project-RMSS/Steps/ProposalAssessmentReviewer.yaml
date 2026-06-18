@@ -9,7 +9,6 @@ condition:
 actions:
   - type: Submit
     roles: [ProposalReviewer]
-    autoOpenForm: true
     form: ProposalAndEthicsReviewReviewer
     label:
       en: Submit assessment

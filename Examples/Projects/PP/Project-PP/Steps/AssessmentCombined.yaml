@@ -14,6 +14,7 @@ actions:
     type: Submit
     roles: [Supervisor]
     form: AssessmentCombined
+    noAutoOpenForm: true
     label:
       en: Finalize assessment
       nl: Beoordeling afronden
