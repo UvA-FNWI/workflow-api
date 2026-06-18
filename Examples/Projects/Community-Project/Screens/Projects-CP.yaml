@@ -10,6 +10,7 @@ columns:
   - property: Course.Name
     title: Course
   - property: StartEvent
+    title: Start
   - currentStep: true
     filterType: Pick
     default: Draft
