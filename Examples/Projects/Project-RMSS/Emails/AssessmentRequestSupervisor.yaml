@@ -1,0 +1,32 @@
+name: AssessmentRequestSupervisor
+layout: default
+subject:
+  en: "Assess the proposal of {{ coalesce(Student.DisplayName, =this student) }}"
+  nl: "Beoordeel het voorstel van {{ coalesce(Student.DisplayName, =deze student) }}"
+body:
+  en: |
+    Dear {{ coalesce(Supervisor.DisplayName, =colleague) }},
+
+    **{{ Student.DisplayName }}** submitted a proposal and apppointed you<br>
+    as their thesis supervisor.
+
+    Review the proposal as soon as possible so the student<br>
+    can continue working on the thesis.
+
+    Thanks you, also on behalf of the student.
+  nl: |
+    Beste {{ coalesce(Supervisor.DisplayName, =collega) }},
+
+    **{{ Student.DisplayName }}** heeft een voorstel ingediend en<br>
+    jij bent de begeleider voor dit project.
+
+    Beoordeel dit voorstel zo snel mogelijk zodat de student<br>
+    verder kan met zijn of haar scriptie.
+
+
+    Alvast bedankt, ook namens de student.
+buttons:
+  - label:
+      en: "Assess the proposal"
+      nl: "Beoordeel het voorstel"
+    url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"
