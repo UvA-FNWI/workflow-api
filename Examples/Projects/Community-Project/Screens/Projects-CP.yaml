@@ -24,6 +24,8 @@ grouping:
       title: Proposal
       steps:
         - Proposal
+        - Proposal_Submit
+        - Proposal_Feedback
 
     - name: Project-in-progress
       title: Project in Progress
