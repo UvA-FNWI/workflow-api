@@ -1,18 +1,14 @@
 name: Projects-CP
 workflowDefinition: Community-Project
 columns:
-  - title:
-      en: Summary
-      nl: Samenvatting
-    value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
+  - property: Student.DisplayName
+    title: Student
     defaultSort: "Descending"
-  - property: Title
     link: true
-    default: No title
+  - title: Project
+    value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
   - property: Course.Name
-    title:
-      en: Course
-      nl: Vak
+    title: Course
   - property: StartEvent
   - currentStep: true
     filterType: Pick
