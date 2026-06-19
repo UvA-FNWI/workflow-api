@@ -8,7 +8,7 @@ condition:
 
 actions:
   - type: Submit
-    roles: [ProposalReviewer]
+    roles: [Coordinator]
     form: ProposalAndEthicsReviewReviewer
     label:
       en: Submit assessment

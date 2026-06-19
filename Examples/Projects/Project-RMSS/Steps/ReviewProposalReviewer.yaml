@@ -5,7 +5,7 @@ title:
 
 actions:
   - type: Submit
-    roles: [ProposalReviewer]
+    roles: [Coordinator]
     form: ProposalReviewerReview
     label:
       en: Submit review
