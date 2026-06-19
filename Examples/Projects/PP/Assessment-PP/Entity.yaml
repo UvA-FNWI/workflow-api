@@ -381,6 +381,7 @@ properties:
     type: DoctrinalAnalysis!
     layout:
       type: Dropdown
+    sources: [AssessmentSupervisor]
     values:
       - name: Yes
       - name: No

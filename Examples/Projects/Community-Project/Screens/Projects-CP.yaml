@@ -1,19 +1,16 @@
 name: Projects-CP
 workflowDefinition: Community-Project
 columns:
-  - title:
-      en: Summary
-      nl: Samenvatting
-    value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
+  - property: Student.DisplayName
+    title: Student
     defaultSort: "Descending"
-  - property: Title
     link: true
-    default: No title
+  - title: Project
+    value: "{{Title}} - EC: {{EC}} - Examiner: {{Examiner.DisplayName}}"
   - property: Course.Name
-    title:
-      en: Course
-      nl: Vak
+    title: Course
   - property: StartEvent
+    title: Start
   - currentStep: true
     filterType: Pick
     default: Draft
@@ -21,35 +18,21 @@ columns:
 grouping:
   groups:
     - name: assign-subject
-      title:
-        en: Assign Subject
-        nl: Onderwerp toewijzen
-      steps:
-        - Start
-        - Subject
-        - SubjectFeedback
-
-    - name: thesis-in-progress
-      title:
-        en: Thesis in Progress
-        nl: Scriptie in behandeling
+      title: Proposal
       steps:
         - Proposal
-        - Upload
+        - Proposal_Submit
+        - Proposal_Feedback
+
+    - name: Project-in-progress
+      title: Project in Progress
+      steps:
+        - LearningPlan
+        - InterimLearningPlan
+        - FinalReport
     
     - name: assessment-in-progress
-      title:
-        en: Assessment in Progress
-        nl: Beoordeling in behandeling
+      title: Assessment in Progress
       steps:
         - Assessment
-        - AssessmentSecondreader
-        - AssessmentSupervisor        
-        - ApprovalCoordinator
-    
-    - name: completed
-      title:
-        en: Completed
-        nl: Voltooid
-      steps:
-        - Publication
+  

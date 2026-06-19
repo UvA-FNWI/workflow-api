@@ -160,6 +160,10 @@
             "type": "string"
           }
         },
+        "noAutoOpenForm": {
+          "type": "boolean",
+          "description": "When true, the submit form does not automatically even if it is the only submit action in the step"
+        },
         "property": {
           "type": [
             "null",
@@ -401,13 +405,6 @@
         "id": {
           "type": "string",
           "description": "Id of the event to check for"
-        },
-        "notBefore": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "If set, the event specified by Id must have occurred on or after the event specified by this property"
         }
       }
     },
@@ -574,7 +571,13 @@
       "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "name"
+      ],
       "properties": {
+        "name": {
+          "type": "string"
+        },
         "to": {
           "type": [
             "null",

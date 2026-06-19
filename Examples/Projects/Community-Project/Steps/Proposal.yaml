@@ -3,9 +3,7 @@ icon:
   type: play-line
   color: green
 
-title:
-  nl: Proposal
-  en: Proposal
+title: Proposal
 
 children:
   - Proposal_Submit

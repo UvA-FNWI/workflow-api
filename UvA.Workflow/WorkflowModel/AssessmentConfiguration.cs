@@ -29,6 +29,11 @@ public class AssessmentPart : INamed
     public decimal Weight { get; set; }
 
     /// <summary>
+    /// Show a warning if the discrepancy between the scores is larger than or equal to this value
+    /// </summary>
+    public decimal MaximumDiscrepancy { get; set; }
+
+    /// <summary>
     /// The assessor sources that contribute to this part
     /// </summary>
     public List<AssessmentSource> Sources { get; set; } = [];

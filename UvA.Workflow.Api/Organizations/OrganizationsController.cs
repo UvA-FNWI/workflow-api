@@ -11,7 +11,7 @@ public class OrganizationsController(
     public async Task<ActionResult<OrganizationDto>> Create([FromBody] CreateOrganizationDto dto,
         CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        await rightsService.EnsureAuthorizedForAction(RoleAction.Submit);
 
         var organization = await organizationService.GetOrCreateOrganization(dto.Name, ct);
 
