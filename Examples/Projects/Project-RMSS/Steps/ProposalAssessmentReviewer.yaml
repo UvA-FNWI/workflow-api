@@ -4,7 +4,12 @@ title:
   nl: Beoordeling (voorstelbeoordelaar)
 
 condition:
-  event: Start
+  logical:
+    operator: Or
+    children:
+      - event: Start
+      - event: ProposalApprovedReviewer
+      - event: ProposalRejectedReviewer
 
 actions:
   - type: Submit

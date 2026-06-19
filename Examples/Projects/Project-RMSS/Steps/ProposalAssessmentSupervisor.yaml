@@ -4,7 +4,12 @@ title:
   nl: Beoordeling (begeleider)
 
 condition:
-  event: Start
+  logical:
+    operator: Or
+    children:
+      - event: Start
+      - event: ProposalApprovedSupervisor
+      - event: ProposalRejectedSupervisor
 
 actions:
   - type: Submit
