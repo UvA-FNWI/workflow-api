@@ -1,6 +1,9 @@
 name: Start
 step: Start
-
+title:
+  en: Proposal (student)
+  nl: Voorstel (student)
+  
 pages:
   - name: Contents
     title:
@@ -35,3 +38,29 @@ pages:
     fields:
       - StartDate
       - PlannedEndDate
+
+onSubmit:
+  - serviceCall:
+      service: Turnitin
+      operation: CreateSubmission
+      inputs:
+        Owner: Student
+        Title: Title
+  - setProperty:
+      property: TurnitinId
+      value: CreateSubmission.Id
+  - serviceCall:
+      service: Turnitin
+      operation: UploadFile
+      inputs:
+        SubmissionId: CreateSubmission.Id
+        File: Description
+  - delay: 1m
+    serviceCall:
+      service: Turnitin
+      operation: GenerateReport
+      inputs:
+        SubmissionId: TurnitinId
+  - sendMail:
+      template: AssessmentRequestSupervisor
+      to: Supervisor

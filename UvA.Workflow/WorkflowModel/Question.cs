@@ -189,6 +189,11 @@ public class PropertyDefinition : INamed
     /// Rubric entries that describe grading criteria for this property
     /// </summary>
     public List<RubricEntry>? Rubric { get; set; }
+
+    /// <summary>
+    /// If set, this question is included in a form only when editing a matching property
+    /// </summary>
+    public string[]? Sources { get; set; }
 }
 
 public enum CalculationType

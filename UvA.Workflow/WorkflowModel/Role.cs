@@ -118,6 +118,11 @@ public class Action
     public string[] Steps { get; set; } = [];
 
     /// <summary>
+    /// When true, the submit form does not automatically even if it is the only submit action in the step
+    /// </summary>
+    public bool NoAutoOpenForm { get; set; }
+
+    /// <summary>
     /// Target property for the CreateRelatedInstance action
     /// </summary>
     public string? Property { get; set; }

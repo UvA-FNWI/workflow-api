@@ -63,7 +63,8 @@ public record ActionDto(
     string? Property = null,
     string[] Steps = null!,
     ActionIntent Intent = ActionIntent.Primary,
-    FormLayout? FormLayout = null
+    FormLayout? FormLayout = null,
+    bool AutoOpenForm = false
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
@@ -89,7 +90,8 @@ public record ActionDto(
                 ActionType.SubmitForm,
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
                 Form: action.Form?.Name,
-                FormLayout: action.Form?.Layout
+                FormLayout: action.Form?.Layout,
+                AutoOpenForm: !action.Action.NoAutoOpenForm
             ),
             _ => throw new ArgumentOutOfRangeException()
         };

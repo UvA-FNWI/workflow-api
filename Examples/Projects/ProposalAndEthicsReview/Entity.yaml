@@ -1,0 +1,60 @@
+name: ProposalAndEthicsReview
+isEmbedded: true
+
+properties:
+  - name: ProposalSufficient
+    type: ReviewSufficientType!
+    text:
+      en: Is this sufficient?
+      nl: Is dit voldoende?
+    layout:
+      type: RadioList
+    values:
+      - name: Pass
+        text:
+          en: Pass
+          nl: Voldoende
+      - name: Fail
+        text:
+          en: Fail
+          nl: Onvoldoende
+
+  - name: ProposalExplanation
+    type: String
+    text:
+      en: Explanation
+      nl: Toelichting
+    layout:
+      multiline: true
+
+  - name: ProposalDocument
+    type: File
+    text:
+      en: Upload document
+      nl: Document uploaden
+
+  - name: EthicsSufficient
+    type: ReviewSufficientType!
+    text:
+      en: Is this sufficient?
+      nl: Is dit voldoende?
+    layout:
+      type: RadioList
+    values:
+      - name: Pass
+        text:
+          en: Pass
+          nl: Voldoende
+      - name: Fail
+        text:
+          en: Fail
+          nl: Onvoldoende
+
+  - name: EthicsExplanation
+    type: String
+    text:
+      en: Explanation
+      nl: Toelichting
+    layout:
+      multiline: true
+
