@@ -4,11 +4,11 @@ title:
   nl: Eindcijfer
 formType: AssessmentFinalOverview
 layout: Compact
+step: FinalizeAssessment
 
 pages:
   - name: FinalGradePage
     title:
       en: Final Grade
       nl: Eindcijfer
-    fields: 
-        - FinalGrade
+    fields: []
