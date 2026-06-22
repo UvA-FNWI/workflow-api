@@ -2,12 +2,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Users;
 
-public enum UserInvitationState
-{
-    Required,
-    Pending
-}
-
 /// <summary>
 /// A state to represent a possible invitation for an (external) user.
 /// </summary>
