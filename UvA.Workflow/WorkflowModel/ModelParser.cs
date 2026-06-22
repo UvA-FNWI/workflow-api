@@ -33,6 +33,8 @@ public partial class ModelParser
             .Select(folder =>
             {
                 var definition = Parse<WorkflowDefinition>(Path.Combine(folder, "Entity.yaml"));
+                if (definition == null)
+                    throw new Exception($"No valid Entity.yaml in folder {folder}");
                 definition.SourceFolder = folder;
                 return definition;
             })
