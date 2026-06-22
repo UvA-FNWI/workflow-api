@@ -11,6 +11,7 @@ using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Organizations;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -61,7 +62,8 @@ public class AnswersControllerTests : ControllerTestsBase
             _artifactServiceMock.Object,
             _answerConversionService,
             _instanceEventService.Object,
-            _instanceJournalServiceMock.Object);
+            _instanceJournalServiceMock.Object,
+            _userServiceMock.Object);
     }
 
     [Fact]

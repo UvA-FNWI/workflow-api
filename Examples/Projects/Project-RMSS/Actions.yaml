@@ -1,10 +1,10 @@
 globalActions:
-  - roles: [ Student, Supervisor, ProposalReviewer ]
+  - roles: [ Student, Supervisor, Coordinator ]
     type: View
     forms: [ Start ]
 
   # When both the supervisor and reviewer have approved the proposal
-  - roles: [ Student,Supervisor,ProposalReviewer ]
+  - roles: [ Student,Supervisor,Coordinator ]
     type: View
     forms:
       - ProposalAndEthicsReviewSupervisor
@@ -17,7 +17,7 @@ globalActions:
           - event: ProposalApprovedReviewer
             
   # If either supervisor or reviewer rejects the proposal
-  - roles: [ Student,Supervisor,ProposalReviewer ]
+  - roles: [ Student,Supervisor,Coordinator ]
     type: View
     forms:
       - ProposalAndEthicsReviewSupervisor
@@ -35,7 +35,7 @@ globalActions:
     forms: [ ProposalAndEthicsReviewSupervisor ]
   
   # Reviewers can see their latest review, either approved or rejected.
-  - roles: [ ProposalReviewer ]
+  - roles: [ Coordinator ]
     type: View
     forms: [ ProposalAndEthicsReviewReviewer ]
 
