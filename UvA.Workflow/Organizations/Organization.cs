@@ -10,14 +10,12 @@ public class Organization
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = null!;
+    public string? Id { get; set; }
 
     [BsonElement("Name")] public string Name { get; set; } = null!;
 
-
     public static Organization Create(string name) => new()
     {
-        Id = ObjectId.GenerateNewId().ToString(),
         Name = name
     };
 }

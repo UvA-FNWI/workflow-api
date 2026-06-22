@@ -48,6 +48,8 @@ properties:
       - 7–8: good/very good interdisciplinarity,
       - above 8: excellent/exceptional interdisciplinarity.
     type: HalfGrade!
+    calculation: 
+      weight: 1
     layout:
       type: Dropdown
   

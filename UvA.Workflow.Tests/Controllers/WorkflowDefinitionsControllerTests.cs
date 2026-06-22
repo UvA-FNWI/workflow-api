@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
+using Moq;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.WorkflowDefinitions;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
@@ -10,7 +13,9 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
     private WorkflowDefinitionsController BuildController(params string[] roles)
     {
         MockCurrentUser(roles);
-        return new WorkflowDefinitionsController(_modelService, _rightsService);
+        var authorizationFilterService = new InstanceAuthorizationFilterService(
+            _rightsService, _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+        return new WorkflowDefinitionsController(_modelService, _rightsService, authorizationFilterService);
     }
 
     private static List<WorkflowDefinitionDto> GetDtos(ActionResult<IEnumerable<WorkflowDefinitionDto>> result)
@@ -72,4 +77,50 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
         var context = Assert.Single(dtos, d => d.Name == "Context");
         Assert.True(context.CanCreateInstance);
     }
+
+    [Fact]
+    public async Task GetAccessible_ReturnsOnlyDefinitionsTheUserHasVisibleInstancesFor()
+    {
+        // No global roles, so the user has no unconditional view access; access is decided purely
+        // by instance membership (the filter the screens use). The repository returns instances
+        // only for "Project-PP", so that should be the only course the user can access.
+        var controller = BuildController();
+        MockNoVisibleInstances();
+        MockVisibleInstancesFor("Project-PP");
+
+        var dtos = GetDtos(await controller.GetAccessible(_ct));
+
+        Assert.All(dtos, d => Assert.NotEmpty(d.Screens));
+        Assert.Contains(dtos, d => d.Name == "Project-PP");
+        Assert.DoesNotContain(dtos, d => d.Name == "Project-RMSS");
+    }
+
+    [Fact]
+    public async Task GetAccessible_ReturnsEmpty_ForUnauthenticatedUser()
+    {
+        var controller = BuildController();
+        MockNoVisibleInstances();
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UvA.Workflow.Users.User?)null);
+
+        var dtos = GetDtos(await controller.GetAccessible(_ct));
+
+        Assert.Empty(dtos);
+    }
+
+    private void MockNoVisibleInstances() =>
+        _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+    private void MockVisibleInstancesFor(string workflowDefinition) =>
+        _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
+                workflowDefinition,
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId() }]);
 }

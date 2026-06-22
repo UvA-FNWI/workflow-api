@@ -26,6 +26,8 @@ public class WorkflowInstanceDtoFactory(
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
+        var allowedForms = (await rightsService.GetAllowedActions(instance, RoleAction.View))
+            .SelectMany(a => a.AllForms).ToArray();
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
@@ -60,7 +62,7 @@ public class WorkflowInstanceDtoFactory(
             CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
             workflowDefinition.Steps
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, allowedForms))
                 .ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
@@ -135,7 +137,8 @@ public class WorkflowInstanceDtoFactory(
         Step step,
         WorkflowInstance instance,
         Dictionary<string, List<StepVersion>> stepVersionsMap,
-        ObjectContext context)
+        ObjectContext context,
+        string[] allowedForms)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var versions = stepVersionsMap.GetValueOrDefault(step.Name);
@@ -150,18 +153,20 @@ public class WorkflowInstanceDtoFactory(
             step.Children.Length != 0
                 ? step.Children
                     .Where(s => s.Condition.IsMet(context))
-                    .Select(s => CreateStepDto(s, instance, stepVersionsMap, context))
+                    .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, allowedForms))
                     .ToArray()
                 : null,
             stepHeaderStatusResolver.Resolve(step, instance),
-            versions?.Select(v => CreateStepVersionDto(v, instance)).ToList()
+            step.HierarchyMode,
+            versions?.Select(v => CreateStepVersionDto(v, instance, allowedForms)).ToList()
         );
     }
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
     /// </summary>
-    private StepVersionDto CreateStepVersionDto(StepVersion stepVersion, WorkflowInstance instance)
+    private StepVersionDto CreateStepVersionDto(StepVersion stepVersion, WorkflowInstance instance,
+        string[] allowedForms)
     {
         try
         {
@@ -181,6 +186,9 @@ public class WorkflowInstanceDtoFactory(
                         eventId, stepVersion.VersionNumber);
                     continue;
                 }
+
+                if (!allowedForms.Contains(form.Name))
+                    continue;
 
                 // Get question status with all fields visible (historical view)
                 var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false);

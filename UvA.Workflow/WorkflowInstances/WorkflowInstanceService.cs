@@ -33,7 +33,11 @@ public class WorkflowInstanceService(
             Events = new Dictionary<string, InstanceEvent>()
         };
 
-        if (userProperty != null)
+        // userProperty (e.g. Student) records who an instance is "for". For self-service
+        // creation that's the creator, so default it to them. But a caller can also create
+        // on someone else's behalf e.g. the API provisioning a Project for a student, and
+        // supplies that user in the initial properties; in that case keep what was sent.
+        if (userProperty != null && !instance.Properties.ContainsKey(userProperty))
         {
             var user = InstanceUser.FromUser(createdBy).ToBsonDocument();
             var property = modelService.WorkflowDefinitions[workflowDefinition].Properties.Get(userProperty);

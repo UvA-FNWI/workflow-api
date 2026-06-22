@@ -42,7 +42,8 @@ public class ModelService(ModelParser parser)
         var context = CreateContext(instance);
         return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
-                q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden),
+                q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden)
+                                           && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
                 q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name)
                     ? null
                     : q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde"),
@@ -60,7 +61,9 @@ public class ModelService(ModelParser parser)
             .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
             .Select(s => s.Name)
             .Append(instance.CurrentStep)
-            .ToArray();
+            .Append(step.ParentStep?.Name)
+            .Where(s => s != null)
+            .ToArray()!;
     }
 }
 

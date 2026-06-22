@@ -20,7 +20,28 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Screens_GetScreenData_ReturnsData()
+    public async Task Screens_GetScreenData_NonGroupedScreen_ReturnsFlatRows()
+    {
+        // Arrange
+        const string workflowDefinition = "Context";
+        const string screenName = "Default";
+
+        var controller = BuildControllerWithRoles(["Student"], workflowDefinition, screenName);
+
+        // Act
+        var result = await controller.GetScreenData(workflowDefinition, screenName, _ct);
+
+        //Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var screenDataDto = Assert.IsType<ScreenDataDto>(okResult.Value);
+        Assert.Equal(screenName, screenDataDto.Name);
+        Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition.Name);
+        Assert.Equal(2, screenDataDto.Rows.Length);
+        Assert.Null(screenDataDto.Groups);
+    }
+
+    [Fact]
+    public async Task Screens_GetScreenData_GroupedScreen_ReturnsGroups()
     {
         // Arrange
         const string workflowDefinition = "Project";
@@ -35,29 +56,17 @@ public class ScreensControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var screenDataDto = Assert.IsType<ScreenDataDto>(okResult.Value);
         Assert.Equal(screenName, screenDataDto.Name);
-        Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition);
-        Assert.Equal(2, screenDataDto.Rows.Length);
-    }
+        Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition.Name);
+        Assert.Empty(screenDataDto.Rows);
 
-    [Fact]
-    public async Task Screens_GetGroupedScreenData_ReturnsGroupedData()
-    {
-        // Arrange
-        const string workflowDefinition = "Project";
-        const string screenName = "Projects";
-
-        var controller = BuildControllerWithRoles(["Student"], workflowDefinition, screenName);
-        // Act
-        var result = await controller.GetGroupedScreenData(screenName, workflowDefinition, _ct);
-
-        //Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var screenDataDto = Assert.IsType<GroupedScreenDataDto>(okResult.Value);
-        Assert.Equal(screenName, screenDataDto.Name);
-        Assert.Equal(3, screenDataDto.Groups.Length);
-        Assert.Contains(screenDataDto.Groups, g => g.Name == "approve-subject");
-        Assert.Contains(screenDataDto.Groups, g => g.Name == "thesis-in-progress");
-        Assert.Contains(screenDataDto.Groups, g => g.Name == "completed");
+        var groups = screenDataDto.Groups;
+        Assert.NotNull(groups);
+        Assert.Equal(3, groups.Length);
+        Assert.Contains(groups, g => g.Name == "approve-subject");
+        Assert.Contains(groups, g => g.Name == "thesis-in-progress");
+        Assert.Contains(groups, g => g.Name == "completed");
+        // Both mocked instances are in the "Start" step, which maps to the approve-subject group
+        Assert.Equal(2, groups.Single(g => g.Name == "approve-subject").Rows.Length);
     }
 
     private ScreensController BuildControllerWithRoles(

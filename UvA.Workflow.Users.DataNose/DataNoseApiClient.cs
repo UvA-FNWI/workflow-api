@@ -47,7 +47,8 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
             {
                 ["SearchTerm"] = query.Trim(),
                 ["IncludeEmployees"] = "true",
-                ["IncludeStudents"] = "true"
+                ["IncludeStudents"] = "false",
+                ["IncludeAMC"] = "true"
             });
         var http = httpFactory.CreateClient(Name);
         var response = await http.GetAsync(url, ct);
@@ -94,6 +95,7 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         }
 
         var dto = await response.Content.ReadFromJsonAsync<GetOrganizationForUserResponse>(JsonOptions, ct);
+
         return CreateOrganization(dto?.Department);
     }
 

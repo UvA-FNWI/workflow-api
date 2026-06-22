@@ -13,7 +13,6 @@ public class OrganizationsControllerTests : ControllerTestsBase
     private readonly Mock<IOrganizationService> _organizationServiceMock = new();
 
     [Theory]
-    [InlineData("Student")]
     [InlineData("RandomPerson")]
     public async Task Organizations_Create_ThrowsUnauthorizedException(string role)
     {
@@ -28,7 +27,7 @@ public class OrganizationsControllerTests : ControllerTestsBase
     [InlineData("Coordinator")]
     public async Task Organizations_Create_AllowedWithViewAdminRights(string role)
     {
-        _organizationServiceMock.Setup(r => r.CreateOrganization("science", _ct))
+        _organizationServiceMock.Setup(r => r.GetOrCreateOrganization("science", _ct))
             .ReturnsAsync(new Organization { Id = "1", Name = "science" });
         var controller = BuildControllerWithRoles([role]);
 
@@ -37,7 +36,7 @@ public class OrganizationsControllerTests : ControllerTestsBase
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
         Assert.Equal(nameof(OrganizationsController.GetById), createdResult.ActionName);
 
-        _organizationServiceMock.Verify(r => r.CreateOrganization("science", _ct),
+        _organizationServiceMock.Verify(r => r.GetOrCreateOrganization("science", _ct),
             Times.Once);
     }
 

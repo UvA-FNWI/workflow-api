@@ -1,0 +1,12 @@
+name: Proposal_Feedback
+
+title:
+  nl: Proposal Feedback
+  en: Proposal Feedback
+
+ends: 
+  logical:
+    operator: Or
+    children: 
+    - event: ApproveProposal
+    - event: RejectProposal

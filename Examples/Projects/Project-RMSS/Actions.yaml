@@ -1,17 +1,48 @@
 globalActions:
-  - roles: [Student, Supervisor, ProposalReviewer]
+  - roles: [ Student, Supervisor, Coordinator ]
     type: View
-    forms: [Start]
-  - roles: [Student, Supervisor, ProposalReviewer]
+    forms: [ Start ]
+
+  # When both the supervisor and reviewer have approved the proposal
+  - roles: [ Student,Supervisor,Coordinator ]
     type: View
     forms:
-      - ProposalReviewSupervisor
-      - ProposalReviewReviewer
-      - EthicsReviewSupervisor
-      - EthicsReviewReviewer
-  - roles: [Registered]
+      - ProposalAndEthicsReviewSupervisor
+      - ProposalAndEthicsReviewReviewer
+    condition:
+      logical:
+        operator: And
+        children:
+          - event: ProposalApprovedSupervisor
+          - event: ProposalApprovedReviewer
+            
+  # If either supervisor or reviewer rejects the proposal
+  - roles: [ Student,Supervisor,Coordinator ]
+    type: View
+    forms:
+      - ProposalAndEthicsReviewSupervisor
+      - ProposalAndEthicsReviewReviewer
+    condition:
+      logical:
+        operator: Or
+        children:
+          - event: ProposalRejectedSupervisor
+          - event: ProposalRejectedReviewer
+
+  # Supervisors can see their latest review, either approved or rejected.
+  - roles: [ Supervisor ]
+    type: View
+    forms: [ ProposalAndEthicsReviewSupervisor ]
+  
+  # Reviewers can see their latest review, either approved or rejected.
+  - roles: [ Coordinator ]
+    type: View
+    forms: [ ProposalAndEthicsReviewReviewer ]
+
+  - roles: [ Registered ]
     type: CreateInstance
     userProperty: Student
-  - roles: [Coordinator]
+    
+  - roles: [ Coordinator ]
     type: Edit
-    forms: [Start]
+    forms: [ Start ]

@@ -3,9 +3,5 @@ title:
   en: Finish
   nl: Voltooien
 
-actions:
-  - type: Execute
-    roles: [Student]
-
 ends:
   event: Finish
