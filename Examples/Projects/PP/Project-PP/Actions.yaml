@@ -24,3 +24,9 @@ globalActions:
   - roles: [Coordinator]
     type: Edit
     forms: [Start]
+  - roles: [Student]
+    type: ViewResults
+    forms: [AssessmentSupervisor, AssessmentSecondReader, AssessmentCombined]
+  - roles: [Student]
+    type: View
+    forms: [AssessmentPresentation]

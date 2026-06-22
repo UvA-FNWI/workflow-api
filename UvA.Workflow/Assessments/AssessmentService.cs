@@ -68,13 +68,16 @@ public static class AssessmentService
                         WeightedAverage = results.Values.Any(v => v.WeightedAverage != null)
                             ? partConfig.Sources.Sum(x => results[x.Name].WeightedAverage * x.Weight) / totalWeight
                             : null,
+                        Weight = results.Values.FirstOrDefault(v => v.Weight != null)?.Weight,
                         Sum = partConfig.Sources.Sum(x => results[x.Name].Sum * x.Weight) / totalWeight,
                         QuestionResults = p.QuestionResults.Select(q => new QuestionResult
                         {
                             Name = q.Name,
                             Answer = partConfig.Sources.Sum(x =>
                                 (results[x.Name].QuestionResults.FirstOrDefault(z => z.Name == q.Name)?.Answer ?? 0) *
-                                (double)x.Weight) / (double)totalWeight
+                                (double)x.Weight) / (double)totalWeight,
+                            Weight = q.Weight,
+                            Percentage = q.Percentage
                         }).ToList()
                     };
                 })

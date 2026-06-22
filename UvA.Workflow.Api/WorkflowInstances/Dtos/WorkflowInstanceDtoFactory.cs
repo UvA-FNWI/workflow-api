@@ -150,6 +150,7 @@ public class WorkflowInstanceDtoFactory(
                     .ToArray()
                 : null,
             stepHeaderStatusResolver.Resolve(step, instance),
+            step.ResultsType,
             versions?.Select(v => CreateStepVersionDto(v, instance, allowedForms)).ToList()
         );
     }

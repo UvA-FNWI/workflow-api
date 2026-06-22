@@ -49,7 +49,8 @@ public enum RoleAction
     AssignMessages,
     CreateInstance,
     CreateRelatedInstance,
-    ImpersonateRoles
+    ImpersonateRoles,
+    ViewResults
 }
 
 public class Action
