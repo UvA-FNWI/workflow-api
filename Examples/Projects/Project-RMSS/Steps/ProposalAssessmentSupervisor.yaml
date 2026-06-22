@@ -3,14 +3,6 @@ title:
   en: Assessment (supervisor)
   nl: Beoordeling (begeleider)
 
-condition:
-  logical:
-    operator: Or
-    children:
-      - event: Start
-      - event: ProposalApprovedSupervisor
-      - event: ProposalRejectedSupervisor
-
 actions:
   - type: Submit
     roles: [Supervisor]

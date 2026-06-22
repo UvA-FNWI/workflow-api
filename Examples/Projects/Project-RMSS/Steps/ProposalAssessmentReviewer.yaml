@@ -3,14 +3,6 @@ title:
   en: Assessment (proposal reviewer)
   nl: Beoordeling (voorstelbeoordelaar)
 
-condition:
-  logical:
-    operator: Or
-    children:
-      - event: Start
-      - event: ProposalApprovedReviewer
-      - event: ProposalRejectedReviewer
-
 actions:
   - type: Submit
     roles: [Coordinator]
