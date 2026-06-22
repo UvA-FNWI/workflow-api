@@ -132,7 +132,7 @@ public class AnswerService(
         var (instance, _, form, question) = context;
 
         var value = instance.GetProperty(form.PropertyName, question.Name);
-        if (value == null || value is BsonNull)
+        if (value == null || value is BsonNull || ArtifactInfo.FromBson(value)?.ArtifactId != artifactId)
         {
             var journal = await instanceJournalService.GetInstanceJournal(context.Instance.Id, false, ct);
             value = journal?.PropertyChanges.FirstOrDefault(p =>
