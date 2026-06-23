@@ -35,6 +35,8 @@ grouping:
         - AssessmentCombined
         - AssessmentPresentation
         - AssessmentIndividual
+        - FinalizeAssessment
+        - FinalGrade
 
     - name: thesis-in-progress
       title:

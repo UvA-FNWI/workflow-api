@@ -3,9 +3,6 @@ title:
   en: Assessment (supervisor)
   nl: Beoordeling (begeleider)
 
-condition:
-  event: Start
-
 actions:
   - type: Submit
     roles: [Supervisor]

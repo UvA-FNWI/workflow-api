@@ -181,6 +181,11 @@ public class PropertyDefinition : INamed
     public CalculationSettings? Calculation { get; set; }
 
     /// <summary>
+    /// Settings for result display
+    /// </summary>
+    public ResultSettings? Results { get; set; }
+
+    /// <summary>
     /// Determines if the propertyDefinition allows external users
     /// </summary>
     public bool? AllowsExternalUsers { get; set; } = false;
@@ -214,6 +219,25 @@ public class CalculationSettings
     /// For Sum, the weight is ignored.
     /// </summary>
     public CalculationType Type { get; set; }
+}
+
+public class ResultSettings
+{
+    /// <summary>
+    /// Determines what kind of results are shown for this field
+    /// </summary>
+    public ResultType Type { get; set; }
+
+    /// <summary>
+    /// For Type = Source, this determines which source property to use
+    /// </summary>
+    public string? Source { get; set; }
+}
+
+public enum ResultType
+{
+    Source,
+    Average
 }
 
 public class Choice : INamed

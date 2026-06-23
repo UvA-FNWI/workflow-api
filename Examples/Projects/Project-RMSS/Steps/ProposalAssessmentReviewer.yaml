@@ -3,12 +3,9 @@ title:
   en: Assessment (proposal reviewer)
   nl: Beoordeling (voorstelbeoordelaar)
 
-condition:
-  event: Start
-
 actions:
   - type: Submit
-    roles: [ProposalReviewer]
+    roles: [Coordinator]
     form: ProposalAndEthicsReviewReviewer
     label:
       en: Submit assessment

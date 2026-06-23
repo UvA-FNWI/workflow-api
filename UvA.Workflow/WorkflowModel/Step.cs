@@ -37,6 +37,13 @@ public record ProgressInformation
     [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(Text);
 }
 
+public enum StepResultsType
+{
+    Normal,
+    AssessmentPartOverview,
+    AssessmentFinalOverview
+}
+
 public class Step : INamed
 {
     /// <summary>
@@ -53,6 +60,11 @@ public class Step : INamed
     /// The progress information about the step
     /// </summary>
     public ProgressInformation? Progress { get; set; }
+
+    /// <summary>
+    /// Determines whether assessment results are shown in the step
+    /// </summary>
+    public StepResultsType ResultsType { get; set; }
 
     /// <summary>
     /// The icon of the step

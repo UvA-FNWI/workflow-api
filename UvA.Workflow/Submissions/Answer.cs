@@ -39,67 +39,53 @@ public record Answer(
                 false);
 
         var question = form.ActualForm.WorkflowDefinition.Properties.Get(questionName);
+        var value = GetValue(question, answer);
+        var file = ObjectContext.GetValue(answer, question) as ArtifactInfo;
 
+        return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
+            validationError, value, question.DataType == DataType.File ? file != null ? [file] : [] : null);
+    }
+
+    public static JsonElement? GetValue(PropertyDefinition question, BsonValue? answer)
+    {
         if (question.DataType == DataType.Currency)
         {
             var value = ObjectContext.GetValue(answer, question) as CurrencyAmount;
             var currencyObj = new { currency = value?.Currency, amount = value?.Amount };
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-                validationError,
-                Value: value == null
-                    ? null
-                    : JsonSerializer.SerializeToElement(currencyObj, AnswerConversionService.Options));
+            return value == null
+                ? null
+                : JsonSerializer.SerializeToElement(currencyObj, AnswerConversionService.Options);
         }
 
         if (question.DataType == DataType.User && question.IsArray)
         {
             var users = ObjectContext.GetValue(answer, question) as InstanceUser[];
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-                validationError,
-                Value: users == null
-                    ? null
-                    : JsonSerializer.SerializeToElement(users, AnswerConversionService.Options));
+            return users == null
+                ? null
+                : JsonSerializer.SerializeToElement(users, AnswerConversionService.Options);
         }
 
         if (question.DataType == DataType.User)
         {
             var user = ObjectContext.GetValue(answer, question) as InstanceUser;
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-                validationError,
-                Value: user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options));
+            return user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options);
         }
 
         if (question.DataType == DataType.File)
         {
             var value = ObjectContext.GetValue(answer, question) as ArtifactInfo;
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-                validationError,
-                Value: value?.Name == null ? null : JsonSerializer.SerializeToElement(value.Name),
-                Files: value == null
-                    ? []
-                    : [value]
-            );
+            return value?.Name == null ? null : JsonSerializer.SerializeToElement(value.Name);
         }
 
         if (question.DataType == DataType.Boolean)
         {
             // Default to false, not to null
             var value = ObjectContext.GetValue(answer, question) as bool?;
-            return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-                validationError,
-                Value: JsonSerializer.SerializeToElement(value ?? false));
+            return JsonSerializer.SerializeToElement(value ?? false);
         }
 
         // Handle remaining types: String, DateTime, Date, Int, Double, Choice, Reference
         var convertedValue = ObjectContext.GetValue(answer, question);
-        return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-            validationError,
-            Value: convertedValue == null ? null : JsonSerializer.SerializeToElement(convertedValue));
+        return convertedValue == null ? null : JsonSerializer.SerializeToElement(convertedValue);
     }
-
-    // public PropertyDefinition GetQuestion(ModelService modelService)
-    //     => PropertyDefinition.FromModel(modelService.WorkflowDefinitions[WorkflowDefinition].Properties[QuestionName]);
-    //
-    // public Task<Message[]> GetMessages() // MessagesByObjectIdDataLoader loader
-    //     => Task.FromResult<Message[]>([]); // TODO: loader.LoadAsync(new MessageId(TargetType.Answer, Id));
 }

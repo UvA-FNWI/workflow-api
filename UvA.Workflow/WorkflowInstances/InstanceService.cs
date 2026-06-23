@@ -248,12 +248,14 @@ public class InstanceService(
     public record AllowedSubmission(
         FormSubmissionState SubmissionState,
         Form Form,
-        Dictionary<string, QuestionStatus> QuestionStatus);
+        Dictionary<string, QuestionStatus> QuestionStatus,
+        bool CanView);
 
     public async Task<IEnumerable<AllowedSubmission>> GetAllowedSubmissions(WorkflowInstance instance,
-        CancellationToken ct)
+        CancellationToken ct, bool includeResults = false)
     {
-        var allowed = await rightsService.GetAllowedActions(instance, RoleAction.View);
+        var allowed = await rightsService.GetAllowedActions(instance,
+            includeResults ? [RoleAction.View, RoleAction.ViewResults] : [RoleAction.View]);
         var allowedHidden = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden);
 
         var forms = allowed
@@ -279,7 +281,8 @@ public class InstanceService(
             .OrderBy(x => workflowDef.Forms.FindIndex(f => f.Name == x.Form.Name))
             .ThenBy(x => x.State.DateSubmitted)
             .Select(x => new AllowedSubmission(x.State, x.Form,
-                modelService.GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name))));
+                modelService.GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name)),
+                allowed.Any(a => a.Type == RoleAction.View && a.MatchesForm(x.Form.Name))));
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,

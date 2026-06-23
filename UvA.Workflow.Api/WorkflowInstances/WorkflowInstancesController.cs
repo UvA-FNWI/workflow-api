@@ -90,7 +90,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        if (!await rightsService.Can(instance, RoleAction.ImpersonateRoles, RightsEvaluationMode.RealUser))
+        if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
         var roles = rightsService.GetImpersonationTargetRoles(instance)
@@ -112,7 +112,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        if (!await rightsService.Can(instance, RoleAction.ImpersonateRoles, RightsEvaluationMode.RealUser))
+        if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
         var normalizedRoleName = rightsService.NormalizeImpersonationTargetRole(instance, input.Role);
