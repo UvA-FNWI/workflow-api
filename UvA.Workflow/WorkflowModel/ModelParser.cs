@@ -470,7 +470,7 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         var folder = typeName switch
         {
-            "SendMessage" => "Emails",
+            nameof(TemplateMessage) => "Emails",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };
