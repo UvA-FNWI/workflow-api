@@ -65,7 +65,7 @@ public partial class ModelParser
             definition.Forms = Read<Form>(definition.SourceFolder);
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
-            definition.Emails = Read<SendMessage>(definition.SourceFolder);
+            definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
                 NamedConditions.Add(entry);

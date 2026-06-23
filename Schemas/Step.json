@@ -758,13 +758,7 @@
       "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
-        "name": {
-          "type": "string"
-        },
         "to": {
           "type": [
             "null",
