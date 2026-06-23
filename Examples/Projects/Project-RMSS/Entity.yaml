@@ -21,16 +21,20 @@ events:
       - ProposalRejectedSupervisor
       - ProposalApprovedReviewer
       - ProposalRejectedReviewer
+      - ProposalReturnedForRevision
 
   - name: ProposalRejectedSupervisor
-    suppresses: [Start,ProposalApprovedSupervisor]
+    suppresses: [ProposalApprovedSupervisor]
   - name: ProposalApprovedSupervisor
     suppresses: [ProposalRejectedSupervisor]
 
   - name: ProposalRejectedReviewer
-    suppresses: [Start,ProposalApprovedReviewer]
+    suppresses: [ProposalApprovedReviewer]
   - name: ProposalApprovedReviewer
     suppresses: [ProposalRejectedReviewer]
+
+  - name: ProposalReturnedForRevision
+    suppresses: [Start]
 
 steps:
   - ProposalPhase

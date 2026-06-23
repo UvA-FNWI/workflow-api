@@ -8,7 +8,7 @@ targetForm: ProposalAndEthicsReview
 step: ProposalAssessmentSupervisor
 
 emitFormSubmitEvent: false
-submittedWhenEvents: [ProposalApprovedSupervisor, ProposalRejectedSupervisor]
+submittedWhenEvents: [ ProposalApprovedSupervisor, ProposalRejectedSupervisor ]
 
 onSubmit:
   - condition:
@@ -33,3 +33,25 @@ onSubmit:
               property: SupervisorProposalAndEthicsReview.EthicsSufficient
               equal: =Fail
     event: ProposalRejectedSupervisor
+    
+    # If both assessments are done and either one has a rejection, create the ProposalReturnedForRevision event.
+  - condition:
+      logical:
+        operator: And
+        children:
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalApprovedReviewer
+                - event: ProposalRejectedReviewer
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalRejectedReviewer
+                - value:
+                    property: SupervisorProposalAndEthicsReview.ProposalSufficient
+                    equal: =Fail
+                - value:
+                    property: SupervisorProposalAndEthicsReview.EthicsSufficient
+                    equal: =Fail
+    event: ProposalReturnedForRevision
