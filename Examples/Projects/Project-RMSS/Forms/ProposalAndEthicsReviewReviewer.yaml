@@ -56,3 +56,12 @@ onSubmit:
                     property: ReviewerProposalAndEthicsReview.EthicsSufficient
                     equal: =Fail
     event: ProposalReturnedForRevision
+    sendMail:
+      template: ProposalRejectedStudent
+      to: Student
+    sendMail:
+      template: ProposalRejectedSupervisor
+      to: Supervisor
+    sendMail:
+      template: ProposalRejectedCoordinator
+      to: Coordinator

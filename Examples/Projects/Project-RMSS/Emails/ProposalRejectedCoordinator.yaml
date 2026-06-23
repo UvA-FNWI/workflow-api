@@ -1,0 +1,24 @@
+name: ProposalRejectedCoordinator
+layout: default
+subject:
+  en: "Adjustments are needed for your thesis proposal or ethics submission"
+  nl: "Er zijn wijziginen nodig voor jouw ingezonden scriptie of ethiek"
+body:
+  en: |
+    Dear {{ coalesce(Coordinator.DisplayName, =collega) }},
+    
+    Thank you for assessing the thesis propsal and ethics submission of {{ coalesce(Student.DisplayName, =collega) }}.
+    Unfortunately, the current submission is not yet sufficient to proceed.
+    The student has been notified via email that revisions are required.
+
+  nl: |
+    Beste {{ coalesce(Coordinator.DisplayName, =collega) }},
+
+    Bedankt voor het nakijken van de scriptie en/of ethiek van {{ coalesce(Student.DisplayName, =collega) }}.
+    Helaas is de huidige versie nog niet voldoende om verder te gaan.
+    De student heeft via email een notificatie gekregen dat er updates nodig zijn.
+buttons:
+  - label:
+      en: "View feedback"
+      nl: "Feedback bekijken"
+    url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"
