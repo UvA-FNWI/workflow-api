@@ -7,7 +7,6 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
-    FormType FormType,
     string? Step)
 {
     public static FormDto Create(Form form, ObjectContext context)
@@ -26,7 +25,6 @@ public record FormDto(
             .SelectMany(p => p.Fields)
             .Distinct()
             .ToDictionary(q => q, q => QuestionDto.Create(q, context));
-        var formType = form.FormType;
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
         var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         var originalForm = form;
@@ -43,7 +41,6 @@ public record FormDto(
                 return PageDto.Create(i, p, pageQuestions, context, isInCurrentForm);
             }).ToArray(),
             form.Layout,
-            formType,
             originalForm.Step
         );
     }

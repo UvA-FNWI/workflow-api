@@ -8,11 +8,11 @@ icon:
 actions:
   - name: SubmitGrade
     type: Submit
-    roles: [Supervisor]
+    roles: [Coordinator]
     form: FinalGrade
     label:
-      en: Submit Grade
-      nl: Cijfer indienen
+      en: Publish Grade
+      nl: Cijfer publiceren
 
 ends:
   event: SubmitGrade

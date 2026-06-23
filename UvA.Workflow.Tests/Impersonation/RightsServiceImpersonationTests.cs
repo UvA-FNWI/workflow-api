@@ -68,7 +68,7 @@ public class RightsServiceImpersonationTests
 
         var canViewAdminToolsImpersonated = await rightsService.Can(instance, RoleAction.ViewAdminTools);
         var canViewAdminToolsReal =
-            await rightsService.Can(instance, RoleAction.ViewAdminTools, RightsEvaluationMode.RealUser);
+            await rightsService.Can(instance, [RoleAction.ViewAdminTools], RightsEvaluationMode.RealUser);
 
         Assert.False(canViewAdminToolsImpersonated);
         Assert.True(canViewAdminToolsReal);
