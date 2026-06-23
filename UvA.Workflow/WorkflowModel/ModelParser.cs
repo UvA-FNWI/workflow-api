@@ -216,7 +216,11 @@ public partial class ModelParser
     private void PreProcess(Effect[] effects)
     {
         foreach (var effect in effects)
+        {
+            if (effect == null)
+                throw new Exception("Empty effect found");
             PreProcess(effect.Condition);
+        }
     }
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
@@ -245,7 +249,7 @@ public partial class ModelParser
     private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
     {
         foreach (var eventId in effects
-                     .SelectMany(effect => new[] { effect.Event, effect.UndoEvent })
+                     .SelectMany(effect => new[] { effect?.Event, effect?.UndoEvent })
                      .Where(eventId => !string.IsNullOrWhiteSpace(eventId))
                      .Cast<string>())
         {
