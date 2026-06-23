@@ -30,10 +30,6 @@ public class AnswersController(
         string questionName,
         [FromBody] SaveAnswerRequest input, CancellationToken ct)
     {
-        var user = await userService.GetCurrentUser(ct);
-        if (user == null)
-            return Unauthorized();
-
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
 
@@ -70,7 +66,7 @@ public class AnswersController(
                 ct))
             return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
 
-        var answers = await answerService.SaveAnswer(context, value, user, ct);
+        var answers = await answerService.SaveAnswer(context, value, ct);
         var permissions =
             await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
                 RoleAction.Edit);
