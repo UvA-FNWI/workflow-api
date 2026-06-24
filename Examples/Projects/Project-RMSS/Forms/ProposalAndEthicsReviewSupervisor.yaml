@@ -58,27 +58,28 @@ onSubmit:
     sendMail:
       template: ProposalRejectedStudent
       to: Student
-  
-  # Rejection mail to Coordinator     
-  - condition:
-      logical:
-        operator: And
-        children:
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalApprovedReviewer
-                - event: ProposalRejectedReviewer
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalRejectedReviewer
-                - value:
-                    property: SupervisorProposalAndEthicsReview.ProposalSufficient
-                    equal: =Fail
-                - value:
-                    property: SupervisorProposalAndEthicsReview.EthicsSufficient
-                    equal: =Fail
-    sendMail:
-      template: ProposalRejectedCoordinator
-      to: Course.Coordinator
+      
+# TODO: Course.Coordinator is an array of users. sendMail doesn't support this yet. (See: DN-3863)
+#  # Rejection mail to Coordinator     
+#  - condition:
+#      logical:
+#        operator: And
+#        children:
+#          - logical:
+#              operator: Or
+#              children:
+#                - event: ProposalApprovedReviewer
+#                - event: ProposalRejectedReviewer
+#          - logical:
+#              operator: Or
+#              children:
+#                - event: ProposalRejectedReviewer
+#                - value:
+#                    property: SupervisorProposalAndEthicsReview.ProposalSufficient
+#                    equal: =Fail
+#                - value:
+#                    property: SupervisorProposalAndEthicsReview.EthicsSufficient
+#                    equal: =Fail
+#    sendMail:
+#      template: ProposalRejectedCoordinator
+#      to: Course.Coordinator
