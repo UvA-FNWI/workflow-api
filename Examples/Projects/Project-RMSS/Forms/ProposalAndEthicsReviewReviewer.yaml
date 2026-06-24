@@ -59,9 +59,50 @@ onSubmit:
     sendMail:
       template: ProposalRejectedStudent
       to: Student
+
+  # Rejection mail to Supervisor            
+  - condition:
+      logical:
+        operator: And
+        children:
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalApprovedSupervisor
+                - event: ProposalRejectedSupervisor
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalRejectedSupervisor
+                - value:
+                    property: ReviewerProposalAndEthicsReview.ProposalSufficient
+                    equal: =Fail
+                - value:
+                    property: ReviewerProposalAndEthicsReview.EthicsSufficient
+                    equal: =Fail
     sendMail:
       template: ProposalRejectedSupervisor
       to: Supervisor
+  # Rejection mail to Coordinator 
+  - condition:
+      logical:
+        operator: And
+        children:
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalApprovedSupervisor
+                - event: ProposalRejectedSupervisor
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalRejectedSupervisor
+                - value:
+                    property: ReviewerProposalAndEthicsReview.ProposalSufficient
+                    equal: =Fail
+                - value:
+                    property: ReviewerProposalAndEthicsReview.EthicsSufficient
+                    equal: =Fail    
     sendMail:
       template: ProposalRejectedCoordinator
-      to: Coordinator
+      to: Course.Coordinator

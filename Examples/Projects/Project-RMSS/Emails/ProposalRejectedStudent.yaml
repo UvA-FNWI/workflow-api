@@ -7,7 +7,7 @@ body:
   en: |
     Dear {{ coalesce(Student.DisplayName, =student) }},
   
-    Thank you for submitting your thesispropsal and ethics. 
+    Thank you for submitting your thesis propsal and ethics. 
     Some adjustments are needed before you can proceed.
     
     Log in to see what was already correct and what needs to be adjusted.

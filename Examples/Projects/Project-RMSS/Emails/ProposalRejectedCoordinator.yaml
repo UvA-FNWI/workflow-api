@@ -1,8 +1,8 @@
 name: ProposalRejectedCoordinator
 layout: default
 subject:
-  en: "Adjustments are needed for your thesis proposal or ethics submission"
-  nl: "Er zijn wijziginen nodig voor jouw ingezonden scriptie of ethiek"
+  en: "Adjustments are needed for your thesis proposal or ethics submission of {{ coalesce(Student.DisplayName, =collega) }}"
+  nl: "Er zijn wijziginen nodig voor jouw ingezonden scriptie of ethiek van {{ coalesce(Student.DisplayName, =collega) }}"
 body:
   en: |
     Dear {{ coalesce(Coordinator.DisplayName, =collega) }},

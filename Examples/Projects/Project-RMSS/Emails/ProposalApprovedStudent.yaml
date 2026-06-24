@@ -1,0 +1,21 @@
+name: ProposalApprovedStudent
+layout: default
+subject:
+  en: "Your theses proposal and ethics submission are approved"
+  nl: "Je scriptie voorstel en ethiek zijn goedgekeurd"
+body:
+  en: |
+    Dear {{ coalesce(Student.DisplayName, =student) }},
+
+    Congratulations, your thesis proposal and ethics submission has been approved.
+    You can now continue working on your thesis.
+  nl: |
+    Beste {{ coalesce(Student.DisplayName, =student) }},
+    
+    Gefeliciteerd, jouw scriptie voorstel is goedgekeurd.
+    Je kunt nu verder werken aan je scriptie.
+buttons:
+  - label:
+      en: "View feedback"
+      nl: "Bekijk feedback"
+    url: "{{ FrontendBaseUrl }}/instance/{{ Id }}"
