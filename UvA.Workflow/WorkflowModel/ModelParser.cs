@@ -328,15 +328,6 @@ public partial class ModelParser
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
     {
-        try
-        {
-            _ = propertyDefinition.DataType;
-        }
-        catch (Exception)
-        {
-            throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
-        }
-
         propertyDefinition.Layout = NormalizeLayout(propertyDefinition.Layout);
 
         foreach (var entry in propertyDefinition.Values ?? [])
@@ -362,6 +353,15 @@ public partial class ModelParser
                      .Distinct())
             propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
                 .Add(propertyDefinition);
+
+        try
+        {
+            _ = propertyDefinition.DataType;
+        }
+        catch (Exception)
+        {
+            throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
+        }
 
         return propertyDefinition;
     }
