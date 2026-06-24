@@ -60,7 +60,7 @@ onSubmit:
       template: ProposalRejectedStudent
       to: Student
 
-  # Rejection mail to Coordinator 
+  # Rejection mail to Supervisor 
   - condition:
       logical:
         operator: And
@@ -81,5 +81,5 @@ onSubmit:
                     property: ReviewerProposalAndEthicsReview.EthicsSufficient
                     equal: =Fail    
     sendMail:
-      template: ProposalRejectedCoordinator
-      to: Course.Coordinator
+      template: ProposalRejectedSupervisor
+      to: Supervisor
