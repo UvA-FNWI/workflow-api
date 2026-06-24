@@ -152,12 +152,13 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                     {
                         Value = settings?.Type switch
                         {
-                            null or ResultType.Average =>
-                                JsonSerializer.SerializeToElement(Math.Round(combinedAnswers[a.QuestionName].Answer,
-                                    2)),
                             ResultType.Source when settings.Source != null =>
                                 Answer.GetValue(question!,
                                     context.Instance.GetProperty(settings.Source, a.QuestionName)),
+                            _ when !combinedAnswers.ContainsKey(a.QuestionName) => null,
+                            null or ResultType.Average =>
+                                JsonSerializer.SerializeToElement(Math.Round(combinedAnswers[a.QuestionName].Answer,
+                                    2)),
                             _ => throw new InvalidOperationException(
                                 $"Incorrect result configuration for ${a.QuestionName}")
                         }
