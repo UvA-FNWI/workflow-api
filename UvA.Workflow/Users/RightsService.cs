@@ -231,16 +231,16 @@ public class RightsService(
     }
 
     public Task<bool> Can(WorkflowInstance instance, RoleAction action, string? form = null)
-        => Can(instance, action, RightsEvaluationMode.RequestContext, form);
+        => Can(instance, [action], RightsEvaluationMode.RequestContext, form);
 
     public async Task<bool> Can(
         WorkflowInstance instance,
-        RoleAction action,
+        RoleAction[] actions,
         RightsEvaluationMode evaluationMode,
         string? form = null)
     {
-        var actions = await GetAllowedActions(instance, evaluationMode, action);
-        return actions.Any(f => form == null || f.MatchesForm(form));
+        var allowedActions = await GetAllowedActions(instance, evaluationMode, actions);
+        return allowedActions.Any(f => form == null || f.MatchesForm(form));
     }
 
     private async Task<bool> Can(RoleAction action)
@@ -252,16 +252,19 @@ public class RightsService(
     }
 
     public Task EnsureAuthorizedForAction(WorkflowInstance instance, RoleAction action, string? form = null)
-        => EnsureAuthorizedForAction(instance, action, RightsEvaluationMode.RequestContext, form);
+        => EnsureAuthorizedForAction(instance, [action], RightsEvaluationMode.RequestContext, form);
+
+    public Task EnsureAuthorizedForAction(WorkflowInstance instance, RoleAction[] actions)
+        => EnsureAuthorizedForAction(instance, actions, RightsEvaluationMode.RequestContext);
 
     public async Task EnsureAuthorizedForAction(
         WorkflowInstance instance,
-        RoleAction action,
+        RoleAction[] actions,
         RightsEvaluationMode evaluationMode,
         string? form = null)
     {
-        if (!await Can(instance, action, evaluationMode, form))
-            throw new ForbiddenWorkflowActionException(instance.Id, action, form);
+        if (!await Can(instance, actions, evaluationMode, form))
+            throw new ForbiddenWorkflowActionException(instance.Id, actions[0], form);
     }
 
     public async Task EnsureAuthorizedForAction(RoleAction action)

@@ -28,8 +28,8 @@ public class AssessmentsController(
 
         var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
 
-        await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View);
-        var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
+        await rightsService.EnsureAuthorizedForAction(instance, [RoleAction.View, RoleAction.ViewResults]);
+        var submissions = (await instanceService.GetAllowedSubmissions(instance, ct, true)).ToList();
         var contexts = new List<SubmissionContext>();
         foreach (var form in submissions.Select(s => s.Form))
         {
@@ -43,7 +43,8 @@ public class AssessmentsController(
             contexts.AddRange(context);
         }
 
-        var dto = assessmentDtoFactory.Create(instanceId, contexts, assessmentConfig);
+        var dto = assessmentDtoFactory.Create(instanceId, contexts, assessmentConfig,
+            allowedForms: submissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray());
         return Ok(dto);
     }
 
@@ -62,14 +63,17 @@ public class AssessmentsController(
         var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
 
         var matchingPart = combine
-            ? assessmentConfig?.Parts.FirstOrDefault(p => p.Sources.Any(s => s.Name == submissionId))
+            ? assessmentConfig?.Parts.FirstOrDefault(p =>
+                p.Name == submissionId || p.Sources.Any(s => s.Name == submissionId))
             : null;
         if (matchingPart != null)
         {
-            await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View);
-            var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, ct);
+            await rightsService.EnsureAuthorizedForAction(instance, [RoleAction.View, RoleAction.ViewResults]);
+            var allowedSubmissions = (await instanceService.GetAllowedSubmissions(instance, ct, true)).ToList();
+            var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, allowedSubmissions, ct);
             return Ok(assessmentDtoFactory.Create(instanceId, contexts,
-                new AssessmentConfiguration { Parts = [matchingPart] }));
+                new AssessmentConfiguration { Parts = [matchingPart] },
+                allowedForms: allowedSubmissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray()));
         }
 
         var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
@@ -85,10 +89,10 @@ public class AssessmentsController(
     private async Task<SubmissionContext[]> LoadSubmittedSourceContexts(
         WorkflowInstance instance,
         AssessmentPart part,
+        IEnumerable<InstanceService.AllowedSubmission> allowedSubmissions,
         CancellationToken ct)
     {
         // Find out which forms have been submitted for this instance
-        var allowedSubmissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var submittedFormNames = allowedSubmissions.Select(s => s.Form.Name).ToHashSet();
 
         // Only fetch contexts for sources that have already been submitted

@@ -19,7 +19,8 @@ public record AssessmentPartDto(
     SourceResultDto[] SourceResults,
     SourceResultDto? Combined,
     decimal? Percentage,
-    bool ShowDiscrepancyWarning
+    bool ShowDiscrepancyWarning,
+    FormDto? Form
 );
 
 public record SourceResultDto(
@@ -43,7 +44,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
         string id,
         IEnumerable<SubmissionContext> contexts,
         AssessmentConfiguration? assessmentConfig,
-        string? pageName = null)
+        string? pageName = null,
+        string[]? allowedForms = null)
     {
         var contextList = contexts.ToList();
         var parts = new List<AssessmentPartDto>();
@@ -77,6 +79,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
             decimal totalSourceWeight = partConfig.Sources.Sum(s => s.Weight);
             var sourceResultDtos = partContexts
+                .Where(c => allowedForms == null || allowedForms.Contains(c.Form.Name))
                 .Select((context, i) =>
                 {
                     var sourceConfig = partConfig.Sources.FirstOrDefault(s => s.Name == context.Form.Name);
@@ -96,7 +99,10 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 partConfig.MaximumDiscrepancy > 0 && sourceResultDtos.Any(s1 => s1.WeightedAverage != null
                     && sourceResultDtos.Any(s2 =>
                         s2.WeightedAverage != null && Math.Abs(s2.WeightedAverage.Value - s1.WeightedAverage.Value) >=
-                        partConfig.MaximumDiscrepancy))
+                        partConfig.MaximumDiscrepancy)),
+                partContexts.Count > 0
+                    ? FormDto.Create(partContexts[0].Form, ObjectContext.Create(partContexts[0].Instance, modelService))
+                    : null
             ));
         }
 
@@ -132,13 +138,31 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
         if (sourceResult.IsCombined)
         {
-            var relevantQuestions =
-                sourceResult.PageResults.SelectMany(p => p.QuestionResults).ToDictionary(q => q.Name);
+            var definition = context.Form.ActualForm.WorkflowDefinition;
+            var relevantQuestions = definition.Properties.Where(p => p.Results != null).ToDictionary(p => p.Name);
+            var combinedAnswers = sourceResult.PageResults.SelectMany(p => p.QuestionResults).ToDictionary(q => q.Name);
             answers = answers
-                .Where(a => relevantQuestions.ContainsKey(a.QuestionName))
-                .Select(a => a with
+                .Where(a => relevantQuestions.ContainsKey(a.QuestionName) ||
+                            combinedAnswers.ContainsKey(a.QuestionName))
+                .Select(a =>
                 {
-                    Value = JsonSerializer.SerializeToElement(Math.Round(relevantQuestions[a.QuestionName].Answer, 2))
+                    var question = relevantQuestions.GetValueOrDefault(a.QuestionName);
+                    var settings = question?.Results;
+                    return a with
+                    {
+                        Value = settings?.Type switch
+                        {
+                            ResultType.Source when settings.Source != null =>
+                                Answer.GetValue(question!,
+                                    context.Instance.GetProperty(settings.Source, a.QuestionName)),
+                            _ when !combinedAnswers.ContainsKey(a.QuestionName) => null,
+                            null or ResultType.Average =>
+                                JsonSerializer.SerializeToElement(Math.Round(combinedAnswers[a.QuestionName].Answer,
+                                    2)),
+                            _ => throw new InvalidOperationException(
+                                $"Incorrect result configuration for ${a.QuestionName}")
+                        }
+                    };
                 })
                 .ToArray();
         }

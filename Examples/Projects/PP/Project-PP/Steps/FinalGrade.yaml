@@ -4,23 +4,15 @@ title:
   nl: Eindcijfer
 icon:
   type: graduate-cap-line
-
-properties:
-    - name: FinalGrade
-      text: Final grade
-      description: The final grade for this course, based on the thesis assessment and presentation.
-      type: HalfGrade!
-      layout:
-        type: Dropdown
         
 actions:
   - name: SubmitGrade
     type: Submit
-    roles: [Supervisor]
+    roles: [Coordinator]
     form: FinalGrade
     label:
-      en: Submit Grade
-      nl: Cijfer indienen
+      en: Publish Grade
+      nl: Cijfer publiceren
 
 ends:
   event: SubmitGrade

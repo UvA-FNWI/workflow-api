@@ -180,6 +180,6 @@ public class AnswersController(
     };
 
     private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>
-        await rightsService.EnsureAuthorizedForAction(context.Instance, action, RightsEvaluationMode.RequestContext,
+        await rightsService.EnsureAuthorizedForAction(context.Instance, [action], RightsEvaluationMode.RequestContext,
             context.Form.Name);
 }

@@ -12,6 +12,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.1
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -37,6 +39,8 @@ properties:
   - name: ProblemStatementComments
     type: String
     text: Comments on problem statement
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -47,6 +51,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.15
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -76,6 +82,8 @@ properties:
   - name: TheoreticalFrameworkComments
     type: String
     text: Comments on theoretical framework
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -86,6 +94,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.15
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -112,6 +122,8 @@ properties:
   - name: MethodsComments
     type: String
     text: Comments on methods
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -122,6 +134,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.15
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -153,6 +167,8 @@ properties:
   - name: AnalysisEvaluationResultsComments
     type: String
     text: Comments on analysis / evaluation of the results
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -163,6 +179,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.25
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -190,6 +208,8 @@ properties:
   - name: ArgumentationCreativityComments
     type: String
     text: Comments on argumentation and creativity
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -200,6 +220,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.1
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -225,6 +247,8 @@ properties:
   - name: ConclusionDiscussionComments
     type: String
     text: Comments on conclusion and discussion
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -235,6 +259,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.05
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -258,6 +284,8 @@ properties:
   - name: StructureComments
     type: String
     text: Comments on structure
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -268,6 +296,8 @@ properties:
       type: Rubric
     calculation: 
       weight: 0.05
+    results:
+      type: Average
     rubric:
       - name: Excellent
         description: |
@@ -293,6 +323,8 @@ properties:
   - name: LayoutLanguageComments
     type: String
     text: Comments on layout and language
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
 
@@ -305,6 +337,8 @@ properties:
       type: Rubric
     calculation:
       type: Sum
+    results:
+      type: Average
     values:
     - name: "0"
       value: 0
@@ -339,6 +373,8 @@ properties:
       type: Rubric
     calculation:
       type: Sum
+    results:
+      type: Average
     values:
     - name: "0"
       value: 0
@@ -395,6 +431,8 @@ properties:
   - name: Motivation
     text: Additional motivation if final grade is 8 or higher
     type: String
+    results:
+      source: AssessmentCombined
     layout:
       multiline: true
     description: |

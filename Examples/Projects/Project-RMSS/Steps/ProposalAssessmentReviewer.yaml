@@ -3,9 +3,6 @@ title:
   en: Assessment (proposal reviewer)
   nl: Beoordeling (voorstelbeoordelaar)
 
-condition:
-  event: Start
-
 actions:
   - type: Submit
     roles: [Coordinator]
