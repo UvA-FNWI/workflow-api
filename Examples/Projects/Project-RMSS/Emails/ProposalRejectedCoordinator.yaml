@@ -5,14 +5,14 @@ subject:
   nl: "Er zijn wijziginen nodig voor jouw ingezonden scriptie of ethiek van {{ coalesce(Student.DisplayName, =collega) }}"
 body:
   en: |
-    Dear {{ coalesce(Coordinator.DisplayName, =collega) }},
+    Dear {{ coalesce(Course.Coordinator.DisplayName, =collega) }},
     
     Thank you for assessing the thesis propsal and ethics submission of {{ coalesce(Student.DisplayName, =collega) }}.
     Unfortunately, the current submission is not yet sufficient to proceed.
     The student has been notified via email that revisions are required.
 
   nl: |
-    Beste {{ coalesce(Coordinator.DisplayName, =collega) }},
+    Beste {{ coalesce(Course.Coordinator.DisplayName, =collega) }},
 
     Bedankt voor het nakijken van de scriptie en/of ethiek van {{ coalesce(Student.DisplayName, =collega) }}.
     Helaas is de huidige versie nog niet voldoende om verder te gaan.
