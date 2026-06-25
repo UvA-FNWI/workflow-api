@@ -83,7 +83,6 @@ public record MailMessage(
     string? AttachmentTemplate = null
 )
 {
-    public MailSender? Sender { get; set; }
     public List<MailRecipient> To { get; set; } = [];
     public List<MailRecipient>? Cc { get; set; }
     public List<MailRecipient>? Bcc { get; set; }
