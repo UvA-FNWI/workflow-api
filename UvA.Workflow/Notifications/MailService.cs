@@ -25,21 +25,6 @@ public record MailRecipient(string MailAddress, string? DisplayName = null)
 
 public record MailAttachment(string FileName, byte[] Content);
 
-public enum MailSender
-{
-    MilestonesGeneral,
-}
-
-public static class MailSenderExtensions
-{
-    public static string GetUserId(this MailSender sender) => sender switch
-    {
-        MailSender.MilestonesGeneral =>
-            "0c6948d0-009a-4796-9d94-e0b56bc3ea9c", // TODO: Replace with milestones mail
-        _ => throw new ArgumentOutOfRangeException(nameof(sender), sender, null)
-    };
-}
-
 public record Mail(MailRecipient[] To, string Subject, string Body, string? AttachmentTemplate)
 {
     public static async Task<Mail?> FromModel(WorkflowInstance inst, SendMessage? mail, ModelService modelService)
