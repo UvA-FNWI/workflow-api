@@ -57,6 +57,30 @@ public partial class ModelParser
         target.IsEmbedded = source.IsEmbedded;
         target.IsAlwaysVisible = source.IsAlwaysVisible;
         target.Fields = source.Fields.Concat(target.Fields).ToArray();
+        target.RelatedUsers = source.RelatedUsers
+            .Where(sourceRelatedUser => target.RelatedUsers.All(targetRelatedUser =>
+                targetRelatedUser.Property != sourceRelatedUser.Property))
+            .Concat(target.RelatedUsers)
+            .ToArray();
+        target.RelatedUserGrouping = MergeRelatedUserGrouping(target.RelatedUserGrouping, source.RelatedUserGrouping);
+    }
+
+    private static RelatedUserGrouping? MergeRelatedUserGrouping(RelatedUserGrouping? target,
+        RelatedUserGrouping? source)
+    {
+        if (source == null)
+            return target;
+
+        if (target == null)
+            return new RelatedUserGrouping { Groups = source.Groups };
+
+        return new RelatedUserGrouping
+        {
+            Groups = source.Groups
+                .Where(sourceGroup => target.Groups.All(targetGroup => targetGroup.Name != sourceGroup.Name))
+                .Concat(target.Groups)
+                .ToArray()
+        };
     }
 
     private void ApplyInheritance(Form target, Form source)
