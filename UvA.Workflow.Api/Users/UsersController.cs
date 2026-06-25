@@ -141,7 +141,8 @@ public class UsersController(
             return BadRequest(ManualUserInternalEmailCode, InternalEmailMessage);
 
         var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
-        if (existingUser != null && !string.Equals(existingUser.Id, ignoredUserId, StringComparison.Ordinal))
+        if (existingUser != null &&
+            (ignoredUserId == null || !string.Equals(existingUser.Id, ignoredUserId, StringComparison.Ordinal)))
             return Conflict(ManualUserEmailAlreadyExistsCode, DuplicateEmailMessage);
 
         return null;

@@ -23,7 +23,9 @@ public class InstanceUser
 
     [BsonElement("IsExternal")] public bool IsExternal { get; set; }
 
-    [BsonElement("InvitationState")] public UserInvitationState? InvitationState { get; set; } = null;
+    [BsonElement("InvitationState")]
+    [BsonIgnoreIfNull]
+    public UserInvitationState? InvitationState { get; set; } = null;
 
     public static InstanceUser FromUser(User user) => new()
     {
