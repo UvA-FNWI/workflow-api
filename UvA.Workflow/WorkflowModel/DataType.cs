@@ -14,5 +14,7 @@ public enum DataType
     Reference = 9,
     Int = 10,
     LocalString = 11,
-    Boolean = 12
+    Boolean = 12,
+    Email = 13,
+    Phone = 14
 }

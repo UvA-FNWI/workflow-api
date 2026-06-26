@@ -89,7 +89,7 @@ public class PropertyDefinition : INamed
     public BilingualString? ShortText { get; set; }
 
     /// <summary>
-    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean
+    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean, Email, Phone
     /// or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate
     /// a required value.
     /// </summary>
@@ -137,6 +137,8 @@ public class PropertyDefinition : INamed
         "User" => DataType.User,
         "Currency" => DataType.Currency,
         "Boolean" => DataType.Boolean,
+        "Email" => DataType.Email,
+        "Phone" => DataType.Phone,
         _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
         _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,

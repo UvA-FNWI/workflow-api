@@ -63,7 +63,7 @@ properties:
       multiline: true
 
   - name: ContactPersonEmail
-    type: String
+    type: Email
     text:
       en: Contact person email
       nl: E-mailadres contactpersoon
@@ -75,7 +75,7 @@ properties:
       nl: Upload een beschrijving
 
   - name: EmergencyPhoneNumber
-    type: String!
+    type: Phone!
     text:
       en: Emergency phone number
       nl: Telefoonnummer voor noodgevallen

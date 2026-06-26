@@ -206,7 +206,7 @@
         },
         "type": {
           "type": "string",
-          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean, Email, Phone\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
         },
         "values": {
           "type": [
