@@ -14,18 +14,9 @@ public class OrganizationsControllerTests : ControllerTestsBase
 
     [Theory]
     [InlineData("RandomPerson")]
-    public async Task Organizations_Create_ThrowsUnauthorizedException(string role)
-    {
-        var controller = BuildControllerWithRoles([role]);
-
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            controller.Create(new CreateOrganizationDto("science"), _ct));
-    }
-
-    [Theory]
     [InlineData("Api")]
     [InlineData("Coordinator")]
-    public async Task Organizations_Create_AllowedWithViewAdminRights(string role)
+    public async Task Organizations_Create_AllowsLoggedInUsers(string role)
     {
         _organizationServiceMock.Setup(r => r.GetOrCreateOrganization("science", _ct))
             .ReturnsAsync(new Organization { Id = "1", Name = "science" });
@@ -86,6 +77,6 @@ public class OrganizationsControllerTests : ControllerTestsBase
     private OrganizationsController BuildControllerWithRoles(string[] roles)
     {
         MockCurrentUser(roles);
-        return new OrganizationsController(_organizationServiceMock.Object, _rightsService);
+        return new OrganizationsController(_organizationServiceMock.Object);
     }
 }
