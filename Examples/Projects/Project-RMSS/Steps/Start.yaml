@@ -63,10 +63,12 @@ properties:
       multiline: true
 
   - name: ContactPersonEmail
-    type: Email
+    type: String
     text:
       en: Contact person email
       nl: E-mailadres contactpersoon
+    layout:
+      variant: Email
 
   - name: Description
     type: File!
@@ -75,13 +77,15 @@ properties:
       nl: Upload een beschrijving
 
   - name: EmergencyPhoneNumber
-    type: Phone!
+    type: String!
     text:
       en: Emergency phone number
       nl: Telefoonnummer voor noodgevallen
     description:
       en: A phone number on which you can be reached in case of an emergency during your research.
       nl: Een telefoonnummer waarop je tijdens je onderzoek bij nood bereikbaar bent.
+    layout:
+      variant: Phone
 
   - name: StartDate
     type: Date!

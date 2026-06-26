@@ -42,7 +42,7 @@ public class AnswerConversionService(
 
         return propertyDefinition.DataType switch
         {
-            DataType.String or DataType.Choice or DataType.Reference or DataType.Email or DataType.Phone =>
+            DataType.String or DataType.Choice or DataType.Reference =>
                 value.ValueKind == JsonValueKind.String ? value.GetString() : BsonNull.Value,
 
             DataType.Double =>

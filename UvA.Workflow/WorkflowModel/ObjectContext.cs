@@ -109,8 +109,8 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.User => array.Select(r => GetValue(r, type) as InstanceUser).ToArray(),
             DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
             DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
-            DataType.String or DataType.Choice or DataType.Reference or DataType.Email or DataType.Phone =>
-                array.Select(r => GetValue(r, type) as string).ToArray(),
+            DataType.String or DataType.Choice or DataType.Reference => array.Select(r => GetValue(r, type) as string)
+                .ToArray(),
             DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
             _ => array.Select(r => GetValue(r, type)).ToArray()
         };
@@ -130,8 +130,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.Object => answer.AsBsonDocument.ToDictionary(),
             DataType.Reference => answer.ToString(),
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
-            DataType.String or DataType.Choice or DataType.Email or DataType.Phone =>
-                BsonConversionTools.ConvertBasicBsonValue(answer),
+            DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Boolean => BsonConversionTools.ConvertBasicBsonValue(answer),

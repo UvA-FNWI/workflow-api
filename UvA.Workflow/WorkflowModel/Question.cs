@@ -31,7 +31,13 @@ public class ChoiceLayoutOptions : LayoutOptions
     public ChoiceLayoutType Type { get; set; }
 }
 
-public class StringLayoutOptions : LayoutOptions
+public enum StringVariant
+{
+    Email,
+    Phone
+}
+
+public class TextLayoutOptions : LayoutOptions
 {
     /// <summary>
     /// Set if the field should be a multiline text field
@@ -39,9 +45,14 @@ public class StringLayoutOptions : LayoutOptions
     public bool Multiline { get; set; }
 
     /// <summary>
-    /// Set if the text field should allow attachments 
+    /// Set if the text field should allow attachments
     /// </summary>
     public bool AllowAttachments { get; set; }
+
+    /// <summary>
+    /// Renders the string field as a specific input (e.g. email or phone) with matching validation
+    /// </summary>
+    public StringVariant Variant { get; set; }
 }
 
 public class TableLayoutOptions : LayoutOptions
@@ -89,7 +100,7 @@ public class PropertyDefinition : INamed
     public BilingualString? ShortText { get; set; }
 
     /// <summary>
-    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean, Email, Phone
+    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean
     /// or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate
     /// a required value.
     /// </summary>
@@ -137,8 +148,6 @@ public class PropertyDefinition : INamed
         "User" => DataType.User,
         "Currency" => DataType.Currency,
         "Boolean" => DataType.Boolean,
-        "Email" => DataType.Email,
-        "Phone" => DataType.Phone,
         _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
         _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,
