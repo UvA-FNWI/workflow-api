@@ -87,6 +87,42 @@ public class UsersController(
         return Ok(UserDto.Create(user));
     }
 
+    [HttpPut("{id}/email")]
+    public async Task<ActionResult<UserDto>> UpdateEmail(
+        string id,
+        [FromBody] UpdateUserEmailDto dto,
+        CancellationToken ct)
+    {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.Edit);
+
+        var user = await userRepository.GetById(id, ct);
+        if (user == null)
+            return UserNotFound;
+
+        if (!CanUpdateExternalUserEmail(user))
+        {
+            return Unprocessable(
+                "UserEmailUpdateNotAllowed",
+                "Email address can only be updated for external users that have not started an invitation");
+        }
+
+        var emailValidationResult = await ValidateEmail(dto.Email, ct, user.Id);
+        if (emailValidationResult != null)
+            return emailValidationResult;
+
+        var previousEmail = user.Email;
+        var email = dto.Email.Trim();
+        if (string.Equals(user.Email, email, StringComparison.Ordinal))
+            return Ok(UserDto.Create(user));
+
+        user.Email = email;
+        if (string.Equals(user.UserName, previousEmail, StringComparison.OrdinalIgnoreCase))
+            user.UserName = email;
+
+        await userRepository.Update(user, ct);
+        return Ok(UserDto.Create(user));
+    }
+
     [HttpGet("find")]
     public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
         [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
@@ -95,7 +131,7 @@ public class UsersController(
         return Ok(searchResults.Select(UserSearchResultDto.Create));
     }
 
-    private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct)
+    private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct, string? ignoredUserId = null)
     {
         var trimmedEmail = email.Trim();
         if (!EmailAddressAttribute.IsValid(trimmedEmail))
@@ -105,9 +141,14 @@ public class UsersController(
             return BadRequest(ManualUserInternalEmailCode, InternalEmailMessage);
 
         var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
-        if (existingUser != null)
+        if (existingUser != null &&
+            (ignoredUserId == null || !string.Equals(existingUser.Id, ignoredUserId, StringComparison.Ordinal)))
             return Conflict(ManualUserEmailAlreadyExistsCode, DuplicateEmailMessage);
 
         return null;
     }
+
+    private static bool CanUpdateExternalUserEmail(User user)
+        => UserProviderKeys.IsExternal(user.ProviderKey) &&
+           user.InvitationState == UserInvitationState.Required;
 }

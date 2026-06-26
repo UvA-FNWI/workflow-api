@@ -23,3 +23,9 @@ properties:
 
   - name: StudyManual
     type: String!
+    
+  - name: ConfidentialAdviser
+    type: User!
+
+  - name: StudyAdvisor
+    type: User!

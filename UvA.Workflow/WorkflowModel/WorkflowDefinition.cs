@@ -75,6 +75,10 @@ public class WorkflowDefinition : INamed
     /// </summary>
     public Field[] Fields { get; set; } = [];
 
+    public RelatedUser[] RelatedUsers { get; set; } = [];
+
+    public RelatedUserGrouping? RelatedUserGrouping { get; set; }
+
     /// <summary>
     /// Indicated whether this entity type is stored as an embedded document in the parent instance
     /// </summary>
