@@ -13,7 +13,7 @@ body:
     Beste {{ coalesce(Supervisor.DisplayName, =collega) }},
     
     Het scriptie voorstel en ethiek van {{ coalesce(Student.DisplayName, =student) }} zijn goedgekeurd.
-    De student kan nu verder werken aan je scriptie.
+    De student kan nu verder werken aan diens scriptie.
 buttons:
   - label:
       en: "View feedback"
