@@ -156,6 +156,7 @@ public class UsersControllerTests : ControllerTestsBase
         var dto = Assert.IsType<UserDto>(okResult.Value);
         Assert.Equal("new@example.org", dto.Email);
         Assert.Equal("new@example.org", dto.UserName);
+        Assert.True(dto.RequiresInvitation);
         _userRepoMock.Verify(r => r.Update(It.Is<User>(u =>
             u.Id == user.Id &&
             u.Email == "new@example.org" &&
