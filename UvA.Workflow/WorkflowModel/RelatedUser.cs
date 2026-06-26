@@ -4,7 +4,7 @@ public class RelatedUser
 {
     public string Property { get; set; } = null!;
 
-    public string Group { get; set; }
+    public string Group { get; set; } = null!;
 
     public BilingualString? Text { get; set; } = null;
 
