@@ -31,7 +31,13 @@ public class ChoiceLayoutOptions : LayoutOptions
     public ChoiceLayoutType Type { get; set; }
 }
 
-public class StringLayoutOptions : LayoutOptions
+public enum StringVariant
+{
+    Email,
+    Phone
+}
+
+public class TextLayoutOptions : LayoutOptions
 {
     /// <summary>
     /// Set if the field should be a multiline text field
@@ -39,9 +45,14 @@ public class StringLayoutOptions : LayoutOptions
     public bool Multiline { get; set; }
 
     /// <summary>
-    /// Set if the text field should allow attachments 
+    /// Set if the text field should allow attachments
     /// </summary>
     public bool AllowAttachments { get; set; }
+
+    /// <summary>
+    /// Renders the string field as a specific input (e.g. email or phone) with matching validation
+    /// </summary>
+    public StringVariant Variant { get; set; }
 }
 
 public class TableLayoutOptions : LayoutOptions
