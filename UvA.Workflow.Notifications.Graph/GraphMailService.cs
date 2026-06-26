@@ -70,7 +70,7 @@ public class GraphMailService : IMailService
         var dispatchResult = BuildDispatchResult(mail, _options.OverrideRecipient);
         var graphMessage = BuildGraphMessage(mail, dispatchResult);
 
-        await _graphClient.Users[MailSender.MilestonesGeneral.GetUserId()]
+        await _graphClient.Users[_options.SenderId]
             .SendMail
             .PostAsync(
                 new SendMailPostRequestBody
