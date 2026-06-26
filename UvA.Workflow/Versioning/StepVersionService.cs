@@ -28,7 +28,7 @@ public class StepVersionService(
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var step = ResolveTargetStep(workflowDef, stepName);
-        var (allChildEvents, completionEvents) = DetermineEventSets(step);
+        var (allChildEvents, completionCondition) = DetermineEventSets(step);
 
         // Get all event log entries for ALL child events, ordered by timestamp
         var eventLogs = await eventRepository.GetEventLogEntriesForInstance(
@@ -40,7 +40,7 @@ public class StepVersionService(
             .OrderBy(log => log.Timestamp)
             .ToList();
 
-        var versions = BuildVersions(step, submissionEvents, completionEvents);
+        var versions = BuildVersions(step, submissionEvents, completionCondition);
         var orderedVersions = versions.OrderByDescending(v => v.SubmittedAt).ToList();
 
         return orderedVersions;
@@ -60,41 +60,40 @@ public class StepVersionService(
             : step;
     }
 
-    private static (List<string> AllEvents, List<string> CompletionEvents) DetermineEventSets(Step step)
+    private static (List<string> AllEvents, Condition? CompletionCondition) DetermineEventSets(Step step)
     {
         if (step.Ends != null)
         {
             var ownEvents = step.Ends.GetAllEventIds().ToList();
-            return (ownEvents, ownEvents);
+            return (ownEvents, step.Ends);
         }
 
         if (!step.Children.Any())
-            return (new List<string>(), new List<string>());
+            return (new List<string>(), null);
 
         var allChildEvents = step.Children
-            .SelectMany(c => c.Ends?.GetAllEventIds() ?? Enumerable.Empty<string>())
+            .SelectMany(GetStepEventIds)
             .Distinct()
             .ToList();
 
         if (step.HierarchyMode == StepHierarchyMode.Sequential)
         {
             var lastChild = step.Children.Last();
-            var completionEvents = lastChild.Ends?.GetAllEventIds().ToList() ?? new List<string>();
-            return (allChildEvents, completionEvents);
+            return (allChildEvents, GetCompletionCondition(lastChild));
         }
 
-        return (allChildEvents, allChildEvents);
+        return (allChildEvents, GetCompletionCondition(step));
     }
 
     private List<StepVersion> BuildVersions(
         Step step,
         List<InstanceEventLogEntry> submissionEvents,
-        List<string> completionEventIds)
+        Condition? completionCondition)
     {
         if (step.Ends == null && step.Children.Any())
         {
             return step.HierarchyMode == StepHierarchyMode.Sequential
-                ? BuildSequentialVersions(submissionEvents, completionEventIds)
+                ? BuildSequentialVersions(submissionEvents, completionCondition)
                 : BuildParallelVersions(step, submissionEvents);
         }
 
@@ -116,21 +115,23 @@ public class StepVersionService(
 
     private static List<StepVersion> BuildSequentialVersions(
         List<InstanceEventLogEntry> submissionEvents,
-        List<string> completionEventIds)
+        Condition? completionCondition)
     {
         var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
         int currentVersionNumber = 1;
-        var completionEventSet = completionEventIds.ToHashSet();
+        var currentCycleEventIds = new HashSet<string>();
 
         foreach (var logEntry in submissionEvents)
         {
             // All events in this cycle get the same version number
             tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp));
+            currentCycleEventIds.Add(logEntry.EventId);
 
-            // If this event marks the completion of the cycle (last child's event), increment version
-            if (completionEventSet.Contains(logEntry.EventId))
+            // If the last child's completion condition is met, the next event starts a new version.
+            if (IsEventConditionMet(completionCondition, currentCycleEventIds))
             {
                 currentVersionNumber++;
+                currentCycleEventIds.Clear();
             }
         }
 
@@ -141,7 +142,7 @@ public class StepVersionService(
                 VersionNumber: g.Key,
                 EventIds: g.Select(v => v.EventId).ToList(),
                 SubmittedAt: g.Max(v => v.Timestamp)))
-            .Where(v => v.EventIds.Any(e => completionEventSet.Contains(e))) // Only complete versions
+            .Where(v => IsEventConditionMet(completionCondition, v.EventIds)) // Only complete versions
             .ToList();
 
         return BuildStepVersions(versionDrafts);
@@ -154,41 +155,37 @@ public class StepVersionService(
         var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
         int currentVersionNumber = 1;
 
-        // Map each child's end events to the child
-        var childEventMap = new Dictionary<string, Step>();
-        foreach (var child in step.Children)
-        {
-            var childEvents = child.Ends?.GetAllEventIds() ?? [];
-            foreach (var eventId in childEvents)
-            {
-                childEventMap[eventId] = child;
-            }
-        }
+        var childCompletionConditions = step.Children
+            .ToDictionary(child => child.Name, GetCompletionCondition);
 
         // Track which children have completed in the current cycle
         var completedChildrenInCycle = new HashSet<string>();
+        var currentCycleEventIds = new HashSet<string>();
         var totalChildren = step.Children.Length;
 
         foreach (var logEntry in submissionEvents)
         {
             // All events in this cycle get the same version number
             tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp));
+            currentCycleEventIds.Add(logEntry.EventId);
 
-            // Determine which child this event belongs to
-            if (childEventMap.TryGetValue(logEntry.EventId, out var child))
+            foreach (var (childName, completionCondition) in childCompletionConditions)
             {
-                completedChildrenInCycle.Add(child.Name);
+                if (!completedChildrenInCycle.Contains(childName) &&
+                    IsEventConditionMet(completionCondition, currentCycleEventIds))
+                    completedChildrenInCycle.Add(childName);
+            }
 
-                // Check if all children have now completed
-                if (completedChildrenInCycle.Count == totalChildren)
-                {
-                    // All children completed - this marks a version boundary
-                    // Next event will be in a new version
-                    currentVersionNumber++;
+            // Check if all children have now completed
+            if (completedChildrenInCycle.Count == totalChildren)
+            {
+                // All children completed - this marks a version boundary
+                // Next event will be in a new version
+                currentVersionNumber++;
 
-                    // Reset for next cycle
-                    completedChildrenInCycle.Clear();
-                }
+                // Reset for next cycle
+                completedChildrenInCycle.Clear();
+                currentCycleEventIds.Clear();
             }
         }
 
@@ -201,13 +198,9 @@ public class StepVersionService(
                 SubmittedAt: g.Max(v => v.Timestamp)))
             .Where(v =>
             {
-                // Check if all children have at least one event in this version
-                var childrenWithEvents = v.EventIds
-                    .Select(e => childEventMap.GetValueOrDefault(e)?.Name)
-                    .Where(name => name != null)
-                    .Distinct()
-                    .ToHashSet();
-                return childrenWithEvents.Count == totalChildren;
+                // Check if all child completion conditions are met in this version
+                return childCompletionConditions.Values.All(condition =>
+                    IsEventConditionMet(condition, v.EventIds));
             })
             .ToList();
 
@@ -226,4 +219,59 @@ public class StepVersionService(
             })
             .ToList();
     }
+
+    private static IEnumerable<string> GetStepEventIds(Step step)
+    {
+        if (step.Ends != null)
+            return step.Ends.GetAllEventIds();
+
+        return step.Children.SelectMany(GetStepEventIds);
+    }
+
+    private static Condition? GetCompletionCondition(Step step)
+    {
+        if (step.Ends != null)
+            return step.Ends;
+
+        if (!step.Children.Any())
+            return null;
+
+        return step.HierarchyMode == StepHierarchyMode.Sequential
+            ? GetCompletionCondition(step.Children.Last())
+            : new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.And,
+                    Children = step.Children
+                        .Select(GetCompletionCondition)
+                        .Where(condition => condition != null)
+                        .Cast<Condition>()
+                        .ToArray()
+                }
+            };
+    }
+
+    private static bool IsEventConditionMet(Condition? condition, IEnumerable<string> eventIds)
+    {
+        if (condition == null)
+            return false;
+
+        var eventIdSet = eventIds.ToHashSet();
+        var result = IsConditionPartMet(condition.Part, eventIdSet);
+        return condition.Not ? !result : result;
+    }
+
+    private static bool IsConditionPartMet(ConditionPart part, HashSet<string> eventIds)
+        => part switch
+        {
+            EventCondition eventCondition => eventIds.Contains(eventCondition.Id),
+            Logical logical => logical.Operator switch
+            {
+                LogicalOperator.And => logical.Children.All(child => IsEventConditionMet(child, eventIds)),
+                LogicalOperator.Or => logical.Children.Any(child => IsEventConditionMet(child, eventIds)),
+                _ => false
+            },
+            _ => false
+        };
 }

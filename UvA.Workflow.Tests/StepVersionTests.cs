@@ -1,4 +1,9 @@
 using MongoDB.Bson;
+using Moq;
+using UvA.Workflow.Events;
+using UvA.Workflow.Versioning;
+using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
@@ -297,11 +302,99 @@ public class StepVersionTests
         Assert.Empty(consolidatedVersions);
     }
 
+    [Fact]
+    public async Task RmssProposalVersioning_RejectionCompletesStartVersionAfterBothAssessments()
+    {
+        var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-2);
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt),
+            EventLog(instance, "ProposalApprovedReviewer", approvedAt)
+        ]);
+
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(approvedAt, version.SubmittedAt);
+        Assert.Equal(["Start", "ProposalRejectedSupervisor", "ProposalApprovedReviewer"], version.EventIds);
+    }
+
+    [Fact]
+    public async Task RmssProposalVersioning_SingleApprovalDoesNotCompleteStartVersion()
+    {
+        var instance = CreateRmssInstance();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", DateTime.UtcNow.AddMinutes(-10)),
+            EventLog(instance, "ProposalApprovedSupervisor", DateTime.UtcNow.AddMinutes(-5))
+        ]);
+
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        Assert.Empty(versions);
+    }
+
+    [Fact]
+    public async Task RmssProposalVersioning_SingleRejectionDoesNotCompleteStartVersion()
+    {
+        var instance = CreateRmssInstance();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", DateTime.UtcNow.AddMinutes(-10)),
+            EventLog(instance, "ProposalRejectedSupervisor", DateTime.UtcNow.AddMinutes(-5))
+        ]);
+
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        Assert.Empty(versions);
+    }
+
     private static Dictionary<string, BsonValue?> CloneProperties(Dictionary<string, BsonValue?> original)
         => original.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value?.DeepClone()
         );
+
+    private static WorkflowInstance CreateRmssInstance()
+        => new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project-RMSS")
+            .WithCurrentStep("ProposalPhase")
+            .Build();
+
+    private static StepVersionService CreateStepVersionService(
+        WorkflowInstance instance,
+        List<InstanceEventLogEntry> eventLogs)
+    {
+        var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        var repository = new Mock<IInstanceEventRepository>();
+        repository
+            .Setup(r => r.GetEventLogEntriesForInstance(
+                instance.Id,
+                It.IsAny<List<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, List<string> eventIds, CancellationToken _) =>
+                eventLogs.Where(log => eventIds.Contains(log.EventId)).ToList());
+
+        return new StepVersionService(modelService, repository.Object);
+    }
+
+    private static InstanceEventLogEntry EventLog(
+        WorkflowInstance instance,
+        string eventId,
+        DateTime timestamp)
+        => new()
+        {
+            WorkflowInstanceId = instance.Id,
+            EventId = eventId,
+            EventDate = timestamp,
+            Operation = EventLogOperation.Create,
+            Timestamp = timestamp
+        };
 
     private static Dictionary<string, BsonValue?> RestorePropertiesToVersion(
         Dictionary<string, BsonValue?> current,
