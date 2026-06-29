@@ -98,7 +98,7 @@ public abstract class ControllerTestsBase
 
         _workflowInstanceService =
             new WorkflowInstanceService(_modelService, _workflowInstanceRepoMock.Object,
-                _instanceJournalServiceMock.Object);
+                _instanceJournalServiceMock.Object, _eventRepoMock.Object);
 
         _effectService =
             new EffectService(_instanceService,

@@ -4,6 +4,7 @@ using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
@@ -326,7 +327,8 @@ public class StepHeaderStatusTests
         var workflowInstanceService = new WorkflowInstanceService(
             modelService,
             repository.Object,
-            Mock.Of<IInstanceJournalService>()
+            Mock.Of<IInstanceJournalService>(),
+            Mock.Of<IInstanceEventRepository>()
         );
 
         return new WorkflowInstanceDtoFactory(

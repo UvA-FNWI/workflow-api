@@ -90,7 +90,7 @@ public class WorkflowTests
         _eventService =
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
-            _instanceJournalServiceMock.Object);
+            _instanceJournalServiceMock.Object, _eventRepoMock.Object);
         _userServiceMock.Setup(m => m.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User());
         _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
