@@ -10,7 +10,8 @@ namespace UvA.Workflow.Api.Assessments.Dtos;
 public record AssessmentDto(
     string Id,
     AssessmentPartDto[] Parts,
-    float? FinalGrade
+    float? FinalGrade,
+    BilingualString? FinalGradeLabel
 );
 
 public record AssessmentPartDto(
@@ -106,11 +107,25 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             ));
         }
 
-        var finalGrade = assessmentConfig != null
-            ? AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults)
-            : (float?)null;
+        if (assessmentConfig == null) return new AssessmentDto(id, parts.ToArray(), null, null);
 
-        return new(id, parts.ToArray(), finalGrade);
+        bool isGradingComplete = assessmentConfig.Parts
+            .All(p => p.Sources.All(s => contextList.Any(c => c.Form.Name == s.Name)));
+
+        if (!isGradingComplete)
+            return new AssessmentDto(id, parts.ToArray(), null,
+                new BilingualString("Grading not yet complete", "Beoordeling nog niet volledig"));
+
+        var calculatedFinalGrade = AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults);
+
+        var finalGradeLabel = assessmentConfig.GradingBasis == GradingBasis.PassFail
+            ? calculatedFinalGrade >= 1
+                ? new BilingualString("Pass", "Voldoende")
+                : new BilingualString("Fail", "Onvoldoende")
+            : null;
+
+        return new AssessmentDto(id, parts.ToArray(), finalGradeLabel == null ? calculatedFinalGrade : null,
+            finalGradeLabel);
     }
 
     public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
