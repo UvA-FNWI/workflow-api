@@ -229,7 +229,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.5m, result);
+        Assert.Equal(7.5f, result);
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.2m, result);
+        Assert.Equal(7.2f, result);
     }
 
     [Fact]
@@ -261,7 +261,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(8.0m, result);
+        Assert.Equal(8.0f, result);
     }
 
     [Fact]
@@ -276,7 +276,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(0m, result);
+        Assert.Equal(0f, result);
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.4m, result);
+        Assert.Equal(7.4f, result);
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(8.0m, result);
+        Assert.Equal(8.0f, result);
     }
 
     [Fact]
@@ -321,7 +321,7 @@ public class AssessmentServiceTests
 
         var result = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(0m, result);
+        Assert.Equal(0f, result);
     }
 
     // ─── CalculateSourceResult ────────────────────────────────────────────────
@@ -401,5 +401,30 @@ public class AssessmentServiceTests
         Assert.Equal(50m, allQuestions.Single(q => q.Name == "Quality").Percentage); // 2/4 * 100
         Assert.Equal(25m, allQuestions.Single(q => q.Name == "Depth").Percentage); // 1/4 * 100
         Assert.Equal(25m, allQuestions.Single(q => q.Name == "Clarity").Percentage); // 1/4 * 100
+    }
+
+
+    public static IEnumerable<object[]> RoundingTestCases =>
+    [
+        [3.3m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 3.5f],
+        [4.444m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 4.5f],
+        [5.4999m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 5.0f],
+        [5.5m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 5.5f],
+        [5.6m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 5.5f],
+        [5.8m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 6.0f],
+        [5.5m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half, GradeGap = true }, 6.0f],
+        [5.4m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half, GradeGap = true }, 5.0f],
+        [4.444m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal }, 4.4f],
+        [5.4999m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal }, 5.4f],
+        [5.5m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal, GradeGap = true }, 6.0f],
+        [5.4m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal, GradeGap = true }, 5.0f],
+        [9.99m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal }, 10f],
+    ];
+
+    [Theory]
+    [MemberData(nameof(RoundingTestCases))]
+    public void ApplyRoundingOfFinalGrade(decimal input, AssessmentConfiguration config, float expected)
+    {
+        Assert.Equal(expected, AssessmentService.ApplyRounding(input, config));
     }
 }

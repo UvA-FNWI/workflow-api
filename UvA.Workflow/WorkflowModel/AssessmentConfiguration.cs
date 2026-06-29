@@ -1,6 +1,16 @@
 namespace UvA.Workflow.WorkflowModel;
 
 /// <summary>
+/// Possible types of the grading
+/// </summary>
+public enum GradingBasis
+{
+    Half,
+    Decimal,
+    PassFail
+}
+
+/// <summary>
 /// Configuration for the assessment of the entity
 /// </summary>
 public class AssessmentConfiguration
@@ -9,6 +19,16 @@ public class AssessmentConfiguration
     /// The parts that together make up the assessment
     /// </summary>
     public List<AssessmentPart> Parts { get; set; } = [];
+
+    /// <summary>
+    /// Property to indicate the final grade type
+    /// </summary>
+    public GradingBasis? GradingBasis { get; set; }
+
+    /// <summary>
+    /// Determines whether grades between 5 and 6 are allowed
+    /// </summary>
+    public bool? GradeGap { get; set; }
 }
 
 public class AssessmentPart : INamed

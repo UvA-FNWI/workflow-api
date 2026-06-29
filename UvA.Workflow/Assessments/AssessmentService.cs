@@ -5,7 +5,7 @@ namespace UvA.Workflow.Assessments;
 
 public static class AssessmentService
 {
-    public static decimal CalculateFinalGrade(AssessmentConfiguration config,
+    public static float CalculateFinalGrade(AssessmentConfiguration config,
         IEnumerable<AssessmentPartResult> partResults)
     {
         var totalPartWeight = config.Parts.Sum(p => p.Weight);
@@ -22,7 +22,28 @@ public static class AssessmentService
         var weightedSum = partsWithResults
             .Sum(pair => pair.Result!.Combined.WeightedAverage * pair.Part.Weight);
 
-        return weightedSum / submittedWeight;
+        return ApplyRounding(weightedSum / submittedWeight, config);
+    }
+
+    public static float ApplyRounding(decimal grade, AssessmentConfiguration config)
+    {
+        var rounded = config switch
+        {
+            { GradingBasis: GradingBasis.PassFail }
+                => grade >= 6m ? 1f : 0f,
+            { GradeGap: true } when grade is > 5m and < 6m
+                => (float)Math.Round(grade, 0, MidpointRounding.AwayFromZero),
+            { GradingBasis: GradingBasis.Half }
+                => grade is > 5.4m and < 5.5m
+                    ? 5.0f
+                    : (float)Math.Round(grade * 2, 0, MidpointRounding.AwayFromZero) / 2,
+            { GradingBasis: GradingBasis.Decimal }
+                => (float)Math.Round(grade is > 5.4m and < 5.5m ? 5.4m : grade, 1, MidpointRounding.AwayFromZero),
+            _
+                => (float)Math.Round(grade, 1, MidpointRounding.AwayFromZero)
+        };
+
+        return config.GradingBasis is GradingBasis.PassFail ? rounded : Math.Clamp(rounded, 1f, 10f);
     }
 
     public static decimal CalculatePartWeightedAverage(

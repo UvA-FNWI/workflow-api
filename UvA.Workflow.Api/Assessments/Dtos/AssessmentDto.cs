@@ -10,7 +10,7 @@ namespace UvA.Workflow.Api.Assessments.Dtos;
 public record AssessmentDto(
     string Id,
     AssessmentPartDto[] Parts,
-    decimal? FinalGrade
+    float? FinalGrade
 );
 
 public record AssessmentPartDto(
@@ -108,9 +108,9 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
         var finalGrade = assessmentConfig != null
             ? AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults)
-            : (decimal?)null;
+            : (float?)null;
 
-        return new(id, parts.ToArray(), RoundToTwo(finalGrade ?? 0));
+        return new(id, parts.ToArray(), finalGrade);
     }
 
     public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
