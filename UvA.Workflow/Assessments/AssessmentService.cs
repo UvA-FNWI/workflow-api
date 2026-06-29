@@ -30,7 +30,7 @@ public static class AssessmentService
         var rounded = config switch
         {
             { GradingBasis: GradingBasis.PassFail }
-                => grade >= 6m ? 1f : 0f,
+                => grade >= 5.5m ? 1f : 0f,
             { GradeGap: true } when grade is > 5m and < 6m
                 => (float)Math.Round(grade, 0, MidpointRounding.AwayFromZero),
             { GradingBasis: GradingBasis.Half }
