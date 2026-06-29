@@ -3,6 +3,7 @@ using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions;
@@ -164,9 +165,13 @@ public class AnswersController(
         ));
     }
 
-    private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
-        await EnsureAuthorizedForAction(context,
-            context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
+    private async Task EnsureAuthorizedToEdit(QuestionContext context)
+    {
+        var action = context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit;
+        if (!await rightsService.Can(context.Instance, action, context.Form.Name) &&
+            !await rightsService.Can(context.Instance, RoleAction.ViewAdminTools))
+            throw new ForbiddenWorkflowActionException(context.Instance.Id, action, context.Form.Name);
+    }
 
     private ObjectResult MapExternalUserCreationError(ExternalUserCreationException ex) => ex.Reason switch
     {

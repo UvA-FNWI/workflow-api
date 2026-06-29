@@ -255,6 +255,7 @@ public class InstanceService(
         var allowed = await rightsService.GetAllowedActions(instance,
             includeResults ? [RoleAction.View, RoleAction.ViewResults] : [RoleAction.View]);
         var allowedHidden = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden);
+        var canViewAdmin = await rightsService.Can(instance, RoleAction.ViewAdminTools);
 
         var forms = allowed
             .SelectMany(a => a.AllForms)
@@ -263,6 +264,21 @@ public class InstanceService(
                 : [a])
             .Distinct()
             .ToDictionary(f => f, f => modelService.GetForm(instance, f));
+
+        // Admins with ViewAdminTools see all submitted forms, not just those in their View permission set
+        if (canViewAdmin)
+        {
+            foreach (var formName in modelService.WorkflowDefinitions[instance.WorkflowDefinition].Forms
+                         .Select(f => f.Name))
+            {
+                if (!forms.ContainsKey(formName))
+                {
+                    var form = modelService.GetForm(instance, formName);
+                    if (form != null) forms[formName] = form;
+                }
+            }
+        }
+
         var hiddenForms = allowedHidden.SelectMany(a => a.AllForms).Distinct().ToList();
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
