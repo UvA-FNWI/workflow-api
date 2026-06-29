@@ -24,8 +24,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ScreenDataService>();
         services.AddScoped<InstanceAuthorizationFilterService>();
-        services.AddScoped<ImpersonationService>();
-        services.AddScoped<IImpersonationContextService>(sp => sp.GetRequiredService<ImpersonationService>());
+        services.AddScoped<RoleImpersonationService>();
+        services.AddScoped<IImpersonationContextService>(sp => sp.GetRequiredService<RoleImpersonationService>());
 
         return services;
     }

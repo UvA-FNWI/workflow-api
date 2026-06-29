@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Users;
 
@@ -11,7 +12,7 @@ namespace UvA.Workflow.Tests.Impersonation;
 
 public class ImpersonationServiceTokenTests
 {
-    private static ImpersonationService CreateService(string? key = null)
+    private static RoleImpersonationService CreateService(string? key = null)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -26,7 +27,7 @@ public class ImpersonationServiceTokenTests
                 Id = "id",
                 UserName = "admin"
             });
-        return new ImpersonationService(
+        return new RoleImpersonationService(
             config,
             new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
             userService.Object);
@@ -73,17 +74,17 @@ public class ImpersonationServiceTokenTests
     {
         var claims = new Dictionary<string, object>
         {
-            [ImpersonationConstants.TypeClaim] = ImpersonationConstants.TokenType,
-            [ImpersonationConstants.UserClaim] = "admin",
-            [ImpersonationConstants.InstanceClaim] = "instance-123",
-            [ImpersonationConstants.RoleClaim] = "Student"
+            [ImpersonationTokenCodec.TypeClaim] = RoleImpersonationConstants.TokenType,
+            [RoleImpersonationConstants.UserClaim] = "admin",
+            [RoleImpersonationConstants.InstanceClaim] = "instance-123",
+            [RoleImpersonationConstants.RoleClaim] = "Student"
         };
 
         return new JwtSecurityTokenHandler().CreateEncodedJwt(new SecurityTokenDescriptor
         {
             NotBefore = DateTime.UtcNow.AddMinutes(-10),
             Expires = DateTime.UtcNow.AddMinutes(-5),
-            Issuer = ImpersonationConstants.TokenIssuer,
+            Issuer = ImpersonationTokenCodec.Issuer,
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.ASCII.GetBytes(key)),
                 SecurityAlgorithms.HmacSha512Signature),
