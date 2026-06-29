@@ -2,13 +2,15 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowInstances;
 
 public class WorkflowInstanceService(
     ModelService modelService,
     IWorkflowInstanceRepository repository,
-    IInstanceJournalService journalService)
+    IInstanceJournalService journalService,
+    IInstanceEventRepository eventRepository)
 {
     /// <summary>
     /// Creates a new workflow instance
@@ -84,7 +86,12 @@ public class WorkflowInstanceService(
     public async Task<WorkflowInstance> GetAsOfTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)
     {
         var version = await GetVersionAtTimestamp(instanceId, timestamp, ct);
-        return await GetAsOfVersion(instanceId, version, ct);
+        var instance = await GetAsOfVersion(instanceId, version, ct);
+
+        instance.Events = await RebuildEventsUntil(instanceId, timestamp, ct);
+        RecalculateCurrentStep(instance);
+
+        return instance;
     }
 
     /// <summary>
@@ -104,6 +111,42 @@ public class WorkflowInstanceService(
         return changesBeforeTimestamp.Any()
             ? changesBeforeTimestamp.Max(pc => pc.Version)
             : 0;
+    }
+
+    private async Task<Dictionary<string, InstanceEvent>> RebuildEventsUntil(
+        string instanceId,
+        DateTime timestamp,
+        CancellationToken ct)
+    {
+        var eventLogs = await eventRepository.GetEventLogEntriesForInstanceUntil(instanceId, timestamp, ct);
+        var events = new Dictionary<string, InstanceEvent>();
+
+        foreach (var logEntry in eventLogs.OrderBy(e => e.Timestamp))
+        {
+            if (logEntry.Operation == EventLogOperation.Delete)
+            {
+                events.Remove(logEntry.EventId);
+                continue;
+            }
+
+            events[logEntry.EventId] = new InstanceEvent
+            {
+                Id = logEntry.EventId,
+                Date = logEntry.EventDate
+            };
+        }
+
+        return events;
+    }
+
+    private void RecalculateCurrentStep(WorkflowInstance instance)
+    {
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var context = modelService.CreateContext(instance);
+
+        instance.CurrentStep = workflowDefinition.FlattenedSteps
+            .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context))
+            ?.Name;
     }
 
     /// <summary>

@@ -61,7 +61,10 @@ public class AnswerService(
             {
                 // if the journal entry was replaced, the old value isn't stored either
                 isReplaced = await instanceJournalService.LogPropertyChange(instance.Id,
-                    PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
+                    PropertyChangeEntry.Create(
+                        string.Join(".", new[] { form.PropertyName, question.Name }.Where(p => p != null)),
+                        currentAnswer,
+                        user), ct);
             }
 
             // delete any replaced file

@@ -25,8 +25,6 @@ public class WorkflowInstanceDtoFactory(
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
-        var allowedForms = (await rightsService.GetAllowedActions(instance, RoleAction.View))
-            .SelectMany(a => a.AllForms).ToArray();
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
@@ -45,6 +43,9 @@ public class WorkflowInstanceDtoFactory(
 
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
+        var steps = await Task.WhenAll(workflowDefinition.Steps
+            .Where(s => s.Condition.IsMet(context))
+            .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, ct)));
 
         var x = new WorkflowInstanceDto(
             instance.Id,
@@ -54,10 +55,7 @@ public class WorkflowInstanceDtoFactory(
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
-            workflowDefinition.Steps
-                .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, allowedForms))
-                .ToArray(),
+            steps,
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
@@ -126,15 +124,23 @@ public class WorkflowInstanceDtoFactory(
     /// <summary>
     /// Creates a StepDto with versions from the map, recursively handling child steps
     /// </summary>
-    private StepDto CreateStepDto(
+    private async Task<StepDto> CreateStepDto(
         Step step,
         WorkflowInstance instance,
         Dictionary<string, List<StepVersion>> stepVersionsMap,
         ObjectContext context,
-        string[] allowedForms)
+        CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var versions = stepVersionsMap.GetValueOrDefault(step.Name);
+        var children = step.Children.Length != 0
+            ? await Task.WhenAll(step.Children
+                .Where(s => s.Condition.IsMet(context))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, ct)))
+            : null;
+        var versionDtos = versions != null
+            ? await Task.WhenAll(versions.Select(v => CreateStepVersionDto(v, instance, ct)))
+            : null;
 
         return new StepDto(
             step.Name,
@@ -143,32 +149,30 @@ public class WorkflowInstanceDtoFactory(
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
             step.GetDeadline(instance, modelService),
-            step.Children.Length != 0
-                ? step.Children
-                    .Where(s => s.Condition.IsMet(context))
-                    .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, allowedForms))
-                    .ToArray()
-                : null,
+            children,
             stepHeaderStatusResolver.Resolve(step, instance),
             step.ResultsType,
             step.HierarchyMode,
-            versions?.Select(v => CreateStepVersionDto(v, instance, allowedForms)).ToList()
+            versionDtos?.ToList()
         );
     }
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
     /// </summary>
-    private StepVersionDto CreateStepVersionDto(StepVersion stepVersion, WorkflowInstance instance,
-        string[] allowedForms)
+    private async Task<StepVersionDto> CreateStepVersionDto(
+        StepVersion stepVersion,
+        WorkflowInstance instance,
+        CancellationToken ct)
     {
         try
         {
             var submissions = new List<SubmissionDto>();
 
             // Get the instance at the version timestamp
-            var instanceAtVersion = workflowInstanceService
-                .GetAsOfTimestamp(instance.Id, stepVersion.SubmittedAt, CancellationToken.None).Result;
+            var instanceAtVersion = await workflowInstanceService
+                .GetAsOfTimestamp(instance.Id, stepVersion.SubmittedAt, ct);
+            var allowedViewActions = await rightsService.GetAllowedActions(instanceAtVersion, RoleAction.View);
 
             // Create a submission for each event in the version
             foreach (var eventId in stepVersion.EventIds)
@@ -181,7 +185,7 @@ public class WorkflowInstanceDtoFactory(
                     continue;
                 }
 
-                if (!allowedForms.Contains(form.Name))
+                if (!allowedViewActions.Any(action => action.MatchesForm(form.Name)))
                     continue;
 
                 // Get question status with all fields visible (historical view)
