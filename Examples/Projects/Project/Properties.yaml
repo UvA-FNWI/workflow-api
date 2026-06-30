@@ -27,6 +27,7 @@ properties:
     text: 
       en: Examiner
       nl: Examinator
+      
   - name: Supervisor
     type: User!    
     allowsExternalUsers: true

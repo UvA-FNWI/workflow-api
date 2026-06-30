@@ -26,39 +26,18 @@ steps:
 relatedUsers:
   - property: Supervisor
     group: default
-    text:
-      en: Supervisor
-      nl: Begeleider
   - property: Examiner
     group: default
-    text:
-      en: Examiner
-      nl: Examinator
   - property: Reviewer
     group: default
-    text:
-      en: Reviewer
-      nl: Beoordelaar
   - property: SecondReader
     group: default
-    text:
-      en: Second reader
-      nl: 2e lezer
   - property: Course.Coordinator
     group: support
-    text:
-      en: Coordinator
-      nl: Coördinator
   - property: Course.ConfidentialAdviser
     group: support
-    text:
-      en: Confidential adviser
-      nl: Vertrouwenspersoon
   - property: Course.StudyAdvisor
     group: support
-    text:
-      en: Study advisor
-      nl: Studieadviseur
       
 relatedUserGrouping:
   groups:

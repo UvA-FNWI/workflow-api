@@ -17,15 +17,27 @@ properties:
 
   - name: Coordinator
     type: "[User]!"
+    text:
+      en: Coordinator
+      nl: Coördinator
 
   - name: Impersonator
     type: "[User]!"
+    text:
+      en: Impersonator
+      nl: Impersonator
 
   - name: StudyManual
     type: String!
     
   - name: ConfidentialAdviser
     type: User!
-
+    text:
+      en: Confidential adviser
+      nl: Vertrouwenspersoon
+      
   - name: StudyAdvisor
     type: User!
+    text:
+      en: Study advisor
+      nl: Studieadviseur
