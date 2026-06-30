@@ -33,6 +33,22 @@ onSubmit:
               property: SupervisorProposalAndEthicsReview.EthicsSufficient
               equal: =Fail
     event: ProposalRejectedSupervisor
+
+  # If both assessments passed, notify the student.
+  - condition:
+      logical:
+        operator: And
+        children:
+          - event: ProposalApprovedReviewer
+          - value:
+              property: SupervisorProposalAndEthicsReview.ProposalSufficient
+              equal: =Pass
+          - value:
+              property: SupervisorProposalAndEthicsReview.EthicsSufficient
+              equal: =Pass
+    sendMail:
+      template: ProposalApprovedStudent
+      to: Student
     
     # If both assessments are done and either one has a rejection, create the ProposalReturnedForRevision event.
   - condition:
