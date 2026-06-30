@@ -8,6 +8,7 @@ public class GraphMailOptions
     public string TenantId { get; set; } = null!;
     public string ClientId { get; set; } = null!;
     public string UserAccount { get; set; } = null!;
+    public string SenderId { get; set; } = null!;
     public string? OverrideRecipient { get; set; }
 
     public static void Validate(GraphMailOptions options)

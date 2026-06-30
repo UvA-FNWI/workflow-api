@@ -3,7 +3,7 @@ globalActions:
     type: View
     forms: [ Start ]
 
-  # When both the supervisor and reviewer have approved the proposal
+  # Share the assessments after both have submitted if either outcome.
   - roles: [ Student,Supervisor,Coordinator ]
     type: View
     forms:
@@ -13,21 +13,16 @@ globalActions:
       logical:
         operator: And
         children:
-          - event: ProposalApprovedSupervisor
-          - event: ProposalApprovedReviewer
-            
-  # If either supervisor or reviewer rejects the proposal
-  - roles: [ Student,Supervisor,Coordinator ]
-    type: View
-    forms:
-      - ProposalAndEthicsReviewSupervisor
-      - ProposalAndEthicsReviewReviewer
-    condition:
-      logical:
-        operator: Or
-        children:
-          - event: ProposalRejectedSupervisor
-          - event: ProposalRejectedReviewer
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalApprovedSupervisor
+                - event: ProposalRejectedSupervisor
+          - logical:
+              operator: Or
+              children:
+                - event: ProposalApprovedReviewer
+                - event: ProposalRejectedReviewer
 
   # Supervisors can see their latest review, either approved or rejected.
   - roles: [ Supervisor ]

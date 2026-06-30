@@ -18,6 +18,7 @@ graph:
   tenantId: tenantId
   clientId: clientId
   userAccount: datanose@amsuni.onmicrosoft.com
+  senderId: 0c6948d0-009a-4796-9d94-e0b56bc3ea9c
   
 surfConext:
   baseUrl: https://connect.test.surfconext.nl

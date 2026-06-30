@@ -13,6 +13,7 @@ data:
   GraphMail__ClientId: "{{ .Values.graph.clientId }}"
   GraphMail__UserAccount: "{{ .Values.graph.userAccount }}"
   GraphMail__OverrideRecipient: "{{ .Values.graph.overrideRecipient }}"
+  GraphMail__SenderId: "{{ .Values.graph.senderId }}"
   
   AllowedOrigins: "{{ .Values.allowedOrigins }}"
   FrontendBaseUrl: "{{ .Values.frontendBaseUrl }}"
