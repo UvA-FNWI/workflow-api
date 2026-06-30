@@ -5,24 +5,25 @@ namespace UvA.Workflow.Assessments;
 
 public static class AssessmentService
 {
-    public static float CalculateFinalGrade(AssessmentConfiguration config,
+    public static (decimal Unrounded, float Rounded) CalculateFinalGrade(AssessmentConfiguration config,
         IEnumerable<AssessmentPartResult> partResults)
     {
         var totalPartWeight = config.Parts.Sum(p => p.Weight);
-        if (totalPartWeight <= 0) return 0;
+        if (totalPartWeight <= 0) return (0, 0);
 
         var partsWithResults = config.Parts
             .Select(part => (Part: part, Result: partResults.FirstOrDefault(r => r.Name == part.Name)))
             .Where(pair => pair.Result != null && pair.Result.Combined.WeightedAverage != 0)
             .ToList();
 
-        if (partsWithResults.Count == 0) return 0;
+        if (partsWithResults.Count == 0) return (0, 0);
 
         var submittedWeight = partsWithResults.Sum(pair => pair.Part.Weight);
         var weightedSum = partsWithResults
             .Sum(pair => pair.Result!.Combined.WeightedAverage * pair.Part.Weight);
 
-        return ApplyRounding(weightedSum / submittedWeight, config);
+        var unrounded = weightedSum / submittedWeight;
+        return (unrounded, ApplyRounding(unrounded, config));
     }
 
     public static float ApplyRounding(decimal grade, AssessmentConfiguration config)

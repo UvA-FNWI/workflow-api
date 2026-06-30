@@ -28,8 +28,6 @@ properties:
     type: Assessment-PP!
     
 assessments:
-  gradingBasis: decimal
-  gradeGap: true
   parts:
     - name: AssessmentThesis
       title: 

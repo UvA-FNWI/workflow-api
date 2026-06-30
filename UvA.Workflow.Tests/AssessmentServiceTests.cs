@@ -227,9 +227,10 @@ public class AssessmentServiceTests
         var config = Config(("WrittenReport", 1));
         var parts = new[] { PartResult("WrittenReport", 7.5m) };
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.5f, result);
+        Assert.Equal(7.5m, resultUnrounded);
+        Assert.Equal(7.5f, resultRounded);
     }
 
     [Fact]
@@ -243,9 +244,10 @@ public class AssessmentServiceTests
         };
         // (8 * 60 + 6 * 40) / (60 + 40) = 7.2
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.2f, result);
+        Assert.Equal(7.2m, resultUnrounded);
+        Assert.Equal(7.2f, resultRounded);
     }
 
     [Fact]
@@ -259,9 +261,10 @@ public class AssessmentServiceTests
         };
         // Only WrittenReport submitted → (8 * 60) / 60 = 8.0
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(8.0f, result);
+        Assert.Equal(8.0m, resultUnrounded);
+        Assert.Equal(8.0f, resultRounded);
     }
 
     [Fact]
@@ -274,9 +277,10 @@ public class AssessmentServiceTests
             PartResult("Presentation", 0m)
         };
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(0f, result);
+        Assert.Equal(0m, resultUnrounded);
+        Assert.Equal(0f, resultRounded);
     }
 
     [Fact]
@@ -291,9 +295,10 @@ public class AssessmentServiceTests
         };
         // (8 * 60 + 7 * 20 + 6 * 20) / 100 = 7.4
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.4f, result);
+        Assert.Equal(7.4m, resultUnrounded);
+        Assert.Equal(7.4f, resultRounded);
     }
 
     [Fact]
@@ -308,9 +313,10 @@ public class AssessmentServiceTests
         // Presentation is null from FirstOrDefault → filtered by pair.Result != null
         // submittedWeight = 60 → (8 * 60) / 60 = 8.0
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(8.0f, result);
+        Assert.Equal(8.0m, resultUnrounded);
+        Assert.Equal(8.0f, resultRounded);
     }
 
     [Fact]
@@ -319,9 +325,10 @@ public class AssessmentServiceTests
         var config = new AssessmentConfiguration(); // no parts
         var parts = Array.Empty<AssessmentPartResult>();
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentService.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(0f, result);
+        Assert.Equal(0m, resultUnrounded);
+        Assert.Equal(0f, resultRounded);
     }
 
     // ─── CalculateSourceResult ────────────────────────────────────────────────

@@ -7,11 +7,16 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Assessments.Dtos;
 
+public record FinalGrade(
+    decimal? Calculated,
+    float? Rounded,
+    BilingualString? Text
+);
+
 public record AssessmentDto(
     string Id,
     AssessmentPartDto[] Parts,
-    float? FinalGrade,
-    BilingualString? FinalGradeLabel
+    FinalGrade? FinalGrade
 );
 
 public record AssessmentPartDto(
@@ -107,25 +112,26 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             ));
         }
 
-        if (assessmentConfig == null) return new AssessmentDto(id, parts.ToArray(), null, null);
+        if (assessmentConfig == null) return new AssessmentDto(id, parts.ToArray(), null);
 
         bool isGradingComplete = assessmentConfig.Parts
             .All(p => p.Sources.All(s => contextList.Any(c => c.Form.Name == s.Name)));
 
         if (!isGradingComplete)
-            return new AssessmentDto(id, parts.ToArray(), null,
-                new BilingualString("Grading not yet complete", "Beoordeling nog niet volledig"));
+            return new AssessmentDto(id, parts.ToArray(), null);
 
-        var calculatedFinalGrade = AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults);
+        var (calculatedFinalGradeUnrounded, calculatedFinalGradeRounded) =
+            AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults);
 
         var finalGradeLabel = assessmentConfig.GradingBasis == GradingBasis.PassFail
-            ? calculatedFinalGrade >= 1
+            ? calculatedFinalGradeRounded >= 1
                 ? new BilingualString("Pass", "Voldoende")
                 : new BilingualString("Fail", "Onvoldoende")
             : null;
 
-        return new AssessmentDto(id, parts.ToArray(), finalGradeLabel == null ? calculatedFinalGrade : null,
-            finalGradeLabel);
+        return new AssessmentDto(id, parts.ToArray(), new FinalGrade(calculatedFinalGradeUnrounded,
+            finalGradeLabel == null ? calculatedFinalGradeRounded : null,
+            finalGradeLabel));
     }
 
     public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
