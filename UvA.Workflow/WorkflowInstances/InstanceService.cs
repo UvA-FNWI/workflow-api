@@ -149,7 +149,9 @@ public class InstanceService(
         var users = results
             .Select(r => r.GetValueOrDefault(property))
             .Where(r => r?.IsBsonNull == false)
-            .Select(r => BsonSerializer.Deserialize<InstanceUser>(r!.AsBsonDocument));
+            .SelectMany(r => r!.IsBsonArray
+                ? r.AsBsonArray.Select(v => BsonSerializer.Deserialize<InstanceUser>(v.AsBsonDocument))
+                : [BsonSerializer.Deserialize<InstanceUser>(r.AsBsonDocument)]);
         var user = await userService.GetCurrentUser(ct);
         return users.Count(u => u.Id == user!.Id) < action.Limit.Value;
     }
@@ -276,7 +278,8 @@ public class InstanceService(
                 State = FormSubmissionState.Resolve(instance, form, workflowDef)
             })
             .Where(x => x.State.IsSubmitted)
-            .OrderBy(x => x.State.DateSubmitted)
+            .OrderBy(x => workflowDef.Forms.FindIndex(f => f.Name == x.Form.Name))
+            .ThenBy(x => x.State.DateSubmitted)
             .Select(x => new AllowedSubmission(x.State, x.Form,
                 modelService.GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name)),
                 allowed.Any(a => a.Type == RoleAction.View && a.MatchesForm(x.Form.Name))));
