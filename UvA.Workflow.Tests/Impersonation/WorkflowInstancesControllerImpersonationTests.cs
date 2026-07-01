@@ -14,7 +14,7 @@ namespace UvA.Workflow.Tests.Impersonation;
 
 public class WorkflowInstancesControllerImpersonationTests
 {
-    private static ImpersonationService CreateImpersonationService(
+    private static RoleImpersonationService CreateImpersonationService(
         IUserService userService,
         IHttpContextAccessor httpContextAccessor)
     {
@@ -24,7 +24,7 @@ public class WorkflowInstancesControllerImpersonationTests
                 ["ImpersonationKey"] = ImpersonationTestHelpers.SigningKey
             })
             .Build();
-        return new ImpersonationService(
+        return new RoleImpersonationService(
             config,
             httpContextAccessor,
             userService);
@@ -44,7 +44,7 @@ public class WorkflowInstancesControllerImpersonationTests
         RightsService rightsService,
         IWorkflowInstanceRepository repository,
         ModelService modelService,
-        ImpersonationService impersonationService,
+        RoleImpersonationService impersonationService,
         HttpContext httpContext)
     {
         var controller = new WorkflowInstancesController(
@@ -125,7 +125,7 @@ public class WorkflowInstancesControllerImpersonationTests
             impersonationService, accessor.HttpContext!);
 
         if (!string.IsNullOrWhiteSpace(headerToken))
-            controller.HttpContext.Request.Headers[ImpersonationConstants.HeaderName] = headerToken;
+            controller.HttpContext.Request.Headers[RoleImpersonationConstants.HeaderName] = headerToken;
 
         return (controller, instance);
     }

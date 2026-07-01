@@ -7,7 +7,10 @@ namespace UvA.Workflow.Users;
 
 public enum RightsEvaluationMode
 {
+    /// <summary>Applies the role-impersonation header, if present.</summary>
     RequestContext,
+
+    /// <summary>The user's own roles, ignoring role impersonation. User impersonation still applies.</summary>
     RealUser
 }
 
