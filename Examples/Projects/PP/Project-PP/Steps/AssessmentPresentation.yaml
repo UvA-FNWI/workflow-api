@@ -56,7 +56,7 @@ properties:
 
 actions:
   - type: Submit
-    roles: [CoSupervisor]
+    roles: [CoSupervisor,Supervisor]
     form: AssessmentPresentation
     label:
       en: Submit assessment
