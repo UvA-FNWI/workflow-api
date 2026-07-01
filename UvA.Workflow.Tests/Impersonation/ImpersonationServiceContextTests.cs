@@ -9,7 +9,7 @@ namespace UvA.Workflow.Tests.Impersonation;
 
 public class ImpersonationServiceContextTests
 {
-    private static ImpersonationService CreateService(
+    private static RoleImpersonationService CreateService(
         HttpContextAccessor httpContextAccessor,
         IUserService userService)
     {
@@ -19,13 +19,13 @@ public class ImpersonationServiceContextTests
                 ["ImpersonationKey"] = ImpersonationTestHelpers.SigningKey
             })
             .Build();
-        return new ImpersonationService(
+        return new RoleImpersonationService(
             config,
             httpContextAccessor,
             userService);
     }
 
-    private static ImpersonationService CreateContextService(
+    private static RoleImpersonationService CreateContextService(
         string token,
         string currentUserName)
     {
@@ -33,7 +33,7 @@ public class ImpersonationServiceContextTests
         {
             HttpContext = new DefaultHttpContext()
         };
-        httpContextAccessor.HttpContext!.Request.Headers[ImpersonationConstants.HeaderName] = token;
+        httpContextAccessor.HttpContext!.Request.Headers[RoleImpersonationConstants.HeaderName] = token;
 
         var userService = new Mock<IUserService>();
         userService.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))

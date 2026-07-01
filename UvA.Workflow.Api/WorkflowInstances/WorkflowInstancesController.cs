@@ -15,7 +15,7 @@ public class WorkflowInstancesController(
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
     ModelService modelService,
-    ImpersonationService impersonationService
+    RoleImpersonationService impersonationService
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
