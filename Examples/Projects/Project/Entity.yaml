@@ -34,7 +34,7 @@ relatedUsers:
     group: default
   - property: Course.Coordinator
     group: support
-  - property: Course.ConfidentialAdviser
+  - property: Course.ConfidentialAdvisor
     group: support
   - property: Course.StudyAdvisor
     group: support
