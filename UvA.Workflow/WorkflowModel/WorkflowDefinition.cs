@@ -45,7 +45,7 @@ public class WorkflowDefinition : INamed
     /// </summary>
     public string? InstanceTitle { get; set; }
 
-    public Template? InstanceTitleTemplate => field ??= Template.Create(InstanceTitle) ?? new Template("{{ Title }}");
+    public Template? InstanceTitleTemplate => field ??= Template.Create(InstanceTitle);
 
     /// <summary>
     /// Dictionary of properties for this entity type
