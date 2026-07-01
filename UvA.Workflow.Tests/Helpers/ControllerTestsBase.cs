@@ -86,7 +86,7 @@ public abstract class ControllerTestsBase
 
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
-        var mailBuilder = new MailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
+        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
 
         _instanceService =
             new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object,
