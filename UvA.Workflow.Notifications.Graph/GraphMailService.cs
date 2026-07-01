@@ -11,8 +11,7 @@ public class GraphMailService : IMailService
     private readonly GraphServiceClient _graphClient;
 
     public GraphMailService(
-        IOptions<GraphMailOptions> graphOptions,
-        IGraphMailTokenStore tokenStore)
+        IOptions<GraphMailOptions> graphOptions)
     {
         _options = graphOptions.Value;
         GraphMailOptions.Validate(_options);
