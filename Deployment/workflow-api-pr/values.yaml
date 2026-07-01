@@ -18,8 +18,7 @@ datanoseApi:
 graph:
   tenantId: tenantId
   clientId: clientId
-  clientSecret: clientSecret
-  senderId: no-reply-milestones@uva.nl
+  senderId: testen-dn-fnwi@uva.nl
   
 surfConext:
   baseUrl: https://connect.test.surfconext.nl
@@ -98,7 +97,5 @@ azure:
       key: Services__DataNose__Token
     - name: dn2-api-key
       key: Authentication__ApiKey
-    - name: workflow-graph-client-id
-      key: GraphMail__ClientId
     - name: workflow-graph-client-secret
       key: GraphMail__ClientSecret
