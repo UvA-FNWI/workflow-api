@@ -11,7 +11,7 @@ data:
   DataNoseApi__BaseAddress: "{{ .Values.datanoseApi.baseAddress }}"
   GraphMail__TenantId: "{{ .Values.graph.tenantId }}"
   GraphMail__ClientId: "{{ .Values.graph.clientId }}"
-  GraphMail__UserAccount: "{{ .Values.graph.userAccount }}"
+  GraphMail__ClientSecret: "{{ .Values.graph.clientSecret }}"
   GraphMail__OverrideRecipient: "{{ .Values.graph.overrideRecipient }}"
   GraphMail__SenderId: "{{ .Values.graph.senderId }}"
   
