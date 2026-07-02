@@ -7,10 +7,16 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Assessments.Dtos;
 
+public record FinalGrade(
+    decimal? Calculated,
+    float? Rounded,
+    BilingualString? Text
+);
+
 public record AssessmentDto(
     string Id,
     AssessmentPartDto[] Parts,
-    decimal? FinalGrade
+    FinalGrade? FinalGrade
 );
 
 public record AssessmentPartDto(
@@ -106,11 +112,26 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             ));
         }
 
-        var finalGrade = assessmentConfig != null
-            ? AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults)
-            : (decimal?)null;
+        if (assessmentConfig == null) return new AssessmentDto(id, parts.ToArray(), null);
 
-        return new(id, parts.ToArray(), RoundToTwo(finalGrade ?? 0));
+        bool isGradingComplete = assessmentConfig.Parts
+            .All(p => p.Sources.All(s => contextList.Any(c => c.Form.Name == s.Name)));
+
+        if (!isGradingComplete)
+            return new AssessmentDto(id, parts.ToArray(), null);
+
+        var (calculatedFinalGradeUnrounded, calculatedFinalGradeRounded) =
+            AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults);
+
+        var finalGradeLabel = assessmentConfig.GradingBasis == GradingBasis.PassFail
+            ? calculatedFinalGradeRounded >= 1
+                ? new BilingualString("Pass", "Voldoende")
+                : new BilingualString("Fail", "Onvoldoende")
+            : null;
+
+        return new AssessmentDto(id, parts.ToArray(), new FinalGrade(calculatedFinalGradeUnrounded,
+            finalGradeLabel == null ? calculatedFinalGradeRounded : null,
+            finalGradeLabel));
     }
 
     public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
