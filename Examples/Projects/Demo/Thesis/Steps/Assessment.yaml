@@ -3,8 +3,8 @@ icon:
   type: law-balance-line
 resultsType: AssessmentPartOverview
 title:
-  en: Assessment
-  nl: Beoordeling
+  en: Final assessment
+  nl: Eind beoordeling
 
 children:
   - Individual

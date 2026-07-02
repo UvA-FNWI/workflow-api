@@ -3,8 +3,8 @@ icon:
   type: graduate-cap-line
 resultsType: AssessmentFinalOverview
 title:
-  en: Finalize grade
-  nl: Cijfer afronden
+  en: Pass grade to SIS
+  nl: Cijfer doorgeven naar SIS
 
 actions:
   - type: View

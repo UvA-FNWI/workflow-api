@@ -168,13 +168,18 @@ properties:
       en: I give permission to make my thesis publicly available (open access)
       nl: Ik geef toestemming om mijn scriptie openbaar (open access) beschikbaar te stellen
 
-  - name: EmbargoDate
-    type: Date
+  - name: OwnWork
+    type: Boolean!
     text:
-      en: Make available only after (embargo)
-      nl: Pas beschikbaar stellen na (embargo)
-    condition:
-      name: IsPublishable
+      en: I declare that this thesis is my own, original work
+      nl: Ik verklaar dat deze scriptie mijn eigen, oorspronkelijke werk is
+    validation:
+      message:
+        en: You must confirm that this thesis is your own work
+        nl: Je moet bevestigen dat deze scriptie je eigen werk is
+      value:
+        property: OwnWork
+        equal: true
 
   - name: SubmissionReference
     type: String

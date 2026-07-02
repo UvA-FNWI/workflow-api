@@ -2,8 +2,8 @@ name: Upload
 icon:
   type: download-line
 title:
-  en: Upload thesis
-  nl: Scriptie uploaden
+  en: Final version
+  nl: Eindversie
 
 progress:
   color: green
