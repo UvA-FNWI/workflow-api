@@ -20,8 +20,8 @@ actions:
     intent: Destructive
     roles: [Coordinator]
     label:
-      en: Request changes
-      nl: Aanpassingen vragen
+      en: Reject
+      nl: Afkeuren
 
 properties:
   - name: RejectReason

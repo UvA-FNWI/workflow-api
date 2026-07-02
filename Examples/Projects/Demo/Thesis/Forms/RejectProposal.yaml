@@ -2,8 +2,8 @@ name: RejectProposal
 step: Review
 layout: Modal
 title:
-  en: Request changes
-  nl: Aanpassingen vragen
+  en: Reject proposal
+  nl: Voorstel afkeuren
 
 pages:
   - name: Reject
