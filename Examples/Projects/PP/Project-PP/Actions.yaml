@@ -5,13 +5,17 @@ globalActions:
   - roles: [Coordinator, Supervisor]
     type: View
     forms: [AssessmentSupervisor]
-  - roles: [Coordinator, CoSupervisor]
+  - roles: [Coordinator, CoSupervisor, SecondReviewer, Supervisor]
     type: View
     forms: [AssessmentPresentation]
   - type: View
     roles: [Supervisor]
     forms: [AssessmentPresentation, AssessmentSecondReader]
     steps: [AssessmentCombined]
+  - roles: [SecondReviewer]
+    forms: [AssessmentSupervisor]
+    condition:
+      event: AssessmentSecondReader
   - roles: [Coordinator, Supervisor, SecondReviewer]
     type: View
     forms: [AssessmentCombined, FinalGrade]
