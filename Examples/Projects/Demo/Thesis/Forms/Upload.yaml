@@ -24,7 +24,7 @@ onSubmit:
       inputs:
         SubmissionId: CreateSubmission.Id
         File: Report
-  - delay: 10s
+  - delay: 30s
     serviceCall:
       service: Turnitin
       operation: GenerateReport
