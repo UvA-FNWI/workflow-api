@@ -23,7 +23,6 @@ steps:
   - Upload
   - Assessment
   - Finalize
-  - Publication
 
 assessments:
   parts:
