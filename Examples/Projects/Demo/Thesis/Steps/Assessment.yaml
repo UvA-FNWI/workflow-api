@@ -4,7 +4,7 @@ icon:
 resultsType: AssessmentPartOverview
 title:
   en: Final assessment
-  nl: Eind beoordeling
+  nl: Eindbeoordeling
 
 children:
   - Individual
