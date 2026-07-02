@@ -1,0 +1,23 @@
+name: AssessmentSupervisor
+icon:
+  type: law-balance-line
+title:
+  en: Assessment (supervisor)
+  nl: Beoordeling (begeleider)
+
+progress:
+  color: red
+  text:
+    en: Awaiting supervisor assessment
+    nl: Wacht op beoordeling begeleider
+
+actions:
+  - type: Submit
+    roles: [Supervisor]
+    form: AssessmentSupervisor
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+ends:
+  event: AssessmentSupervisor

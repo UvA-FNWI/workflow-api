@@ -1,0 +1,19 @@
+name: ApproveProposal
+step: Review
+layout: Modal
+title:
+  en: Approve proposal
+  nl: Voorstel goedkeuren
+
+pages:
+  - name: Approve
+    introduction:
+      en: Are you sure you want to approve the proposal for {{ Student.DisplayName }}?
+      nl: Weet je zeker dat je het voorstel van {{ Student.DisplayName }} wil goedkeuren?
+
+onSubmit:
+  - toast:
+      type: Success
+      message:
+        en: Proposal approved.
+        nl: Voorstel goedgekeurd.

@@ -1,0 +1,34 @@
+name: Proposal
+icon:
+  type: article-line
+title:
+  en: Proposal
+  nl: Voorstel
+
+children:
+  - Submit
+  - Review
+
+events:
+  - name: SubmitProposal
+    suppresses: [RejectProposal]
+  - name: RejectProposal
+    suppresses: [SubmitProposal]
+  - name: ApproveProposal
+
+headerStatus:
+  - event: SubmitProposal
+    type: Info
+    label:
+      en: Awaiting approval — submitted {{ formatDate(SubmitProposalEvent, =dd-MM-yyyy) }}
+      nl: Wacht op goedkeuring — ingediend {{ formatDate(SubmitProposalEvent, =dd-MM-yyyy) }}
+  - event: RejectProposal
+    type: Attention
+    label:
+      en: Changes requested
+      nl: Aanpassingen gevraagd
+  - event: ApproveProposal
+    type: Success
+    label:
+      en: Approved on {{ formatDate(ApproveProposalEvent, =dd-MM-yyyy) }}
+      nl: Goedgekeurd op {{ formatDate(ApproveProposalEvent, =dd-MM-yyyy) }}

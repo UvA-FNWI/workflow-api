@@ -1,0 +1,31 @@
+name: Publication
+icon:
+  type: sparkles-line
+title:
+  en: Publication
+  nl: Publicatie
+
+condition:
+  logical:
+    operator: And
+    children:
+      - event: FinalGrade
+      - name: IsPublishable
+
+actions:
+  - roles: [Supervisor, Coordinator]
+    type: Execute
+    name: Publish
+    label:
+      en: Confirm publication
+      nl: Publicatie bevestigen
+    onAction:
+      - showConfetti: true
+      - toast:
+          type: Success
+          message:
+            en: Thesis is now publicly available 🎉
+            nl: Scriptie is nu openbaar beschikbaar 🎉
+
+ends:
+  event: Publish

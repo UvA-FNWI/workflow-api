@@ -1,0 +1,28 @@
+name: FinalGrade
+step: FinalGrade
+layout: Compact
+title:
+  en: Final grade
+  nl: Eindcijfer
+
+pages:
+  - name: FinalGrade
+    title:
+      en: Final grade
+      nl: Eindcijfer
+    introduction:
+      en: The weighted final grade is shown above. Publish it to record the final grade.
+      nl: Het gewogen eindcijfer staat hierboven. Publiceer het om het eindcijfer vast te leggen.
+    fields: []
+
+onSubmit:
+  - setProperty:
+      property: AssessmentCombined.Comments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.Comments }}\nSecond reviewer: {{ AssessmentSecondReader.Comments }}")
+  - toast:
+      type: Success
+      message:
+        en: Final grade published 🎓
+        nl: Eindcijfer gepubliceerd 🎓
+  - showConfetti: true

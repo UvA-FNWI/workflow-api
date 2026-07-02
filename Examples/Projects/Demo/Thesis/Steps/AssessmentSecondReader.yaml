@@ -1,0 +1,23 @@
+name: AssessmentSecondReader
+icon:
+  type: law-balance-line
+title:
+  en: Assessment (second reviewer)
+  nl: Beoordeling (tweede beoordelaar)
+
+progress:
+  color: red
+  text:
+    en: Awaiting second reviewer assessment
+    nl: Wacht op beoordeling tweede beoordelaar
+
+actions:
+  - type: Submit
+    roles: [SecondReviewer]
+    form: AssessmentSecondReader
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+ends:
+  event: AssessmentSecondReader

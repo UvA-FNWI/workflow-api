@@ -1,0 +1,94 @@
+name: Assessment-Demo
+title:
+  en: Assessment
+  nl: Beoordeling
+isEmbedded: true
+
+properties:
+  - name: ProblemStatement
+    type: HalfGrade!
+    text:
+      en: Problem statement & research question
+      nl: Probleemstelling & onderzoeksvraag
+    layout:
+      type: Rubric
+    calculation:
+      weight: 0.4
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - A clear, focused research question with strong academic relevance
+          - Well motivated and firmly embedded in the literature
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The research question is clear and answerable
+          - The problem statement is adequately grounded in the literature
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - The problem statement lacks focus or grounding in the literature
+          - The research question is unclear or cannot be answered
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: Methodology
+    type: HalfGrade!
+    text:
+      en: Methodology
+      nl: Methodologie
+    layout:
+      type: Rubric
+    calculation:
+      weight: 0.4
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - Methods are innovative, rigorous and fully justified
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - Methods are appropriate and adequately justified
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - Methods are inappropriate or insufficiently justified
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: ResultsPresentation
+    type: HalfGrade!
+    text:
+      en: Results & presentation
+      nl: Resultaten & presentatie
+    layout:
+      type: Rubric
+    calculation:
+      weight: 0.2
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - Results are insightful and communicated with exceptional clarity
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - Results are correct and clearly presented
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - Results are unclear, incorrect or poorly presented
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: Comments
+    type: String
+    text:
+      en: Overall comments
+      nl: Algemene opmerkingen
+    layout:
+      multiline: true
+    results:
+      source: AssessmentCombined

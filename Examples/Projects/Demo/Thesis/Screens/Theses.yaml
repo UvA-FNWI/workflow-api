@@ -1,0 +1,65 @@
+name: Theses
+workflowDefinition: Thesis-Demo
+
+columns:
+  - title:
+      en: Student
+      nl: Student
+    value: "{{ Student.DisplayName }}"
+    link: true
+    defaultSort: Descending
+  - property: Title
+    default: No title
+  - property: ThesisType
+    title:
+      en: Type
+      nl: Type
+    filterType: Pick
+  - property: Course.Name
+    title:
+      en: Course
+      nl: Vak
+  - property: Supervisor.DisplayName
+    title:
+      en: Supervisor
+      nl: Begeleider
+  - property: EC
+    title:
+      en: Credits
+      nl: Studiepunten
+    displayType: ExportOnly
+  - title:
+      en: Progress
+      nl: Voortgang
+    currentStep: true
+    filterType: Pick
+    default: Draft
+
+grouping:
+  groups:
+    - name: proposal
+      title:
+        en: Proposal
+        nl: Voorstel
+      steps:
+        - Submit
+        - Review
+    - name: in-progress
+      title:
+        en: In progress
+        nl: Bezig
+      steps:
+        - Upload
+        - Assessment
+        - Individual
+        - AssessmentSupervisor
+        - AssessmentSecondReader
+        - Finalize
+        - FinalGrade
+    - name: completed
+      title:
+        en: Completed
+        nl: Afgerond
+      steps:
+        - Publication
+        - null

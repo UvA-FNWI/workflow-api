@@ -1,0 +1,10 @@
+name: Assessment
+icon:
+  type: law-balance-line
+resultsType: AssessmentPartOverview
+title:
+  en: Assessment
+  nl: Beoordeling
+
+children:
+  - Individual

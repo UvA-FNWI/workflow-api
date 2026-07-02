@@ -1,0 +1,12 @@
+name: Individual
+icon:
+  type: law-balance-line
+title:
+  en: Independent reviews
+  nl: Onafhankelijke beoordelingen
+
+hierarchyMode: Parallel
+
+children:
+  - AssessmentSupervisor
+  - AssessmentSecondReader

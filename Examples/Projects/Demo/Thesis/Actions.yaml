@@ -1,0 +1,18 @@
+globalActions:
+  - roles: [Student, Supervisor, SecondReviewer, Coordinator]
+    type: View
+    forms: [SubmitProposal, Upload, RejectProposal]
+  - roles: [Registered]
+    type: CreateInstance
+    userProperty: Student
+  - roles: [Coordinator]
+    type: Edit
+    forms: [SubmitProposal]
+  - roles: [Supervisor, Coordinator]
+    type: View
+    forms: [AssessmentSupervisor]
+  - roles: [SecondReviewer, Coordinator]
+    type: View
+    forms: [AssessmentSecondReader]
+  - roles: [Coordinator]
+    type: ViewHidden

@@ -1,0 +1,46 @@
+name: Review
+icon:
+  type: checkmark-line
+  color: green
+title:
+  en: Review proposal
+  nl: Voorstel beoordelen
+
+actions:
+  - name: Approve
+    type: Submit
+    form: ApproveProposal
+    roles: [Coordinator]
+    label:
+      en: Approve
+      nl: Goedkeuren
+  - name: Reject
+    type: Submit
+    form: RejectProposal
+    intent: Destructive
+    roles: [Coordinator]
+    label:
+      en: Request changes
+      nl: Aanpassingen vragen
+
+properties:
+  - name: RejectReason
+    type: String!
+    text:
+      en: Feedback for the student
+      nl: Feedback voor de student
+    layout:
+      multiline: true
+
+progress:
+  color: red
+  text:
+    en: Awaiting approval
+    nl: Wacht op goedkeuring
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: RejectProposal
+      - event: ApproveProposal

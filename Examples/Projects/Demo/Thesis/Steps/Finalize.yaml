@@ -1,0 +1,15 @@
+name: Finalize
+icon:
+  type: graduate-cap-line
+resultsType: AssessmentFinalOverview
+title:
+  en: Finalize grade
+  nl: Cijfer afronden
+
+actions:
+  - type: View
+    roles: [Supervisor, SecondReviewer]
+    forms: [AssessmentSupervisor, AssessmentSecondReader]
+
+children:
+  - FinalGrade

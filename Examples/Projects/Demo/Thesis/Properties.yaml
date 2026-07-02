@@ -1,0 +1,192 @@
+properties:
+  - name: Course
+    type: Context!
+    inheritedRoles: [Coordinator, Impersonator]
+
+  - name: Title
+    type: String!
+    text:
+      en: Working title
+      nl: Werktitel
+
+  - name: ThesisType
+    type: ThesisType!
+    text:
+      en: Thesis type
+      nl: Type scriptie
+    layout:
+      type: RadioList
+    values:
+      - name: Empirical
+        text:
+          en: Empirical study
+          nl: Empirisch onderzoek
+      - name: Literature
+        text:
+          en: Literature review
+          nl: Literatuuronderzoek
+      - name: Design
+        text:
+          en: Design project
+          nl: Ontwerpproject
+
+  - name: Language
+    type: Language!
+    text:
+      en: Thesis language
+      nl: Scriptietaal
+
+  - name: Abstract
+    type: String!
+    text:
+      en: Abstract
+      nl: Samenvatting
+    description:
+      en: A short summary of your research (max. 200 words)
+      nl: Een korte samenvatting van je onderzoek (max. 200 woorden)
+    layout:
+      multiline: true
+
+  - name: EC
+    type: Int!
+    text:
+      en: Credits (EC)
+      nl: Studiepunten (EC)
+
+  - name: StartDate
+    type: Date!
+    text:
+      en: Start date
+      nl: Startdatum
+    validation:
+      message:
+        en: The start date must be in the future
+        nl: De startdatum moet in de toekomst liggen
+      value:
+        property: StartDate
+        greaterThan: now
+
+  - name: EndDate
+    type: Date!
+    text:
+      en: Expected end date
+      nl: Verwachte einddatum
+    validation:
+      message:
+        en: The end date must be after the start date
+        nl: De einddatum moet na de startdatum liggen
+      value:
+        property: EndDate
+        greaterThan: StartDate
+
+  - name: Student
+    type: User!
+
+  - name: Supervisor
+    type: User!
+    allowsExternalUsers: true
+    text:
+      en: Supervisor
+      nl: Begeleider
+
+  - name: SecondReviewer
+    type: User!
+    text:
+      en: Second reviewer
+      nl: Tweede beoordelaar
+
+  # Carrying out the thesis abroad reveals the host country and a local contact person.
+  # That contact is not a university user, so their name/email/phone are typed in
+  # (which is exactly why the email/phone field variants fit here).
+  - name: Abroad
+    type: Boolean!
+    text:
+      en: I will carry out my thesis abroad (in another country)
+      nl: Ik voer mijn scriptie in het buitenland uit
+
+  - name: HostCountry
+    type: Country
+    text:
+      en: Country
+      nl: Land
+    layout:
+      type: Dropdown
+    condition:
+      value:
+        property: Abroad
+        equal: true
+
+  - name: ContactName
+    type: String
+    text:
+      en: Local contact person
+      nl: Lokale contactpersoon
+    condition:
+      value:
+        property: Abroad
+        equal: true
+
+  - name: ContactEmail
+    type: String
+    text:
+      en: Contact email
+      nl: E-mail contactpersoon
+    layout:
+      variant: Email
+    condition:
+      value:
+        property: Abroad
+        equal: true
+
+  - name: ContactPhone
+    type: String
+    text:
+      en: Contact phone
+      nl: Telefoon contactpersoon
+    layout:
+      variant: Phone
+    condition:
+      value:
+        property: Abroad
+        equal: true
+
+  - name: Proposal
+    type: File!
+    text:
+      en: Proposal document
+      nl: Voorsteldocument
+
+  - name: Report
+    type: File!
+    text:
+      en: Final thesis (PDF)
+      nl: Eindscriptie (PDF)
+
+  - name: CanBePublished
+    type: Boolean!
+    text:
+      en: I give permission to make my thesis publicly available (open access)
+      nl: Ik geef toestemming om mijn scriptie openbaar (open access) beschikbaar te stellen
+
+  - name: EmbargoDate
+    type: Date
+    text:
+      en: Make available only after (embargo)
+      nl: Pas beschikbaar stellen na (embargo)
+    condition:
+      name: IsPublishable
+
+  - name: SubmissionReference
+    type: String
+    visibility: Hidden
+    hideInResults: true
+    text:
+      en: Reference number
+      nl: Referentienummer
+
+  - name: AssessmentSupervisor
+    type: Assessment-Demo!
+  - name: AssessmentSecondReader
+    type: Assessment-Demo!
+  - name: AssessmentCombined
+    type: Assessment-Demo!

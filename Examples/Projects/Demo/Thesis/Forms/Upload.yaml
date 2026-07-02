@@ -1,0 +1,20 @@
+name: Upload
+step: Upload
+
+onSubmit:
+  - toast:
+      type: Success
+      message:
+        en: Your thesis has been submitted for assessment.
+        nl: Je scriptie is ingediend voor beoordeling.
+
+pages:
+  - name: Upload
+    title:
+      en: Final thesis
+      nl: Eindscriptie
+    fields:
+      - Title
+      - Report
+      - CanBePublished
+      - EmbargoDate

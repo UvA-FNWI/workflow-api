@@ -1,0 +1,47 @@
+name: SubmitProposal
+step: Submit
+
+pages:
+  - name: Contents
+    title:
+      en: Contents
+      nl: Inhoud
+    introduction:
+      en: Describe your thesis topic and attach your proposal document.
+      nl: Beschrijf je scriptieonderwerp en voeg je voorsteldocument toe.
+    fields:
+      - Title
+      - ThesisType
+      - Language
+      - Abstract
+      - Proposal
+  - name: Supervision
+    title:
+      en: Supervision & location
+      nl: Begeleiding & locatie
+    fields:
+      - Supervisor
+      - SecondReviewer
+      - Abroad
+      - HostCountry
+      - ContactName
+      - ContactEmail
+      - ContactPhone
+  - name: Planning
+    title:
+      en: Planning
+      nl: Planning
+    fields:
+      - StartDate
+      - EndDate
+      - EC
+
+onSubmit:
+  - toast:
+      type: Success
+      message:
+        en: "Nice work 👍 Your proposal has been submitted."
+        nl: "Goed bezig 👍 Je voorstel is ingediend."
+  - setProperty:
+      property: SubmissionReference
+      value: template("THS-{{ Id }}")

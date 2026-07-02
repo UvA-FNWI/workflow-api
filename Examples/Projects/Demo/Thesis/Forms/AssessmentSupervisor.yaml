@@ -1,0 +1,7 @@
+name: AssessmentSupervisor
+title:
+  en: Assessment (supervisor)
+  nl: Beoordeling (begeleider)
+property: AssessmentSupervisor
+targetForm: Assessment
+step: AssessmentSupervisor

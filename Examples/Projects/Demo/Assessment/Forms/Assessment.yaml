@@ -1,0 +1,35 @@
+name: Assessment
+title:
+  en: Assessment
+  nl: Beoordeling
+layout: Compact
+
+pages:
+  - name: Rubric
+    title:
+      en: Rubric
+      nl: Rubric
+    introduction:
+      en: Select a grade for each criterion. The final grade is a weighted average.
+      nl: Kies per criterium een cijfer. Het eindcijfer is een gewogen gemiddelde.
+    fields:
+      - ProblemStatement
+      - Methodology
+      - ResultsPresentation
+    sources: [AssessmentSupervisor, AssessmentSecondReader]
+
+  - name: Comments
+    title:
+      en: Comments
+      nl: Opmerkingen
+    fields:
+      - Comments
+    sources: [AssessmentSupervisor, AssessmentSecondReader]
+
+  - name: CombinedComments
+    title:
+      en: Comments
+      nl: Opmerkingen
+    fields:
+      - Comments
+    sources: [AssessmentCombined]

@@ -1,0 +1,42 @@
+name: Thesis-Demo
+title:
+  en: Thesis (Demo)
+  nl: Scriptie (Demo)
+titlePlural:
+  en: Theses (Demo)
+  nl: Scripties (Demo)
+instanceTitle: '{{ Title }}'
+
+fields:
+  - property: Course.Name
+    title: Course
+  - property: Student.DisplayName
+    title: Student
+  - property: Student.Email
+    title: Email
+  - property: Title
+  - property: ThesisType
+  - currentStep: true
+
+steps:
+  - Proposal
+  - Upload
+  - Assessment
+  - Finalize
+  - Publication
+
+assessments:
+  parts:
+    # The part name must match the AssessmentPartOverview step (Assessment) so the
+    # overview resolves; sources are the two reviewer forms, supervisor weighted double.
+    - name: Assessment
+      title:
+        en: Thesis
+        nl: Scriptie
+      weight: 1
+      maximumDiscrepancy: 1
+      sources:
+        - name: AssessmentSupervisor
+          weight: 2
+        - name: AssessmentSecondReader
+          weight: 1

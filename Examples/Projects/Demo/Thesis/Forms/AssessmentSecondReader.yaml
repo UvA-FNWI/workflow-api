@@ -1,0 +1,7 @@
+name: AssessmentSecondReader
+title:
+  en: Assessment (second reviewer)
+  nl: Beoordeling (tweede beoordelaar)
+property: AssessmentSecondReader
+targetForm: Assessment
+step: AssessmentSecondReader

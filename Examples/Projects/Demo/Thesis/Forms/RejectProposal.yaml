@@ -1,0 +1,21 @@
+name: RejectProposal
+step: Review
+layout: Modal
+title:
+  en: Request changes
+  nl: Aanpassingen vragen
+
+pages:
+  - name: Reject
+    introduction:
+      en: Provide feedback for {{ Student.DisplayName }} so the proposal can be revised.
+      nl: Geef feedback voor {{ Student.DisplayName }} zodat het voorstel herzien kan worden.
+    fields:
+      - RejectReason
+
+onSubmit:
+  - toast:
+      type: Info
+      message:
+        en: Changes requested.
+        nl: Aanpassingen gevraagd.

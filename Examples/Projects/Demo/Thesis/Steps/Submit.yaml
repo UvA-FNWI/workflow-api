@@ -1,0 +1,23 @@
+name: Submit
+icon:
+  type: square-grid-search-line
+title:
+  en: Write proposal
+  nl: Voorstel schrijven
+
+progress:
+  color: green
+  text:
+    en: Writing proposal
+    nl: Voorstel schrijven
+
+condition:
+  deadline: addMonths(CreateDate, 2)
+
+actions:
+  - roles: [Student]
+    type: Submit
+    form: SubmitProposal
+
+ends:
+  event: SubmitProposal
