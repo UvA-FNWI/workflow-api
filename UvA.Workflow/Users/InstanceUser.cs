@@ -25,6 +25,7 @@ public class InstanceUser
 
     [BsonElement("InvitationState")]
     [BsonIgnoreIfNull]
+    [BsonRepresentation(BsonType.String)]
     public UserInvitationState? InvitationState { get; set; } = null;
 
     public static InstanceUser FromUser(User user) => new()
