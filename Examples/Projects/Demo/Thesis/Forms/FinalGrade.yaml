@@ -25,4 +25,3 @@ onSubmit:
       message:
         en: Final grade published 🎓
         nl: Eindcijfer gepubliceerd 🎓
-  - showConfetti: true

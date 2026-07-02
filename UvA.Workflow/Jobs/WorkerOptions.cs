@@ -16,5 +16,5 @@ public class WorkerOptions
     /// <summary>
     /// The interval at which the worker polls for new jobs when it is idle.
     /// </summary>
-    public TimeSpan JobPollingInterval { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan JobPollingInterval { get; set; } = TimeSpan.FromSeconds(3);
 }

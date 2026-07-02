@@ -92,3 +92,10 @@ properties:
       multiline: true
     results:
       source: AssessmentCombined
+
+  # Supervisor-only acknowledgement, shown on the Turnitin tab (see Forms/Assessment.yaml)
+  - name: ReportViewed
+    type: Boolean
+    text:
+      en: I have viewed the Turnitin report
+      nl: Ik heb het Turnitin-rapport bekeken

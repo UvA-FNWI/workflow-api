@@ -5,6 +5,17 @@ title:
 layout: Compact
 
 pages:
+  - name: PlagiarismCheck
+    title:
+      en: Plagiarism check
+      nl: Plagiaatcontrole
+    introduction:
+      en: Open the similarity report with the "View Turnitin report" button on this step, then confirm below.
+      nl: Open het gelijkenisrapport met de knop "Bekijk Turnitin-rapport" bij deze stap en bevestig hieronder.
+    fields:
+      - ReportViewed
+    sources: [AssessmentSupervisor]
+
   - name: Rubric
     title:
       en: Rubric

@@ -7,6 +7,29 @@ onSubmit:
       message:
         en: Your thesis has been submitted for assessment.
         nl: Je scriptie is ingediend voor beoordeling.
+  - showConfetti: true
+  # Submit the thesis to Turnitin and generate the similarity report (see Common/Services/Turnitin.yaml)
+  - serviceCall:
+      service: Turnitin
+      operation: CreateSubmission
+      inputs:
+        Owner: Student
+        Title: Title
+  - setProperty:
+      property: TurnitinId
+      value: CreateSubmission.Id
+  - serviceCall:
+      service: Turnitin
+      operation: UploadFile
+      inputs:
+        SubmissionId: CreateSubmission.Id
+        File: Report
+  - delay: 10s
+    serviceCall:
+      service: Turnitin
+      operation: GenerateReport
+      inputs:
+        SubmissionId: TurnitinId
 
 pages:
   - name: Upload
@@ -16,5 +39,4 @@ pages:
     fields:
       - Title
       - Report
-      - CanBePublished
       - OwnWork

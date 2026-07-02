@@ -16,3 +16,19 @@ globalActions:
     forms: [AssessmentSecondReader]
   - roles: [Coordinator]
     type: ViewHidden
+  # Supervisor-only button at the assessment step: opens the Turnitin similarity report
+  - name: ViewTurnitinReport
+    roles: [Supervisor]
+    type: Execute
+    label:
+      en: View Turnitin report
+      nl: Bekijk Turnitin-rapport
+    steps: [AssessmentSupervisor]
+    onAction:
+      - serviceCall:
+          service: Turnitin
+          operation: GetReportUrl
+          inputs:
+            SubmissionId: TurnitinId
+      - redirect:
+          url: "{{ GetReportUrl.ReportUrl }}"
