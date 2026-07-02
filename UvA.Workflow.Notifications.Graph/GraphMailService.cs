@@ -1,68 +1,27 @@
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Users.Item.SendMail;
-using Microsoft.Identity.Client;
-using Microsoft.Kiota.Abstractions.Authentication;
+using Azure.Identity;
 
 namespace UvA.Workflow.Notifications.Graph;
 
-internal class TokenProvider(Func<CancellationToken, Task<string>> getToken) : IAccessTokenProvider
-{
-    public AllowedHostsValidator AllowedHostsValidator { get; } = new(["graph.microsoft.com"]);
-
-    public Task<string> GetAuthorizationTokenAsync(Uri uri,
-        Dictionary<string, object>? additionalAuthenticationContext = null,
-        CancellationToken cancellationToken = default)
-        => getToken(cancellationToken);
-}
-
 public class GraphMailService : IMailService
 {
-    private static readonly string[] MailSendScopes = ["Mail.Send.Shared"];
-    private static readonly TimeSpan TokenRefreshBuffer = TimeSpan.FromMinutes(5);
-
     private readonly GraphMailOptions _options;
     private readonly GraphServiceClient _graphClient;
-    private readonly IPublicClientApplication _publicClientApplication;
-    private readonly IGraphMailTokenStore _tokenStore;
-
-    private AuthenticationResult? _cachedAuthenticationResult;
 
     public GraphMailService(
-        IOptions<GraphMailOptions> graphOptions,
-        IGraphMailTokenStore tokenStore)
+        IOptions<GraphMailOptions> graphOptions)
     {
         _options = graphOptions.Value;
         GraphMailOptions.Validate(_options);
 
-        _tokenStore = tokenStore;
+        var credential = new ClientSecretCredential(
+            _options.TenantId,
+            _options.ClientId,
+            _options.ClientSecret);
 
-        var accessTokenProvider = new BaseBearerTokenAuthenticationProvider(new TokenProvider(GetToken));
-        _graphClient = new GraphServiceClient(accessTokenProvider);
-
-        _publicClientApplication = PublicClientApplicationBuilder
-            .Create(_options.ClientId)
-            .WithTenantId(_options.TenantId)
-            .WithRedirectUri("http://localhost:8050")
-            .Build();
-    }
-
-    private async Task<string> GetToken(CancellationToken ct = default)
-    {
-        if (_cachedAuthenticationResult?.ExpiresOn > DateTimeOffset.UtcNow.Add(TokenRefreshBuffer))
-            return _cachedAuthenticationResult.AccessToken;
-
-        var tokenCache = await _tokenStore.GetTokenCache(ct);
-
-        _publicClientApplication.UserTokenCache.SetBeforeAccess(args =>
-            args.TokenCache.DeserializeMsalV3(tokenCache));
-
-        _cachedAuthenticationResult = await _publicClientApplication.AcquireTokenSilent(
-            MailSendScopes,
-            _options.UserAccount
-        ).ExecuteAsync(ct);
-
-        return _cachedAuthenticationResult.AccessToken;
+        _graphClient = new GraphServiceClient(credential);
     }
 
     public async Task<MailDispatchResult> Send(MailMessage mail, CancellationToken ct = default)

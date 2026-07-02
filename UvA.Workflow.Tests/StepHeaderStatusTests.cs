@@ -306,13 +306,14 @@ public class StepHeaderStatusTests
 
         var layoutResolver = new Mock<IMailLayoutResolver>();
         layoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
+        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(layoutResolver.Object, configuration);
 
         var instanceService = new InstanceService(
             repository.Object,
             modelService,
             userService.Object,
             rightsService,
-            new MailBuilder(layoutResolver.Object, configuration)
+            mailBuilder
         );
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
