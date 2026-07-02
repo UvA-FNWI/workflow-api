@@ -41,3 +41,14 @@ properties:
     text:
       en: Study advisor
       nl: Studieadviseur
+
+    
+  - name: GradingBasis
+    type: GradingBasis!
+    values:
+      - name: Decimal
+      - name: Half
+      - name: PassFail  
+      
+  - name: GradeGap
+    type: Boolean

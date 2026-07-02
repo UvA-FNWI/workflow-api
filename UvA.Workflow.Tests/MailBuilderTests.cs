@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Moq;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Tests.Helpers;
 
 namespace UvA.Workflow.Tests;
 
@@ -24,7 +25,7 @@ public class MailBuilderTests
     }
 
     private (MailBuilder builder, CapturingLayout layout, Mock<IMailLayoutResolver> resolver) CreateBuilder(
-        string? frontendBaseUrl = null)
+        string? frontendBaseUrl = null, string hostEnvironment = "Production")
     {
         var layout = new CapturingLayout();
         var resolver = new Mock<IMailLayoutResolver>();
@@ -33,7 +34,8 @@ public class MailBuilderTests
         var config = new Mock<IConfiguration>();
         config.Setup(c => c["FrontendBaseUrl"]).Returns(frontendBaseUrl);
 
-        return (new MailBuilder(resolver.Object, config.Object), layout, resolver);
+        return (UnitTestsHelpers.CreateMailBuilder(resolver.Object, config.Object, environmentName: hostEnvironment),
+            layout, resolver);
     }
 
     [Fact]
@@ -424,5 +426,24 @@ public class MailBuilderTests
         var recipient = Assert.Single(result.To);
         Assert.Equal("robin.jansen@uva.nl", recipient.MailAddress);
         Assert.Equal("Robin Jansen", recipient.DisplayName);
+    }
+
+    [Fact]
+    public async Task BuildAsync_AppendsWorkerGroupToSubject_WhenNotProd()
+    {
+        var (builder, _, _) = CreateBuilder(hostEnvironment: "Development");
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var sendMail = new SendMessage
+        {
+            ToAddress = "student@uva.nl",
+            Subject = new BilingualString("My Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal("[test] My Subject", result.Subject);
     }
 }

@@ -14,6 +14,19 @@ public class AssessmentsController(
     AssessmentDtoFactory assessmentDtoFactory,
     RightsService rightsService) : ApiControllerBase
 {
+    private async Task<AssessmentConfiguration?> GetEnrichedAssessmentConfig(WorkflowInstance instance,
+        CancellationToken ct)
+    {
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var assessmentConfig = workflowDefinition.AssessmentConfiguration;
+        if (assessmentConfig == null) return null;
+
+        var objectContext = modelService.CreateContext(instance);
+        await instanceService.Enrich(workflowDefinition, [objectContext],
+            [new PropertyLookup("Course.GradingBasis"), new PropertyLookup("Course.GradeGap")], ct, replaceStep: false);
+        return assessmentConfig.Enrich(objectContext);
+    }
+
     [HttpGet("{instanceId}")]
     public async Task<ActionResult<AssessmentDto>> GetAssessmentResults(string instanceId,
         CancellationToken ct)
@@ -26,9 +39,9 @@ public class AssessmentsController(
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
-        var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
-
         await rightsService.EnsureAuthorizedForAction(instance, [RoleAction.View, RoleAction.ViewResults]);
+
+        var assessmentConfig = await GetEnrichedAssessmentConfig(instance, ct);
         var submissions = (await instanceService.GetAllowedSubmissions(instance, ct, true)).ToList();
         var contexts = new List<SubmissionContext>();
         foreach (var form in submissions.Select(s => s.Form))
@@ -60,7 +73,7 @@ public class AssessmentsController(
         if (instance == null)
             throw new EntityNotFoundException("WorkflowInstance", instanceId);
 
-        var assessmentConfig = modelService.WorkflowDefinitions[instance.WorkflowDefinition].AssessmentConfiguration;
+        var assessmentConfig = await GetEnrichedAssessmentConfig(instance, ct);
 
         var matchingPart = combine
             ? assessmentConfig?.Parts.FirstOrDefault(p =>

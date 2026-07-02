@@ -54,6 +54,7 @@ public partial class ModelParser
             target.StepNames = source.StepNames;
         target.Title ??= source.Title;
         target.TitlePlural ??= source.TitlePlural;
+        target.InstanceTitle ??= source.InstanceTitle;
         target.IsEmbedded = source.IsEmbedded;
         target.IsAlwaysVisible = source.IsAlwaysVisible;
         target.Fields = source.Fields.Concat(target.Fields).ToArray();

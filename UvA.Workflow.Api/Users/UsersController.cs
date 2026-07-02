@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Logging;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Users;
@@ -10,16 +12,21 @@ public class UsersController(
     IUserService userService,
     IUserRepository userRepository,
     RightsService rightsService,
-    IEduIdUserService eduIdUserService) : ApiControllerBase
+    IEduIdUserService eduIdUserService,
+    HttpContextCurrentUserAccessor realUserAccessor,
+    UserImpersonationTokenService userImpersonationTokenService,
+    ILogger<UsersController> logger) : ApiControllerBase
 {
     private const string ValidEmailStatus = "Valid";
     private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
     private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
     private const string InvalidEmailAddressCode = "InvalidEmailAddress";
+    private const string ImpersonationTargetNotFoundCode = "ImpersonationTargetNotFound";
 
     private const string InternalEmailMessage = "Internal email address";
     private const string DuplicateEmailMessage = "Email already exists";
     private const string InvalidEmailMessage = "Invalid email address";
+    private const string ImpersonationTargetNotFoundMessage = "User has no workflow account yet";
 
     private static readonly EmailAddressAttribute EmailAddressAttribute = new();
 
@@ -131,7 +138,36 @@ public class UsersController(
         return Ok(searchResults.Select(UserSearchResultDto.Create));
     }
 
-    private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct, string? ignoredUserId = null)
+    /// <summary>
+    /// Starts impersonating another user. Returns a signed token the client sends back via
+    /// the <c>X-User-Impersonation</c> header; from then on the API resolves the current user as the
+    /// target. The real admin keeps their SurfConext identity, so authorisation here always checks the
+    /// admin even when an impersonation is already active (enabling re-targeting, blocking escalation).
+    /// </summary>
+    [HttpPost("impersonate")]
+    public async Task<ActionResult<UserImpersonationStartedDto>> Impersonate(
+        [FromBody] StartUserImpersonationDto dto, CancellationToken ct)
+    {
+        var realName = realUserAccessor.GetCurrentUserName();
+        if (string.IsNullOrWhiteSpace(realName))
+            return UserNotFound;
+
+        var realUser = await userService.GetUser(realName, ct);
+        var roles = realUser is null ? [] : await userService.GetRoles(realUser, ct);
+        if (!roles.Contains(DataNoseDirectoryKeys.SuperAdminRoleName, StringComparer.OrdinalIgnoreCase))
+            return Forbidden();
+
+        var target = await userService.GetUser(dto.UserName, ct);
+        if (target == null)
+            return NotFound(ImpersonationTargetNotFoundCode, ImpersonationTargetNotFoundMessage);
+
+        var token = userImpersonationTokenService.CreateToken(realName, target.UserName);
+        logger.LogInformation("{Admin} started impersonating {Target}", realName, target.UserName);
+
+        return Ok(new UserImpersonationStartedDto(token.Value, token.ExpiresAtUtc));
+    }
+
+    private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct)
     {
         var trimmedEmail = email.Trim();
         if (!EmailAddressAttribute.IsValid(trimmedEmail))

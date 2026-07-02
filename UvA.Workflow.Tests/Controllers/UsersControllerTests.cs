@@ -380,7 +380,10 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _rightsService,
-            _eduIdUserServiceMock.Object);
+            _eduIdUserServiceMock.Object,
+            null!,
+            null!,
+            null!);
 
         var result = await controller.GetLoggedInUser(_ct);
 
@@ -497,7 +500,10 @@ public class UsersControllerTests : ControllerTestsBase
         return new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _rightsService,
-            _eduIdUserServiceMock.Object);
+            _eduIdUserServiceMock.Object,
+            null!,
+            null!,
+            null!);
     }
 
     private static bool IsConfiguredInternalEmail(string email)

@@ -1,15 +1,15 @@
 name: Project-PP
 title: Thesis PPLE
 titlePlural: 3803THQPVY
-instanceTitle: '{{ WorkingTitle }}'
+instanceTitle: '{{ Title }}'
 
 fields:
   - property: Course.Name
     title: Course
   - property: Student.DisplayName
     title: Student
-  - property: WorkingTitle
-    title: Working Title
+  - property: Title
+    title: Title
   - currentStep: true
     
 steps:
