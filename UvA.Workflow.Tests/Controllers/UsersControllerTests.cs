@@ -1,18 +1,47 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Organizations;
+using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Controllers;
 
 public class UsersControllerTests : ControllerTestsBase
 {
+    private const string InstanceId = "instance-id";
+    private const string ExternalUserId = "665f35fb3f1b3c6d4b3d0f12";
+
+    private readonly AnswerService _answerService;
+    private readonly ExternalUserEmailUpdateService _externalUserEmailUpdateService;
+
+    public UsersControllerTests()
+    {
+        _answerService = new AnswerService(
+            new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
+                _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService),
+            _modelService,
+            _instanceService,
+            _rightsService,
+            _artifactServiceMock.Object,
+            new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object),
+            _instanceEventService.Object,
+            _instanceJournalServiceMock.Object,
+            _userServiceMock.Object);
+        _externalUserEmailUpdateService = new ExternalUserEmailUpdateService(
+            _rightsService,
+            _answerService,
+            _modelService);
+    }
+
     [Theory]
     [InlineData("Coordinator")]
     [InlineData("Student")]
@@ -139,7 +168,7 @@ public class UsersControllerTests : ControllerTestsBase
     {
         var user = new User
         {
-            Id = "external-user-id",
+            Id = ExternalUserId,
             UserName = "old@example.org",
             DisplayName = "External User",
             Email = "old@example.org",
@@ -149,8 +178,11 @@ public class UsersControllerTests : ControllerTestsBase
         };
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
         var controller = BuildControllerWithRoles(["Api"]);
+        _userServiceMock.Setup(s => s.GetUser("new@example.org", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
 
-        var result = await controller.UpdateEmail(user.Id, new UpdateUserEmailDto("  new@example.org  "), _ct);
+        var result = await controller.UpdateEmail(user.Id,
+            new UpdateUserEmailDto("  new@example.org  ", InstanceId), _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var dto = Assert.IsType<UserDto>(okResult.Value);
@@ -164,11 +196,62 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Users_UpdateEmail_UpdatesEveryEditableUserReferenceInInstance()
+    {
+        var userId = ObjectId.GenerateNewId().ToString();
+        var user = new User
+        {
+            Id = userId,
+            UserName = "old@example.org",
+            DisplayName = "External User",
+            Email = "old@example.org",
+            ProviderKey = "eduid",
+            InvitationState = UserInvitationState.Required,
+            IsActive = false
+        };
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start", id: InstanceId)
+            .WithProperties(
+                ("Supervisor", _ => new BsonDocument
+                {
+                    { "_id", ObjectId.Parse(userId) },
+                    { "UserName", "old@example.org" },
+                    { "DisplayName", "External User" },
+                    { "Email", "old@example.org" }
+                }),
+                ("Reviewer", _ => new BsonDocument
+                {
+                    { "_id", ObjectId.Parse(userId) },
+                    { "UserName", "old@example.org" },
+                    { "DisplayName", "External User" },
+                    { "Email", "old@example.org" }
+                }))
+            .WithEvent("Start", DateTime.UtcNow)
+            .Build();
+        _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
+        var controller = BuildControllerWithRoles(["Api"]);
+        _workflowInstanceRepoMock.Setup(r => r.GetById(InstanceId, _ct)).ReturnsAsync(instance);
+        _userServiceMock.Setup(s => s.GetUser("new@example.org", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        await controller.UpdateEmail(user.Id,
+            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
+
+        Assert.Equal("new@example.org", instance.Properties["Supervisor"].AsBsonDocument["Email"].AsString);
+        Assert.Equal("new@example.org", instance.Properties["Supervisor"].AsBsonDocument["UserName"].AsString);
+        Assert.Equal("new@example.org", instance.Properties["Reviewer"].AsBsonDocument["Email"].AsString);
+        Assert.Equal("new@example.org", instance.Properties["Reviewer"].AsBsonDocument["UserName"].AsString);
+        _workflowInstanceRepoMock.Verify(r => r.UpdateFields(instance.Id,
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Exactly(2));
+    }
+
+    [Fact]
     public async Task Users_UpdateEmail_ReturnsNotFound_WhenUserDoesNotExist()
     {
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail("missing-user-id", new UpdateUserEmailDto("new@example.org"), _ct);
+        var result = await controller.UpdateEmail("missing-user-id",
+            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
@@ -195,7 +278,8 @@ public class UsersControllerTests : ControllerTestsBase
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id, new UpdateUserEmailDto("new@example.org"), _ct);
+        var result = await controller.UpdateEmail(user.Id,
+            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status422UnprocessableEntity, objectResult.StatusCode);
@@ -209,7 +293,7 @@ public class UsersControllerTests : ControllerTestsBase
     {
         var user = new User
         {
-            Id = "external-user-id",
+            Id = ExternalUserId,
             UserName = "old@example.org",
             DisplayName = "External User",
             Email = "old@example.org",
@@ -221,7 +305,8 @@ public class UsersControllerTests : ControllerTestsBase
             .ReturnsAsync(new User { Id = "other-user-id", Email = "duplicate@example.org" });
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id, new UpdateUserEmailDto("duplicate@example.org"), _ct);
+        var result = await controller.UpdateEmail(user.Id,
+            new UpdateUserEmailDto("duplicate@example.org", InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status409Conflict, objectResult.StatusCode);
@@ -235,7 +320,7 @@ public class UsersControllerTests : ControllerTestsBase
     {
         var user = new User
         {
-            Id = "external-user-id",
+            Id = ExternalUserId,
             UserName = "old@example.org",
             DisplayName = "External User",
             Email = "old@example.org",
@@ -246,12 +331,15 @@ public class UsersControllerTests : ControllerTestsBase
         _userRepoMock.Setup(r => r.GetByEmail("old@example.org", _ct)).ReturnsAsync(user);
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id, new UpdateUserEmailDto("old@example.org"), _ct);
+        var result = await controller.UpdateEmail(user.Id,
+            new UpdateUserEmailDto("old@example.org", InstanceId), _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var dto = Assert.IsType<UserDto>(okResult.Value);
         Assert.Equal("old@example.org", dto.Email);
         _userRepoMock.Verify(r => r.Update(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _workflowInstanceRepoMock.Verify(r => r.UpdateFields(It.IsAny<string>(),
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Theory]
@@ -264,7 +352,7 @@ public class UsersControllerTests : ControllerTestsBase
     {
         var user = new User
         {
-            Id = "external-user-id",
+            Id = ExternalUserId,
             UserName = "old@example.org",
             DisplayName = "External User",
             Email = "old@example.org",
@@ -274,7 +362,8 @@ public class UsersControllerTests : ControllerTestsBase
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id, new UpdateUserEmailDto(email), _ct);
+        var result = await controller.UpdateEmail(user.Id,
+            new UpdateUserEmailDto(email, InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(expectedStatusCode, objectResult.StatusCode);
@@ -284,12 +373,24 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Users_UpdateEmail_RequiresViewAdminRights()
+    public async Task Users_UpdateEmail_RequiresAnswerEditRights()
     {
-        var controller = BuildControllerWithRoles(["Student"]);
+        _userRepoMock.Setup(r => r.GetById(ExternalUserId, _ct)).ReturnsAsync(new User
+        {
+            Id = ExternalUserId,
+            UserName = "old@example.org",
+            DisplayName = "External User",
+            Email = "old@example.org",
+            ProviderKey = "eduid",
+            InvitationState = UserInvitationState.Required
+        });
+        var controller = BuildControllerWithRoles(["HasNoRights"]);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            controller.UpdateEmail("external-user-id", new UpdateUserEmailDto("new@example.org"), _ct));
+        var result = await controller.UpdateEmail(ExternalUserId,
+            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
     }
 
     [Theory]
@@ -381,9 +482,8 @@ public class UsersControllerTests : ControllerTestsBase
             _userRepoMock.Object,
             _rightsService,
             _eduIdUserServiceMock.Object,
-            null!,
-            null!,
-            null!);
+            _workflowInstanceRepoMock.Object,
+            _externalUserEmailUpdateService);
 
         var result = await controller.GetLoggedInUser(_ct);
 
@@ -496,14 +596,38 @@ public class UsersControllerTests : ControllerTestsBase
         MockCurrentUser(roles);
         _eduIdUserServiceMock.Setup(s => s.IsInternalEmailAddress(It.IsAny<string>()))
             .Returns((string email) => IsConfiguredInternalEmail(email));
+        _workflowInstanceRepoMock.Setup(r => r.GetById(InstanceId, _ct))
+            .ReturnsAsync(new WorkflowInstanceBuilder()
+                .With(workflowDefinition: "Project", currentStep: "Start", id: InstanceId)
+                .WithProperties(("Supervisor", _ => new BsonDocument
+                {
+                    { "_id", ObjectId.Parse(ExternalUserId) },
+                    { "UserName", "old@example.org" },
+                    { "DisplayName", "External User" },
+                    { "Email", "old@example.org" }
+                }))
+                .WithEvent("Start", DateTime.UtcNow)
+                .Build());
+        _workflowInstanceRepoMock.Setup(r => r.UpdateFields(InstanceId,
+                It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct))
+            .Returns(Task.CompletedTask);
+        _userServiceMock.Setup(s => s.GetUser(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string userName, CancellationToken _) => new User
+            {
+                Id = ExternalUserId,
+                UserName = userName,
+                DisplayName = "External User",
+                Email = userName,
+                ProviderKey = "eduid",
+                InvitationState = UserInvitationState.Required
+            });
 
         return new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _rightsService,
             _eduIdUserServiceMock.Object,
-            null!,
-            null!,
-            null!);
+            _workflowInstanceRepoMock.Object,
+            _externalUserEmailUpdateService);
     }
 
     private static bool IsConfiguredInternalEmail(string email)
