@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -480,10 +481,13 @@ public class UsersControllerTests : ControllerTestsBase
             .ReturnsAsync((User?)null);
         var controller = new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
+            _workflowInstanceRepoMock.Object,
             _rightsService,
             _eduIdUserServiceMock.Object,
-            _workflowInstanceRepoMock.Object,
-            _externalUserEmailUpdateService);
+            null!,
+            null!,
+            _externalUserEmailUpdateService,
+            Mock.Of<ILogger<UsersController>>());
 
         var result = await controller.GetLoggedInUser(_ct);
 
@@ -624,10 +628,13 @@ public class UsersControllerTests : ControllerTestsBase
 
         return new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
+            _workflowInstanceRepoMock.Object,
             _rightsService,
             _eduIdUserServiceMock.Object,
-            _workflowInstanceRepoMock.Object,
-            _externalUserEmailUpdateService);
+            null!,
+            null!,
+            _externalUserEmailUpdateService,
+            Mock.Of<ILogger<UsersController>>());
     }
 
     private static bool IsConfiguredInternalEmail(string email)
