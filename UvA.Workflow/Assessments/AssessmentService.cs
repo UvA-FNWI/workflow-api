@@ -5,24 +5,46 @@ namespace UvA.Workflow.Assessments;
 
 public static class AssessmentService
 {
-    public static decimal CalculateFinalGrade(AssessmentConfiguration config,
+    public static (decimal Unrounded, float Rounded) CalculateFinalGrade(AssessmentConfiguration config,
         IEnumerable<AssessmentPartResult> partResults)
     {
         var totalPartWeight = config.Parts.Sum(p => p.Weight);
-        if (totalPartWeight <= 0) return 0;
+        if (totalPartWeight <= 0) return (0, 0);
 
         var partsWithResults = config.Parts
             .Select(part => (Part: part, Result: partResults.FirstOrDefault(r => r.Name == part.Name)))
             .Where(pair => pair.Result != null && pair.Result.Combined.WeightedAverage != 0)
             .ToList();
 
-        if (partsWithResults.Count == 0) return 0;
+        if (partsWithResults.Count == 0) return (0, 0);
 
         var submittedWeight = partsWithResults.Sum(pair => pair.Part.Weight);
         var weightedSum = partsWithResults
             .Sum(pair => pair.Result!.Combined.WeightedAverage * pair.Part.Weight);
 
-        return weightedSum / submittedWeight;
+        var unrounded = weightedSum / submittedWeight;
+        return (unrounded, ApplyRounding(unrounded, config));
+    }
+
+    public static float ApplyRounding(decimal grade, AssessmentConfiguration config)
+    {
+        var rounded = config switch
+        {
+            { GradingBasis: GradingBasis.PassFail }
+                => grade >= 5.5m ? 1f : 0f,
+            { GradeGap: true } when grade is > 5m and < 6m
+                => (float)Math.Round(grade, 0, MidpointRounding.AwayFromZero),
+            { GradingBasis: GradingBasis.Half }
+                => grade is > 5.4m and < 5.5m
+                    ? 5.0f
+                    : (float)Math.Round(grade * 2, 0, MidpointRounding.AwayFromZero) / 2,
+            { GradingBasis: GradingBasis.Decimal }
+                => (float)Math.Round(grade is > 5.4m and < 5.5m ? 5.4m : grade, 1, MidpointRounding.AwayFromZero),
+            _
+                => (float)Math.Round(grade, 1, MidpointRounding.AwayFromZero)
+        };
+
+        return config.GradingBasis is GradingBasis.PassFail ? rounded : Math.Clamp(rounded, 1f, 10f);
     }
 
     public static decimal CalculatePartWeightedAverage(
@@ -68,13 +90,16 @@ public static class AssessmentService
                         WeightedAverage = results.Values.Any(v => v.WeightedAverage != null)
                             ? partConfig.Sources.Sum(x => results[x.Name].WeightedAverage * x.Weight) / totalWeight
                             : null,
+                        Weight = results.Values.FirstOrDefault(v => v.Weight != null)?.Weight,
                         Sum = partConfig.Sources.Sum(x => results[x.Name].Sum * x.Weight) / totalWeight,
                         QuestionResults = p.QuestionResults.Select(q => new QuestionResult
                         {
                             Name = q.Name,
                             Answer = partConfig.Sources.Sum(x =>
                                 (results[x.Name].QuestionResults.FirstOrDefault(z => z.Name == q.Name)?.Answer ?? 0) *
-                                (double)x.Weight) / (double)totalWeight
+                                (double)x.Weight) / (double)totalWeight,
+                            Weight = q.Weight,
+                            Percentage = q.Percentage
                         }).ToList()
                     };
                 })

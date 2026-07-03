@@ -7,12 +7,9 @@ title:
   en: Proposal
   nl: Voorstel
 
-hierarchyMode: Parallel
-
 children:
   - Start
-  - ProposalAssessmentSupervisor
-  - ProposalAssessmentReviewer
+  - ProposalAssessment
 
 headerStatus:
   # Approved only once both the supervisor and the proposal reviewer have approved.
@@ -27,12 +24,7 @@ headerStatus:
       en: Approved on {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
       nl: Goedgekeurd op {{ formatDate(ProposalApprovedReviewerEvent,=dd-MM-yyyy) }}
   # Changes needed if either reviewer rejects.
-  - condition:
-      logical:
-        operator: Or
-        children:
-          - event: ProposalRejectedSupervisor
-          - event: ProposalRejectedReviewer
+  - event: ProposalReturnedForRevision
     type: Attention
     label:
       en: Changes needed

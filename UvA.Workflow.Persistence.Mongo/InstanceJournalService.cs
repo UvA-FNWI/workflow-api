@@ -29,13 +29,15 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
         return changeSet!;
     }
 
-    public async Task LogPropertyChange(string instanceId, PropertyChangeEntry valueChange,
+    public async Task<bool> LogPropertyChange(string instanceId, PropertyChangeEntry valueChange,
         CancellationToken ct = default)
     {
-        await LogPropertyChanges(instanceId, [valueChange], ct);
+        var result = await LogPropertyChanges(instanceId, [valueChange], ct);
+        return result.Count > 0;
     }
 
-    public async Task LogPropertyChanges(string instanceId, ICollection<PropertyChangeEntry> newChanges,
+    private async Task<ICollection<string>> LogPropertyChanges(string instanceId,
+        ICollection<PropertyChangeEntry> newChanges,
         CancellationToken ct = default)
     {
         var changeSet = await GetInstanceJournal(instanceId, createIfNotExist: true, ct);
@@ -44,6 +46,8 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
             change.Version = changeSet!.CurrentVersion;
 
         var instanceIdFilter = Builders<InstanceJournalEntry>.Filter.Eq(x => x.InstanceId, instanceId);
+
+        var overwritten = new List<string>();
 
         foreach (var change in newChanges)
         {
@@ -78,7 +82,11 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
                     new UpdateOptions { IsUpsert = false },
                     ct);
             }
+            else
+                overwritten.Add(change.Path);
         }
+
+        return overwritten;
     }
 
     public async Task<int> IncrementVersion(string instanceId, CancellationToken ct = default)

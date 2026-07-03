@@ -29,7 +29,11 @@ grouping:
         en: Proposal
         nl: Voorstel
       steps:
+        - Start
         - ProposalPhase
+        - ProposalAssessment
+        - ProposalAssessmentSupervisor
+        - ProposalAssessmentReviewer
 
     - name: review
       title:

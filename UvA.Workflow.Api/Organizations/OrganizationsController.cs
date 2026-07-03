@@ -4,15 +4,12 @@ using UvA.Workflow.Api.Organizations.Dtos;
 namespace UvA.Workflow.Api.Organizations;
 
 public class OrganizationsController(
-    IOrganizationService organizationService,
-    RightsService rightsService) : ApiControllerBase
+    IOrganizationService organizationService) : ApiControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<OrganizationDto>> Create([FromBody] CreateOrganizationDto dto,
         CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.Submit);
-
         var organization = await organizationService.GetOrCreateOrganization(dto.Name, ct);
 
         var organizationDto = OrganizationDto.Create(organization);

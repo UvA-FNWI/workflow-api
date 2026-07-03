@@ -15,7 +15,7 @@ public class WorkflowInstancesController(
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
     ModelService modelService,
-    ImpersonationService impersonationService
+    RoleImpersonationService impersonationService
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -90,7 +90,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        if (!await rightsService.Can(instance, RoleAction.ImpersonateRoles, RightsEvaluationMode.RealUser))
+        if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
         var roles = rightsService.GetImpersonationTargetRoles(instance)
@@ -112,7 +112,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        if (!await rightsService.Can(instance, RoleAction.ImpersonateRoles, RightsEvaluationMode.RealUser))
+        if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
         var normalizedRoleName = rightsService.NormalizeImpersonationTargetRole(instance, input.Role);

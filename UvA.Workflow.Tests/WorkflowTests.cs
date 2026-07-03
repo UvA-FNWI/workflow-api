@@ -16,6 +16,7 @@ using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Organizations;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
@@ -83,7 +84,7 @@ public class WorkflowTests
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
-        var mailBuilder = new MailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
+        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
                 mailBuilder);
@@ -91,6 +92,8 @@ public class WorkflowTests
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
+        _userServiceMock.Setup(m => m.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User());
         _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MailDispatchResult([], [], [], null));
         _effectService = new EffectService(_instanceService,
@@ -114,7 +117,7 @@ public class WorkflowTests
             _userRepoMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
-            _instanceJournalServiceMock.Object);
+            _instanceJournalServiceMock.Object, _userServiceMock.Object);
     }
 
     [Fact]
@@ -160,7 +163,7 @@ public class WorkflowTests
 
         // Act
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Title", _ct);
-        await _answerService.SaveAnswer(questionContext, value, new User(), _ct);
+        await _answerService.SaveAnswer(questionContext, value, _ct);
 
         // Assert
         Assert.Contains(instance.Properties, p => p.Key == "Title" && p.Value.ToString() == "title");

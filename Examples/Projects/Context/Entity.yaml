@@ -23,3 +23,13 @@ properties:
 
   - name: StudyManual
     type: String!
+    
+  - name: GradingBasis
+    type: GradingBasis!
+    values:
+      - name: Decimal
+      - name: Half
+      - name: PassFail  
+      
+  - name: GradeGap
+    type: Boolean

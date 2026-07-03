@@ -165,7 +165,7 @@
               "$ref": "#/definitions/ChoiceLayoutOptions"
             },
             {
-              "$ref": "#/definitions/StringLayoutOptions"
+              "$ref": "#/definitions/TextLayoutOptions"
             },
             {
               "type": "null"
@@ -292,8 +292,8 @@
         "RadioList"
       ]
     },
-    "StringLayoutOptions": {
-      "title": "StringLayoutOptions",
+    "TextLayoutOptions": {
+      "title": "TextLayoutOptions",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -304,8 +304,19 @@
         "allowAttachments": {
           "type": "boolean",
           "description": "Set if the text field should allow attachments"
+        },
+        "variant": {
+          "description": "Renders the string field as a specific input (e.g. email or phone) with matching validation",
+          "$ref": "#/definitions/StringVariant"
         }
       }
+    },
+    "StringVariant": {
+      "type": "string",
+      "enum": [
+        "Email",
+        "Phone"
+      ]
     },
     "Choice": {
       "title": "Choice",

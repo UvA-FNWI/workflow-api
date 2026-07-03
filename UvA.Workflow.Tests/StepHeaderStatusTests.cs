@@ -208,7 +208,7 @@ public class StepHeaderStatusTests
     }
 
     [Fact]
-    public void Resolver_RmssProposal_ShowsChangesNeededWhenAReviewerRejects()
+    public void Resolver_RmssProposal_WaitsForBothAssessmentsAfterASingleRejection()
     {
         var modelService = CreateExampleModelService();
         var resolver = new StepHeaderStatusResolver(modelService);
@@ -216,6 +216,25 @@ public class StepHeaderStatusTests
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalRejectedReviewer", new DateTime(2026, 04, 13, 9, 0, 0, DateTimeKind.Utc))
+        );
+
+        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Info, status!.Type);
+        Assert.Equal("Waiting for approval", status.Label.En);
+    }
+
+    [Fact]
+    public void Resolver_RmssProposal_ShowsChangesNeededWhenReturnedForRevision()
+    {
+        var modelService = CreateExampleModelService();
+        var resolver = new StepHeaderStatusResolver(modelService);
+        var instance = CreateRmssInstance(
+            ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalRejectedReviewer", new DateTime(2026, 04, 13, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalReturnedForRevision", new DateTime(2026, 04, 13, 9, 1, 0, DateTimeKind.Utc))
         );
 
         var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
@@ -287,13 +306,14 @@ public class StepHeaderStatusTests
 
         var layoutResolver = new Mock<IMailLayoutResolver>();
         layoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
+        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(layoutResolver.Object, configuration);
 
         var instanceService = new InstanceService(
             repository.Object,
             modelService,
             userService.Object,
             rightsService,
-            new MailBuilder(layoutResolver.Object, configuration)
+            mailBuilder
         );
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);

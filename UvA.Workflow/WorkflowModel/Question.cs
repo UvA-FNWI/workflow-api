@@ -31,7 +31,13 @@ public class ChoiceLayoutOptions : LayoutOptions
     public ChoiceLayoutType Type { get; set; }
 }
 
-public class StringLayoutOptions : LayoutOptions
+public enum StringVariant
+{
+    Email,
+    Phone
+}
+
+public class TextLayoutOptions : LayoutOptions
 {
     /// <summary>
     /// Set if the field should be a multiline text field
@@ -39,9 +45,14 @@ public class StringLayoutOptions : LayoutOptions
     public bool Multiline { get; set; }
 
     /// <summary>
-    /// Set if the text field should allow attachments 
+    /// Set if the text field should allow attachments
     /// </summary>
     public bool AllowAttachments { get; set; }
+
+    /// <summary>
+    /// Renders the string field as a specific input (e.g. email or phone) with matching validation
+    /// </summary>
+    public StringVariant Variant { get; set; }
 }
 
 public class TableLayoutOptions : LayoutOptions
@@ -181,6 +192,11 @@ public class PropertyDefinition : INamed
     public CalculationSettings? Calculation { get; set; }
 
     /// <summary>
+    /// Settings for result display
+    /// </summary>
+    public ResultSettings? Results { get; set; }
+
+    /// <summary>
     /// Determines if the propertyDefinition allows external users
     /// </summary>
     public bool? AllowsExternalUsers { get; set; } = false;
@@ -214,6 +230,25 @@ public class CalculationSettings
     /// For Sum, the weight is ignored.
     /// </summary>
     public CalculationType Type { get; set; }
+}
+
+public class ResultSettings
+{
+    /// <summary>
+    /// Determines what kind of results are shown for this field
+    /// </summary>
+    public ResultType Type { get; set; }
+
+    /// <summary>
+    /// For Type = Source, this determines which source property to use
+    /// </summary>
+    public string? Source { get; set; }
+}
+
+public enum ResultType
+{
+    Source,
+    Average
 }
 
 public class Choice : INamed

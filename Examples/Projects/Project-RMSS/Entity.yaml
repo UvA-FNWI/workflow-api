@@ -3,15 +3,13 @@ title: Research Master Social Sciences
 titlePlural:
   en: Projects (RMSS)
   nl: Projecten (RMSS)
-instanceTitle: '{{ WorkingTitle }}'
+instanceTitle: '{{ Title }}'
 inheritsFrom: Project
 fields:
   - property: Course.Name
     title: Course
   - property: Student.DisplayName
     title: Student
-  - property: WorkingTitle
-    title: Working Title
   - currentStep: true
 
 events:
@@ -21,16 +19,20 @@ events:
       - ProposalRejectedSupervisor
       - ProposalApprovedReviewer
       - ProposalRejectedReviewer
+      - ProposalReturnedForRevision
 
   - name: ProposalRejectedSupervisor
-    suppresses: [Start,ProposalApprovedSupervisor]
+    suppresses: [ProposalApprovedSupervisor]
   - name: ProposalApprovedSupervisor
     suppresses: [ProposalRejectedSupervisor]
 
   - name: ProposalRejectedReviewer
-    suppresses: [Start,ProposalApprovedReviewer]
+    suppresses: [ProposalApprovedReviewer]
   - name: ProposalApprovedReviewer
     suppresses: [ProposalRejectedReviewer]
+
+  - name: ProposalReturnedForRevision
+    suppresses: [Start]
 
 steps:
   - ProposalPhase

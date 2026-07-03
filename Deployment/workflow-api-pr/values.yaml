@@ -18,7 +18,7 @@ datanoseApi:
 graph:
   tenantId: tenantId
   clientId: clientId
-  userAccount: datanose@amsuni.onmicrosoft.com
+  senderId: testen-dn-fnwi@uva.nl
   
 surfConext:
   baseUrl: https://connect.test.surfconext.nl
@@ -97,3 +97,5 @@ azure:
       key: Services__DataNose__Token
     - name: dn2-api-key
       key: Authentication__ApiKey
+    - name: workflow-graph-client-secret
+      key: GraphMail__ClientSecret
