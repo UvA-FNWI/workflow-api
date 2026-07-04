@@ -10,15 +10,16 @@ globalActions:
     forms: [AssessmentPresentation]
   - type: View
     roles: [Supervisor]
-    forms: [AssessmentPresentation, AssessmentSecondReader]
-    steps: [AssessmentCombined]
+    forms: [AssessmentSecondReader]
+    condition:
+      event: AssessmentSupervisor
   - roles: [SecondReviewer]
     forms: [AssessmentSupervisor]
     condition:
       event: AssessmentSecondReader
   - roles: [Coordinator, Supervisor, SecondReviewer]
     type: View
-    forms: [AssessmentCombined, FinalGrade]
+    forms: [AssessmentCombined, FinalGrade, AssessmentPresentation]
   - roles: [Coordinator, SecondReviewer]
     type: View
     forms: [AssessmentSecondReader]
