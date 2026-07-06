@@ -75,7 +75,6 @@ public class MailBuilder(
     {
         return new SendMessage
         {
-            Name = string.IsNullOrWhiteSpace(inline.Name) ? template.Name : inline.Name,
             TemplateKey = inline.TemplateKey ?? template.TemplateKey,
 
             To = inline.To ?? template.To,
