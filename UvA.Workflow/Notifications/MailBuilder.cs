@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.WorkflowModel;
@@ -9,9 +10,10 @@ public class MailBuilder(
     IMailLayoutResolver layoutResolver,
     IConfiguration configuration,
     IOptions<WorkerOptions> workerOptions,
-    IHostEnvironment environment)
+    IHostEnvironment environment,
+    ILogger<MailBuilder> logger)
 {
-    public async Task<MailMessage> BuildAsync(
+    public Task<MailMessage> BuildAsync(
         WorkflowInstance instance,
         SendMessage sendMail,
         ModelService modelService,
@@ -25,13 +27,9 @@ public class MailBuilder(
         if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
             context.Values["FrontendBaseUrl"] = frontendBaseUrl;
 
-        var to = ResolveRecipients(resolvedMail.To, context);
-        if (resolvedMail.ToAddressTemplate != null)
-            to.Add(new MailRecipient(resolvedMail.ToAddressTemplate.Execute(context)));
-        to = Deduplicate(to);
-
-        var cc = Deduplicate(ResolveRecipients(resolvedMail.Cc, context));
-        var bcc = Deduplicate(ResolveRecipients(resolvedMail.Bcc, context));
+        var to = Clean(ResolveRecipients(resolvedMail.To, context), "To", instance);
+        var cc = Clean(ResolveRecipients(resolvedMail.Cc, context), "Cc", instance);
+        var bcc = Clean(ResolveRecipients(resolvedMail.Bcc, context), "Bcc", instance);
 
         // Only flag a misconfigured mail when it has no recipients at all; Cc/Bcc-only mails are valid
         if (to.Count == 0 && cc.Count == 0 && bcc.Count == 0)
@@ -39,7 +37,9 @@ public class MailBuilder(
 
         // Send in Dutch only when every To user prefers it; otherwise English, which everyone reads.
         var toUsers = ResolveUsers(resolvedMail.To, context).ToList();
-        var language = toUsers.Count > 0 && toUsers.All(u => IsDutch(u.PreferredLanguage)) ? "nl" : "en";
+        var language = toUsers.Count > 0 && toUsers.All(u => BilingualString.IsDutch(u.PreferredLanguage))
+            ? "nl"
+            : "en";
 
         var subject = resolvedMail.SubjectTemplate?.Apply(context).ForLanguage(language) ?? "";
 
@@ -60,12 +60,12 @@ public class MailBuilder(
         var layout = layoutResolver.Resolve(resolvedMail.Layout);
         var fullHtml = layout.Render(htmlBody, buttons);
 
-        return new MailMessage(subject, fullHtml)
+        return Task.FromResult(new MailMessage(subject, fullHtml)
         {
             To = to,
             Cc = cc.Count > 0 ? cc : null,
             Bcc = bcc.Count > 0 ? bcc : null
-        };
+        });
     }
 
     /// Resolves a recipient list to mail recipients, expanding [User] arrays and literal addresses.
@@ -76,7 +76,7 @@ public class MailBuilder(
 
     private static IEnumerable<InstanceUser> ResolveUsers(Recipients? specs, ObjectContext context)
         => (specs ?? [])
-            .Where(s => !Recipients.IsAddress(s))
+            .Where(s => !Recipients.ResolvesToAddress(s))
             .SelectMany(s => context.Get(s) switch
             {
                 InstanceUser user => [user],
@@ -86,15 +86,30 @@ public class MailBuilder(
 
     private static IEnumerable<MailRecipient> ResolveAddresses(Recipients? specs, ObjectContext context)
         => (specs ?? [])
-            .Where(Recipients.IsAddress)
+            .Where(Recipients.ResolvesToAddress)
             .Select(s => new MailRecipient(Template.Create(s)!.Execute(context)));
 
-    private static List<MailRecipient> Deduplicate(IEnumerable<MailRecipient> recipients)
-        => recipients.DistinctBy(r => r.MailAddress, StringComparer.OrdinalIgnoreCase).ToList();
+    /// Deduplicates by address (case-insensitive) and drops any recipient whose address resolved to blank
+    /// (e.g. a template that evaluated to nothing), logging how many were dropped.
+    private List<MailRecipient> Clean(IEnumerable<MailRecipient> recipients, string field, WorkflowInstance instance)
+    {
+        var result = new List<MailRecipient>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var dropped = 0;
+        foreach (var recipient in recipients)
+        {
+            if (string.IsNullOrWhiteSpace(recipient.MailAddress))
+                dropped++;
+            else if (seen.Add(recipient.MailAddress))
+                result.Add(recipient);
+        }
 
-    // Mirrors BilingualString.ForLanguage's "nl" prefix rule.
-    private static bool IsDutch(string? language)
-        => language?.StartsWith("nl", StringComparison.OrdinalIgnoreCase) == true;
+        if (dropped > 0)
+            logger.LogWarning("Dropped {Count} blank {Field} recipient(s) for instance {InstanceId}",
+                dropped, field, instance.Id);
+
+        return result;
+    }
 
     /// Recipient lookups after applying template defaults, so callers can enrich referenced properties.
     public static IEnumerable<Lookup> ResolveRecipientLookups(WorkflowDefinition workflowDefinition,
@@ -127,7 +142,6 @@ public class MailBuilder(
             TemplateKey = inline.TemplateKey ?? template.TemplateKey,
 
             To = inline.To ?? template.To,
-            ToAddress = inline.ToAddress ?? template.ToAddress,
             Cc = inline.Cc ?? template.Cc,
             Bcc = inline.Bcc ?? template.Bcc,
             Subject = inline.Subject ?? template.Subject,

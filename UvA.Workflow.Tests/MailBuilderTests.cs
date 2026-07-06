@@ -48,7 +48,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "student@uva.nl",
+            To = "student@uva.nl",
             Subject = new BilingualString("Thesis: {{ Title }}", ""),
             Body = new BilingualString("", "")
         };
@@ -67,7 +67,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "student@uva.nl",
+            To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
             Body = new BilingualString("**bold text**", "")
         };
@@ -79,7 +79,7 @@ public class MailBuilderTests
     }
 
     [Fact]
-    public async Task BuildAsync_WithToAddressTemplate_ResolvesRecipientFromTemplate()
+    public async Task BuildAsync_WithToLiteralAddress_ResolvesRecipient()
     {
         var (builder, _, _) = CreateBuilder();
         var instance = new WorkflowInstanceBuilder()
@@ -87,7 +87,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "fixed@uva.nl",
+            To = "fixed@uva.nl",
             Subject = new BilingualString("Subject", ""),
             Body = new BilingualString("", "")
         };
@@ -206,7 +206,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "student@uva.nl",
+            To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
             Body = new BilingualString("", ""),
             Buttons =
@@ -236,7 +236,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "student@uva.nl",
+            To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
             Body = new BilingualString("", ""),
             Layout = "custom-layout"
@@ -256,7 +256,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "student@uva.nl",
+            To = "student@uva.nl",
             Subject = new BilingualString("Link: {{ FrontendBaseUrl }}", ""),
             Body = new BilingualString("", "")
         };
@@ -319,7 +319,7 @@ public class MailBuilderTests
         var sendMail = new SendMessage
         {
             TemplateKey = "SubjectSubmitted",
-            ToAddress = "override@uva.nl",
+            To = "override@uva.nl",
             Subject = new BilingualString("Overridden: {{ Title }}", ""),
             Body = new BilingualString("**custom body**", ""),
             Layout = "custom-layout",
@@ -382,7 +382,7 @@ public class MailBuilderTests
         var sendMail = new SendMessage
         {
             TemplateKey = "FinalVersionSubmitted",
-            ToAddress = "test_address@invalid.invalid"
+            To = "test_address@invalid.invalid"
         };
 
         var result = await builder.BuildAsync(instance, sendMail, _modelService);
@@ -394,7 +394,7 @@ public class MailBuilderTests
     }
 
     [Fact]
-    public async Task BuildAsync_WithTemplateKeyAndToUserProperty_UsesUserRecipientInsteadOfTemplateToAddress()
+    public async Task BuildAsync_WithTemplateKeyAndToUserProperty_UsesUserRecipient()
     {
         var (builder, _, _) = CreateBuilder();
 
@@ -437,7 +437,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "student@uva.nl",
+            To = "student@uva.nl",
             Subject = new BilingualString("My Subject", ""),
             Body = new BilingualString("", "")
         };
@@ -574,7 +574,7 @@ public class MailBuilderTests
             .Build();
         var sendMail = new SendMessage
         {
-            ToAddress = "student@uva.nl",
+            To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
             Body = new BilingualString("", "")
         };
@@ -646,6 +646,49 @@ public class MailBuilderTests
 
         var result = await builder.BuildAsync(instance, sendMail, _modelService);
 
+        var recipient = Assert.Single(result.To);
+        Assert.Equal("invalid@invalid", recipient.MailAddress);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithTemplatedToAddress_EvaluatesTemplateAsAddress()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("Title", b => b.Value("contact@uva.nl")))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "{{ Title }}",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        var recipient = Assert.Single(result.To);
+        Assert.Equal("contact@uva.nl", recipient.MailAddress);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithTemplatedToAddressThatResolvesBlank_DropsIt()
+    {
+        var (builder, _, _) = CreateBuilder();
+        // Title is not set, so "{{ Title }}" evaluates to an empty string and must be dropped
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "{{ Title }}",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        // No real recipient survived → the misconfigured-mail fallback kicks in
         var recipient = Assert.Single(result.To);
         Assert.Equal("invalid@invalid", recipient.MailAddress);
     }

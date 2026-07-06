@@ -89,7 +89,6 @@ public class Effect
         ..Condition?.Properties ?? [],
         ..SendMail?.SubjectTemplate?.Properties ?? [],
         ..SendMail?.BodyTemplate?.Properties ?? [],
-        ..SendMail?.ToAddressTemplate?.Properties ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
         ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
         ..Toast?.MessageTemplate.Properties ?? [],
@@ -189,24 +188,22 @@ public class TemplateMessage : SendMessage, INamed
 }
 
 /// <summary>
-/// A list of mail recipients. Each entry is either a property lookup (resolving to a User or [User])
-/// or a literal email address (contains '@').
+/// A list of mail recipients. Each entry is either a property lookup (resolving to a User or [User]),
+/// a literal email address, or a template evaluated to an address.
 /// </summary>
 public class Recipients : List<string>
 {
     public static implicit operator Recipients(string single) => [single];
 
-    /// An entry is a literal email address (rather than a property lookup) when it contains '@'.
-    public static bool IsAddress(string entry) => entry.Contains('@');
+    /// An entry (possibly) resolves to an address (literal or templated) rather than a property lookup
+    /// when it contains '@' or an expression.
+    public static bool ResolvesToAddress(string entry) => entry.Contains('@') || Template.Create(entry).HasExpressions;
 }
 
 public class SendMessage
 {
-    /// <summary>Recipients: each entry is a property lookup (User or [User]) or a literal email address.</summary>
+    /// <summary>Recipients: each entry is a property lookup (User or [User]), a literal email address, or a template.</summary>
     public Recipients? To { get; set; }
-
-    /// <summary>Literal recipient address (templated). Prefer 'to' with an email address.</summary>
-    public string? ToAddress { get; set; }
 
     /// <summary>Cc recipients, resolved like 'to'.</summary>
     public Recipients? Cc { get; set; }
@@ -225,14 +222,13 @@ public class SendMessage
 
     public BilingualTemplate? SubjectTemplate => field ??= BilingualTemplate.Create(Subject);
     public BilingualTemplate? BodyTemplate => field ??= BilingualTemplate.Create(Body);
-    public Template? ToAddressTemplate => field ??= Template.Create(ToAddress);
 
-    /// The lookup entries across To/Cc/Bcc (i.e. excluding literal addresses), for context enrichment.
+    /// The lookups referenced by To/Cc/Bcc entries, for context enrichment.
     [YamlIgnore]
     public IEnumerable<Lookup> RecipientLookups =>
-        CollectionTools.Merge(To, Cc, Bcc)
-            .Where(s => !Recipients.IsAddress(s))
-            .Select(Lookup (s) => new PropertyLookup(s));
+        CollectionTools.Merge(To, Cc, Bcc).SelectMany(r => Recipients.ResolvesToAddress(r)
+            ? Template.Create(r).Properties
+            : [new PropertyLookup(r)]);
 }
 
 public enum MailButtonIntent

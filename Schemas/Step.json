@@ -760,7 +760,7 @@
       "additionalProperties": false,
       "properties": {
         "to": {
-          "description": "Recipients: each entry is a property lookup (User or [User]) or a literal email address.",
+          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a {{ }} template.",
           "oneOf": [
             {
               "type": "null"
@@ -775,13 +775,6 @@
               }
             }
           ]
-        },
-        "toAddress": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Literal recipient address (templated). Prefer 'to' with an email address."
         },
         "cc": {
           "description": "Cc recipients, resolved like 'to'.",
