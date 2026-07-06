@@ -61,6 +61,7 @@ public abstract class ConditionPart
 {
     public virtual Lookup[] Dependants => [];
     public abstract bool IsMet(ObjectContext context);
+    public virtual bool IsMet(IReadOnlySet<string> eventIds) => false;
     public virtual IEnumerable<Lookup> Properties => [];
 }
 
@@ -125,6 +126,9 @@ public class EventCondition : ConditionPart
         return true;
     }
 
+    public override bool IsMet(IReadOnlySet<string> eventIds)
+        => eventIds.Contains(Id);
+
     public static implicit operator EventCondition(string s) => new() { Id = s };
 }
 
@@ -148,6 +152,14 @@ public class Logical : ConditionPart
             LogicalOperator.And => Children.All(c => c.IsMet(context)),
             LogicalOperator.Or => Children.Any(c => c.IsMet(context)),
             _ => throw new NotImplementedException()
+        };
+
+    public override bool IsMet(IReadOnlySet<string> eventIds)
+        => Operator switch
+        {
+            LogicalOperator.And => Children.All(c => c.IsMet(eventIds)),
+            LogicalOperator.Or => Children.Any(c => c.IsMet(eventIds)),
+            _ => false
         };
 }
 
