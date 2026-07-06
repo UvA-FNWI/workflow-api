@@ -89,6 +89,11 @@ public class AssessmentSource : INamed
     public string Name { get; set; } = null!;
 
     /// <summary>
+    /// Localized title of the source
+    /// </summary>
+    public BilingualString? Title { get; set; }
+
+    /// <summary>
     /// Relative weight of this source within the assessment part. Defaults to 1.
     /// </summary>
     public decimal Weight { get; set; } = 1;
