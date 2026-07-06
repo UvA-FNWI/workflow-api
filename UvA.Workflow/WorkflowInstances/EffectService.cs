@@ -41,7 +41,6 @@ public class EffectService(
     ModelService modelService,
     IMailService mailService,
     IEduIdUserService eduIdUserService,
-    MailBuilder mailBuilder,
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IConfiguration configuration,
@@ -74,7 +73,7 @@ public class EffectService(
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
 
-        mail ??= await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
+        mail ??= await instanceService.BuildMail(instance, sendMail, ct);
         var dispatchResult = await mailService.Send(mail, ct);
 
         var attachments = new List<ArtifactInfo>();

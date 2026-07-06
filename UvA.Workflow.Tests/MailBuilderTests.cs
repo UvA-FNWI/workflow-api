@@ -446,4 +446,207 @@ public class MailBuilderTests
 
         Assert.Equal("[test] My Subject", result.Subject);
     }
+
+    private static MongoDB.Bson.BsonDocument UserDoc(string name, string email, string? language = null)
+    {
+        var doc = new MongoDB.Bson.BsonDocument
+        {
+            { "_id", MongoDB.Bson.ObjectId.GenerateNewId() },
+            { "UserName", name },
+            { "DisplayName", name },
+            { "Email", email }
+        };
+        if (language != null)
+            doc["PreferredLanguage"] = language;
+        return doc;
+    }
+
+    [Fact]
+    public async Task BuildAsync_WhenAllToUsersPreferDutch_SendsDutch()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Context", currentStep: "Start")
+            .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
+            {
+                UserDoc("Alice", "alice@uva.nl", "nl-NL"),
+                UserDoc("Bob", "bob@uva.nl", "nl")
+            }))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "Coordinator",
+            Subject = new BilingualString("English subject", "Nederlands onderwerp"),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal("Nederlands onderwerp", result.Subject);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WhenAnyToUserDoesNotPreferDutch_SendsEnglish()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Context", currentStep: "Start")
+            .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
+            {
+                UserDoc("Alice", "alice@uva.nl", "nl"),
+                UserDoc("Bob", "bob@uva.nl", "en")
+            }))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "Coordinator",
+            Subject = new BilingualString("English subject", "Nederlands onderwerp"),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal("English subject", result.Subject);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithToPointingToUserArray_MailsEveryUser()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Context", currentStep: "Start")
+            .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
+            {
+                UserDoc("Alice", "alice@uva.nl"),
+                UserDoc("Bob", "bob@uva.nl")
+            }))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "Coordinator",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal(["alice@uva.nl", "bob@uva.nl"], result.To.Select(r => r.MailAddress));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithToListCcAndBcc_ResolvesUsersAndAddresses()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Context", currentStep: "Start")
+            .WithProperties(
+                ("Coordinator", _ => new MongoDB.Bson.BsonArray
+                {
+                    UserDoc("Alice", "alice@uva.nl"),
+                    UserDoc("Bob", "bob@uva.nl")
+                }),
+                ("Impersonator", _ => new MongoDB.Bson.BsonArray { UserDoc("Carol", "carol@uva.nl") }))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = new Recipients { "Coordinator", "extra@uva.nl" },
+            Cc = "Impersonator",
+            Bcc = "archive@uva.nl",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal(["alice@uva.nl", "bob@uva.nl", "extra@uva.nl"], result.To.Select(r => r.MailAddress));
+        Assert.NotNull(result.Cc);
+        Assert.Equal(["carol@uva.nl"], result.Cc!.Select(r => r.MailAddress));
+        Assert.NotNull(result.Bcc);
+        Assert.Equal(["archive@uva.nl"], result.Bcc!.Select(r => r.MailAddress));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithoutCcOrBcc_LeavesThemNull()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var sendMail = new SendMessage
+        {
+            ToAddress = "student@uva.nl",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Null(result.Cc);
+        Assert.Null(result.Bcc);
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithDuplicateRecipients_DeduplicatesByEmail()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Context", currentStep: "Start")
+            .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
+            {
+                UserDoc("Alice", "alice@uva.nl"),
+                UserDoc("Bob", "bob@uva.nl")
+            }))
+            .Build();
+        var sendMail = new SendMessage
+        {
+            // Alice appears both as a resolved user and as a literal address
+            To = new Recipients { "Coordinator", "ALICE@uva.nl" },
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Equal(["alice@uva.nl", "bob@uva.nl"], result.To.Select(r => r.MailAddress));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithBccOnly_DoesNotAddInvalidToRecipient()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var sendMail = new SendMessage
+        {
+            Bcc = "archive@uva.nl",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        Assert.Empty(result.To);
+        Assert.NotNull(result.Bcc);
+        Assert.Equal(["archive@uva.nl"], result.Bcc!.Select(r => r.MailAddress));
+    }
+
+    [Fact]
+    public async Task BuildAsync_WithNoRecipients_FallsBackToInvalidRecipient()
+    {
+        var (builder, _, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var sendMail = new SendMessage
+        {
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("", "")
+        };
+
+        var result = await builder.BuildAsync(instance, sendMail, _modelService);
+
+        var recipient = Assert.Single(result.To);
+        Assert.Equal("invalid@invalid", recipient.MailAddress);
+    }
 }

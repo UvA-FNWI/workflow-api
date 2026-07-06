@@ -95,7 +95,7 @@ public class Effect
         ..Toast?.MessageTemplate.Properties ?? [],
         ..Http?.UrlTemplate.Properties ?? [],
         ..SetProperty?.ValueExpression.Properties ?? [],
-        SendMail?.To
+        ..SendMail?.RecipientLookups ?? []
     ];
 
     public string Identifier => this switch
@@ -188,10 +188,32 @@ public class TemplateMessage : SendMessage, INamed
     public string Name { get; set; } = null!;
 }
 
+/// <summary>
+/// A list of mail recipients. Each entry is either a property lookup (resolving to a User or [User])
+/// or a literal email address (contains '@').
+/// </summary>
+public class Recipients : List<string>
+{
+    public static implicit operator Recipients(string single) => [single];
+
+    /// An entry is a literal email address (rather than a property lookup) when it contains '@'.
+    public static bool IsAddress(string entry) => entry.Contains('@');
+}
+
 public class SendMessage
 {
-    public string? To { get; set; } = null!;
+    /// <summary>Recipients: each entry is a property lookup (User or [User]) or a literal email address.</summary>
+    public Recipients? To { get; set; }
+
+    /// <summary>Literal recipient address (templated). Prefer 'to' with an email address.</summary>
     public string? ToAddress { get; set; }
+
+    /// <summary>Cc recipients, resolved like 'to'.</summary>
+    public Recipients? Cc { get; set; }
+
+    /// <summary>Bcc recipients, resolved like 'to'.</summary>
+    public Recipients? Bcc { get; set; }
+
     public BilingualString? Subject { get; set; }
     public BilingualString? Body { get; set; }
     [YamlMember(Alias = "template")] public string? TemplateKey { get; set; }
@@ -204,6 +226,13 @@ public class SendMessage
     public BilingualTemplate? SubjectTemplate => field ??= BilingualTemplate.Create(Subject);
     public BilingualTemplate? BodyTemplate => field ??= BilingualTemplate.Create(Body);
     public Template? ToAddressTemplate => field ??= Template.Create(ToAddress);
+
+    /// The lookup entries across To/Cc/Bcc (i.e. excluding literal addresses), for context enrichment.
+    [YamlIgnore]
+    public IEnumerable<Lookup> RecipientLookups =>
+        CollectionTools.Merge(To, Cc, Bcc)
+            .Where(s => !Recipients.IsAddress(s))
+            .Select(Lookup (s) => new PropertyLookup(s));
 }
 
 public enum MailButtonIntent

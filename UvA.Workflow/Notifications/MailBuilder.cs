@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using UvA.Workflow.Expressions;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.WorkflowModel;
 
@@ -14,21 +15,31 @@ public class MailBuilder(
         WorkflowInstance instance,
         SendMessage sendMail,
         ModelService modelService,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        ObjectContext? context = null)
     {
         var resolvedMail =
             ResolveMessageContents(modelService.WorkflowDefinitions[instance.WorkflowDefinition], sendMail);
-        var context = modelService.CreateContext(instance);
+        context ??= modelService.CreateContext(instance);
         var frontendBaseUrl = configuration["FrontendBaseUrl"]?.TrimEnd('/');
         if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
             context.Values["FrontendBaseUrl"] = frontendBaseUrl;
 
-        var recipientUser = sendMail.To != null ? context.Get(sendMail.To) as InstanceUser : null;
-        var recipient = resolvedMail.To != null
-            ? MailRecipient.FromUser(recipientUser)
-            : new MailRecipient(resolvedMail.ToAddressTemplate!.Execute(context));
-        recipient ??= new MailRecipient("invalid@invalid", "Invalid recipient");
-        var language = recipientUser?.PreferredLanguage;
+        var to = ResolveRecipients(resolvedMail.To, context);
+        if (resolvedMail.ToAddressTemplate != null)
+            to.Add(new MailRecipient(resolvedMail.ToAddressTemplate.Execute(context)));
+        to = Deduplicate(to);
+
+        var cc = Deduplicate(ResolveRecipients(resolvedMail.Cc, context));
+        var bcc = Deduplicate(ResolveRecipients(resolvedMail.Bcc, context));
+
+        // Only flag a misconfigured mail when it has no recipients at all; Cc/Bcc-only mails are valid
+        if (to.Count == 0 && cc.Count == 0 && bcc.Count == 0)
+            to = [new MailRecipient("invalid@invalid", "Invalid recipient")];
+
+        // Send in Dutch only when every To user prefers it; otherwise English, which everyone reads.
+        var toUsers = ResolveUsers(resolvedMail.To, context).ToList();
+        var language = toUsers.Count > 0 && toUsers.All(u => IsDutch(u.PreferredLanguage)) ? "nl" : "en";
 
         var subject = resolvedMail.SubjectTemplate?.Apply(context).ForLanguage(language) ?? "";
 
@@ -49,8 +60,46 @@ public class MailBuilder(
         var layout = layoutResolver.Resolve(resolvedMail.Layout);
         var fullHtml = layout.Render(htmlBody, buttons);
 
-        return new MailMessage(subject, fullHtml) { To = [recipient] };
+        return new MailMessage(subject, fullHtml)
+        {
+            To = to,
+            Cc = cc.Count > 0 ? cc : null,
+            Bcc = bcc.Count > 0 ? bcc : null
+        };
     }
+
+    /// Resolves a recipient list to mail recipients, expanding [User] arrays and literal addresses.
+    private static List<MailRecipient> ResolveRecipients(Recipients? specs, ObjectContext context)
+        => ResolveUsers(specs, context).Select(u => MailRecipient.FromUser(u)!)
+            .Concat(ResolveAddresses(specs, context))
+            .ToList();
+
+    private static IEnumerable<InstanceUser> ResolveUsers(Recipients? specs, ObjectContext context)
+        => (specs ?? [])
+            .Where(s => !Recipients.IsAddress(s))
+            .SelectMany(s => context.Get(s) switch
+            {
+                InstanceUser user => [user],
+                IEnumerable<InstanceUser> users => users,
+                _ => []
+            });
+
+    private static IEnumerable<MailRecipient> ResolveAddresses(Recipients? specs, ObjectContext context)
+        => (specs ?? [])
+            .Where(Recipients.IsAddress)
+            .Select(s => new MailRecipient(Template.Create(s)!.Execute(context)));
+
+    private static List<MailRecipient> Deduplicate(IEnumerable<MailRecipient> recipients)
+        => recipients.DistinctBy(r => r.MailAddress, StringComparer.OrdinalIgnoreCase).ToList();
+
+    // Mirrors BilingualString.ForLanguage's "nl" prefix rule.
+    private static bool IsDutch(string? language)
+        => language?.StartsWith("nl", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// Recipient lookups after applying template defaults, so callers can enrich referenced properties.
+    public static IEnumerable<Lookup> ResolveRecipientLookups(WorkflowDefinition workflowDefinition,
+        SendMessage sendMail)
+        => ResolveMessageContents(workflowDefinition, sendMail).RecipientLookups;
 
     private static SendMessage ResolveMessageContents(WorkflowDefinition workflowDefinition, SendMessage sendMail)
     {
@@ -79,6 +128,8 @@ public class MailBuilder(
 
             To = inline.To ?? template.To,
             ToAddress = inline.ToAddress ?? template.ToAddress,
+            Cc = inline.Cc ?? template.Cc,
+            Bcc = inline.Bcc ?? template.Bcc,
             Subject = inline.Subject ?? template.Subject,
             Body = inline.Body ?? template.Body,
             Layout = inline.Layout ?? template.Layout,

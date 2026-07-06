@@ -573,15 +573,61 @@
       "additionalProperties": false,
       "properties": {
         "to": {
-          "type": [
-            "null",
-            "string"
+          "description": "Recipients: each entry is a property lookup (User or [User]) or a literal email address.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
         "toAddress": {
           "type": [
             "null",
             "string"
+          ],
+          "description": "Literal recipient address (templated). Prefer 'to' with an email address."
+        },
+        "cc": {
+          "description": "Cc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "bcc": {
+          "description": "Bcc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
         "subject": {
