@@ -50,10 +50,6 @@
       ],
       "description": "To be used in combination with Property. The name of a form for the referenced entity type"
     },
-    "formType": {
-      "description": "Type of the form to be rendered by the front-end.",
-      "$ref": "#/definitions/FormType"
-    },
     "step": {
       "type": [
         "null",
@@ -121,14 +117,6 @@
         "Normal",
         "Compact",
         "Modal"
-      ]
-    },
-    "FormType": {
-      "type": "string",
-      "enum": [
-        "Normal",
-        "AssessmentPartOverview",
-        "AssessmentFinalOverview"
       ]
     },
     "Page": {
@@ -559,7 +547,7 @@
       "additionalProperties": false,
       "properties": {
         "to": {
-          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a {{ }} template.",
+          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a template.",
           "oneOf": [
             {
               "type": "null"

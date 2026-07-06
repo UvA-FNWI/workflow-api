@@ -213,7 +213,8 @@
         "AssignMessages",
         "CreateInstance",
         "CreateRelatedInstance",
-        "ImpersonateRoles"
+        "ImpersonateRoles",
+        "ViewResults"
       ]
     },
     "Condition": {
@@ -573,7 +574,7 @@
       "additionalProperties": false,
       "properties": {
         "to": {
-          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a {{ }} template.",
+          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a template.",
           "oneOf": [
             {
               "type": "null"
