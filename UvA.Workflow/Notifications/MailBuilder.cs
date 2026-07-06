@@ -1,10 +1,14 @@
+using Microsoft.Extensions.Hosting;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Notifications;
 
 public class MailBuilder(
     IMailLayoutResolver layoutResolver,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    IOptions<WorkerOptions> workerOptions,
+    IHostEnvironment environment)
 {
     public async Task<MailMessage> BuildAsync(
         WorkflowInstance instance,
@@ -27,6 +31,10 @@ public class MailBuilder(
         var language = recipientUser?.PreferredLanguage;
 
         var subject = resolvedMail.SubjectTemplate?.Apply(context).ForLanguage(language) ?? "";
+
+        if (!environment.IsProduction())
+            subject = $"[{workerOptions.Value.WorkerGroup}] {subject}";
+
         var bodyMarkdown = resolvedMail.BodyTemplate?.Apply(context).ForLanguage(language) ?? "";
 
         var htmlBody = MarkdownRenderer.ToHtml(bodyMarkdown);
@@ -67,7 +75,6 @@ public class MailBuilder(
     {
         return new SendMessage
         {
-            Name = string.IsNullOrWhiteSpace(inline.Name) ? template.Name : inline.Name,
             TemplateKey = inline.TemplateKey ?? template.TemplateKey,
 
             To = inline.To ?? template.To,
