@@ -5,12 +5,6 @@ titlePlural:
   nl: Projecten (RMSS)
 instanceTitle: '{{ Title }}'
 inheritsFrom: Project
-fields:
-  - property: Course.Name
-    title: Course
-  - property: Student.DisplayName
-    title: Student
-  - currentStep: true
 
 events:
   - name: Start
