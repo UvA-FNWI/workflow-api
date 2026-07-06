@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowModel;
@@ -42,10 +43,11 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.Steps.SelectMany(f => f.Lookups), ct);
 
         // Fetch versions for all steps
-        var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
+        var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
+        var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, ct)));
+            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, ct)));
 
         var x = new WorkflowInstanceDto(
             instance.Id,
@@ -92,20 +94,21 @@ public class WorkflowInstanceDtoFactory(
     }
 
     /// <summary>
-    /// Fetches versions for all steps and returns a dictionary keyed by step name
+    /// Creates versions for all steps from a preloaded instance-wide event log.
     /// </summary>
-    private async Task<Dictionary<string, List<StepVersion>>> GetStepVersionsMap(
+    private Dictionary<string, List<StepVersion>> GetStepVersionsMap(
         WorkflowInstance instance,
         IEnumerable<Step> steps,
-        CancellationToken ct)
+        IEnumerable<InstanceEventLogEntry> eventLogs)
     {
+        var eventLogList = eventLogs.ToList();
         var stepVersionsMap = new Dictionary<string, List<StepVersion>>();
 
         foreach (var step in steps)
         {
             try
             {
-                var versions = await stepVersionService.GetStepVersions(instance, step.Name, ct);
+                var versions = stepVersionService.GetStepVersions(instance, step.Name, eventLogList);
                 if (versions.Any())
                 {
                     stepVersionsMap[step.Name] = versions;
@@ -128,6 +131,7 @@ public class WorkflowInstanceDtoFactory(
         Step step,
         WorkflowInstance instance,
         Dictionary<string, List<StepVersion>> stepVersionsMap,
+        WorkflowInstanceHistory instanceHistory,
         ObjectContext context,
         CancellationToken ct)
     {
@@ -136,10 +140,10 @@ public class WorkflowInstanceDtoFactory(
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, ct)))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, ct)))
             : null;
         var versionDtos = versions != null
-            ? await Task.WhenAll(versions.Select(v => CreateStepVersionDto(v, instance, ct)))
+            ? await Task.WhenAll(versions.Select(v => CreateStepVersionDto(v, instance, instanceHistory, ct)))
             : null;
 
         return new StepDto(
@@ -163,6 +167,7 @@ public class WorkflowInstanceDtoFactory(
     private async Task<StepVersionDto> CreateStepVersionDto(
         StepVersion stepVersion,
         WorkflowInstance instance,
+        WorkflowInstanceHistory instanceHistory,
         CancellationToken ct)
     {
         try
@@ -170,8 +175,8 @@ public class WorkflowInstanceDtoFactory(
             var submissions = new List<SubmissionDto>();
 
             // Get the instance at the version timestamp
-            var instanceAtVersion = await workflowInstanceService
-                .GetAsOfTimestamp(instance.Id, stepVersion.SubmittedAt, ct);
+            var instanceAtVersion = workflowInstanceService
+                .GetAsOfTimestamp(instance, stepVersion.SubmittedAt, instanceHistory);
             var allowedViewActions = await rightsService.GetAllowedActions(instanceAtVersion, RoleAction.View);
 
             // Create a submission for each event in the version

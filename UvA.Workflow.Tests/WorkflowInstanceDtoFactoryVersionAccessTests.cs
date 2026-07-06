@@ -153,9 +153,21 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         stepVersionService
             .Setup(s => s.GetStepVersions(
                 It.IsAny<WorkflowInstance>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<InstanceEventLogEntry>>()))
+            .Returns([]);
+        stepVersionService
+            .Setup(s => s.GetStepVersions(
+                It.IsAny<WorkflowInstance>(),
                 stepName,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([version]);
+        stepVersionService
+            .Setup(s => s.GetStepVersions(
+                It.IsAny<WorkflowInstance>(),
+                stepName,
+                It.IsAny<IEnumerable<InstanceEventLogEntry>>()))
+            .Returns([version]);
         return stepVersionService;
     }
 
@@ -187,6 +199,11 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         WorkflowInstance instance,
         params InstanceEventLogEntry[] eventLogs)
     {
+        _eventRepoMock
+            .Setup(r => r.GetEventLogEntriesForInstance(
+                instance.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(eventLogs.OrderBy(log => log.Timestamp).ToList());
         _eventRepoMock
             .Setup(r => r.GetEventLogEntriesForInstanceUntil(
                 instance.Id,

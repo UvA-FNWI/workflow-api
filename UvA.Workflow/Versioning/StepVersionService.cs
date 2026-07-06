@@ -15,6 +15,11 @@ public record StepVersion
 public interface IStepVersionService
 {
     Task<List<StepVersion>> GetStepVersions(WorkflowInstance instance, string stepName, CancellationToken ct);
+
+    List<StepVersion> GetStepVersions(
+        WorkflowInstance instance,
+        string stepName,
+        IEnumerable<InstanceEventLogEntry> eventLogs);
 }
 
 public class StepVersionService(
@@ -28,14 +33,28 @@ public class StepVersionService(
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var step = ResolveTargetStep(workflowDef, stepName);
-        var (allChildEvents, completionCondition) = DetermineEventSets(step);
+        var allChildEvents = DetermineEventSets(step).AllEvents;
 
         // Get all event log entries for ALL child events, ordered by timestamp
         var eventLogs = await eventRepository.GetEventLogEntriesForInstance(
             instance.Id, allChildEvents, ct);
 
+        return GetStepVersions(instance, stepName, eventLogs);
+    }
+
+    public List<StepVersion> GetStepVersions(
+        WorkflowInstance instance,
+        string stepName,
+        IEnumerable<InstanceEventLogEntry> eventLogs)
+    {
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var step = ResolveTargetStep(workflowDef, stepName);
+        var (allChildEvents, completionCondition) = DetermineEventSets(step);
+        var allChildEventSet = allChildEvents.ToHashSet();
+
         // Get submission events (create/update only), ordered chronologically
         var submissionEvents = eventLogs
+            .Where(log => allChildEventSet.Contains(log.EventId))
             .Where(log => log.Operation is EventLogOperation.Create or EventLogOperation.Update)
             .OrderBy(log => log.Timestamp)
             .ToList();
@@ -128,7 +147,7 @@ public class StepVersionService(
             currentCycleEventIds.Add(logEntry.EventId);
 
             // If the last child's completion condition is met, the next event starts a new version.
-            if (IsEventConditionMet(completionCondition, currentCycleEventIds))
+            if (completionCondition.IsMet(currentCycleEventIds))
             {
                 currentVersionNumber++;
                 currentCycleEventIds.Clear();
@@ -142,7 +161,7 @@ public class StepVersionService(
                 VersionNumber: g.Key,
                 EventIds: g.Select(v => v.EventId).ToList(),
                 SubmittedAt: g.Max(v => v.Timestamp)))
-            .Where(v => IsEventConditionMet(completionCondition, v.EventIds)) // Only complete versions
+            .Where(v => completionCondition.IsMet(v.EventIds)) // Only complete versions
             .ToList();
 
         return BuildStepVersions(versionDrafts);
@@ -172,7 +191,7 @@ public class StepVersionService(
             foreach (var (childName, completionCondition) in childCompletionConditions)
             {
                 if (!completedChildrenInCycle.Contains(childName) &&
-                    IsEventConditionMet(completionCondition, currentCycleEventIds))
+                    completionCondition.IsMet(currentCycleEventIds))
                     completedChildrenInCycle.Add(childName);
             }
 
@@ -200,7 +219,7 @@ public class StepVersionService(
             {
                 // Check if all child completion conditions are met in this version
                 return childCompletionConditions.Values.All(condition =>
-                    IsEventConditionMet(condition, v.EventIds));
+                    condition.IsMet(v.EventIds));
             })
             .ToList();
 
@@ -251,27 +270,4 @@ public class StepVersionService(
                 }
             };
     }
-
-    private static bool IsEventConditionMet(Condition? condition, IEnumerable<string> eventIds)
-    {
-        if (condition == null)
-            return false;
-
-        var eventIdSet = eventIds.ToHashSet();
-        var result = IsConditionPartMet(condition.Part, eventIdSet);
-        return condition.Not ? !result : result;
-    }
-
-    private static bool IsConditionPartMet(ConditionPart part, HashSet<string> eventIds)
-        => part switch
-        {
-            EventCondition eventCondition => eventIds.Contains(eventCondition.Id),
-            Logical logical => logical.Operator switch
-            {
-                LogicalOperator.And => logical.Children.All(child => IsEventConditionMet(child, eventIds)),
-                LogicalOperator.Or => logical.Children.Any(child => IsEventConditionMet(child, eventIds)),
-                _ => false
-            },
-            _ => false
-        };
 }

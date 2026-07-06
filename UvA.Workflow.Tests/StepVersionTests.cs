@@ -157,6 +157,88 @@ public class StepVersionTests
         Assert.Equal(expectedOrdered, eventIds);
     }
 
+    public static IEnumerable<object?[]> HistoricalEventConditionCases()
+    {
+        yield return
+        [
+            null,
+            new[] { "SubmitProposal" },
+            false
+        ];
+        yield return
+        [
+            new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+            new[] { "SubmitProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+            new[] { "ApproveProposal" },
+            false
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Not = true,
+                Event = new EventCondition { Id = "RejectProposal" }
+            },
+            new[] { "ApproveProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.And,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+                        new Condition { Event = new EventCondition { Id = "ApproveProposal" } }
+                    ]
+                }
+            },
+            new[] { "SubmitProposal", "ApproveProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.Or,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "ApproveProposal" } },
+                        new Condition { Event = new EventCondition { Id = "RejectProposal" } }
+                    ]
+                }
+            },
+            new[] { "RejectProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition { Date = new Date { Source = "Deadline" } },
+            new[] { "Deadline" },
+            false
+        ];
+    }
+
+    [Theory]
+    [MemberData(nameof(HistoricalEventConditionCases))]
+    public void IsMet_WithHistoricalEventIds_EvaluatesOnlyEventConditions(
+        Condition? condition,
+        string[] eventIds,
+        bool expected)
+    {
+        Assert.Equal(expected, condition.IsMet(eventIds));
+    }
+
     [Fact]
     public void SequentialVersioning_TwoCycles_AllEventsGroupedByVersion()
     {
