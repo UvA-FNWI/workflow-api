@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
@@ -38,6 +39,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<RightsService>();
         services.AddScoped<JobService>();
         services.AddScoped<EffectService>();
+        services.AddScoped<AssessmentService>();
         services.AddScoped<AnswerConversionService>();
         services.AddScoped<InitializationService>();
 

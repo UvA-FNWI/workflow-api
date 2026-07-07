@@ -8,6 +8,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using Serilog;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
@@ -50,6 +51,7 @@ public class WorkflowTests
     readonly ModelParser _parser;
     readonly AnswerService _answerService;
     readonly AnswerConversionService _answerConversionService;
+    readonly AssessmentService _assessmentService;
     readonly CancellationToken _ct = new CancellationTokenSource().Token;
 
 
@@ -85,13 +87,14 @@ public class WorkflowTests
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
-        _instanceService =
-            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
-                mailBuilder);
-        _eventService =
-            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
+        _assessmentService = new AssessmentService(_modelService, _workflowInstanceService, _instanceRepoMock.Object);
+        _instanceService =
+            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
+                mailBuilder, _assessmentService);
+        _eventService =
+            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _userServiceMock.Setup(m => m.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User());
         _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
@@ -115,9 +118,9 @@ public class WorkflowTests
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
             _userRepoMock.Object);
-        _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
-            _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
-            _instanceJournalServiceMock.Object, _userServiceMock.Object);
+        _answerService = new AnswerService(_modelService, _instanceService, _rightsService,
+            _artifactServiceMock.Object, _answerConversionService, _workflowInstanceService,
+            _instanceEventService.Object, _instanceJournalServiceMock.Object, _userServiceMock.Object);
     }
 
     [Fact]
