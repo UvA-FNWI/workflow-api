@@ -30,16 +30,16 @@ properties:
   - name: StudyManual
     type: String!
     
-  - name: ConfidentialAdvisor
+  - name: ConfidentialAdviser
     type: User!
     text:
-      en: Confidential advisor
+      en: Confidential adviser
       nl: Vertrouwenspersoon
       
-  - name: StudyAdvisor
+  - name: StudyAdviser
     type: User!
     text:
-      en: Study advisor
+      en: Study adviser
       nl: Studieadviseur
 
     
