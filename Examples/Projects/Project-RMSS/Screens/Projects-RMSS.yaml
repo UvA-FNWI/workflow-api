@@ -35,15 +35,6 @@ grouping:
         - ProposalAssessmentSupervisor
         - ProposalAssessmentReviewer
 
-    - name: review
-      title:
-        en: Review
-        nl: Beoordeling
-      steps:
-        - Review
-        - ReviewSupervisor
-        - ReviewProposalReviewer
-
     - name: completed
       title:
         en: Completed
