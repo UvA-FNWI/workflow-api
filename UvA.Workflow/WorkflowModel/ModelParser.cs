@@ -33,6 +33,8 @@ public partial class ModelParser
             .Select(folder =>
             {
                 var definition = Parse<WorkflowDefinition>(Path.Combine(folder, "Entity.yaml"));
+                if (definition == null)
+                    throw new Exception($"No valid Entity.yaml in folder {folder}");
                 definition.SourceFolder = folder;
                 return definition;
             })
@@ -63,7 +65,7 @@ public partial class ModelParser
             definition.Forms = Read<Form>(definition.SourceFolder);
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
-            definition.Emails = Read<SendMessage>(definition.SourceFolder);
+            definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
                 NamedConditions.Add(entry);
@@ -214,7 +216,11 @@ public partial class ModelParser
     private void PreProcess(Effect[] effects)
     {
         foreach (var effect in effects)
+        {
+            if (effect == null)
+                throw new Exception("Empty effect found");
             PreProcess(effect.Condition);
+        }
     }
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
@@ -245,7 +251,7 @@ public partial class ModelParser
     private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
     {
         foreach (var eventId in effects
-                     .SelectMany(effect => new[] { effect.Event, effect.UndoEvent })
+                     .SelectMany(effect => new[] { effect?.Event, effect?.UndoEvent })
                      .Where(eventId => !string.IsNullOrWhiteSpace(eventId))
                      .Cast<string>())
         {
@@ -381,6 +387,15 @@ public partial class ModelParser
             propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
                 .Add(propertyDefinition);
 
+        try
+        {
+            _ = propertyDefinition.DataType;
+        }
+        catch (Exception)
+        {
+            throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
+        }
+
         return propertyDefinition;
     }
 
@@ -497,7 +512,7 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         var folder = typeName switch
         {
-            "SendMessage" => "Emails",
+            nameof(TemplateMessage) => "Emails",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };

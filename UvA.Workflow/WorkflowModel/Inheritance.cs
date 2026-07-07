@@ -57,7 +57,11 @@ public partial class ModelParser
         target.InstanceTitle ??= source.InstanceTitle;
         target.IsEmbedded = source.IsEmbedded;
         target.IsAlwaysVisible = source.IsAlwaysVisible;
-        target.Fields = source.Fields.Concat(target.Fields).ToArray();
+
+        var targetProperties = target.Fields.Select(f => f.Property).ToHashSet();
+        target.Fields = source.Fields.Where(f => !targetProperties.Contains(f.Property)).Concat(target.Fields)
+            .ToArray();
+
         target.RelatedUsers = source.RelatedUsers
             .Where(sourceRelatedUser => target.RelatedUsers.All(targetRelatedUser =>
                 targetRelatedUser.Property != sourceRelatedUser.Property))
