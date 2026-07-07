@@ -1,16 +1,4 @@
 properties:
-  - name: Course
-    type: Context!
-    inheritedRoles: [Coordinator, Impersonator]
-    
-  - name: Title
-    type: String!
-    text:
-      en: Working title
-      nl: Werktitel
-  - name: EC
-    type: Int!
-
   - name: StartDate
     type: Date!
     text:
@@ -23,7 +11,7 @@ properties:
       value:
         property: StartDate
         greaterThan: now
-        
+
   - name: EndDate
     type: Date!
     text:
@@ -36,23 +24,3 @@ properties:
       value:
         property: EndDate
         greaterThan: StartDate
-
-  - name: Examiner
-    type: User!
-    text: 
-      en: Examiner
-      nl: Examinator
-  - name: Supervisor
-    type: User!
-    allowsExternalUsers: true
-    text: 
-      en: Supervisor
-      nl: Begeleider
-  - name: Reviewer
-    type: User!
-    text: 
-      en: Reviewer
-      nl: Beoordelaar
-  - name: Student
-    type: User!
-

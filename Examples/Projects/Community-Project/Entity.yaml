@@ -1,4 +1,5 @@
 name: Community-Project
+inheritsFrom: Project-Base
 title: Community Project
 titlePlural: 900201CICY
 instanceTitle: '{{ Title }}'

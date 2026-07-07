@@ -1,0 +1,4 @@
+name: Project-Base
+title: Project (base)
+titlePlural: Projects
+instanceTitle: '{{ Title }}'

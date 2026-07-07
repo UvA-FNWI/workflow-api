@@ -1,4 +1,5 @@
 name: Project
+inheritsFrom: Project-Base
 titlePlural: Projects
 instanceTitle: '{{ Title }}'
 
