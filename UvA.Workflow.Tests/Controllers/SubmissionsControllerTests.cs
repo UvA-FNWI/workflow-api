@@ -313,7 +313,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         MockEmptyRelatedInstanceLookups();
 
         var controller = new SubmissionsController(_userServiceMock.Object, _modelService, _rightsService,
-            _submissionService, _submissionDtoFactory, _workflowInstanceDtoFactory);
+            _submissionService, _workflowInstanceService, _submissionDtoFactory, _workflowInstanceDtoFactory);
 
         return (controller, instance);
     }

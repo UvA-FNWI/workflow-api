@@ -7,7 +7,7 @@ public class AssessmentService(
     ModelService modelService,
     WorkflowInstanceService workflowInstanceService,
     IWorkflowInstanceRepository instanceRepository
-)
+) : IAssessmentService
 {
     public AssessmentResult GetAssessmentResult(
         ObjectContext context,

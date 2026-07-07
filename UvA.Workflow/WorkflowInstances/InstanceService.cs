@@ -13,7 +13,7 @@ public class InstanceService(
     IUserService userService,
     RightsService rightsService,
     MailBuilder mailBuilder,
-    AssessmentService assessmentService
+    IAssessmentService assessmentService
 )
 {
     /// <summary>
