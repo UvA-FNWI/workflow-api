@@ -43,8 +43,8 @@ public class S3ArtifactService : IArtifactService
 
         return new ArtifactInfo(
             artifactId,
-            filename ?? artifactId,
-            contentType ?? "application/octet-stream");
+            filename is null ? artifactId : Uri.UnescapeDataString(filename),
+            contentType is null ? "application/octet-stream" : Uri.UnescapeDataString(contentType));
     }
 
     public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName,
@@ -163,7 +163,9 @@ public class S3ArtifactService : IArtifactService
         {
             foreach (var kv in metadata)
             {
-                putObjectArgs.WithHeaders(new Dictionary<string, string> { { $"x-amz-meta-{kv.Key}", kv.Value } });
+                // Header values must be Latin-1 encodable; percent-encode so non-ASCII filenames survive.
+                putObjectArgs.WithHeaders(new Dictionary<string, string>
+                    { { $"x-amz-meta-{kv.Key}", Uri.EscapeDataString(kv.Value) } });
             }
         }
 
