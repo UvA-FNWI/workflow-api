@@ -11,8 +11,10 @@ actions:
     roles: [Coordinator]
     form: FinalGrade
     label:
-      en: Publish Grade
+      en: Publish grade
       nl: Cijfer publiceren
+    noAutoOpenForm: true
+    intent: destructive
 
 ends:
-  event: SubmitGrade
+  event: FinalGrade

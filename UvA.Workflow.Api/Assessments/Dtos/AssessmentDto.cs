@@ -211,7 +211,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
         return new(
             sourceResult.IsCombined ? "Combined" : context.Form.Name,
-            sourceResult.IsCombined ? new("Average", "Gemiddelde") : (titleOverride ?? context.Form.DisplayName),
+            sourceResult.IsCombined ? new("Result", "Resultaat") : (titleOverride ?? context.Form.DisplayName),
             roundedPageResults,
             answers,
             RoundToTwo(sourceResult.WeightedAverage),
