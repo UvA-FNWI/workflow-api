@@ -303,6 +303,17 @@
             }
           ]
         },
+        "results": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result display",
+              "$ref": "#/definitions/ResultSettings"
+            }
+          ]
+        },
         "allowsExternalUsers": {
           "type": [
             "boolean",
@@ -1080,6 +1091,31 @@
         "Sum"
       ]
     },
+    "ResultSettings": {
+      "title": "ResultSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Determines what kind of results are shown for this field",
+          "$ref": "#/definitions/ResultType"
+        },
+        "source": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "For Type = Source, this determines which source property to use"
+        }
+      }
+    },
+    "ResultType": {
+      "type": "string",
+      "enum": [
+        "Source",
+        "Average"
+      ]
+    },
     "RubricEntry": {
       "title": "RubricEntry",
       "type": "object",
@@ -1289,7 +1325,8 @@
         "AssignMessages",
         "CreateInstance",
         "CreateRelatedInstance",
-        "ImpersonateRoles"
+        "ImpersonateRoles",
+        "ViewResults"
       ]
     },
     "Field": {
@@ -1376,6 +1413,24 @@
           "items": {
             "$ref": "#/definitions/AssessmentPart"
           }
+        },
+        "gradingBasis": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Property to indicate the final grade type",
+              "$ref": "#/definitions/GradingBasis"
+            }
+          ]
+        },
+        "gradeGap": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Determines whether grades between 5 and 6 are allowed"
         }
       }
     },
@@ -1443,6 +1498,14 @@
           "description": "Relative weight of this source within the assessment part. Defaults to 1."
         }
       }
+    },
+    "GradingBasis": {
+      "type": "string",
+      "enum": [
+        "Half",
+        "Decimal",
+        "PassFail"
+      ]
     }
   }
 }
