@@ -70,40 +70,9 @@ public class WorkflowInstanceService(
             throw new EntityNotFoundException(nameof(WorkflowInstance), instanceId);
 
         var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
-        if (journal != null)
-        {
-            // Revert all changes after the specified version
-            foreach (var change in journal.PropertyChanges
-                         .OrderByDescending(p => p.Timestamp)
-                         .Where(p => p.Version > version))
-            {
-                workflowInstance.SetProperty(change.OldValue, change.Path.Split('.'));
-            }
-        }
+        EnrichInstanceByJournalEntries(workflowInstance, journal, version);
 
         return workflowInstance;
-    }
-
-    /// <summary>
-    /// Retrieves a specific snapshot of a workflow instance at the provided timestamp.
-    /// </summary>
-    public async Task<WorkflowInstance> GetAsOfTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)
-    {
-        var version = await GetVersionAtTimestamp(instanceId, timestamp, ct);
-        var instance = await GetAsOfVersion(instanceId, version, ct);
-
-        instance.Events = await RebuildEventsUntil(instanceId, timestamp, ct);
-        RecalculateCurrentStep(instance);
-
-        return instance;
-    }
-
-    public async Task<WorkflowInstanceHistory> GetInstanceHistory(string instanceId, CancellationToken ct)
-    {
-        var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
-        var eventLogs = await eventRepository.GetEventLogEntriesForInstance(instanceId, ct) ?? [];
-
-        return new WorkflowInstanceHistory(journal, eventLogs);
     }
 
     public WorkflowInstance GetAsOfTimestamp(
@@ -114,31 +83,38 @@ public class WorkflowInstanceService(
         var instanceAtTimestamp = CloneInstance(instance);
         var version = GetVersionAtTimestamp(history.Journal, timestamp);
 
-        if (history.Journal != null)
-        {
-            // Revert all changes after the target version against the cloned live instance.
-            foreach (var change in history.Journal.PropertyChanges
-                         .OrderByDescending(p => p.Timestamp)
-                         .Where(p => p.Version > version))
-            {
-                instanceAtTimestamp.SetProperty(change.OldValue, change.Path.Split('.'));
-            }
-        }
+        EnrichInstanceByJournalEntries(instanceAtTimestamp, history.Journal, version);
 
         instanceAtTimestamp.Events = RebuildEventsUntil(history.EventLogs, timestamp);
+
         RecalculateCurrentStep(instanceAtTimestamp);
 
         return instanceAtTimestamp;
     }
 
-    /// <summary>
-    /// Gets the version number that was active at a specific timestamp.
-    /// </summary>
-    public async Task<int> GetVersionAtTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)
+    public async Task<WorkflowInstanceHistory> GetInstanceHistory(string instanceId, CancellationToken ct)
     {
         var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
+        var eventLogs = await eventRepository.GetEventLogEntriesForInstance(instanceId, ct) ?? [];
 
-        return GetVersionAtTimestamp(journal, timestamp);
+        return new WorkflowInstanceHistory(journal, eventLogs);
+    }
+
+    private static void EnrichInstanceByJournalEntries(
+        WorkflowInstance instance,
+        InstanceJournalEntry? journal,
+        int version)
+    {
+        if (journal == null)
+            return;
+
+        // Revert all changes after the target version against the current instance state.
+        foreach (var change in journal.PropertyChanges
+                     .OrderByDescending(p => p.Timestamp)
+                     .Where(p => p.Version > version))
+        {
+            instance.SetProperty(change.OldValue, change.Path.Split('.'));
+        }
     }
 
     private static int GetVersionAtTimestamp(InstanceJournalEntry? journal, DateTime timestamp)
@@ -157,15 +133,6 @@ public class WorkflowInstanceService(
 
     private static WorkflowInstance CloneInstance(WorkflowInstance instance)
         => BsonSerializer.Deserialize<WorkflowInstance>(instance.ToBsonDocument());
-
-    private async Task<Dictionary<string, InstanceEvent>> RebuildEventsUntil(
-        string instanceId,
-        DateTime timestamp,
-        CancellationToken ct)
-    {
-        var eventLogs = await eventRepository.GetEventLogEntriesForInstanceUntil(instanceId, timestamp, ct);
-        return RebuildEventsUntil(eventLogs, timestamp);
-    }
 
     private static Dictionary<string, InstanceEvent> RebuildEventsUntil(
         IEnumerable<InstanceEventLogEntry> eventLogs,
@@ -201,29 +168,5 @@ public class WorkflowInstanceService(
         instance.CurrentStep = workflowDefinition.FlattenedSteps
             .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context))
             ?.Name;
-    }
-
-    /// <summary>
-    /// Updates multiple properties on a workflow instance in a single operation
-    /// </summary>
-    public async Task UpdateProperties(
-        string instanceId,
-        Dictionary<string, BsonValue> properties,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
-
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        foreach (var (propertyPath, value) in properties)
-        {
-            var pathParts = propertyPath.Split('.');
-            instance.SetProperty(value, pathParts);
-        }
-
-        await repository.Update(instance, ct);
     }
 }
