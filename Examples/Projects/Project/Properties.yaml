@@ -43,6 +43,7 @@ properties:
         
   - name: SecondReader
     type: User!
+    allowsAssignment: true
     text: 
       en: Second reader
       nl: Tweede beoordelaar

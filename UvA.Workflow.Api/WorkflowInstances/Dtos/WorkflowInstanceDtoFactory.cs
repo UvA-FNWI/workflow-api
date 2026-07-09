@@ -240,11 +240,25 @@ public class WorkflowInstanceDtoFactory(
                 var value = context.Get(relatedUser.Property);
 
                 var users = value is InstanceUser u ? [u] : value as InstanceUser[] ?? [];
+                var allowsExternalUsers = relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false;
+                var allowsAssignment = relatedUser.PropertyDefinition?.AllowsAssignment ?? false;
+
+                if (users.Length == 0 && allowsAssignment)
+                    return
+                    [
+                        new
+                        {
+                            relatedUser.Group,
+                            Dto = new RelatedUserDto(relatedUser.Property, relatedUser.DisplayTitle, null,
+                                allowsExternalUsers, allowsAssignment)
+                        }
+                    ];
 
                 return users.Select(user => new
                 {
                     relatedUser.Group,
-                    Dto = new RelatedUserDto(relatedUser.DisplayTitle, UserDto.CreateFromInstanceUser(user))
+                    Dto = new RelatedUserDto(relatedUser.Property, relatedUser.DisplayTitle,
+                        UserDto.CreateFromInstanceUser(user), allowsExternalUsers, allowsAssignment)
                 });
             })
             .GroupBy(x => x.Group)

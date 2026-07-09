@@ -125,8 +125,11 @@ public record InstanceEventDto(
 }
 
 public record RelatedUserDto(
+    string Role,
     BilingualString Title,
-    UserDto? User
+    UserDto? User,
+    bool AllowsExternalUsers,
+    bool AllowsAssignment
 );
 
 public record RelatedUserGroupDto(
