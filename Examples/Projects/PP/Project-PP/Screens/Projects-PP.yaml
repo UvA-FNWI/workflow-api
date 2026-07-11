@@ -19,6 +19,9 @@ columns:
       en: Second assessor
       nl: Tweede beoordelaar
   - currentStep: true
+    title:
+      en: Progress
+      nl: Voortgang
     filterType: Pick
     default: Draft
 
