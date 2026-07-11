@@ -41,7 +41,7 @@ public record SourceResultDto(
 public class AssessmentDtoFactory(
     ArtifactTokenService artifactTokenService,
     ModelService modelService,
-    AssessmentService assessmentService
+    IAssessmentService assessmentService
 )
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);

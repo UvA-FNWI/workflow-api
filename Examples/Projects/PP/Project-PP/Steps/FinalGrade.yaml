@@ -6,13 +6,31 @@ icon:
   type: graduate-cap-line
         
 actions:
-  - name: SubmitGrade
+  - name: FinalGrade
     type: Submit
     roles: [Coordinator]
     form: FinalGrade
     label:
       en: Publish Grade
       nl: Cijfer publiceren
+  - name: SubmitGrade
+    type: Execute
+    label: Push to SIS
+    roles: [SystemAdmin]
+    onAction:
+      - serviceCall:
+          service: DataNose
+          operation: FinalGradeSubmission
+          inputs:
+            CourseExternalId: Course.ExternalId
+            Student: Student
+            Grade: Assessment.FinalGrade
+            ExamType: =Exam
+            ExamDate: =2026-06-17
+            Title: Title
+            Supervisor: Supervisor
+            Examiner: Supervisor
+    
 
 ends:
   event: SubmitGrade

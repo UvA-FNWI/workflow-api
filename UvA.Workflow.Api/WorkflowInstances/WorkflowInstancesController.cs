@@ -130,6 +130,28 @@ public class WorkflowInstancesController(
     }
 
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
+    [HttpGet("instances/{workflowDefinition}/full")]
+    public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetFullInstances(string workflowDefinition,
+        [FromQuery] string[] properties, CancellationToken ct)
+    {
+        if (!await rightsService.CanAny(workflowDefinition, RoleAction.ViewAdminTools))
+            return Forbidden();
+
+        var res = await repository.GetAll(i => i.WorkflowDefinition == workflowDefinition, ct);
+        var contexts = res.Select(modelService.CreateContext).ToList();
+
+        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition], contexts,
+            properties.Select(p => new PropertyLookup(p)), ct);
+
+        return Ok(contexts
+            .OrderByDescending(i => i.Id)
+            .Select(row => properties.ToDictionary(
+                p => p,
+                p => row.Get(p)
+            )));
+    }
+
+    [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
     [HttpGet("instances/{workflowDefinition}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string workflowDefinition,
         [FromQuery] string[] properties, CancellationToken ct, [FromQuery] bool includeTitle = false)

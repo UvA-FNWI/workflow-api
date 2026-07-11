@@ -25,6 +25,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<InstanceService>();
         services.AddScoped<IInstanceEventService, InstanceEventService>();
         services.AddScoped<IStepVersionService, StepVersionService>();
+        services.AddScoped<IAssessmentService, AssessmentService>();
 
         services.Configure<S3Config>(config.GetSection(S3Config.S3));
         services.AddScoped<IArtifactService, S3ArtifactService>();
@@ -39,7 +40,6 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<RightsService>();
         services.AddScoped<JobService>();
         services.AddScoped<EffectService>();
-        services.AddScoped<AssessmentService>();
         services.AddScoped<AnswerConversionService>();
         services.AddScoped<InitializationService>();
 
