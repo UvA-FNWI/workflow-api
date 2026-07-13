@@ -36,6 +36,10 @@
         }
       ]
     },
+    "resultsType": {
+      "description": "Determines whether assessment results are shown in the step",
+      "$ref": "#/definitions/StepResultsType"
+    },
     "icon": {
       "oneOf": [
         {
@@ -170,6 +174,14 @@
       "enum": [
         "Red",
         "Green"
+      ]
+    },
+    "StepResultsType": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "AssessmentPartOverview",
+        "AssessmentFinalOverview"
       ]
     },
     "Icon": {
@@ -618,7 +630,8 @@
         "AssignMessages",
         "CreateInstance",
         "CreateRelatedInstance",
-        "ImpersonateRoles"
+        "ImpersonateRoles",
+        "ViewResults"
       ]
     },
     "Effect": {
@@ -1155,6 +1168,17 @@
             }
           ]
         },
+        "results": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result display",
+              "$ref": "#/definitions/ResultSettings"
+            }
+          ]
+        },
         "allowsExternalUsers": {
           "type": [
             "boolean",
@@ -1340,6 +1364,31 @@
       "enum": [
         "Average",
         "Sum"
+      ]
+    },
+    "ResultSettings": {
+      "title": "ResultSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Determines what kind of results are shown for this field",
+          "$ref": "#/definitions/ResultType"
+        },
+        "source": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "For Type = Source, this determines which source property to use"
+        }
+      }
+    },
+    "ResultType": {
+      "type": "string",
+      "enum": [
+        "Source",
+        "Average"
       ]
     },
     "RubricEntry": {

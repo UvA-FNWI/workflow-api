@@ -48,8 +48,10 @@ public class UsersControllerImpersonationTests
             null!,
             null!,
             null!,
+            null!,
             new HttpContextCurrentUserAccessor(httpAccessor),
             new UserImpersonationTokenService(config, httpAccessor),
+            null!,
             Mock.Of<ILogger<UsersController>>())
         {
             ControllerContext = new ControllerContext { HttpContext = ctx }

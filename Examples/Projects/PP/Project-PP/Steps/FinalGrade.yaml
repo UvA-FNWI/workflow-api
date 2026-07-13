@@ -33,4 +33,4 @@ actions:
     
 
 ends:
-  event: SubmitGrade
+  event: FinalGrade

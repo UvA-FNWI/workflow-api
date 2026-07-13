@@ -213,7 +213,8 @@
         "AssignMessages",
         "CreateInstance",
         "CreateRelatedInstance",
-        "ImpersonateRoles"
+        "ImpersonateRoles",
+        "ViewResults"
       ]
     },
     "Condition": {
