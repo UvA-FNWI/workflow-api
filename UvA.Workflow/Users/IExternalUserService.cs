@@ -7,6 +7,8 @@ public enum ExternalUserCreationFailureReason
     UserAlreadyExists
 }
 
+public record ExternalUserInput(string DisplayName, string Email, Organization? Organization = null);
+
 public class ExternalUserCreationException(
     ExternalUserCreationFailureReason reason,
     string message) : InvalidOperationException(message)

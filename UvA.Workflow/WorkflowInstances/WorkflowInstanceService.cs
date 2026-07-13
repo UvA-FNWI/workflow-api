@@ -1,3 +1,4 @@
+using System.Text.Json;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
@@ -128,5 +129,35 @@ public class WorkflowInstanceService(
         }
 
         await repository.Update(instance, ct);
+    }
+
+    /// <summary>
+    /// Updates a single property on a workflow instance, converts the value and saves a new version in the logs.
+    /// </summary>
+    public async Task UpdateProperty(
+        string instanceId,
+        string property,
+        JsonElement? newValue,
+        AnswerConversionService answerConversionService,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId))
+            throw new ArgumentException("InstanceId is required", nameof(instanceId));
+
+        var instance = await repository.GetById(instanceId, ct);
+        if (instance == null)
+            throw new ArgumentException("Instance not found", nameof(instanceId));
+
+        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
+            .GetOrDefault(property);
+        if (propertyDefinition == null)
+            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
+
+        var convertedValue = await answerConversionService.ConvertToValue(newValue, propertyDefinition, ct);
+
+        instance.SetProperty(convertedValue, property);
+        await repository.UpdateFields(instance.Id,
+            Builders<WorkflowInstance>.Update.Set(i => i.Properties[property], convertedValue), ct);
+        await journalService.IncrementVersion(instance.Id, ct);
     }
 }

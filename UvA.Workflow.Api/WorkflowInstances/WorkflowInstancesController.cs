@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
 
@@ -14,6 +14,7 @@ public class WorkflowInstancesController(
     IWorkflowInstanceRepository repository,
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
+    AnswerService answerService,
     ModelService modelService,
     RoleImpersonationService impersonationService
 ) : ApiControllerBase
@@ -172,5 +173,45 @@ public class WorkflowInstancesController(
                 k => char.ToLowerInvariant(k.Key[0]) + k.Key[1..],
                 v => v.Value
             )));
+    }
+
+
+    [HttpPut("{id}/properties/{property}")]
+    public async Task<ActionResult<UpdateInstancePropertyResponse>> UpdateProperty(string id, string property,
+        [FromBody] UpdateInstancePropertyRequest input, CancellationToken ct)
+    {
+        var currentUser = await userService.GetCurrentUser(ct);
+        if (currentUser == null)
+            return Unauthorized();
+
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, [RoleAction.Edit], RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
+            .GetOrDefault(property);
+        if (propertyDefinition == null)
+            return BadRequest($"Property '{property}' does not exist");
+
+        var externalUserInput = input.ExternalUser is { } eu
+            ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
+            : null;
+
+        try
+        {
+            var (value, _) = await answerService.ValidateAndResolveValue(
+                propertyDefinition, input.Value, externalUserInput, ct);
+
+            await workflowInstanceService.UpdateProperty(id, property, value, answerConversionService, ct);
+
+            return Ok();
+        }
+        catch (ExternalUserCreationException ex)
+        {
+            return MapExternalUserCreationError(ex); // now on ApiControllerBase
+        }
     }
 }
