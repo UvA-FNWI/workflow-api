@@ -84,7 +84,7 @@ public class InstanceService(
         var context = modelService.CreateContext(instance);
         var recipientLookups = MailBuilder.ResolveRecipientLookups(workflowDefinition, sendMail);
         await Enrich(workflowDefinition, [context], recipientLookups, ct, replaceStep: false);
-        return await mailBuilder.BuildAsync(instance, sendMail, modelService, ct, context);
+        return mailBuilder.Build(instance, sendMail, modelService, context);
     }
 
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)

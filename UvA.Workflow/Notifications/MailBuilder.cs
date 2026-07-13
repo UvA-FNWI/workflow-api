@@ -13,16 +13,14 @@ public class MailBuilder(
     IHostEnvironment environment,
     ILogger<MailBuilder> logger)
 {
-    public Task<MailMessage> BuildAsync(
+    public MailMessage Build(
         WorkflowInstance instance,
         SendMessage sendMail,
         ModelService modelService,
-        CancellationToken ct = default,
-        ObjectContext? context = null)
+        ObjectContext context)
     {
         var resolvedMail =
             ResolveMessageContents(modelService.WorkflowDefinitions[instance.WorkflowDefinition], sendMail);
-        context ??= modelService.CreateContext(instance);
         var frontendBaseUrl = configuration["FrontendBaseUrl"]?.TrimEnd('/');
         if (!string.IsNullOrWhiteSpace(frontendBaseUrl))
             context.Values["FrontendBaseUrl"] = frontendBaseUrl;
@@ -60,12 +58,12 @@ public class MailBuilder(
         var layout = layoutResolver.Resolve(resolvedMail.Layout);
         var fullHtml = layout.Render(htmlBody, buttons);
 
-        return Task.FromResult(new MailMessage(subject, fullHtml)
+        return new MailMessage(subject, fullHtml)
         {
             To = to,
             Cc = cc.Count > 0 ? cc : null,
             Bcc = bcc.Count > 0 ? bcc : null
-        });
+        };
     }
 
     /// Resolves a recipient list to mail recipients, expanding [User] arrays and literal addresses.
