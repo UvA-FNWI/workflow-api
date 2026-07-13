@@ -10,7 +10,7 @@ public class AssessmentsController(
     WorkflowInstanceService workflowInstanceService,
     IUserService userService,
     IWorkflowInstanceRepository workflowInstanceRepository,
-    AssessmentService assessmentService,
+    IAssessmentService assessmentService,
     InstanceService instanceService,
     AssessmentDtoFactory assessmentDtoFactory,
     RightsService rightsService) : ApiControllerBase

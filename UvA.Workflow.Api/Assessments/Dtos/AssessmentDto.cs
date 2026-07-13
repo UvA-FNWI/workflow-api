@@ -61,7 +61,13 @@ public class AssessmentDtoFactory(
         var parts = new List<AssessmentPartDto>();
         var context = modelService.CreateContext(instance);
 
-        var result = assessmentService.GetAssessmentResult(context, contextList, assessmentConfig, pageName);
+        var result = assessmentService.GetAssessmentResult(
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition],
+            context,
+            assessmentConfig,
+            contextList.Select(c => c.Form.Name).ToList(),
+            pageName
+        );
 
         foreach (var part in result.PartResults)
         {

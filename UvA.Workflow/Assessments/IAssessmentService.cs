@@ -6,17 +6,11 @@ namespace UvA.Workflow.Assessments;
 public interface IAssessmentService
 {
     AssessmentResult GetAssessmentResult(
-        ObjectContext context,
-        ICollection<SubmissionContext> contextList,
-        AssessmentConfiguration? assessmentConfig,
-        string? pageName
-    );
-
-    AssessmentResult GetAssessmentResult(
         WorkflowDefinition definition,
         ObjectContext context,
         AssessmentConfiguration? assessmentConfig,
-        string? pageName
+        List<string>? formNames = null,
+        string? pageName = null
     );
 
     Task<AssessmentConfiguration?> GetEnrichedAssessmentConfig(WorkflowInstance instance,

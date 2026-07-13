@@ -10,59 +10,11 @@ public class AssessmentService(
 ) : IAssessmentService
 {
     public AssessmentResult GetAssessmentResult(
-        ObjectContext context,
-        ICollection<SubmissionContext> contextList,
-        AssessmentConfiguration? assessmentConfig,
-        string? pageName
-    )
-    {
-        var partResults = new List<AssessmentPartResult>();
-        decimal totalPartWeight = assessmentConfig?.Parts.Sum(p => p.Weight) ?? 0;
-
-        foreach (var partConfig in assessmentConfig?.Parts ?? [])
-        {
-            var partContexts = partConfig.Sources
-                .Select(source => contextList.FirstOrDefault(c => c.Form.Name == source.Name))
-                .Where(c => c != null)
-                .Cast<SubmissionContext>()
-                .ToList();
-
-            var sourceResults = partContexts
-                .Select(c => AssessmentHelpers.CalculateSourceResult(c.Form, context, pageName))
-                .ToList();
-
-            var result = new AssessmentPartResult
-            {
-                Name = partConfig.Name,
-                Combined = AssessmentHelpers.CalculateCombined(partConfig, sourceResults),
-                SourceResults = sourceResults,
-                PartPercentage = totalPartWeight > 0
-                    ? partConfig.Weight / totalPartWeight * 100
-                    : 0,
-                PartConfig = partConfig
-            };
-            partResults.Add(result);
-        }
-
-        if (assessmentConfig == null) return new AssessmentResult { PartResults = partResults };
-
-        var (calculatedFinalGradeUnrounded, calculatedFinalGradeRounded) =
-            AssessmentHelpers.CalculateFinalGrade(assessmentConfig, partResults);
-
-        return new AssessmentResult
-        {
-            PartResults = partResults,
-            FinalGradeRounded = calculatedFinalGradeRounded,
-            FinalGradeUnrounded = calculatedFinalGradeUnrounded,
-            AssessmentConfiguration = assessmentConfig
-        };
-    }
-
-    public AssessmentResult GetAssessmentResult(
         WorkflowDefinition definition,
         ObjectContext context,
         AssessmentConfiguration? assessmentConfig,
-        string? pageName
+        List<string>? formNames = null,
+        string? pageName = null
     )
     {
         var partResults = new List<AssessmentPartResult>();
@@ -71,6 +23,7 @@ public class AssessmentService(
         foreach (var partConfig in assessmentConfig?.Parts ?? [])
         {
             var forms = partConfig.Sources
+                .Where(source => formNames == null || formNames.Contains(source.Name))
                 .Select(source => definition.Forms.FirstOrDefault(c => c.Name == source.Name))
                 .Where(f => f != null)
                 .Cast<Form>()
