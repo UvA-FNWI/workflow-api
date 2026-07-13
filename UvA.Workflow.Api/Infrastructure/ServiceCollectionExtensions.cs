@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
@@ -14,6 +15,15 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<ModelServiceResolver>();
         services.AddScoped<ModelService>(sp => sp.GetRequiredService<ModelServiceResolver>().Get());
+
+        services.AddSingleton<WorkflowConfigLoader>();
+        services.AddHttpClient(nameof(WorkflowConfigLoader), (sp, client) =>
+        {
+            var opts = sp.GetRequiredService<IOptions<WorkflowSourceOptions>>().Value;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("workflow-api"); // GitHub API requires a UA
+            if (!string.IsNullOrWhiteSpace(opts.Token))
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", opts.Token);
+        });
 
         services.AddScoped<ArtifactTokenService>();
         services.AddScoped<SubmissionDtoFactory>();

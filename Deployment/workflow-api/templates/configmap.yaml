@@ -47,3 +47,5 @@ data:
   S3__AccessKey: "{{ .Values.s3.accessKey }}"
 
   Worker__WorkerGroup: "{{ .Release.Namespace }}"
+
+  WorkflowSource__RepoUrl: "{{ .Values.workflowSource.repoUrl }}"

@@ -43,6 +43,7 @@ builder.Services
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
+builder.Services.Configure<WorkflowSourceOptions>(builder.Configuration.GetSection("WorkflowSource"));
 
 builder.Services.AddWorkflowAuthenticationSelector(builder.Environment, builder.Configuration);
 builder.Services.AddWorkflowMongoPersistence(builder.Configuration);
@@ -79,9 +80,7 @@ app.UseCors(corsPolicyName);
 app.UseWorkflowAuthenticationSelector();
 app.UseWorkflowCanvasLti(app.Configuration);
 
-app.Services.GetRequiredService<ModelServiceResolver>().AddOrUpdate("", new ModelParser(
-    new FileSystemProvider(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects"))
-));
+await app.Services.GetRequiredService<WorkflowConfigLoader>().LoadBaselineOrFallbackAsync();
 
 using var scope = app.Services.CreateScope();
 await scope.ServiceProvider.GetRequiredService<MongoDbIndexInitializer>().EnsureIndexes();

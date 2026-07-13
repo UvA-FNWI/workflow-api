@@ -29,6 +29,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<IArtifactService, S3ArtifactService>();
 
         services.AddScoped<IMailService, DummyMailService>();
+        services.AddSingleton<MailTemplateStore>();
         services.AddScoped<INamedMailLayout, DefaultMailLayout>();
         services.AddScoped<IMailLayoutResolver, MailLayoutResolver>();
         services.AddScoped<MailBuilder>();

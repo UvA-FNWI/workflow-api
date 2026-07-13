@@ -7,6 +7,13 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
+# By default, uses the 'main' branch. To point this environment at a different branch or commit, add `ref: <branch name or commit SHA>`.
+workflowSource:
+  repoUrl: ""
+
+# Nightly `rollout restart` so prod re-fetches config once a day. Enable in prod's values only.
+nightlyRestart: false
+
 allowedOrigins: "http://localhost:5173,https://*.instructure.com"
 frontendBaseUrl: "http://localhost:5173"
 
