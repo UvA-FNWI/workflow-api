@@ -8,7 +8,6 @@ using UvA.Workflow.Submissions;
 namespace UvA.Workflow.Api.Submissions;
 
 public class AnswersController(
-    IUserService userService,
     AnswerService answerService,
     AnswerConversionService answerConversionService,
     RightsService rightsService,

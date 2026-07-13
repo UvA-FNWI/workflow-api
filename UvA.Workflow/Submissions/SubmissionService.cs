@@ -24,11 +24,9 @@ public record InvalidQuestion(
     BilingualString ValidationMessage);
 
 public class SubmissionService(
-    IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     InstanceService instanceService,
     IInstanceJournalService instanceJournalService,
-    WorkflowInstanceService workflowInstanceService,
     JobService jobService,
     EffectService effectService
 )

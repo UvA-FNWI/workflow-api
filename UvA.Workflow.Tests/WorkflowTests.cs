@@ -113,8 +113,8 @@ public class WorkflowTests
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
         _submissionService =
-            new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
-                _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
+            new SubmissionService(_modelService, _instanceService,
+                _instanceJournalServiceMock.Object, _jobService, _effectService);
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
             _userRepoMock.Object);
