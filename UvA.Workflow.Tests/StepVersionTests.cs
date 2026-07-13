@@ -221,12 +221,6 @@ public class StepVersionTests
             new[] { "RejectProposal" },
             true
         ];
-        yield return
-        [
-            new Condition { Date = new Date { Source = "Deadline" } },
-            new[] { "Deadline" },
-            false
-        ];
     }
 
     [Theory]
@@ -237,6 +231,59 @@ public class StepVersionTests
         bool expected)
     {
         Assert.Equal(expected, condition.IsMet(eventIds));
+    }
+
+    public static IEnumerable<object[]> UnsupportedHistoricalConditionCases()
+    {
+        yield return
+        [
+            new Condition { Date = new Date { Source = "Deadline" } },
+            nameof(Date)
+        ];
+        yield return
+        [
+            new Condition { Deadline = new Deadline { ExpressionText = "Deadline" } },
+            nameof(Deadline)
+        ];
+        yield return
+        [
+            new Condition { Value = new Value { Property = "Status", Equal = "=Approved" } },
+            nameof(Value)
+        ];
+    }
+
+    [Theory]
+    [MemberData(nameof(UnsupportedHistoricalConditionCases))]
+    public void IsMet_WithHistoricalEventIds_ThrowsForUnsupportedConditionTypes(
+        Condition condition,
+        string conditionType)
+    {
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            condition.IsMet(Array.Empty<string>()));
+
+        Assert.Contains(conditionType, exception.Message);
+    }
+
+    [Fact]
+    public void IsMet_WithHistoricalEventIds_ThrowsForUnsupportedLogicalChildWithoutShortCircuiting()
+    {
+        var condition = new Condition
+        {
+            Logical = new Logical
+            {
+                Operator = LogicalOperator.Or,
+                Children =
+                [
+                    new Condition { Event = new EventCondition { Id = "Submitted" } },
+                    new Condition { Date = new Date { Source = "Deadline" } }
+                ]
+            }
+        };
+
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            condition.IsMet(new[] { "Submitted" }));
+
+        Assert.Contains(nameof(Date), exception.Message);
     }
 
     [Fact]
