@@ -1,6 +1,6 @@
 using MongoDB.Bson;
 using UvA.Workflow.Assessments;
-using UvA.Workflow.Submissions;
+using UvA.Workflow.Tools;
 
 namespace UvA.Workflow.Tests;
 
@@ -61,7 +61,7 @@ public class AssessmentHelpersTests
     // Builds a SubmissionContext from a simple description of pages and answers.
     // Answers are stored in the instance under propertyName (nested) so that
     // GetProperty(propertyName, fieldName) resolves correctly.
-    private static SubmissionContext CreateContext(
+    private static (Form, ObjectContext) CreateContext(
         string formName,
         string propertyName,
         params (string pageName, (string fieldName, decimal weight, double answer)[] questions)[] pages)
@@ -84,18 +84,14 @@ public class AssessmentHelpersTests
         };
 
         // Store all answers in a BsonDocument nested under propertyName
+        var dict = new Dictionary<Lookup, object?>();
+
         var doc = new BsonDocument();
         foreach (var (_, questions) in pages)
         foreach (var (fieldName, _, answer) in questions)
-            doc[fieldName] = new BsonDouble(answer);
+            dict.Add(new PropertyLookup($"{formName}.{fieldName}"), answer);
 
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Test")
-            .WithCurrentStep("Start")
-            .WithProperties((propertyName, b => b.Value(doc)))
-            .Build();
-
-        return new SubmissionContext(instance, new FormSubmissionState([], [], null), form, formName);
+        return (form, new ObjectContext(dict));
     }
 
     [Fact]
@@ -336,11 +332,11 @@ public class AssessmentHelpersTests
     [Fact]
     public void CalculateSourceResult_AllPagesFilled_ReturnsCorrectPageResultsAndName()
     {
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]), // avg = (8*2+7*1)/3 = 7.67, weight = 3
             ("Process", [("Clarity", 1, 6.0)])); // avg = 6.0, weight = 1
 
-        var result = AssessmentHelpers.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         // Name must match Form.Name, not PropertyName
         Assert.Equal("supervisor", result.Name);
@@ -359,11 +355,11 @@ public class AssessmentHelpersTests
     [Fact]
     public void CalculateSourceResult_AllPagesFilled_ReturnsCorrectSourceWeightedAverage()
     {
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]), // avg = 7.67, weight = 3
             ("Process", [("Clarity", 1, 6.0)])); // avg = 6.0, weight = 1
 
-        var result = AssessmentHelpers.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         // (7.67 * 3 + 6.0 * 1) / 4 = 29.01 / 4 = 7.25
         Assert.Equal(7.25m, result.WeightedAverage);
@@ -372,11 +368,11 @@ public class AssessmentHelpersTests
     [Fact]
     public void CalculateSourceResult_WithPageNameFilter_ReturnsOnlyFilteredPage()
     {
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]),
             ("Process", [("Clarity", 1, 6.0)]));
 
-        var result = AssessmentHelpers.CalculateSourceResult(context, pageName: "Report");
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: "Report");
 
         Assert.Single(result.PageResults);
         Assert.Equal("Report", result.PageResults[0].Name);
@@ -386,10 +382,10 @@ public class AssessmentHelpersTests
     public void CalculateSourceResult_EmptyAnswers_ReturnsZeroWeightedAverage()
     {
         // All answers are 0.0 → page is considered not filled in
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 0.0), ("Depth", 1, 0.0)]));
 
-        var result = AssessmentHelpers.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         Assert.Equal(0m, result.WeightedAverage);
     }
@@ -398,11 +394,11 @@ public class AssessmentHelpersTests
     public void CalculateSourceResult_Percentages_AreRelativeToAllPagesNotJustFilteredPage()
     {
         // Total weight across ALL pages = 2 + 1 + 1 = 4
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]),
             ("Process", [("Clarity", 1, 6.0)]));
 
-        var result = AssessmentHelpers.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         var allQuestions = result.PageResults.SelectMany(p => p.QuestionResults).ToList();
         Assert.Equal(50m, allQuestions.Single(q => q.Name == "Quality").Percentage); // 2/4 * 100
