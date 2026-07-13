@@ -54,12 +54,4 @@ public interface IInstanceEventRepository
     Task<List<InstanceEventLogEntry>> GetEventLogEntriesForInstance(
         string instanceId,
         CancellationToken ct);
-
-    /// <summary>
-    /// Gets all event log entries for an instance up to and including a specific timestamp.
-    /// </summary>
-    Task<List<InstanceEventLogEntry>> GetEventLogEntriesForInstanceUntil(
-        string instanceId,
-        DateTime timestamp,
-        CancellationToken ct);
 }

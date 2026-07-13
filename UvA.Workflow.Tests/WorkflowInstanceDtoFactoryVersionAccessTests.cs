@@ -204,13 +204,6 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
                 instance.Id,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(eventLogs.OrderBy(log => log.Timestamp).ToList());
-        _eventRepoMock
-            .Setup(r => r.GetEventLogEntriesForInstanceUntil(
-                instance.Id,
-                It.IsAny<DateTime>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string _, DateTime timestamp, CancellationToken _) =>
-                eventLogs.Where(log => log.Timestamp <= timestamp).OrderBy(log => log.Timestamp).ToList());
     }
 
     private static WorkflowInstance CreateProjectInstance()
