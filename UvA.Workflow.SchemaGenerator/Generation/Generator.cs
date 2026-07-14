@@ -134,6 +134,12 @@ public class Generator(DocumentationReader documentationReader)
                 new JsonSchema { Type = JsonObjectType.String },
                 new JsonSchemaProperty { Reference = Get(targetType) }
             ),
+            // a single recipient string or a list of recipient strings
+            { Name: "Recipients" } => CreateOneOf(
+                isNullable ? Null : null,
+                new JsonSchema { Type = JsonObjectType.String },
+                new JsonSchema { Type = JsonObjectType.Array, Item = GetReference(typeof(string)) }
+            ),
             { IsArray: true } or { Name: "List`1" } => new JsonSchemaProperty
             {
                 Type = JsonObjectType.Array,

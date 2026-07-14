@@ -106,7 +106,6 @@ public abstract class ControllerTestsBase
                 _modelService,
                 _mailServiceMock.Object,
                 _eduIdUserServiceMock.Object,
-                mailBuilder,
                 _artifactServiceMock.Object,
                 _mailLogRepositoryMock.Object,
                 _configurationMock.Object,
