@@ -21,12 +21,12 @@ public class AnswerService(
     ModelService modelService,
     InstanceService instanceService,
     RightsService rightsService,
-    IExternalUserService externalUserService,
     IArtifactService artifactService,
     AnswerConversionService answerConversionService,
     IInstanceEventService instanceEventService,
     IInstanceJournalService instanceJournalService,
-    IUserService userService)
+    IUserService userService,
+    IExternalUserService externalUserService)
 {
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)

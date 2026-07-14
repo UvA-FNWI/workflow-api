@@ -55,6 +55,7 @@ public class WorkflowInstancesControllerImpersonationTests
             repository,
             null!,
             null!,
+            null!,
             modelService,
             impersonationService
         );

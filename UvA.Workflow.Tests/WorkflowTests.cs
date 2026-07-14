@@ -37,6 +37,7 @@ public class WorkflowTests
     readonly Mock<IUserRepository> _userRepoMock;
     readonly Mock<IOrganizationService> _organizationServiceMock;
     readonly Mock<IConfiguration> _configurationMock;
+    protected readonly Mock<IExternalUserService> _externalUserServiceMock;
 
 
     readonly ModelService _modelService;
@@ -76,6 +77,7 @@ public class WorkflowTests
         _userRepoMock = new Mock<IUserRepository>();
         _organizationServiceMock = new Mock<IOrganizationService>();
         _jobRepositoryMock = new Mock<IJobRepository>();
+        _externalUserServiceMock = new Mock<IExternalUserService>();
 
         // Services
         var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
@@ -117,7 +119,7 @@ public class WorkflowTests
             _userRepoMock.Object);
         _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
-            _instanceJournalServiceMock.Object, _userServiceMock.Object);
+            _instanceJournalServiceMock.Object, _userServiceMock.Object, _externalUserServiceMock.Object);
     }
 
     [Fact]

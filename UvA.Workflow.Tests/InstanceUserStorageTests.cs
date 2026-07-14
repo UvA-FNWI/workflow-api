@@ -381,9 +381,9 @@ public class InstanceUserStorageTests
             IsActive = false
         };
 
-        await service.Create("Project", user, CancellationToken.None, userProperty: "Supervisor");
+        await service.Create("Project", user, CancellationToken.None, userProperty: "Examiner");
 
-        var bson = Assert.IsType<BsonDocument>(created!.Properties["Supervisor"]);
+        var bson = Assert.IsType<BsonDocument>(created!.Properties["Examiner"]);
         Assert.Equal(["_id", "UserName", "DisplayName", "Email", "Organization", "IsExternal"], bson.Names);
         Assert.False(bson.Contains("AuthProvider"));
         Assert.False(bson.Contains("IsActive"));
