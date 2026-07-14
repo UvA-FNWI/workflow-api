@@ -155,9 +155,65 @@ public class WorkflowInstanceService(
 
         var convertedValue = await answerConversionService.ConvertToValue(newValue, propertyDefinition, ct);
 
-        instance.SetProperty(convertedValue, property);
-        await repository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Set(i => i.Properties[property], convertedValue), ct);
+        if (propertyDefinition.IsArray)
+        {
+            if (instance.Properties.TryGetValue(property, out var existing) && existing is BsonArray array)
+                array.Add(convertedValue);
+            else
+                instance.Properties[property] = new BsonArray { convertedValue };
+
+            await repository.UpdateFields(instance.Id,
+                Builders<WorkflowInstance>.Update.Push($"Properties.{property}", convertedValue), ct);
+        }
+        else
+        {
+            instance.SetProperty(convertedValue, property);
+            await repository.UpdateFields(instance.Id,
+                Builders<WorkflowInstance>.Update.Set(i => i.Properties[property], convertedValue), ct);
+        }
+
+        await journalService.IncrementVersion(instance.Id, ct);
+    }
+
+    public async Task RemovePropertyItemById(
+        string instanceId,
+        string property,
+        string itemId,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId))
+            throw new ArgumentException("InstanceId is required", nameof(instanceId));
+
+        var instance = await repository.GetById(instanceId, ct);
+        if (instance == null)
+            throw new ArgumentException("Instance not found", nameof(instanceId));
+
+        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
+            .GetOrDefault(property);
+        if (propertyDefinition == null)
+            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
+
+        if (propertyDefinition.IsArray)
+        {
+            if (instance.Properties.TryGetValue(property, out var existing) && existing is BsonArray array)
+            {
+                var newArray = new BsonArray(
+                    array.Where(v => !(v is BsonDocument doc && doc["_id"].ToString() == itemId)));
+
+                BsonValue newValue = newArray.Count == 0 ? BsonNull.Value : newArray;
+                instance.SetProperty(newValue, property);
+
+                await repository.UpdateFields(instance.Id,
+                    Builders<WorkflowInstance>.Update.Set($"Properties.{property}", newValue), ct);
+            }
+        }
+        else
+        {
+            instance.SetProperty(null, property);
+            await repository.UpdateFields(instance.Id,
+                Builders<WorkflowInstance>.Update.Unset(i => i.Properties[property]), ct);
+        }
+
         await journalService.IncrementVersion(instance.Id, ct);
     }
 }

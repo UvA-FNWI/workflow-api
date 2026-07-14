@@ -29,7 +29,7 @@ properties:
       nl: Examinator
       
   - name: Supervisor
-    type: User!    
+    type: "[User]!"    
     allowsExternalUsers: true
     text: 
       en: Supervisor
