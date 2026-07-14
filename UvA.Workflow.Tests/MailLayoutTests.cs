@@ -1,5 +1,6 @@
 using Moq;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
@@ -170,7 +171,7 @@ public class DefaultMailLayoutIntegrationTests
 {
     // The real default.html, loaded into the store the way the config loader does at runtime.
     private static DefaultMailLayout RealDefaultLayout()
-        => new(new MailTemplateStore { Default = File.ReadAllText("../../../../Examples/Layouts/default.html") });
+        => new(new MailTemplateStore { Default = File.ReadAllText(UnitTestsHelpers.FixturesLayoutPath) });
 
     [Fact]
     public void DefaultLayout_RendersWithoutError()

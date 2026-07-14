@@ -1,0 +1,19 @@
+name: AssessmentAssessor
+title:
+  en: Confirmation of assessment (assessor)
+  nl: Bevestiging beoordeling (beoordelaar)
+
+condition:
+  deadline: "=2026-10-15"
+
+actions:
+  - name: ConfirmAssessmentAssessor
+    type: Submit
+    roles: [SecondReviewer]
+    form: AssessmentAssessor
+    label:
+      en: Confirm assessment
+      nl: Beoordeling bevestigen
+
+ends:
+  event: AssessmentAssessor

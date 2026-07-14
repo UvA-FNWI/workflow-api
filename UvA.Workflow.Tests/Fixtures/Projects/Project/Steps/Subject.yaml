@@ -1,0 +1,35 @@
+name: Subject
+icon: 
+  type: article-line
+
+title:
+  nl: Onderwerp
+  en: Subject
+
+children:
+  - Start
+  - SubjectFeedback
+  
+events:
+  - name: Start
+    suppresses: [RejectSubject]
+  - name: RejectSubject
+    suppresses: [Start]
+  - name: ApproveSubject
+    
+headerStatus:
+  - event: Start
+    type: Info
+    label:
+      en: Wait for approval before {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd/MM), =the deadline) }}
+      nl: Wacht op goedkeuring voor {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd-MM), =the deadline) }}
+  - event: RejectSubject
+    type: Attention
+    label:
+      en: Changes needed
+      nl: Aanpassingen nodig
+  - event: ApproveSubject
+    type: Success
+    label:
+      en: Approved and assigned on {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}
+      nl: Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}

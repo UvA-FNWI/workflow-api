@@ -1,0 +1,55 @@
+name: Projects-PP
+workflowDefinition: Project-PP
+columns:
+  - property: Student.DisplayName
+    title:
+      en: Student
+      nl: Student
+    link: true
+  - property: Title
+    title:
+      en: Title
+      nl: Titel
+  - property: Supervisor.DisplayName
+    title:
+      en: Supervisor
+      nl: Begeleider
+  - property: SecondReviewer.DisplayName
+    title:
+      en: Second assessor
+      nl: Tweede beoordelaar
+  - currentStep: true
+    filterType: Pick
+    default: Draft
+
+grouping:
+  groups:
+    - name: assessment-in-progress
+      title:
+        en: Assessment in Progress
+        nl: Bezig met beoordeling
+      steps:
+        - Assessment
+        - AssessmentSecondReader
+        - AssessmentSupervisor
+        - AssessmentCombined
+        - AssessmentPresentation
+        - AssessmentIndividual
+        - FinalizeAssessment
+        - FinalGrade
+
+    - name: thesis-in-progress
+      title:
+        en: Thesis in Progress
+        nl: Bezig met scriptie
+      steps:
+        - Proposal
+        - UploadFinalThesis
+    
+    - name: completed
+      title:
+        en: Completed
+        nl: Voltooid
+      steps:
+        - Publication
+        - null

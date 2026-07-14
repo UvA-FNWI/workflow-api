@@ -1,0 +1,7 @@
+workflowDefinition: Context
+columns:
+  - property: Name
+    link: true
+    defaultSort: Descending
+  - property: ExternalId
+  - property: Type

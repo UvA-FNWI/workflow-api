@@ -1,0 +1,14 @@
+name: Assessment-AI
+inheritsFrom: Assessment
+
+pages:
+  - name: Report
+    fields:
+      - Structure
+      - Polishing
+      - Nose
+  - name: Presentation
+    fields:
+      - Loudness
+      - Style
+      - Contents

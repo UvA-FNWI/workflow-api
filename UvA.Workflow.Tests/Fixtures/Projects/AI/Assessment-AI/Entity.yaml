@@ -1,0 +1,17 @@
+name: Assessment-AI
+inheritsFrom: Assessment
+
+properties:
+  - name: Structure
+    type: FourPoint!
+  - name: Polishing
+    type: FourPoint!
+  - name: Nose
+    type: FourPoint!
+
+  - name: Loudness
+    type: FourPoint!
+  - name: Style
+    type: FourPoint!
+  - name: Contents
+    type: FourPoint!

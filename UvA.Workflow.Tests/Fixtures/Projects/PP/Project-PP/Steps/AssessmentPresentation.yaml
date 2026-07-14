@@ -1,0 +1,66 @@
+name: AssessmentPresentation
+title: Assessment presentation
+icon:
+  type: law-balance-line
+  color: green
+
+properties:
+  - name: PresentationResearchTopic
+    type: String
+    text: Interdisciplinarity in the research topic
+    description: |
+      Is the research question suitable for an interdisciplinary analysis?  
+      Does the research demonstrate a ‘sufficient’ level of interdisciplinarity within the context of supervisors’ project theme?  
+      Does the student demonstrate how in the absence of interdisciplinaritythe research question could not be/only be partly answered?
+    layout:
+      multiline: true
+  - name: PresentationTheory
+    type: String
+    text: Interdisciplinarity in the theory and/or methodology
+    description: |
+      Does the theoretical framework display multidisciplinarity?  
+      Does the theoretical framework display interdisciplinary integration?  
+      Does the research feature multiple methodological approaches?  
+      Does the research integrate interdisciplinarity in the methodology?  
+      Does the research feature interdisciplinary discussion in the findings?
+    layout:
+      multiline: true
+  - name: PresentationQuality
+    type: String
+    text: Quality of the presentation and the Q&A
+    description: |
+      Structure, clarity, timeliness, tone, non-verbal language, use of voice of the presenter, quality of slides, comprehensive use of tables & figures.  
+      The completeness of responses during the Q&A.  
+      The reflection process of the student.
+    layout:
+      multiline: true
+  - name: PresentationAdditional
+    type: String
+    text: Additional criteria set by the co-supervisor (if any)
+    layout:
+      multiline: true
+  - name: PresentationGrade 
+    text: Overall grade
+    description: |
+      Interdisciplinarity range:
+      - below 6.0: insufficient/lacking interdisciplinarity,
+      - 6–7: sufficient/above average interdisciplinarity,
+      - 7–8: good/very good interdisciplinarity,
+      - above 8: excellent/exceptional interdisciplinarity.
+    type: HalfGrade!
+    calculation: 
+      weight: 1
+    layout:
+      type: Dropdown
+  
+
+actions:
+  - type: Submit
+    roles: [CoSupervisor,Supervisor]
+    form: AssessmentPresentation
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+ends:
+  event: AssessmentPresentation

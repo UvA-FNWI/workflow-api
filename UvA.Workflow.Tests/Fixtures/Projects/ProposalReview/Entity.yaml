@@ -1,0 +1,34 @@
+name: ProposalReview
+isEmbedded: true
+
+properties:
+  - name: Sufficient
+    type: ReviewSufficientType!
+    text:
+      en: Is this sufficient?
+      nl: Is dit voldoende?
+    layout:
+      type: RadioList
+    values:
+      - name: Pass
+        text:
+          en: Pass
+          nl: Voldoende
+      - name: Fail
+        text:
+          en: Fail
+          nl: Onvoldoende
+
+  - name: Explanation
+    type: String
+    text:
+      en: Explanation
+      nl: Toelichting
+    layout:
+      multiline: true
+
+  - name: Document
+    type: File
+    text:
+      en: Upload document
+      nl: Document uploaden

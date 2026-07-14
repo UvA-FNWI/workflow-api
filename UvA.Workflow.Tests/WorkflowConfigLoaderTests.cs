@@ -4,12 +4,13 @@ using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Tests.Helpers;
 
 namespace UvA.Workflow.Tests;
 
 public class WorkflowConfigLoaderTests
 {
-    private const string ExamplesPath = "../../../../Examples/Projects";
+    private static readonly string FixturesPath = UnitTestsHelpers.FixturesProjectsPath;
 
     private static ModelServiceResolver CreateResolver()
         => new(new Mock<IHttpContextAccessor>().Object);
@@ -21,7 +22,7 @@ public class WorkflowConfigLoaderTests
     [Fact]
     public async Task LoadBaseline_FromLocalPath_RegistersBaselineWithDefinitions()
     {
-        var opts = new WorkflowSourceOptions { LocalPath = ExamplesPath };
+        var opts = new WorkflowSourceOptions { LocalPath = FixturesPath };
         var resolver = CreateResolver();
 
         await CreateLoader(resolver, opts).LoadBaselineAsync();
@@ -44,7 +45,7 @@ public class WorkflowConfigLoaderTests
     [Fact]
     public async Task LoadBranch_WithoutRepoUrl_Throws()
     {
-        var opts = new WorkflowSourceOptions { LocalPath = ExamplesPath };
+        var opts = new WorkflowSourceOptions { LocalPath = FixturesPath };
         var loader = CreateLoader(CreateResolver(), opts);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => loader.LoadBranchAsync("feature/x"));

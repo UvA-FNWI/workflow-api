@@ -1,0 +1,35 @@
+name: Context
+titlePlural: Contexts
+
+properties:
+  - name: Name
+    type: String!
+
+  - name: ExternalId
+    type: String!
+
+  - name: Type
+    type: ContextType!
+    values:
+      - name: Course
+      - name: Group
+      - name: Specialisation
+
+  - name: Coordinator
+    type: "[User]!"
+
+  - name: Impersonator
+    type: "[User]!"
+
+  - name: StudyManual
+    type: String!
+    
+  - name: GradingBasis
+    type: GradingBasis!
+    values:
+      - name: Decimal
+      - name: Half
+      - name: PassFail  
+      
+  - name: GradeGap
+    type: Boolean

@@ -1,0 +1,7 @@
+name: Proposal
+step: Proposal
+
+pages:
+  - name: Page
+    fields:
+      - Proposal

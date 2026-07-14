@@ -1,0 +1,62 @@
+name: AssessmentAssessor
+title:
+  en: Confirmation of assessment (assessor)
+  nl: Bevestiging beoordeling (beoordelaar)
+
+pages:
+  - name: Declarations
+    title:
+      en: Declarations
+      nl: Verklaringen
+    fields:
+      - PlagiarismReportUrl
+      - FraudChecked
+    sources: [AssessmentExaminer]
+
+  - name: Product
+    title:
+      en: Product (40%)
+      nl: Product (40%)
+    fields:
+      - ProductAbstract
+      - ProductIntroduction
+      - ProductMethods
+      - ProductResults
+      - ProductDiscussionConclusion
+      - ProductReadability
+      - ProductComments
+    sources: [AssessmentExaminer]
+
+  - name: Process
+    title:
+      en: Process (30%)
+      nl: Process (30%)
+    fields:
+      - ProcessPreparationMethodology
+      - ProcessExperimentalSkills
+      - ProcessReliabilityReproducibility
+      - ProcessInterpretingResults
+      - ProcessIndependenceInitiative
+      - ProcessCommunicationCollaboration
+      - ProcessPlanningTimeManagement
+    sources: [AssessmentExaminer]
+
+  - name: Presentation
+    title:
+      en: Presentation (30%)
+      nl: Presentatie (30%)
+    fields:
+      - PresentationContextualizationDelivery
+      - PresentationClarityStyle
+      - PresentationHandlingQuestions
+    sources: [AssessmentExaminer]
+
+  - name: Summary
+    title:
+      en: Summary
+      nl: Samenvatting
+    fields:
+      - SummaryComments
+      - Laudatio
+      - ConsentExaminerName
+    sources: [AssessmentExaminer]

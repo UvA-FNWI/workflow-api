@@ -1,0 +1,33 @@
+name: Project-RMSS
+title: Research Master Social Sciences
+titlePlural:
+  en: Projects (RMSS)
+  nl: Projecten (RMSS)
+instanceTitle: '{{ Title }}'
+inheritsFrom: Project
+
+events:
+  - name: Start
+    suppresses:
+      - ProposalApprovedSupervisor
+      - ProposalRejectedSupervisor
+      - ProposalApprovedReviewer
+      - ProposalRejectedReviewer
+      - ProposalReturnedForRevision
+
+  - name: ProposalRejectedSupervisor
+    suppresses: [ProposalApprovedSupervisor]
+  - name: ProposalApprovedSupervisor
+    suppresses: [ProposalRejectedSupervisor]
+
+  - name: ProposalRejectedReviewer
+    suppresses: [ProposalApprovedReviewer]
+  - name: ProposalApprovedReviewer
+    suppresses: [ProposalRejectedReviewer]
+
+  - name: ProposalReturnedForRevision
+    suppresses: [Start]
+
+steps:
+  - ProposalPhase
+  - Finish

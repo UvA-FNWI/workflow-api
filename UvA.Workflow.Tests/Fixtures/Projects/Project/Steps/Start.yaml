@@ -1,0 +1,54 @@
+name: Start
+icon: 
+  type: square-grid-search-line
+title:
+  nl: Indienen voorstel
+  en: Subject proposal
+progress:
+  color: green
+  text:
+    en: Writing proposal
+    nl: Schrijft voorstel
+
+condition: 
+  deadline: addMonths(CreateDate, 2)
+    
+actions:
+  - roles: [Student]
+    type: Submit
+    form: Start
+properties:
+  - name: Subject
+    type: String!
+    text:
+      en: Subject
+      nl: Onderwerp
+    layout:
+      multiline: true
+      
+  - name: Description
+    type: File!
+    text:
+      en: Project description
+      nl: Projectomschrijving
+      
+  - name: TestDocument
+    type: File
+    text:
+      en: Test document
+      nl: Testdocument
+      
+  - name: Deadline
+    type: Date!
+    text:
+      en: Important deadline
+      nl: Belangrijke deadline
+      
+  - name: CanBePublished
+    type: Boolean!
+    text:
+      en: "Thesis can be published"
+      nl: "Scriptie mag gepubliceerd worden"
+
+ends:
+   event: Start

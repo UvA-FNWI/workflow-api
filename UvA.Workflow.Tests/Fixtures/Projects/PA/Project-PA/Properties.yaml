@@ -1,0 +1,38 @@
+properties:
+  - name: Course
+    type: Context!
+    inheritedRoles: [Coordinator, Impersonator]
+
+  - name: Student
+    type: User!
+
+  - name: WorkingTitle
+    type: String!
+    text:
+      en: Working title
+      nl: Werktitel
+
+  - name: EC
+    type: Int!
+    text:
+      en: EC
+      nl: EC
+
+  - name: Examiner
+    type: User!
+    text:
+      en: Examiner
+      nl: Examinator
+
+  - name: SecondReviewer
+    type: User!
+    text:
+      en: Second reviewer
+      nl: Tweede beoordelaar
+
+  - name: DailySupervisor
+    type: User!
+    allowsExternalUsers: true
+    text:
+      en: Daily supervisor
+      nl: Dagelijks begeleider

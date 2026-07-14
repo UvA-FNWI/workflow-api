@@ -1,0 +1,65 @@
+name: Assessment
+title:
+  en: Assessment
+  nl: Beoordeling
+layout: Compact
+
+pages:
+  - name: Content
+    title: Content
+    fields:
+      - ProblemStatement
+      - ProblemStatementComments
+      - TheoreticalFramework
+      - TheoreticalFrameworkComments
+      - Methods
+      - MethodsComments
+      - AnalysisEvaluationResults
+      - AnalysisEvaluationResultsComments
+      - ArgumentationCreativity
+      - ArgumentationCreativityComments
+      - ConclusionDiscussion
+      - ConclusionDiscussionComments
+    sources: [AssessmentSupervisor, AssessmentSecondReader]
+
+  - name: Form
+    title: Form
+    fields:
+      - Structure
+      - StructureComments
+      - LayoutLanguage
+      - LayoutLanguageComments
+    sources: [AssessmentSupervisor, AssessmentSecondReader]
+    
+  - name: ContentComments
+    title: Content
+    fields:
+      - ProblemStatementComments
+      - TheoreticalFrameworkComments
+      - MethodsComments
+      - AnalysisEvaluationResultsComments
+      - ArgumentationCreativityComments
+      - ConclusionDiscussionComments
+    sources: [AssessmentCombined]
+
+  - name: FormComments
+    title: Form
+    fields:
+      - StructureComments
+      - LayoutLanguageComments
+    sources: [AssessmentCombined]
+    
+  - name: FinalDetails
+    title: Final details
+    fields:
+      - APA
+      - Process
+      - DoctrinalAnalysis
+      - Motivation
+    sources: [AssessmentSupervisor, AssessmentSecondReader]
+    
+  - name: FinalDetailsConfirmation
+    title: Final details
+    fields:
+      - Motivation
+    sources: [AssessmentCombined]

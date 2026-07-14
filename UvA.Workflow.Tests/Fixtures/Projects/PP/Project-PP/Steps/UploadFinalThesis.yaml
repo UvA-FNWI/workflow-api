@@ -1,0 +1,35 @@
+name: UploadFinalThesis
+icon: 
+  type: download-line
+title:
+  en: Upload final thesis
+  nl: Eindversie scriptie uploaden
+
+actions:
+  - name: SubmitFinalThesis
+    type: Submit
+    roles: [Student, Coordinator]
+    form: UploadFinalThesis
+    label:
+      en: Submit
+      nl: Indienen
+
+properties:
+  - name: Title
+    type: String!
+    text:
+      en: Title
+      nl: Titel
+    validation:
+      value:
+        property: Title
+        maxLength: 254
+
+  - name: Report
+    type: File!
+    text:
+      en: Final version report
+      nl: Eindversie verslag
+
+ends:
+  event: UploadFinalThesis

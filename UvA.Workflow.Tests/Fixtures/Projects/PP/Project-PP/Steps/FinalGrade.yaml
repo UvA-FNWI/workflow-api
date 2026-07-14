@@ -1,0 +1,18 @@
+name: FinalGrade
+title:
+  en: Final Grade
+  nl: Eindcijfer
+icon:
+  type: graduate-cap-line
+        
+actions:
+  - name: SubmitGrade
+    type: Submit
+    roles: [Coordinator]
+    form: FinalGrade
+    label:
+      en: Publish Grade
+      nl: Cijfer publiceren
+
+ends:
+  event: SubmitGrade

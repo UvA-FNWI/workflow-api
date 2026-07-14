@@ -1,0 +1,9 @@
+name: AssessmentIndividual
+title:
+  en: Assessment thesis
+  nl: Beoordeling scriptie
+hierarchyMode: Parallel
+
+children:
+  - AssessmentSupervisor
+  - AssessmentSecondReader

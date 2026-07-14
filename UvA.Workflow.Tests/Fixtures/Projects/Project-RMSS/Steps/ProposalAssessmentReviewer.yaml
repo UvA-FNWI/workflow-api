@@ -1,0 +1,23 @@
+name: ProposalAssessmentReviewer
+title:
+  en: Assessment (proposal reviewer)
+  nl: Beoordeling (voorstelbeoordelaar)
+
+actions:
+  - type: Submit
+    roles: [Coordinator]
+    form: ProposalAndEthicsReviewReviewer
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+properties:
+  - name: ReviewerProposalAndEthicsReview
+    type: ProposalAndEthicsReview!
+
+ends:
+  logical:
+    operator: Or
+    children:
+      - event: ProposalApprovedReviewer
+      - event: ProposalRejectedReviewer

@@ -1,0 +1,10 @@
+globalActions:
+  - roles: [Student, Coordinator]
+    type: View
+    forms: [Start]
+  - roles: [Registered]
+    type: CreateInstance
+    userProperty: Student
+  - roles: [Coordinator]
+    type: Edit
+    forms: [Start]

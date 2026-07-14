@@ -1,0 +1,17 @@
+name: Upload
+title:
+  en: Final version
+  nl: Eindversie
+icon: 
+  type: download-line
+
+actions:
+  - roles: [Student]
+    type: Submit
+    form: Upload
+
+progress:
+  color: green
+
+ends:
+  event: Upload
