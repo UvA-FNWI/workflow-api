@@ -97,30 +97,53 @@ public record QuestionDto(
     ValueSetSorting? Sorting)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context,
-        decimal totalWeight) => new(
-        $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
-        propertyDefinition.Name,
-        propertyDefinition.DisplayName,
-        propertyDefinition.DataType, propertyDefinition.IsRequired, propertyDefinition.IsArray,
-        propertyDefinition.Values?.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description, v.Value))
-            .ToArray(),
-        propertyDefinition.WorkflowDefinition?.Name,
-        propertyDefinition.Description,
-        propertyDefinition.ShortDisplayName,
-        propertyDefinition.Layout,
-        propertyDefinition is { DataType: DataType.Object, WorkflowDefinition: not null }
-            ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context, totalWeight)).ToArray()
-            : null,
-        propertyDefinition.HideInResults,
-        propertyDefinition.Calculation?.Weight,
-        totalWeight == 0 || propertyDefinition.Calculation?.Weight == null
+        decimal totalWeight)
+    {
+        var choices = propertyDefinition.Values?
+            .Select(value => new ChoiceDto(
+                value.Name,
+                value.Text ?? value.Name,
+                value.Description,
+                value.Value))
+            .ToArray();
+
+        var subProperties = propertyDefinition is { DataType: DataType.Object, WorkflowDefinition: not null }
+            ? propertyDefinition.WorkflowDefinition.Properties
+                .Select(child => Create(child, context, totalWeight))
+                .ToArray()
+            : null;
+
+        var weight = propertyDefinition.Calculation?.Weight;
+        var percentage = totalWeight == 0 || weight == null
             ? null
-            : propertyDefinition.Calculation.Weight / totalWeight * 100,
-        propertyDefinition.Validation?.Value?.MaxLength,
-        propertyDefinition.AllowsExternalUsers,
-        propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList(),
-        propertyDefinition.Sorting
-    );
+            : weight / totalWeight * 100;
+
+        var rubric = propertyDefinition.Rubric?
+            .Select(entry => RubricEntryDto.Create(entry, propertyDefinition.Values))
+            .ToList();
+
+        return new QuestionDto(
+            Id: $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
+            Name: propertyDefinition.Name,
+            Text: propertyDefinition.DisplayName,
+            Type: propertyDefinition.DataType,
+            IsRequired: propertyDefinition.IsRequired,
+            IsArray: propertyDefinition.IsArray,
+            Choices: choices,
+            WorkflowDefinition: propertyDefinition.WorkflowDefinition?.Name,
+            Description: propertyDefinition.Description,
+            ShortText: propertyDefinition.ShortDisplayName,
+            Layout: propertyDefinition.Layout,
+            SubProperties: subProperties,
+            HideInResults: propertyDefinition.HideInResults,
+            Weight: weight,
+            Percentage: percentage,
+            MaxLength: propertyDefinition.Validation?.Value?.MaxLength,
+            AllowsExternalUsers: propertyDefinition.AllowsExternalUsers,
+            Rubric: rubric,
+            Sorting: propertyDefinition.Sorting
+        );
+    }
 }
 
 public record ChoiceDto(string Name, BilingualString Text, BilingualString? Description, double? Value);
