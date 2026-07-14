@@ -235,7 +235,7 @@ public class WorkflowInstanceDtoFactory(
     {
         // Resolve each RelatedUser to its user value, keyed by group name
         var usersByGroup = workflowDefinition.RelatedUsers
-            .SelectMany(relatedUser =>
+            .Select(relatedUser =>
             {
                 var value = context.Get(relatedUser.Property);
 
@@ -243,24 +243,19 @@ public class WorkflowInstanceDtoFactory(
                 var allowsExternalUsers = relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false;
                 var allowsAssignment = relatedUser.PropertyDefinition?.AllowsAssignment ?? false;
 
-                if (users.Length == 0 && allowsAssignment)
-                    return
-                    [
-                        new
-                        {
-                            relatedUser.Group,
-                            Dto = new RelatedUserDto(relatedUser.Property, relatedUser.DisplayTitle, null,
-                                allowsExternalUsers, allowsAssignment)
-                        }
-                    ];
-
-                return users.Select(user => new
+                return new
                 {
                     relatedUser.Group,
-                    Dto = new RelatedUserDto(relatedUser.Property, relatedUser.DisplayTitle,
-                        UserDto.CreateFromInstanceUser(user), allowsExternalUsers, allowsAssignment)
-                });
+                    Dto = new RelatedUserRolesDto(
+                        relatedUser.Property,
+                        relatedUser.DisplayTitle,
+                        users.Select(UserDto.CreateFromInstanceUser).ToArray(),
+                        allowsExternalUsers,
+                        allowsAssignment,
+                        relatedUser.PropertyDefinition?.IsArray ?? false)
+                };
             })
+            .Where(x => x.Dto.Users.Length > 0 || x.Dto.AllowsAssignment)
             .GroupBy(x => x.Group)
             .ToDictionary(g => g.Key, g => g.Select(x => x.Dto).ToArray());
 
