@@ -22,3 +22,27 @@ steps:
   - Upload
   - Assessment
   - Publication
+    
+relatedUsers:
+  - property: Supervisor
+    group: default
+  - property: Examiner
+    group: default
+  - property: Reviewer
+    group: default
+  - property: SecondReader
+    group: default
+  - property: Course.Coordinator
+    group: support
+  - property: Course.ConfidentialAdviser
+    group: support
+  - property: Course.StudyAdviser
+    group: support
+      
+relatedUserGrouping:
+  groups:
+    - name: default
+    - name: support
+      title: 
+        en: Other involved staff
+        nl: Andere betrokkenen

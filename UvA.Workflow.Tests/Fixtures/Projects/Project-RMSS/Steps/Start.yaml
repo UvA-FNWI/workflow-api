@@ -7,6 +7,12 @@ title:
   nl: Voorstel indienen
   en: Submit proposal
 
+progress:
+  color: green
+  text:
+    en: Writing proposal
+    nl: Schrijft voorstel
+
 properties:
   - name: Topic
     type: String!

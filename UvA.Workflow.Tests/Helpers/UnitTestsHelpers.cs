@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using Moq;
@@ -40,7 +41,8 @@ internal static class UnitTestsHelpers
         var workerOptions = Options.Create(new WorkerOptions { WorkerGroup = workerGroup });
         var env = new Mock<IHostEnvironment>();
         env.Setup(e => e.EnvironmentName).Returns(environmentName);
-        return new MailBuilder(layoutResolver, configuration, workerOptions, env.Object);
+        return new MailBuilder(layoutResolver, configuration, workerOptions, env.Object,
+            NullLogger<MailBuilder>.Instance);
     }
 
     public sealed class TestOptionsMonitor<T>(T currentValue) : IOptionsMonitor<T>

@@ -23,6 +23,11 @@ public class InstanceUser
 
     [BsonElement("IsExternal")] public bool IsExternal { get; set; }
 
+    [BsonElement("InvitationState")]
+    [BsonIgnoreIfNull]
+    [BsonRepresentation(BsonType.String)]
+    public UserInvitationState? InvitationState { get; set; } = null;
+
     public static InstanceUser FromUser(User user) => new()
     {
         Id = user.Id,
@@ -31,6 +36,7 @@ public class InstanceUser
         Email = user.Email,
         PreferredLanguage = user.PreferredLanguage,
         Organization = user.Organization,
-        IsExternal = UserProviderKeys.IsExternal(user.ProviderKey)
+        IsExternal = UserProviderKeys.IsExternal(user.ProviderKey),
+        InvitationState = user.InvitationState
     };
 }

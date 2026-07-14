@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -36,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<InstanceAuthorizationFilterService>();
         services.AddScoped<RoleImpersonationService>();
         services.AddScoped<IImpersonationContextService>(sp => sp.GetRequiredService<RoleImpersonationService>());
+        services.AddScoped<ExternalUserEmailUpdateService>();
 
         return services;
     }
