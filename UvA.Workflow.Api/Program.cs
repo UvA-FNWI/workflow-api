@@ -80,7 +80,7 @@ app.UseCors(corsPolicyName);
 app.UseWorkflowAuthenticationSelector();
 app.UseWorkflowCanvasLti(app.Configuration);
 
-await app.Services.GetRequiredService<WorkflowConfigLoader>().LoadBaselineOrFallbackAsync();
+await app.Services.GetRequiredService<WorkflowConfigLoader>().LoadBaselineAsync();
 
 using var scope = app.Services.CreateScope();
 await scope.ServiceProvider.GetRequiredService<MongoDbIndexInitializer>().EnsureIndexes();

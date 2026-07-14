@@ -32,14 +32,12 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
-    public async Task LoadBaseline_NoSourceConfigured_FallsBackToExamples()
+    public async Task LoadBaseline_NoSourceConfigured_Throws()
     {
-        var opts = new WorkflowSourceOptions(); // no LocalPath, no RepoUrl -> baked Examples
-        var resolver = CreateResolver();
+        var opts = new WorkflowSourceOptions(); // no LocalPath, no RepoUrl
 
-        await CreateLoader(resolver, opts).LoadBaselineAsync();
-
-        Assert.True(resolver.Get().WorkflowDefinitions.ContainsKey("Project"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateLoader(CreateResolver(), opts).LoadBaselineAsync());
     }
 
     [Fact]
@@ -66,17 +64,6 @@ public class WorkflowConfigLoaderTests
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Throws(new HttpRequestException("boom"));
         return new WorkflowConfigLoader(factory.Object, resolver, Options.Create(opts),
             new MailTemplateStore(), NullLogger<WorkflowConfigLoader>.Instance);
-    }
-
-    [Fact]
-    public async Task LoadBaselineOrFallback_FetchFails_FallsBackToBakedExamples()
-    {
-        var opts = new WorkflowSourceOptions { RepoUrl = "https://github.com/uva/milestones-config" };
-        var resolver = CreateResolver();
-
-        await FetchFailingLoader(resolver, opts).LoadBaselineOrFallbackAsync(); // boot: must not throw
-
-        Assert.True(resolver.Get().WorkflowDefinitions.ContainsKey("Project"));
     }
 
     [Fact]

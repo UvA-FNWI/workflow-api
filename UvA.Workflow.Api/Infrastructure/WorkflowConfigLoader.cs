@@ -15,22 +15,7 @@ public class WorkflowConfigLoader(
 {
     private readonly WorkflowSourceOptions _opts = options.Value;
 
-    /// Boot load: never throws, so a bad config repo can't crash-loop the pod; falls back to the bundled definitions.
-    public async Task LoadBaselineOrFallbackAsync()
-    {
-        try
-        {
-            await LoadBaselineAsync();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Baseline config load failed at startup; falling back to baked config");
-            var projectsDir = BakedProjectsDir();
-            InstallBaseline(new FileSystemProvider(projectsDir), null, projectsDir);
-        }
-    }
-
-    /// Fetch the ref and install it as the default version. Throws on failure, so a failed reload keeps the current one.
+    /// Fetch the ref and install it as the default version. Throws on failure.
     public async Task LoadBaselineAsync()
     {
         var (provider, commit, projectsDir) = await BuildProviderAsync(_opts.Ref);
@@ -57,19 +42,15 @@ public class WorkflowConfigLoader(
         logger.LogInformation("Loaded preview config ref {Ref} commit {Commit}", @ref, commit);
     }
 
-    // Failures propagate; only the boot path catches them. Returns the Projects dir so the caller can
-    // read the sibling Layouts/ from the same source.
+    // Returns the Projects dir so the caller can read the sibling Layouts/ from the same source.
     private async Task<(IContentProvider Provider, string? Commit, string ProjectsDir)> BuildProviderAsync(string @ref)
     {
         if (!string.IsNullOrWhiteSpace(_opts.LocalPath))
             return (new FileSystemProvider(_opts.LocalPath), null, _opts.LocalPath);
 
-        // No source configured: the definitions bundled with the app.
         if (string.IsNullOrWhiteSpace(_opts.RepoUrl))
-        {
-            var baked = BakedProjectsDir();
-            return (new FileSystemProvider(baked), null, baked);
-        }
+            throw new InvalidOperationException(
+                "No workflow source configured; set WorkflowSource:RepoUrl or WorkflowSource:LocalPath");
 
         var (root, commit) = await FetchAndExtractAsync(@ref);
         var projectsDir = Path.Combine(root, "Projects");
@@ -118,9 +99,6 @@ public class WorkflowConfigLoader(
             return null; // best-effort provenance; fall back to fetching by ref
         }
     }
-
-    private static string BakedProjectsDir()
-        => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../Examples/Projects");
 
     // Git refs can't contain these; also blocks path traversal into another repo via the URL.
     private static void ValidateRef(string @ref)

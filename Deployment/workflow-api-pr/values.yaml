@@ -8,6 +8,9 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
+workflowSource:
+  repoUrl: ""
+
 allowedOrigins: "http://localhost:5173,https://*.instructure.com"
 frontendBaseUrl: "http://localhost:5173"
 

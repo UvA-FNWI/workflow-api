@@ -1,8 +1,0 @@
-name: Decision
-
-pages:
-  - name: Page
-    fields:
-      - DecisionComment
-      - Decision
-      - DecisionAmount

@@ -1,8 +1,0 @@
-name: SystemAdmin
-actions:
-  - type: ViewAdminTools
-  - type: ImpersonateRoles
-  - type: View
-  - type: Edit
-  - type: Submit
-  - type: Execute

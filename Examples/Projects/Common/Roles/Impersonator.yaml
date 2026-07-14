@@ -1,6 +1,0 @@
-name: Impersonator
-title:
-  en: Impersonator
-  nl: Impersonator
-actions:
-  - type: ImpersonateRoles
