@@ -15,4 +15,4 @@ actions:
       nl: Cijfer publiceren
 
 ends:
-  event: SubmitGrade
+  event: FinalGrade

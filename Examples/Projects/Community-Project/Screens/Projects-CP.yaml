@@ -12,6 +12,9 @@ columns:
   - property: StartEvent
     title: Start
   - currentStep: true
+    title:
+      en: Progress
+      nl: Voortgang
     filterType: Pick
     default: Draft
 
@@ -25,14 +28,13 @@ grouping:
         - Proposal_Feedback
 
     - name: Project-in-progress
-      title: Project in Progress
+      title: Working on Project
       steps:
         - LearningPlan
         - InterimLearningPlan
         - FinalReport
     
     - name: assessment-in-progress
-      title: Assessment in Progress
+      title: Assessment
       steps:
         - Assessment
-  

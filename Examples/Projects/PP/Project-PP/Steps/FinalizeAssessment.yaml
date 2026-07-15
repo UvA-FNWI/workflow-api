@@ -3,6 +3,12 @@ resultsType: AssessmentFinalOverview
 title:
   en: Finalize assessment
   nl: Beoordeling afronden
+
+progress:
+  color: red
+  text:
+    en: Waiting for final grade {{ coalesce(formatDate(AssessmentPresentationEvent, =dd-MM-yyyy), =) }}
+    nl: Wacht op eindcijfer {{ coalesce(formatDate(AssessmentPresentationEvent, =dd-MM-yyyy), =) }}
   
 icon: 
   type: law-balance-line

@@ -3,3 +3,8 @@ icon:
   type: graduate-cap-line
 
 title: Assessment
+
+progress:
+  text:
+    en: Assessment
+    nl: Beoordeling
