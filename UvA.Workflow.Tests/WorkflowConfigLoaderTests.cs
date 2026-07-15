@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -15,9 +16,11 @@ public class WorkflowConfigLoaderTests
     private static ModelServiceResolver CreateResolver()
         => new(new Mock<IHttpContextAccessor>().Object);
 
+    private static IMemoryCache CreateCache() => new MemoryCache(new MemoryCacheOptions());
+
     private static WorkflowConfigLoader CreateLoader(ModelServiceResolver resolver, WorkflowSourceOptions opts)
         => new(new Mock<IHttpClientFactory>().Object, resolver, Options.Create(opts),
-            new MailTemplateStore(), NullLogger<WorkflowConfigLoader>.Instance);
+            new MailTemplateStore(), CreateCache(), NullLogger<WorkflowConfigLoader>.Instance);
 
     [Fact]
     public async Task LoadBaseline_FromLocalPath_RegistersBaselineWithDefinitions()
@@ -63,7 +66,7 @@ public class WorkflowConfigLoaderTests
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Throws(new HttpRequestException("boom"));
         return new WorkflowConfigLoader(factory.Object, resolver, Options.Create(opts),
-            new MailTemplateStore(), NullLogger<WorkflowConfigLoader>.Instance);
+            new MailTemplateStore(), CreateCache(), NullLogger<WorkflowConfigLoader>.Instance);
     }
 
     [Fact]

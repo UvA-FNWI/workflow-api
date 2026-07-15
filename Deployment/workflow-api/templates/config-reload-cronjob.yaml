@@ -46,6 +46,6 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: restart
-              image: bitnami/kubectl:1.31
+              image: registry.k8s.io/kubectl:v1.31.0
               command: ["kubectl", "rollout", "restart", "deployment/workflow-api"]
 {{- end }}

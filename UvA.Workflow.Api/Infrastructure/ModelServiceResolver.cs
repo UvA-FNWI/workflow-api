@@ -2,19 +2,28 @@ using System.Collections.Concurrent;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
+/// How a loaded version got there: the default baseline, a git branch preview, or an uploaded set of files.
+public enum VersionKind
+{
+    Baseline,
+    Branch,
+    Upload
+}
+
 /// A loaded config version and where it came from.
-public record VersionInfo(string Name, string? Commit, DateTimeOffset LoadedAt);
+public record VersionInfo(string Name, string? Commit, DateTimeOffset LoadedAt, VersionKind Kind);
 
 /// Loaded workflow models, keyed by version. A request selects one with the Workflow-Version header, or
 /// gets the default version, which is stored under the empty-string key.
 public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 {
-    private record Entry(ModelParser Parser, string? Commit, DateTimeOffset LoadedAt);
+    private record Entry(ModelParser Parser, string? Commit, DateTimeOffset LoadedAt, VersionKind Kind);
 
     private readonly ConcurrentDictionary<string, Entry> _entries = new();
 
-    public void AddOrUpdate(string version, ModelParser parser, string? commit = null)
-        => _entries[version] = new Entry(parser, commit, DateTimeOffset.UtcNow);
+    public void AddOrUpdate(string version, ModelParser parser, string? commit = null,
+        VersionKind kind = VersionKind.Upload)
+        => _entries[version] = new Entry(parser, commit, DateTimeOffset.UtcNow, kind);
 
     public ModelService Get()
     {
@@ -24,5 +33,5 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
     }
 
     public IReadOnlyCollection<VersionInfo> GetVersions()
-        => _entries.Select(kv => new VersionInfo(kv.Key, kv.Value.Commit, kv.Value.LoadedAt)).ToArray();
+        => _entries.Select(kv => new VersionInfo(kv.Key, kv.Value.Commit, kv.Value.LoadedAt, kv.Value.Kind)).ToArray();
 }

@@ -19,6 +19,7 @@ data:
   FrontendBaseUrl: "{{ .Values.frontendBaseUrl }}"
 
   WorkflowSource__RepoUrl: "{{ .Values.workflowSource.repoUrl }}"
+  WorkflowSource__Ref: "{{ .Values.workflowSource.ref }}"
 
   SurfConext__BaseUrl: "{{ .Values.surfConext.baseUrl }}"
   SurfConext__ClientId: "{{ .Values.surfConext.clientId }}"

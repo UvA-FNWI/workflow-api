@@ -10,6 +10,7 @@ logLevel: Debug
 
 workflowSource:
   repoUrl: ""
+  ref: main
 
 allowedOrigins: "http://localhost:5173,https://*.instructure.com"
 frontendBaseUrl: "http://localhost:5173"
