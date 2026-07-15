@@ -188,7 +188,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        if (!await rightsService.Can(instance, [RoleAction.Edit], RightsEvaluationMode.RealUser))
+        if (!await rightsService.CanEditProperty(instance, property))
             return Forbidden();
 
         var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
@@ -226,7 +226,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        if (!await rightsService.Can(instance, [RoleAction.Edit], RightsEvaluationMode.RealUser))
+        if (!await rightsService.CanEditProperty(instance, property))
             return Forbidden();
 
         var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties

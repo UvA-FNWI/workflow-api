@@ -130,7 +130,8 @@ public record RelatedUserRolesDto(
     UserDto[] Users,
     bool AllowsExternalUsers,
     bool AllowsAssignment,
-    bool AllowsMultipleUsers
+    bool AllowsMultipleUsers,
+    bool CanEdit
 );
 
 public record RelatedUserGroupDto(
