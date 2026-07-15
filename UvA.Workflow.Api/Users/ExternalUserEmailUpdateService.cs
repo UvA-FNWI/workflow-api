@@ -12,12 +12,14 @@ public enum ExternalUserEmailAnswerUpdateResult
 
 public record ExternalUserEmailAnswerUpdatePlan(
     ExternalUserEmailAnswerUpdateResult Result,
-    IReadOnlyCollection<QuestionContext> EditableContexts);
+    IReadOnlyCollection<QuestionContext> EditableContexts,
+    IReadOnlyCollection<PropertyDefinition> EditableProperties);
 
 public class ExternalUserEmailUpdateService(
     RightsService rightsService,
     AnswerService answerService,
-    ModelService modelService)
+    ModelService modelService,
+    InstanceService instanceService)
 {
     public static bool CanUpdateExternalUserEmail(User user)
         => UserProviderKeys.IsExternal(user.ProviderKey) &&
@@ -29,10 +31,21 @@ public class ExternalUserEmailUpdateService(
         CancellationToken ct)
     {
         var contexts = GetMatchingUserQuestionContexts(instance, user.Id).ToArray();
+
         if (contexts.Length == 0)
+        {
+            var instanceProperties = GetMatchingInstanceOnlyProperties(instance, user.Id).ToArray();
+
+            if (instanceProperties.Length == 0)
+                return new ExternalUserEmailAnswerUpdatePlan(
+                    ExternalUserEmailAnswerUpdateResult.UserNotInAnswer,
+                    [], []);
+
             return new ExternalUserEmailAnswerUpdatePlan(
-                ExternalUserEmailAnswerUpdateResult.UserNotInAnswer,
-                []);
+                ExternalUserEmailAnswerUpdateResult.Updated,
+                [], instanceProperties);
+        }
+
 
         var editableContexts = new List<QuestionContext>();
         foreach (var context in contexts)
@@ -44,16 +57,17 @@ public class ExternalUserEmailUpdateService(
         if (editableContexts.Count == 0)
             return new ExternalUserEmailAnswerUpdatePlan(
                 ExternalUserEmailAnswerUpdateResult.Forbidden,
-                []);
+                [], []);
 
         return new ExternalUserEmailAnswerUpdatePlan(
             ExternalUserEmailAnswerUpdateResult.Updated,
-            editableContexts);
+            editableContexts, []);
     }
 
     public async Task UpdateAnswerReferences(
         ExternalUserEmailAnswerUpdatePlan plan,
         User user,
+        WorkflowInstance instance,
         CancellationToken ct)
     {
         foreach (var context in plan.EditableContexts)
@@ -62,6 +76,12 @@ public class ExternalUserEmailUpdateService(
                 continue;
 
             await answerService.SaveAnswer(context, updatedAnswerValue, ct);
+        }
+
+        foreach (var property in plan.EditableProperties)
+        {
+            UpdateInstanceUserProperty(instance, property, user);
+            await instanceService.SaveValue(instance, null, property.Name, ct);
         }
     }
 
@@ -79,6 +99,39 @@ public class ExternalUserEmailUpdateService(
             }
         }
     }
+
+    /// <summary>
+    /// For user properties that are not part of a form
+    /// </summary>
+    private IEnumerable<PropertyDefinition> GetMatchingInstanceOnlyProperties(
+        WorkflowInstance instance, string userId)
+    {
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
+        // Properties that appear in at least one form are already handled by GetMatchingUserQuestionContexts
+        var propertiesInForms = workflowDefinition.Forms
+            .SelectMany(f => f.PropertyDefinitions)
+            .Select(p => p.Name)
+            .ToHashSet();
+
+        return workflowDefinition.Properties
+            .Where(p => p.DataType == DataType.User && !propertiesInForms.Contains(p.Name))
+            .Where(property =>
+            {
+                var rawValue = instance.GetProperty(property.Name);
+                if (rawValue == null || rawValue.IsBsonNull) return false;
+
+                if (property.IsArray)
+                {
+                    var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
+                    return users?.Any(u => u.Id == userId) == true;
+                }
+
+                var user = ObjectContext.GetValue(rawValue, property) as InstanceUser;
+                return user?.Id == userId;
+            });
+    }
+
 
     private static bool ContainsUserAnswerValue(QuestionContext context, string userId)
     {
@@ -132,4 +185,23 @@ public class ExternalUserEmailUpdateService(
             [context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit],
             RightsEvaluationMode.RequestContext,
             context.Form.Name);
+
+    private static void UpdateInstanceUserProperty(WorkflowInstance instance, PropertyDefinition property, User user)
+    {
+        var rawValue = instance.GetProperty(property.Name);
+        if (rawValue == null || rawValue.IsBsonNull) return;
+
+        var updatedUser = InstanceUser.FromUser(user);
+        if (property.IsArray)
+        {
+            var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
+            if (users == null) return;
+            instance.Properties[property.Name] = new BsonArray(
+                users.Select(u => u.Id == user.Id ? updatedUser.ToBsonDocument() : u.ToBsonDocument()));
+        }
+        else
+        {
+            instance.Properties[property.Name] = updatedUser.ToBsonDocument();
+        }
+    }
 }
