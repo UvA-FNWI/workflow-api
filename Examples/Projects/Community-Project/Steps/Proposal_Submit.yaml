@@ -4,6 +4,12 @@ title:
   nl: Proposal Submission
   en: Proposal Submission
 
+progress:
+  color: green
+  text:
+    en: Writing proposal
+    nl: Schrijft voorstel
+
 actions:
   - roles: [Student]
     type: Submit
@@ -181,4 +187,3 @@ properties:
 ends:
   event:
     id: Proposal
-

@@ -11,10 +11,12 @@ namespace UvA.Workflow.Api.Users;
 public class UsersController(
     IUserService userService,
     IUserRepository userRepository,
+    IWorkflowInstanceRepository workflowInstanceRepository,
     RightsService rightsService,
     IEduIdUserService eduIdUserService,
     HttpContextCurrentUserAccessor realUserAccessor,
     UserImpersonationTokenService userImpersonationTokenService,
+    ExternalUserEmailUpdateService externalUserEmailUpdateService,
     ILogger<UsersController> logger) : ApiControllerBase
 {
     private const string ValidEmailStatus = "Valid";
@@ -22,6 +24,7 @@ public class UsersController(
     private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
     private const string InvalidEmailAddressCode = "InvalidEmailAddress";
     private const string ImpersonationTargetNotFoundCode = "ImpersonationTargetNotFound";
+    private const string UserNotInAnswerCode = "UserNotInAnswer";
 
     private const string InternalEmailMessage = "Internal email address";
     private const string DuplicateEmailMessage = "Email already exists";
@@ -90,6 +93,59 @@ public class UsersController(
         var user = await userRepository.GetById(id, ct);
         if (user == null)
             return UserNotFound;
+
+        return Ok(UserDto.Create(user));
+    }
+
+    [HttpPut("{id}/email")]
+    public async Task<ActionResult<UserDto>> UpdateEmail(
+        string id,
+        [FromBody] UpdateUserEmailDto dto,
+        CancellationToken ct)
+    {
+        var instance = await workflowInstanceRepository.GetById(dto.InstanceId, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        var user = await userRepository.GetById(id, ct);
+        if (user == null)
+            return UserNotFound;
+
+        if (!ExternalUserEmailUpdateService.CanUpdateExternalUserEmail(user))
+        {
+            return Unprocessable(
+                "UserEmailUpdateNotAllowed",
+                "Email address can only be updated for external users that have not started an invitation");
+        }
+
+        var updatePlan = await externalUserEmailUpdateService.PrepareAnswerReferenceUpdate(instance, user, ct);
+        switch (updatePlan.Result)
+        {
+            case ExternalUserEmailAnswerUpdateResult.UserNotInAnswer:
+                return Unprocessable(UserNotInAnswerCode, UserNotInAnswerCode);
+            case ExternalUserEmailAnswerUpdateResult.Forbidden:
+                return Forbidden();
+        }
+
+        if (user.Email != dto.Email)
+        {
+            var emailValidationResult = await ValidateEmail(dto.Email, ct);
+            if (emailValidationResult != null)
+                return emailValidationResult;
+        }
+
+        var previousEmail = user.Email;
+        var email = dto.Email.Trim();
+        var userChanged = !string.Equals(user.Email, email, StringComparison.Ordinal);
+        if (!userChanged)
+            return Ok(UserDto.Create(user));
+
+        user.Email = email;
+        if (string.Equals(user.UserName, previousEmail, StringComparison.OrdinalIgnoreCase))
+            user.UserName = email;
+
+        await userRepository.Update(user, ct);
+        await externalUserEmailUpdateService.UpdateAnswerReferences(updatePlan, user, ct);
 
         return Ok(UserDto.Create(user));
     }

@@ -41,7 +41,6 @@ public class EffectService(
     ModelService modelService,
     IMailService mailService,
     IEduIdUserService eduIdUserService,
-    MailBuilder mailBuilder,
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IConfiguration configuration,
@@ -74,7 +73,7 @@ public class EffectService(
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
 
-        mail ??= await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
+        mail ??= await instanceService.BuildMail(instance, sendMail, ct);
         var dispatchResult = await mailService.Send(mail, ct);
 
         var attachments = new List<ArtifactInfo>();
@@ -171,6 +170,7 @@ public class EffectService(
             .Select(r => (Recipient: r, Email: r.Email?.Trim() ?? string.Empty))
             .DistinctBy(r => r.Email, StringComparer.OrdinalIgnoreCase);
 
+        var updatedExternalUsers = new Dictionary<string, InstanceUser>(StringComparer.OrdinalIgnoreCase);
         foreach (var (recipient, email) in normalizedRecipients)
         {
             try
@@ -184,12 +184,46 @@ public class EffectService(
                     ex);
             }
 
-            _ = await eduIdUserService.EnsureExternalAccount(
+            var result = await eduIdUserService.EnsureExternalAccount(
                 email,
                 recipient.DisplayName,
                 EduIdInviteDeliveryMode.SendEmail,
                 ct);
+            if (result.User != null)
+                updatedExternalUsers[email] = InstanceUser.FromUser(result.User);
         }
+
+        if (updatedExternalUsers.Count == 0)
+            return;
+
+        UpdateInstanceUserProperties(instance, property, rawValue, updatedExternalUsers);
+        await instanceService.SaveValue(instance, null, property.Name, ct);
+    }
+
+    private static void UpdateInstanceUserProperties(
+        WorkflowInstance instance,
+        PropertyDefinition property,
+        BsonValue rawValue,
+        IReadOnlyDictionary<string, InstanceUser> updatedRecipientsByEmail)
+    {
+        if (property.IsArray)
+        {
+            var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
+            if (users == null) return;
+
+            instance.Properties[property.Name] = new BsonArray(users.Select(user =>
+                updatedRecipientsByEmail.TryGetValue(user.Email?.Trim() ?? string.Empty, out var updatedUser)
+                    ? updatedUser.ToBsonDocument()
+                    : user.ToBsonDocument()));
+            return;
+        }
+
+        var singleUser = ObjectContext.GetValue(rawValue, property) as InstanceUser;
+        if (singleUser == null ||
+            !updatedRecipientsByEmail.TryGetValue(singleUser.Email?.Trim() ?? string.Empty, out var updatedSingleUser))
+            return;
+
+        instance.Properties[property.Name] = updatedSingleUser.ToBsonDocument();
     }
 
     private async Task ServiceCall(WorkflowInstance instance, ObjectContext context, Effect effect,

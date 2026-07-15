@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Notifications;
@@ -24,7 +25,8 @@ public record WorkflowInstanceDto(
     RoleAction[] Permissions,
     bool CanUseAdminTools,
     bool CanImpersonate,
-    string[] ViewerRoles
+    string[] ViewerRoles,
+    RelatedUserGroupsDto RelatedUserGroups
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value);
@@ -121,3 +123,18 @@ public record InstanceEventDto(
         return new InstanceEventDto(instanceEvent.Id, instanceEvent.Date);
     }
 }
+
+public record RelatedUserDto(
+    BilingualString Title,
+    UserDto? User
+);
+
+public record RelatedUserGroupDto(
+    string Name,
+    BilingualString Title,
+    RelatedUserDto[] Users
+);
+
+public record RelatedUserGroupsDto(
+    RelatedUserGroupDto[] Groups
+);

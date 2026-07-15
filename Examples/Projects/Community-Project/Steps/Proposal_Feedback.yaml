@@ -4,6 +4,12 @@ title:
   nl: Proposal Feedback
   en: Proposal Feedback
 
+progress:
+  color: red
+  text:
+    en: Waiting for approval {{ coalesce(formatDate(ProposalEvent, =dd-MM-yyyy), =) }}
+    nl: Wacht op goedkeuring {{ coalesce(formatDate(ProposalEvent, =dd-MM-yyyy), =) }}
+
 ends: 
   logical:
     operator: Or

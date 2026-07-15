@@ -21,7 +21,7 @@ onSubmit:
       property: Invoice.Number
       value: generateInvoiceNumber(Invoice.Request.Id)
   - sendMail:
-      toAddress: rvl@math.leidenuniv.nl
+      to: rvl@math.leidenuniv.nl
       sendAutomatically: true
       sendAsMail: true
       subject: New invoice {{ Invoice.Number }} for C{{ Invoice.Request.Id }}
