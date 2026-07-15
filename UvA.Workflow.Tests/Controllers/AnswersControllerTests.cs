@@ -269,7 +269,6 @@ public class AnswersControllerTests : ControllerTestsBase
 
         var controller =
             new AnswersController(
-                _userServiceMock.Object,
                 _answerService,
                 _answerConversionService,
                 _rightsService,
