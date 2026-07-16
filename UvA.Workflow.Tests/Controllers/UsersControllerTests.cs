@@ -215,7 +215,7 @@ public class UsersControllerTests : ControllerTestsBase
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start", id: InstanceId)
             .WithProperties(
-                ("Examiner", _ => new BsonDocument
+                ("Supervisor", _ => new BsonDocument
                 {
                     { "_id", ObjectId.Parse(userId) },
                     { "UserName", "old@example.org" },
@@ -240,8 +240,8 @@ public class UsersControllerTests : ControllerTestsBase
         await controller.UpdateEmail(user.Id,
             new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
 
-        Assert.Equal("new@example.org", instance.Properties["Examiner"].AsBsonDocument["Email"].AsString);
-        Assert.Equal("new@example.org", instance.Properties["Examiner"].AsBsonDocument["UserName"].AsString);
+        Assert.Equal("new@example.org", instance.Properties["Supervisor"].AsBsonDocument["Email"].AsString);
+        Assert.Equal("new@example.org", instance.Properties["Supervisor"].AsBsonDocument["UserName"].AsString);
         Assert.Equal("new@example.org", instance.Properties["Reviewer"].AsBsonDocument["Email"].AsString);
         Assert.Equal("new@example.org", instance.Properties["Reviewer"].AsBsonDocument["UserName"].AsString);
         _workflowInstanceRepoMock.Verify(r => r.UpdateFields(instance.Id,

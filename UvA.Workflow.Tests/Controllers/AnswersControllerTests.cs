@@ -142,24 +142,18 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.DoesNotContain(pickerUser.GetType().GetProperties(), p => p.Name == "ProviderKey");
 
         var answer = Assert.Single(response.Answers, a => a.QuestionName == "Supervisor");
-        Assert.NotNull(answer.Value);
-        Assert.Equal(JsonValueKind.Array, answer.Value.Value.ValueKind);
-        Assert.Equal(1, answer.Value.Value.GetArrayLength());
-        var answerUser = answer.Value.Value.EnumerateArray().First();
-        Assert.Equal("external@example.org", answerUser.GetProperty("userName").GetString());
-        Assert.Equal("External User", answerUser.GetProperty("displayName").GetString());
-        Assert.Equal("external@example.org", answerUser.GetProperty("email").GetString());
-        Assert.True(answerUser.GetProperty("isExternal").GetBoolean());
+        Assert.True(answer.Value.HasValue);
+        Assert.Equal("external@example.org", answer.Value.Value.GetProperty("userName").GetString());
+        Assert.Equal("External User", answer.Value.Value.GetProperty("displayName").GetString());
+        Assert.Equal("external@example.org", answer.Value.Value.GetProperty("email").GetString());
+        Assert.True(answer.Value.Value.GetProperty("isExternal").GetBoolean());
 
         var submissionAnswer = Assert.Single(response.Submission.Answers, a => a.QuestionName == "Supervisor");
-        Assert.NotNull(submissionAnswer.Value);
-        Assert.Equal(JsonValueKind.Array, submissionAnswer.Value.Value.ValueKind);
-        Assert.Equal(1, submissionAnswer.Value.Value.GetArrayLength());
-        var submissionUser = answer.Value.Value.EnumerateArray().First();
-        Assert.Equal("external@example.org", submissionUser.GetProperty("userName").GetString());
-        Assert.Equal("External User", submissionUser.GetProperty("displayName").GetString());
-        Assert.Equal("external@example.org", submissionUser.GetProperty("email").GetString());
-        Assert.True(submissionUser.GetProperty("isExternal").GetBoolean());
+        Assert.True(submissionAnswer.Value.HasValue);
+        Assert.Equal("external@example.org", submissionAnswer.Value.Value.GetProperty("userName").GetString());
+        Assert.Equal("External User", submissionAnswer.Value.Value.GetProperty("displayName").GetString());
+        Assert.Equal("external@example.org", submissionAnswer.Value.Value.GetProperty("email").GetString());
+        Assert.True(submissionAnswer.Value.Value.GetProperty("isExternal").GetBoolean());
     }
 
     [Fact]
@@ -171,7 +165,7 @@ public class AnswersControllerTests : ControllerTestsBase
             controller.SaveAnswer(
                 instance.Id,
                 "Start",
-                "Examiner",
+                "Supervisor",
                 new SaveAnswerRequest(
                     Value: null,
                     ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),

@@ -137,10 +137,8 @@ public class ActionsControllerTests : ControllerTestsBase
     {
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
         var supervisorId = ObjectId.GenerateNewId().ToString();
-        instance.Properties["Supervisor"] = new BsonArray
-        {
-            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org", objectId: supervisorId)
-        };
+        instance.Properties["Supervisor"] =
+            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org", objectId: supervisorId);
         var invitedSupervisor = new User
         {
             Id = supervisorId,
@@ -167,8 +165,7 @@ public class ActionsControllerTests : ControllerTestsBase
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
-        var supervisor =
-            BsonSerializer.Deserialize<InstanceUser>(instance.Properties["Supervisor"].AsBsonArray[0].AsBsonDocument);
+        var supervisor = BsonSerializer.Deserialize<InstanceUser>(instance.Properties["Supervisor"].AsBsonDocument);
         Assert.Equal(UserInvitationState.Pending, supervisor.InvitationState);
         Assert.True(supervisor.IsExternal);
         _eduIdUserServiceMock.VerifyAll();
