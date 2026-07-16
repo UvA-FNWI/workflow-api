@@ -42,6 +42,8 @@ public abstract class ApiControllerBase : ControllerBase
     private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
     private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
     private const string InvalidEmailAddressCode = "InvalidEmailAddress";
+    private const string ExternalUsersNotAllowedCode = "ExternalUsersNotAllowed";
+    private const string InvalidQuestionTypeCode = "InvalidQuestionType";
 
     protected ObjectResult MapExternalUserCreationError(ExternalUserCreationException ex) => ex.Reason switch
     {
@@ -51,6 +53,10 @@ public abstract class ApiControllerBase : ControllerBase
             BadRequest(ManualUserInternalEmailCode, ManualUserInternalEmailCode),
         ExternalUserCreationFailureReason.UserAlreadyExists =>
             Conflict(ManualUserEmailAlreadyExistsCode, ManualUserEmailAlreadyExistsCode),
+        ExternalUserCreationFailureReason.ExternalUsersNotAllowed =>
+            Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode),
+        ExternalUserCreationFailureReason.InvalidQuestionType =>
+            Unprocessable(InvalidQuestionTypeCode, InvalidQuestionTypeCode),
         _ => Unprocessable(ex.Reason.ToString(), ex.Message)
     };
 }

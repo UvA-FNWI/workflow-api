@@ -242,11 +242,12 @@ public class AnswerService(
         if (externalUser != null)
         {
             if (propertyDefinition.DataType != DataType.User)
-                throw new InvalidWorkflowStateException(propertyDefinition.Name, "InvalidQuestionType",
-                    $"Property '{propertyDefinition.Name}' is not a user property");
+                throw new ExternalUserCreationException(
+                    ExternalUserCreationFailureReason.InvalidQuestionType, "InvalidQuestionType");
 
             if (propertyDefinition.AllowsExternalUsers != true)
-                throw new InvalidOperationException("ExternalUsersNotAllowed");
+                throw new ExternalUserCreationException(ExternalUserCreationFailureReason.ExternalUsersNotAllowed,
+                    "ExternalUsersNotAllowed");
 
             createdUser = await externalUserService.CreateOrUpdateExternalUser(
                 externalUser.DisplayName, externalUser.Email, externalUser.Organization, ct);
@@ -257,8 +258,8 @@ public class AnswerService(
             propertyDefinition.AllowsExternalUsers != true &&
             value is JsonElement userValue &&
             await answerConversionService.ContainsExternalUserSelection(userValue, propertyDefinition.IsArray, ct))
-            throw new InvalidWorkflowStateException(propertyDefinition.Name, "ExternalUsersNotAllowed",
-                $"Property '{propertyDefinition.Name}' does not allow external users");
+            throw new ExternalUserCreationException(ExternalUserCreationFailureReason.ExternalUsersNotAllowed,
+                "ExternalUsersNotAllowed");
 
         if (propertyDefinition.DataType == DataType.Choice && value is JsonElement choiceValue &&
             AnswerConversionService.FindInvalidChoice(choiceValue, propertyDefinition) is { } invalidChoice)
