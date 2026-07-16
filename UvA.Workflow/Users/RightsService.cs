@@ -290,8 +290,14 @@ public class RightsService(
 
     public async Task<bool> CanEditProperty(WorkflowInstance instance, string propertyName)
     {
+        // Properties accessed via a dot-notation path (e.g. Course.StudyAdvisor) belong to a referenced/context entity, not to this workflow instance, and cannot be edited here.
+        if (propertyName.Contains('.'))
+            return false;
+
+        var allowedEditActions = await GetAllowedActions(instance, RightsEvaluationMode.RealUser, RoleAction.Edit);
+
         // 1. Instance-level edit rights
-        if (await Can(instance, [RoleAction.Edit], RightsEvaluationMode.RealUser))
+        if (allowedEditActions.Any(a => a.AllForms.Length == 0 && a.PropertyDefinition == null))
             return true;
 
         // 2. Form-level edit rights
@@ -301,7 +307,6 @@ public class RightsService(
             .Select(f => f.Name)
             .ToArray();
 
-        var allowedEditActions = await GetAllowedActions(instance, RightsEvaluationMode.RealUser, RoleAction.Edit);
         if (allowedEditActions.Any(a => formsContainingProperty.Any(f => a.MatchesForm(f))))
             return true;
 
