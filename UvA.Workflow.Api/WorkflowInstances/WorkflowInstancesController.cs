@@ -129,6 +129,10 @@ public class WorkflowInstancesController(
         ));
     }
 
+    /// <summary>
+    /// Endpoint used to create an export of grading data for PPLE
+    /// TODO: remove this or use it to create some kind of generic export function 
+    /// </summary>
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
     [HttpGet("instances/{workflowDefinition}/full")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetFullInstances(string workflowDefinition,

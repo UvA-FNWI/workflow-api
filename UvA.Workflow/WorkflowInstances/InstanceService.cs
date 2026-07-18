@@ -84,10 +84,14 @@ public class InstanceService(
                 var result = assessmentService.GetAssessmentResult(workflowDefinition, context, config);
                 var dict = result.PartResults.ToDictionary(r => r.Name,
                     object (r) => r.AllResults.ToDictionary(s => s.Name,
-                        object (s) => s.PageResults
-                            .SelectMany(p => p.QuestionResults)
-                            .ToDictionary(q => q.Name, object (q) => q.Answer)
-                    ));
+                        object (s) =>
+                        {
+                            var questionResults = s.PageResults
+                                .SelectMany(p => p.QuestionResults)
+                                .ToDictionary(q => q.Name, object (q) => q.Answer);
+                            questionResults.Add("WeightedAverage", s.WeightedAverage);
+                            return questionResults;
+                        }));
                 dict["FinalGrade"] = result.FinalGradeRounded;
                 context.Values["Assessment"] = dict;
             }

@@ -18,9 +18,11 @@ public class AssessmentService(
     )
     {
         var partResults = new List<AssessmentPartResult>();
-        decimal totalPartWeight = assessmentConfig?.Parts.Sum(p => p.Weight) ?? 0;
+        if (assessmentConfig == null) return new AssessmentResult { PartResults = partResults };
 
-        foreach (var partConfig in assessmentConfig?.Parts ?? [])
+        decimal totalPartWeight = assessmentConfig.Parts.Sum(p => p.Weight);
+
+        foreach (var partConfig in assessmentConfig.Parts)
         {
             var forms = partConfig.Sources
                 .Where(source => formNames == null || formNames.Contains(source.Name))
@@ -45,8 +47,6 @@ public class AssessmentService(
             };
             partResults.Add(result);
         }
-
-        if (assessmentConfig == null) return new AssessmentResult { PartResults = partResults };
 
         var (calculatedFinalGradeUnrounded, calculatedFinalGradeRounded) =
             AssessmentHelpers.CalculateFinalGrade(assessmentConfig, partResults);
