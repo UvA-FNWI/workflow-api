@@ -89,7 +89,8 @@ public record QuestionDto(
     int? MaxLength,
     bool? AllowsExternalUsers,
     List<RubricEntryDto>? Rubric,
-    ValueSetSorting? Sorting)
+    ValueSetSorting? Sorting,
+    string? LinkedTo)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
         $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
@@ -110,7 +111,8 @@ public record QuestionDto(
         propertyDefinition.Validation?.Value?.MaxLength,
         propertyDefinition.AllowsExternalUsers,
         propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList(),
-        propertyDefinition.Sorting
+        propertyDefinition.Sorting,
+        propertyDefinition.LinkedTo
     );
 }
 

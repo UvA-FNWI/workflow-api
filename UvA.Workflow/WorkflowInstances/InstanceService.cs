@@ -108,6 +108,16 @@ public class InstanceService(
         }
     }
 
+    /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
+    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct)
+    {
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var context = modelService.CreateContext(instance);
+        var recipientLookups = MailBuilder.ResolveRecipientLookups(workflowDefinition, sendMail);
+        await Enrich(workflowDefinition, [context], recipientLookups, ct, replaceStep: false);
+        return mailBuilder.Build(instance, sendMail, modelService, context);
+    }
+
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -256,7 +266,7 @@ public class InstanceService(
 
             MailMessage? mail = null;
             if (sendMail is not null)
-                mail = await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
+                mail = await BuildMail(instance, sendMail, ct);
 
             actions.Add(new AllowedAction(a, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
         }

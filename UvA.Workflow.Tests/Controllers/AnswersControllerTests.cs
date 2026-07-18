@@ -267,7 +267,8 @@ public class AnswersControllerTests : ControllerTestsBase
         MockCurrentUser(roles);
 
         var controller =
-            new AnswersController(_answerService,
+            new AnswersController(
+                _answerService,
                 _answerConversionService,
                 _rightsService,
                 _externalUserServiceMock.Object,

@@ -81,7 +81,8 @@ public class AssessmentDtoFactory(
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(instance, sourceResult, pageName, sourcePercentage);
+                    return MapToSourceResultDto(instance, sourceResult, pageName, sourcePercentage,
+                        sourceConfig?.Title);
                 })
                 .ToArray();
 
@@ -133,7 +134,8 @@ public class AssessmentDtoFactory(
         WorkflowInstance instance,
         SourceResult sourceResult,
         string? pageName,
-        decimal? percentage = null)
+        decimal? percentage = null,
+        BilingualString? titleOverride = null)
     {
         var form = sourceResult.Form;
 
@@ -200,7 +202,7 @@ public class AssessmentDtoFactory(
 
         return new(
             sourceResult.IsCombined ? "Combined" : form.Name,
-            sourceResult.IsCombined ? new("Average", "Gemiddelde") : form.DisplayName,
+            sourceResult.IsCombined ? new("Average", "Gemiddelde") : (titleOverride ?? form.DisplayName),
             roundedPageResults,
             answers,
             RoundToTwo(sourceResult.WeightedAverage),

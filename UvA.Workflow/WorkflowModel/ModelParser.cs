@@ -387,6 +387,11 @@ public partial class ModelParser
             propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
                 .Add(propertyDefinition);
 
+        if (propertyDefinition.LinkedTo != null &&
+            propertyDefinition.ParentType.Properties.GetOrDefault(propertyDefinition.LinkedTo) == null)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' in '{propertyDefinition.ParentType.Name}' has linkedTo '{propertyDefinition.LinkedTo}', but that property does not exist.");
+
         try
         {
             _ = propertyDefinition.DataType;
