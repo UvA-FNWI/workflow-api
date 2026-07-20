@@ -57,7 +57,7 @@ public class Page : INamed
 
     public BilingualString DisplayTitle => Title ?? Name;
 
-    public bool HasResults => Fields.Count(f => f.Calculation?.Weight != null) > 1;
+    public bool HasResults => Fields.Count(f => f.Calculation?.Weight != null) > 0;
 
     public Page Clone()
     {

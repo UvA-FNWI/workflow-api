@@ -2,7 +2,7 @@ name: FinalGrade
 title:
   en: Final Grade
   nl: Eindcijfer
-layout: Compact
+layout: Modal
 step: FinalizeAssessment
 
 pages:
@@ -10,4 +10,7 @@ pages:
     title:
       en: Final Grade
       nl: Eindcijfer
+    introduction:
+      nl: Het eindcijfer van {{ Student.DisplayName }} wordt definitief vastgesteld. Wil je doorgaan?
+      en: The final grade for {{ Student.DisplayName }} will be permanently set. Do you want to continue?
     fields: []
