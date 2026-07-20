@@ -69,9 +69,8 @@ public class WorkflowConfigLoaderTests
     [Fact]
     public async Task Startup_ResolvesRefThenDownloadsResolvedCommit()
     {
-        var requests = new List<(Uri? Uri, string? IfNoneMatch)>();
-        var github = new FakeGitHub("sha-1",
-            r => requests.Add((r.RequestUri, r.Headers.IfNoneMatch.SingleOrDefault()?.ToString())));
+        var requests = new List<Uri?>();
+        var github = new FakeGitHub("sha-1", r => requests.Add(r.RequestUri));
         var resolver = CreateResolver();
         var loader = CreateLoader(resolver, RepoOptions(), github.Handler());
 
@@ -80,36 +79,33 @@ public class WorkflowConfigLoaderTests
         var version = Assert.Single(resolver.GetVersions());
         Assert.Equal("sha-1", version.Commit);
         Assert.True(loader.CanPoll);
-        // First an unconditional ref -> SHA resolve on the API, then the resolved commit from codeload.
-        Assert.Equal("api.github.com", requests[0].Uri?.Host);
-        Assert.Null(requests[0].IfNoneMatch);
-        Assert.Equal("codeload.github.com", requests[1].Uri?.Host);
-        Assert.EndsWith("/sha-1", requests[1].Uri?.AbsolutePath);
+        // First a ref -> SHA resolve on the API, then the resolved commit from codeload.
+        Assert.Equal("api.github.com", requests[0]?.Host);
+        Assert.Equal("codeload.github.com", requests[1]?.Host);
+        Assert.EndsWith("/sha-1", requests[1]?.AbsolutePath);
     }
 
     [Fact]
-    public async Task UnchangedBaseline_SendsEtagAndPreservesLoadedAt()
+    public async Task UnchangedBaseline_SkipsDownloadAndPreservesLoadedAt()
     {
-        string? conditional = null;
-        var github = new FakeGitHub("sha-1",
-            r =>
-            {
-                if (r.RequestUri!.Host == "api.github.com")
-                    conditional = r.Headers.IfNoneMatch.SingleOrDefault()?.ToString();
-            });
+        var hosts = new List<string>();
+        var github = new FakeGitHub("sha-1", r => hosts.Add(r.RequestUri!.Host));
         var resolver = CreateResolver();
         var loader = CreateLoader(resolver, RepoOptions(), github.Handler());
         await loader.LoadBaselineAsync();
         var loadedAt = Assert.Single(resolver.GetVersions()).LoadedAt;
+        hosts.Clear();
 
         Assert.False(await loader.ReloadBaselineIfChangedAsync());
 
-        Assert.Equal("\"sha-1\"", conditional);
+        // Reload still resolves the SHA (which counts) but skips re-downloading the unchanged commit.
+        Assert.Contains("api.github.com", hosts);
+        Assert.DoesNotContain("codeload.github.com", hosts);
         Assert.Equal(loadedAt, Assert.Single(resolver.GetVersions()).LoadedAt);
     }
 
     [Fact]
-    public async Task ChangedBaseline_InstallsArchiveAndUpdatesEtag()
+    public async Task ChangedBaseline_InstallsNewCommit()
     {
         var github = new FakeGitHub("sha-1");
         var resolver = CreateResolver();
@@ -123,15 +119,9 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
-    public async Task InvalidChangedArchive_PreservesPreviousModelAndEtag()
+    public async Task InvalidChangedArchive_PreservesPreviousModel()
     {
-        var conditionals = new List<string?>();
-        var github = new FakeGitHub("sha-1",
-            r =>
-            {
-                if (r.RequestUri!.Host == "api.github.com")
-                    conditionals.Add(r.Headers.IfNoneMatch.SingleOrDefault()?.ToString());
-            });
+        var github = new FakeGitHub("sha-1");
         var resolver = CreateResolver();
         var loader = CreateLoader(resolver, RepoOptions(), github.Handler());
         await loader.LoadBaselineAsync();
@@ -139,13 +129,12 @@ public class WorkflowConfigLoaderTests
 
         github.Sha = "sha-2";
         github.Archive = CreateInvalidArchive;
+        // The bad install never advances the stored SHA, so each retry re-resolves against the last good one.
         await Assert.ThrowsAnyAsync<Exception>(() => loader.ReloadBaselineIfChangedAsync());
         var retained = Assert.Single(resolver.GetVersions());
         await Assert.ThrowsAnyAsync<Exception>(() => loader.ReloadBaselineIfChangedAsync());
 
         Assert.Equal(previous, retained);
-        // The bad install never advanced the stored SHA, so we keep re-resolving against the last good one.
-        Assert.Equal("\"sha-1\"", conditionals[^1]);
     }
 
     [Theory]
@@ -168,23 +157,19 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
-    public async Task UnchangedPreview_SendsEtagAndPreservesLoadedAt()
+    public async Task UnchangedPreview_SkipsDownloadAndPreservesLoadedAt()
     {
-        string? conditional = null;
-        var github = new FakeGitHub("sha-1",
-            r =>
-            {
-                if (r.RequestUri!.Host == "api.github.com")
-                    conditional = r.Headers.IfNoneMatch.SingleOrDefault()?.ToString();
-            });
+        var hosts = new List<string>();
+        var github = new FakeGitHub("sha-1", r => hosts.Add(r.RequestUri!.Host));
         var resolver = CreateResolver();
         var loader = CreateLoader(resolver, RepoOptions(), github.Handler());
         await loader.LoadBranchAsync("feature/x");
         var loadedAt = Assert.Single(resolver.GetVersions()).LoadedAt;
+        hosts.Clear();
 
         await loader.LoadBranchAsync("feature/x");
 
-        Assert.Equal("\"sha-1\"", conditional);
+        Assert.DoesNotContain("codeload.github.com", hosts);
         Assert.Equal(loadedAt, Assert.Single(resolver.GetVersions()).LoadedAt);
     }
 
@@ -193,27 +178,25 @@ public class WorkflowConfigLoaderTests
     {
         var active = 0;
         var maxActive = 0;
+        var call = 0;
         var gate = new object();
-        // First call resolves sha-1; the concurrent reloads hit the conditional resolve, which we hold open
-        // long enough to detect any overlap.
+        // The first resolve (call 1) installs sha-1; the concurrent reloads re-resolve, and we hold those
+        // resolves open long enough to detect any overlap between the two reloads.
         var handler = new StubHttpMessageHandler(async (request, _) =>
         {
             if (request.RequestUri!.Host == "codeload.github.com")
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(CreateArchive()) };
 
-            if (request.Headers.IfNoneMatch.SingleOrDefault()?.Tag.Trim('"') == "sha-1")
+            if (Interlocked.Increment(ref call) > 1)
             {
                 lock (gate)
                     maxActive = Math.Max(maxActive, ++active);
                 await Task.Delay(50);
                 lock (gate)
                     active--;
-                return new HttpResponseMessage(HttpStatusCode.NotModified);
             }
 
-            var resolved = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("sha-1") };
-            resolved.Headers.ETag = new EntityTagHeaderValue("\"sha-1\"");
-            return resolved;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("sha-1") };
         });
         var loader = CreateLoader(CreateResolver(), RepoOptions(), handler);
         await loader.LoadBaselineAsync();
@@ -224,14 +207,9 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
-    public async Task StartupWithoutEtag_DisablesPolling()
+    public async Task LocalPathBaseline_DisablesPolling()
     {
-        // Resolve succeeds but carries no ETag, so there is nothing to send as If-None-Match later.
-        var handler = new StubHttpMessageHandler((request, _) => Task.FromResult(
-            request.RequestUri!.Host == "api.github.com"
-                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("sha-1") }
-                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(CreateArchive()) }));
-        var loader = CreateLoader(CreateResolver(), RepoOptions(), handler);
+        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesPath });
 
         await loader.LoadBaselineAsync();
 
@@ -262,8 +240,8 @@ public class WorkflowConfigLoaderTests
         Assert.False(await loader.ReloadBaselineIfChangedAsync());
     }
 
-    // Stands in for GitHub: api.github.com resolves the ref to Sha (returned as the ETag, 304 when the caller
-    // already holds it); codeload.github.com serves the current Archive for the resolved commit.
+    // Stands in for GitHub: api.github.com resolves the ref to Sha (returned in the body); codeload.github.com
+    // serves the current Archive for the resolved commit.
     private sealed class FakeGitHub(string sha, Action<HttpRequestMessage>? observe = null)
     {
         public string Sha { get; set; } = sha;
@@ -272,17 +250,9 @@ public class WorkflowConfigLoaderTests
         public HttpMessageHandler Handler() => new StubHttpMessageHandler((request, _) =>
         {
             observe?.Invoke(request);
-            if (request.RequestUri!.Host == "api.github.com")
-            {
-                if (request.Headers.IfNoneMatch.SingleOrDefault()?.Tag.Trim('"') == Sha)
-                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified));
-                var resolved = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Sha) };
-                resolved.Headers.ETag = new EntityTagHeaderValue($"\"{Sha}\"");
-                return Task.FromResult(resolved);
-            }
-
-            return Task.FromResult(
-                new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Archive()) });
+            return Task.FromResult(request.RequestUri!.Host == "api.github.com"
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Sha) }
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Archive()) });
         });
     }
 

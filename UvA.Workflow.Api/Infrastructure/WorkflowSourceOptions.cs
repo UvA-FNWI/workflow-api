@@ -15,6 +15,6 @@ public class WorkflowSourceOptions
     /// Optional token for a private repo.
     public string? Token { get; set; }
 
-    /// Seconds between conditional downloads. 0 disables polling.
+    /// Seconds between config checks. 0 disables polling.
     public int PollIntervalSeconds { get; set; } = 300;
 }

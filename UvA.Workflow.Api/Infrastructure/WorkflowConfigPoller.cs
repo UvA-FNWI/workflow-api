@@ -1,6 +1,6 @@
 namespace UvA.Workflow.Api.Infrastructure;
 
-/// Conditionally downloads the baseline archive. Each pod updates its own in-memory config.
+/// Periodically checks for a new baseline commit. Each pod updates its own in-memory config.
 public class WorkflowConfigPoller(
     WorkflowConfigLoader loader,
     IOptions<WorkflowSourceOptions> options,
@@ -18,7 +18,7 @@ public class WorkflowConfigPoller(
 
         if (!loader.CanPoll)
         {
-            logger.LogWarning("Config polling disabled because the startup response had no ETag");
+            logger.LogWarning("Config polling disabled because no baseline was loaded from the repo");
             return;
         }
 

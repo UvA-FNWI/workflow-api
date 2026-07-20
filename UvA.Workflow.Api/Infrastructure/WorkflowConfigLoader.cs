@@ -27,12 +27,12 @@ public class WorkflowConfigLoader(
     private readonly WorkflowSourceOptions _opts = options.Value;
     private readonly SemaphoreSlim _baselineLock = new(1, 1); // one baseline reload at a time (poller vs. /reload)
 
-    // Last commit SHA seen per version (GitHub returns it as the ETag), replayed as If-None-Match so an unchanged
-    // ref answers a free 304 instead of us re-resolving and re-downloading. Baseline is keyed by "".
-    private readonly ConcurrentDictionary<string, EntityTagHeaderValue> _etags = new();
+    // Last commit SHA installed per version; we compare the freshly-resolved SHA against it to skip the tarball
+    // download + re-parse when the ref hasn't moved. Baseline is keyed by "".
+    private readonly ConcurrentDictionary<string, string> _shas = new();
 
-    // Conditional polling needs the last baseline SHA to send as If-None-Match; without it every poll re-downloads.
-    public bool CanPoll => _etags.ContainsKey("");
+    // Polling needs a baseline SHA to diff against; LocalPath dev mode has none, so it won't poll.
+    public bool CanPoll => _shas.ContainsKey("");
 
     /// Fetch the configured ref and install it as the default version. Returns false when it has not changed.
     public async Task<bool> LoadBaselineAsync()
@@ -57,28 +57,27 @@ public class WorkflowConfigLoader(
         await LoadAsync(@ref, @ref, VersionKind.Branch);
     }
 
-    // Fetch @ref, install it under versionKey, and remember its ETag. Returns false when the ref is unchanged (304).
+    // Fetch @ref, install it under versionKey, and remember its SHA. Returns false when the ref is unchanged.
     private async Task<bool> LoadAsync(string @ref, string versionKey, VersionKind kind)
     {
-        _etags.TryGetValue(versionKey, out var previousEtag);
-        var source = await BuildProviderAsync(@ref, previousEtag);
+        _shas.TryGetValue(versionKey, out var previousSha);
+        var source = await BuildProviderAsync(@ref, previousSha);
         if (source is null)
             return false;
 
-        var (provider, projectsDir, tempDir, etag) = source.Value;
+        var (provider, projectsDir, tempDir, sha) = source.Value;
         try
         {
-            var revision = Revision(etag);
-            resolver.AddOrUpdate(versionKey, new ModelParser(provider), revision, kind);
+            resolver.AddOrUpdate(versionKey, new ModelParser(provider), sha, kind);
             // Only the default version carries the mail layout (Layouts is the sibling of Projects).
             if (kind == VersionKind.Baseline)
                 mailTemplateStore.Default = ReadLayout(projectsDir);
-            if (etag is not null)
-                _etags[versionKey] = etag;
+            if (sha is not null)
+                _shas[versionKey] = sha;
             else
-                _etags.TryRemove(versionKey, out _);
+                _shas.TryRemove(versionKey, out _);
             logger.LogInformation("Installed {Kind} config ref {Ref} at {Revision} (was {Previous})",
-                kind, @ref, Short(revision), Short(Revision(previousEtag)));
+                kind, @ref, Short(sha), Short(previousSha));
             return true;
         }
         finally
@@ -93,13 +92,13 @@ public class WorkflowConfigLoader(
         return File.Exists(layoutPath) ? File.ReadAllText(layoutPath) : null;
     }
 
-    /// Conditionally re-fetch the baseline. Returns true when a new archive was installed.
+    /// Re-fetch the baseline; returns true when a newer commit was installed.
     public Task<bool> ReloadBaselineIfChangedAsync()
         => string.IsNullOrWhiteSpace(_opts.RepoUrl) ? Task.FromResult(false) : LoadBaselineAsync();
 
-    // Returns null for HTTP 304. The caller owns TempDir when a source is returned.
-    private async Task<(IContentProvider Provider, string ProjectsDir, string? TempDir, EntityTagHeaderValue? ETag)?>
-        BuildProviderAsync(string @ref, EntityTagHeaderValue? etag)
+    // Returns null when the ref is unchanged. The caller owns TempDir when a source is returned.
+    private async Task<(IContentProvider Provider, string ProjectsDir, string? TempDir, string? Sha)?>
+        BuildProviderAsync(string @ref, string? previousSha)
     {
         if (!string.IsNullOrWhiteSpace(_opts.LocalPath))
             return (new FileSystemProvider(_opts.LocalPath), _opts.LocalPath, null, null);
@@ -108,35 +107,32 @@ public class WorkflowConfigLoader(
             throw new InvalidOperationException(
                 "No workflow source configured; set WorkflowSource:RepoUrl or WorkflowSource:LocalPath");
 
-        var archive = await FetchAndExtractAsync(@ref, etag);
+        var archive = await FetchAndExtractAsync(@ref, previousSha);
         if (archive is null)
             return null;
-        var (root, tempDir, archiveEtag) = archive.Value;
+        var (root, tempDir, sha) = archive.Value;
         var projectsDir = Path.Combine(root, "Projects");
-        return (new FileSystemProvider(projectsDir), projectsDir, tempDir, archiveEtag);
+        return (new FileSystemProvider(projectsDir), projectsDir, tempDir, sha);
     }
 
-    private async Task<(string Root, string TempDir, EntityTagHeaderValue? ETag)?> FetchAndExtractAsync(
-        string @ref, EntityTagHeaderValue? etag)
+    private async Task<(string Root, string TempDir, string Sha)?> FetchAndExtractAsync(
+        string @ref, string? previousSha)
     {
         var (owner, repo) = ParseRepo(_opts.RepoUrl!);
         var http = httpClientFactory.CreateClient(nameof(WorkflowConfigLoader));
 
-        // Resolve ref -> commit SHA conditionally. GitHub returns the SHA as the ETag and answers 304 (which
-        // doesn't count against the rate limit) when the ref hasn't moved, so idle polls cost nothing. We only
-        // download the tarball below when the ref actually changed.
+        // Resolve ref -> commit SHA. This is the one request that counts against the rate limit (codeload
+        // downloads don't). We compare the SHA to the one we last installed, and skip the tarball download +
+        // re-parse when the ref hasn't moved.
         using var shaRequest = new HttpRequestMessage(HttpMethod.Get,
             $"https://api.github.com/repos/{owner}/{repo}/commits/{@ref}");
         shaRequest.Headers.Accept.ParseAdd("application/vnd.github.sha");
-        if (etag is not null)
-            shaRequest.Headers.IfNoneMatch.Add(etag);
-
         using var shaResponse = await http.SendAsync(shaRequest);
-        if (shaResponse.StatusCode == HttpStatusCode.NotModified && etag is not null)
-            return null;
         if (!shaResponse.IsSuccessStatusCode)
             throw new WorkflowConfigFetchException(shaResponse.StatusCode, RetryAfter(shaResponse.Headers.RetryAfter));
         var sha = (await shaResponse.Content.ReadAsStringAsync()).Trim();
+        if (sha == previousSha)
+            return null;
 
         // Download the resolved commit, not the ref: immutable, so no race with a branch that moves mid-fetch.
         using var request = new HttpRequestMessage(HttpMethod.Get,
@@ -155,7 +151,7 @@ public class WorkflowConfigLoader(
 
             // codeload wraps everything in a single top-level folder.
             var root = Directory.GetDirectories(tempDir).Single();
-            return (root, tempDir, shaResponse.Headers.ETag); // ETag is the commit SHA (see Revision)
+            return (root, tempDir, sha);
         }
         catch
         {
@@ -176,9 +172,6 @@ public class WorkflowConfigLoader(
             logger.LogWarning(ex, "Failed to delete temp config dir {Dir}", tempDir);
         }
     }
-
-    // GitHub's commits endpoint returns the SHA as its ETag, so this is the real commit hash.
-    private static string? Revision(EntityTagHeaderValue? etag) => etag?.Tag.Trim('"');
 
     // Short git-style revision for log lines; the full SHA is still what we store on the version.
     private static string Short(string? revision)
