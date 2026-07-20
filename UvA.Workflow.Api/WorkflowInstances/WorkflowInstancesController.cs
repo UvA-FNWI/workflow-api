@@ -16,7 +16,8 @@ public class WorkflowInstancesController(
     AnswerConversionService answerConversionService,
     AnswerService answerService,
     ModelService modelService,
-    RoleImpersonationService impersonationService
+    RoleImpersonationService impersonationService,
+    IEduIdUserService eduIdUserService
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -202,10 +203,19 @@ public class WorkflowInstancesController(
 
         try
         {
-            var (value, _) = await answerService.ValidateAndResolveValue(
+            var (value, createdUser) = await answerService.ValidateAndResolveValue(
                 propertyDefinition, input.Value, externalUserInput, ct);
 
             await workflowInstanceService.UpdateProperty(id, property, value, answerConversionService, ct);
+
+            if (createdUser != null)
+            {
+                await eduIdUserService.EnsureExternalAccount(
+                    createdUser.Email,
+                    createdUser.DisplayName,
+                    EduIdInviteDeliveryMode.SendEmail,
+                    ct);
+            }
 
             return Ok();
         }
