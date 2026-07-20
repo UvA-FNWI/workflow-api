@@ -16,7 +16,10 @@ globalActions:
     forms: [AssessmentReviewer]
   - roles: [Student, Coordinator]
     type: Edit
-    propertyDefinition: SecondReader
+    propertyDefinition: SecondReader  
+  - roles: [Student, Coordinator]
+    type: Edit
+    propertyDefinition: PracticalSupervisor
   - name: ViewTurnitinReport
     roles: [Supervisor, Reviewer, Examiner, Coordinator]
     type: Execute
