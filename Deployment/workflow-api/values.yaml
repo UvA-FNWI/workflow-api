@@ -37,7 +37,7 @@ canvasLti:
   clientId: "104400000000000348"
   authenticateUrl: https://uvadlo-dev.instructure.com/api/lti/authorize_redirect
   jwksUrl: https://uvadlo-dev.instructure.com/api/lti/security/jwks
-  teacherTarget: /screens/project-overview
+  teacherTarget: /
 
 mongo:
   username: username
