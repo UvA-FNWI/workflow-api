@@ -202,6 +202,11 @@ public class PropertyDefinition : INamed
     public bool? AllowsExternalUsers { get; set; } = false;
 
     /// <summary>
+    /// Determines if the propertyDefinition allows the assignment of users
+    /// </summary>
+    public bool? AllowsAssignment { get; set; } = false;
+
+    /// <summary>
     /// Rubric entries that describe grading criteria for this property
     /// </summary>
     public List<RubricEntry>? Rubric { get; set; }

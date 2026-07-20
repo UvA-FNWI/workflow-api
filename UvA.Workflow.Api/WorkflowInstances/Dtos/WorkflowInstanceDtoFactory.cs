@@ -50,7 +50,14 @@ public class WorkflowInstanceDtoFactory(
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
 
-        var relatedUsers = GetRelatedUsers(workflowDefinition, context);
+        var canEditByProperty = await Task.WhenAll(
+            workflowDefinition.RelatedUsers.Select(async r => new
+            {
+                r.Property,
+                CanEdit = await rightsService.CanEditProperty(instance, r.Property)
+            }));
+        var relatedUsers = GetRelatedUsers(workflowDefinition, context,
+            canEditByProperty.ToDictionary(x => x.Property, x => x.CanEdit));
 
         var x = new WorkflowInstanceDto(
             instance.Id,
@@ -231,22 +238,33 @@ public class WorkflowInstanceDtoFactory(
             FormSubmissionState.GetSubmissionEventIds(form).Contains(eventId));
     }
 
-    private RelatedUserGroupsDto GetRelatedUsers(WorkflowDefinition workflowDefinition, ObjectContext context)
+    private RelatedUserGroupsDto GetRelatedUsers(WorkflowDefinition workflowDefinition, ObjectContext context,
+        Dictionary<string, bool> canEditByProperty)
     {
         // Resolve each RelatedUser to its user value, keyed by group name
         var usersByGroup = workflowDefinition.RelatedUsers
-            .SelectMany(relatedUser =>
+            .Select(relatedUser =>
             {
                 var value = context.Get(relatedUser.Property);
 
                 var users = value is InstanceUser u ? [u] : value as InstanceUser[] ?? [];
+                var allowsExternalUsers = relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false;
+                var allowsAssignment = relatedUser.PropertyDefinition?.AllowsAssignment ?? false;
 
-                return users.Select(user => new
+                return new
                 {
                     relatedUser.Group,
-                    Dto = new RelatedUserDto(relatedUser.DisplayTitle, UserDto.CreateFromInstanceUser(user))
-                });
+                    Dto = new RelatedUserRolesDto(
+                        relatedUser.Property,
+                        relatedUser.DisplayTitle,
+                        users.Select(UserDto.CreateFromInstanceUser).ToArray(),
+                        allowsExternalUsers,
+                        allowsAssignment,
+                        relatedUser.PropertyDefinition?.IsArray ?? false,
+                        canEditByProperty.GetValueOrDefault(relatedUser.Property))
+                };
             })
+            .Where(x => x.Dto.Users.Length > 0 || x.Dto.AllowsAssignment)
             .GroupBy(x => x.Group)
             .ToDictionary(g => g.Key, g => g.Select(x => x.Dto).ToArray());
 

@@ -25,7 +25,8 @@ public class AnswerService(
     AnswerConversionService answerConversionService,
     IInstanceEventService instanceEventService,
     IInstanceJournalService instanceJournalService,
-    IUserService userService)
+    IUserService userService,
+    IExternalUserService externalUserService)
 {
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
@@ -228,5 +229,43 @@ public class AnswerService(
         }
 
         await SaveAndLogAnswer(context, currentAnswer, newAnswer, ct);
+    }
+
+    public async Task<(JsonElement? Value, UserSearchResult? CreatedUser)> ValidateAndResolveValue(
+        PropertyDefinition propertyDefinition,
+        JsonElement? value,
+        ExternalUserInput? externalUser,
+        CancellationToken ct)
+    {
+        UserSearchResult? createdUser = null;
+
+        if (externalUser != null)
+        {
+            if (propertyDefinition.DataType != DataType.User)
+                throw new ExternalUserCreationException(
+                    ExternalUserCreationFailureReason.InvalidQuestionType, "InvalidQuestionType");
+
+            if (propertyDefinition.AllowsExternalUsers != true)
+                throw new ExternalUserCreationException(ExternalUserCreationFailureReason.ExternalUsersNotAllowed,
+                    "ExternalUsersNotAllowed");
+
+            createdUser = await externalUserService.CreateOrUpdateExternalUser(
+                externalUser.DisplayName, externalUser.Email, externalUser.Organization, ct);
+            value = JsonSerializer.SerializeToElement(createdUser, AnswerConversionService.Options);
+        }
+
+        if (propertyDefinition.DataType == DataType.User &&
+            propertyDefinition.AllowsExternalUsers != true &&
+            value is JsonElement userValue &&
+            await answerConversionService.ContainsExternalUserSelection(userValue, propertyDefinition.IsArray, ct))
+            throw new ExternalUserCreationException(ExternalUserCreationFailureReason.ExternalUsersNotAllowed,
+                "ExternalUsersNotAllowed");
+
+        if (propertyDefinition.DataType == DataType.Choice && value is JsonElement choiceValue &&
+            AnswerConversionService.FindInvalidChoice(choiceValue, propertyDefinition) is { } invalidChoice)
+            throw new InvalidWorkflowStateException(propertyDefinition.Name, "InvalidChoiceValue",
+                $"'{invalidChoice}' is not a valid value");
+
+        return (value, createdUser);
     }
 }

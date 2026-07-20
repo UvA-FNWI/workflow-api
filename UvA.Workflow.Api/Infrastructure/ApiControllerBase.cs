@@ -38,4 +38,25 @@ public abstract class ApiControllerBase : ControllerBase
 
     protected ObjectResult UserNotFound =>
         NotFound("UserNotFound", "User not found");
+
+    private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
+    private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
+    private const string InvalidEmailAddressCode = "InvalidEmailAddress";
+    private const string ExternalUsersNotAllowedCode = "ExternalUsersNotAllowed";
+    private const string InvalidQuestionTypeCode = "InvalidQuestionType";
+
+    protected ObjectResult MapExternalUserCreationError(ExternalUserCreationException ex) => ex.Reason switch
+    {
+        ExternalUserCreationFailureReason.InvalidEmailAddress =>
+            BadRequest(InvalidEmailAddressCode, InvalidEmailAddressCode),
+        ExternalUserCreationFailureReason.InternalEmailAddress =>
+            BadRequest(ManualUserInternalEmailCode, ManualUserInternalEmailCode),
+        ExternalUserCreationFailureReason.UserAlreadyExists =>
+            Conflict(ManualUserEmailAlreadyExistsCode, ManualUserEmailAlreadyExistsCode),
+        ExternalUserCreationFailureReason.ExternalUsersNotAllowed =>
+            Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode),
+        ExternalUserCreationFailureReason.InvalidQuestionType =>
+            Unprocessable(InvalidQuestionTypeCode, InvalidQuestionTypeCode),
+        _ => Unprocessable(ex.Reason.ToString(), ex.Message)
+    };
 }

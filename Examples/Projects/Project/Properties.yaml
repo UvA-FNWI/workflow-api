@@ -29,7 +29,7 @@ properties:
       nl: Examinator
       
   - name: Supervisor
-    type: User!    
+    type: User! 
     allowsExternalUsers: true
     text: 
       en: Supervisor
@@ -38,18 +38,27 @@ properties:
   - name: Reviewer
     type: User!
     text: 
-      en: Reviewer
-      nl: Beoordelaar
+      en: Second Reviewer
+      nl: Tweede beoordelaar
         
   - name: SecondReader
     type: User!
+    allowsAssignment: true
     text: 
       en: Second reader
-      nl: Tweede beoordelaar
+      nl: Tweede lezer
       
   - name: Student
     type: User!
-
+  
+  - name: PracticalSupervisor
+    type: "[User]!"
+    text: 
+      en: Practical supervisor
+      nl: Praktijkbegeleider
+    allowsExternalUsers: true
+    allowsAssignment: true
+      
   - name: Report
     type: File!
   

@@ -20,7 +20,9 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             _workflowInstanceRepoMock.Object,
             null!,
             null!,
+            null!,
             _modelService,
+            null!,
             null!);
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)

@@ -26,6 +26,8 @@ steps:
 relatedUsers:
   - property: Supervisor
     group: default
+  - property: PracticalSupervisor
+    group: default
   - property: Examiner
     group: default
   - property: Reviewer

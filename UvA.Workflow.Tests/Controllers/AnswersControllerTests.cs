@@ -63,7 +63,8 @@ public class AnswersControllerTests : ControllerTestsBase
             _answerConversionService,
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
-            _userServiceMock.Object);
+            _userServiceMock.Object,
+            _externalUserServiceMock.Object);
     }
 
     [Fact]
@@ -270,9 +271,7 @@ public class AnswersControllerTests : ControllerTestsBase
         var controller =
             new AnswersController(
                 _answerService,
-                _answerConversionService,
                 _rightsService,
-                _externalUserServiceMock.Object,
                 _artifactTokenService,
                 _submissionDtoFactory,
                 _instanceService,

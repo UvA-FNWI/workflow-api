@@ -36,11 +36,13 @@ public class UsersControllerTests : ControllerTestsBase
             new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object),
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
-            _userServiceMock.Object);
+            _userServiceMock.Object,
+            _externalUserServiceMock.Object);
         _externalUserEmailUpdateService = new ExternalUserEmailUpdateService(
             _rightsService,
             _answerService,
-            _modelService);
+            _modelService,
+            _instanceService);
     }
 
     [Theory]

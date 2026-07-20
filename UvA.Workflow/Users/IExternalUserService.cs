@@ -4,8 +4,12 @@ public enum ExternalUserCreationFailureReason
 {
     InvalidEmailAddress,
     InternalEmailAddress,
-    UserAlreadyExists
+    UserAlreadyExists,
+    ExternalUsersNotAllowed,
+    InvalidQuestionType
 }
+
+public record ExternalUserInput(string DisplayName, string Email, Organization? Organization = null);
 
 public class ExternalUserCreationException(
     ExternalUserCreationFailureReason reason,

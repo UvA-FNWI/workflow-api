@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
 
@@ -14,8 +14,10 @@ public class WorkflowInstancesController(
     IWorkflowInstanceRepository repository,
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
+    AnswerService answerService,
     ModelService modelService,
-    RoleImpersonationService impersonationService
+    RoleImpersonationService impersonationService,
+    IEduIdUserService eduIdUserService
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -172,5 +174,77 @@ public class WorkflowInstancesController(
                 k => char.ToLowerInvariant(k.Key[0]) + k.Key[1..],
                 v => v.Value
             )));
+    }
+
+
+    [HttpPost("{id}/properties/{property}")]
+    public async Task<ActionResult<UpdateInstancePropertyResponse>> AddPropertyItem(string id, string property,
+        [FromBody] UpdateInstancePropertyRequest input, CancellationToken ct)
+    {
+        var currentUser = await userService.GetCurrentUser(ct);
+        if (currentUser == null)
+            return Unauthorized();
+
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.CanEditProperty(instance, property))
+            return Forbidden();
+
+        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
+            .GetOrDefault(property);
+        if (propertyDefinition == null)
+            return BadRequest($"Property '{property}' does not exist");
+
+        var externalUserInput = input.ExternalUser is { } eu
+            ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
+            : null;
+
+        try
+        {
+            var (value, createdUser) = await answerService.ValidateAndResolveValue(
+                propertyDefinition, input.Value, externalUserInput, ct);
+
+            await workflowInstanceService.UpdateProperty(id, property, value, answerConversionService, ct);
+
+            if (createdUser != null)
+            {
+                await eduIdUserService.EnsureExternalAccount(
+                    createdUser.Email,
+                    createdUser.DisplayName,
+                    EduIdInviteDeliveryMode.SendEmail,
+                    ct);
+            }
+
+            return Ok();
+        }
+        catch (ExternalUserCreationException ex)
+        {
+            return MapExternalUserCreationError(ex); // now on ApiControllerBase
+        }
+    }
+
+    [HttpDelete("{id}/properties/{property}/{itemId}")]
+    public async Task<ActionResult> RemovePropertyItem(string id, string property, string itemId,
+        CancellationToken ct)
+    {
+        if (await userService.GetCurrentUser(ct) == null)
+            return Unauthorized();
+
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.CanEditProperty(instance, property))
+            return Forbidden();
+
+        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
+            .GetOrDefault(property);
+        if (propertyDefinition == null)
+            return BadRequest("InvalidProperty", $"Property '{property}' does not exist");
+
+        await workflowInstanceService.RemovePropertyItemById(instance.Id, property, itemId, ct);
+        return Ok();
     }
 }
