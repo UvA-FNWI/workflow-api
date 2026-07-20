@@ -92,7 +92,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(context, sourceResults[i], pageName, sourcePercentage);
+                    return MapToSourceResultDto(context, sourceResults[i], pageName, sourcePercentage,
+                        sourceConfig?.Title);
                 })
                 .ToArray();
 
@@ -144,7 +145,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
         SubmissionContext context,
         SourceResult sourceResult,
         string? pageName,
-        decimal? percentage = null)
+        decimal? percentage = null,
+        BilingualString? titleOverride = null)
     {
         var shownQuestionIds = modelService.GetQuestionStatus(context.Instance, context.Form, true);
         var questionNamesOnPage = context.Form.ActualForm.Pages
@@ -209,7 +211,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
 
         return new(
             sourceResult.IsCombined ? "Combined" : context.Form.Name,
-            sourceResult.IsCombined ? new("Average", "Gemiddelde") : context.Form.DisplayName,
+            sourceResult.IsCombined ? new("Result", "Resultaat") : (titleOverride ?? context.Form.DisplayName),
             roundedPageResults,
             answers,
             RoundToTwo(sourceResult.WeightedAverage),
