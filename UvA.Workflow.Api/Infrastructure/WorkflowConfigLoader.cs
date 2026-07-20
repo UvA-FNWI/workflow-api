@@ -125,7 +125,7 @@ public class WorkflowConfigLoader(
         // downloads don't). We compare the SHA to the one we last installed, and skip the tarball download +
         // re-parse when the ref hasn't moved.
         using var shaRequest = new HttpRequestMessage(HttpMethod.Get,
-            $"https://api.github.com/repos/{owner}/{repo}/commits/{@ref}");
+            $"https://api.github.com/repos/{owner}/{repo}/commits/{EncodeRefPath(@ref)}");
         shaRequest.Headers.Accept.ParseAdd("application/vnd.github.sha");
         using var shaResponse = await http.SendAsync(shaRequest);
         if (!shaResponse.IsSuccessStatusCode)
@@ -190,6 +190,11 @@ public class WorkflowConfigLoader(
             || @ref.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
             throw new ArgumentException($"Invalid ref '{@ref}'");
     }
+
+    // Percent-encode each segment so URL-reserved chars a git ref may contain (e.g. '#' in feature/#123) don't
+    // corrupt the request, while keeping '/' literal.
+    private static string EncodeRefPath(string @ref)
+        => string.Join('/', @ref.Split('/').Select(Uri.EscapeDataString));
 
     private static (string Owner, string Repo) ParseRepo(string repoUrl)
     {

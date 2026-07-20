@@ -157,6 +157,23 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
+    public async Task LoadRef_PercentEncodesReservedCharactersInRef()
+    {
+        Uri? apiUri = null;
+        var github = new FakeGitHub("resolved-sha",
+            r =>
+            {
+                if (r.RequestUri!.Host == "api.github.com") apiUri = r.RequestUri;
+            });
+
+        await CreateLoader(CreateResolver(), RepoOptions(), github.Handler()).LoadBranchAsync("feature/#123");
+
+        // '#' must be encoded, else the URL treats it as a fragment and GitHub only sees "feature/".
+        Assert.EndsWith("/commits/feature/%23123", apiUri?.AbsoluteUri);
+        Assert.Empty(apiUri?.Fragment ?? "");
+    }
+
+    [Fact]
     public async Task UnchangedPreview_SkipsDownloadAndPreservesLoadedAt()
     {
         var hosts = new List<string>();
