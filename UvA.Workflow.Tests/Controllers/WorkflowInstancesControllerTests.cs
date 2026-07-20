@@ -22,6 +22,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             null!,
             null!,
             _modelService,
+            null!,
             null!);
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)

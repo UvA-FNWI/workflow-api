@@ -57,7 +57,8 @@ public class WorkflowInstancesControllerImpersonationTests
             null!,
             null!,
             modelService,
-            impersonationService
+            impersonationService,
+            null!
         );
 
         controller.ControllerContext = new ControllerContext
