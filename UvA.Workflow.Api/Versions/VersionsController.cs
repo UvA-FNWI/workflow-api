@@ -68,6 +68,7 @@ public class VersionsController(
         }
 
         modelServiceResolver.AddOrUpdate(version, parser);
+        logger.LogInformation("Installed uploaded config version {Version}", version);
         return Ok();
     }
 
@@ -80,12 +81,4 @@ public class VersionsController(
     [HttpGet("details")]
     public ActionResult<IReadOnlyCollection<VersionInfo>> GetVersionDetails()
         => Ok(modelServiceResolver.GetVersions());
-
-    /// Branch names of the configured milestones-config repo, to offer as loadable previews.
-    [HttpGet("branches")]
-    public async Task<ActionResult<IReadOnlyList<string>>> GetBranches()
-    {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-        return Ok(await configLoader.ListBranchesAsync());
-    }
 }

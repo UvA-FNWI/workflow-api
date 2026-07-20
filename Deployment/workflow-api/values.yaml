@@ -7,9 +7,12 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
-# By default, uses the 'main' branch. To point this environment at a different branch or commit, add `ref: <branch name or commit SHA>`.
+# ref defaults to 'main'; override per environment to pin to a different branch, tag, or commit.
+# pollIntervalSeconds > 0 makes this env re-check the repo and reload when the ref moves (tst/acc); prod leaves it 0 and uses nightlyRestart.
 workflowSource:
   repoUrl: ""
+  ref: main
+  pollIntervalSeconds: 0
 
 # Nightly `rollout restart` so prod re-fetches config once a day. Enable in prod's values only.
 nightlyRestart: false

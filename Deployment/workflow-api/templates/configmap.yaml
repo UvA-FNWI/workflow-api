@@ -49,3 +49,5 @@ data:
   Worker__WorkerGroup: "{{ .Release.Namespace }}"
 
   WorkflowSource__RepoUrl: "{{ .Values.workflowSource.repoUrl }}"
+  WorkflowSource__Ref: "{{ .Values.workflowSource.ref }}"
+  WorkflowSource__PollIntervalSeconds: "{{ .Values.workflowSource.pollIntervalSeconds | default 0 }}"

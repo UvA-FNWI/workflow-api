@@ -21,10 +21,11 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient(nameof(WorkflowConfigLoader), (sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<WorkflowSourceOptions>>().Value;
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("workflow-api"); // GitHub API requires a UA
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("workflow-api");
             if (!string.IsNullOrWhiteSpace(opts.Token))
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", opts.Token);
         });
+        services.AddHostedService<WorkflowConfigPoller>();
 
         services.AddScoped<ArtifactTokenService>();
         services.AddScoped<SubmissionDtoFactory>();
