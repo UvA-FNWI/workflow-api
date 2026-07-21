@@ -13,7 +13,9 @@ public class SubmissionsController(
     SubmissionService submissionService,
     WorkflowInstanceService workflowInstanceService,
     SubmissionDtoFactory submissionDtoFactory,
-    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
+    AnswerService answerService,
+    FakeAnswerGenerator fakeAnswerGenerator) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId,
@@ -65,5 +67,34 @@ public class SubmissionsController(
 
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto,
             EffectResult: result.EffectResult));
+    }
+
+    [HttpPost("{instanceId}/{submissionId}/fake")]
+    public async Task<ActionResult<SubmissionDto>> FakeFormData(string instanceId, string submissionId,
+        CancellationToken ct)
+    {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+
+        var (instance, submissionState, form, _) =
+            await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
+        var questionStatus = modelService.GetQuestionStatus(instance, form, canViewHidden: true);
+
+        foreach (var (questionName, status) in questionStatus.Where(q => q.Value.IsVisible))
+        {
+            var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
+            if (question == null) continue;
+            var fakeValue = fakeAnswerGenerator.Generate(question, status);
+            if (fakeValue != null)
+                await answerService.SaveAnswer(
+                    new QuestionContext(instance, submissionState, form, question), fakeValue, ct);
+        }
+
+        var permissions =
+            await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
+        var updatedSubmission = submissionDtoFactory.Create(instance, form, submissionState,
+            modelService.GetQuestionStatus(instance, form, true),
+            permissions.Select(p => p.Type).ToArray());
+
+        return Ok(updatedSubmission);
     }
 }
