@@ -24,7 +24,7 @@ namespace UvA.Workflow.Tests.Controllers;
 public class AnswersControllerTests : ControllerTestsBase
 {
     private readonly Mock<IOrganizationService> _organizationServiceMock = new();
-    private readonly SubmissionService _submissionService;
+    private readonly WorkflowInstanceService _workflowInstanceService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
     private readonly ArtifactTokenService _artifactTokenService;
     private readonly WorkflowInstanceDtoFactory _workflowInstanceDtoFactory;
@@ -34,9 +34,8 @@ public class AnswersControllerTests : ControllerTestsBase
     public AnswersControllerTests() : base()
     {
         _artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
-        _submissionService =
-            new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
-                _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
+        _workflowInstanceService = new WorkflowInstanceService(_modelService, _workflowInstanceRepoMock.Object,
+            _instanceJournalServiceMock.Object);
         _submissionDtoFactory =
             new SubmissionDtoFactory(_artifactTokenService, _modelService);
         _workflowInstanceDtoFactory =
@@ -55,12 +54,12 @@ public class AnswersControllerTests : ControllerTestsBase
             _userServiceMock.Object,
             _userRepoMock.Object);
         _answerService = new AnswerService(
-            _submissionService,
             _modelService,
             _instanceService,
             _rightsService,
             _artifactServiceMock.Object,
             _answerConversionService,
+            _workflowInstanceService,
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
             _userServiceMock.Object);

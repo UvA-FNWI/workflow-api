@@ -27,13 +27,12 @@ public class UsersControllerTests : ControllerTestsBase
     public UsersControllerTests()
     {
         _answerService = new AnswerService(
-            new SubmissionService(_workflowInstanceRepoMock.Object, _modelService, _instanceService,
-                _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService),
             _modelService,
             _instanceService,
             _rightsService,
             _artifactServiceMock.Object,
             new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object),
+            _workflowInstanceService,
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
             _userServiceMock.Object);
