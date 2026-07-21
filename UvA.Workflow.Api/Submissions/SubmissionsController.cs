@@ -1,3 +1,4 @@
+using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
@@ -83,6 +84,31 @@ public class SubmissionsController(
         {
             var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
             if (question == null) continue;
+
+            var existingAnswer = instance.GetProperty(form.PropertyName, questionName);
+            if (existingAnswer != null && !existingAnswer.IsBsonNull && existingAnswer != string.Empty) continue;
+
+            if (question.DataType == DataType.User)
+            {
+                var currentUser = await userService.GetCurrentUser(ct);
+                if (currentUser != null)
+                {
+                    var userObject = new
+                    {
+                        userName = currentUser.UserName,
+                        displayName = currentUser.DisplayName,
+                        email = currentUser.Email
+                    };
+                    var userElement = question.IsArray
+                        ? JsonSerializer.SerializeToElement(new[] { userObject })
+                        : JsonSerializer.SerializeToElement(userObject);
+                    await answerService.SaveAnswer(
+                        new QuestionContext(instance, submissionState, form, question), userElement, ct);
+                }
+
+                continue;
+            }
+
             var fakeValue = fakeAnswerGenerator.Generate(question, status);
             if (fakeValue != null)
                 await answerService.SaveAnswer(
