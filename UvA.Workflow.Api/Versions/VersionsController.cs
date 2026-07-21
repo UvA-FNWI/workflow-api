@@ -13,6 +13,9 @@ public class VersionsController(
     ILogger<VersionsController> logger)
     : ApiControllerBase
 {
+    private const string ProjectsPrefix = "Projects/";
+    private const string LayoutPath = "Layouts/default.html";
+
     /// Reload the default version from the configured source.
     [HttpPost("reload")]
     public async Task<ActionResult> Reload()
@@ -51,15 +54,29 @@ public class VersionsController(
         return Ok(@ref);
     }
 
-    /// Upload a set of files as a named version (in-memory, e.g. previewing uncommitted edits).
+    /// Upload checkout-relative Projects/ files and Layouts/default.html as a named preview version.
     [HttpPost("{version}")]
     public async Task<ActionResult> CreateVersion(string version, [FromBody] Dictionary<string, string> files)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-        ModelParser parser;
         try
         {
-            parser = new ModelParser(new DictionaryProvider(files));
+            var normalizedFiles = files.ToDictionary(
+                entry => entry.Key.Replace('\\', '/').Trim('/'),
+                entry => entry.Value,
+                StringComparer.Ordinal);
+            if (!normalizedFiles.TryGetValue(LayoutPath, out var layout) || string.IsNullOrWhiteSpace(layout))
+                return BadRequest($"Uploaded version must provide {LayoutPath}");
+
+            var projectFiles = normalizedFiles
+                .Where(entry => entry.Key.StartsWith(ProjectsPrefix, StringComparison.Ordinal))
+                .ToDictionary(entry => entry.Key[ProjectsPrefix.Length..], entry => entry.Value,
+                    StringComparer.Ordinal);
+            if (projectFiles.Count == 0)
+                return BadRequest($"Uploaded version must provide files under {ProjectsPrefix}");
+
+            var parser = new ModelParser(new DictionaryProvider(projectFiles));
+            modelServiceResolver.AddOrUpdate(version, parser, layout);
         }
         catch (Exception ex)
         {
@@ -67,7 +84,6 @@ public class VersionsController(
             return BadRequest(ex.Message);
         }
 
-        modelServiceResolver.AddOrUpdate(version, parser);
         logger.LogInformation("Installed uploaded config version {Version}", version);
         return Ok();
     }

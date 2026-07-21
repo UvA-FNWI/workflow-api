@@ -3,21 +3,30 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Versions;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.Users;
+using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 
 public class WorkflowConfigLoaderTests
 {
     private static readonly string FixturesPath = UnitTestsHelpers.FixturesProjectsPath;
+    private static readonly string FixturesRoot = Directory.GetParent(FixturesPath)!.FullName;
 
-    private static ModelServiceResolver CreateResolver()
-        => new(new Mock<IHttpContextAccessor>().Object);
+    private static ModelServiceResolver CreateResolver(IHttpContextAccessor? accessor = null)
+        => new(accessor ?? new Mock<IHttpContextAccessor>().Object);
 
     private static WorkflowConfigLoader CreateLoader(ModelServiceResolver resolver, WorkflowSourceOptions opts,
         HttpMessageHandler? handler = null)
@@ -26,21 +35,62 @@ public class WorkflowConfigLoaderTests
         if (handler is not null)
             factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient(handler));
         return new WorkflowConfigLoader(factory.Object, resolver, Options.Create(opts),
-            new MailTemplateStore(), NullLogger<WorkflowConfigLoader>.Instance);
+            NullLogger<WorkflowConfigLoader>.Instance);
     }
 
     private static WorkflowSourceOptions RepoOptions()
         => new() { RepoUrl = "https://github.com/owner/repo", Ref = "main" };
 
     [Fact]
-    public async Task LoadBaseline_FromLocalPath_RegistersBaselineWithDefinitions()
+    public async Task LoadBaseline_FromLocalCheckout_LoadsProjectsAndLayout()
     {
         var resolver = CreateResolver();
 
-        await CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesPath }).LoadBaselineAsync();
+        await CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot }).LoadBaselineAsync();
 
-        Assert.True(resolver.Get().WorkflowDefinitions.ContainsKey("Project"));
+        var config = resolver.Resolve();
+        Assert.True(config.ModelService.WorkflowDefinitions.ContainsKey("Project"));
         Assert.Contains(resolver.GetVersions(), v => v.Name == "");
+        Assert.Equal(File.ReadAllText(Path.Combine(FixturesRoot, "Layouts", "default.html")),
+            config.DefaultMailLayout);
+    }
+
+    [Fact]
+    public void Resolve_SelectsLayoutByWorkflowVersionAndFallsBackToBaseline()
+    {
+        var context = new DefaultHttpContext();
+        var resolver = CreateResolver(new HttpContextAccessor { HttpContext = context });
+        var parser = UnitTestsHelpers.CreateModelParser();
+        resolver.AddOrUpdate("", parser, "baseline layout", kind: VersionKind.Baseline);
+        resolver.AddOrUpdate("feature/x", parser, "branch layout", kind: VersionKind.Branch);
+
+        context.Request.Headers["Workflow-Version"] = "feature/x";
+        Assert.Equal("branch layout", resolver.Resolve().DefaultMailLayout);
+
+        context.Request.Headers["Workflow-Version"] = "missing";
+        Assert.Equal("baseline layout", resolver.Resolve().DefaultMailLayout);
+
+        context.Request.Headers.Remove("Workflow-Version");
+        Assert.Equal("baseline layout", resolver.Resolve().DefaultMailLayout);
+    }
+
+    [Fact]
+    public void ApiScope_UsesResolvedModelAndLayoutFromSameVersion()
+    {
+        var services = new ServiceCollection();
+        services.AddWorkflowCore(new ConfigurationBuilder().Build());
+        services.AddWorkflowApiCore();
+        using var provider = services.BuildServiceProvider();
+        var parser = UnitTestsHelpers.CreateModelParser();
+        provider.GetRequiredService<ModelServiceResolver>()
+            .AddOrUpdate("", parser, "baseline layout", kind: VersionKind.Baseline);
+
+        using var scope = provider.CreateScope();
+
+        Assert.Same(parser.WorkflowDefinitions,
+            scope.ServiceProvider.GetRequiredService<ModelService>().WorkflowDefinitions);
+        Assert.Equal("baseline layout",
+            scope.ServiceProvider.GetRequiredService<MailTemplateStore>().Default);
     }
 
     [Fact]
@@ -53,7 +103,7 @@ public class WorkflowConfigLoaderTests
     [Fact]
     public async Task LoadBranch_WithoutRepoUrl_Throws()
     {
-        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesPath });
+        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesRoot });
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => loader.LoadBranchAsync("feature/x"));
     }
@@ -126,6 +176,7 @@ public class WorkflowConfigLoaderTests
         var loader = CreateLoader(resolver, RepoOptions(), github.Handler());
         await loader.LoadBaselineAsync();
         var previous = Assert.Single(resolver.GetVersions());
+        var previousConfig = resolver.Resolve();
 
         github.Sha = "sha-2";
         github.Archive = CreateInvalidArchive;
@@ -135,6 +186,9 @@ public class WorkflowConfigLoaderTests
         await Assert.ThrowsAnyAsync<Exception>(() => loader.ReloadBaselineIfChangedAsync());
 
         Assert.Equal(previous, retained);
+        Assert.Same(previousConfig.ModelService.WorkflowDefinitions,
+            resolver.Resolve().ModelService.WorkflowDefinitions);
+        Assert.Equal(previousConfig.DefaultMailLayout, resolver.Resolve().DefaultMailLayout);
     }
 
     [Theory]
@@ -171,6 +225,61 @@ public class WorkflowConfigLoaderTests
         // '#' must be encoded, else the URL treats it as a fragment and GitHub only sees "feature/".
         Assert.EndsWith("/commits/feature/%23123", apiUri?.AbsoluteUri);
         Assert.Empty(apiUri?.Fragment ?? "");
+    }
+
+    [Fact]
+    public async Task LoadBranch_StoresItsOwnLayout()
+    {
+        var context = new DefaultHttpContext();
+        var resolver = CreateResolver(new HttpContextAccessor { HttpContext = context });
+        var loader = CreateLoader(resolver, RepoOptions(), new FakeGitHub("sha-1").Handler());
+
+        await loader.LoadBranchAsync("feature/x");
+        context.Request.Headers["Workflow-Version"] = "feature/x";
+
+        Assert.Equal(File.ReadAllText(Path.Combine(FixturesRoot, "Layouts", "default.html")),
+            resolver.Resolve().DefaultMailLayout);
+    }
+
+    [Fact]
+    public async Task LoadBranch_WithoutLayout_IsRejected()
+    {
+        var github = new FakeGitHub("sha-1") { Archive = CreateInvalidArchive };
+        var resolver = CreateResolver();
+
+        await Assert.ThrowsAsync<FileNotFoundException>(() =>
+            CreateLoader(resolver, RepoOptions(), github.Handler()).LoadBranchAsync("feature/x"));
+
+        Assert.DoesNotContain(resolver.GetVersions(), version => version.Name == "feature/x");
+    }
+
+    [Fact]
+    public async Task Upload_CheckoutRelativeFiles_InstallsProjectsAndLayout()
+    {
+        var context = new DefaultHttpContext();
+        var resolver = CreateResolver(new HttpContextAccessor { HttpContext = context });
+
+        var result = await CreateVersionsController(resolver).CreateVersion("upload", UploadFiles());
+        context.Request.Headers["Workflow-Version"] = "upload";
+        var config = resolver.Resolve();
+
+        Assert.IsType<OkResult>(result);
+        Assert.Contains("Project", config.ModelService.WorkflowDefinitions.Keys);
+        Assert.Equal(File.ReadAllText(Path.Combine(FixturesRoot, "Layouts", "default.html")),
+            config.DefaultMailLayout);
+    }
+
+    [Fact]
+    public async Task Upload_WithoutLayout_IsRejected()
+    {
+        var resolver = CreateResolver();
+        var files = UploadFiles();
+        files.Remove("Layouts/default.html");
+
+        var result = await CreateVersionsController(resolver).CreateVersion("upload", files);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.DoesNotContain(resolver.GetVersions(), version => version.Name == "upload");
     }
 
     [Fact]
@@ -226,7 +335,7 @@ public class WorkflowConfigLoaderTests
     [Fact]
     public async Task LocalPathBaseline_DisablesPolling()
     {
-        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesPath });
+        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesRoot });
 
         await loader.LoadBaselineAsync();
 
@@ -252,10 +361,30 @@ public class WorkflowConfigLoaderTests
     [Fact]
     public async Task ReloadBaselineIfChanged_NoRepoUrl_ReturnsFalse()
     {
-        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesPath });
+        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesRoot });
 
         Assert.False(await loader.ReloadBaselineIfChangedAsync());
     }
+
+    private static VersionsController CreateVersionsController(ModelServiceResolver resolver)
+    {
+        var userService = new Mock<IUserService>();
+        userService.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["SystemAdmin"]);
+        var rightsService = new RightsService(new ModelService(UnitTestsHelpers.CreateModelParser()),
+            userService.Object, Mock.Of<IWorkflowInstanceRepository>());
+        return new VersionsController(resolver,
+            CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot }),
+            rightsService, NullLogger<VersionsController>.Instance);
+    }
+
+    private static Dictionary<string, string> UploadFiles()
+        => Directory.EnumerateFiles(FixturesRoot, "*.yaml", SearchOption.AllDirectories)
+            .Append(Path.Combine(FixturesRoot, "Layouts", "default.html"))
+            .ToDictionary(
+                file => Path.GetRelativePath(FixturesRoot, file).Replace('\\', '/'),
+                File.ReadAllText,
+                StringComparer.Ordinal);
 
     // Stands in for GitHub: api.github.com resolves the ref to Sha (returned in the body); codeload.github.com
     // serves the current Archive for the resolved commit.
@@ -275,10 +404,9 @@ public class WorkflowConfigLoaderTests
 
     private static byte[] CreateArchive()
     {
-        var fixturesRoot = Directory.GetParent(FixturesPath)!.FullName;
         using var result = new MemoryStream();
         using (var gzip = new GZipStream(result, CompressionMode.Compress, leaveOpen: true))
-            TarFile.CreateFromDirectory(fixturesRoot, gzip, includeBaseDirectory: true);
+            TarFile.CreateFromDirectory(FixturesRoot, gzip, includeBaseDirectory: true);
         return result.ToArray();
     }
 

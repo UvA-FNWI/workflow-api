@@ -21,7 +21,6 @@ public class WorkflowConfigLoader(
     IHttpClientFactory httpClientFactory,
     ModelServiceResolver resolver,
     IOptions<WorkflowSourceOptions> options,
-    MailTemplateStore mailTemplateStore,
     ILogger<WorkflowConfigLoader> logger)
 {
     private readonly WorkflowSourceOptions _opts = options.Value;
@@ -61,17 +60,16 @@ public class WorkflowConfigLoader(
     private async Task<bool> LoadAsync(string @ref, string versionKey, VersionKind kind)
     {
         _shas.TryGetValue(versionKey, out var previousSha);
-        var source = await BuildProviderAsync(@ref, previousSha);
+        var source = await BuildSourceAsync(@ref, previousSha);
         if (source is null)
             return false;
 
-        var (provider, projectsDir, tempDir, sha) = source.Value;
+        var (root, tempDir, sha) = source.Value;
         try
         {
-            resolver.AddOrUpdate(versionKey, new ModelParser(provider), sha, kind);
-            // Only the default version carries the mail layout (Layouts is the sibling of Projects).
-            if (kind == VersionKind.Baseline)
-                mailTemplateStore.Default = ReadLayout(projectsDir);
+            var layout = ReadLayout(root);
+            var parser = new ModelParser(new FileSystemProvider(Path.Combine(root, "Projects")));
+            resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
             if (sha is not null)
                 _shas[versionKey] = sha;
             else
@@ -86,10 +84,12 @@ public class WorkflowConfigLoader(
         }
     }
 
-    private static string? ReadLayout(string projectsDir)
+    private static string ReadLayout(string root)
     {
-        var layoutPath = Path.Combine(projectsDir, "..", "Layouts", "default.html");
-        return File.Exists(layoutPath) ? File.ReadAllText(layoutPath) : null;
+        var layoutPath = Path.Combine(root, "Layouts", "default.html");
+        if (!File.Exists(layoutPath))
+            throw new FileNotFoundException($"Default mail layout not found: {layoutPath}", layoutPath);
+        return File.ReadAllText(layoutPath);
     }
 
     /// Re-fetch the baseline; returns true when a newer commit was installed.
@@ -97,11 +97,14 @@ public class WorkflowConfigLoader(
         => string.IsNullOrWhiteSpace(_opts.RepoUrl) ? Task.FromResult(false) : LoadBaselineAsync();
 
     // Returns null when the ref is unchanged. The caller owns TempDir when a source is returned.
-    private async Task<(IContentProvider Provider, string ProjectsDir, string? TempDir, string? Sha)?>
-        BuildProviderAsync(string @ref, string? previousSha)
+    private async Task<(string Root, string? TempDir, string? Sha)?>
+        BuildSourceAsync(string @ref, string? previousSha)
     {
         if (!string.IsNullOrWhiteSpace(_opts.LocalPath))
-            return (new FileSystemProvider(_opts.LocalPath), _opts.LocalPath, null, null);
+        {
+            logger.LogDebug("Loading local path {LocalPath}", _opts.LocalPath);
+            return (_opts.LocalPath, null, null);
+        }
 
         if (string.IsNullOrWhiteSpace(_opts.RepoUrl))
             throw new InvalidOperationException(
@@ -111,8 +114,7 @@ public class WorkflowConfigLoader(
         if (archive is null)
             return null;
         var (root, tempDir, sha) = archive.Value;
-        var projectsDir = Path.Combine(root, "Projects");
-        return (new FileSystemProvider(projectsDir), projectsDir, tempDir, sha);
+        return (root, tempDir, sha);
     }
 
     private async Task<(string Root, string TempDir, string Sha)?> FetchAndExtractAsync(
