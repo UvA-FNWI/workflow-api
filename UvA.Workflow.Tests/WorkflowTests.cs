@@ -228,4 +228,50 @@ public class WorkflowTests
         Assert.Equal("Assessment-AI",
             projectAi.Properties.Single(p => p.Name == "AssessmentReviewer").WorkflowDefinition?.Name);
     }
+
+    [Fact]
+    public async Task UpdateCurrentStep_StaleStepName_RecalculatesToOpenStep()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "RenamedStep")
+            .WithEvents(
+                b => b.WithId("Start").AsCompleted(),
+                b => b.WithId("ApproveSubject").AsCompleted())
+            .Build();
+
+        var activeSteps = _modelService.GetActiveSteps(instance);
+        await _instanceService.UpdateCurrentStep(instance, _ct);
+
+        Assert.Equal(["Upload"], activeSteps);
+        Assert.Equal("Upload", instance.CurrentStep);
+        _instanceRepoMock.Verify(
+            r => r.UpdateField(instance.Id, i => i.CurrentStep, "Upload", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentStep_StaleFinalStepName_RecalculatesToCompleted()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Finish")
+            .WithEvents(
+                b => b.WithId("Start").AsCompleted(),
+                b => b.WithId("ApproveSubject").AsCompleted(),
+                b => b.WithId("Upload").AsCompleted(),
+                b => b.WithId("AssessmentReviewer").AsCompleted(),
+                b => b.WithId("AssessmentSupervisor").AsCompleted(),
+                b => b.WithId("Publish").AsCompleted())
+            .WithProperties(
+                ("CanBePublished", b => b.Value(true)))
+            .Build();
+
+        var activeSteps = _modelService.GetActiveSteps(instance);
+        await _instanceService.UpdateCurrentStep(instance, _ct);
+
+        Assert.Empty(activeSteps);
+        Assert.Null(instance.CurrentStep);
+        _instanceRepoMock.Verify(
+            r => r.UpdateField<string?>(instance.Id, i => i.CurrentStep, null, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }
