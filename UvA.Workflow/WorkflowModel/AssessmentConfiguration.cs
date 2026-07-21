@@ -30,19 +30,17 @@ public class AssessmentConfiguration
     /// </summary>
     public bool? GradeGap { get; set; }
 
-    public AssessmentConfiguration Enrich(ObjectContext context)
+    public AssessmentConfiguration Enrich(string? gradingBasis, bool? gradeGap)
     {
-        var contextGradingBasis = context.Get("Course.GradingBasis") is string s
+        var contextGradingBasis = gradingBasis is string s
                                   && Enum.TryParse<GradingBasis>(s, out var parsed)
             ? parsed
             : (GradingBasis?)null;
 
-        var contextGradeGap = context.Get("Course.GradeGap") as bool?;
-
         var enrichedConfig = new AssessmentConfiguration
         {
             GradingBasis = GradingBasis ?? contextGradingBasis ?? WorkflowModel.GradingBasis.Decimal,
-            GradeGap = GradeGap ?? contextGradeGap ?? false,
+            GradeGap = GradeGap ?? gradeGap ?? false,
             Parts = Parts,
         };
 
@@ -87,6 +85,11 @@ public class AssessmentSource : INamed
     /// Name of the property (assessor) that provides the score for this part
     /// </summary>
     public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// Localized title of the source
+    /// </summary>
+    public BilingualString? Title { get; set; }
 
     /// <summary>
     /// Relative weight of this source within the assessment part. Defaults to 1.

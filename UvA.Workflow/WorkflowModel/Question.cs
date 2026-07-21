@@ -210,6 +210,11 @@ public class PropertyDefinition : INamed
     /// If set, this question is included in a form only when editing a matching property
     /// </summary>
     public string[]? Sources { get; set; }
+
+    /// <summary>
+    /// The name of another property this property is linked to.
+    /// </summary>
+    public string? LinkedTo { get; set; }
 }
 
 public enum CalculationType

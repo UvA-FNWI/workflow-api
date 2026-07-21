@@ -37,8 +37,14 @@ assessments:
       maximumDiscrepancy: 2
       sources:
         - name: AssessmentSupervisor
+          title: 
+            en: Supervisor
+            nl: Begeleider
           weight: 2
         - name: AssessmentSecondReader 
+          title:
+            en: Second reader
+            nl: Tweede beoordelaar
           weight: 1
     - name: Presentation
       title: 

@@ -6,13 +6,15 @@ icon:
   type: graduate-cap-line
         
 actions:
-  - name: SubmitGrade
+  - name: FinalGrade
     type: Submit
     roles: [Coordinator]
     form: FinalGrade
     label:
-      en: Publish Grade
+      en: Publish grade
       nl: Cijfer publiceren
+    noAutoOpenForm: true
+    intent: destructive
 
 ends:
   event: FinalGrade

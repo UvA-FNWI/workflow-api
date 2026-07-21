@@ -94,7 +94,8 @@ public record QuestionDto(
     int? MaxLength,
     bool? AllowsExternalUsers,
     List<RubricEntryDto>? Rubric,
-    ValueSetSorting? Sorting)
+    ValueSetSorting? Sorting,
+    string? LinkedTo)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context,
         decimal totalWeight)
@@ -141,7 +142,8 @@ public record QuestionDto(
             MaxLength: propertyDefinition.Validation?.Value?.MaxLength,
             AllowsExternalUsers: propertyDefinition.AllowsExternalUsers,
             Rubric: rubric,
-            Sorting: propertyDefinition.Sorting
+            Sorting: propertyDefinition.Sorting,
+            LinkedTo: propertyDefinition.LinkedTo
         );
     }
 }

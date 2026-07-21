@@ -48,6 +48,6 @@ onSubmit:
         template("Supervisor: {{ AssessmentSupervisor.LayoutLanguageComments }}\nSecond reader: {{ AssessmentSecondReader.LayoutLanguageComments }}")
 
   - setProperty:
-      property: AssessmentCombined.MotivationComments
+      property: AssessmentCombined.Motivation
       value: |
-        template("Supervisor: {{ AssessmentSupervisor.MotivationComments }}\nSecond reader: {{ AssessmentSecondReader.MotivationComments }}")
+        template("Supervisor: {{ AssessmentSupervisor.Motivation }}\nSecond reader: {{ AssessmentSecondReader.Motivation }}")
