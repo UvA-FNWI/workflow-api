@@ -4,6 +4,7 @@ using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
@@ -305,6 +306,7 @@ public class StepHeaderStatusTests
             .Build();
 
         var layoutResolver = new Mock<IMailLayoutResolver>();
+        var assessmentService = new Mock<IAssessmentService>();
         layoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(layoutResolver.Object, configuration);
 
@@ -313,7 +315,8 @@ public class StepHeaderStatusTests
             modelService,
             userService.Object,
             rightsService,
-            mailBuilder
+            mailBuilder,
+            assessmentService.Object
         );
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);

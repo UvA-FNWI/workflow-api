@@ -11,6 +11,7 @@ public class SubmissionsController(
     ModelService modelService,
     RightsService rightsService,
     SubmissionService submissionService,
+    WorkflowInstanceService workflowInstanceService,
     SubmissionDtoFactory submissionDtoFactory,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
@@ -20,7 +21,7 @@ public class SubmissionsController(
         CancellationToken ct = default)
     {
         var (instance, submissionState, form, _) =
-            await submissionService.GetSubmissionContext(instanceId, submissionId, version, ct);
+            await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, version, ct);
 
         // If the form is not yet submitted, you can view it with submit permissions. After that, view permissions apply
         await rightsService.EnsureAuthorizedForAction(instance,
@@ -41,7 +42,7 @@ public class SubmissionsController(
         if (user == null)
             return Unauthorized();
 
-        var context = await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+        var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         var (instance, _, form, _) = context;
 
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.Submit, form.Name);

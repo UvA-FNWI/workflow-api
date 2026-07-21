@@ -6,7 +6,7 @@ icon:
   type: graduate-cap-line
         
 actions:
-  - name: SubmitGrade
+  - name: FinalGrade
     type: Submit
     roles: [Coordinator]
     form: FinalGrade

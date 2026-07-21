@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
@@ -24,6 +25,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<InstanceService>();
         services.AddScoped<IInstanceEventService, InstanceEventService>();
         services.AddScoped<IStepVersionService, StepVersionService>();
+        services.AddScoped<IAssessmentService, AssessmentService>();
 
         services.Configure<S3Config>(config.GetSection(S3Config.S3));
         services.AddScoped<IArtifactService, S3ArtifactService>();
