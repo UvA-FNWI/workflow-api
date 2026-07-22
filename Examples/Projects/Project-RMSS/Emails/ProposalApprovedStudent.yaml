@@ -7,7 +7,7 @@ body:
   en: |
     Dear {{ coalesce(Student.DisplayName, =student) }},
 
-    Congratulations, your thesis proposal and ethics submission has been approved.
+    Congratulations, your thesis proposal and ethics submission are approved.
     You can now continue working on your thesis.
   nl: |
     Beste {{ coalesce(Student.DisplayName, =student) }},

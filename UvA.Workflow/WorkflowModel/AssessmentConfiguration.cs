@@ -1,6 +1,16 @@
 namespace UvA.Workflow.WorkflowModel;
 
 /// <summary>
+/// Possible types of the grading
+/// </summary>
+public enum GradingBasis
+{
+    Half,
+    Decimal,
+    PassFail
+}
+
+/// <summary>
 /// Configuration for the assessment of the entity
 /// </summary>
 public class AssessmentConfiguration
@@ -9,6 +19,33 @@ public class AssessmentConfiguration
     /// The parts that together make up the assessment
     /// </summary>
     public List<AssessmentPart> Parts { get; set; } = [];
+
+    /// <summary>
+    /// Property to indicate the final grade type
+    /// </summary>
+    public GradingBasis? GradingBasis { get; set; }
+
+    /// <summary>
+    /// Determines whether grades between 5 and 6 are allowed
+    /// </summary>
+    public bool? GradeGap { get; set; }
+
+    public AssessmentConfiguration Enrich(string? gradingBasis, bool? gradeGap)
+    {
+        var contextGradingBasis = gradingBasis is string s
+                                  && Enum.TryParse<GradingBasis>(s, out var parsed)
+            ? parsed
+            : (GradingBasis?)null;
+
+        var enrichedConfig = new AssessmentConfiguration
+        {
+            GradingBasis = GradingBasis ?? contextGradingBasis ?? WorkflowModel.GradingBasis.Decimal,
+            GradeGap = GradeGap ?? gradeGap ?? false,
+            Parts = Parts,
+        };
+
+        return enrichedConfig;
+    }
 }
 
 public class AssessmentPart : INamed
@@ -48,6 +85,11 @@ public class AssessmentSource : INamed
     /// Name of the property (assessor) that provides the score for this part
     /// </summary>
     public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// Localized title of the source
+    /// </summary>
+    public BilingualString? Title { get; set; }
 
     /// <summary>
     /// Relative weight of this source within the assessment part. Defaults to 1.

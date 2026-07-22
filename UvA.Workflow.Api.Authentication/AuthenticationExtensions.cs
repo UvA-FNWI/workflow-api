@@ -12,7 +12,9 @@ public static class AuthenticationExtensions
     {
         services.AddHttpContextAccessor();
         services.AddAuthorization();
-        services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
+        services.AddScoped<HttpContextCurrentUserAccessor>();
+        services.AddScoped<UserImpersonationTokenService>();
+        services.AddScoped<ICurrentUserAccessor, ImpersonatingCurrentUserAccessor>();
         services.AddSingleton<IAuthenticationSchemeProbe, ApiKeyAuthenticationProbe>();
 
         services.AddAuthentication()

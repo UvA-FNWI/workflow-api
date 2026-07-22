@@ -17,9 +17,38 @@ properties:
 
   - name: Coordinator
     type: "[User]!"
+    text:
+      en: Coordinator
+      nl: Coördinator
 
   - name: Impersonator
     type: "[User]!"
+    text:
+      en: Impersonator
+      nl: Impersonator
 
   - name: StudyManual
     type: String!
+    
+  - name: ConfidentialAdviser
+    type: User!
+    text:
+      en: Confidential adviser
+      nl: Vertrouwenspersoon
+      
+  - name: StudyAdviser
+    type: User!
+    text:
+      en: Study adviser
+      nl: Studieadviseur
+
+    
+  - name: GradingBasis
+    type: GradingBasis!
+    values:
+      - name: Decimal
+      - name: Half
+      - name: PassFail  
+      
+  - name: GradeGap
+    type: Boolean

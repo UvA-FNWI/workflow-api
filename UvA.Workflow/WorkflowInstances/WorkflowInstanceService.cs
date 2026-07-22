@@ -1,6 +1,7 @@
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -52,6 +53,28 @@ public class WorkflowInstanceService(
 
         await repository.Create(instance, ct);
         return instance;
+    }
+
+    public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
+        int? version = null,
+        CancellationToken ct = default)
+    {
+        // Get the workflow instance
+        var instance = version is null
+            ? await repository.GetById(instanceId, ct)
+            : await GetAsOfVersion(instanceId, version.Value, ct);
+        if (instance == null)
+            throw new EntityNotFoundException("WorkflowInstance", instanceId);
+
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
+        var form = modelService.GetForm(instance, submissionId);
+        if (form == null)
+            throw new EntityNotFoundException("Form", $"instanceId:{instanceId},submission:{submissionId}");
+
+        var submissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
+
+        return new SubmissionContext(instance, submissionState, form, submissionId);
     }
 
     /// <summary>

@@ -1,15 +1,15 @@
 name: Project-PP
 title: Thesis PPLE
 titlePlural: 3803THQPVY
-instanceTitle: '{{ WorkingTitle }}'
+instanceTitle: '{{ Title }}'
 
 fields:
   - property: Course.Name
     title: Course
   - property: Student.DisplayName
     title: Student
-  - property: WorkingTitle
-    title: Working Title
+  - property: Title
+    title: Title
   - currentStep: true
     
 steps:
@@ -37,8 +37,14 @@ assessments:
       maximumDiscrepancy: 2
       sources:
         - name: AssessmentSupervisor
+          title: 
+            en: Supervisor
+            nl: Begeleider
           weight: 2
         - name: AssessmentSecondReader 
+          title:
+            en: Second reader
+            nl: Tweede beoordelaar
           weight: 1
     - name: Presentation
       title: 

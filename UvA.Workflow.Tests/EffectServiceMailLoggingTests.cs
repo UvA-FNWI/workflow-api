@@ -3,11 +3,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Serilog;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
-using UvA.Workflow.Tests.Builders;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
@@ -28,14 +29,15 @@ public class EffectServiceMailLoggingTests
         var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
+        var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
-        var mailBuilder = new MailBuilder(mailLayoutResolver.Object, configuration.Object);
+        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
         var instanceService =
             new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder);
+                mailBuilder, assessmentService.Object);
 
         var effectService = new EffectService(
             instanceService,
@@ -43,7 +45,6 @@ public class EffectServiceMailLoggingTests
             modelService,
             mailService.Object,
             eduIdUserService.Object,
-            mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
             configuration.Object,
@@ -127,21 +128,21 @@ public class EffectServiceMailLoggingTests
         var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
+        var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
-        var mailBuilder = new MailBuilder(mailLayoutResolver.Object, configuration.Object);
+        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
         var instanceService =
             new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder);
+                mailBuilder, assessmentService.Object);
         var effectService = new EffectService(
             instanceService,
             eventService.Object,
             modelService,
             mailService.Object,
             eduIdUserService.Object,
-            mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
             configuration.Object,
@@ -189,14 +190,15 @@ public class EffectServiceMailLoggingTests
         var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
+        var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
-        var mailBuilder = new MailBuilder(mailLayoutResolver.Object, configuration.Object);
+        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
         var instanceService =
             new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder);
+                mailBuilder, assessmentService.Object);
 
         var effectService = new EffectService(
             instanceService,
@@ -204,7 +206,6 @@ public class EffectServiceMailLoggingTests
             modelService,
             mailService.Object,
             eduIdUserService.Object,
-            mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
             configuration.Object,

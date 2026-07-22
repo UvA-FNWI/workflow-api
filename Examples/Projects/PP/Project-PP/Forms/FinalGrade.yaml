@@ -2,12 +2,29 @@ name: FinalGrade
 title:
   en: Final Grade
   nl: Eindcijfer
-layout: Compact
+layout: Modal
 step: FinalizeAssessment
+
+onSubmit:
+  - serviceCall:
+      service: DataNose
+      operation: FinalGradeSubmission
+      inputs:
+        CourseExternalId: Course.ExternalId
+        Student: Student
+        Grade: Assessment.FinalGrade
+        ExamType: =Exam
+        ExamDate: =2026-06-17
+        Title: Title
+        Supervisor: Supervisor
+        Examiner: Supervisor
 
 pages:
   - name: FinalGradePage
     title:
       en: Final Grade
       nl: Eindcijfer
+    introduction:
+      nl: Het eindcijfer van {{ Student.DisplayName }} wordt definitief vastgesteld. Wil je doorgaan?
+      en: The final grade for {{ Student.DisplayName }} will be permanently set. Do you want to continue?
     fields: []

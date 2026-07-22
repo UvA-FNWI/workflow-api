@@ -8,7 +8,6 @@ using UvA.Workflow.Submissions;
 namespace UvA.Workflow.Api.Submissions;
 
 public class AnswersController(
-    IUserService userService,
     AnswerService answerService,
     AnswerConversionService answerConversionService,
     RightsService rightsService,
@@ -24,6 +23,7 @@ public class AnswersController(
     private const string InvalidEmailAddressCode = "InvalidEmailAddress";
     private const string InvalidQuestionTypeCode = "InvalidQuestionType";
     private const string ExternalUsersNotAllowedCode = "ExternalUsersNotAllowed";
+    private const string InvalidChoiceValueCode = "InvalidChoiceValue";
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
@@ -65,6 +65,11 @@ public class AnswersController(
             await answerConversionService.ContainsExternalUserSelection(userValue, context.PropertyDefinition.IsArray,
                 ct))
             return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
+
+        if (context.PropertyDefinition.DataType == DataType.Choice && value is JsonElement choiceValue &&
+            AnswerConversionService.FindInvalidChoice(choiceValue, context.PropertyDefinition) is { } invalidChoice)
+            return Unprocessable(InvalidChoiceValueCode,
+                $"'{invalidChoice}' is not a valid value for '{questionName}'");
 
         var answers = await answerService.SaveAnswer(context, value, ct);
         var permissions =

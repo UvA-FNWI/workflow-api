@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Logging;
+using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Users;
@@ -9,17 +11,25 @@ namespace UvA.Workflow.Api.Users;
 public class UsersController(
     IUserService userService,
     IUserRepository userRepository,
+    IWorkflowInstanceRepository workflowInstanceRepository,
     RightsService rightsService,
-    IEduIdUserService eduIdUserService) : ApiControllerBase
+    IEduIdUserService eduIdUserService,
+    HttpContextCurrentUserAccessor realUserAccessor,
+    UserImpersonationTokenService userImpersonationTokenService,
+    ExternalUserEmailUpdateService externalUserEmailUpdateService,
+    ILogger<UsersController> logger) : ApiControllerBase
 {
     private const string ValidEmailStatus = "Valid";
     private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
     private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
     private const string InvalidEmailAddressCode = "InvalidEmailAddress";
+    private const string ImpersonationTargetNotFoundCode = "ImpersonationTargetNotFound";
+    private const string UserNotInAnswerCode = "UserNotInAnswer";
 
     private const string InternalEmailMessage = "Internal email address";
     private const string DuplicateEmailMessage = "Email already exists";
     private const string InvalidEmailMessage = "Invalid email address";
+    private const string ImpersonationTargetNotFoundMessage = "User has no workflow account yet";
 
     private static readonly EmailAddressAttribute EmailAddressAttribute = new();
 
@@ -87,12 +97,94 @@ public class UsersController(
         return Ok(UserDto.Create(user));
     }
 
+    [HttpPut("{id}/email")]
+    public async Task<ActionResult<UserDto>> UpdateEmail(
+        string id,
+        [FromBody] UpdateUserEmailDto dto,
+        CancellationToken ct)
+    {
+        var instance = await workflowInstanceRepository.GetById(dto.InstanceId, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        var user = await userRepository.GetById(id, ct);
+        if (user == null)
+            return UserNotFound;
+
+        if (!ExternalUserEmailUpdateService.CanUpdateExternalUserEmail(user))
+        {
+            return Unprocessable(
+                "UserEmailUpdateNotAllowed",
+                "Email address can only be updated for external users that have not started an invitation");
+        }
+
+        var updatePlan = await externalUserEmailUpdateService.PrepareAnswerReferenceUpdate(instance, user, ct);
+        switch (updatePlan.Result)
+        {
+            case ExternalUserEmailAnswerUpdateResult.UserNotInAnswer:
+                return Unprocessable(UserNotInAnswerCode, UserNotInAnswerCode);
+            case ExternalUserEmailAnswerUpdateResult.Forbidden:
+                return Forbidden();
+        }
+
+        if (user.Email != dto.Email)
+        {
+            var emailValidationResult = await ValidateEmail(dto.Email, ct);
+            if (emailValidationResult != null)
+                return emailValidationResult;
+        }
+
+        var previousEmail = user.Email;
+        var email = dto.Email.Trim();
+        var userChanged = !string.Equals(user.Email, email, StringComparison.Ordinal);
+        if (!userChanged)
+            return Ok(UserDto.Create(user));
+
+        user.Email = email;
+        if (string.Equals(user.UserName, previousEmail, StringComparison.OrdinalIgnoreCase))
+            user.UserName = email;
+
+        await userRepository.Update(user, ct);
+        await externalUserEmailUpdateService.UpdateAnswerReferences(updatePlan, user, ct);
+
+        return Ok(UserDto.Create(user));
+    }
+
     [HttpGet("find")]
     public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
         [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
     {
         var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
         return Ok(searchResults.Select(UserSearchResultDto.Create));
+    }
+
+    /// <summary>
+    /// Starts impersonating another user. Returns a signed token the client sends back via
+    /// the <c>X-User-Impersonation</c> header; from then on the API resolves the current user as the
+    /// target. The real admin keeps their SurfConext identity, so authorisation here always checks the
+    /// admin even when an impersonation is already active (enabling re-targeting, blocking escalation).
+    /// </summary>
+    [HttpPost("impersonate")]
+    public async Task<ActionResult<UserImpersonationStartedDto>> Impersonate(
+        [FromBody] StartUserImpersonationDto dto, CancellationToken ct)
+    {
+        var realName = realUserAccessor.GetCurrentUserName();
+        if (string.IsNullOrWhiteSpace(realName))
+            return UserNotFound;
+
+        var realUser = await userService.GetUser(realName, ct);
+        var roles = realUser is null ? [] : await userService.GetRoles(realUser, ct);
+        if (!roles.Contains(DataNoseDirectoryKeys.SuperAdminRoleName, StringComparer.OrdinalIgnoreCase))
+            return Forbidden();
+
+        var target = await userService.GetUser(dto.UserName, ct);
+        if (target == null)
+            return NotFound(ImpersonationTargetNotFoundCode, ImpersonationTargetNotFoundMessage);
+
+        var token = userImpersonationTokenService.CreateToken(realName, target.UserName);
+        logger.LogInformation("{Admin} started impersonating {Target}", realName, target.UserName);
+
+        return Ok(new UserImpersonationStartedDto(token.Value, token.ExpiresAtUtc));
     }
 
     private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct)

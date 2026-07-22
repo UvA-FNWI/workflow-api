@@ -4,9 +4,15 @@ icon:
   type: law-balance-line
   color: green
 
+progress:
+  color: red
+  text:
+    en: Waiting for assessment presentation {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
+    nl: Wacht op beoordeling presentatie {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
+
 properties:
   - name: PresentationResearchTopic
-    type: String!
+    type: String
     text: Interdisciplinarity in the research topic
     description: |
       Is the research question suitable for an interdisciplinary analysis?  
@@ -15,7 +21,7 @@ properties:
     layout:
       multiline: true
   - name: PresentationTheory
-    type: String!
+    type: String
     text: Interdisciplinarity in the theory and/or methodology
     description: |
       Does the theoretical framework display multidisciplinarity?  
@@ -26,7 +32,7 @@ properties:
     layout:
       multiline: true
   - name: PresentationQuality
-    type: String!
+    type: String
     text: Quality of the presentation and the Q&A
     description: |
       Structure, clarity, timeliness, tone, non-verbal language, use of voice of the presenter, quality of slides, comprehensive use of tables & figures.  
@@ -56,7 +62,7 @@ properties:
 
 actions:
   - type: Submit
-    roles: [CoSupervisor]
+    roles: [CoSupervisor,Supervisor]
     form: AssessmentPresentation
     label:
       en: Submit assessment

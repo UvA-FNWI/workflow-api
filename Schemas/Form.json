@@ -50,10 +50,6 @@
       ],
       "description": "To be used in combination with Property. The name of a form for the referenced entity type"
     },
-    "formType": {
-      "description": "Type of the form to be rendered by the front-end.",
-      "$ref": "#/definitions/FormType"
-    },
     "step": {
       "type": [
         "null",
@@ -121,14 +117,6 @@
         "Normal",
         "Compact",
         "Modal"
-      ]
-    },
-    "FormType": {
-      "type": "string",
-      "enum": [
-        "Normal",
-        "AssessmentPartOverview",
-        "AssessmentFinalOverview"
       ]
     },
     "Page": {
@@ -557,23 +545,56 @@
       "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
-        "name": {
-          "type": "string"
-        },
         "to": {
-          "type": [
-            "null",
-            "string"
+          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a template.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
-        "toAddress": {
-          "type": [
-            "null",
-            "string"
+        "cc": {
+          "description": "Cc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "bcc": {
+          "description": "Bcc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
         "subject": {

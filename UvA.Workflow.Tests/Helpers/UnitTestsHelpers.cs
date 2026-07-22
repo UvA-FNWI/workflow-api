@@ -1,6 +1,12 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using Moq;
 using UvA.Workflow.Infrastructure.S3;
+using UvA.Workflow.Jobs;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.Users;
 
 namespace UvA.Workflow.Tests.Helpers;
@@ -17,6 +23,20 @@ internal static class UnitTestsHelpers
         Id = ObjectId.GenerateNewId().ToString(),
         UserName = "admin"
     };
+
+    public static MailBuilder CreateMailBuilder(
+        IMailLayoutResolver layoutResolver,
+        IConfiguration? configuration = null,
+        string workerGroup = "test",
+        string environmentName = "Production")
+    {
+        configuration ??= new Mock<IConfiguration>().Object;
+        var workerOptions = Options.Create(new WorkerOptions { WorkerGroup = workerGroup });
+        var env = new Mock<IHostEnvironment>();
+        env.Setup(e => e.EnvironmentName).Returns(environmentName);
+        return new MailBuilder(layoutResolver, configuration, workerOptions, env.Object,
+            NullLogger<MailBuilder>.Instance);
+    }
 
     public sealed class TestOptionsMonitor<T>(T currentValue) : IOptionsMonitor<T>
     {

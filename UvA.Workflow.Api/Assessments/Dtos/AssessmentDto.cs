@@ -7,10 +7,16 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Assessments.Dtos;
 
+public record FinalGrade(
+    decimal? Calculated,
+    float? Rounded,
+    BilingualString? Text
+);
+
 public record AssessmentDto(
     string Id,
     AssessmentPartDto[] Parts,
-    decimal? FinalGrade
+    FinalGrade? FinalGrade
 );
 
 public record AssessmentPartDto(
@@ -32,7 +38,11 @@ public record SourceResultDto(
     decimal? Percentage
 );
 
-public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, ModelService modelService)
+public class AssessmentDtoFactory(
+    ArtifactTokenService artifactTokenService,
+    ModelService modelService,
+    IAssessmentService assessmentService
+)
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
 
@@ -41,7 +51,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
         input == null ? null : Math.Round(input.Value, 2, MidpointRounding.AwayFromZero);
 
     public AssessmentDto Create(
-        string id,
+        WorkflowInstance instance,
         IEnumerable<SubmissionContext> contexts,
         AssessmentConfiguration? assessmentConfig,
         string? pageName = null,
@@ -49,44 +59,30 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
     {
         var contextList = contexts.ToList();
         var parts = new List<AssessmentPartDto>();
-        var domainPartResults = new List<AssessmentPartResult>();
+        var context = modelService.CreateContext(instance);
 
-        decimal totalPartWeight = assessmentConfig?.Parts.Sum(p => p.Weight) ?? 0;
+        var result = assessmentService.GetAssessmentResult(
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition],
+            context,
+            assessmentConfig,
+            contextList.Select(c => c.Form.Name).ToList(),
+            pageName
+        );
 
-        foreach (var partConfig in assessmentConfig?.Parts ?? [])
+        foreach (var part in result.PartResults)
         {
-            var partContexts = partConfig.Sources
-                .Select(source => contextList.FirstOrDefault(c => c.Form.Name == source.Name))
-                .Where(c => c != null)
-                .Cast<SubmissionContext>()
-                .ToList();
-
-            var sourceResults = partContexts
-                .Select(c => AssessmentService.CalculateSourceResult(c, pageName))
-                .ToList();
-
-            var result = new AssessmentPartResult
-            {
-                Name = partConfig.Name,
-                Combined = AssessmentService.CalculateCombined(partConfig, sourceResults),
-                SourceResults = sourceResults
-            };
-            domainPartResults.Add(result);
-
-            decimal partPercentage = totalPartWeight > 0
-                ? partConfig.Weight / totalPartWeight * 100
-                : 0;
-
+            var partConfig = part.PartConfig;
             decimal totalSourceWeight = partConfig.Sources.Sum(s => s.Weight);
-            var sourceResultDtos = partContexts
-                .Where(c => allowedForms == null || allowedForms.Contains(c.Form.Name))
-                .Select((context, i) =>
+            var sourceResultDtos = part.SourceResults
+                .Where(c => allowedForms == null || allowedForms.Contains(c.Name))
+                .Select(sourceResult =>
                 {
-                    var sourceConfig = partConfig.Sources.FirstOrDefault(s => s.Name == context.Form.Name);
+                    var sourceConfig = partConfig.Sources.FirstOrDefault(s => s.Name == sourceResult.Name);
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(context, sourceResults[i], pageName, sourcePercentage);
+                    return MapToSourceResultDto(instance, sourceResult, pageName, sourcePercentage,
+                        sourceConfig?.Title);
                 })
                 .ToArray();
 
@@ -94,51 +90,69 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
-                partContexts.Count > 0 ? MapToSourceResultDto(partContexts[0], result.Combined, null) : null,
-                RoundToTwo(partPercentage),
+                part.SourceResults.Count > 0 ? MapToSourceResultDto(instance, part.Combined, null) : null,
+                RoundToTwo(part.PartPercentage),
                 partConfig.MaximumDiscrepancy > 0 && sourceResultDtos.Any(s1 => s1.WeightedAverage != null
                     && sourceResultDtos.Any(s2 =>
                         s2.WeightedAverage != null && Math.Abs(s2.WeightedAverage.Value - s1.WeightedAverage.Value) >=
                         partConfig.MaximumDiscrepancy)),
-                partContexts.Count > 0
-                    ? FormDto.Create(partContexts[0].Form, ObjectContext.Create(partContexts[0].Instance, modelService))
+                part.SourceResults.Count > 0
+                    ? FormDto.Create(part.SourceResults[0].Form,
+                        ObjectContext.Create(contextList[0].Instance, modelService))
                     : null
             ));
         }
 
-        var finalGrade = assessmentConfig != null
-            ? AssessmentService.CalculateFinalGrade(assessmentConfig, domainPartResults)
-            : (decimal?)null;
+        if (assessmentConfig == null) return new AssessmentDto(instance.Id, parts.ToArray(), null);
 
-        return new(id, parts.ToArray(), RoundToTwo(finalGrade ?? 0));
+        bool isGradingComplete = assessmentConfig.Parts
+            .All(p => p.Sources.All(s => contextList.Any(c => c.Form.Name == s.Name)));
+
+        if (!isGradingComplete)
+            return new AssessmentDto(instance.Id, parts.ToArray(), null);
+
+        var finalGradeLabel = assessmentConfig.GradingBasis == GradingBasis.PassFail
+            ? result.FinalGradeRounded >= 1
+                ? new BilingualString("Pass", "Voldoende")
+                : new BilingualString("Fail", "Onvoldoende")
+            : null;
+
+        return new AssessmentDto(instance.Id, parts.ToArray(), new FinalGrade(result.FinalGradeUnrounded,
+            finalGradeLabel == null ? result.FinalGradeRounded : null,
+            finalGradeLabel));
     }
 
     public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
     {
-        var sourceResult = AssessmentService.CalculateSourceResult(context, pageName);
-        return MapToSourceResultDto(context, sourceResult, pageName);
+        var sourceResult = AssessmentHelpers.CalculateSourceResult(context.Form,
+            modelService.CreateContext(context.Instance),
+            pageName);
+        return MapToSourceResultDto(context.Instance, sourceResult, pageName);
     }
 
     private SourceResultDto MapToSourceResultDto(
-        SubmissionContext context,
+        WorkflowInstance instance,
         SourceResult sourceResult,
         string? pageName,
-        decimal? percentage = null)
+        decimal? percentage = null,
+        BilingualString? titleOverride = null)
     {
-        var shownQuestionIds = modelService.GetQuestionStatus(context.Instance, context.Form, true);
-        var questionNamesOnPage = context.Form.ActualForm.Pages
+        var form = sourceResult.Form;
+
+        var shownQuestionIds = modelService.GetQuestionStatus(instance, form, true);
+        var questionNamesOnPage = form.ActualForm.Pages
             .Where(p => string.IsNullOrEmpty(pageName) || p.Name == pageName)
             .SelectMany(p => p.Fields)
             .Select(f => f.Name);
 
-        var answers = Answer.Create(context.Instance, context.Form, shownQuestionIds)
+        var answers = Answer.Create(instance, form, shownQuestionIds)
             .Where(a => questionNamesOnPage.Contains(a.QuestionName))
             .Select(a => _answerDtoFactory.Create(a))
             .ToArray();
 
         if (sourceResult.IsCombined)
         {
-            var definition = context.Form.ActualForm.WorkflowDefinition;
+            var definition = form.ActualForm.WorkflowDefinition;
             var relevantQuestions = definition.Properties.Where(p => p.Results != null).ToDictionary(p => p.Name);
             var combinedAnswers = sourceResult.PageResults.SelectMany(p => p.QuestionResults).ToDictionary(q => q.Name);
             answers = answers
@@ -154,7 +168,7 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
                         {
                             ResultType.Source when settings.Source != null =>
                                 Answer.GetValue(question!,
-                                    context.Instance.GetProperty(settings.Source, a.QuestionName)),
+                                    instance.GetProperty(settings.Source, a.QuestionName)),
                             _ when !combinedAnswers.ContainsKey(a.QuestionName) => null,
                             null or ResultType.Average =>
                                 JsonSerializer.SerializeToElement(Math.Round(combinedAnswers[a.QuestionName].Answer,
@@ -187,8 +201,8 @@ public class AssessmentDtoFactory(ArtifactTokenService artifactTokenService, Mod
             .ToArray();
 
         return new(
-            sourceResult.IsCombined ? "Combined" : context.Form.Name,
-            sourceResult.IsCombined ? new("Average", "Gemiddelde") : context.Form.DisplayName,
+            sourceResult.IsCombined ? "Combined" : form.Name,
+            sourceResult.IsCombined ? new("Average", "Gemiddelde") : (titleOverride ?? form.DisplayName),
             roundedPageResults,
             answers,
             RoundToTwo(sourceResult.WeightedAverage),

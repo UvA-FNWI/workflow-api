@@ -7,6 +7,12 @@ title:
   nl: Voorstel indienen
   en: Submit proposal
 
+progress:
+  color: green
+  text:
+    en: Writing proposal
+    nl: Schrijft voorstel
+
 properties:
   - name: Topic
     type: String!
@@ -67,6 +73,8 @@ properties:
     text:
       en: Contact person email
       nl: E-mailadres contactpersoon
+    layout:
+      variant: Email
 
   - name: Description
     type: File!
@@ -82,6 +90,8 @@ properties:
     description:
       en: A phone number on which you can be reached in case of an emergency during your research.
       nl: Een telefoonnummer waarop je tijdens je onderzoek bij nood bereikbaar bent.
+    layout:
+      variant: Phone
 
   - name: StartDate
     type: Date!

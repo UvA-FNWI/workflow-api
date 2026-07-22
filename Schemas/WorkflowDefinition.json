@@ -180,7 +180,7 @@
               "$ref": "#/definitions/ChoiceLayoutOptions"
             },
             {
-              "$ref": "#/definitions/StringLayoutOptions"
+              "$ref": "#/definitions/TextLayoutOptions"
             },
             {
               "$ref": "#/definitions/TableLayoutOptions"
@@ -303,6 +303,17 @@
             }
           ]
         },
+        "results": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result display",
+              "$ref": "#/definitions/ResultSettings"
+            }
+          ]
+        },
         "allowsExternalUsers": {
           "type": [
             "boolean",
@@ -358,8 +369,8 @@
         "Rubric"
       ]
     },
-    "StringLayoutOptions": {
-      "title": "StringLayoutOptions",
+    "TextLayoutOptions": {
+      "title": "TextLayoutOptions",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -370,8 +381,19 @@
         "allowAttachments": {
           "type": "boolean",
           "description": "Set if the text field should allow attachments"
+        },
+        "variant": {
+          "description": "Renders the string field as a specific input (e.g. email or phone) with matching validation",
+          "$ref": "#/definitions/StringVariant"
         }
       }
+    },
+    "StringVariant": {
+      "type": "string",
+      "enum": [
+        "Email",
+        "Phone"
+      ]
     },
     "TableLayoutOptions": {
       "title": "TableLayoutOptions",
@@ -809,23 +831,56 @@
       "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
-        "name": {
-          "type": "string"
-        },
         "to": {
-          "type": [
-            "null",
-            "string"
+          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a template.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
-        "toAddress": {
-          "type": [
-            "null",
-            "string"
+        "cc": {
+          "description": "Cc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "bcc": {
+          "description": "Bcc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
         "subject": {
@@ -1075,6 +1130,31 @@
         "Sum"
       ]
     },
+    "ResultSettings": {
+      "title": "ResultSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Determines what kind of results are shown for this field",
+          "$ref": "#/definitions/ResultType"
+        },
+        "source": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "For Type = Source, this determines which source property to use"
+        }
+      }
+    },
+    "ResultType": {
+      "type": "string",
+      "enum": [
+        "Source",
+        "Average"
+      ]
+    },
     "RubricEntry": {
       "title": "RubricEntry",
       "type": "object",
@@ -1284,7 +1364,8 @@
         "AssignMessages",
         "CreateInstance",
         "CreateRelatedInstance",
-        "ImpersonateRoles"
+        "ImpersonateRoles",
+        "ViewResults"
       ]
     },
     "Field": {
@@ -1371,6 +1452,24 @@
           "items": {
             "$ref": "#/definitions/AssessmentPart"
           }
+        },
+        "gradingBasis": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Property to indicate the final grade type",
+              "$ref": "#/definitions/GradingBasis"
+            }
+          ]
+        },
+        "gradeGap": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Determines whether grades between 5 and 6 are allowed"
         }
       }
     },
@@ -1438,6 +1537,14 @@
           "description": "Relative weight of this source within the assessment part. Defaults to 1."
         }
       }
+    },
+    "GradingBasis": {
+      "type": "string",
+      "enum": [
+        "Half",
+        "Decimal",
+        "PassFail"
+      ]
     }
   }
 }

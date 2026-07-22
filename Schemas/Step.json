@@ -36,6 +36,10 @@
         }
       ]
     },
+    "resultsType": {
+      "description": "Determines whether assessment results are shown in the step",
+      "$ref": "#/definitions/StepResultsType"
+    },
     "icon": {
       "oneOf": [
         {
@@ -170,6 +174,14 @@
       "enum": [
         "Red",
         "Green"
+      ]
+    },
+    "StepResultsType": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "AssessmentPartOverview",
+        "AssessmentFinalOverview"
       ]
     },
     "Icon": {
@@ -618,7 +630,8 @@
         "AssignMessages",
         "CreateInstance",
         "CreateRelatedInstance",
-        "ImpersonateRoles"
+        "ImpersonateRoles",
+        "ViewResults"
       ]
     },
     "Effect": {
@@ -758,23 +771,56 @@
       "title": "SendMessage",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name"
-      ],
       "properties": {
-        "name": {
-          "type": "string"
-        },
         "to": {
-          "type": [
-            "null",
-            "string"
+          "description": "Recipients: each entry is a property lookup (User or [User]), a literal email address, or a template.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
-        "toAddress": {
-          "type": [
-            "null",
-            "string"
+        "cc": {
+          "description": "Cc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "bcc": {
+          "description": "Bcc recipients, resolved like 'to'.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
         "subject": {
@@ -1038,7 +1084,7 @@
               "$ref": "#/definitions/ChoiceLayoutOptions"
             },
             {
-              "$ref": "#/definitions/StringLayoutOptions"
+              "$ref": "#/definitions/TextLayoutOptions"
             },
             {
               "$ref": "#/definitions/TableLayoutOptions"
@@ -1161,6 +1207,17 @@
             }
           ]
         },
+        "results": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result display",
+              "$ref": "#/definitions/ResultSettings"
+            }
+          ]
+        },
         "allowsExternalUsers": {
           "type": [
             "boolean",
@@ -1216,8 +1273,8 @@
         "Rubric"
       ]
     },
-    "StringLayoutOptions": {
-      "title": "StringLayoutOptions",
+    "TextLayoutOptions": {
+      "title": "TextLayoutOptions",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1228,8 +1285,19 @@
         "allowAttachments": {
           "type": "boolean",
           "description": "Set if the text field should allow attachments"
+        },
+        "variant": {
+          "description": "Renders the string field as a specific input (e.g. email or phone) with matching validation",
+          "$ref": "#/definitions/StringVariant"
         }
       }
+    },
+    "StringVariant": {
+      "type": "string",
+      "enum": [
+        "Email",
+        "Phone"
+      ]
     },
     "TableLayoutOptions": {
       "title": "TableLayoutOptions",
@@ -1335,6 +1403,31 @@
       "enum": [
         "Average",
         "Sum"
+      ]
+    },
+    "ResultSettings": {
+      "title": "ResultSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Determines what kind of results are shown for this field",
+          "$ref": "#/definitions/ResultType"
+        },
+        "source": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "For Type = Source, this determines which source property to use"
+        }
+      }
+    },
+    "ResultType": {
+      "type": "string",
+      "enum": [
+        "Source",
+        "Average"
       ]
     },
     "RubricEntry": {

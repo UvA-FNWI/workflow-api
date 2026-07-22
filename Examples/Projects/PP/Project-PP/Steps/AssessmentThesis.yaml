@@ -4,6 +4,12 @@ title:
   en: Assessment thesis
   nl: Beoordeling scriptie
 
+progress:
+  color: red
+  text:
+    en: Waiting for assessment thesis {{ coalesce(formatDate(UploadFinalThesisEvent, =dd-MM-yyyy), =) }}
+    nl: Wacht op beoordeling scriptie {{ coalesce(formatDate(UploadFinalThesisEvent, =dd-MM-yyyy), =) }}
+
 actions:
   - roles: [Supervisor]
     type: Edit

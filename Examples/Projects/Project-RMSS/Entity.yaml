@@ -3,16 +3,8 @@ title: Research Master Social Sciences
 titlePlural:
   en: Projects (RMSS)
   nl: Projecten (RMSS)
-instanceTitle: '{{ WorkingTitle }}'
+instanceTitle: '{{ Title }}'
 inheritsFrom: Project
-fields:
-  - property: Course.Name
-    title: Course
-  - property: Student.DisplayName
-    title: Student
-  - property: WorkingTitle
-    title: Working Title
-  - currentStep: true
 
 events:
   - name: Start

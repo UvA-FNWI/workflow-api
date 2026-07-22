@@ -17,12 +17,12 @@ public record QuestionContext(
     PropertyDefinition PropertyDefinition);
 
 public class AnswerService(
-    SubmissionService submissionService,
     ModelService modelService,
     InstanceService instanceService,
     RightsService rightsService,
     IArtifactService artifactService,
     AnswerConversionService answerConversionService,
+    WorkflowInstanceService workflowInstanceService,
     IInstanceEventService instanceEventService,
     IInstanceJournalService instanceJournalService,
     IUserService userService)
@@ -31,7 +31,7 @@ public class AnswerService(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
         var (instance, submissionState, form, _) =
-            await submissionService.GetSubmissionContext(instanceId, submissionId, null, ct);
+            await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
 
         // Get the propertyDefinition
         var question = modelService.GetQuestion(instance, form.PropertyName, questionName);

@@ -1,10 +1,10 @@
 using MongoDB.Bson;
 using UvA.Workflow.Assessments;
-using UvA.Workflow.Submissions;
+using UvA.Workflow.Tools;
 
 namespace UvA.Workflow.Tests;
 
-public class AssessmentServiceTests
+public class AssessmentHelpersTests
 {
     private static QuestionResult[] Page(params (int weight, double answer)[] fields) =>
         fields.Select(f => new QuestionResult { Weight = f.weight, Answer = f.answer }).ToArray();
@@ -61,7 +61,7 @@ public class AssessmentServiceTests
     // Builds a SubmissionContext from a simple description of pages and answers.
     // Answers are stored in the instance under propertyName (nested) so that
     // GetProperty(propertyName, fieldName) resolves correctly.
-    private static SubmissionContext CreateContext(
+    private static (Form, ObjectContext) CreateContext(
         string formName,
         string propertyName,
         params (string pageName, (string fieldName, decimal weight, double answer)[] questions)[] pages)
@@ -84,18 +84,14 @@ public class AssessmentServiceTests
         };
 
         // Store all answers in a BsonDocument nested under propertyName
+        var dict = new Dictionary<Lookup, object?>();
+
         var doc = new BsonDocument();
         foreach (var (_, questions) in pages)
         foreach (var (fieldName, _, answer) in questions)
-            doc[fieldName] = new BsonDouble(answer);
+            dict.Add(new PropertyLookup($"{formName}.{fieldName}"), answer);
 
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Test")
-            .WithCurrentStep("Start")
-            .WithProperties((propertyName, b => b.Value(doc)))
-            .Build();
-
-        return new SubmissionContext(instance, new FormSubmissionState([], [], null), form, formName);
+        return (form, new ObjectContext(dict));
     }
 
     [Fact]
@@ -111,7 +107,7 @@ public class AssessmentServiceTests
         };
         // source avg: (4.25 * 8 + 7 * 8 + 4.75 * 4) / 20 = 5.45
 
-        var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
+        var result = AssessmentHelpers.CalculatePartWeightedAverage(partConfig, sources);
 
         Assert.Equal(5.45m, result);
     }
@@ -134,7 +130,7 @@ public class AssessmentServiceTests
         // supervisor avg: 5.45 (weight 1), reader avg: 6.0 (weight 1)
         // part avg: (5.45 * 1 + 6.0 * 1) / 2 = 5.73
 
-        var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
+        var result = AssessmentHelpers.CalculatePartWeightedAverage(partConfig, sources);
 
         Assert.Equal(5.73m, Math.Round(result, 2, MidpointRounding.AwayFromZero));
     }
@@ -157,7 +153,7 @@ public class AssessmentServiceTests
         // supervisor avg: 5.45 (weight 2), reader avg: 6.0 (weight 1)
         // part avg: (5.45 * 2 + 6.0 * 1) / 3 = 16.9 / 3 = 5.63
 
-        var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
+        var result = AssessmentHelpers.CalculatePartWeightedAverage(partConfig, sources);
 
         Assert.Equal(5.63m, Math.Round(result, 2, MidpointRounding.AwayFromZero));
     }
@@ -180,7 +176,7 @@ public class AssessmentServiceTests
         // reader has an empty page → reader.WeightedAverage = 0 → skipped entirely
         // part avg: (supervisor avg 5.45 * 1) / 1 = 5.45
 
-        var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
+        var result = AssessmentHelpers.CalculatePartWeightedAverage(partConfig, sources);
 
         Assert.Equal(5.45m, result);
     }
@@ -197,7 +193,7 @@ public class AssessmentServiceTests
                 ("Presentation", Page((1, 5), (1, 6), (2, 7)))) // filled
         };
 
-        var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
+        var result = AssessmentHelpers.CalculatePartWeightedAverage(partConfig, sources);
 
         Assert.Equal(0m, result);
     }
@@ -214,7 +210,7 @@ public class AssessmentServiceTests
         // reader is null from FirstOrDefault → skipped, only supervisor counted
         // part avg: (7 * 1) / 1 = 7.0
 
-        var result = AssessmentService.CalculatePartWeightedAverage(partConfig, sources);
+        var result = AssessmentHelpers.CalculatePartWeightedAverage(partConfig, sources);
 
         Assert.Equal(7.0m, result);
     }
@@ -227,9 +223,10 @@ public class AssessmentServiceTests
         var config = Config(("WrittenReport", 1));
         var parts = new[] { PartResult("WrittenReport", 7.5m) };
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentHelpers.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.5m, result);
+        Assert.Equal(7.5m, resultUnrounded);
+        Assert.Equal(7.5f, resultRounded);
     }
 
     [Fact]
@@ -243,9 +240,10 @@ public class AssessmentServiceTests
         };
         // (8 * 60 + 6 * 40) / (60 + 40) = 7.2
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentHelpers.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.2m, result);
+        Assert.Equal(7.2m, resultUnrounded);
+        Assert.Equal(7.2f, resultRounded);
     }
 
     [Fact]
@@ -259,9 +257,10 @@ public class AssessmentServiceTests
         };
         // Only WrittenReport submitted → (8 * 60) / 60 = 8.0
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentHelpers.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(8.0m, result);
+        Assert.Equal(8.0m, resultUnrounded);
+        Assert.Equal(8.0f, resultRounded);
     }
 
     [Fact]
@@ -274,9 +273,10 @@ public class AssessmentServiceTests
             PartResult("Presentation", 0m)
         };
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentHelpers.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(0m, result);
+        Assert.Equal(0m, resultUnrounded);
+        Assert.Equal(0f, resultRounded);
     }
 
     [Fact]
@@ -291,9 +291,10 @@ public class AssessmentServiceTests
         };
         // (8 * 60 + 7 * 20 + 6 * 20) / 100 = 7.4
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentHelpers.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(7.4m, result);
+        Assert.Equal(7.4m, resultUnrounded);
+        Assert.Equal(7.4f, resultRounded);
     }
 
     [Fact]
@@ -308,9 +309,10 @@ public class AssessmentServiceTests
         // Presentation is null from FirstOrDefault → filtered by pair.Result != null
         // submittedWeight = 60 → (8 * 60) / 60 = 8.0
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentHelpers.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(8.0m, result);
+        Assert.Equal(8.0m, resultUnrounded);
+        Assert.Equal(8.0f, resultRounded);
     }
 
     [Fact]
@@ -319,9 +321,10 @@ public class AssessmentServiceTests
         var config = new AssessmentConfiguration(); // no parts
         var parts = Array.Empty<AssessmentPartResult>();
 
-        var result = AssessmentService.CalculateFinalGrade(config, parts);
+        var (resultUnrounded, resultRounded) = AssessmentHelpers.CalculateFinalGrade(config, parts);
 
-        Assert.Equal(0m, result);
+        Assert.Equal(0m, resultUnrounded);
+        Assert.Equal(0f, resultRounded);
     }
 
     // ─── CalculateSourceResult ────────────────────────────────────────────────
@@ -329,11 +332,11 @@ public class AssessmentServiceTests
     [Fact]
     public void CalculateSourceResult_AllPagesFilled_ReturnsCorrectPageResultsAndName()
     {
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]), // avg = (8*2+7*1)/3 = 7.67, weight = 3
             ("Process", [("Clarity", 1, 6.0)])); // avg = 6.0, weight = 1
 
-        var result = AssessmentService.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         // Name must match Form.Name, not PropertyName
         Assert.Equal("supervisor", result.Name);
@@ -352,11 +355,11 @@ public class AssessmentServiceTests
     [Fact]
     public void CalculateSourceResult_AllPagesFilled_ReturnsCorrectSourceWeightedAverage()
     {
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]), // avg = 7.67, weight = 3
             ("Process", [("Clarity", 1, 6.0)])); // avg = 6.0, weight = 1
 
-        var result = AssessmentService.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         // (7.67 * 3 + 6.0 * 1) / 4 = 29.01 / 4 = 7.25
         Assert.Equal(7.25m, result.WeightedAverage);
@@ -365,11 +368,11 @@ public class AssessmentServiceTests
     [Fact]
     public void CalculateSourceResult_WithPageNameFilter_ReturnsOnlyFilteredPage()
     {
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]),
             ("Process", [("Clarity", 1, 6.0)]));
 
-        var result = AssessmentService.CalculateSourceResult(context, pageName: "Report");
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: "Report");
 
         Assert.Single(result.PageResults);
         Assert.Equal("Report", result.PageResults[0].Name);
@@ -379,10 +382,10 @@ public class AssessmentServiceTests
     public void CalculateSourceResult_EmptyAnswers_ReturnsZeroWeightedAverage()
     {
         // All answers are 0.0 → page is considered not filled in
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 0.0), ("Depth", 1, 0.0)]));
 
-        var result = AssessmentService.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         Assert.Equal(0m, result.WeightedAverage);
     }
@@ -391,15 +394,40 @@ public class AssessmentServiceTests
     public void CalculateSourceResult_Percentages_AreRelativeToAllPagesNotJustFilteredPage()
     {
         // Total weight across ALL pages = 2 + 1 + 1 = 4
-        var context = CreateContext("supervisor", "supervisor",
+        var (form, context) = CreateContext("supervisor", "supervisor",
             ("Report", [("Quality", 2, 8.0), ("Depth", 1, 7.0)]),
             ("Process", [("Clarity", 1, 6.0)]));
 
-        var result = AssessmentService.CalculateSourceResult(context, pageName: null);
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
 
         var allQuestions = result.PageResults.SelectMany(p => p.QuestionResults).ToList();
         Assert.Equal(50m, allQuestions.Single(q => q.Name == "Quality").Percentage); // 2/4 * 100
         Assert.Equal(25m, allQuestions.Single(q => q.Name == "Depth").Percentage); // 1/4 * 100
         Assert.Equal(25m, allQuestions.Single(q => q.Name == "Clarity").Percentage); // 1/4 * 100
+    }
+
+
+    public static IEnumerable<object[]> RoundingTestCases =>
+    [
+        [3.3m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 3.5f],
+        [4.444m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 4.5f],
+        [5.4999m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 5.0f],
+        [5.5m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 5.5f],
+        [5.6m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 5.5f],
+        [5.8m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half }, 6.0f],
+        [5.5m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half, GradeGap = true }, 6.0f],
+        [5.4m, new AssessmentConfiguration { GradingBasis = GradingBasis.Half, GradeGap = true }, 5.0f],
+        [4.444m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal }, 4.4f],
+        [5.4999m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal }, 5.4f],
+        [5.5m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal, GradeGap = true }, 6.0f],
+        [5.4m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal, GradeGap = true }, 5.0f],
+        [9.99m, new AssessmentConfiguration { GradingBasis = GradingBasis.Decimal }, 10f],
+    ];
+
+    [Theory]
+    [MemberData(nameof(RoundingTestCases))]
+    public void ApplyRoundingOfFinalGrade(decimal input, AssessmentConfiguration config, float expected)
+    {
+        Assert.Equal(expected, AssessmentHelpers.ApplyRounding(input, config));
     }
 }

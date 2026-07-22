@@ -15,7 +15,7 @@ public class WorkflowInstancesController(
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
     ModelService modelService,
-    ImpersonationService impersonationService
+    RoleImpersonationService impersonationService
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -127,6 +127,32 @@ public class WorkflowInstancesController(
             token.Value,
             token.ExpiresAtUtc
         ));
+    }
+
+    /// <summary>
+    /// Endpoint used to create an export of grading data for PPLE
+    /// TODO: remove this or use it to create some kind of generic export function 
+    /// </summary>
+    [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
+    [HttpGet("instances/{workflowDefinition}/full")]
+    public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetFullInstances(string workflowDefinition,
+        [FromQuery] string[] properties, CancellationToken ct)
+    {
+        if (!await rightsService.CanAny(workflowDefinition, RoleAction.ViewAdminTools))
+            return Forbidden();
+
+        var res = await repository.GetAll(i => i.WorkflowDefinition == workflowDefinition, ct);
+        var contexts = res.Select(modelService.CreateContext).ToList();
+
+        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition], contexts,
+            properties.Select(p => new PropertyLookup(p)), ct);
+
+        return Ok(contexts
+            .OrderByDescending(i => i.Id)
+            .Select(row => properties.ToDictionary(
+                p => p,
+                p => row.Get(p)
+            )));
     }
 
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]

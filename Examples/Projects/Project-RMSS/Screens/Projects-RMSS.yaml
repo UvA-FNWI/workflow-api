@@ -19,6 +19,9 @@ columns:
       en: Supervisor
       nl: Begeleider
   - currentStep: true
+    title:
+      en: Progress
+      nl: Voortgang
     filterType: Pick
     default: Draft
 
@@ -37,17 +40,14 @@ grouping:
 
     - name: review
       title:
-        en: Review
-        nl: Beoordeling
+        en: Working on thesis
+        nl: Werkt aan scriptie
       steps:
-        - Review
-        - ReviewSupervisor
-        - ReviewProposalReviewer
-
+        - Finish
+  
     - name: completed
       title:
         en: Completed
         nl: Afgerond
       steps:
-        - Finish
         - null

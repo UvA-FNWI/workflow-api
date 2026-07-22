@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
@@ -38,9 +39,12 @@ public class WorkflowInstanceDtoFactory(
         var canUseAdminTools = realUserActions.Any(a => a.Type == RoleAction.ViewAdminTools);
         var canImpersonate = realUserActions.Any(a => a.Type == RoleAction.ImpersonateRoles);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
+
         var context = modelService.CreateContext(instance);
+        var relatedUserLookups = workflowDefinition.RelatedUsers
+            .Select(r => (Lookup)new PropertyLookup(r.Property));
         await instanceService.Enrich(workflowDefinition, [context],
-            workflowDefinition.Steps.SelectMany(f => f.Lookups), ct);
+            workflowDefinition.Steps.SelectMany(f => f.Lookups).Concat(relatedUserLookups), ct);
 
         // Fetch versions for all steps
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
@@ -48,6 +52,8 @@ public class WorkflowInstanceDtoFactory(
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
             .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, ct)));
+
+        var relatedUsers = GetRelatedUsers(workflowDefinition, context);
 
         var x = new WorkflowInstanceDto(
             instance.Id,
@@ -65,7 +71,8 @@ public class WorkflowInstanceDtoFactory(
             permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray(),
             canUseAdminTools,
             canImpersonate,
-            viewerRoles
+            viewerRoles,
+            relatedUsers
         );
         return x;
     }
@@ -231,5 +238,37 @@ public class WorkflowInstanceDtoFactory(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         return workflowDef.Forms.FirstOrDefault(form =>
             FormSubmissionState.GetSubmissionEventIds(form).Contains(eventId));
+    }
+
+    private RelatedUserGroupsDto GetRelatedUsers(WorkflowDefinition workflowDefinition, ObjectContext context)
+    {
+        // Resolve each RelatedUser to its user value, keyed by group name
+        var usersByGroup = workflowDefinition.RelatedUsers
+            .SelectMany(relatedUser =>
+            {
+                var value = context.Get(relatedUser.Property);
+
+                var users = value is InstanceUser u ? [u] : value as InstanceUser[] ?? [];
+
+                return users.Select(user => new
+                {
+                    relatedUser.Group,
+                    Dto = new RelatedUserDto(relatedUser.DisplayTitle, UserDto.CreateFromInstanceUser(user))
+                });
+            })
+            .GroupBy(x => x.Group)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Dto).ToArray());
+
+        // Build groups in the order defined, only including those with at least one resolved user
+        var groups = (workflowDefinition.RelatedUserGrouping?.Groups ?? [])
+            .Where(g => usersByGroup.ContainsKey(g.Name))
+            .Select(g => new RelatedUserGroupDto(
+                g.Name,
+                g.Title,
+                usersByGroup[g.Name]
+            ))
+            .ToArray();
+
+        return new RelatedUserGroupsDto(groups);
     }
 }
