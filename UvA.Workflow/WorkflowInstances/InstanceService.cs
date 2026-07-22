@@ -103,7 +103,8 @@ public class InstanceService(
             foreach (var context in contexts)
             {
                 if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
-                    context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
+                    context.Values["CurrentStep"] =
+                        workflowDefinition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? stepName;
             }
         }
     }
@@ -123,15 +124,7 @@ public class InstanceService(
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
         await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
-        string? targetStep = null;
-        foreach (var step in workflowDefinition.FlattenedSteps)
-        {
-            if (step.Condition.IsMet(context) && !step.HasEnded(context))
-            {
-                targetStep = step.Name;
-                break;
-            }
-        }
+        var targetStep = modelService.FindOpenStep(instance, context)?.Name;
 
         if (instance.CurrentStep != targetStep)
         {
