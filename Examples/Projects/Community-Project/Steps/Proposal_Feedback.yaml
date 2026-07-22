@@ -1,11 +1,34 @@
 name: Proposal_Feedback
 
-title:
-  nl: Proposal Feedback
-  en: Proposal Feedback
+title: Proposal Feedback
+
+actions:
+  - roles: [Coordinator]
+    type: Submit
+    form: ProposalApprove
+    label: Approve Proposal
+  - roles: [Coordinator]
+    type: Submit
+    form: ProposalReject
+    label: Reject Proposal
+  - roles: [Coordinator]
+    type: Submit
+    form: ProposalRevise
+    label: Proposal Revision
+
+properties:
+  - name: Feedback
+    text: Feedback
+    type: String!
+    layout:
+      multiline: true
+
+  - name: RevisionDeadline
+    text: Revision deadline
+    type: Date!
 
 progress:
-  color: red
+  color: Red
   text:
     en: Waiting for approval {{ coalesce(formatDate(ProposalEvent, =dd-MM-yyyy), =) }}
     nl: Wacht op goedkeuring {{ coalesce(formatDate(ProposalEvent, =dd-MM-yyyy), =) }}
@@ -14,5 +37,6 @@ ends:
   logical:
     operator: Or
     children: 
-    - event: ApproveProposal
-    - event: RejectProposal
+    - event: ProposalApprove
+    - event: ProposalReject
+    - event: ProposalRevise

@@ -14,14 +14,15 @@ fields:
 
 steps:
   - Proposal
+  - Cancelled
   - LearningPlan
   - InterimLearningPlan
   - FinalReport
   - Assessment
 
 events:
-  - name: Proposal_Submit
-    suppresses: [RejectProposal]
-  - name: RejectProposal
-    suppresses: [Proposal_Submit]
-  - name: ApproveProposal
+  - name: Proposal
+    suppresses: [ProposalRevise]
+
+  - name: ProposalRevise
+    suppresses: [Proposal]

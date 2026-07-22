@@ -1,0 +1,4 @@
+name: Cancelled
+# title: Project cancelled
+condition: 
+  event: ProposalReject
