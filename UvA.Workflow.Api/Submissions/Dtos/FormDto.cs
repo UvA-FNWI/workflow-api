@@ -12,6 +12,10 @@ public record FormDto(
     public static FormDto Create(Form form, ObjectContext context)
     {
         var allPages = form.ActualForm.Pages.ToArray();
+        var totalWeight = allPages
+            .SelectMany(p => p.Fields)
+            .Where(q => q.Calculation?.Weight != null)
+            .Sum(q => q.Calculation!.Weight!.Value);
 
         // For child forms, only pages matching Sources belong to the current form. For base forms, all pages are considered part of the current form.
         var currentFormPages = form.TargetForm == null
@@ -24,7 +28,7 @@ public record FormDto(
         var questions = currentFormPages
             .SelectMany(p => p.Fields)
             .Distinct()
-            .ToDictionary(q => q, q => QuestionDto.Create(q, context));
+            .ToDictionary(q => q, q => QuestionDto.Create(q, context, totalWeight));
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
         var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         var originalForm = form;
@@ -86,34 +90,62 @@ public record QuestionDto(
     QuestionDto[]? SubProperties,
     bool HideInResults,
     decimal? Weight,
+    decimal? Percentage,
     int? MaxLength,
     bool? AllowsExternalUsers,
     List<RubricEntryDto>? Rubric,
     ValueSetSorting? Sorting,
     string? LinkedTo)
 {
-    public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context) => new(
-        $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
-        propertyDefinition.Name,
-        propertyDefinition.DisplayName,
-        propertyDefinition.DataType, propertyDefinition.IsRequired, propertyDefinition.IsArray,
-        propertyDefinition.Values?.Select(v => new ChoiceDto(v.Name, v.Text ?? v.Name, v.Description, v.Value))
-            .ToArray(),
-        propertyDefinition.WorkflowDefinition?.Name,
-        propertyDefinition.Description,
-        propertyDefinition.ShortDisplayName,
-        propertyDefinition.Layout,
-        propertyDefinition is { DataType: DataType.Object, WorkflowDefinition: not null }
-            ? propertyDefinition.WorkflowDefinition.Properties.Select(c => Create(c, context)).ToArray()
-            : null,
-        propertyDefinition.HideInResults,
-        propertyDefinition.Calculation?.Weight,
-        propertyDefinition.Validation?.Value?.MaxLength,
-        propertyDefinition.AllowsExternalUsers,
-        propertyDefinition.Rubric?.Select(e => RubricEntryDto.Create(e, propertyDefinition.Values)).ToList(),
-        propertyDefinition.Sorting,
-        propertyDefinition.LinkedTo
-    );
+    public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context,
+        decimal totalWeight)
+    {
+        var choices = propertyDefinition.Values?
+            .Select(value => new ChoiceDto(
+                value.Name,
+                value.Text ?? value.Name,
+                value.Description,
+                value.Value))
+            .ToArray();
+
+        var subProperties = propertyDefinition is { DataType: DataType.Object, WorkflowDefinition: not null }
+            ? propertyDefinition.WorkflowDefinition.Properties
+                .Select(child => Create(child, context, totalWeight))
+                .ToArray()
+            : null;
+
+        var weight = propertyDefinition.Calculation?.Weight;
+        var percentage = totalWeight == 0 || weight == null
+            ? null
+            : weight / totalWeight * 100;
+
+        var rubric = propertyDefinition.Rubric?
+            .Select(entry => RubricEntryDto.Create(entry, propertyDefinition.Values))
+            .ToList();
+
+        return new QuestionDto(
+            Id: $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
+            Name: propertyDefinition.Name,
+            Text: propertyDefinition.DisplayName,
+            Type: propertyDefinition.DataType,
+            IsRequired: propertyDefinition.IsRequired,
+            IsArray: propertyDefinition.IsArray,
+            Choices: choices,
+            WorkflowDefinition: propertyDefinition.WorkflowDefinition?.Name,
+            Description: propertyDefinition.Description,
+            ShortText: propertyDefinition.ShortDisplayName,
+            Layout: propertyDefinition.Layout,
+            SubProperties: subProperties,
+            HideInResults: propertyDefinition.HideInResults,
+            Weight: weight,
+            Percentage: percentage,
+            MaxLength: propertyDefinition.Validation?.Value?.MaxLength,
+            AllowsExternalUsers: propertyDefinition.AllowsExternalUsers,
+            Rubric: rubric,
+            Sorting: propertyDefinition.Sorting,
+            LinkedTo: propertyDefinition.LinkedTo
+        );
+    }
 }
 
 public record ChoiceDto(string Name, BilingualString Text, BilingualString? Description, double? Value);
