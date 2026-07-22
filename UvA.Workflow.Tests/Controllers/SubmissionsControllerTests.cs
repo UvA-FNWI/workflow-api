@@ -23,6 +23,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
     private readonly SubmissionService _submissionService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
     private readonly WorkflowInstanceDtoFactory _workflowInstanceDtoFactory;
+    private readonly FakeAnswerGenerator _fakeAnswerGenerator;
+    private readonly AnswerService _answerService;
 
     public SubmissionsControllerTests()
     {
@@ -42,6 +44,17 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 new StepHeaderStatusResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
+        _answerService = new AnswerService(
+            _modelService,
+            _instanceService,
+            _rightsService,
+            _artifactServiceMock.Object,
+            new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object),
+            _workflowInstanceService,
+            _instanceEventService.Object,
+            _instanceJournalServiceMock.Object,
+            _userServiceMock.Object);
+        _fakeAnswerGenerator = new FakeAnswerGenerator();
     }
 
     [Theory]
@@ -313,7 +326,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
         MockEmptyRelatedInstanceLookups();
 
         var controller = new SubmissionsController(_userServiceMock.Object, _modelService, _rightsService,
-            _submissionService, _workflowInstanceService, _submissionDtoFactory, _workflowInstanceDtoFactory);
+            _submissionService, _workflowInstanceService, _submissionDtoFactory, _workflowInstanceDtoFactory,
+            _answerService, _fakeAnswerGenerator);
 
         return (controller, instance);
     }
