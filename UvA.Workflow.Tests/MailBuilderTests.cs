@@ -9,7 +9,7 @@ namespace UvA.Workflow.Tests;
 public class MailBuilderTests
 {
     private readonly ModelService _modelService =
-        new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesProjectsPath)));
+        new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
 
     // Captures whatever htmlBody is passed into Render so tests can assert on it
     private class CapturingLayout : IMailLayout

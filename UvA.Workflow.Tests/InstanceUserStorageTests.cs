@@ -16,7 +16,7 @@ namespace UvA.Workflow.Tests;
 public class InstanceUserStorageTests
 {
     private static readonly ModelService ModelService =
-        new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesProjectsPath)));
+        new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
 
     [Fact]
     public void FromUser_MapsOnlyInstanceFields()

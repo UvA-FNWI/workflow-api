@@ -21,7 +21,7 @@ public class EffectServiceMailLoggingTests
     public async Task RunEffects_WithMailEffect_SendsMailAndLogsFullContent()
     {
         var modelService =
-            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesProjectsPath)));
+            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
@@ -121,7 +121,7 @@ public class EffectServiceMailLoggingTests
         var factory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
 
         var modelService =
-            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesProjectsPath)));
+            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
@@ -184,7 +184,7 @@ public class EffectServiceMailLoggingTests
     public async Task RunEffects_WithToastEffect_ReturnsResolvedToast()
     {
         var modelService =
-            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesProjectsPath)));
+            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);

@@ -13,9 +13,6 @@ public class VersionsController(
     ILogger<VersionsController> logger)
     : ApiControllerBase
 {
-    private const string ProjectsPrefix = "Projects/";
-    private const string LayoutPath = "Layouts/default.html";
-
     /// Reload the default version from the configured source.
     [HttpPost("reload")]
     public async Task<ActionResult> Reload()
@@ -54,7 +51,7 @@ public class VersionsController(
         return Ok(@ref);
     }
 
-    /// Upload checkout-relative Projects/ files and Layouts/default.html as a named preview version.
+    /// Upload checkout-relative yaml files and Layouts/default.html as a named preview version.
     [HttpPost("{version}")]
     public async Task<ActionResult> CreateVersion(string version, [FromBody] Dictionary<string, string> files)
     {
@@ -65,17 +62,17 @@ public class VersionsController(
                 entry => entry.Key.Replace('\\', '/').Trim('/'),
                 entry => entry.Value,
                 StringComparer.Ordinal);
-            if (!normalizedFiles.TryGetValue(LayoutPath, out var layout) || string.IsNullOrWhiteSpace(layout))
-                return BadRequest($"Uploaded version must provide {LayoutPath}");
+            if (!normalizedFiles.TryGetValue(WorkflowConfigLoader.LayoutPath, out var layout) ||
+                string.IsNullOrWhiteSpace(layout))
+                return BadRequest($"Uploaded version must provide {WorkflowConfigLoader.LayoutPath}");
 
-            var projectFiles = normalizedFiles
-                .Where(entry => entry.Key.StartsWith(ProjectsPrefix, StringComparison.Ordinal))
-                .ToDictionary(entry => entry.Key[ProjectsPrefix.Length..], entry => entry.Value,
-                    StringComparer.Ordinal);
-            if (projectFiles.Count == 0)
-                return BadRequest($"Uploaded version must provide files under {ProjectsPrefix}");
+            var yamlFiles = normalizedFiles
+                .Where(entry => entry.Key.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+            if (yamlFiles.Count == 0)
+                return BadRequest("Uploaded version must provide workflow .yaml files");
 
-            var parser = new ModelParser(new DictionaryProvider(projectFiles));
+            var parser = new ModelParser(new DictionaryProvider(yamlFiles));
             modelServiceResolver.AddOrUpdate(version, parser, layout);
         }
         catch (Exception ex)

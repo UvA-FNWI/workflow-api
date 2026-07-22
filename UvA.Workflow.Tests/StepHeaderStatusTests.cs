@@ -347,7 +347,7 @@ public class StepHeaderStatusTests
     }
 
     private static ModelService CreateExampleModelService()
-        => new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesProjectsPath)));
+        => new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
 
     private static Step GetStep(ModelService modelService, string stepName)
         => modelService.WorkflowDefinitions["Project"].AllSteps.Single(s => s.Name == stepName);

@@ -3,7 +3,6 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
-using UvA.Workflow.Notifications;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -23,6 +22,9 @@ public class WorkflowConfigLoader(
     IOptions<WorkflowSourceOptions> options,
     ILogger<WorkflowConfigLoader> logger)
 {
+    // Repo-root-relative path to the default mail layout; read alongside, but outside, the workflow model.
+    public const string LayoutPath = "Layouts/default.html";
+
     private readonly WorkflowSourceOptions _opts = options.Value;
     private readonly SemaphoreSlim _baselineLock = new(1, 1); // one baseline reload at a time (poller vs. /reload)
 
@@ -60,65 +62,57 @@ public class WorkflowConfigLoader(
     private async Task<bool> LoadAsync(string @ref, string versionKey, VersionKind kind)
     {
         _shas.TryGetValue(versionKey, out var previousSha);
-        var source = await BuildSourceAsync(@ref, previousSha);
-        if (source is null)
+        var model = await BuildModelAsync(@ref, previousSha);
+        if (model is null)
             return false;
 
-        var (root, tempDir, sha) = source.Value;
-        try
-        {
-            var layout = ReadLayout(root);
-            var parser = new ModelParser(new FileSystemProvider(Path.Combine(root, "Projects")));
-            resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
-            if (sha is not null)
-                _shas[versionKey] = sha;
-            else
-                _shas.TryRemove(versionKey, out _);
-            logger.LogInformation("Installed {Kind} config ref {Ref} at {Revision} (was {Previous})",
-                kind, @ref, Short(sha), Short(previousSha));
-            return true;
-        }
-        finally
-        {
-            DeleteTempDir(tempDir);
-        }
-    }
-
-    private static string ReadLayout(string root)
-    {
-        var layoutPath = Path.Combine(root, "Layouts", "default.html");
-        if (!File.Exists(layoutPath))
-            throw new FileNotFoundException($"Default mail layout not found: {layoutPath}", layoutPath);
-        return File.ReadAllText(layoutPath);
+        var (parser, layout, sha) = model.Value;
+        resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
+        if (sha is not null)
+            _shas[versionKey] = sha;
+        else
+            _shas.TryRemove(versionKey, out _);
+        logger.LogInformation("Installed {Kind} config ref {Ref} at {Revision} (was {Previous})",
+            kind, @ref, Short(sha), Short(previousSha));
+        return true;
     }
 
     /// Re-fetch the baseline; returns true when a newer commit was installed.
     public Task<bool> ReloadBaselineIfChangedAsync()
         => string.IsNullOrWhiteSpace(_opts.RepoUrl) ? Task.FromResult(false) : LoadBaselineAsync();
 
-    // Returns null when the ref is unchanged. The caller owns TempDir when a source is returned.
-    private async Task<(string Root, string? TempDir, string? Sha)?>
-        BuildSourceAsync(string @ref, string? previousSha)
+    // Build the model + layout for @ref. Returns null when the ref hasn't moved off previousSha.
+    private async Task<(ModelParser Parser, string Layout, string? Sha)?> BuildModelAsync(
+        string @ref, string? previousSha)
     {
         if (!string.IsNullOrWhiteSpace(_opts.LocalPath))
         {
             logger.LogDebug("Loading local path {LocalPath}", _opts.LocalPath);
-            return (_opts.LocalPath, null, null);
+            var layoutPath = Path.Combine(_opts.LocalPath, LayoutPath);
+            if (!File.Exists(layoutPath))
+                throw new FileNotFoundException($"Default mail layout not found: {layoutPath}", layoutPath);
+            return (new ModelParser(new FileSystemProvider(_opts.LocalPath)), await File.ReadAllTextAsync(layoutPath),
+                null);
         }
 
         if (string.IsNullOrWhiteSpace(_opts.RepoUrl))
             throw new InvalidOperationException(
                 "No workflow source configured; set WorkflowSource:RepoUrl or WorkflowSource:LocalPath");
 
-        var archive = await FetchAndExtractAsync(@ref, previousSha);
-        if (archive is null)
+        var fetched = await FetchAsync(@ref, previousSha);
+        if (fetched is null)
             return null;
-        var (root, tempDir, sha) = archive.Value;
-        return (root, tempDir, sha);
+
+        var (files, sha) = fetched.Value;
+        // ReadTarballAsync whitelists to yaml + the layout, so pulling the layout out leaves exactly the yaml.
+        if (!files.Remove(LayoutPath, out var layout) || string.IsNullOrWhiteSpace(layout))
+            throw new FileNotFoundException($"Default mail layout not found: {LayoutPath}", LayoutPath);
+        return (new ModelParser(new DictionaryProvider(files)), layout, sha);
     }
 
-    private async Task<(string Root, string TempDir, string Sha)?> FetchAndExtractAsync(
-        string @ref, string? previousSha)
+    // Resolve @ref to a commit and pull its yaml + layout files into memory, keyed by their repo-root-relative
+    // path. Returns null when the ref still resolves to previousSha.
+    private async Task<(Dictionary<string, string> Files, string Sha)?> FetchAsync(string @ref, string? previousSha)
     {
         var (owner, repo) = ParseRepo(_opts.RepoUrl!);
         var http = httpClientFactory.CreateClient(nameof(WorkflowConfigLoader));
@@ -143,36 +137,32 @@ public class WorkflowConfigLoader(
         if (!response.IsSuccessStatusCode)
             throw new WorkflowConfigFetchException(response.StatusCode, RetryAfter(response.Headers.RetryAfter));
 
-        var tempDir = Path.Combine(Path.GetTempPath(), "milestones-config", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            await using (var stream = await response.Content.ReadAsStreamAsync())
-            await using (var gzip = new GZipStream(stream, CompressionMode.Decompress))
-                await TarFile.ExtractToDirectoryAsync(gzip, tempDir, overwriteFiles: true);
-
-            // codeload wraps everything in a single top-level folder.
-            var root = Directory.GetDirectories(tempDir).Single();
-            return (root, tempDir, sha);
-        }
-        catch
-        {
-            DeleteTempDir(tempDir);
-            throw;
-        }
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        return (await ReadTarballAsync(stream), sha);
     }
 
-    private void DeleteTempDir(string? tempDir)
+    // Read the yaml files and the mail layout out of a codeload tarball into memory, keyed by their path
+    // relative to the single top-level folder codeload wraps everything in.
+    private static async Task<Dictionary<string, string>> ReadTarballAsync(Stream tarGz)
     {
-        if (tempDir is null) return;
-        try
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+        await using var gzip = new GZipStream(tarGz, CompressionMode.Decompress);
+        await using var reader = new TarReader(gzip);
+        while (await reader.GetNextEntryAsync() is { } entry)
         {
-            Directory.Delete(tempDir, recursive: true);
+            if (entry.DataStream is null)
+                continue;
+            var slash = entry.Name.IndexOf('/');
+            if (slash < 0)
+                continue;
+            var path = entry.Name[(slash + 1)..];
+            if (!path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) && path != LayoutPath)
+                continue;
+            using var text = new StreamReader(entry.DataStream);
+            files[path] = await text.ReadToEndAsync();
         }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to delete temp config dir {Dir}", tempDir);
-        }
+
+        return files;
     }
 
     // Short git-style revision for log lines; the full SHA is still what we store on the version.

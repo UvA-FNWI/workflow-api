@@ -1,12 +1,12 @@
 using UvA.Workflow.WorkflowModel;
 
-var projectsDir = args.Length > 0 ? args[0] : "Projects";
-var fullPath = Path.GetFullPath(projectsDir);
+var configDir = args.Length > 0 ? args[0] : ".";
+var fullPath = Path.GetFullPath(configDir);
 Console.WriteLine($"Validating workflow config at: {fullPath}");
 
 if (!Directory.Exists(fullPath))
 {
-    Console.Error.WriteLine($"Projects directory not found: {fullPath}");
+    Console.Error.WriteLine($"Config directory not found: {fullPath}");
     return 1;
 }
 

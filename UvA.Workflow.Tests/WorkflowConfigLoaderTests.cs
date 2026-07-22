@@ -22,8 +22,8 @@ namespace UvA.Workflow.Tests;
 
 public class WorkflowConfigLoaderTests
 {
-    private static readonly string FixturesPath = UnitTestsHelpers.FixturesProjectsPath;
-    private static readonly string FixturesRoot = Directory.GetParent(FixturesPath)!.FullName;
+    // The fixtures dir mirrors a config-repo checkout root (Common/, Layouts/, workflow folders).
+    private static readonly string FixturesRoot = UnitTestsHelpers.FixturesPath;
 
     private static ModelServiceResolver CreateResolver(IHttpContextAccessor? accessor = null)
         => new(accessor ?? new Mock<IHttpContextAccessor>().Object);
@@ -413,9 +413,9 @@ public class WorkflowConfigLoaderTests
     private static byte[] CreateInvalidArchive()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        var project = Path.Combine(root, "archive", "Projects", "Invalid");
-        Directory.CreateDirectory(project);
-        File.WriteAllText(Path.Combine(project, "Entity.yaml"), "invalid: [");
+        var workflow = Path.Combine(root, "archive", "Invalid");
+        Directory.CreateDirectory(workflow);
+        File.WriteAllText(Path.Combine(workflow, "Entity.yaml"), "invalid: [");
         try
         {
             using var result = new MemoryStream();
