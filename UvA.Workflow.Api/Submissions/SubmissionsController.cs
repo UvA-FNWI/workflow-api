@@ -74,7 +74,7 @@ public class SubmissionsController(
     public async Task<ActionResult<SubmissionDto>> GenerateDummyData(string instanceId, string submissionId,
         CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ImpersonateRoles);
 
         var (instance, submissionState, form, _) =
             await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);

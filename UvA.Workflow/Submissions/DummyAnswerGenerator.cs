@@ -32,12 +32,13 @@ public class DummyAnswerGenerator
     {
         var constraints = ExtractConstraints(question.Validation);
         var startDate = lastUpdated ?? DateTime.Now;
+        var maxStringLength = constraints.MaxLength.HasValue && constraints.MaxLength.Value < DummyStringValue.Length
+            ? constraints.MaxLength.Value
+            : DummyStringValue.Length;
 
         return question.DataType switch
         {
-            DataType.String => JsonSerializer.SerializeToElement(constraints.MaxLength.HasValue
-                ? DummyStringValue[..constraints.MaxLength.Value]
-                : DummyStringValue),
+            DataType.String => JsonSerializer.SerializeToElement(DummyStringValue[..maxStringLength]),
             DataType.Int => JsonSerializer.SerializeToElement(
                 Random.Next((int)(constraints.Min ?? 1), (int)(constraints.Max ?? 10))),
             DataType.Double => JsonSerializer.SerializeToElement(
