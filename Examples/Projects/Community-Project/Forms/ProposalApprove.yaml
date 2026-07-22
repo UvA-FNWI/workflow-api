@@ -1,0 +1,19 @@
+name: ProposalApprove
+title: Coordinator feedback (approved)
+step: Proposal_Feedback
+
+pages:
+  - name: FeedbackProposal
+    title: Feedback Proposal
+    introduction: |
+      For more information and the CP/I Guidelines, see [the AUC Student Information page](https://student.auc.nl/shared-content/a-z/community-projects-and-internships-cpi/community-projects-and-internships-cpi.html).
+    fields:
+      - Feedback
+
+onSubmit:
+  - toast:
+      type: Success
+      message: "Nice work! You've submitted your feedback. The student will receive a confirmation email."
+  - sendMail:
+      template: ProposalApprovedStudent
+      to: Student

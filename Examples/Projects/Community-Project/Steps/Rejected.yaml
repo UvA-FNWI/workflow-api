@@ -1,0 +1,13 @@
+name: Rejected
+# icon: 
+#  type: play-line
+#  color: green
+
+title: Project rejected
+
+headerStatus:
+  - event: Proposal
+    type: Info
+    label:
+      en: Project is no longer active
+      nl: Project is no longer active

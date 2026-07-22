@@ -1,7 +1,7 @@
 name: Proposal
 icon: 
   type: play-line
-  color: green
+  color: Green
 
 title: Proposal
 
@@ -12,6 +12,13 @@ children:
 headerStatus:
   - event: Proposal
     type: Info
-    label:
-      en: Wait for coordinator feedback
-      nl: Wait for coordinator feedback
+    label: Wait for coordinator feedback
+  - event: ProposalApprove
+    type: Success
+    label: Proposal approved
+  - event: ProposalrRevise
+    type: Attention
+    label: Proposal changes needed
+  - event: ProposalReject
+    type: Info
+    label: Project aborted
