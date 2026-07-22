@@ -4,7 +4,7 @@ using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
 
-public class FakeAnswerGeneratorTests
+public class DummyAnswerGeneratorTests
 {
     private static readonly QuestionStatus DefaultStatus = new(true, null, null);
 
@@ -28,7 +28,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_String_ReturnsValue()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("String"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("String"), DefaultStatus);
         Assert.NotNull(result);
         Assert.Equal(JsonValueKind.String, result.Value.ValueKind);
     }
@@ -37,7 +37,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_Int_ReturnsNumber()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("Int"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("Int"), DefaultStatus);
         Assert.NotNull(result);
         Assert.Equal(JsonValueKind.Number, result.Value.ValueKind);
     }
@@ -45,7 +45,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_Double_ReturnsNumber()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("Double"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("Double"), DefaultStatus);
         Assert.NotNull(result);
         Assert.Equal(JsonValueKind.Number, result.Value.ValueKind);
     }
@@ -53,7 +53,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_Boolean_ReturnsBool()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("Boolean"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("Boolean"), DefaultStatus);
         Assert.NotNull(result);
         Assert.True(result.Value.ValueKind is JsonValueKind.True or JsonValueKind.False);
     }
@@ -61,7 +61,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_DateTime_ReturnsIsoString()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("DateTime"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("DateTime"), DefaultStatus);
         Assert.NotNull(result);
         Assert.Equal(JsonValueKind.String, result.Value.ValueKind);
         Assert.True(DateTime.TryParse(result.Value.GetString(), out _));
@@ -77,7 +77,7 @@ public class FakeAnswerGeneratorTests
             Type = "File"
         };
 
-        var result = new FakeAnswerGenerator().Generate(question, DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(question, DefaultStatus);
 
         Assert.Null(result);
     }
@@ -85,7 +85,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_ArrayWhereAllItemsAreNull_ReturnsNull()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("[File]"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("[File]"), DefaultStatus);
         Assert.Null(result);
     }
 
@@ -97,7 +97,7 @@ public class FakeAnswerGeneratorTests
         var question = ChoiceQuestion("OptionA", "OptionB", "OptionC");
         var status = WithChoices("OptionA", "OptionB", "OptionC");
 
-        var result = new FakeAnswerGenerator().Generate(question, status);
+        var result = new DummyAnswerGenerator().Generate(question, status);
 
         Assert.NotNull(result);
         Assert.Contains(result.Value.GetString(), new[] { "OptionA", "OptionB", "OptionC" });
@@ -108,7 +108,7 @@ public class FakeAnswerGeneratorTests
     {
         var question = ChoiceQuestion("OptionA", "OptionB");
 
-        var result = new FakeAnswerGenerator().Generate(question, DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(question, DefaultStatus);
 
         Assert.Null(result);
     }
@@ -118,7 +118,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_ArrayInt_ReturnsJsonArray()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("[Int]"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("[Int]"), DefaultStatus);
 
         Assert.NotNull(result);
         Assert.Equal(JsonValueKind.Array, result.Value.ValueKind);
@@ -139,7 +139,7 @@ public class FakeAnswerGeneratorTests
         // Run many times to rule out lucky randoms
         for (var i = 0; i < 10; i++)
         {
-            var result = new FakeAnswerGenerator().Generate(Question("Int", validation), DefaultStatus);
+            var result = new DummyAnswerGenerator().Generate(Question("Int", validation), DefaultStatus);
             var value = result!.Value.GetInt32();
             Assert.InRange(value, 5, 6);
         }
@@ -155,7 +155,7 @@ public class FakeAnswerGeneratorTests
 
         for (var i = 0; i < 50; i++)
         {
-            var result = new FakeAnswerGenerator().Generate(Question("Double", validation), DefaultStatus);
+            var result = new DummyAnswerGenerator().Generate(Question("Double", validation), DefaultStatus);
             var value = result!.Value.GetDouble();
             Assert.InRange(value, 10.0, 20.0);
         }
@@ -169,7 +169,7 @@ public class FakeAnswerGeneratorTests
             Value = new Value { Property = "TestProp", MaxLength = 10 }
         };
 
-        var result = new FakeAnswerGenerator().Generate(Question("String", validation), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("String", validation), DefaultStatus);
 
         Assert.NotNull(result);
         Assert.True(result.Value.GetString()!.Length <= 10);
@@ -180,7 +180,7 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void Generate_Currency_ReturnsObjectWithEurAndAmount()
     {
-        var result = new FakeAnswerGenerator().Generate(Question("Currency"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("Currency"), DefaultStatus);
 
         Assert.NotNull(result);
         Assert.Equal(JsonValueKind.Object, result.Value.ValueKind);
@@ -198,7 +198,7 @@ public class FakeAnswerGeneratorTests
 
         for (var i = 0; i < 50; i++)
         {
-            var result = new FakeAnswerGenerator().Generate(Question("Currency", validation), DefaultStatus);
+            var result = new DummyAnswerGenerator().Generate(Question("Currency", validation), DefaultStatus);
             var amount = result!.Value.GetProperty("amount").GetInt32();
             Assert.InRange(amount, 50, 51);
         }
@@ -207,35 +207,35 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void TryGetLiteralNumber_IntegerString_ReturnsDouble()
     {
-        var result = FakeAnswerGenerator.TryGetLiteralNumber("5");
+        var result = DummyAnswerGenerator.TryGetLiteralNumber("5");
         Assert.Equal(5.0, result);
     }
 
     [Fact]
     public void TryGetLiteralNumber_NegativeNumber_ReturnsDouble()
     {
-        var result = FakeAnswerGenerator.TryGetLiteralNumber("-3");
+        var result = DummyAnswerGenerator.TryGetLiteralNumber("-3");
         Assert.Equal(-3.0, result);
     }
 
     [Fact]
     public void TryGetLiteralNumber_NonLiteral_Identifier_ReturnsNull()
     {
-        var result = FakeAnswerGenerator.TryGetLiteralNumber("OtherProperty");
+        var result = DummyAnswerGenerator.TryGetLiteralNumber("OtherProperty");
         Assert.Null(result);
     }
 
     [Fact]
     public void TryGetLiteralNumber_StringLiteral_ReturnsNull()
     {
-        var result = FakeAnswerGenerator.TryGetLiteralNumber("=hello");
+        var result = DummyAnswerGenerator.TryGetLiteralNumber("=hello");
         Assert.Null(result);
     }
 
     [Fact]
     public void TryGetLiteralNumber_Null_ReturnsNull()
     {
-        var result = FakeAnswerGenerator.TryGetLiteralNumber(null);
+        var result = DummyAnswerGenerator.TryGetLiteralNumber(null);
         Assert.Null(result);
     }
 
@@ -244,7 +244,7 @@ public class FakeAnswerGeneratorTests
     {
         var value = new Value { Property = "Score", GreaterThan = "0" };
 
-        var result = FakeAnswerGenerator.ExtractFromValue(value);
+        var result = DummyAnswerGenerator.ExtractFromValue(value);
 
         Assert.Equal(1.0, result.Min);
         Assert.Null(result.Max);
@@ -256,7 +256,7 @@ public class FakeAnswerGeneratorTests
     {
         var value = new Value { Property = "Score", GreaterThanOrEqual = "1" };
 
-        var result = FakeAnswerGenerator.ExtractFromValue(value);
+        var result = DummyAnswerGenerator.ExtractFromValue(value);
 
         Assert.Equal(1.0, result.Min);
     }
@@ -266,7 +266,7 @@ public class FakeAnswerGeneratorTests
     {
         var value = new Value { Property = "Score", LessThan = "100" };
 
-        var result = FakeAnswerGenerator.ExtractFromValue(value);
+        var result = DummyAnswerGenerator.ExtractFromValue(value);
 
         Assert.Equal(100.0, result.Max);
         Assert.Null(result.Min);
@@ -277,7 +277,7 @@ public class FakeAnswerGeneratorTests
     {
         var value = new Value { Property = "Score", GreaterThan = "0", LessThan = "10" };
 
-        var result = FakeAnswerGenerator.ExtractFromValue(value);
+        var result = DummyAnswerGenerator.ExtractFromValue(value);
 
         Assert.Equal(1.0, result.Min);
         Assert.Equal(10.0, result.Max);
@@ -288,7 +288,7 @@ public class FakeAnswerGeneratorTests
     {
         var value = new Value { Property = "Name", MaxLength = 50 };
 
-        var result = FakeAnswerGenerator.ExtractFromValue(value);
+        var result = DummyAnswerGenerator.ExtractFromValue(value);
 
         Assert.Equal(50, result.MaxLength);
         Assert.Null(result.Min);
@@ -301,7 +301,7 @@ public class FakeAnswerGeneratorTests
         // References another property — can't determine a literal bound
         var value = new Value { Property = "Score", GreaterThan = "MinScore" };
 
-        var result = FakeAnswerGenerator.ExtractFromValue(value);
+        var result = DummyAnswerGenerator.ExtractFromValue(value);
 
         Assert.Null(result.Min);
     }
@@ -309,9 +309,9 @@ public class FakeAnswerGeneratorTests
     [Fact]
     public void ExtractConstraints_Null_ReturnsNone()
     {
-        var result = FakeAnswerGenerator.ExtractConstraints(null);
+        var result = DummyAnswerGenerator.ExtractConstraints(null);
 
-        Assert.Equal(FakeAnswerGenerator.ValidationConstraints.None, result);
+        Assert.Equal(DummyAnswerGenerator.ValidationConstraints.None, result);
     }
 
 
@@ -324,9 +324,9 @@ public class FakeAnswerGeneratorTests
             Value = new Value { Property = "Score", LessThan = "100" }
         };
 
-        var result = FakeAnswerGenerator.ExtractConstraints(condition);
+        var result = DummyAnswerGenerator.ExtractConstraints(condition);
 
-        Assert.Equal(FakeAnswerGenerator.ValidationConstraints.None, result);
+        Assert.Equal(DummyAnswerGenerator.ValidationConstraints.None, result);
     }
 
     [Fact]
@@ -345,9 +345,9 @@ public class FakeAnswerGeneratorTests
             }
         };
 
-        var result = FakeAnswerGenerator.ExtractConstraints(condition);
+        var result = DummyAnswerGenerator.ExtractConstraints(condition);
 
-        Assert.Equal(FakeAnswerGenerator.ValidationConstraints.None, result);
+        Assert.Equal(DummyAnswerGenerator.ValidationConstraints.None, result);
     }
 
     [Fact]
@@ -363,7 +363,7 @@ public class FakeAnswerGeneratorTests
             ]
         };
 
-        var result = FakeAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
 
         Assert.Equal(5.0, result.Min);
         Assert.Equal(20.0, result.Max);
@@ -382,7 +382,7 @@ public class FakeAnswerGeneratorTests
             ]
         };
 
-        var result = FakeAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
 
         Assert.Equal(7.0, result.Min);
     }
@@ -400,7 +400,7 @@ public class FakeAnswerGeneratorTests
             ]
         };
 
-        var result = FakeAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
 
         Assert.Equal(20.0, result.Max);
     }
@@ -418,7 +418,7 @@ public class FakeAnswerGeneratorTests
             ]
         };
 
-        var result = FakeAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
 
         Assert.Equal(50, result.MaxLength);
     }

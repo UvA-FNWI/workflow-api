@@ -23,7 +23,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
     private readonly SubmissionService _submissionService;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
     private readonly WorkflowInstanceDtoFactory _workflowInstanceDtoFactory;
-    private readonly FakeAnswerGenerator _fakeAnswerGenerator;
+    private readonly DummyAnswerGenerator _dummyAnswerGenerator;
     private readonly AnswerService _answerService;
 
     public SubmissionsControllerTests()
@@ -54,7 +54,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
             _userServiceMock.Object);
-        _fakeAnswerGenerator = new FakeAnswerGenerator();
+        _dummyAnswerGenerator = new DummyAnswerGenerator();
     }
 
     [Theory]
@@ -327,7 +327,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
         var controller = new SubmissionsController(_userServiceMock.Object, _modelService, _rightsService,
             _submissionService, _workflowInstanceService, _submissionDtoFactory, _workflowInstanceDtoFactory,
-            _answerService, _fakeAnswerGenerator);
+            _answerService, _dummyAnswerGenerator);
 
         return (controller, instance);
     }

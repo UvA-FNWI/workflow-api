@@ -16,7 +16,7 @@ public class SubmissionsController(
     SubmissionDtoFactory submissionDtoFactory,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
     AnswerService answerService,
-    FakeAnswerGenerator fakeAnswerGenerator) : ApiControllerBase
+    DummyAnswerGenerator dummyAnswerGenerator) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId,
@@ -70,8 +70,8 @@ public class SubmissionsController(
             EffectResult: result.EffectResult));
     }
 
-    [HttpPost("{instanceId}/{submissionId}/fake")]
-    public async Task<ActionResult<SubmissionDto>> FakeFormData(string instanceId, string submissionId,
+    [HttpPost("{instanceId}/{submissionId}/dummyData")]
+    public async Task<ActionResult<SubmissionDto>> GenerateDummyData(string instanceId, string submissionId,
         CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
@@ -110,19 +110,19 @@ public class SubmissionsController(
                 continue;
             }
 
-            var fakeValue = fakeAnswerGenerator.Generate(question, status, lastGeneratedDate);
+            var dummyAnswer = dummyAnswerGenerator.Generate(question, status, lastGeneratedDate);
 
-            if (fakeValue == null) continue;
+            if (dummyAnswer == null) continue;
 
             if (question.DataType is DataType.DateTime or DataType.Date
-                && fakeValue.Value.GetString() is { } dateStr
+                && dummyAnswer.Value.GetString() is { } dateStr
                 && DateTime.TryParse(dateStr, out var parsedDate))
             {
                 lastGeneratedDate = parsedDate;
             }
 
             await answerService.SaveAnswer(
-                new QuestionContext(instance, submissionState, form, question), fakeValue, ct);
+                new QuestionContext(instance, submissionState, form, question), dummyAnswer, ct);
         }
 
         var permissions =
