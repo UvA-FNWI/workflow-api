@@ -1,0 +1,20 @@
+name: ProposalRevise
+title: Coordinator feedback (changes needed)
+step: Proposal_Feedback
+
+pages:
+  - name: FeedbackProposal
+    title: Feedback Proposal
+    introduction: |
+      For more information and the CP/I Guidelines, see [the AUC Student Information page](https://student.auc.nl/shared-content/a-z/community-projects-and-internships-cpi/community-projects-and-internships-cpi.html).
+    fields:
+      - Feedback
+      - RevisionDeadline
+
+onSubmit:
+  - toast:
+      type: Success
+      message: "You've submitted your feedback. The student will receive an email with instructions on how to proceed."
+  - sendMail:
+      template: ProposalRevisionStudent
+      to: Student

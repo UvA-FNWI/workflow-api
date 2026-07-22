@@ -1,0 +1,19 @@
+name: ProposalReject
+title: Coordinator feedback (rejected)
+step: Proposal_Feedback
+
+pages:
+  - name: FeedbackProposal
+    title: Feedback Proposal
+    introduction: |
+      For more information and the CP/I Guidelines, see [the AUC Student Information page](https://student.auc.nl/shared-content/a-z/community-projects-and-internships-cpi/community-projects-and-internships-cpi.html).
+    fields:
+      - Feedback
+
+onSubmit:
+  - toast:
+      type: Success
+      message: "You've submitted your feedback. The Community Project will be set to 'Cancelled'. Please contact the student by e-mail"
+ # - sendMail:
+     #template: __FeedbackSubmitted
+      #to: Student

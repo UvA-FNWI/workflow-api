@@ -1,11 +1,9 @@
 name: Proposal_Submit
 
-title:
-  nl: Proposal Submission
-  en: Proposal Submission
+title: Proposal Submission
 
 progress:
-  color: green
+  color: Green
   text:
     en: Writing proposal
     nl: Schrijft voorstel
@@ -18,9 +16,7 @@ actions:
 properties:
   - name: GuidelinesRead
     type: Boolean!
-    text:
-      en: I have read the Internship and community projects application guidelines
-      nl: I have read the Internship and community projects application guidelines
+    text: I have read the Internship and community projects application guidelines
 
   - name: ProjectPeriod
     text: Period
