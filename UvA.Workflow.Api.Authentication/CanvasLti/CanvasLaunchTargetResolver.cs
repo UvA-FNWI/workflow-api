@@ -49,6 +49,7 @@ public class CanvasLaunchTargetResolver(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(name => modelService.WorkflowDefinitions.GetValueOrDefault(name))
             .Where(definition => definition?.Screens is { Count: > 0 })
+            .OrderBy(definition => definition!.Name, StringComparer.OrdinalIgnoreCase)
             .Take(2)
             .ToArray();
 
