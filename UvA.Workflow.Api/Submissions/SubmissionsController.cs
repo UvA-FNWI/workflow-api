@@ -80,6 +80,7 @@ public class SubmissionsController(
             await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         var questionStatus = modelService.GetQuestionStatus(instance, form, canViewHidden: true);
 
+        var lastGeneratedDate = DateTime.Now;
         foreach (var (questionName, status) in questionStatus.Where(q => q.Value.IsVisible))
         {
             var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
@@ -109,10 +110,19 @@ public class SubmissionsController(
                 continue;
             }
 
-            var fakeValue = fakeAnswerGenerator.Generate(question, status);
-            if (fakeValue != null)
-                await answerService.SaveAnswer(
-                    new QuestionContext(instance, submissionState, form, question), fakeValue, ct);
+            var fakeValue = fakeAnswerGenerator.Generate(question, status, lastGeneratedDate);
+
+            if (fakeValue == null) continue;
+
+            if (question.DataType is DataType.DateTime or DataType.Date
+                && fakeValue.Value.GetString() is { } dateStr
+                && DateTime.TryParse(dateStr, out var parsedDate))
+            {
+                lastGeneratedDate = parsedDate;
+            }
+
+            await answerService.SaveAnswer(
+                new QuestionContext(instance, submissionState, form, question), fakeValue, ct);
         }
 
         var permissions =
