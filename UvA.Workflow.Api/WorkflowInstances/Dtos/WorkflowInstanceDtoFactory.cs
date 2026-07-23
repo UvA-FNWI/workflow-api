@@ -41,6 +41,11 @@ public class WorkflowInstanceDtoFactory(
         var canImpersonate = realUserActions.Any(a => a.Type == RoleAction.ImpersonateRoles);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
 
+        var resources = workflowDefinition.Resources
+            .Select(r => ResourceDto.TryCreate(r, viewerRoles))
+            .OfType<ResourceDto>()
+            .ToArray();
+
         var context = modelService.CreateContext(instance);
         var relatedUserLookups = workflowDefinition.RelatedUsers
             .Select(r => (Lookup)new PropertyLookup(r.Property));
@@ -72,7 +77,8 @@ public class WorkflowInstanceDtoFactory(
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            relatedUsers
+            relatedUsers,
+            resources
         );
         return x;
     }

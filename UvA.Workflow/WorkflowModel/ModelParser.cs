@@ -55,6 +55,14 @@ public partial class ModelParser
                     definition.Properties.Add(prop);
                 }
 
+                if (content.Resources.Length > 0)
+                {
+                    if (definition.Resources.Length > 0)
+                        throw new Exception(
+                            $"Definition '{definition.Name}' defines resources in multiple files.");
+                    definition.Resources = content.Resources;
+                }
+
                 if (content.GlobalActions.Count == 0) continue;
                 if (definition.GlobalActions.Count > 0)
                     throw new Exception(
