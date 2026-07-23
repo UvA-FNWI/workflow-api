@@ -16,7 +16,14 @@ namespace UvA.Workflow.Tests.Helpers;
 /// </summary>
 internal static class UnitTestsHelpers
 {
-    public static ModelParser CreateModelParser() => new(new FileSystemProvider("../../../../Examples/Projects"));
+    public static readonly string FixturesPath =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures");
+
+    public static readonly string FixturesLayoutPath =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "Layouts", "default.html");
+
+    public static ModelParser CreateModelParser() => new(new FileSystemProvider(FixturesPath));
+
 
     public static readonly User AdminUser = new()
     {

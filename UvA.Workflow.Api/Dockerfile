@@ -15,6 +15,7 @@ COPY ["UvA.Workflow.Persistence.Mongo/UvA.Workflow.Persistence.Mongo.csproj", "U
 COPY ["UvA.Workflow/UvA.Workflow.csproj", "UvA.Workflow/"]
 COPY ["UvA.Workflow.Tests/UvA.Workflow.Tests.csproj", "UvA.Workflow.Tests/"]
 COPY ["UvA.Workflow.SchemaGenerator/UvA.Workflow.SchemaGenerator.csproj", "UvA.Workflow.SchemaGenerator/"]
+COPY ["UvA.Workflow.Validator/UvA.Workflow.Validator.csproj", "UvA.Workflow.Validator/"]
 COPY ["UvA.Workflow.Users.DataNose/UvA.Workflow.Users.DataNose.csproj", "UvA.Workflow.Users.DataNose/"]
 COPY ["UvA.Workflow.Users.EduId/UvA.Workflow.Users.EduId.csproj", "UvA.Workflow.Users.EduId/"]
 RUN dotnet restore "UvA.Workflow.slnx"
@@ -29,5 +30,4 @@ RUN dotnet publish "./UvA.Workflow.Api.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY Examples /Examples
 ENTRYPOINT ["dotnet", "UvA.Workflow.Api.dll"]

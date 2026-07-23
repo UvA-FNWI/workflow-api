@@ -7,6 +7,16 @@ environment: Test
 contentSecurityPolicy: "default-src 'self'"
 logLevel: Debug
 
+# ref defaults to 'main'; override per environment to pin to a different branch, tag, or commit.
+# pollIntervalSeconds > 0 makes this env re-check the repo and reload when the ref moves (tst/acc); prod leaves it 0 and uses nightlyRestart.
+workflowSource:
+  repoUrl: ""
+  ref: main
+  pollIntervalSeconds: 0
+
+# Nightly `rollout restart` so prod re-fetches config once a day. Enable in prod's values only.
+nightlyRestart: false
+
 allowedOrigins: "http://localhost:5173,https://*.instructure.com"
 frontendBaseUrl: "http://localhost:5173"
 
@@ -82,3 +92,5 @@ azure:
       key: Authentication__ApiKey
     - name: workflow-graph-client-secret
       key: GraphMail__ClientSecret
+    - name: workflow-config-repo-token
+      key: WorkflowSource__Token

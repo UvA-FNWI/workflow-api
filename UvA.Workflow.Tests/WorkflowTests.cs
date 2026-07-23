@@ -80,7 +80,7 @@ public class WorkflowTests
         _jobRepositoryMock = new Mock<IJobRepository>();
 
         // Services
-        var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
+        var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
         _parser = new ModelParser(modelProvider);
         _modelService = new ModelService(_parser);
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
