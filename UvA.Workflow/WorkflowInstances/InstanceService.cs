@@ -1,4 +1,4 @@
-using UvA.Workflow.Events;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
@@ -12,7 +12,8 @@ public class InstanceService(
     ModelService modelService,
     IUserService userService,
     RightsService rightsService,
-    MailBuilder mailBuilder
+    MailBuilder mailBuilder,
+    IAssessmentService assessmentService
 )
 {
     /// <summary>
@@ -30,8 +31,15 @@ public class InstanceService(
         CancellationToken ct,
         bool replaceStep = true)
     {
+        var propertyList = properties.ToList();
+
+        var hasAssessment = propertyList.Any(p => p is PropertyLookup pl && pl.Parts[0] == "Assessment")
+                            && workflowDefinition.AssessmentConfiguration != null;
+        if (hasAssessment)
+            propertyList.AddRange(new PropertyLookup("Course.GradingBasis"), new PropertyLookup("Course.GradeGap"));
+
         // Resolve (replace) references in the context with their referenced objects
-        var referenceProperties = properties
+        var referenceProperties = propertyList
             .Where(p => p is PropertyLookup)
             .Cast<PropertyLookup>()
             .Distinct()
@@ -59,10 +67,33 @@ public class InstanceService(
                     context.Values[referenceProperty.Key] = context.Get(referenceProperty.Key) switch
                     {
                         string re => resultContexts.GetValueOrDefault(re),
-                        string[] res => res.Select(r => resultContexts.GetValueOrDefault(r)).Where(r => r != null)
+                        string[] res => res.Select(resultContexts.GetValueOrDefault).Where(r => r != null)
                             .ToArray(),
                         var t => t
                     };
+            }
+        }
+
+        // Add assessment info if requested
+        if (hasAssessment)
+        {
+            foreach (var context in contexts)
+            {
+                var config = workflowDefinition.AssessmentConfiguration;
+                config!.Enrich(context.Get("Course.GradingBasis") as string, context.Get("Course.GradeGap") as bool?);
+                var result = assessmentService.GetAssessmentResult(workflowDefinition, context, config);
+                var dict = result.PartResults.ToDictionary(r => r.Name,
+                    object (r) => r.AllResults.ToDictionary(s => s.Name,
+                        object (s) =>
+                        {
+                            var questionResults = s.PageResults
+                                .SelectMany(p => p.QuestionResults)
+                                .ToDictionary(q => q.Name, object (q) => q.Answer);
+                            questionResults.Add("WeightedAverage", s.WeightedAverage);
+                            return questionResults;
+                        }));
+                dict["FinalGrade"] = result.FinalGradeRounded;
+                context.Values["Assessment"] = dict;
             }
         }
 
@@ -72,9 +103,20 @@ public class InstanceService(
             foreach (var context in contexts)
             {
                 if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
-                    context.Values["CurrentStep"] = workflowDefinition.AllSteps.Get(stepName).DisplayTitle;
+                    context.Values["CurrentStep"] =
+                        workflowDefinition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? stepName;
             }
         }
+    }
+
+    /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
+    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct)
+    {
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var context = modelService.CreateContext(instance);
+        var recipientLookups = MailBuilder.ResolveRecipientLookups(workflowDefinition, sendMail);
+        await Enrich(workflowDefinition, [context], recipientLookups, ct, replaceStep: false);
+        return mailBuilder.Build(instance, sendMail, modelService, context);
     }
 
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
@@ -82,15 +124,7 @@ public class InstanceService(
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
         await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
-        string? targetStep = null;
-        foreach (var step in workflowDefinition.FlattenedSteps)
-        {
-            if (step.Condition.IsMet(context) && !step.HasEnded(context))
-            {
-                targetStep = step.Name;
-                break;
-            }
-        }
+        var targetStep = modelService.FindOpenStep(instance, context)?.Name;
 
         if (instance.CurrentStep != targetStep)
         {
@@ -225,7 +259,7 @@ public class InstanceService(
 
             MailMessage? mail = null;
             if (sendMail is not null)
-                mail = await mailBuilder.BuildAsync(instance, sendMail, modelService, ct);
+                mail = await BuildMail(instance, sendMail, ct);
 
             actions.Add(new AllowedAction(a, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
         }

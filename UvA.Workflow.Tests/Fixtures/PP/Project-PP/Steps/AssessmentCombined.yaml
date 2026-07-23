@@ -1,0 +1,30 @@
+
+name: AssessmentCombined
+title:
+  en: Combine thesis assessments
+  nl: Beoordelingen scriptie samenvoegen
+icon:
+  type: law-balance-line
+
+progress:
+  color: red
+  text:
+    en: Waiting for assessment thesis {{ coalesce(formatDate(UploadFinalThesisEvent, =dd-MM-yyyy), =) }}
+    nl: Wacht op beoordeling scriptie {{ coalesce(formatDate(UploadFinalThesisEvent, =dd-MM-yyyy), =) }}
+
+properties:
+  - name: AssessmentCombined
+    type: Assessment-PP!
+
+actions:
+  - name: AssessmentCombined
+    type: Submit
+    roles: [Supervisor]
+    form: AssessmentCombined
+    noAutoOpenForm: true
+    label:
+      en: Finalize assessment
+      nl: Beoordeling afronden
+
+ends:
+  event: AssessmentCombined

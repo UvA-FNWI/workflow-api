@@ -261,6 +261,8 @@ public partial class ModelParser
             PreProcess(step, workflowDefinition);
         foreach (var field in workflowDefinition.Fields)
             PreProcess(field, workflowDefinition);
+        foreach (var relatedUser in workflowDefinition.RelatedUsers)
+            PreProcess(relatedUser, workflowDefinition);
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
@@ -334,6 +336,37 @@ public partial class ModelParser
             field.PropertyDefinition = workflowDefinition.Properties.GetOrDefault(field.Property);
     }
 
+    private void PreProcess(RelatedUser relatedUser, WorkflowDefinition workflowDefinition)
+    {
+        relatedUser.PropertyDefinition = ResolvePropertyDefinition(workflowDefinition, relatedUser.Property);
+    }
+
+    private static PropertyDefinition? ResolvePropertyDefinition(WorkflowDefinition workflowDefinition,
+        string propertyPath)
+    {
+        var type = workflowDefinition;
+        var parts = propertyPath.Split('.');
+        PropertyDefinition? property = null;
+
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var part = parts[i];
+            property = type.Properties.GetOrDefault(part);
+            if (property == null)
+                return null;
+
+            if (i < parts.Length - 1)
+            {
+                if (property.WorkflowDefinition == null)
+                    return null;
+
+                type = property.WorkflowDefinition;
+            }
+        }
+
+        return property;
+    }
+
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
         foreach (var col in screen.Columns)
@@ -374,6 +407,11 @@ public partial class ModelParser
                      .Distinct())
             propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
                 .Add(propertyDefinition);
+
+        if (propertyDefinition.LinkedTo != null &&
+            propertyDefinition.ParentType.Properties.GetOrDefault(propertyDefinition.LinkedTo) == null)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' in '{propertyDefinition.ParentType.Name}' has linkedTo '{propertyDefinition.LinkedTo}', but that property does not exist.");
 
         try
         {

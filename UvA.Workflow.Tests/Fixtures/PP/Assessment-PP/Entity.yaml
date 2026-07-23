@@ -1,0 +1,449 @@
+name: Assessment-PP
+title:
+  en: Assessment
+  nl: Beoordeling
+isEmbedded: true
+
+properties:
+  - name: ProblemStatement
+    type: HalfGrade!
+    text: Problem statement
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.1
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - The academic and social relevance are clearly demonstrated                                          
+          - The interdisciplinary character of the research is _demonstrated_
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The problem statement is formulated clearly
+          - The research question (and maybe sub-questions) is/are clear and focused 
+          - The problem statement is sufficiently based on theories/literature
+          - Adequate hypotheses are formulated (if applicable)
+          - The problem statement, research question(s) and hypotheses are consistent with each other
+          - The interdisciplinary character of the research is stated
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - No interdisciplinary character of research ; problem statement is very broad and lacks focus; 
+          - There is a misalignment between problem statement, research question, and hypotheses; 
+          - There is no or hardly any theoretical basis for the problem statement 
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: ProblemStatementComments
+    type: String
+    text: Comments on problem statement
+    linkedTo: ProblemStatement
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: TheoreticalFramework
+    type: HalfGrade!
+    text: Theoretical framework
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.15
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - Presentation of alternating/multiple points of view on the main concepts
+          - Particularly difficult theory
+          - Theoretical discussion draws on particularly wide literature without losing focus
+          - The student comes to an innovative synthesis that results in own original insights, hypotheses and conclusions which contribute to the research question
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - Core concepts are clearly defined and discussed
+          - The explanation of the theories is substantiated by appropriate use of concise examples
+          - The student is able to organize literature and critically evaluate the quality of their literature sources
+          - The connection between theory and case study is clear
+          - The relevance of the theoretical framework for the research is defended
+          - The theoretical framework provides a useful lens through which the case study can be apprehended
+          - The theory is sufficiently based on literature
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - The theory is not clearly relevant for understanding the problem, nor for answering the research question
+          - Concepts are not clearly defined and discussed
+          - The theoretical framework goes all directions, lacking focus to function as a framework of analysis
+          - Too much space used for explanation of irrelevant elements of the theory
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: TheoreticalFrameworkComments
+    type: String
+    text: Comments on theoretical framework
+    linkedTo: TheoreticalFramework
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: Methods
+    type: HalfGrade!
+    text: Methods
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.15
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - The methods represents an innovative approach to the research question
+          - The methods is particularly well explained
+          - The methods is particularly well justified
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The used methods is aligned with the research question
+          - The used methods is aligned with the theoretical framework
+          - All the aspects of the methods are justified
+          - For quantitative methods: The description of the procedure makes the research repeatable; the student demonstrates awareness of how they have selected their study material
+          - For qualitative methods: the student demonstrates awareness of how they have selected their study material; the selected material should be easily identifiable
+          - The methods are sufficiently based on literature
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - The methods is not discussed at all
+          - The methods is not justified
+          - The description of the methods is not clear enough to make the research repeatable
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: MethodsComments
+    type: String
+    text: Comments on methods
+    linkedTo: Methods
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: AnalysisEvaluationResults
+    type: HalfGrade!
+    text: Analysis / Evaluation of the Results
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.15
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - The data/case study integrates two (or more) disciplines
+          - For quantitative research: the student is able to organize the data, perform thorough checks and perform advanced and very original analyses on the data
+          - For qualitative and quantitative research: the study material is particularly novel and original and/or required particularly great dedication to gather
+          - The results have been very well analyzed
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The data/case study(ies) are well organized and analyzed
+          - For quantitative research: tables and charts are correctly presented
+          - For qualitative research: the presentation of sources makes use of clear examples and/or citations
+          - The results are insightful
+          - The results are aligned with the research question(s) and hypothesis if applicable
+          - The presentation of data/case studies includes clear sources
+          - The data/case study are connected to the theoretical framework
+          - The analysis and evaluations are sufficiently based on literature
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - The data/case study(ies) are poorly organized
+          - It is unclear how the data/case study relates to the research question
+          - There are no/hardly any sources concerning the case study
+          - The results contain unsubstantiated personal evaluation
+          - The results contain no/hardly any connection to the theoretical framework
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: AnalysisEvaluationResultsComments
+    type: String
+    text: Comments on analysis / evaluation of the results
+    linkedTo: AnalysisEvaluationResults
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: ArgumentationCreativity
+    type: HalfGrade!
+    text: Argumentation and creativity
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.25
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - Particularly well-argued
+          - The argumentation offers an innovative and creative approach to the societal problem
+          - The argumentation goes in-depth and shows deep understanding of theory, implication of methods, and the data/case study(ies)
+          - Theory, methods, and data/case studies are particularly well-aligned
+          - The student shows awareness of limitations of space and knowledge
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The argumentation leads towards a synthesis of theoretical framework, methods and data/case studies
+          - The argumentation provides an insightful answer to the research question
+          - The argumentation is focused on the problem statement and research question
+          - The argumentation contains a reflection on the limitations and quality of the research conducted
+          - The argumentation is sufficiently based on literature
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - The argumentation doesn't lead to a synthesis of theoretical framework, methods and case studies
+          - The argumentation answers different questions than the research question(s) stated in the introduction
+          - The argumentation heavily relies on common sense and subjective judgement
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: ArgumentationCreativityComments
+    type: String
+    text: Comments on argumentation and creativity
+    linkedTo: ArgumentationCreativity
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: ConclusionDiscussion
+    type: HalfGrade!
+    text: Conclusion and discussion
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.1
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - The conclusion gives innovative answers to the research question
+          - The evaluation of the conclusion leads to innovative questions for further evaluations
+          - The conclusion is fully interdisciplinary
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The conclusion is aligned with the research question
+          - The conclusion logically follows from the argumentation
+          - The conclusion is explicitly evaluated, leading to questions for further investigations
+          - The conclusion includes an evaluation of the interdisciplinary character of the project
+          - The conclusion is sufficiently based on literature
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - There is a misalignment between the conclusion and the research question
+          - The conclusion doesn't logically follow from the argumentation
+          - The conclusion doesn't reflect upon the interdisciplinary character of the project
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: ConclusionDiscussionComments
+    type: String
+    text: Comments on conclusion and discussion
+    linkedTo: ConclusionDiscussion
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: Structure
+    type: HalfGrade!
+    text: Structure
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.05
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - The structure, including title, subtitles and paragraph structure, allows to identify the main argument of the thesis in a quick scan
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The thesis contains at least an introduction, data/case study presentation, analysis, and conclusion section
+          - Each section has a clear and unique function
+          - The ordering of sections is logical
+          - Paragraphs are well organized around a topic sentence
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - The structure is difficult to identify
+          - The thesis lacks one (or more) of the essential sections
+          - The ordering of the sections is not logical
+          - Paragraphs are poorly organized
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: StructureComments
+    type: String
+    text: Comments on structure
+    linkedTo: Structure
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: LayoutLanguage
+    type: HalfGrade!
+    text: Layout and language
+    layout:
+      type: Rubric
+    calculation: 
+      weight: 0.05
+    results:
+      type: Average
+    rubric:
+      - name: Excellent
+        description: |
+          - The thesis is particularly well-polished
+          - The text is professional
+          - There are no grammatical/spelling errors
+        grades: ["10", "9,5", "9", "8,5", "8"]
+      - name: Sufficient
+        description: |
+          - The layout and design are cohesive and coherent
+          - The student is able to write in an academic style with correct use of scientific language
+          - The text is concise and explicit
+          - There are hardly any grammatical/spelling errors
+        grades: ["7,5", "7", "6,5", "6", "5,5"]
+      - name: Insufficient
+        description: |
+          - The layout and design is fussy and distracting
+          - The use of language is not academic (enough)
+          - The text is clotted and wordy
+          - There are many grammatical/spelling errors
+        grades: ["5", "4,5", "4", "3", "2", "1"]
+
+  - name: LayoutLanguageComments
+    type: String
+    text: Comments on layout and language
+    linkedTo: LayoutLanguage
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+
+  - name: APA
+    type: MalusHalf!
+    text: APA
+    description: |
+      If too many incorrect or missing citations in text and bibliography are identified, the grade may be adjusted negatively (max -0,5); this is at the discretion of supervisors
+    layout:
+      type: Rubric
+    calculation:
+      type: Sum
+    results:
+      type: Average
+    values:
+    - name: "0"
+      value: 0
+    - name: "-0,1"
+      value: -0.1
+    - name: "-0,2"
+      value: -0.2
+    - name: "-0,3"
+      value: -0.3
+    - name: "-0,4"
+      value: -0.4
+    - name: "-0,5"
+      value: -0.5
+    rubric: 
+     - name: Sufficient
+       description: |
+        - APA rules are applied to the level of publication standards
+       grades: ["0"]
+     - name: Deficits
+       description: |
+        - Incorrect citations; 
+        - Lack of citations; 
+        - Lack of sources in the bibliography; 
+        - Uncited sourced in the bibliography; 
+        - Incorrect references in the bibliography
+       grades: ["-0,1", "-0,2", "-0,3", "-0,4", "-0,5"]
+  
+  - name: Process
+    description: If potential deficits are identified, the grade may be adjusted negatively (max -1); this is at the discretion of supervisors
+    type: MalusOne!
+    layout:
+      type: Rubric
+    calculation:
+      type: Sum
+    results:
+      type: Average
+    values:
+    - name: "0"
+      value: 0
+    - name: "-0,1"
+      value: -0.1
+    - name: "-0,2"
+      value: -0.2
+    - name: "-0,3"
+      value: -0.3
+    - name: "-0,4"
+      value: -0.4
+    - name: "-0,5"
+      value: -0.5
+    - name: "-0,6"
+      value: -0.6
+    - name: "-0,7"
+      value: -0.7
+    - name: "-0,8"
+      value: -0.8
+    - name: "-0,9"
+      value: -0.9
+    - name: "-1,0"
+      value: -1
+    rubric: 
+     - name: Sufficient
+       description: |
+        - The student has demonstrated an ability to work independently during the process; 
+        - The student has made use of the guidance provided; 
+        - Deadlines have been met during the process
+       grades: ["0"]
+     - name: Deficits
+       description: |
+        - The student was overly relying on supervision to get things done; 
+        - The student made no use of the feedback and guidance provided during the process; 
+        - Deadlines were not met during the process
+       grades: ["-0,1", "-0,2", "-0,3", "-0,4", "-0,5", "-0,6", "-0,7", "-0,8", "-0,9", "-1,0"]
+  
+  - name: DoctrinalAnalysis
+    text: Does the thesis meet the requirement of containing 50% doctrinal analysis
+    type: DoctrinalAnalysis!
+    layout:
+      type: Dropdown
+    sources: [AssessmentSupervisor]
+    values:
+      - name: Yes
+      - name: No
+      - name: NotApplicable
+        text: Not a law student
+    description: |
+      This is  relevant to all Law majors that are seeking to obtain their civiel effect. 
+
+      Please fill this out regardless if the student informed the supervisor at the start of the thesis project or not. 
+  
+  - name: Motivation
+    text: Additional motivation if final grade is 8 or higher
+    type: String
+    results:
+      source: AssessmentCombined
+    layout:
+      multiline: true
+    description: |
+      For a final grade of 8 or above, you must explain why the thesis is of exceptional quality
+
+      Based on your above allocation of points, please explain in 2-3 sentences the exceptional qualities of this thesis. 

@@ -16,6 +16,7 @@
   <Project Path="UvA.Workflow.Notifications.Graph/UvA.Workflow.Notifications.Graph.csproj" />
   <Project Path="UvA.Workflow.Persistence.Mongo/UvA.Workflow.Persistence.Mongo.csproj" />
   <Project Path="UvA.Workflow.SchemaGenerator/UvA.Workflow.SchemaGenerator.csproj" />
+  <Project Path="UvA.Workflow.Validator/UvA.Workflow.Validator.csproj" />
   <Project Path="UvA.Workflow.Tests/UvA.Workflow.Tests.csproj" />
   <Project Path="UvA.Workflow/UvA.Workflow.csproj" />
   <Project Path="UvA.Workflow.Users.DataNose/UvA.Workflow.Users.DataNose.csproj" />

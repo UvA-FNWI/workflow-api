@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Serilog;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
@@ -19,7 +20,8 @@ public class EffectServiceMailLoggingTests
     [Fact]
     public async Task RunEffects_WithMailEffect_SendsMailAndLogsFullContent()
     {
-        var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        var modelService =
+            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
@@ -28,6 +30,7 @@ public class EffectServiceMailLoggingTests
         var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
+        var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
@@ -35,7 +38,7 @@ public class EffectServiceMailLoggingTests
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
         var instanceService =
             new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder);
+                mailBuilder, assessmentService.Object);
 
         var effectService = new EffectService(
             instanceService,
@@ -43,7 +46,6 @@ public class EffectServiceMailLoggingTests
             modelService,
             mailService.Object,
             eduIdUserService.Object,
-            mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
             configuration.Object,
@@ -118,7 +120,8 @@ public class EffectServiceMailLoggingTests
             .CreateLogger();
         var factory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
 
-        var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        var modelService =
+            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
@@ -127,6 +130,7 @@ public class EffectServiceMailLoggingTests
         var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
+        var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
@@ -134,14 +138,13 @@ public class EffectServiceMailLoggingTests
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
         var instanceService =
             new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder);
+                mailBuilder, assessmentService.Object);
         var effectService = new EffectService(
             instanceService,
             eventService.Object,
             modelService,
             mailService.Object,
             eduIdUserService.Object,
-            mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
             configuration.Object,
@@ -180,7 +183,8 @@ public class EffectServiceMailLoggingTests
     [Fact]
     public async Task RunEffects_WithToastEffect_ReturnsResolvedToast()
     {
-        var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        var modelService =
+            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
@@ -189,6 +193,7 @@ public class EffectServiceMailLoggingTests
         var eduIdUserService = new Mock<IEduIdUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
+        var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
@@ -196,7 +201,7 @@ public class EffectServiceMailLoggingTests
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
         var instanceService =
             new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder);
+                mailBuilder, assessmentService.Object);
 
         var effectService = new EffectService(
             instanceService,
@@ -204,7 +209,6 @@ public class EffectServiceMailLoggingTests
             modelService,
             mailService.Object,
             eduIdUserService.Object,
-            mailBuilder,
             artifactService.Object,
             mailLogRepository.Object,
             configuration.Object,

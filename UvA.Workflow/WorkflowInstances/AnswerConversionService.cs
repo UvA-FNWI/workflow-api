@@ -73,6 +73,22 @@ public class AnswerConversionService(
     }
 
     /// <summary>
+    /// Returns the first submitted choice not in the property's allowed values, or null if all are valid.
+    /// </summary>
+    public static string? FindInvalidChoice(JsonElement value, PropertyDefinition property)
+    {
+        var allowed = property.Values?.Select(v => v.Name).ToHashSet() ?? [];
+        IEnumerable<JsonElement> elements = value.ValueKind == JsonValueKind.Array
+            ? value.EnumerateArray()
+            : [value];
+
+        return elements
+            .Where(el => el.ValueKind == JsonValueKind.String)
+            .Select(el => el.GetString())
+            .FirstOrDefault(name => !allowed.Contains(name!));
+    }
+
+    /// <summary>
     /// Converts a Json object to a BsonValue for an embedded object question.
     /// </summary>
     private async Task<BsonValue> ConvertObject(JsonElement value, PropertyDefinition propertyDefinition,

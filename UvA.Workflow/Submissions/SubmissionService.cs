@@ -24,37 +24,13 @@ public record InvalidQuestion(
     BilingualString ValidationMessage);
 
 public class SubmissionService(
-    IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     InstanceService instanceService,
     IInstanceJournalService instanceJournalService,
-    WorkflowInstanceService workflowInstanceService,
     JobService jobService,
     EffectService effectService
 )
 {
-    public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,
-        int? version = null,
-        CancellationToken ct = default)
-    {
-        // Get the workflow instance
-        var instance = version is null
-            ? await workflowInstanceRepository.GetById(instanceId, ct)
-            : await workflowInstanceService.GetAsOfVersion(instanceId, version.Value, ct);
-        if (instance == null)
-            throw new EntityNotFoundException("WorkflowInstance", instanceId);
-
-        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-
-        var form = modelService.GetForm(instance, submissionId);
-        if (form == null)
-            throw new EntityNotFoundException("Form", $"instanceId:{instanceId},submission:{submissionId}");
-
-        var submissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
-
-        return new SubmissionContext(instance, submissionState, form, submissionId);
-    }
-
     public async Task<SubmissionResult> SubmitSubmission(SubmissionContext context, User user, CancellationToken ct)
     {
         var (instance, submissionState, form, submissionId) = context;

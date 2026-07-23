@@ -1,9 +1,0 @@
-name: Decision
-
-actions:
-  - roles: [ BoardMember ]
-    type: Submit
-    form: Decision
-
-ends:
-  event: Decision

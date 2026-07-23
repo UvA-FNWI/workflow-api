@@ -1,0 +1,17 @@
+name: Finish
+
+icon:
+  type: article-line
+
+title:
+  en: Thesis
+  nl: Scriptie
+
+progress:
+  color: green
+  text:
+    en: Thesis in progress
+    nl: Bezig met scriptie
+
+ends:
+  event: Finish

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Serilog;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
@@ -42,6 +43,7 @@ public abstract class ControllerTestsBase
     protected readonly InstanceEventService _eventService;
     protected readonly EffectService _effectService;
     protected readonly JobService _jobService;
+    protected readonly AssessmentService _assessmentService;
 
     protected readonly CancellationToken _ct = new CancellationTokenSource().Token;
 
@@ -84,21 +86,26 @@ public abstract class ControllerTestsBase
         _modelService = new ModelService(_modelParser);
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
 
+
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
 
-        _instanceService =
-            new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object,
-                _rightsService,
-                mailBuilder);
-
-        _eventService =
-            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
-
         _workflowInstanceService =
             new WorkflowInstanceService(_modelService, _workflowInstanceRepoMock.Object,
                 _instanceJournalServiceMock.Object);
+
+        _assessmentService =
+            new AssessmentService(_modelService, _workflowInstanceService, _workflowInstanceRepoMock.Object);
+
+        _instanceService =
+            new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object,
+                _rightsService,
+                mailBuilder,
+                _assessmentService);
+
+        _eventService =
+            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
 
         _effectService =
             new EffectService(_instanceService,
@@ -106,7 +113,6 @@ public abstract class ControllerTestsBase
                 _modelService,
                 _mailServiceMock.Object,
                 _eduIdUserServiceMock.Object,
-                mailBuilder,
                 _artifactServiceMock.Object,
                 _mailLogRepositoryMock.Object,
                 _configurationMock.Object,

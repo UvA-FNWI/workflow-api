@@ -49,6 +49,9 @@ public partial record Template : Expression
         Properties = _parts.Where(p => p is Value).Cast<Value>().SelectMany(v => v.Content.Properties).ToArray();
     }
 
+    /// True when the source contains at least one expression (i.e. it is not a plain literal).
+    public bool HasExpressions => _parts.Any(p => p is Value);
+
     public override string Execute(ObjectContext context)
         => Apply(context);
 

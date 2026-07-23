@@ -8,6 +8,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using Serilog;
+using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
@@ -50,6 +51,7 @@ public class WorkflowTests
     readonly ModelParser _parser;
     readonly AnswerService _answerService;
     readonly AnswerConversionService _answerConversionService;
+    readonly AssessmentService _assessmentService;
     readonly CancellationToken _ct = new CancellationTokenSource().Token;
 
 
@@ -78,20 +80,21 @@ public class WorkflowTests
         _jobRepositoryMock = new Mock<IJobRepository>();
 
         // Services
-        var modelProvider = new FileSystemProvider("../../../../Examples/Projects");
+        var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
         _parser = new ModelParser(modelProvider);
         _modelService = new ModelService(_parser);
         _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
-        _instanceService =
-            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
-                mailBuilder);
-        _eventService =
-            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
             _instanceJournalServiceMock.Object);
+        _assessmentService = new AssessmentService(_modelService, _workflowInstanceService, _instanceRepoMock.Object);
+        _instanceService =
+            new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
+                mailBuilder, _assessmentService);
+        _eventService =
+            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _userServiceMock.Setup(m => m.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User());
         _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
@@ -101,7 +104,6 @@ public class WorkflowTests
             _modelService,
             _mailServiceMock.Object,
             _eduIdUserServiceMock.Object,
-            mailBuilder,
             _artifactServiceMock.Object,
             _mailLogRepositoryMock.Object,
             _configurationMock.Object,
@@ -110,14 +112,14 @@ public class WorkflowTests
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
             _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
         _submissionService =
-            new SubmissionService(_instanceRepoMock.Object, _modelService, _instanceService,
-                _instanceJournalServiceMock.Object, _workflowInstanceService, _jobService, _effectService);
+            new SubmissionService(_modelService, _instanceService,
+                _instanceJournalServiceMock.Object, _jobService, _effectService);
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
             _userRepoMock.Object);
-        _answerService = new AnswerService(_submissionService, _modelService, _instanceService, _rightsService,
-            _artifactServiceMock.Object, _answerConversionService, _instanceEventService.Object,
-            _instanceJournalServiceMock.Object, _userServiceMock.Object);
+        _answerService = new AnswerService(_modelService, _instanceService, _rightsService,
+            _artifactServiceMock.Object, _answerConversionService, _workflowInstanceService,
+            _instanceEventService.Object, _instanceJournalServiceMock.Object, _userServiceMock.Object);
     }
 
     [Fact]
@@ -225,5 +227,51 @@ public class WorkflowTests
         Assert.Equal("AI/Project-AI", projectAi.SourceFolder);
         Assert.Equal("Assessment-AI",
             projectAi.Properties.Single(p => p.Name == "AssessmentReviewer").WorkflowDefinition?.Name);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentStep_StaleStepName_RecalculatesToOpenStep()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "RenamedStep")
+            .WithEvents(
+                b => b.WithId("Start").AsCompleted(),
+                b => b.WithId("ApproveSubject").AsCompleted())
+            .Build();
+
+        var activeSteps = _modelService.GetActiveSteps(instance);
+        await _instanceService.UpdateCurrentStep(instance, _ct);
+
+        Assert.Equal(["Upload"], activeSteps);
+        Assert.Equal("Upload", instance.CurrentStep);
+        _instanceRepoMock.Verify(
+            r => r.UpdateField(instance.Id, i => i.CurrentStep, "Upload", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateCurrentStep_StaleFinalStepName_RecalculatesToCompleted()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Finish")
+            .WithEvents(
+                b => b.WithId("Start").AsCompleted(),
+                b => b.WithId("ApproveSubject").AsCompleted(),
+                b => b.WithId("Upload").AsCompleted(),
+                b => b.WithId("AssessmentReviewer").AsCompleted(),
+                b => b.WithId("AssessmentSupervisor").AsCompleted(),
+                b => b.WithId("Publish").AsCompleted())
+            .WithProperties(
+                ("CanBePublished", b => b.Value(true)))
+            .Build();
+
+        var activeSteps = _modelService.GetActiveSteps(instance);
+        await _instanceService.UpdateCurrentStep(instance, _ct);
+
+        Assert.Empty(activeSteps);
+        Assert.Null(instance.CurrentStep);
+        _instanceRepoMock.Verify(
+            r => r.UpdateField<string?>(instance.Id, i => i.CurrentStep, null, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

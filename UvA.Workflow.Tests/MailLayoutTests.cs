@@ -1,5 +1,6 @@
 using Moq;
 using UvA.Workflow.Notifications;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
@@ -168,23 +169,23 @@ public class FileMailLayoutTests
 
 public class DefaultMailLayoutIntegrationTests
 {
-    [Fact]
-    public void DefaultLayout_FileExistsAndLoadsWithoutError()
-    {
-        var layout = new DefaultMailLayout();
+    // The real default.html, loaded into the store the way the config loader does at runtime.
+    private static DefaultMailLayout RealDefaultLayout()
+        => new(new MailTemplateStore { Default = File.ReadAllText(UnitTestsHelpers.FixturesLayoutPath) });
 
-        // Should not throw
-        var result = layout.Render("<p>Hello</p>", []);
+    [Fact]
+    public void DefaultLayout_RendersWithoutError()
+    {
+        var result = RealDefaultLayout().Render("<p>Hello</p>", []);
         Assert.NotEmpty(result);
     }
 
     [Fact]
     public void DefaultLayout_RenderedOutput_ContainsNoUnresolvedPlaceholders()
     {
-        var layout = new DefaultMailLayout();
         var button = new MailButton("Click here", "https://example.com", MailButtonIntent.Primary);
 
-        var result = layout.Render("<p>Hello</p>", [button]);
+        var result = RealDefaultLayout().Render("<p>Hello</p>", [button]);
 
         Assert.DoesNotContain("{{", result);
         Assert.DoesNotContain("}}", result);
@@ -193,10 +194,17 @@ public class DefaultMailLayoutIntegrationTests
     [Fact]
     public void DefaultLayout_RenderedOutput_ContainsBodyContent()
     {
-        var layout = new DefaultMailLayout();
-
-        var result = layout.Render("<p>Test body</p>", []);
+        var result = RealDefaultLayout().Render("<p>Test body</p>", []);
 
         Assert.Contains("<p>Test body</p>", result);
+    }
+
+    [Fact]
+    public void DefaultLayout_WhenStoreEmpty_ThrowsClearError()
+    {
+        var layout = new DefaultMailLayout(new MailTemplateStore());
+
+        var ex = Assert.Throws<InvalidOperationException>(() => layout.Render("body", []));
+        Assert.Contains("Layouts/default.html", ex.Message);
     }
 }
