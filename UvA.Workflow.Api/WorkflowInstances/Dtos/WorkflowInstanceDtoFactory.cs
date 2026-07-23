@@ -44,13 +44,20 @@ public class WorkflowInstanceDtoFactory(
         var context = modelService.CreateContext(instance);
         var relatedUserLookups = workflowDefinition.RelatedUsers
             .Select(r => (Lookup)new PropertyLookup(r.Property));
+        var resourceLookups = workflowDefinition.Resources.SelectMany(r => r.Items ?? [])
+            .SelectMany(i => i.UrlTemplate?.Properties ?? []);
         await instanceService.Enrich(workflowDefinition, [context],
-            workflowDefinition.Steps.SelectMany(f => f.Lookups).Concat(relatedUserLookups), ct);
+            workflowDefinition.Steps.SelectMany(f => f.Lookups).Concat(relatedUserLookups).Concat(resourceLookups), ct);
 
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
 
         var relatedUsers = GetRelatedUsers(workflowDefinition, context);
+
+        var resources = workflowDefinition.Resources
+            .Select(r => ResourceDto.TryCreate(r, viewerRoles, context))
+            .OfType<ResourceDto>()
+            .ToArray();
 
         var x = new WorkflowInstanceDto(
             instance.Id,
@@ -72,7 +79,8 @@ public class WorkflowInstanceDtoFactory(
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            relatedUsers
+            relatedUsers,
+            resources
         );
         return x;
     }
