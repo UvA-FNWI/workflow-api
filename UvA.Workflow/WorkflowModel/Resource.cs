@@ -1,3 +1,5 @@
+using UvA.Workflow.Expressions;
+
 namespace UvA.Workflow.WorkflowModel;
 
 public class Resource : INamed
@@ -10,7 +12,7 @@ public class Resource : INamed
     /// <summary>
     /// Localized title of the resource
     /// </summary>
-    public BilingualString? Title { get; set; }
+    public BilingualString Title { get; set; } = null!;
 
     /// <summary>
     /// The type of this resource, e.g. text or links
@@ -18,9 +20,14 @@ public class Resource : INamed
     public ResourceLayout Type { get; set; }
 
     /// <summary>
-    /// List of items in this resource
+    /// List of items for a resource type links
     /// </summary>
-    public List<ResourceItem> Items { get; set; } = null!;
+    public ResourceItem[]? Items { get; set; }
+
+    /// <summary>
+    /// The content for a resource of type text
+    /// </summary>
+    public BilingualString? Content { get; set; }
 
     /// <summary>
     /// If set, this resource is included only for the matching sources
@@ -44,6 +51,8 @@ public class ResourceItem : INamed
     /// Localized text of the resource item
     /// </summary>
     public BilingualString Text { get; set; } = null!;
+
+    [YamlIgnore] public BilingualTemplate? UrlTemplate => field ??= BilingualTemplate.Create(Url);
 
     /// <summary>
     /// Optional (Localized) URL of the resource item, e.g. for a link or download

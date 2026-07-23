@@ -147,18 +147,19 @@ public record ResourceItemDto(
     BilingualString? Url
 )
 {
-    public static ResourceItemDto Create(ResourceItem item) =>
-        new(item.Name, item.Type, item.Text, item.Url);
+    public static ResourceItemDto Create(ResourceItem item, ObjectContext context) =>
+        new(item.Name, item.Type, item.Text, item.UrlTemplate?.Apply(context));
 }
 
 public record ResourceDto(
     string Name,
-    BilingualString? Title,
+    BilingualString Title,
     ResourceLayout Type,
-    ResourceItemDto[] Items
+    ResourceItemDto[]? Items,
+    BilingualString? Content
 )
 {
-    public static ResourceDto? TryCreate(Resource resource, IEnumerable<string> userRoles)
+    public static ResourceDto? TryCreate(Resource resource, IEnumerable<string> userRoles, ObjectContext context)
     {
         if (resource.Sources is { Length: > 0 } && !resource.Sources.Intersect(userRoles).Any())
             return null;
@@ -167,7 +168,8 @@ public record ResourceDto(
             resource.Name,
             resource.Title,
             resource.Type,
-            resource.Items.Select(ResourceItemDto.Create).ToArray()
+            resource.Items?.Select(i => ResourceItemDto.Create(i, context)).ToArray(),
+            resource.Content
         );
     }
 }
