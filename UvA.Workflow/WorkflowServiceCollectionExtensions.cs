@@ -37,6 +37,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<MailBuilder>();
 
         services.AddScoped<AnswerService>();
+        services.AddScoped<DummyAnswerGenerator>();
         services.AddScoped<SubmissionService>();
         services.AddScoped<RightsService>();
         services.AddScoped<JobService>();
