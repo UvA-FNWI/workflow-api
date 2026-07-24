@@ -1,0 +1,6 @@
+name: Thesis
+title: Thesis
+
+children:
+  - Proposal
+  - Writing

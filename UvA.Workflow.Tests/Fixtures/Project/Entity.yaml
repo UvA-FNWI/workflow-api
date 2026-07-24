@@ -1,4 +1,5 @@
 name: Project
+inheritsFrom: Project-Base
 titlePlural: Projects
 instanceTitle: '{{ Title }}'
 
@@ -6,7 +7,7 @@ fields:
  - property: Course.Name
    title: Course
  - property: Course.StudyManual
-   title: 
+   title:
     en: Study Manual
     nl: Studiehandleiding
  - property: Student.DisplayName
@@ -22,27 +23,3 @@ steps:
   - Upload
   - Assessment
   - Publication
-    
-relatedUsers:
-  - property: Supervisor
-    group: default
-  - property: Examiner
-    group: default
-  - property: Reviewer
-    group: default
-  - property: SecondReader
-    group: default
-  - property: Course.Coordinator
-    group: support
-  - property: Course.ConfidentialAdviser
-    group: support
-  - property: Course.StudyAdviser
-    group: support
-      
-relatedUserGrouping:
-  groups:
-    - name: default
-    - name: support
-      title: 
-        en: Other involved staff
-        nl: Andere betrokkenen

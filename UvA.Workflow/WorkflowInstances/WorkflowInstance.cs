@@ -80,10 +80,27 @@ public class WorkflowInstance
         var newEvent = new InstanceEvent
         {
             Id = eventId,
-            Date = date ?? DateTime.Now
+            Date = date ?? NextEventDate()
         };
         Events[eventId] = newEvent;
         return newEvent;
+    }
+
+    /// <summary>
+    /// A strictly increasing UTC timestamp for a new event. Suppression orders events by a strict
+    /// comparison on <see cref="InstanceEvent.Date"/>, so two events in one instance must never share
+    /// a timestamp; MongoDB stores millisecond precision, hence the 1ms floor.
+    /// </summary>
+    private DateTime NextEventDate()
+    {
+        var now = DateTime.UtcNow;
+        var candidate = Events.Values
+            .Where(e => e.Date != null)
+            .Select(e => e.Date!.Value)
+            .DefaultIfEmpty()
+            .Max()
+            .AddMilliseconds(1);
+        return now > candidate ? now : candidate;
     }
 
     /// <summary>

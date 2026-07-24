@@ -36,8 +36,10 @@ public partial class ModelParser
             else target.Emails.Add(sourceMessage);
         }
 
+        // Clone so a derived definition can generate its own suppression rules without
+        // mutating the shared parent/sibling event definitions (see resetParentStep expansion).
         foreach (var ev in source.Events)
-            target.Events.Add(ev);
+            target.Events.Add(ev.Clone());
 
         foreach (var screen in source.Screens)
             target.Screens.Add(screen);

@@ -29,7 +29,7 @@ public partial class ModelParser
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
-        var definitions = GetWorkflowDefinitionFolders()
+        var parsed = GetWorkflowDefinitionFolders()
             .Select(folder =>
             {
                 var definition = Parse<WorkflowDefinition>(Path.Combine(folder, "Entity.yaml"));
@@ -38,7 +38,28 @@ public partial class ModelParser
                 definition.SourceFolder = folder;
                 return definition;
             })
-            .OrderBy(e => e.InheritsFrom != null);
+            .ToList();
+
+        // Order by inheritance depth so a parent is always processed before its children.
+        // Supports chains deeper than one level (base <- mid <- leaf), unlike a simple has-parent sort.
+        var byName = parsed.ToDictionary(d => d.Name);
+        var definitions = parsed.OrderBy(InheritanceDepth);
+
+        int InheritanceDepth(WorkflowDefinition def)
+        {
+            var depth = 0;
+            var seen = new HashSet<string>();
+            var current = def;
+            while (current.InheritsFrom != null && byName.TryGetValue(current.InheritsFrom, out var parent))
+            {
+                if (!seen.Add(current.Name))
+                    throw new Exception($"Cyclic inheritsFrom detected involving '{current.Name}'");
+                depth++;
+                current = parent;
+            }
+
+            return depth;
+        }
 
         foreach (var definition in definitions)
         {
@@ -245,6 +266,8 @@ public partial class ModelParser
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
+        ExpandResetParentSteps(workflowDefinition);
+
         workflowDefinition.ModelParser = this;
     }
 
@@ -291,6 +314,8 @@ public partial class ModelParser
                         $"Event '{ev.Name}' in workflow '{workflowDefinition.Name}' already has a suppresses value defined.");
                 if (ev.Suppresses != null)
                     existing.Suppresses = ev.Suppresses;
+                if (ev.ResetParentStep)
+                    existing.ResetParentStep = true;
             }
             else
             {
