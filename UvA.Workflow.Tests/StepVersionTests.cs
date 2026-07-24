@@ -1,9 +1,9 @@
 using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Events;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
-using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
@@ -499,7 +499,8 @@ public class StepVersionTests
         WorkflowInstance instance,
         List<InstanceEventLogEntry> eventLogs)
     {
-        var modelService = new ModelService(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
+        var modelService = new ModelService(new ModelParser(modelProvider));
         var repository = new Mock<IInstanceEventRepository>();
         repository
             .Setup(r => r.GetEventLogEntriesForInstance(
