@@ -1,0 +1,12 @@
+name: Writing
+title: Writing
+
+children:
+  - Draft
+  - Review
+
+events:
+  # Restarts Thesis: reopens Proposal and, on that restart, invalidates the
+  # whole Writing subtree from the previous pass.
+  - name: RejectProposal
+    resetParentStep: true

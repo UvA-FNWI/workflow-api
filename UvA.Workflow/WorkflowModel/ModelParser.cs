@@ -266,6 +266,8 @@ public partial class ModelParser
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
+        ExpandResetParentSteps(workflowDefinition);
+
         workflowDefinition.ModelParser = this;
     }
 
@@ -312,6 +314,8 @@ public partial class ModelParser
                         $"Event '{ev.Name}' in workflow '{workflowDefinition.Name}' already has a suppresses value defined.");
                 if (ev.Suppresses != null)
                     existing.Suppresses = ev.Suppresses;
+                if (ev.ResetParentStep)
+                    existing.ResetParentStep = true;
             }
             else
             {
