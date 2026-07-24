@@ -1,3 +1,4 @@
+using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
@@ -13,7 +14,9 @@ public class SubmissionsController(
     SubmissionService submissionService,
     WorkflowInstanceService workflowInstanceService,
     SubmissionDtoFactory submissionDtoFactory,
-    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
+    AnswerService answerService,
+    DummyAnswerGenerator dummyAnswerGenerator) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId,
@@ -65,5 +68,86 @@ public class SubmissionsController(
 
         return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto,
             EffectResult: result.EffectResult));
+    }
+
+    [HttpPost("{instanceId}/{submissionId}/dummyData")]
+    public async Task<ActionResult<SubmissionDto>> GenerateDummyData(string instanceId, string submissionId,
+        CancellationToken ct)
+    {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ImpersonateRoles);
+
+        var (instance, submissionState, form, _) =
+            await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
+
+        // The do/while loop is needed for re-evaluating the question status since filling in questions can trigger
+        // dependent question to become visible
+        var filledQuestionIds = new HashSet<string>();
+        bool anyNewVisibleQuestions;
+        var lastGeneratedDate = DateTime.Now;
+
+        do
+        {
+            anyNewVisibleQuestions = false;
+            var questionStatus = modelService.GetQuestionStatus(instance, form, canViewHidden: true);
+
+            foreach (var (questionName, status) in questionStatus.Where(q => q.Value.IsVisible))
+            {
+                if (filledQuestionIds.Contains(questionName)) continue;
+
+                var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
+                if (question == null) continue;
+
+                var existingAnswer = instance.GetProperty(form.PropertyName, questionName);
+                if (existingAnswer != null && !existingAnswer.IsBsonNull && existingAnswer != string.Empty) continue;
+
+                if (question.DataType == DataType.User)
+                {
+                    var currentUser = await userService.GetCurrentUser(ct);
+                    if (currentUser != null)
+                    {
+                        var userObject = new
+                        {
+                            userName = currentUser.UserName,
+                            displayName = currentUser.DisplayName,
+                            email = currentUser.Email
+                        };
+                        var userElement = question.IsArray
+                            ? JsonSerializer.SerializeToElement(new[] { userObject })
+                            : JsonSerializer.SerializeToElement(userObject);
+                        await answerService.SaveAnswer(
+                            new QuestionContext(instance, submissionState, form, question), userElement, ct);
+                        filledQuestionIds.Add(questionName);
+                        anyNewVisibleQuestions = true;
+                    }
+
+                    continue;
+                }
+
+                var dummyAnswer = dummyAnswerGenerator.Generate(question, status, lastGeneratedDate);
+
+                if (dummyAnswer == null) continue;
+
+                if (question.DataType is DataType.DateTime or DataType.Date
+                    && dummyAnswer.Value.GetString() is { } dateStr
+                    && DateTime.TryParse(dateStr, out var parsedDate))
+                {
+                    lastGeneratedDate = parsedDate;
+                }
+
+                await answerService.SaveAnswer(
+                    new QuestionContext(instance, submissionState, form, question), dummyAnswer, ct);
+
+                filledQuestionIds.Add(questionName);
+                anyNewVisibleQuestions = true;
+            }
+        } while (anyNewVisibleQuestions);
+
+        var permissions =
+            await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
+        var updatedSubmission = submissionDtoFactory.Create(instance, form, submissionState,
+            modelService.GetQuestionStatus(instance, form, true),
+            permissions.Select(p => p.Type).ToArray());
+
+        return Ok(updatedSubmission);
     }
 }

@@ -6,6 +6,9 @@
 # AI coding assistant instructions (user-specific)
 .github/copilot-instructions.md
 
+# Optional link to a local milestones-config checkout
+/milestones-config
+
 # User-specific files
 *.rsuser
 *.suo
@@ -455,3 +458,5 @@ $RECYCLE.BIN/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+.key

@@ -1,5 +1,6 @@
 using MongoDB.Bson;
 using UvA.Workflow.Events;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
 
@@ -23,7 +24,7 @@ internal static class ImpersonationTestHelpers
         "5sGHQvVvPjrf0AH5LsQY2z6raH9qiXx25sGHQvVvPjrf0AH5LsQY2z6raH9qiXx25sGHQvVvPjrf0AH5LsQY2z6raH9qiXx2";
 
     public static ModelService CreateModelService()
-        => new(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        => new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
 
     public static WorkflowInstance CreateProjectInstance(string? id = null) => new()
     {

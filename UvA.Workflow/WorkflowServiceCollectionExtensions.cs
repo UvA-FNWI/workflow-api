@@ -31,11 +31,13 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<IArtifactService, S3ArtifactService>();
 
         services.AddScoped<IMailService, DummyMailService>();
+        services.AddScoped<MailTemplateStore>();
         services.AddScoped<INamedMailLayout, DefaultMailLayout>();
         services.AddScoped<IMailLayoutResolver, MailLayoutResolver>();
         services.AddScoped<MailBuilder>();
 
         services.AddScoped<AnswerService>();
+        services.AddScoped<DummyAnswerGenerator>();
         services.AddScoped<SubmissionService>();
         services.AddScoped<RightsService>();
         services.AddScoped<JobService>();

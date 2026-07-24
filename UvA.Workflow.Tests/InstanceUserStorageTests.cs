@@ -6,6 +6,7 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Organizations;
 using UvA.Workflow.Tests.Builders;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.EduId;
 using UvA.Workflow.WorkflowInstances;
@@ -16,7 +17,7 @@ namespace UvA.Workflow.Tests;
 public class InstanceUserStorageTests
 {
     private static readonly ModelService ModelService =
-        new(new ModelParser(new FileSystemProvider("../../../../Examples/Projects")));
+        new(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
 
     [Fact]
     public void FromUser_MapsOnlyInstanceFields()
