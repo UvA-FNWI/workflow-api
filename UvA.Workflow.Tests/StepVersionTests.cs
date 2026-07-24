@@ -1,4 +1,9 @@
 using MongoDB.Bson;
+using Moq;
+using UvA.Workflow.Events;
+using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.Versioning;
+using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
@@ -152,6 +157,135 @@ public class StepVersionTests
         Assert.Equal(expectedOrdered, eventIds);
     }
 
+    public static IEnumerable<object?[]> HistoricalEventConditionCases()
+    {
+        yield return
+        [
+            null,
+            new[] { "SubmitProposal" },
+            false
+        ];
+        yield return
+        [
+            new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+            new[] { "SubmitProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+            new[] { "ApproveProposal" },
+            false
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Not = true,
+                Event = new EventCondition { Id = "RejectProposal" }
+            },
+            new[] { "ApproveProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.And,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+                        new Condition { Event = new EventCondition { Id = "ApproveProposal" } }
+                    ]
+                }
+            },
+            new[] { "SubmitProposal", "ApproveProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.Or,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "ApproveProposal" } },
+                        new Condition { Event = new EventCondition { Id = "RejectProposal" } }
+                    ]
+                }
+            },
+            new[] { "RejectProposal" },
+            true
+        ];
+    }
+
+    [Theory]
+    [MemberData(nameof(HistoricalEventConditionCases))]
+    public void IsMet_WithHistoricalEventIds_EvaluatesOnlyEventConditions(
+        Condition? condition,
+        string[] eventIds,
+        bool expected)
+    {
+        Assert.Equal(expected, condition.IsMet(eventIds));
+    }
+
+    public static IEnumerable<object[]> UnsupportedHistoricalConditionCases()
+    {
+        yield return
+        [
+            new Condition { Date = new Date { Source = "Deadline" } },
+            nameof(Date)
+        ];
+        yield return
+        [
+            new Condition { Deadline = new Deadline { ExpressionText = "Deadline" } },
+            nameof(Deadline)
+        ];
+        yield return
+        [
+            new Condition { Value = new Value { Property = "Status", Equal = "=Approved" } },
+            nameof(Value)
+        ];
+    }
+
+    [Theory]
+    [MemberData(nameof(UnsupportedHistoricalConditionCases))]
+    public void IsMet_WithHistoricalEventIds_ThrowsForUnsupportedConditionTypes(
+        Condition condition,
+        string conditionType)
+    {
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            condition.IsMet(Array.Empty<string>()));
+
+        Assert.Contains(conditionType, exception.Message);
+    }
+
+    [Fact]
+    public void IsMet_WithHistoricalEventIds_ThrowsForUnsupportedLogicalChildWithoutShortCircuiting()
+    {
+        var condition = new Condition
+        {
+            Logical = new Logical
+            {
+                Operator = LogicalOperator.Or,
+                Children =
+                [
+                    new Condition { Event = new EventCondition { Id = "Submitted" } },
+                    new Condition { Date = new Date { Source = "Deadline" } }
+                ]
+            }
+        };
+
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            condition.IsMet(new[] { "Submitted" }));
+
+        Assert.Contains(nameof(Date), exception.Message);
+    }
+
     [Fact]
     public void SequentialVersioning_TwoCycles_AllEventsGroupedByVersion()
     {
@@ -297,11 +431,100 @@ public class StepVersionTests
         Assert.Empty(consolidatedVersions);
     }
 
+    [Fact]
+    public async Task RmssProposalVersioning_RejectionCompletesStartVersionAfterBothAssessments()
+    {
+        var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-2);
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt),
+            EventLog(instance, "ProposalApprovedReviewer", approvedAt)
+        ]);
+
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(approvedAt, version.SubmittedAt);
+        Assert.Equal(["Start", "ProposalRejectedSupervisor", "ProposalApprovedReviewer"], version.EventIds);
+    }
+
+    [Fact]
+    public async Task RmssProposalVersioning_SingleApprovalDoesNotCompleteStartVersion()
+    {
+        var instance = CreateRmssInstance();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", DateTime.UtcNow.AddMinutes(-10)),
+            EventLog(instance, "ProposalApprovedSupervisor", DateTime.UtcNow.AddMinutes(-5))
+        ]);
+
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        Assert.Empty(versions);
+    }
+
+    [Fact]
+    public async Task RmssProposalVersioning_SingleRejectionDoesNotCompleteStartVersion()
+    {
+        var instance = CreateRmssInstance();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", DateTime.UtcNow.AddMinutes(-10)),
+            EventLog(instance, "ProposalRejectedSupervisor", DateTime.UtcNow.AddMinutes(-5))
+        ]);
+
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        Assert.Empty(versions);
+    }
+
     private static Dictionary<string, BsonValue?> CloneProperties(Dictionary<string, BsonValue?> original)
         => original.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value?.DeepClone()
         );
+
+    private static WorkflowInstance CreateRmssInstance()
+        => new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project-RMSS")
+            .WithCurrentStep("ProposalPhase")
+            .Build();
+
+    private static StepVersionService CreateStepVersionService(
+        WorkflowInstance instance,
+        List<InstanceEventLogEntry> eventLogs)
+    {
+        var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
+        var modelService = new ModelService(new ModelParser(modelProvider));
+        var repository = new Mock<IInstanceEventRepository>();
+        repository
+            .Setup(r => r.GetEventLogEntriesForInstance(
+                instance.Id,
+                It.IsAny<List<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, List<string> eventIds, CancellationToken _) =>
+                eventLogs.Where(log => eventIds.Contains(log.EventId)).ToList());
+
+        return new StepVersionService(modelService, repository.Object);
+    }
+
+    private static InstanceEventLogEntry EventLog(
+        WorkflowInstance instance,
+        string eventId,
+        DateTime timestamp)
+        => new()
+        {
+            WorkflowInstanceId = instance.Id,
+            EventId = eventId,
+            EventDate = timestamp,
+            Operation = EventLogOperation.Create,
+            Timestamp = timestamp
+        };
 
     private static Dictionary<string, BsonValue?> RestorePropertiesToVersion(
         Dictionary<string, BsonValue?> current,

@@ -35,9 +35,15 @@ public class PropertyChangeEntry
         PropertyDefinition propertyDefinition,
         BsonValue? oldValue,
         User modifiedBy)
+        => Create(propertyDefinition.Name, oldValue, modifiedBy);
+
+    public static PropertyChangeEntry Create(
+        string path,
+        BsonValue? oldValue,
+        User modifiedBy)
         => new(
             DateTime.Now,
-            propertyDefinition.Name,
+            path,
             oldValue,
             modifiedBy.UserName);
 }

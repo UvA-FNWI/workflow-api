@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -13,7 +12,6 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
-using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Organizations;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
@@ -88,7 +86,7 @@ public class WorkflowTests
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
-            _instanceJournalServiceMock.Object);
+            _instanceJournalServiceMock.Object, _eventRepoMock.Object);
         _assessmentService = new AssessmentService(_modelService, _workflowInstanceService, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,

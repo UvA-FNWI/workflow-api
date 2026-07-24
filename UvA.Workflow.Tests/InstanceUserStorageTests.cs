@@ -2,6 +2,7 @@ using System.Text.Json;
 using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
+using UvA.Workflow.Events;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Organizations;
 using UvA.Workflow.Tests.Builders;
@@ -371,7 +372,11 @@ public class InstanceUserStorageTests
         repository.Setup(r => r.Create(It.IsAny<WorkflowInstance>(), It.IsAny<CancellationToken>()))
             .Callback<WorkflowInstance, CancellationToken>((instance, _) => created = instance)
             .Returns(Task.CompletedTask);
-        var service = new WorkflowInstanceService(ModelService, repository.Object, Mock.Of<IInstanceJournalService>());
+        var service = new WorkflowInstanceService(
+            ModelService,
+            repository.Object,
+            Mock.Of<IInstanceJournalService>(),
+            Mock.Of<IInstanceEventRepository>());
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -398,7 +403,11 @@ public class InstanceUserStorageTests
         repository.Setup(r => r.Create(It.IsAny<WorkflowInstance>(), It.IsAny<CancellationToken>()))
             .Callback<WorkflowInstance, CancellationToken>((instance, _) => created = instance)
             .Returns(Task.CompletedTask);
-        var service = new WorkflowInstanceService(ModelService, repository.Object, Mock.Of<IInstanceJournalService>());
+        var service = new WorkflowInstanceService(
+            ModelService,
+            repository.Object,
+            Mock.Of<IInstanceJournalService>(),
+            Mock.Of<IInstanceEventRepository>());
         var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -425,7 +434,11 @@ public class InstanceUserStorageTests
         repository.Setup(r => r.Create(It.IsAny<WorkflowInstance>(), It.IsAny<CancellationToken>()))
             .Callback<WorkflowInstance, CancellationToken>((instance, _) => created = instance)
             .Returns(Task.CompletedTask);
-        var service = new WorkflowInstanceService(ModelService, repository.Object, Mock.Of<IInstanceJournalService>());
+        var service = new WorkflowInstanceService(
+            ModelService,
+            repository.Object,
+            Mock.Of<IInstanceJournalService>(),
+            Mock.Of<IInstanceEventRepository>());
         var creator = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),

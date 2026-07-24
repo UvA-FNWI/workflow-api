@@ -11,7 +11,6 @@ using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Organizations;
-using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -35,7 +34,7 @@ public class AnswersControllerTests : ControllerTestsBase
     {
         _artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _workflowInstanceRepoMock.Object,
-            _instanceJournalServiceMock.Object);
+            _instanceJournalServiceMock.Object, _eventRepoMock.Object);
         _submissionDtoFactory =
             new SubmissionDtoFactory(_artifactTokenService, _modelService);
         _workflowInstanceDtoFactory =

@@ -4,6 +4,9 @@ title:
   en: Assessment
   nl: Beoordeling
 
+icon:
+  type: law-balance-line
+  
 progress:
   color: red
   text:
