@@ -68,6 +68,7 @@ public partial class ModelParser
             .Concat(target.RelatedUsers)
             .ToArray();
         target.RelatedUserGrouping = MergeRelatedUserGrouping(target.RelatedUserGrouping, source.RelatedUserGrouping);
+        target.Resources = MergeResources(target.Resources, source.Resources);
     }
 
     private static RelatedUserGrouping? MergeRelatedUserGrouping(RelatedUserGrouping? target,
@@ -86,6 +87,37 @@ public partial class ModelParser
                 .Concat(target.Groups)
                 .ToArray()
         };
+    }
+
+    private static Resource[] MergeResources(Resource[] target, Resource[] source)
+    {
+        var result = target.ToList();
+
+        foreach (var sourceResource in source)
+        {
+            var targetResource = result.FirstOrDefault(r => r.Name == sourceResource.Name);
+            if (targetResource == null)
+            {
+                result.Insert(0, sourceResource); // prepend inherited resources
+                continue;
+            }
+
+            if (sourceResource.Items == null) continue;
+
+            if (targetResource.Items == null)
+            {
+                targetResource.Items = sourceResource.Items;
+                continue;
+            }
+
+            // Merge items: child's items take priority, append source items not already present
+            var targetItemNames = targetResource.Items.Select(i => i.Name).ToHashSet();
+            targetResource.Items = targetResource.Items
+                .Concat(sourceResource.Items.Where(i => !targetItemNames.Contains(i.Name)))
+                .ToArray();
+        }
+
+        return result.ToArray();
     }
 
     private void ApplyInheritance(Form target, Form source)
