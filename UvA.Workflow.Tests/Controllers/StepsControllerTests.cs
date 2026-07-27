@@ -29,6 +29,7 @@ public class StepsControllerTests : ControllerTestsBase
         var firstAssessmentAt = DateTime.UtcNow.AddMinutes(-3);
         var firstSupervisorAssessmentAt = DateTime.UtcNow.AddMinutes(-2);
         var secondAssessmentAt = DateTime.UtcNow.AddMinutes(-1);
+        var secondSupervisorAssessmentAt = DateTime.UtcNow;
 
         MockEventLogs(instance, [
             new InstanceEventLogEntry
@@ -54,6 +55,14 @@ public class StepsControllerTests : ControllerTestsBase
                 EventDate = secondAssessmentAt,
                 Operation = EventLogOperation.Update,
                 Timestamp = secondAssessmentAt
+            },
+            new InstanceEventLogEntry
+            {
+                WorkflowInstanceId = instance.Id,
+                EventId = "AssessmentSupervisor",
+                EventDate = secondSupervisorAssessmentAt,
+                Operation = EventLogOperation.Update,
+                Timestamp = secondSupervisorAssessmentAt
             }
         ]);
 
@@ -62,7 +71,10 @@ public class StepsControllerTests : ControllerTestsBase
         //Assert
         var actionResult = Assert.IsType<OkObjectResult>(result.Result);
         var listResult = Assert.IsType<List<StepVersion>>(actionResult.Value);
-        Assert.Single(listResult);
+        Assert.Collection(
+            listResult,
+            latest => Assert.Equal(2, latest.VersionNumber),
+            first => Assert.Equal(1, first.VersionNumber));
     }
 
     [Theory]

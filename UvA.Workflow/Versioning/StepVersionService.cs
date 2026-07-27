@@ -18,7 +18,7 @@ public interface IStepVersionService
 
     List<StepVersion> GetStepVersions(
         WorkflowInstance instance,
-        string stepName,
+        Step step,
         IEnumerable<InstanceEventLogEntry> eventLogs);
 }
 
@@ -39,16 +39,14 @@ public class StepVersionService(
         var eventLogs = await eventRepository.GetEventLogEntriesForInstance(
             instance.Id, allChildEvents, ct);
 
-        return GetStepVersions(instance, stepName, eventLogs);
+        return GetStepVersions(instance, step, eventLogs);
     }
 
     public List<StepVersion> GetStepVersions(
         WorkflowInstance instance,
-        string stepName,
+        Step step,
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
-        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var step = ResolveTargetStep(workflowDef, stepName);
         var (allChildEvents, completionCondition) = DetermineEventSets(step);
         var allChildEventSet = allChildEvents.ToHashSet();
 
@@ -59,15 +57,7 @@ public class StepVersionService(
             .OrderBy(log => log.Timestamp)
             .ToList();
 
-        var versions = BuildVersions(step, submissionEvents, completionCondition);
-
-        // The latest completed cycle is the live state of a completed step, not history.
-        if (versions.Count > 0 && step.HasEnded(modelService.CreateContext(instance)))
-            versions.RemoveAt(versions.Count - 1);
-
-        var orderedVersions = versions.OrderByDescending(v => v.SubmittedAt).ToList();
-
-        return orderedVersions;
+        return BuildVersions(step, submissionEvents, completionCondition);
     }
 
     private static Step ResolveTargetStep(WorkflowDefinition workflowDef, string stepName)

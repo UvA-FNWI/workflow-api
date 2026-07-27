@@ -122,6 +122,49 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.Equal("Pass", proposalSufficient.Value?.GetString());
     }
 
+    [Fact]
+    public async Task Create_OmitsNewestVersionWhenStepIsCompleted()
+    {
+        var historicalSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
+        var currentSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = CreateProjectInstance();
+        instance.Events["Start"] = new InstanceEvent
+        {
+            Id = "Start",
+            Date = currentSubmittedAt
+        };
+        var stepVersionService = CreateStepVersionService(
+            "Start",
+            new StepVersion
+            {
+                VersionNumber = 1,
+                EventIds = ["Start"],
+                SubmittedAt = historicalSubmittedAt
+            },
+            new StepVersion
+            {
+                VersionNumber = 2,
+                EventIds = ["Start"],
+                SubmittedAt = currentSubmittedAt
+            });
+        var factory = CreateFactory(stepVersionService.Object);
+
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(
+            instance,
+            EventLog(instance, "Start", historicalSubmittedAt),
+            EventLog(instance, "Start", currentSubmittedAt));
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+
+        var startStep = FindStep(dto.Steps, "Start");
+        var historicalVersion = Assert.Single(startStep.Versions!);
+        Assert.Equal(1, historicalVersion.VersionNumber);
+    }
+
     private WorkflowInstanceDtoFactory CreateFactory(IStepVersionService stepVersionService)
     {
         var submissionDtoFactory =
@@ -141,7 +184,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 
     private static Mock<IStepVersionService> CreateStepVersionService(
         string stepName,
-        StepVersion version)
+        params StepVersion[] versions)
     {
         var stepVersionService = new Mock<IStepVersionService>();
         stepVersionService
@@ -153,7 +196,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         stepVersionService
             .Setup(s => s.GetStepVersions(
                 It.IsAny<WorkflowInstance>(),
-                It.IsAny<string>(),
+                It.IsAny<Step>(),
                 It.IsAny<IEnumerable<InstanceEventLogEntry>>()))
             .Returns([]);
         stepVersionService
@@ -161,13 +204,13 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
                 It.IsAny<WorkflowInstance>(),
                 stepName,
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync([version]);
+            .ReturnsAsync(versions.ToList());
         stepVersionService
             .Setup(s => s.GetStepVersions(
                 It.IsAny<WorkflowInstance>(),
-                stepName,
+                It.Is<Step>(step => step.Name == stepName),
                 It.IsAny<IEnumerable<InstanceEventLogEntry>>()))
-            .Returns([version]);
+            .Returns(versions.ToList());
         return stepVersionService;
     }
 

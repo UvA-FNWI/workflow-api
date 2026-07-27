@@ -33,7 +33,7 @@ public class StepsController(
         try
         {
             var versions = await stepVersionService.GetStepVersions(instance, stepName, ct);
-            return Ok(versions);
+            return Ok(versions.OrderByDescending(version => version.SubmittedAt).ToList());
         }
         catch (EntityNotFoundException ex)
         {

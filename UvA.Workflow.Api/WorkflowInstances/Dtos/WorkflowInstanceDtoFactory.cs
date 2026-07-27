@@ -115,7 +115,7 @@ public class WorkflowInstanceDtoFactory(
         {
             try
             {
-                var versions = stepVersionService.GetStepVersions(instance, step.Name, eventLogList);
+                var versions = stepVersionService.GetStepVersions(instance, step, eventLogList);
                 if (versions.Any())
                 {
                     stepVersionsMap[step.Name] = versions;
@@ -144,13 +144,19 @@ public class WorkflowInstanceDtoFactory(
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var versions = stepVersionsMap.GetValueOrDefault(step.Name);
+
+        if (versions is { Count: > 0 } && step.HasEnded(context))
+            versions.RemoveAt(versions.Count - 1);
+
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, ct)))
             : null;
         var versionDtos = versions != null
-            ? await Task.WhenAll(versions.Select(v => CreateStepVersionDto(v, instance, instanceHistory, ct)))
+            ? await Task.WhenAll(versions
+                .OrderByDescending(version => version.SubmittedAt)
+                .Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
             : null;
 
         return new StepDto(

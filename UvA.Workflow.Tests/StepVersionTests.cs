@@ -4,6 +4,7 @@ using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
@@ -379,22 +380,22 @@ public class StepVersionTests
         var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         Assert.Collection(versions,
-            latest =>
-            {
-                Assert.Equal(2, latest.VersionNumber);
-                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
-                Assert.Equal(approvedAt, latest.SubmittedAt);
-            },
             first =>
             {
                 Assert.Equal(1, first.VersionNumber);
                 Assert.Equal(["Start", "RejectSubject"], first.EventIds);
                 Assert.Equal(rejectedAt, first.SubmittedAt);
+            },
+            latest =>
+            {
+                Assert.Equal(2, latest.VersionNumber);
+                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
+                Assert.Equal(approvedAt, latest.SubmittedAt);
             });
     }
 
     [Fact]
-    public async Task ParentStepVersioning_CompletedStepOmitsLatestVersion()
+    public async Task ParentStepVersioning_CompletedStepIncludesLatestVersion()
     {
         var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
         var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
@@ -417,10 +418,19 @@ public class StepVersionTests
 
         var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
-        var version = Assert.Single(versions);
-        Assert.Equal(1, version.VersionNumber);
-        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
-        Assert.Equal(rejectedAt, version.SubmittedAt);
+        Assert.Collection(versions,
+            first =>
+            {
+                Assert.Equal(1, first.VersionNumber);
+                Assert.Equal(["Start", "RejectSubject"], first.EventIds);
+                Assert.Equal(rejectedAt, first.SubmittedAt);
+            },
+            latest =>
+            {
+                Assert.Equal(2, latest.VersionNumber);
+                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
+                Assert.Equal(approvedAt, latest.SubmittedAt);
+            });
     }
 
     [Fact]
@@ -433,12 +443,16 @@ public class StepVersionTests
             .WithWorkflowDefinition("Project")
             .WithCurrentStep("Start")
             .Build();
+        Step? versionedStep = null;
         var service = CreateStepVersionService(instance,
         [
             EventLog(instance, "Start", submittedAt),
             EventLog(instance, "ApproveSubject", approvedAt),
             EventLog(instance, "RejectSubject", rejectedAt)
         ], modelService =>
+        {
+            versionedStep = modelService.WorkflowDefinitions["Project"].AllSteps
+                .Single(step => step.Name == "Subject");
             modelService.WorkflowDefinitions["Project"].AllSteps
                 .Single(step => step.Name == "SubjectFeedback").Ends = new Condition
             {
@@ -451,9 +465,10 @@ public class StepVersionTests
                         new Condition { Event = new EventCondition { Id = "ApproveSubject" } }
                     ]
                 }
-            });
+            };
+        });
 
-        var incompleteVersions = service.GetStepVersions(instance, "Start",
+        var incompleteVersions = service.GetStepVersions(instance, versionedStep!,
         [
             EventLog(instance, "Start", submittedAt),
             EventLog(instance, "RejectSubject", rejectedAt)
