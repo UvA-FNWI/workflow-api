@@ -74,7 +74,7 @@ public class InstanceAuthorizationFilterService(
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
             return filters;
 
-        var rolesWithViewAccess = new HashSet<string>();
+        var rolesWithViewAccess = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var globalRoles = await rightsService.GetGlobalRoles();
         foreach (var globalRoleName in globalRoles)
@@ -94,16 +94,13 @@ public class InstanceAuthorizationFilterService(
                 .SelectMany(a => a.Roles)
         );
 
-        // Find user type properties that correspond to these roles
-        var userProperties = definition.Properties
-            .Where(p => p.DataType == DataType.User)
-            .Where(p => rolesWithViewAccess.Contains(p.Name))
-            .ToList();
-
         var userId = new ObjectId(user.Id);
 
         filters.AddRange(
-            userProperties.Select(property => new BsonDocument($"Properties.{property.Name}._id", userId))
+            modelService.RoleBindings.GetBindings(workflowDefinition)
+                .Where(binding => binding.Source == RoleBindingSource.Direct)
+                .Where(binding => rolesWithViewAccess.Contains(binding.Role))
+                .Select(binding => new BsonDocument(binding.UserIdPath!, userId))
         );
 
         return filters;
@@ -116,53 +113,34 @@ public class InstanceAuthorizationFilterService(
     {
         var filters = new List<BsonDocument>();
 
-        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
-            return filters;
-
-        var propertiesWithInheritedRoles = definition.Properties
-            .Where(p => p.InheritedRoles.Any())
+        var inheritedBindings = modelService.RoleBindings.GetBindings(workflowDefinition)
+            .Where(binding => binding.Source == RoleBindingSource.Inherited)
             .ToList();
 
-        if (propertiesWithInheritedRoles.Count == 0)
+        if (inheritedBindings.Count == 0)
             return filters;
 
-        foreach (var property in propertiesWithInheritedRoles)
+        var userId = new ObjectId(user.Id);
+
+        foreach (var binding in inheritedBindings)
         {
-            foreach (var inheritedRole in property.InheritedRoles)
+            var referencedFilter = new BsonDocument(binding.ReferencedUserIdPath!, userId);
+
+            // Query to get IDs of referenced instances where user has the role
+            var referencedInstanceIds = await workflowInstanceRepository.GetAllByType(
+                binding.ReferencedWorkflowDefinition!,
+                new Dictionary<string, string> { ["_id"] = "$_id" },
+                referencedFilter,
+                ct);
+
+            var matchingIds = referencedInstanceIds
+                .Select(r => r["_id"].AsObjectId)
+                .ToList();
+
+            if (matchingIds.Any())
             {
-                var referencedWorkflowDef = property.WorkflowDefinition?.Name;
-                if (referencedWorkflowDef == null)
-                    continue;
-
-                var roleProperty = property.WorkflowDefinition?.Properties
-                    .FirstOrDefault(p => p.Name == inheritedRole && p.DataType == DataType.User);
-
-                if (roleProperty == null)
-                    continue;
-
-                var userId = new ObjectId(user.Id);
-                var rolePropertyPath = $"Properties.{roleProperty.Name}._id";
-
-                // Create filter for referenced instances
-                var referencedFilter = new BsonDocument(rolePropertyPath, userId);
-
-                // Query to get IDs of referenced instances where user has the role
-                var referencedInstanceIds = await workflowInstanceRepository.GetAllByType(
-                    referencedWorkflowDef,
-                    new Dictionary<string, string> { ["_id"] = "$_id" },
-                    referencedFilter,
-                    ct);
-
-                var matchingIds = referencedInstanceIds
-                    .Select(r => r["_id"].AsObjectId)
-                    .ToList();
-
-                if (matchingIds.Any())
-                {
-                    var propertyPath = $"Properties.{property.Name}";
-                    filters.Add(new BsonDocument(propertyPath,
-                        new BsonDocument("$in", new BsonArray(matchingIds.Select(id => id.ToString())))));
-                }
+                filters.Add(new BsonDocument(binding.PropertyPath,
+                    new BsonDocument("$in", new BsonArray(matchingIds.Select(id => id.ToString())))));
             }
         }
 

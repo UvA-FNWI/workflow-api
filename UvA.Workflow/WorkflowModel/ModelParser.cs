@@ -17,6 +17,7 @@ public partial class ModelParser
     public List<Service> Services { get; }
     public List<Role> Roles { get; }
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
+    public RoleBindingMap RoleBindings { get; private set; } = null!;
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
 
@@ -123,6 +124,7 @@ public partial class ModelParser
         Roles.ForEach(PreProcess);
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+        RoleBindings = RoleBindingMap.Compile(WorkflowDefinitions.Values);
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)
