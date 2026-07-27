@@ -287,152 +287,187 @@ public class StepVersionTests
     }
 
     [Fact]
-    public void SequentialVersioning_TwoCycles_AllEventsGroupedByVersion()
+    public async Task ParentStepVersioning_CurrentCycleWithoutLastChildCompletionIsNotReturned()
     {
-        // Arrange: Sequential parent step with two complete cycles
-        // Cycle 1: Submit Start -> Reject (version 1)
-        // Cycle 2: Re-submit Start -> Approve (version 2)
-        var events = new List<(string EventId, DateTime Timestamp)>
-        {
-            ("Start", DateTime.UtcNow.AddMinutes(-20)),
-            ("RejectSubject", DateTime.UtcNow.AddMinutes(-15)), // End of cycle 1
-            ("Start", DateTime.UtcNow.AddMinutes(-10)),
-            ("ApproveSubject", DateTime.UtcNow.AddMinutes(-5)) // End of cycle 2
-        };
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("SubjectFeedback")
+            .WithEvent("Start", submittedAt)
+            .Build();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", submittedAt)
+        ]);
 
-        var completionEventIds = new[] { "RejectSubject", "ApproveSubject" };
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
-        // Act: Assign version numbers
-        var versioned = new List<(string EventId, int Version)>();
-        int currentVersion = 1;
-
-        foreach (var evt in events)
-        {
-            versioned.Add((evt.EventId, currentVersion));
-            if (completionEventIds.Contains(evt.EventId))
-                currentVersion++;
-        }
-
-        // Assert: 4 events total, 2 per version
-        Assert.Equal(4, versioned.Count);
-        Assert.Equal(1, versioned[0].Version); // First Start
-        Assert.Equal(1, versioned[1].Version); // RejectSubject
-        Assert.Equal(2, versioned[2].Version); // Second Start
-        Assert.Equal(2, versioned[3].Version); // ApproveSubject
+        Assert.Empty(versions);
     }
 
     [Fact]
-    public void SequentialVersioning_IncompleteVersion_IsFilteredOut()
+    public async Task ParentStepVersioning_LastChildCompletionCreatesVersion()
     {
-        // Arrange: Sequential parent step with incomplete version (only Start, no Reject yet)
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>
-        {
-            (1, "Start", DateTime.UtcNow.AddMinutes(-10))
-        };
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var feedbackAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Start")
+            .WithEvent("Start", submittedAt)
+            .WithEvent("RejectSubject", feedbackAt)
+            .Build();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "RejectSubject", feedbackAt)
+        ]);
 
-        var completionEventIds = new[] { "RejectSubject", "ApproveSubject" };
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
-        // Act: Filter to only complete versions
-        var consolidatedVersions = tempVersions
-            .GroupBy(v => v.VersionNumber)
-            .Select(g => new
-            {
-                VersionNumber = g.Key,
-                EventIds = g.Select(v => v.EventId).ToList(),
-                SubmittedAt = g.Max(v => v.Timestamp)
-            })
-            .Where(v => v.EventIds.Any(e => completionEventIds.Contains(e)))
-            .ToList();
-
-        // Assert: Incomplete version is filtered out
-        Assert.Empty(consolidatedVersions);
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
+        Assert.Equal(feedbackAt, version.SubmittedAt);
     }
 
     [Fact]
-    public void ParallelVersioning_TwoCompleteCycles_AllEventsGroupedByVersion()
+    public async Task ParentStepVersioning_FeedbackStaysWithSubmissionAndResubmissionStartsNewVersion()
     {
-        // Arrange: Parallel parent with 2 children completing twice
-        var childNames = new[] { "Child1", "Child2" };
-        var events = new List<(string EventId, DateTime Timestamp, string ChildName)>
-        {
-            // First cycle
-            ("Event1", DateTime.UtcNow.AddMinutes(-40), "Child1"),
-            ("Event2", DateTime.UtcNow.AddMinutes(-35), "Child2"),
+        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-15);
+        var feedbackAt = DateTime.UtcNow.AddMinutes(-10);
+        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("SubjectFeedback")
+            .WithEvent("Start", secondSubmittedAt)
+            .WithEvent("RejectSubject", feedbackAt)
+            .Build();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", firstSubmittedAt),
+            EventLog(instance, "RejectSubject", feedbackAt),
+            EventLog(instance, "Start", secondSubmittedAt)
+        ]);
 
-            // Second cycle
-            ("Event1", DateTime.UtcNow.AddMinutes(-20), "Child1"),
-            ("Event2", DateTime.UtcNow.AddMinutes(-15), "Child2")
-        };
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
-        // Act: Track completion and assign versions
-        var completedChildren = new HashSet<string>();
-        var versioned = new List<(string EventId, int Version)>();
-        int currentVersion = 1;
-
-        foreach (var evt in events.OrderBy(e => e.Timestamp))
-        {
-            versioned.Add((evt.EventId, currentVersion));
-            completedChildren.Add(evt.ChildName);
-
-            if (completedChildren.Count == childNames.Length)
-            {
-                currentVersion++;
-                completedChildren.Clear();
-            }
-        }
-
-        // Assert: 4 events, 2 in each version
-        Assert.Equal(4, versioned.Count);
-        Assert.Equal(1, versioned[0].Version); // First Event1
-        Assert.Equal(1, versioned[1].Version); // First Event2
-        Assert.Equal(2, versioned[2].Version); // Second Event1
-        Assert.Equal(2, versioned[3].Version); // Second Event2
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
+        Assert.Equal(feedbackAt, version.SubmittedAt);
     }
 
     [Fact]
-    public void ParallelVersioning_IncompleteVersion_IsFilteredOut()
+    public async Task ParentStepVersioning_EachLastChildCompletionFinishesOneVersion()
     {
-        // Arrange: Parallel parent with 3 children, but only 2 have completed
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>
-        {
-            (1, "Event1", DateTime.UtcNow.AddMinutes(-20)),
-            (1, "Event2", DateTime.UtcNow.AddMinutes(-15))
-        };
+        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
+        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Upload")
+            .Build();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", firstSubmittedAt),
+            EventLog(instance, "RejectSubject", rejectedAt),
+            EventLog(instance, "Start", secondSubmittedAt),
+            EventLog(instance, "ApproveSubject", approvedAt)
+        ]);
 
-        var childEventMap = new Dictionary<string, string>
-        {
-            ["Event1"] = "Child1",
-            ["Event2"] = "Child2",
-            ["Event3"] = "Child3"
-        };
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
-        var childNames = new[] { "Child1", "Child2", "Child3" };
-
-        // Act: Filter to only complete versions
-        var consolidatedVersions = tempVersions
-            .GroupBy(v => v.VersionNumber)
-            .Select(g => new
+        Assert.Collection(versions,
+            latest =>
             {
-                VersionNumber = g.Key,
-                EventIds = g.Select(v => v.EventId).ToList()
-            })
-            .Where(v =>
+                Assert.Equal(2, latest.VersionNumber);
+                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
+                Assert.Equal(approvedAt, latest.SubmittedAt);
+            },
+            first =>
             {
-                var childrenWithEvents = v.EventIds
-                    .Select(e => childEventMap.GetValueOrDefault(e))
-                    .Where(name => name != null)
-                    .Distinct()
-                    .ToHashSet();
-                return childrenWithEvents.Count == childNames.Length;
-            })
-            .ToList();
-
-        // Assert: Incomplete version is filtered out
-        Assert.Empty(consolidatedVersions);
+                Assert.Equal(1, first.VersionNumber);
+                Assert.Equal(["Start", "RejectSubject"], first.EventIds);
+                Assert.Equal(rejectedAt, first.SubmittedAt);
+            });
     }
 
     [Fact]
-    public async Task RmssProposalVersioning_RejectionCompletesStartVersionAfterBothAssessments()
+    public async Task ParentStepVersioning_CompletedStepOmitsLatestVersion()
+    {
+        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
+        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Upload")
+            .WithEvent("RejectSubject", rejectedAt)
+            .WithEvent("Start", secondSubmittedAt)
+            .WithEvent("ApproveSubject", approvedAt)
+            .Build();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", firstSubmittedAt),
+            EventLog(instance, "RejectSubject", rejectedAt),
+            EventLog(instance, "Start", secondSubmittedAt),
+            EventLog(instance, "ApproveSubject", approvedAt)
+        ]);
+
+        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
+        Assert.Equal(rejectedAt, version.SubmittedAt);
+    }
+
+    [Fact]
+    public async Task ParentStepVersioning_WaitsForCompositeLastChildCompletionCondition()
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-2);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Start")
+            .Build();
+        var service = CreateStepVersionService(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ApproveSubject", approvedAt),
+            EventLog(instance, "RejectSubject", rejectedAt)
+        ], modelService =>
+            modelService.WorkflowDefinitions["Project"].AllSteps
+                .Single(step => step.Name == "SubjectFeedback").Ends = new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.And,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "RejectSubject" } },
+                        new Condition { Event = new EventCondition { Id = "ApproveSubject" } }
+                    ]
+                }
+            });
+
+        var incompleteVersions = service.GetStepVersions(instance, "Start",
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "RejectSubject", rejectedAt)
+        ]);
+        var completeVersions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+
+        Assert.Empty(incompleteVersions);
+        var version = Assert.Single(completeVersions);
+        Assert.Equal(["Start", "ApproveSubject", "RejectSubject"], version.EventIds);
+        Assert.Equal(rejectedAt, version.SubmittedAt);
+    }
+
+    [Fact]
+    public async Task RmssProposalVersioning_ParallelLastChildCompletionCreatesVersion()
     {
         var instance = CreateRmssInstance();
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
@@ -454,13 +489,15 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task RmssProposalVersioning_SingleApprovalDoesNotCompleteStartVersion()
+    public async Task RmssProposalVersioning_SingleApprovalDoesNotCompleteVersion()
     {
         var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
         var service = CreateStepVersionService(instance,
         [
-            EventLog(instance, "Start", DateTime.UtcNow.AddMinutes(-10)),
-            EventLog(instance, "ProposalApprovedSupervisor", DateTime.UtcNow.AddMinutes(-5))
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalApprovedSupervisor", approvedAt)
         ]);
 
         var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
@@ -469,13 +506,15 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task RmssProposalVersioning_SingleRejectionDoesNotCompleteStartVersion()
+    public async Task RmssProposalVersioning_SingleRejectionDoesNotCompleteVersion()
     {
         var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
         var service = CreateStepVersionService(instance,
         [
-            EventLog(instance, "Start", DateTime.UtcNow.AddMinutes(-10)),
-            EventLog(instance, "ProposalRejectedSupervisor", DateTime.UtcNow.AddMinutes(-5))
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt)
         ]);
 
         var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
@@ -497,10 +536,12 @@ public class StepVersionTests
 
     private static StepVersionService CreateStepVersionService(
         WorkflowInstance instance,
-        List<InstanceEventLogEntry> eventLogs)
+        List<InstanceEventLogEntry> eventLogs,
+        Action<ModelService>? configureModel = null)
     {
         var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
         var modelService = new ModelService(new ModelParser(modelProvider));
+        configureModel?.Invoke(modelService);
         var repository = new Mock<IInstanceEventRepository>();
         repository
             .Setup(r => r.GetEventLogEntriesForInstance(

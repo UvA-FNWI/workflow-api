@@ -26,23 +26,34 @@ public class StepsControllerTests : ControllerTestsBase
         // Arrange
         const string stepName = "Assessment";
         var (controller, instance) = BuildControllerWithRoles([role], stepName);
+        var firstAssessmentAt = DateTime.UtcNow.AddMinutes(-3);
+        var firstSupervisorAssessmentAt = DateTime.UtcNow.AddMinutes(-2);
+        var secondAssessmentAt = DateTime.UtcNow.AddMinutes(-1);
 
         MockEventLogs(instance, [
             new InstanceEventLogEntry
             {
                 WorkflowInstanceId = instance.Id,
-                EventId = "AssessmentSupervisor",
-                EventDate = DateTime.Now,
+                EventId = "AssessmentReviewer",
+                EventDate = firstAssessmentAt,
                 Operation = EventLogOperation.Create,
-                Timestamp = DateTime.Now
+                Timestamp = firstAssessmentAt
             },
             new InstanceEventLogEntry
             {
                 WorkflowInstanceId = instance.Id,
                 EventId = "AssessmentSupervisor",
-                EventDate = DateTime.Now,
+                EventDate = firstSupervisorAssessmentAt,
+                Operation = EventLogOperation.Create,
+                Timestamp = firstSupervisorAssessmentAt
+            },
+            new InstanceEventLogEntry
+            {
+                WorkflowInstanceId = instance.Id,
+                EventId = "AssessmentReviewer",
+                EventDate = secondAssessmentAt,
                 Operation = EventLogOperation.Update,
-                Timestamp = DateTime.Now
+                Timestamp = secondAssessmentAt
             }
         ]);
 
@@ -51,7 +62,7 @@ public class StepsControllerTests : ControllerTestsBase
         //Assert
         var actionResult = Assert.IsType<OkObjectResult>(result.Result);
         var listResult = Assert.IsType<List<StepVersion>>(actionResult.Value);
-        Assert.Equal(2, listResult.Count);
+        Assert.Single(listResult);
     }
 
     [Theory]

@@ -60,6 +60,11 @@ public class StepVersionService(
             .ToList();
 
         var versions = BuildVersions(step, submissionEvents, completionCondition);
+
+        // The latest completed cycle is the live state of a completed step, not history.
+        if (versions.Count > 0 && step.HasEnded(modelService.CreateContext(instance)))
+            versions.RemoveAt(versions.Count - 1);
+
         var orderedVersions = versions.OrderByDescending(v => v.SubmittedAt).ToList();
 
         return orderedVersions;
@@ -88,18 +93,12 @@ public class StepVersionService(
         }
 
         if (!step.Children.Any())
-            return (new List<string>(), null);
+            return ([], null);
 
         var allChildEvents = step.Children
             .SelectMany(GetStepEventIds)
             .Distinct()
             .ToList();
-
-        if (step.HierarchyMode == StepHierarchyMode.Sequential)
-        {
-            var lastChild = step.Children.Last();
-            return (allChildEvents, GetCompletionCondition(lastChild));
-        }
 
         return (allChildEvents, GetCompletionCondition(step));
     }
@@ -110,11 +109,7 @@ public class StepVersionService(
         Condition? completionCondition)
     {
         if (step.Ends == null && step.Children.Any())
-        {
-            return step.HierarchyMode == StepHierarchyMode.Sequential
-                ? BuildSequentialVersions(submissionEvents, completionCondition)
-                : BuildParallelVersions(step, submissionEvents);
-        }
+            return BuildMultiEventVersions(submissionEvents, completionCondition);
 
         return BuildSingleEventVersions(submissionEvents);
     }
@@ -132,96 +127,31 @@ public class StepVersionService(
         return BuildStepVersions(versionDrafts);
     }
 
-    private static List<StepVersion> BuildSequentialVersions(
+    private static List<StepVersion> BuildMultiEventVersions(
         List<InstanceEventLogEntry> submissionEvents,
         Condition? completionCondition)
     {
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
-        int currentVersionNumber = 1;
-        var currentCycleEventIds = new HashSet<string>();
+        var versionDrafts =
+            new List<(int VersionNumber, List<string> EventIds, DateTime SubmittedAt)>();
+        var currentVersionEvents = new List<InstanceEventLogEntry>();
+        var currentVersionEventIds = new HashSet<string>();
 
         foreach (var logEntry in submissionEvents)
         {
-            // All events in this cycle get the same version number
-            tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp));
-            currentCycleEventIds.Add(logEntry.EventId);
+            currentVersionEvents.Add(logEntry);
+            currentVersionEventIds.Add(logEntry.EventId);
 
-            // If the last child's completion condition is met, the next event starts a new version.
-            if (completionCondition.IsMet(currentCycleEventIds))
-            {
-                currentVersionNumber++;
-                currentCycleEventIds.Clear();
-            }
+            if (!completionCondition.IsMet(currentVersionEventIds))
+                continue;
+
+            versionDrafts.Add((
+                VersionNumber: versionDrafts.Count + 1,
+                EventIds: currentVersionEvents.Select(log => log.EventId).ToList(),
+                SubmittedAt: currentVersionEvents.Max(log => log.Timestamp)
+            ));
+            currentVersionEvents.Clear();
+            currentVersionEventIds.Clear();
         }
-
-        // Group events by version number and consolidate
-        var versionDrafts = tempVersions
-            .GroupBy(v => v.VersionNumber)
-            .Select(g => (
-                VersionNumber: g.Key,
-                EventIds: g.Select(v => v.EventId).ToList(),
-                SubmittedAt: g.Max(v => v.Timestamp)))
-            .Where(v => completionCondition.IsMet(v.EventIds)) // Only complete versions
-            .ToList();
-
-        return BuildStepVersions(versionDrafts);
-    }
-
-    private static List<StepVersion> BuildParallelVersions(
-        Step step,
-        List<InstanceEventLogEntry> submissionEvents)
-    {
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>();
-        int currentVersionNumber = 1;
-
-        var childCompletionConditions = step.Children
-            .ToDictionary(child => child.Name, GetCompletionCondition);
-
-        // Track which children have completed in the current cycle
-        var completedChildrenInCycle = new HashSet<string>();
-        var currentCycleEventIds = new HashSet<string>();
-        var totalChildren = step.Children.Length;
-
-        foreach (var logEntry in submissionEvents)
-        {
-            // All events in this cycle get the same version number
-            tempVersions.Add((currentVersionNumber, logEntry.EventId, logEntry.Timestamp));
-            currentCycleEventIds.Add(logEntry.EventId);
-
-            foreach (var (childName, completionCondition) in childCompletionConditions)
-            {
-                if (!completedChildrenInCycle.Contains(childName) &&
-                    completionCondition.IsMet(currentCycleEventIds))
-                    completedChildrenInCycle.Add(childName);
-            }
-
-            // Check if all children have now completed
-            if (completedChildrenInCycle.Count == totalChildren)
-            {
-                // All children completed - this marks a version boundary
-                // Next event will be in a new version
-                currentVersionNumber++;
-
-                // Reset for next cycle
-                completedChildrenInCycle.Clear();
-                currentCycleEventIds.Clear();
-            }
-        }
-
-        // Group events by version number and consolidate
-        var versionDrafts = tempVersions
-            .GroupBy(v => v.VersionNumber)
-            .Select(g => (
-                VersionNumber: g.Key,
-                EventIds: g.Select(v => v.EventId).ToList(),
-                SubmittedAt: g.Max(v => v.Timestamp)))
-            .Where(v =>
-            {
-                // Check if all child completion conditions are met in this version
-                return childCompletionConditions.Values.All(condition =>
-                    condition.IsMet(v.EventIds));
-            })
-            .ToList();
 
         return BuildStepVersions(versionDrafts);
     }
