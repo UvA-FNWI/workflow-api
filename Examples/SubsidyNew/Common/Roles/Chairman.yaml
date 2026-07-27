@@ -1,7 +1,0 @@
-name: Chairman
-title: Chairman
-assignable: true
-shortName: VZ
-inheritFrom: [Admin, BoardMember]
-notifications:
-  - NewInstanceMessage

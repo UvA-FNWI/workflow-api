@@ -1,5 +1,0 @@
-name: Treasurer
-title: Treasurer
-assignable: true
-shortName: PM
-inheritFrom: [Admin, BoardMember]

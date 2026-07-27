@@ -49,8 +49,45 @@ The default development profile serves Swagger at:
 - `https://localhost:7093/swagger`
 - `http://localhost:5124/swagger`
 
-The API loads sample workflow definitions from `Examples/Projects` during local startup.
+By default, development startup loads workflow definitions from the public
+[`milestones-config`](https://github.com/UvA-FNWI/milestones-config) repository.
 
+### Use a local milestones-config checkout
+
+To develop the API and workflow configuration together, clone `milestones-config` anywhere on your computer and
+point `WorkflowSource:LocalPath` at the checkout root, which is the directory containing both `Projects/` and
+`Layouts/default.html`. Do not point it at `Projects/` itself, as that will not work.
+
+Add the override to the ignored `UvA.Workflow.Api/appsettings.local.json` file:
+
+```json
+{
+  "WorkflowSource": {
+    "LocalPath": "/absolute/path/to/milestones-config"
+  }
+}
+```
+
+To keep the configuration visible inside the workflow-api workspace while retaining it as a separate repository,
+clone the repositories next to each other and create an ignored link from the workflow-api root:
+
+```bash
+# Run from the workflow-api repository root
+git clone git@github.com:UvA-FNWI/milestones-config.git ../milestones-config
+ln -s ../milestones-config milestones-config
+```
+
+Then use the link in `UvA.Workflow.Api/appsettings.local.json`:
+
+```json
+{
+  "WorkflowSource": {
+    "LocalPath": "../milestones-config"
+  }
+}
+```
+
+The `milestones-config` link and `appsettings.local.json` are ignored by Git.
 ## Configuration
 
 Application settings live under `UvA.Workflow.Api`. The API reads the normal ASP.NET Core configuration sources and also optionally loads `appsettings.local.json` for local overrides.

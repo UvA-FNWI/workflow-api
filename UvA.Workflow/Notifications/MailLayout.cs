@@ -39,47 +39,22 @@ public class MailLayoutResolver(IEnumerable<INamedMailLayout> layouts) : IMailLa
     }
 }
 
-public abstract class FileMailLayout : INamedMailLayout
+/// Default mail-layout HTML, loaded from the config source (Layouts/default.html).
+public class MailTemplateStore
 {
-    private readonly string _layoutPath;
-    private string? _cachedTemplate;
-    private readonly object _cacheLock = new();
+    public string? Default { get; set; }
+}
 
-    protected FileMailLayout(string key, string layoutPath)
-    {
-        Key = key;
-        _layoutPath = layoutPath;
-    }
+public abstract class MailLayoutBase(string key) : INamedMailLayout
+{
+    public string Key { get; } = key;
 
-    public string Key { get; }
+    protected abstract string GetTemplate();
 
     public string Render(string htmlBody, IReadOnlyList<MailButton> buttons)
-    {
-        var template = GetCachedTemplate();
-        var buttonHtml = GenerateButtonHtml(buttons);
-
-        return template
+        => GetTemplate()
             .Replace("{{htmlBody}}", htmlBody)
-            .Replace("{{buttonHtml}}", buttonHtml);
-    }
-
-    private string GetCachedTemplate()
-    {
-        if (_cachedTemplate != null)
-            return _cachedTemplate;
-
-        lock (_cacheLock)
-        {
-            if (_cachedTemplate != null)
-                return _cachedTemplate;
-
-            if (!File.Exists(_layoutPath))
-                throw new FileNotFoundException($"Layout file not found: {_layoutPath}");
-
-            _cachedTemplate = File.ReadAllText(_layoutPath);
-            return _cachedTemplate;
-        }
-    }
+            .Replace("{{buttonHtml}}", GenerateButtonHtml(buttons));
 
     protected virtual string GenerateButtonHtml(IReadOnlyList<MailButton> buttons)
     {
@@ -116,11 +91,33 @@ public abstract class FileMailLayout : INamedMailLayout
     }
 }
 
-public class DefaultMailLayout : FileMailLayout
+/// A named mail layout read from a file, cached on first render.
+public abstract class FileMailLayout(string key, string layoutPath) : MailLayoutBase(key)
 {
-    public DefaultMailLayout() : base(MailLayoutResolver.DefaultKey,
-        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "Examples",
-            "Layouts", "default.html")))
+    private string? _cachedTemplate;
+    private readonly object _cacheLock = new();
+
+    protected override string GetTemplate()
     {
+        if (_cachedTemplate != null)
+            return _cachedTemplate;
+
+        lock (_cacheLock)
+        {
+            if (_cachedTemplate != null)
+                return _cachedTemplate;
+
+            if (!File.Exists(layoutPath))
+                throw new FileNotFoundException($"Layout file not found: {layoutPath}");
+
+            return _cachedTemplate = File.ReadAllText(layoutPath);
+        }
     }
+}
+
+public class DefaultMailLayout(MailTemplateStore store) : MailLayoutBase(MailLayoutResolver.DefaultKey)
+{
+    protected override string GetTemplate()
+        => store.Default ?? throw new InvalidOperationException(
+            "Default mail layout not loaded; the config source must provide Layouts/default.html.");
 }

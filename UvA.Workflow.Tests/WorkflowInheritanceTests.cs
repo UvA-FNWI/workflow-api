@@ -1,3 +1,5 @@
+using UvA.Workflow.Tests.Helpers;
+
 namespace UvA.Workflow.Tests;
 
 public class WorkflowInheritanceTests
@@ -5,7 +7,7 @@ public class WorkflowInheritanceTests
     [Fact]
     public void ProjectRmss_InheritsRelatedUsersAndGroupingFromProject()
     {
-        var parser = new ModelParser(new FileSystemProvider("../../../../Examples/Projects"));
+        var parser = UnitTestsHelpers.CreateModelParser();
         var projectRmss = parser.WorkflowDefinitions["Project-RMSS"];
 
         Assert.Contains(projectRmss.RelatedUsers, relatedUser => relatedUser.Property == "Supervisor");

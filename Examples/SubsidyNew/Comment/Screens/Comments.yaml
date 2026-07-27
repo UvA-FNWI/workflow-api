@@ -1,8 +1,0 @@
-name: Comments
-relation: Request
-columns:
-  - title: User
-    property: User.DisplayName
-  - property: Advice
-  - property: Comment
-  - property: Amount

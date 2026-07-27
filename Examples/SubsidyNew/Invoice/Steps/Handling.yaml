@@ -1,8 +1,0 @@
-name: Handling
-actions:
-  - type: Submit
-    form: Payment
-    roles: [Admin]
-
-ends:
-  event: Payment

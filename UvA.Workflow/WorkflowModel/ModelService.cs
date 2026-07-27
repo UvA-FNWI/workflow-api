@@ -53,17 +53,37 @@ public class ModelService(ModelParser parser)
 
     public string[] GetActiveSteps(WorkflowInstance instance)
     {
-        if (string.IsNullOrEmpty(instance.CurrentStep))
+        var (step, context) = ResolveCurrentStep(instance);
+        if (step == null)
             return [];
-        var step = WorkflowDefinitions[instance.WorkflowDefinition].AllSteps.Get(instance.CurrentStep);
-        var context = CreateContext(instance);
+        context ??= CreateContext(instance);
         return step.Children
             .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
             .Select(s => s.Name)
-            .Append(instance.CurrentStep)
+            .Append(step.Name)
             .Append(step.ParentStep?.Name)
             .Where(s => s != null)
             .ToArray()!;
+    }
+
+    private (Step? Step, ObjectContext? Context) ResolveCurrentStep(WorkflowInstance instance,
+        ObjectContext? context = null)
+    {
+        var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
+        if (!string.IsNullOrEmpty(instance.CurrentStep) &&
+            workflowDefinition.AllSteps.GetOrDefault(instance.CurrentStep) is { } currentStep)
+            return (currentStep, context);
+
+        context ??= CreateContext(instance);
+        return (FindOpenStep(instance, context), context);
+    }
+
+    public Step? FindOpenStep(WorkflowInstance instance, ObjectContext? context = null)
+    {
+        var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
+        context ??= CreateContext(instance);
+        return workflowDefinition.FlattenedSteps
+            .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context));
     }
 }
 

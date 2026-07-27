@@ -1,6 +1,0 @@
-name: Templates
-workflowDefinition: Template
-columns:
-  - title: Name
-    property: Name
-    link: true

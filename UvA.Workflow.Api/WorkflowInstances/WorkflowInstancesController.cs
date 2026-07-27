@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
@@ -131,6 +132,32 @@ public class WorkflowInstancesController(
         ));
     }
 
+    /// <summary>
+    /// Endpoint used to create an export of grading data for PPLE
+    /// TODO: remove this or use it to create some kind of generic export function 
+    /// </summary>
+    [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
+    [HttpGet("instances/{workflowDefinition}/full")]
+    public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetFullInstances(string workflowDefinition,
+        [FromQuery] string[] properties, CancellationToken ct)
+    {
+        if (!await rightsService.CanAny(workflowDefinition, RoleAction.ViewAdminTools))
+            return Forbidden();
+
+        var res = await repository.GetAll(i => i.WorkflowDefinition == workflowDefinition, ct);
+        var contexts = res.Select(modelService.CreateContext).ToList();
+
+        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition], contexts,
+            properties.Select(p => new PropertyLookup(p)), ct);
+
+        return Ok(contexts
+            .OrderByDescending(i => i.Id)
+            .Select(row => properties.ToDictionary(
+                p => p,
+                p => row.Get(p)
+            )));
+    }
+
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
     [HttpGet("instances/{workflowDefinition}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string workflowDefinition,
@@ -174,6 +201,35 @@ public class WorkflowInstancesController(
                 k => char.ToLowerInvariant(k.Key[0]) + k.Key[1..],
                 v => v.Value
             )));
+    }
+
+    [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
+    [HttpPost("instances/{workflowDefinition}/recalculate-current-step")]
+    public async Task<ActionResult<RecalculateCurrentStepsResultDto>> RecalculateCurrentSteps(
+        string workflowDefinition, CancellationToken ct)
+    {
+        if (!modelService.WorkflowDefinitions.ContainsKey(workflowDefinition))
+            return NotFound("EntityTypeNotFound", $"Entity type '{workflowDefinition}' not found.");
+
+        if (!await rightsService.CanAny(workflowDefinition, RoleAction.ViewAdminTools))
+            return Forbidden();
+
+        var instances = await repository.GetAll(i => i.WorkflowDefinition == workflowDefinition, ct);
+        var updated = 0;
+        foreach (var instance in instances)
+        {
+            ct.ThrowIfCancellationRequested();
+            var previousStep = instance.CurrentStep;
+            await instanceService.UpdateCurrentStep(instance, ct);
+            if (instance.CurrentStep != previousStep)
+                updated++;
+        }
+
+        return Ok(new RecalculateCurrentStepsResultDto(
+            Total: instances.Count,
+            Updated: updated,
+            Unchanged: instances.Count - updated
+        ));
     }
 
 

@@ -38,9 +38,12 @@ public class DictionaryProvider(Dictionary<string, string> content) : IContentPr
     public IEnumerable<string> GetFiles(string directory)
     {
         var normalizedDirectory = NormalizePath(directory);
+        // Serve only yaml, matching FileSystemProvider.GetFiles, the parser reads yaml, and this keeps any
+        // other files a source may carry (layouts, assets, docs) out of the model regardless of the caller.
         return _content.Keys
             .Where(path => path.StartsWith(normalizedDirectory + "/", StringComparison.Ordinal) &&
-                           path.IndexOf('/', normalizedDirectory.Length + 1) == -1);
+                           path.IndexOf('/', normalizedDirectory.Length + 1) == -1 &&
+                           path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase));
     }
 
     public string GetFile(string file)
