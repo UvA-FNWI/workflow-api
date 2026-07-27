@@ -281,9 +281,10 @@ public class WorkflowInstancesController(
         }
     }
 
+    [HttpDelete("{id}/properties/{property}")]
     [HttpDelete("{id}/properties/{property}/{itemId}")]
-    public async Task<ActionResult> RemovePropertyItem(string id, string property, string itemId,
-        CancellationToken ct)
+    public async Task<ActionResult> RemovePropertyItem(string id, string property, CancellationToken ct,
+        string? itemId = null)
     {
         if (await userService.GetCurrentUser(ct) == null)
             return Unauthorized();
@@ -300,7 +301,15 @@ public class WorkflowInstancesController(
         if (propertyDefinition == null)
             return BadRequest("InvalidProperty", $"Property '{property}' does not exist");
 
-        await workflowInstanceService.RemovePropertyItemById(instance.Id, property, itemId, ct);
+        if (propertyDefinition.IsArray && !string.IsNullOrEmpty(itemId))
+        {
+            await workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, property, itemId, ct);
+        }
+        else
+        {
+            await workflowInstanceService.RemoveProperty(instance.Id, property, ct);
+        }
+
         return Ok();
     }
 }
