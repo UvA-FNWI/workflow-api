@@ -294,7 +294,8 @@ public class RightsService(
         if (propertyName.Contains('.'))
             return false;
 
-        var allowedEditActions = await GetAllowedActions(instance, RightsEvaluationMode.RealUser, RoleAction.Edit);
+        var allowedEditActions =
+            await GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
 
         // 1. Instance-level edit rights
         if (allowedEditActions.Any(a => a.AllForms.Length == 0 && a.PropertyDefinition == null))
