@@ -29,6 +29,93 @@ public class WorkflowInheritanceTests
     }
 
     [Fact]
+    public void ModelParser_MergesOverriddenStepWithParentStep()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = """
+                                   name: Base
+                                   titlePlural: Bases
+                                   steps:
+                                     - Review
+                                   """,
+            ["Base/Steps/Review.yaml"] = """
+                                         name: Review
+                                         title: Review
+                                         hierarchyMode: Parallel
+                                         children:
+                                           - SupervisorReview
+                                           - ExaminerReview
+                                         events:
+                                           - name: RequestRevision
+                                         """,
+            ["Base/Steps/SupervisorReview.yaml"] = "name: SupervisorReview",
+            ["Base/Steps/ExaminerReview.yaml"] = "name: ExaminerReview",
+            ["Child/Entity.yaml"] = """
+                                    name: Child
+                                    titlePlural: Children
+                                    inheritsFrom: Base
+                                    """,
+            ["Child/Steps/Review.yaml"] = """
+                                          name: Review
+                                          children:
+                                            - SupervisorReview
+                                          """
+        }));
+
+        var review = parser.WorkflowDefinitions["Child"].AllSteps.Single(step => step.Name == "Review");
+
+        Assert.Equal(["SupervisorReview"], review.Children.Select(child => child.Name).ToArray());
+        Assert.Equal(StepHierarchyMode.Parallel, review.HierarchyMode);
+        Assert.Equal("Review", review.Title!.En);
+        Assert.Contains(review.Events, ev => ev.Name == "RequestRevision");
+    }
+
+    [Fact]
+    public void ModelParser_RelinksInheritedParentsToOverriddenDescendants()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - Thesis",
+            ["Base/Steps/Thesis.yaml"] = "name: Thesis\nchildren:\n  - Writing",
+            ["Base/Steps/Writing.yaml"] = "name: Writing\nchildren:\n  - Review",
+            ["Base/Steps/Review.yaml"] = "name: Review\nchildren:\n  - SupervisorReview\n  - ExaminerReview",
+            ["Base/Steps/SupervisorReview.yaml"] = "name: SupervisorReview",
+            ["Base/Steps/ExaminerReview.yaml"] = "name: ExaminerReview",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Steps/Review.yaml"] = "name: Review\nchildren:\n  - SupervisorReview"
+        }));
+
+        var child = parser.WorkflowDefinitions["Child"];
+        var review = child.Steps.Single(s => s.Name == "Thesis")
+            .Children.Single(s => s.Name == "Writing")
+            .Children.Single(s => s.Name == "Review");
+
+        Assert.Equal(["SupervisorReview"], review.Children.Select(c => c.Name).ToArray());
+        Assert.Equal(["SupervisorReview", "ExaminerReview"],
+            parser.WorkflowDefinitions["Base"].AllSteps.Single(s => s.Name == "Review")
+                .Children.Select(c => c.Name).ToArray());
+    }
+
+    [Fact]
+    public void ModelParser_OverridingStep_KeepsInheritedActionsInAllActions()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Common/Roles/Reviewer.yaml"] = "name: Reviewer",
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - Approval",
+            ["Base/Steps/Approval.yaml"] =
+                "name: Approval\ntitle: Approval\nactions:\n  - name: Approve\n    type: Execute\n    roles: [Reviewer]",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Steps/Approval.yaml"] = "name: Approval\ntitle: Approved?"
+        }));
+
+        var child = parser.WorkflowDefinitions["Child"];
+        Assert.Single(child.AllActions, a => a.Name == "Approve");
+        Assert.Equal("Approved?", child.AllSteps.Single(s => s.Name == "Approval").Title!.En);
+    }
+
+    [Fact]
     public void ModelParser_UsesRelatedUserPropertyDisplayNameAsDefaultTitle()
     {
         var parser = new ModelParser(new RelatedUserTitleContentProvider());

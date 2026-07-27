@@ -1,0 +1,173 @@
+namespace UvA.Workflow.Tests;
+
+public class PresenceAwareInheritanceTests
+{
+    private static Step Step(WorkflowDefinition def, string name) => def.AllSteps.Single(s => s.Name == name);
+
+    [Fact]
+    public void Step_ExplicitDefaultsAndEmptyList_WinOverParent()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - S",
+            ["Base/Steps/S.yaml"] = "name: S\ntitle: BaseTitle\nhierarchyMode: Parallel\nchildren:\n  - A\n  - B",
+            ["Base/Steps/A.yaml"] = "name: A",
+            ["Base/Steps/B.yaml"] = "name: B",
+            ["Explicit/Entity.yaml"] = "name: Explicit\ntitlePlural: Es\ninheritsFrom: Base",
+            ["Explicit/Steps/S.yaml"] = "name: S\nhierarchyMode: Sequential\nchildren: []",
+            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
+            ["Omit/Steps/S.yaml"] = "name: S\ntitle: NewTitle"
+        }));
+
+        var explicitStep = Step(parser.WorkflowDefinitions["Explicit"], "S");
+        Assert.Equal(StepHierarchyMode.Sequential, explicitStep.HierarchyMode);
+        Assert.Empty(explicitStep.ChildNames);
+        Assert.Equal("BaseTitle", explicitStep.Title!.En);
+
+        var omittedStep = Step(parser.WorkflowDefinitions["Omit"], "S");
+        Assert.Equal(StepHierarchyMode.Parallel, omittedStep.HierarchyMode);
+        Assert.Equal(["A", "B"], omittedStep.ChildNames);
+        Assert.Equal("NewTitle", omittedStep.Title!.En);
+    }
+
+    [Fact]
+    public void Events_MergeByName_ButExplicitEmptyClears()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nevents:\n  - name: E1",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base\nevents:\n  - name: E2",
+            ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base\nevents: []"
+        }));
+
+        var merge = parser.WorkflowDefinitions["Merge"].Events.Select(e => e.Name).ToArray();
+        Assert.Contains("E1", merge);
+        Assert.Contains("E2", merge);
+
+        Assert.DoesNotContain("E1", parser.WorkflowDefinitions["Clear"].Events.Select(e => e.Name));
+    }
+
+    [Fact]
+    public void StepActions_RespectPresenceAndKeepAuthorizationInSync()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Common/Roles/Reviewer.yaml"] = "name: Reviewer",
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - Approval",
+            ["Base/Steps/Approval.yaml"] =
+                "name: Approval\ntitle: Approval\nactions:\n  - name: Approve\n    type: Execute\n    roles: [Reviewer]",
+            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
+            ["Omit/Steps/Approval.yaml"] = "name: Approval\ntitle: Approved?",
+            ["Replace/Entity.yaml"] = "name: Replace\ntitlePlural: Rs\ninheritsFrom: Base",
+            ["Replace/Steps/Approval.yaml"] =
+                "name: Approval\nactions:\n  - name: Reject\n    type: Execute\n    roles: [Reviewer]",
+            ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base",
+            ["Clear/Steps/Approval.yaml"] = "name: Approval\nactions: []"
+        }));
+
+        var reviewer = parser.Roles.Single(r => r.Name == "Reviewer");
+
+        Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Approve");
+        Assert.Equal(1, reviewer.Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Approve"));
+
+        Assert.DoesNotContain(parser.WorkflowDefinitions["Replace"].AllActions, a => a.Name == "Approve");
+        Assert.DoesNotContain(reviewer.Actions, a => a.WorkflowDefinition == "Replace" && a.Name == "Approve");
+        Assert.Single(parser.WorkflowDefinitions["Replace"].AllActions, a => a.Name == "Reject");
+
+        Assert.DoesNotContain(parser.WorkflowDefinitions["Clear"].AllActions, a => a.Name == "Approve");
+        Assert.DoesNotContain(reviewer.Actions, a => a.WorkflowDefinition == "Clear" && a.Name == "Approve");
+    }
+
+    [Fact]
+    public void GlobalActions_RespectPresenceAndRemainDiscoverable()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Common/Roles/Registered.yaml"] = "name: Registered",
+            ["Base/Entity.yaml"] =
+                "name: Base\ntitlePlural: Bases\nglobalActions:\n  - name: Make\n    type: CreateInstance\n    roles: [Registered]",
+            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
+            ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base\nglobalActions: []"
+        }));
+
+        var registered = parser.Roles.Single(r => r.Name == "Registered");
+
+        Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Make");
+        Assert.Equal(1, registered.Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Make"));
+
+        Assert.DoesNotContain(parser.WorkflowDefinitions["Clear"].AllActions, a => a.Name == "Make");
+        Assert.DoesNotContain(registered.Actions, a => a.WorkflowDefinition == "Clear" && a.Name == "Make");
+    }
+
+    [Fact]
+    public void AssessmentConfiguration_Inherited_ClearedByNull_OrReplaced()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] =
+                "name: Base\ntitlePlural: Bases\nassessments:\n  parts:\n    - name: Whole\n      weight: 1",
+            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
+            ["Nulled/Entity.yaml"] = "name: Nulled\ntitlePlural: Ns\ninheritsFrom: Base\nassessments:",
+            ["Replace/Entity.yaml"] =
+                "name: Replace\ntitlePlural: Rs\ninheritsFrom: Base\nassessments:\n  parts:\n    - name: Half\n      weight: 1"
+        }));
+
+        Assert.Equal("Whole",
+            parser.WorkflowDefinitions["Omit"].AssessmentConfiguration!.Parts.Single().Name);
+        Assert.Null(parser.WorkflowDefinitions["Nulled"].AssessmentConfiguration);
+        Assert.Equal("Half",
+            parser.WorkflowDefinitions["Replace"].AssessmentConfiguration!.Parts.Single().Name);
+    }
+
+    [Fact]
+    public void FormPages_MergeUnlessExplicitlyCleared()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P1\n    fields: [Foo]",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P2\n    fields: [Foo]",
+            ["Reject/Entity.yaml"] = "name: Reject\ntitlePlural: Rs\ninheritsFrom: Base",
+            ["Reject/Forms/Edit.yaml"] = "name: Edit\npages: []"
+        }));
+
+        var merged = parser.WorkflowDefinitions["Merge"].Forms.Single(f => f.Name == "Edit").Pages.Select(p => p.Name);
+        Assert.Equal(["P1", "P2"], merged);
+
+        // Empty forms get a generated page during preprocessing.
+        Assert.DoesNotContain("P1",
+            parser.WorkflowDefinitions["Reject"].Forms.Single(f => f.Name == "Edit").Pages.Select(p => p.Name));
+    }
+
+    [Fact]
+    public void Screens_ChildOverrideDoesNotCreateDuplicate()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases",
+            ["Base/Screens/Main.yaml"] = "name: Main\ncolumns: []",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Cs\ninheritsFrom: Base",
+            ["Child/Screens/Main.yaml"] = "name: Main\ncolumns: []"
+        }));
+
+        Assert.Single(parser.WorkflowDefinitions["Child"].Screens, s => s.Name == "Main");
+    }
+
+    [Fact]
+    public void ThreeLevelInheritance_PreservesExplicitIntermediateOverride()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - S",
+            ["Base/Steps/S.yaml"] = "name: S\ntitle: BaseTitle\nhierarchyMode: Parallel",
+            ["Mid/Entity.yaml"] = "name: Mid\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Mid/Steps/S.yaml"] = "name: S\nhierarchyMode: Sequential",
+            ["Leaf/Entity.yaml"] = "name: Leaf\ntitlePlural: Ls\ninheritsFrom: Mid"
+        }));
+
+        var leafS = Step(parser.WorkflowDefinitions["Leaf"], "S");
+        Assert.Equal("BaseTitle", leafS.Title!.En);
+        Assert.Equal(StepHierarchyMode.Sequential, leafS.HierarchyMode);
+    }
+}
