@@ -249,7 +249,7 @@ public class WorkflowInstanceDtoFactory(
 
                 var users = value is InstanceUser u ? [u] : value as InstanceUser[] ?? [];
                 var allowsExternalUsers = relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false;
-                var allowsAssignment = relatedUser.PropertyDefinition?.AllowsAssignment ?? false;
+                var allowsAssignment = !relatedUser.PropertyDefinition?.IsRequired ?? false;
 
                 return new
                 {

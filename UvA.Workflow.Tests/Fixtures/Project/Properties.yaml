@@ -43,7 +43,6 @@ properties:
         
   - name: SecondReader
     type: User!
-    allowsAssignment: true
     text: 
       en: Second reader
       nl: Tweede lezer
@@ -57,7 +56,6 @@ properties:
       en: Practical supervisor
       nl: Praktijkbegeleider
     allowsExternalUsers: true
-    allowsAssignment: true
       
   - name: Report
     type: File!
