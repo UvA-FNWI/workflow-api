@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Screens.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Screens;
@@ -198,31 +199,12 @@ public class ScreenDataService(
         return mapping;
     }
 
-    private static readonly ProgressInformationDto CompletedProgressInformationDto =
-        new(new BilingualString("Completed", "Afgerond"), StatusColor.Green);
-
-    public record ProgressInformationDto(
-        BilingualString Text,
-        StatusColor? Color)
-    {
-        public static ProgressInformationDto Create(Step step, ObjectContext context)
-        {
-            var displayText = step.Progress?.ProgressTextTemplate?.Apply(context)
-                              ?? step.DisplayTitle;
-            return new ProgressInformationDto(displayText, step.Progress?.Color);
-        }
-    }
-
     private ProgressInformationDto GetCurrentStepProgress(Screen screen, string internalName, ObjectContext context)
     {
         if (string.IsNullOrEmpty(screen.WorkflowDefinition) ||
             !modelService.WorkflowDefinitions.TryGetValue(screen.WorkflowDefinition, out var workflowDef))
             return new ProgressInformationDto(new BilingualString(internalName, internalName), null);
 
-        var currentStep = workflowDef.AllSteps.Find(s => s.Name == internalName);
-
-        return currentStep == null
-            ? CompletedProgressInformationDto
-            : ProgressInformationDto.Create(currentStep, context);
+        return ProgressInformationDto.Resolve(workflowDef, internalName, context);
     }
 }
