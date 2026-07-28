@@ -290,31 +290,35 @@ public class RightsService(
 
     public async Task<bool> CanEditProperty(WorkflowInstance instance, string propertyName)
     {
-        // Properties accessed via a dot-notation path (e.g. Course.StudyAdvisor) belong to a referenced/context entity, not to this workflow instance, and cannot be edited here.
-        if (propertyName.Contains('.'))
-            return false;
-
         var allowedEditActions =
             await GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
+        return CanEditProperties(instance, [propertyName], allowedEditActions)[propertyName];
+    }
 
-        // 1. Instance-level edit rights
-        if (allowedEditActions.Any(a => a.AllForms.Length == 0 && a.PropertyDefinition == null))
-            return true;
-
-        // 2. Form-level edit rights
+    public Dictionary<string, bool> CanEditProperties(WorkflowInstance instance,
+        IEnumerable<string> propertyNames, Domain_Action[] allowedEditActions)
+    {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var formsContainingProperty = definition.Forms
-            .Where(f => f.PropertyDefinitions.Any(p => p.Name == propertyName))
-            .Select(f => f.Name)
-            .ToArray();
 
-        if (allowedEditActions.Any(a => formsContainingProperty.Any(f => a.MatchesForm(f))))
-            return true;
+        return propertyNames.ToDictionary(
+            propertyName => propertyName,
+            propertyName =>
+            {
+                var propertyDefinition = definition.Properties.GetOrDefault(propertyName);
+                if (propertyDefinition == null)
+                    return false; // Property does not exist in the workflow definition (e.g. a reference)
 
-        // 3. Property-level edit rights
-        if (allowedEditActions.Any(a => a.PropertyDefinition == propertyName))
-            return true;
+                if (allowedEditActions.Any(a => a.AllForms.Length == 0 && a.PropertyDefinition == null))
+                    return true;
 
-        return false;
+                var formsContainingProperty = definition.Forms
+                    .Where(f => f.PropertyDefinitions.Any(p => p.Name == propertyName))
+                    .Select(f => f.Name).ToArray();
+
+                if (allowedEditActions.Any(a => formsContainingProperty.Any(f => a.MatchesForm(f))))
+                    return true;
+
+                return allowedEditActions.Any(a => a.PropertyDefinition == propertyName);
+            });
     }
 }

@@ -50,14 +50,12 @@ public class WorkflowInstanceDtoFactory(
         // Fetch versions for all steps
         var stepVersionsMap = await GetStepVersionsMap(instance, workflowDefinition.AllSteps, ct);
 
-        var canEditByProperty = await Task.WhenAll(
-            workflowDefinition.RelatedUsers.Select(async r => new
-            {
-                r.Property,
-                CanEdit = await rightsService.CanEditProperty(instance, r.Property)
-            }));
-        var relatedUsers = GetRelatedUsers(workflowDefinition, context,
-            canEditByProperty.ToDictionary(x => x.Property, x => x.CanEdit));
+        var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
+        var canEditByProperty = rightsService.CanEditProperties(
+            instance,
+            workflowDefinition.RelatedUsers.Select(r => r.Property),
+            editActions);
+        var relatedUsers = GetRelatedUsers(workflowDefinition, context, canEditByProperty);
 
         var x = new WorkflowInstanceDto(
             instance.Id,

@@ -124,17 +124,17 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
-    public async Task RemovePropertyItemById_ThrowsArgumentException_WhenPropertyDoesNotExistOnModel()
+    public async Task RemoveArrayPropertyItemById_ThrowsArgumentException_WhenPropertyDoesNotExistOnModel()
     {
         var instance = CreateProjectInstance();
         _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _workflowInstanceService.RemovePropertyItemById(instance.Id, "NonExistentProperty", "some-id", _ct));
+            _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "NonExistentProperty", "some-id", _ct));
     }
 
     [Fact]
-    public async Task RemovePropertyItemById_RemovesMatchingItem_FromArrayProperty()
+    public async Task RemoveArrayPropertyItemById_RemovesMatchingItem_FromArrayProperty()
     {
         var keepId = ObjectId.GenerateNewId();
         var removeId = ObjectId.GenerateNewId();
@@ -149,7 +149,8 @@ public class WorkflowInstanceServiceTests
             .Build();
         _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
 
-        await _workflowInstanceService.RemovePropertyItemById(instance.Id, "PracticalSupervisor", removeId.ToString(),
+        await _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "PracticalSupervisor",
+            removeId.ToString(),
             _ct);
 
         var remaining = instance.Properties["PracticalSupervisor"].AsBsonArray;
@@ -161,7 +162,7 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
-    public async Task RemovePropertyItemById_SetsPropertyToNull_WhenLastItemIsRemoved()
+    public async Task RemoveArrayPropertyItemById_SetsPropertyToNull_WhenLastItemIsRemoved()
     {
         var itemId = ObjectId.GenerateNewId();
 
@@ -174,7 +175,8 @@ public class WorkflowInstanceServiceTests
             .Build();
         _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
 
-        await _workflowInstanceService.RemovePropertyItemById(instance.Id, "PracticalSupervisor", itemId.ToString(),
+        await _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "PracticalSupervisor",
+            itemId.ToString(),
             _ct);
 
         Assert.Equal(BsonNull.Value, instance.Properties["PracticalSupervisor"]);
@@ -184,12 +186,12 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
-    public async Task RemovePropertyItemById_SkipsUpdateFields_WhenArrayPropertyAbsentOnInstance()
+    public async Task RemoveArrayPropertyItemById_SkipsUpdateFields_WhenArrayPropertyAbsentOnInstance()
     {
         var instance = CreateProjectInstance(); // PracticalSupervisor not in Properties
         _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
 
-        await _workflowInstanceService.RemovePropertyItemById(instance.Id, "PracticalSupervisor", "some-id", _ct);
+        await _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "PracticalSupervisor", "some-id", _ct);
 
         _repositoryMock.Verify(r => r.UpdateFields(It.IsAny<string>(),
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -197,7 +199,7 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
-    public async Task RemovePropertyItemById_UnsetsNonArrayProperty_AndPersistsChanges()
+    public async Task RemoveArrayPropertyItemById_UnsetsNonArrayProperty_AndPersistsChanges()
     {
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Upload")
@@ -205,7 +207,7 @@ public class WorkflowInstanceServiceTests
             .Build();
         _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
 
-        await _workflowInstanceService.RemovePropertyItemById(instance.Id, "Title", "irrelevant", _ct);
+        await _workflowInstanceService.RemoveProperty(instance.Id, "Title", _ct);
 
         Assert.False(instance.Properties.ContainsKey("Title"));
         _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
