@@ -262,7 +262,6 @@ public class UsersControllerTests : ControllerTestsBase
 
     [Theory]
     [InlineData("internal", UserInvitationState.Required)]
-    [InlineData("eduid", UserInvitationState.Pending)]
     [InlineData("eduid", UserInvitationState.Completed)]
     public async Task Users_UpdateEmail_RejectsUsersThatAreNotEligible(
         string providerKey,
