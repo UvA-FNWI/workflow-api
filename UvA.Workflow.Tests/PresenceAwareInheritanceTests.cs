@@ -141,6 +141,30 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
+    public void RelatedUserGroups_ExplicitEmptyClearsInheritedGroups()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = """
+                                   name: Base
+                                   titlePlural: Bases
+                                   relatedUserGrouping:
+                                     groups:
+                                       - name: default
+                                   """,
+            ["Clear/Entity.yaml"] = """
+                                    name: Clear
+                                    titlePlural: Clears
+                                    inheritsFrom: Base
+                                    relatedUserGrouping:
+                                      groups: []
+                                    """
+        }));
+
+        Assert.Empty(parser.WorkflowDefinitions["Clear"].RelatedUserGrouping!.Groups);
+    }
+
+    [Fact]
     public void Resources_MergeUnlessExplicitlyCleared()
     {
         var parser = new ModelParser(new DictionaryProvider(new()

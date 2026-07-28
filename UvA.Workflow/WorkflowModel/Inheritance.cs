@@ -90,7 +90,9 @@ public partial class ModelParser
                 .Concat(target.RelatedUsers)
                 .ToArray();
 
-        target.RelatedUserGrouping = MergeRelatedUserGrouping(target.RelatedUserGrouping, source.RelatedUserGrouping);
+        if (!Cleared(target, "relatedUserGrouping", target.RelatedUserGrouping?.Groups.Length ?? 0))
+            target.RelatedUserGrouping =
+                MergeRelatedUserGrouping(target.RelatedUserGrouping, source.RelatedUserGrouping);
         if (!Cleared(target, "resources", target.Resources.Length))
             target.Resources = MergeResources(target.Resources, source.Resources);
     }
