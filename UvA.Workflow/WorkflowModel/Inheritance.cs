@@ -91,7 +91,8 @@ public partial class ModelParser
                 .ToArray();
 
         target.RelatedUserGrouping = MergeRelatedUserGrouping(target.RelatedUserGrouping, source.RelatedUserGrouping);
-        target.Resources = MergeResources(target.Resources, source.Resources);
+        if (!Cleared(target, "resources", target.Resources.Length))
+            target.Resources = MergeResources(target.Resources, source.Resources);
     }
 
     private static RelatedUserGrouping? MergeRelatedUserGrouping(RelatedUserGrouping? target,
@@ -116,16 +117,18 @@ public partial class ModelParser
     {
         var result = target.ToList();
 
-        foreach (var sourceResource in source)
+        foreach (var sourceResource in source.Reverse())
         {
             var targetResource = result.FirstOrDefault(r => r.Name == sourceResource.Name);
             if (targetResource == null)
             {
-                result.Insert(0, sourceResource); // prepend inherited resources
+                result.Insert(0, sourceResource);
                 continue;
             }
 
             if (sourceResource.Items == null) continue;
+
+            if (targetResource.Items is { Length: 0 }) continue;
 
             if (targetResource.Items == null)
             {
@@ -133,7 +136,6 @@ public partial class ModelParser
                 continue;
             }
 
-            // Merge items: child's items take priority, append source items not already present
             var targetItemNames = targetResource.Items.Select(i => i.Name).ToHashSet();
             targetResource.Items = targetResource.Items
                 .Concat(sourceResource.Items.Where(i => !targetItemNames.Contains(i.Name)))

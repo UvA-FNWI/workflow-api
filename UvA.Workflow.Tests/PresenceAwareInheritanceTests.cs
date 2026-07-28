@@ -141,6 +141,101 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
+    public void Resources_MergeUnlessExplicitlyCleared()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = """
+                                   name: Base
+                                   titlePlural: Bases
+                                   resources:
+                                     - name: Support
+                                       title: Support
+                                       type: Links
+                                       items:
+                                         - name: Handbook
+                                           type: Link
+                                           text: Handbook
+                                           url: https://example.com/handbook
+                                     - name: Guide
+                                       title: Guide
+                                       type: Text
+                                       content: Study guide
+                                   """,
+            ["Add/Entity.yaml"] = """
+                                  name: Add
+                                  titlePlural: Adds
+                                  inheritsFrom: Base
+                                  resources:
+                                    - name: Course
+                                      title: Course
+                                      type: Text
+                                      content: Course information
+                                  """,
+            ["Clear/Entity.yaml"] = """
+                                    name: Clear
+                                    titlePlural: Clears
+                                    inheritsFrom: Base
+                                    resources: []
+                                    """
+        }));
+
+        Assert.Equal(["Support", "Guide", "Course"],
+            parser.WorkflowDefinitions["Add"].Resources.Select(r => r.Name).ToArray());
+        Assert.Empty(parser.WorkflowDefinitions["Clear"].Resources);
+    }
+
+    [Fact]
+    public void ResourceItems_MergeUnlessExplicitlyCleared()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = """
+                                   name: Base
+                                   titlePlural: Bases
+                                   resources:
+                                     - name: Support
+                                       title: Support
+                                       type: Links
+                                       items:
+                                         - name: Handbook
+                                           type: Link
+                                           text: Handbook
+                                           url: https://example.com/handbook
+                                   """,
+            ["Add/Entity.yaml"] = """
+                                  name: Add
+                                  titlePlural: Adds
+                                  inheritsFrom: Base
+                                  resources:
+                                    - name: Support
+                                      title: Support
+                                      type: Links
+                                      items:
+                                        - name: Contact
+                                          type: Link
+                                          text: Contact
+                                          url: https://example.com/contact
+                                  """,
+            ["Clear/Entity.yaml"] = """
+                                    name: Clear
+                                    titlePlural: Clears
+                                    inheritsFrom: Base
+                                    resources:
+                                      - name: Support
+                                        title: Support
+                                        type: Text
+                                        content: Contact support
+                                        items: []
+                                    """
+        }));
+
+        Assert.Equal(["Contact", "Handbook"],
+            parser.WorkflowDefinitions["Add"].Resources.Single().Items!.Select(i => i.Name).ToArray());
+        Assert.Empty(parser.WorkflowDefinitions["Clear"].Resources.Single().Items!);
+    }
+
+    [Fact]
     public void Screens_ChildOverrideDoesNotCreateDuplicate()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
