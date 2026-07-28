@@ -1,3 +1,6 @@
 name: SecondReviewer
+title:
+  en: Second reviewer
+  nl: Tweede beoordelaar
 actions:
   - type: View

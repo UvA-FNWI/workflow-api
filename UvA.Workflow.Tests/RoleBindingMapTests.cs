@@ -72,4 +72,17 @@ public class RoleBindingMapTests
         Assert.DoesNotContain(roleBindings.GetBindings("Project"),
             binding => binding.Source == RoleBindingSource.Direct && binding.PropertyName == "Title");
     }
+
+    [Fact]
+    public void AllRolesHaveEnglishAndDutchTitles()
+    {
+        var roles = UnitTestsHelpers.CreateModelParser().Roles;
+
+        Assert.All(roles, role =>
+        {
+            Assert.NotNull(role.Title);
+            Assert.False(string.IsNullOrWhiteSpace(role.Title.En), $"{role.Name} has no English title");
+            Assert.False(string.IsNullOrWhiteSpace(role.Title.Nl), $"{role.Name} has no Dutch title");
+        });
+    }
 }

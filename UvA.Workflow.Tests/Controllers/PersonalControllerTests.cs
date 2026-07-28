@@ -83,8 +83,13 @@ public class PersonalControllerTests : ControllerTestsBase
         var result = await controller.GetInstances(_ct);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
-        var rows = Assert.IsType<PersonalInstanceDto[]>(ok.Value);
+        var response = Assert.IsType<PersonalInstancesDto>(ok.Value);
+        var rows = response.Instances;
         Assert.Equal(2, rows.Length);
+        Assert.Equal(["Coordinator", "Reviewer", "Supervisor"], response.Roles.Select(role => role.Name));
+        Assert.Equal("Coördinator", response.Roles[0].Title.Nl);
+        Assert.Equal("Beoordelaar", response.Roles[1].Title.Nl);
+        Assert.Equal("Begeleider", response.Roles[2].Title.Nl);
 
         var projectRow = rows[0];
         Assert.Equal(project.Id, projectRow.Id);

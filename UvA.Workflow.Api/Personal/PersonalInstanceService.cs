@@ -8,28 +8,38 @@ public class PersonalInstanceService(
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository)
 {
-    public async Task<PersonalInstanceDto[]> GetInstances(User user, CancellationToken ct)
+    public async Task<PersonalInstancesDto> GetInstances(User user, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var userId))
-            return [];
+            return new PersonalInstancesDto([], []);
 
         var directBindings = modelService.RoleBindings.All
             .Where(binding => binding.Source == RoleBindingSource.Direct)
             .ToArray();
 
         if (directBindings.Length == 0)
-            return [];
+            return new PersonalInstancesDto([], []);
 
         var userFilter = BuildUserFilter(directBindings, userId);
         var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
         var courseNames = await GetCourseNames(instances, ct);
 
-        return instances
+        var instanceDtos = instances
             .Select(instance => CreateDto(instance, userId, courseNames))
             .Where(dto => dto.Roles.Length > 0)
             .OrderByDescending(dto => dto.CreatedOn)
             .ThenByDescending(dto => dto.Id)
             .ToArray();
+        var roles = instanceDtos
+            .SelectMany(instance => instance.Roles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(role => new PersonalRoleDto(
+                role,
+                modelService.Roles.GetValueOrDefault(role)?.DisplayTitle ?? role))
+            .ToArray();
+
+        return new PersonalInstancesDto(roles, instanceDtos);
     }
 
     private static FilterDefinition<WorkflowInstance> BuildUserFilter(

@@ -1,3 +1,6 @@
 name: Examiner
+title:
+  en: Examiner
+  nl: Examinator
 actions:
   - type: View

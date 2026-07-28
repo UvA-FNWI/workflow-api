@@ -8,7 +8,7 @@ public class PersonalController(
     PersonalInstanceService personalInstanceService) : ApiControllerBase
 {
     [HttpGet("instances")]
-    public async Task<ActionResult<PersonalInstanceDto[]>> GetInstances(CancellationToken ct)
+    public async Task<ActionResult<PersonalInstancesDto>> GetInstances(CancellationToken ct)
     {
         var currentUser = await userService.GetCurrentUser(ct);
         if (currentUser == null)
