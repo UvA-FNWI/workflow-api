@@ -94,7 +94,9 @@ public class ExternalUserEmailUpdateService(
             foreach (var question in form.PropertyDefinitions.Where(q => q.DataType == DataType.User))
             {
                 var context = new QuestionContext(instance, submissionState, form, question);
-                if (ContainsUserAnswerValue(context, userId))
+                var currentAnswer =
+                    context.Instance.GetProperty(context.Form.PropertyName, context.PropertyDefinition.Name);
+                if (PropertyContainsUser(currentAnswer, context.PropertyDefinition, userId))
                     yield return context;
             }
         }
@@ -116,37 +118,21 @@ public class ExternalUserEmailUpdateService(
 
         return workflowDefinition.Properties
             .Where(p => p.DataType == DataType.User && !propertiesInForms.Contains(p.Name))
-            .Where(property =>
-            {
-                var rawValue = instance.GetProperty(property.Name);
-                if (rawValue == null || rawValue.IsBsonNull) return false;
-
-                if (property.IsArray)
-                {
-                    var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
-                    return users?.Any(u => u.Id == userId) == true;
-                }
-
-                var user = ObjectContext.GetValue(rawValue, property) as InstanceUser;
-                return user?.Id == userId;
-            });
+            .Where(property => PropertyContainsUser(instance.GetProperty(property.Name), property, userId));
     }
 
-
-    private static bool ContainsUserAnswerValue(QuestionContext context, string userId)
+    private static bool PropertyContainsUser(BsonValue? rawValue, PropertyDefinition property, string userId)
     {
-        var currentAnswer = context.Instance.GetProperty(context.Form.PropertyName, context.PropertyDefinition.Name);
-        if (currentAnswer == null || currentAnswer.IsBsonNull)
-            return false;
+        if (rawValue == null || rawValue.IsBsonNull) return false;
 
-        if (context.PropertyDefinition.IsArray)
+        if (property.IsArray)
         {
-            var users = ObjectContext.GetValue(currentAnswer, context.PropertyDefinition) as InstanceUser[];
+            var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
             return users?.Any(u => u.Id == userId) == true;
         }
 
-        var answerUser = ObjectContext.GetValue(currentAnswer, context.PropertyDefinition) as InstanceUser;
-        return answerUser?.Id == userId;
+        var user = ObjectContext.GetValue(rawValue, property) as InstanceUser;
+        return user?.Id == userId;
     }
 
     private static bool TryCreateUpdatedUserAnswerValue(
