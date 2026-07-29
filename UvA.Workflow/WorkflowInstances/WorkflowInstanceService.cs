@@ -10,7 +10,8 @@ namespace UvA.Workflow.WorkflowInstances;
 public class WorkflowInstanceService(
     ModelService modelService,
     IWorkflowInstanceRepository repository,
-    IInstanceJournalService journalService)
+    IInstanceJournalService journalService,
+    IUserService userService)
 {
     /// <summary>
     /// Creates a new workflow instance
@@ -176,6 +177,12 @@ public class WorkflowInstanceService(
         if (propertyDefinition == null)
             throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
 
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            throw new InvalidOperationException("User not logged in");
+
+        var oldValue = instance.GetProperty(null, property);
+
         var convertedValue = await answerConversionService.ConvertToValue(newValue, propertyDefinition, ct);
 
         if (propertyDefinition.IsArray)
@@ -195,7 +202,10 @@ public class WorkflowInstanceService(
                 Builders<WorkflowInstance>.Update.Set(i => i.Properties[property], convertedValue), ct);
         }
 
-        await journalService.IncrementVersion(instance.Id, ct);
+        await journalService.LogPropertyChange(
+            instance.Id,
+            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
+            ct);
     }
 
     public async Task RemoveProperty(
@@ -215,11 +225,20 @@ public class WorkflowInstanceService(
         if (propertyDefinition == null)
             throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
 
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            throw new InvalidOperationException("User not logged in");
+
+        var oldValue = instance.GetProperty(null, property);
+
         instance.SetProperty(null, property);
         await repository.UpdateFields(instance.Id,
             Builders<WorkflowInstance>.Update.Unset(i => i.Properties[property]), ct);
 
-        await journalService.IncrementVersion(instance.Id, ct);
+        await journalService.LogPropertyChange(
+            instance.Id,
+            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
+            ct);
     }
 
     public async Task RemoveArrayPropertyItemById(
@@ -243,8 +262,14 @@ public class WorkflowInstanceService(
         if (!propertyDefinition.IsArray)
             throw new ArgumentException($"Property '{property}' is not an array property");
 
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            throw new InvalidOperationException("User not logged in");
+
         if (instance.Properties.TryGetValue(property, out var existing) && existing is BsonArray array)
         {
+            var oldValue = existing;
+
             var newArray = new BsonArray(
                 array.Where(v => !(v is BsonDocument doc && doc["_id"].ToString() == itemId)));
 
@@ -253,8 +278,11 @@ public class WorkflowInstanceService(
 
             await repository.UpdateFields(instance.Id,
                 Builders<WorkflowInstance>.Update.Set($"Properties.{property}", newValue), ct);
-        }
 
-        await journalService.IncrementVersion(instance.Id, ct);
+            await journalService.LogPropertyChange(
+                instance.Id,
+                PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
+                ct);
+        }
     }
 }

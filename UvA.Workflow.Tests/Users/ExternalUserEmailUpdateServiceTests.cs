@@ -56,7 +56,8 @@ public class ExternalUserEmailUpdateServiceTests
             new Mock<IMailLayoutResolver>().Object, new Mock<IConfiguration>().Object);
         var journalServiceMock = new Mock<IInstanceJournalService>();
         var workflowInstanceService =
-            new WorkflowInstanceService(modelService, repoMock.Object, journalServiceMock.Object);
+            new WorkflowInstanceService(modelService, repoMock.Object, journalServiceMock.Object,
+                userServiceMock.Object);
         var assessmentService = new AssessmentService(modelService, workflowInstanceService, repoMock.Object);
         var instanceService = new InstanceService(
             repoMock.Object, modelService, userServiceMock.Object, rightsService, mailBuilder, assessmentService);

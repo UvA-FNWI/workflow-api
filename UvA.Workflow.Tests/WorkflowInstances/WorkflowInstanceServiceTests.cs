@@ -24,11 +24,20 @@ public class WorkflowInstanceServiceTests
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object);
         _workflowInstanceService =
-            new WorkflowInstanceService(modelService, _repositoryMock.Object, _journalServiceMock.Object);
-
+            new WorkflowInstanceService(modelService, _repositoryMock.Object, _journalServiceMock.Object,
+                _userServiceMock.Object);
+        var currentUser = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(), UserName = "testuser", DisplayName = "Test User",
+            Email = "test@t.com"
+        };
+        _userServiceMock
+            .Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(currentUser);
         _journalServiceMock
-            .Setup(j => j.IncrementVersion(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
+            .Setup(j => j.LogPropertyChange(It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         _repositoryMock
             .Setup(r => r.UpdateFields(It.IsAny<string>(),
                 It.IsAny<UpdateDefinition<WorkflowInstance>>(),
@@ -64,7 +73,8 @@ public class WorkflowInstanceServiceTests
         Assert.Equal("Working Title", instance.Properties["Title"].AsString);
         _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.IncrementVersion(instance.Id, _ct), Times.Once);
+        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
+            Times.Once);
     }
 
     [Fact]
@@ -97,7 +107,8 @@ public class WorkflowInstanceServiceTests
         Assert.Equal(2, instance.Properties["PracticalSupervisor"].AsBsonArray.Count);
         _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.IncrementVersion(instance.Id, _ct), Times.Once);
+        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
+            Times.Once);
     }
 
     [Fact]
@@ -120,7 +131,8 @@ public class WorkflowInstanceServiceTests
         Assert.Single(instance.Properties["PracticalSupervisor"].AsBsonArray);
         _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.IncrementVersion(instance.Id, _ct), Times.Once);
+        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
+            Times.Once);
     }
 
     [Fact]
@@ -158,7 +170,8 @@ public class WorkflowInstanceServiceTests
         Assert.Equal(keepId, remaining[0].AsBsonDocument["_id"].AsObjectId);
         _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.IncrementVersion(instance.Id, _ct), Times.Once);
+        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
+            Times.Once);
     }
 
     [Fact]
@@ -182,7 +195,8 @@ public class WorkflowInstanceServiceTests
         Assert.Equal(BsonNull.Value, instance.Properties["PracticalSupervisor"]);
         _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.IncrementVersion(instance.Id, _ct), Times.Once);
+        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
+            Times.Once);
     }
 
     [Fact]
@@ -195,7 +209,8 @@ public class WorkflowInstanceServiceTests
 
         _repositoryMock.Verify(r => r.UpdateFields(It.IsAny<string>(),
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
-        _journalServiceMock.Verify(j => j.IncrementVersion(instance.Id, _ct), Times.Once);
+        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
+            Times.Never);
     }
 
     [Fact]
@@ -212,6 +227,7 @@ public class WorkflowInstanceServiceTests
         Assert.False(instance.Properties.ContainsKey("Title"));
         _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.IncrementVersion(instance.Id, _ct), Times.Once);
+        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
+            Times.Once);
     }
 }
