@@ -33,4 +33,7 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
 
     public Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
         => Task.FromResult<Organization?>(null);
+
+    public Task UpdatePicture(string username, string? picture, CancellationToken ct = default)
+        => Task.CompletedTask;
 }

@@ -46,4 +46,12 @@ public interface IUserService
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     Task<User?> GetUser(string username, CancellationToken ct);
+
+    /// <summary>
+    /// Updates the profile picture URL for an existing user if it has changed.
+    /// </summary>
+    /// <param name="username">The unique username of the user to update.</param>
+    /// <param name="picture">The new picture URL, or null to clear it.</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
+    Task UpdatePicture(string username, string? picture, CancellationToken ct = default);
 }

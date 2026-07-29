@@ -214,4 +214,13 @@ public class UserService(
             return null;
         }
     }
+
+    public async Task UpdatePicture(string username, string? picture, CancellationToken ct = default)
+    {
+        var user = await GetUser(username, ct);
+        if (user == null || user.Picture == picture) return;
+
+        user.Picture = picture;
+        await userRepository.Update(user, ct);
+    }
 }
