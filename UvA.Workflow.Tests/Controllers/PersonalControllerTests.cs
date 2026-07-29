@@ -5,7 +5,6 @@ using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Personal.Dtos;
-using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -20,14 +19,7 @@ public class PersonalControllerTests : ControllerTestsBase
 
     public PersonalControllerTests()
     {
-        personalInstanceService = new PersonalInstanceService(
-            _modelService,
-            _workflowInstanceRepoMock.Object,
-            new InstanceAuthorizationFilterService(
-                _rightsService,
-                _modelService,
-                _userServiceMock.Object,
-                _workflowInstanceRepoMock.Object));
+        personalInstanceService = new PersonalInstanceService(_modelService, _workflowInstanceRepoMock.Object);
     }
 
     [Fact]
@@ -61,13 +53,6 @@ public class PersonalControllerTests : ControllerTestsBase
             .Callback<FilterDefinition<WorkflowInstance>, CancellationToken>((filter, _) =>
                 capturedFilter = filter)
             .ReturnsAsync([project]);
-        _workflowInstanceRepoMock
-            .Setup(repository => repository.GetAllByType(
-                It.IsAny<string>(),
-                It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<BsonDocument?>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
         _workflowInstanceRepoMock
             .Setup(repository => repository.GetAllById(
                 It.Is<string[]>(ids => ids.SequenceEqual(new[] { courseId.ToString() })),
@@ -118,7 +103,8 @@ public class PersonalControllerTests : ControllerTestsBase
         var renderedFilter = RenderFilter(capturedFilter!);
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Student._id", userId);
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Supervisor._id", userId);
-        AssertDefinitionIsDenied(renderedFilter, "Context");
+        AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Reviewer._id", userId);
+        AssertDefinitionIsExcluded(renderedFilter, "Context");
     }
 
     [Fact]
@@ -170,19 +156,14 @@ public class PersonalControllerTests : ControllerTestsBase
         Assert.True(found, $"No query branch found for {workflowDefinition}.{userPath}");
     }
 
-    private static void AssertDefinitionIsDenied(BsonDocument filter, string workflowDefinition)
+    private static void AssertDefinitionIsExcluded(BsonDocument filter, string workflowDefinition)
     {
-        var branch = filter["$or"].AsBsonArray
+        var found = filter["$or"].AsBsonArray
             .Select(value => value.AsBsonDocument)
-            .Single(branch => Descendants(branch).Any(condition =>
+            .Any(branch => Descendants(branch).Any(condition =>
                 condition.GetValue("WorkflowDefinition", BsonNull.Value) == workflowDefinition));
-        var matchesNothing = Descendants(branch)
-            .Any(condition =>
-                condition.GetValue("_id", BsonNull.Value) is BsonDocument id &&
-                id.GetValue("$in", BsonNull.Value) is BsonArray values &&
-                values.Count == 0);
 
-        Assert.True(matchesNothing, $"The {workflowDefinition} query branch does not enforce denied View access");
+        Assert.False(found, $"The {workflowDefinition} query branch should not be present");
     }
 
     private static IEnumerable<BsonDocument> Descendants(BsonValue value)

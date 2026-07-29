@@ -1,5 +1,4 @@
 using UvA.Workflow.Api.Personal.Dtos;
-using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.WorkflowModel;
 
@@ -7,8 +6,7 @@ namespace UvA.Workflow.Api.Personal;
 
 public class PersonalInstanceService(
     ModelService modelService,
-    IWorkflowInstanceRepository workflowInstanceRepository,
-    InstanceAuthorizationFilterService instanceAuthorizationFilterService)
+    IWorkflowInstanceRepository workflowInstanceRepository)
 {
     public async Task<PersonalInstancesDto> GetInstances(User user, CancellationToken ct)
     {
@@ -16,13 +14,13 @@ public class PersonalInstanceService(
             return new PersonalInstancesDto([], []);
 
         var definitions = modelService.WorkflowDefinitions.Values
-            .Where(definition => GetUserProperties(definition).Any())
+            .Where(definition => GetVisibleUserProperties(definition).Any())
             .ToArray();
 
         if (definitions.Length == 0)
             return new PersonalInstancesDto([], []);
 
-        var userFilter = await BuildUserFilter(definitions, userId, ct);
+        var userFilter = BuildUserFilter(definitions, userId);
         var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
         var courseNames = await GetCourseNames(instances, ct);
 
@@ -45,31 +43,20 @@ public class PersonalInstanceService(
         return new PersonalInstancesDto(roles, instanceDtos);
     }
 
-    private async Task<FilterDefinition<WorkflowInstance>> BuildUserFilter(
+    private static FilterDefinition<WorkflowInstance> BuildUserFilter(
         IEnumerable<WorkflowDefinition> definitions,
-        ObjectId userId,
-        CancellationToken ct)
+        ObjectId userId)
     {
         var filterBuilder = Builders<WorkflowInstance>.Filter;
-        var definitionFilters = new List<FilterDefinition<WorkflowInstance>>();
-
-        foreach (var definition in definitions)
+        var definitionFilters = definitions.Select(definition =>
         {
-            var userPropertyFilters = GetUserProperties(definition)
+            var userPropertyFilters = GetVisibleUserProperties(definition)
                 .Select(property => filterBuilder.Eq($"Properties.{property.Name}._id", userId));
-            var filters = new List<FilterDefinition<WorkflowInstance>>
-            {
+
+            return filterBuilder.And(
                 filterBuilder.Eq(instance => instance.WorkflowDefinition, definition.Name),
-                filterBuilder.Or(userPropertyFilters)
-            };
-            var authorizationFilter =
-                await instanceAuthorizationFilterService.BuildAuthorizationFilter(definition.Name, ct);
-
-            if (authorizationFilter != null)
-                filters.Add(new BsonDocumentFilterDefinition<WorkflowInstance>(authorizationFilter));
-
-            definitionFilters.Add(filterBuilder.And(filters));
-        }
+                filterBuilder.Or(userPropertyFilters));
+        });
 
         return filterBuilder.Or(definitionFilters);
     }
@@ -124,6 +111,17 @@ public class PersonalInstanceService(
         => definition.Properties
             .Where(property => property.DataType == DataType.User)
             .DistinctBy(property => property.Name, StringComparer.OrdinalIgnoreCase);
+
+    private static IEnumerable<PropertyDefinition> GetVisibleUserProperties(WorkflowDefinition definition)
+    {
+        var rolesWithViewAccess = definition.GlobalActions
+            .Where(action => action.Type == RoleAction.View)
+            .SelectMany(action => action.Roles)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return GetUserProperties(definition)
+            .Where(property => rolesWithViewAccess.Contains(property.Name));
+    }
 
     private async Task<IReadOnlyDictionary<string, string>> GetCourseNames(
         IEnumerable<WorkflowInstance> instances,
