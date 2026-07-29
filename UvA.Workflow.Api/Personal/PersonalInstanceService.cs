@@ -13,23 +13,24 @@ public class PersonalInstanceService(
         if (!ObjectId.TryParse(user.Id, out var userId))
             return new PersonalInstancesDto([], []);
 
-        var directBindings = modelService.RoleBindings.All
-            .Where(binding => binding.Source == RoleBindingSource.Direct)
+        var definitions = modelService.WorkflowDefinitions.Values
+            .Where(definition => GetUserProperties(definition).Any())
             .ToArray();
 
-        if (directBindings.Length == 0)
+        if (definitions.Length == 0)
             return new PersonalInstancesDto([], []);
 
-        var userFilter = BuildUserFilter(directBindings, userId);
+        var userFilter = BuildUserFilter(definitions, userId);
         var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
         var courseNames = await GetCourseNames(instances, ct);
 
         var instanceDtos = instances
-            .Select(instance => CreateDto(instance, userId, courseNames))
+            .Select(instance => CreateDto(instance, user, courseNames))
             .Where(dto => dto.Roles.Length > 0)
             .OrderByDescending(dto => dto.CreatedOn)
             .ThenByDescending(dto => dto.Id)
             .ToArray();
+
         var roles = instanceDtos
             .SelectMany(instance => instance.Roles)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -43,44 +44,50 @@ public class PersonalInstanceService(
     }
 
     private static FilterDefinition<WorkflowInstance> BuildUserFilter(
-        IEnumerable<RoleBinding> bindings,
+        IEnumerable<WorkflowDefinition> definitions,
         ObjectId userId)
     {
         var filterBuilder = Builders<WorkflowInstance>.Filter;
-        var bindingFilters = bindings.Select(binding =>
-            filterBuilder.And(
-                filterBuilder.Eq(instance => instance.WorkflowDefinition, binding.WorkflowDefinition),
-                filterBuilder.Eq(binding.UserIdPath!, userId)
-            ));
+        var definitionFilters = definitions.Select(definition =>
+        {
+            var userPropertyFilters = GetUserProperties(definition)
+                .Select(property => filterBuilder.Eq($"Properties.{property.Name}._id", userId));
 
-        return filterBuilder.Or(bindingFilters);
+            return filterBuilder.And(
+                filterBuilder.Eq(instance => instance.WorkflowDefinition, definition.Name),
+                filterBuilder.Or(userPropertyFilters));
+        });
+
+        return filterBuilder.Or(definitionFilters);
     }
 
     private PersonalInstanceDto CreateDto(
         WorkflowInstance instance,
-        ObjectId userId,
+        User user,
         IReadOnlyDictionary<string, string> courseNames)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
-        var directBindings = modelService.RoleBindings.GetBindings(instance.WorkflowDefinition)
-            .Where(binding => binding.Source == RoleBindingSource.Direct)
-            .ToArray();
-        var roles = directBindings
-            .Where(binding => ContainsUser(instance.Properties.GetValueOrDefault(binding.PropertyName), userId))
-            .Select(binding => binding.Role)
+        var usersByRole = GetUserProperties(definition)
+            .ToDictionary(
+                property => property.Name,
+                property => GetUsers(context.Get(property.Name)).ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+        var roles = usersByRole
+            .Where(entry => entry.Value.Any(instanceUser =>
+                string.Equals(instanceUser.Id, user.Id, StringComparison.Ordinal)))
+            .Select(entry => entry.Key)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var student = directBindings
-            .Where(binding => string.Equals(binding.Role, "Student", StringComparison.OrdinalIgnoreCase))
-            .SelectMany(binding => GetUserDisplayNames(
-                instance.Properties.GetValueOrDefault(binding.PropertyName)))
-            .FirstOrDefault();
-        var employees = directBindings
-            .Where(binding => !string.Equals(binding.Role, "Student", StringComparison.OrdinalIgnoreCase))
-            .SelectMany(binding => GetUserDisplayNames(
-                instance.Properties.GetValueOrDefault(binding.PropertyName)))
+        var student = usersByRole.GetValueOrDefault("Student")
+            ?.FirstOrDefault()
+            ?.DisplayName;
+        var employees = usersByRole
+            .Where(entry => !string.Equals(entry.Key, "Student", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(entry => entry.Value)
+            .Select(instanceUser => instanceUser.DisplayName)
+            .Where(displayName => !string.IsNullOrWhiteSpace(displayName))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -99,6 +106,11 @@ public class PersonalInstanceService(
             employees
         );
     }
+
+    private static IEnumerable<PropertyDefinition> GetUserProperties(WorkflowDefinition definition)
+        => definition.Properties
+            .Where(property => property.DataType == DataType.User)
+            .DistinctBy(property => property.Name, StringComparer.OrdinalIgnoreCase);
 
     private async Task<IReadOnlyDictionary<string, string>> GetCourseNames(
         IEnumerable<WorkflowInstance> instances,
@@ -148,42 +160,11 @@ public class PersonalInstanceService(
             _ => null
         };
 
-    private static bool ContainsUser(BsonValue? value, ObjectId userId)
-        => GetUsers(value).Any(user => HasUserId(user, userId));
-
-    private static IEnumerable<string> GetUserDisplayNames(BsonValue? value)
-        => GetUsers(value)
-            .Select(user => user.GetValue("DisplayName", BsonNull.Value))
-            .OfType<BsonString>()
-            .Select(displayName => displayName.Value)
-            .Where(displayName => !string.IsNullOrWhiteSpace(displayName));
-
-    private static IEnumerable<BsonDocument> GetUsers(BsonValue? value)
-    {
-        if (value is BsonDocument user)
+    private static IEnumerable<InstanceUser> GetUsers(object? value)
+        => value switch
         {
-            yield return user;
-            yield break;
-        }
-
-        if (value is not BsonArray users)
-            yield break;
-
-        foreach (var candidate in users)
-            if (candidate is BsonDocument arrayUser)
-                yield return arrayUser;
-    }
-
-    private static bool HasUserId(BsonDocument user, ObjectId userId)
-    {
-        if (!user.TryGetValue("_id", out var storedUserId))
-            return false;
-
-        return storedUserId switch
-        {
-            BsonObjectId objectId => objectId.Value == userId,
-            BsonString text => ObjectId.TryParse(text.Value, out var parsedUserId) && parsedUserId == userId,
-            _ => false
+            InstanceUser user => [user],
+            InstanceUser[] users => users,
+            _ => []
         };
-    }
 }

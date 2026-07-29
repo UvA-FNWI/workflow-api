@@ -123,8 +123,9 @@ public class PersonalControllerTests : ControllerTestsBase
             It.IsAny<CancellationToken>()), Times.Once);
 
         var renderedFilter = RenderFilter(capturedFilter!);
-        AssertDirectBinding(renderedFilter, "Project", "Properties.Student._id", userId);
-        AssertDirectBinding(renderedFilter, "Context", "Properties.Coordinator._id", userId);
+        AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Student._id", userId);
+        AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Supervisor._id", userId);
+        AssertDirectPropertyFilter(renderedFilter, "Context", "Properties.Coordinator._id", userId);
     }
 
     [Fact]
@@ -159,7 +160,7 @@ public class PersonalControllerTests : ControllerTestsBase
             renderDollarForm: false));
     }
 
-    private static void AssertDirectBinding(
+    private static void AssertDirectPropertyFilter(
         BsonDocument filter,
         string workflowDefinition,
         string userPath,
@@ -169,7 +170,10 @@ public class PersonalControllerTests : ControllerTestsBase
             .Select(branch => branch.AsBsonDocument)
             .Any(branch =>
                 branch.GetValue("WorkflowDefinition", BsonNull.Value) == workflowDefinition &&
-                branch.GetValue(userPath, BsonNull.Value) == userId);
+                branch.GetValue("$or", new BsonArray()).AsBsonArray
+                    .Select(propertyFilter => propertyFilter.AsBsonDocument)
+                    .Any(propertyFilter =>
+                        propertyFilter.GetValue(userPath, BsonNull.Value) == userId));
 
         Assert.True(found, $"No query branch found for {workflowDefinition}.{userPath}");
     }
