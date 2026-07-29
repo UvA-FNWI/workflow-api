@@ -83,6 +83,13 @@ public class RightsService(
 
     public async Task<string[]> GetViewerRoles(WorkflowInstance instance, CancellationToken ct = default)
     {
+        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance, ct);
+        if (!string.IsNullOrWhiteSpace(impersonatedRoleName))
+        {
+            var normalized = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
+            return normalized != null ? [normalized.Name] : [];
+        }
+
         var globalRoles = await GetGlobalRoles();
         var instanceRoles = await GetInstanceRoles(instance, ct);
 

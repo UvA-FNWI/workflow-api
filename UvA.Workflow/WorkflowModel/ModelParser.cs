@@ -55,6 +55,14 @@ public partial class ModelParser
                     definition.Properties.Add(prop);
                 }
 
+                if (content.Resources.Length > 0)
+                {
+                    if (definition.Resources.Length > 0)
+                        throw new Exception(
+                            $"Definition '{definition.Name}' defines resources in multiple files.");
+                    definition.Resources = content.Resources;
+                }
+
                 if (content.GlobalActions.Count == 0) continue;
                 if (definition.GlobalActions.Count > 0)
                     throw new Exception(
@@ -223,6 +231,36 @@ public partial class ModelParser
         }
     }
 
+    private void PreProcess(Resource resource, WorkflowDefinition workflowDefinition)
+    {
+        switch (resource.Type)
+        {
+            case ResourceLayout.Text:
+                if (resource.Content == null ||
+                    (string.IsNullOrWhiteSpace(resource.Content.En) && string.IsNullOrWhiteSpace(resource.Content.Nl)))
+                    throw new Exception(
+                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has type 'Text' but no content is set.");
+                if (resource.Items?.Length > 0)
+                    throw new Exception(
+                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has type 'Text' but also defines items. Remove the items or change the type to 'Links'.");
+                break;
+
+            case ResourceLayout.Links:
+                if (resource.Items?.Length == 0)
+                    throw new Exception(
+                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has type 'Links' but contains no items.");
+                var invalidItems = resource.Items?
+                    .Where(i => i.Type != ResourceType.Link && i.Type != ResourceType.Download)
+                    .Select(i => $"'{i.Name}' (type: {i.Type})")
+                    .ToList() ?? [];
+                if (invalidItems.Count > 0)
+                    throw new Exception(
+                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has items with invalid types for a 'Links' resource: " +
+                        $"{string.Join(", ", invalidItems)}. Only 'Link' and 'Download' are allowed.");
+                break;
+        }
+    }
+
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
         foreach (var ent in workflowDefinition.Properties)
@@ -242,6 +280,8 @@ public partial class ModelParser
             PreProcess(field, workflowDefinition);
         foreach (var relatedUser in workflowDefinition.RelatedUsers)
             PreProcess(relatedUser, workflowDefinition);
+        foreach (var resource in workflowDefinition.Resources)
+            PreProcess(resource, workflowDefinition);
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
