@@ -5,6 +5,7 @@ using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Personal.Dtos;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -19,11 +20,18 @@ public class PersonalControllerTests : ControllerTestsBase
 
     public PersonalControllerTests()
     {
-        personalInstanceService = new PersonalInstanceService(_modelService, _workflowInstanceRepoMock.Object);
+        personalInstanceService = new PersonalInstanceService(
+            _modelService,
+            _workflowInstanceRepoMock.Object,
+            new InstanceAuthorizationFilterService(
+                _rightsService,
+                _modelService,
+                _userServiceMock.Object,
+                _workflowInstanceRepoMock.Object));
     }
 
     [Fact]
-    public async Task GetInstances_ReturnsDirectUserInstancesWithTheirMatchingRoles()
+    public async Task GetInstances_ReturnsDirectUserInstancesTheUserCanView()
     {
         var userId = ObjectId.Parse(UnitTestsHelpers.AdminUser.Id);
         var courseId = ObjectId.GenerateNewId();
@@ -44,18 +52,6 @@ public class PersonalControllerTests : ControllerTestsBase
                     UserDocument(ObjectId.GenerateNewId(), "Examiner Name"))))
             .Build();
         project.CreatedOn = createdOn;
-        var context = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Context")
-            .WithCurrentStep("Active")
-            .WithProperties(
-                ("Name", property => property.Value("Personal context")),
-                ("Coordinator", property => property.Value(new BsonArray
-                {
-                    UserDocument(ObjectId.GenerateNewId(), "Other Coordinator"),
-                    UserDocument(userId, "Current Employee")
-                })))
-            .Build();
-        context.CreatedOn = createdOn.AddDays(-1);
 
         FilterDefinition<WorkflowInstance>? capturedFilter = null;
         _workflowInstanceRepoMock
@@ -64,7 +60,14 @@ public class PersonalControllerTests : ControllerTestsBase
                 It.IsAny<CancellationToken>()))
             .Callback<FilterDefinition<WorkflowInstance>, CancellationToken>((filter, _) =>
                 capturedFilter = filter)
-            .ReturnsAsync([project, context]);
+            .ReturnsAsync([project]);
+        _workflowInstanceRepoMock
+            .Setup(repository => repository.GetAllByType(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         _workflowInstanceRepoMock
             .Setup(repository => repository.GetAllById(
                 It.Is<string[]>(ids => ids.SequenceEqual(new[] { courseId.ToString() })),
@@ -85,13 +88,11 @@ public class PersonalControllerTests : ControllerTestsBase
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<PersonalInstancesDto>(ok.Value);
         var rows = response.Instances;
-        Assert.Equal(2, rows.Length);
-        Assert.Equal(["Coordinator", "Reviewer", "Supervisor"], response.Roles.Select(role => role.Name));
-        Assert.Equal("Coördinator", response.Roles[0].Title.Nl);
-        Assert.Equal("Beoordelaar", response.Roles[1].Title.Nl);
-        Assert.Equal("Begeleider", response.Roles[2].Title.Nl);
+        var projectRow = Assert.Single(rows);
+        Assert.Equal(["Reviewer", "Supervisor"], response.Roles.Select(role => role.Name));
+        Assert.Equal("Beoordelaar", response.Roles[0].Title.Nl);
+        Assert.Equal("Begeleider", response.Roles[1].Title.Nl);
 
-        var projectRow = rows[0];
         Assert.Equal(project.Id, projectRow.Id);
         Assert.Equal("Project", projectRow.WorkflowDefinition);
         Assert.Equal("Personal project", projectRow.Title);
@@ -105,14 +106,6 @@ public class PersonalControllerTests : ControllerTestsBase
         Assert.Equal("Software Engineering", projectRow.Course);
         Assert.Equal(["Current Employee", "Examiner Name"], projectRow.Employees);
 
-        var contextRow = rows[1];
-        Assert.Equal(context.Id, contextRow.Id);
-        Assert.Equal("Context", contextRow.WorkflowDefinition);
-        Assert.Equal(["Coordinator"], contextRow.Roles);
-        Assert.Null(contextRow.Student);
-        Assert.Null(contextRow.Course);
-        Assert.Equal(["Current Employee", "Other Coordinator"], contextRow.Employees);
-
         _workflowInstanceRepoMock.Verify(repository => repository.GetByFilter(
             It.IsAny<FilterDefinition<WorkflowInstance>>(),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -125,7 +118,7 @@ public class PersonalControllerTests : ControllerTestsBase
         var renderedFilter = RenderFilter(capturedFilter!);
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Student._id", userId);
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Supervisor._id", userId);
-        AssertDirectPropertyFilter(renderedFilter, "Context", "Properties.Coordinator._id", userId);
+        AssertDefinitionIsDenied(renderedFilter, "Context");
     }
 
     [Fact]
@@ -169,12 +162,41 @@ public class PersonalControllerTests : ControllerTestsBase
         var found = filter["$or"].AsBsonArray
             .Select(branch => branch.AsBsonDocument)
             .Any(branch =>
-                branch.GetValue("WorkflowDefinition", BsonNull.Value) == workflowDefinition &&
-                branch.GetValue("$or", new BsonArray()).AsBsonArray
-                    .Select(propertyFilter => propertyFilter.AsBsonDocument)
-                    .Any(propertyFilter =>
-                        propertyFilter.GetValue(userPath, BsonNull.Value) == userId));
+                Descendants(branch).Any(condition =>
+                    condition.GetValue("WorkflowDefinition", BsonNull.Value) == workflowDefinition) &&
+                Descendants(branch).Any(condition =>
+                    condition.GetValue(userPath, BsonNull.Value) == userId));
 
         Assert.True(found, $"No query branch found for {workflowDefinition}.{userPath}");
+    }
+
+    private static void AssertDefinitionIsDenied(BsonDocument filter, string workflowDefinition)
+    {
+        var branch = filter["$or"].AsBsonArray
+            .Select(value => value.AsBsonDocument)
+            .Single(branch => Descendants(branch).Any(condition =>
+                condition.GetValue("WorkflowDefinition", BsonNull.Value) == workflowDefinition));
+        var matchesNothing = Descendants(branch)
+            .Any(condition =>
+                condition.GetValue("_id", BsonNull.Value) is BsonDocument id &&
+                id.GetValue("$in", BsonNull.Value) is BsonArray values &&
+                values.Count == 0);
+
+        Assert.True(matchesNothing, $"The {workflowDefinition} query branch does not enforce denied View access");
+    }
+
+    private static IEnumerable<BsonDocument> Descendants(BsonValue value)
+    {
+        if (value is BsonDocument document)
+        {
+            yield return document;
+            foreach (var descendant in document.Values.SelectMany(Descendants))
+                yield return descendant;
+        }
+        else if (value is BsonArray array)
+        {
+            foreach (var descendant in array.SelectMany(Descendants))
+                yield return descendant;
+        }
     }
 }
