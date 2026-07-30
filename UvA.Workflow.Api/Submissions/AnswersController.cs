@@ -1,30 +1,21 @@
 using Microsoft.AspNetCore.Authorization;
-using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions;
 
 public class AnswersController(
     AnswerService answerService,
-    AnswerConversionService answerConversionService,
     RightsService rightsService,
-    IExternalUserService externalUserService,
     ArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
     InstanceService instanceService,
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository) : ApiControllerBase
 {
-    private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
-    private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
-    private const string InvalidEmailAddressCode = "InvalidEmailAddress";
-    private const string InvalidQuestionTypeCode = "InvalidQuestionType";
-    private const string ExternalUsersNotAllowedCode = "ExternalUsersNotAllowed";
-    private const string InvalidChoiceValueCode = "InvalidChoiceValue";
-
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
         string questionName,
@@ -33,52 +24,28 @@ public class AnswersController(
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
 
-        var value = input.Value;
-        UserSearchResultDto? createdUser = null;
-        if (input.ExternalUser != null)
+        var externalUserInput = input.ExternalUser is { } eu
+            ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
+            : null;
+
+        try
         {
-            if (context.PropertyDefinition.DataType != DataType.User)
-                return Unprocessable(InvalidQuestionTypeCode, InvalidQuestionTypeCode);
-
-            if (context.PropertyDefinition.AllowsExternalUsers != true)
-                return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
-
-            try
-            {
-                var externalUser = await externalUserService.CreateOrUpdateExternalUser(
-                    input.ExternalUser.DisplayName,
-                    input.ExternalUser.Email,
-                    input.ExternalUser.Organization,
-                    ct);
-                createdUser = UserSearchResultDto.Create(externalUser);
-                value = JsonSerializer.SerializeToElement(createdUser, AnswerConversionService.Options);
-            }
-            catch (ExternalUserCreationException ex)
-            {
-                return MapExternalUserCreationError(ex);
-            }
+            var (value, createdUser) = await answerService.ValidateAndResolveValue(
+                context.PropertyDefinition, input.Value, externalUserInput, ct);
+            var answers = await answerService.SaveAnswer(context, value, ct);
+            var permissions =
+                await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
+                    RoleAction.Edit);
+            var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
+                modelService.GetQuestionStatus(context.Instance, context.Form, true),
+                permissions.Select(p => p.Type).ToArray());
+            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission,
+                User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }
-
-        if (context.PropertyDefinition.DataType == DataType.User &&
-            context.PropertyDefinition.AllowsExternalUsers != true &&
-            value is JsonElement userValue &&
-            await answerConversionService.ContainsExternalUserSelection(userValue, context.PropertyDefinition.IsArray,
-                ct))
-            return Unprocessable(ExternalUsersNotAllowedCode, ExternalUsersNotAllowedCode);
-
-        if (context.PropertyDefinition.DataType == DataType.Choice && value is JsonElement choiceValue &&
-            AnswerConversionService.FindInvalidChoice(choiceValue, context.PropertyDefinition) is { } invalidChoice)
-            return Unprocessable(InvalidChoiceValueCode,
-                $"'{invalidChoice}' is not a valid value for '{questionName}'");
-
-        var answers = await answerService.SaveAnswer(context, value, ct);
-        var permissions =
-            await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
-                RoleAction.Edit);
-        var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
-            modelService.GetQuestionStatus(context.Instance, context.Form, true),
-            permissions.Select(p => p.Type).ToArray());
-        return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, User: createdUser));
+        catch (ExternalUserCreationException ex)
+        {
+            return MapExternalUserCreationError(ex);
+        }
     }
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}/artifacts")]
@@ -172,17 +139,6 @@ public class AnswersController(
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
         await EnsureAuthorizedForAction(context,
             context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
-
-    private ObjectResult MapExternalUserCreationError(ExternalUserCreationException ex) => ex.Reason switch
-    {
-        ExternalUserCreationFailureReason.InvalidEmailAddress =>
-            BadRequest(InvalidEmailAddressCode, InvalidEmailAddressCode),
-        ExternalUserCreationFailureReason.InternalEmailAddress =>
-            BadRequest(ManualUserInternalEmailCode, ManualUserInternalEmailCode),
-        ExternalUserCreationFailureReason.UserAlreadyExists =>
-            Conflict(ManualUserEmailAlreadyExistsCode, ManualUserEmailAlreadyExistsCode),
-        _ => Unprocessable(ex.Reason.ToString(), ex.Message)
-    };
 
     private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>
         await rightsService.EnsureAuthorizedForAction(context.Instance, [action], RightsEvaluationMode.RequestContext,
