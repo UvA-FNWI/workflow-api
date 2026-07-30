@@ -80,7 +80,8 @@ public class WorkflowInstanceDtoFactory(
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
                 .ToArray(),
-            permissions.Where(a => a.AllForms.Length == 0).Select(a => a.Type).Distinct().ToArray(),
+            permissions.Where(a => a.AllForms.Length == 0 && a.PropertyDefinition == null).Select(a => a.Type)
+                .Distinct().ToArray(),
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
