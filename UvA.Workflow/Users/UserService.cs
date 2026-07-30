@@ -4,7 +4,7 @@ namespace UvA.Workflow.Users;
 
 public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCache memoryCache)
 {
-    private IUserRepository UserRepository { get; } = userRepository;
+    protected IUserRepository UserRepository { get; } = userRepository;
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
     private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
     public const string ApiUserName = "__apiuser";
@@ -221,7 +221,7 @@ public class UserService(
         if (user == null || user.Picture == picture) return;
 
         user.Picture = picture;
-        await userRepository.Update(user, ct);
+        await UserRepository.Update(user, ct);
     }
 
     public async Task EnrichInstanceUserPictures(IEnumerable<InstanceUser> instanceUsers,
@@ -230,7 +230,7 @@ public class UserService(
         var users = instanceUsers.DistinctBy(u => u.Id).ToList();
         if (users.Count == 0) return;
 
-        var freshUsers = await userRepository.GetByIds(users.Select(u => u.Id).ToList(), ct);
+        var freshUsers = await UserRepository.GetByIds(users.Select(u => u.Id).ToList(), ct);
         var pictureById = freshUsers.ToDictionary(u => u.Id, u => u.Picture);
 
         foreach (var user in users)
