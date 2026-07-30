@@ -23,6 +23,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             _workflowInstanceRepoMock.Object,
             _instanceService,
             null!,
+            null!,
             _modelService,
             null!);
 

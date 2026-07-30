@@ -11,7 +11,9 @@ public record WorkflowDefinitionDto(
     string? InheritsFrom,
     bool IsEmbedded,
     string[] Screens,
-    bool CanCreateInstance
+    bool CanCreateInstance,
+    // True when the definition declares steps; instance steps may be condition-filtered.
+    bool HasSteps
 )
 {
     public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition,
@@ -26,7 +28,8 @@ public record WorkflowDefinitionDto(
             workflowDefinition.InheritsFrom,
             workflowDefinition.IsEmbedded,
             workflowDefinition.Screens.Select(s => s.Name).ToArray(),
-            canCreateInstance
+            canCreateInstance,
+            workflowDefinition.Steps.Count > 0
         );
     }
 }

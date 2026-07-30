@@ -14,7 +14,17 @@ public record QuestionContext(
     WorkflowInstance Instance,
     FormSubmissionState SubmissionState,
     Form Form,
-    PropertyDefinition PropertyDefinition);
+    PropertyDefinition PropertyDefinition)
+{
+    /// <summary>
+    /// Path to the property; embedded forms include their parent property.
+    /// </summary>
+    public string[] PathParts =>
+        Form.PropertyName == null ? [PropertyDefinition.Name] : [Form.PropertyName, PropertyDefinition.Name];
+
+    /// <summary>Dotted path stored in the instance journal.</summary>
+    public string Path => string.Join('.', PathParts);
+}
 
 public class AnswerService(
     ModelService modelService,
@@ -41,45 +51,54 @@ public class AnswerService(
         return new QuestionContext(instance, submissionState, form, question);
     }
 
+    /// <summary>
+    /// Persists a property change and optionally journals its previous value.
+    /// </summary>
+    public async Task SavePropertyValue(WorkflowInstance instance, string[] pathParts,
+        PropertyDefinition propertyDefinition, BsonValue newValue, bool shouldLog, CancellationToken ct)
+    {
+        var currentValue = instance.GetProperty(pathParts);
+        if (newValue == currentValue)
+            return;
+
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            throw new Exception("User not logged in, should not get here");
+
+        instance.SetProperty(newValue, pathParts);
+        await instanceService.SaveValue(instance, pathParts.Length > 1 ? pathParts[0] : null, pathParts[^1], ct);
+
+        // If the old value is not retained in the journal, its file can be deleted.
+        var isReplaced = !shouldLog || await instanceJournalService.LogPropertyChange(instance.Id,
+            PropertyChangeEntry.Create(string.Join('.', pathParts), currentValue, user), ct);
+
+        if (isReplaced && propertyDefinition.DataType == DataType.File)
+        {
+            var oldArtifact = currentValue is BsonDocument ? ArtifactInfo.FromBson(currentValue) : null;
+            if (currentValue is BsonArray array)
+            {
+                var newArray = (newValue as BsonArray)?.Select(ArtifactInfo.FromBson) ?? [];
+                oldArtifact = array
+                    .Select(ArtifactInfo.FromBson)
+                    .FirstOrDefault(a => newArray.All(b => b?.ArtifactId != a?.ArtifactId));
+            }
+
+            if (oldArtifact != null)
+                await artifactService.TryDeleteArtifact(oldArtifact.ArtifactId, ct);
+        }
+    }
+
     private async Task SaveAndLogAnswer(QuestionContext context, BsonValue? currentAnswer, BsonValue newAnswer,
         CancellationToken ct)
     {
         var (instance, _, form, question) = context;
-        if (newAnswer != currentAnswer)
-        {
-            var user = await userService.GetCurrentUser(ct);
-            if (user == null)
-                throw new Exception("User not logged in, should not get here");
+        // Avoid the submission lookup when nothing changed.
+        if (newAnswer == currentAnswer)
+            return;
 
-            instance.SetProperty(newAnswer, form.PropertyName, question.Name);
-            await instanceService.SaveValue(instance, form.PropertyName, question.Name, ct);
+        var wasSubmitted = await WasFormEverSubmitted(instance.Id, form, ct);
 
-            // if the form was ever submitted, then log the change
-            var wasSubmitted = await WasFormEverSubmitted(instance.Id, form, ct);
-            var isReplaced = !wasSubmitted; // if the form was not submitted, the old value is not stored
-            if (wasSubmitted)
-            {
-                // if the journal entry was replaced, the old value isn't stored either
-                isReplaced = await instanceJournalService.LogPropertyChange(instance.Id,
-                    PropertyChangeEntry.Create(context.PropertyDefinition, currentAnswer, user), ct);
-            }
-
-            // delete any replaced file
-            if (isReplaced && question.DataType == DataType.File)
-            {
-                var oldArtifact = currentAnswer is BsonDocument ? ArtifactInfo.FromBson(currentAnswer) : null;
-                if (currentAnswer is BsonArray array)
-                {
-                    var newArray = (newAnswer as BsonArray)?.Select(ArtifactInfo.FromBson) ?? [];
-                    oldArtifact = array
-                        .Select(ArtifactInfo.FromBson)
-                        .FirstOrDefault(a => newArray.All(b => b?.ArtifactId != a?.ArtifactId));
-                }
-
-                if (oldArtifact != null)
-                    await artifactService.TryDeleteArtifact(oldArtifact.ArtifactId, ct);
-            }
-        }
+        await SavePropertyValue(instance, context.PathParts, question, newAnswer, wasSubmitted, ct);
     }
 
     public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
@@ -135,8 +154,10 @@ public class AnswerService(
         if (value == null || value is BsonNull || ArtifactInfo.FromBson(value)?.ArtifactId != artifactId)
         {
             var journal = await instanceJournalService.GetInstanceJournal(context.Instance.Id, false, ct);
+            // Legacy entries contain only the property name.
             value = journal?.PropertyChanges.FirstOrDefault(p =>
-                p.Path == question.Name && ArtifactInfo.FromBson(p.OldValue)?.ArtifactId == artifactId)?.OldValue;
+                (p.Path == context.Path || p.Path == question.Name)
+                && ArtifactInfo.FromBson(p.OldValue)?.ArtifactId == artifactId)?.OldValue;
         }
 
         if (value == null) return null;

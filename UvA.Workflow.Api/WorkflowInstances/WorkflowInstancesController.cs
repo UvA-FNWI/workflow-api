@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
@@ -14,6 +17,7 @@ public class WorkflowInstancesController(
     IWorkflowInstanceRepository repository,
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
+    AnswerService answerService,
     ModelService modelService,
     RoleImpersonationService impersonationService
 ) : ApiControllerBase
@@ -80,6 +84,91 @@ public class WorkflowInstancesController(
         var result = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns all properties and values available to the admin data view.
+    /// </summary>
+    [HttpGet("{id}/properties")]
+    public async Task<ActionResult<InstancePropertiesDto>> GetProperties(string id, CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, [RoleAction.ViewAdminTools], RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var context = modelService.CreateContext(instance);
+
+        // The admin view ignores property conditions and visibility.
+        var properties = definition.Properties
+            .Select(p => QuestionDto.Create(p, context, totalWeight: 0))
+            .ToArray();
+
+        return Ok(new InstancePropertiesDto(properties, GetPropertyValues(instance, definition)));
+    }
+
+    private static Dictionary<string, JsonElement?> GetPropertyValues(WorkflowInstance instance,
+        WorkflowDefinition definition)
+    {
+        var values = new Dictionary<string, JsonElement?>();
+        Collect(definition.Properties, []);
+        return values;
+
+        void Collect(IEnumerable<PropertyDefinition> properties, string[] prefix)
+        {
+            foreach (var property in properties)
+            {
+                string[] parts = [.. prefix, property.Name];
+                if (property is { DataType: DataType.Object, IsArray: false, WorkflowDefinition: not null })
+                {
+                    Collect(property.WorkflowDefinition.Properties, parts);
+                    continue;
+                }
+
+                var path = string.Join('.', parts);
+                try
+                {
+                    values[path] = Answer.GetValue(property, instance.GetProperty(parts));
+                }
+                catch
+                {
+                    values[path] = null;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Overrides a single property. Always recorded in the instance journal.
+    /// </summary>
+    [HttpPost("{id}/properties/{path}")]
+    public async Task<ActionResult> SaveProperty(string id, string path,
+        [FromBody] SaveInstancePropertyRequest input, CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, [RoleAction.ViewAdminTools], RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var parts = path.Split('.');
+        if (parts.Length > 2)
+            return BadRequest("PropertyPathTooDeep",
+                $"Cannot edit '{path}': only properties nested at most one level deep can be saved.");
+
+        var property = modelService.GetQuestion(instance, parts);
+        if (property == null)
+            return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
+
+        var newValue = await answerConversionService.ConvertToValue(input.Value, property, ct);
+
+        await answerService.SavePropertyValue(instance, parts, property, newValue, shouldLog: true, ct);
+
+        return NoContent();
     }
 
     [HttpGet("{id}/impersonation/roles")]
