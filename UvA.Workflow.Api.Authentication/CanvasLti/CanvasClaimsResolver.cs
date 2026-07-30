@@ -17,6 +17,9 @@ public class CanvasClaimsResolver(
             launchInfo.Email,
             UserProviderKeys.Internal,
             organization);
+
+        await userService.UpdatePicture(launchInfo.UvanetId, launchInfo.Picture);
+
         var target = await targetResolver.ResolveTarget(user, launchInfo, CancellationToken.None);
 
         return new Dictionary<string, object>

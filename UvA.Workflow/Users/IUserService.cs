@@ -54,4 +54,9 @@ public interface IUserService
     /// <param name="picture">The new picture URL, or null to clear it.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     Task UpdatePicture(string username, string? picture, CancellationToken ct = default);
+
+    /// <summary>
+    /// Enriches the Picture field on embedded InstanceUser snapshots from the live users table.
+    /// </summary>
+    Task EnrichInstanceUserPictures(IEnumerable<InstanceUser> instanceUsers, CancellationToken ct = default);
 }

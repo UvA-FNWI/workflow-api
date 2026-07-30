@@ -36,4 +36,7 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
 
     public Task UpdatePicture(string username, string? picture, CancellationToken ct = default)
         => Task.CompletedTask;
+
+    public Task EnrichInstanceUserPictures(IEnumerable<InstanceUser> instanceUsers, CancellationToken ct = default)
+        => Task.CompletedTask;
 }

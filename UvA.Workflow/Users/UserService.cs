@@ -223,4 +223,18 @@ public class UserService(
         user.Picture = picture;
         await userRepository.Update(user, ct);
     }
+
+    public async Task EnrichInstanceUserPictures(IEnumerable<InstanceUser> instanceUsers,
+        CancellationToken ct = default)
+    {
+        var users = instanceUsers.DistinctBy(u => u.Id).ToList();
+        if (users.Count == 0) return;
+
+        var freshUsers = await userRepository.GetByIds(users.Select(u => u.Id).ToList(), ct);
+        var pictureById = freshUsers.ToDictionary(u => u.Id, u => u.Picture);
+
+        foreach (var user in users)
+            if (pictureById.TryGetValue(user.Id, out var picture))
+                user.Picture = picture;
+    }
 }
