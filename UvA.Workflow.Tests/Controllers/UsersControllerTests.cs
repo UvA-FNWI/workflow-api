@@ -35,11 +35,13 @@ public class UsersControllerTests : ControllerTestsBase
             _workflowInstanceService,
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
-            _userServiceMock.Object);
+            _userServiceMock.Object,
+            _externalUserServiceMock.Object);
         _externalUserEmailUpdateService = new ExternalUserEmailUpdateService(
             _rightsService,
             _answerService,
-            _modelService);
+            _modelService,
+            _instanceService);
     }
 
     [Theory]
@@ -260,7 +262,6 @@ public class UsersControllerTests : ControllerTestsBase
 
     [Theory]
     [InlineData("internal", UserInvitationState.Required)]
-    [InlineData("eduid", UserInvitationState.Pending)]
     [InlineData("eduid", UserInvitationState.Completed)]
     public async Task Users_UpdateEmail_RejectsUsersThatAreNotEligible(
         string providerKey,

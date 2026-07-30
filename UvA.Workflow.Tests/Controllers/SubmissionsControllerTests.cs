@@ -53,7 +53,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
             _workflowInstanceService,
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
-            _userServiceMock.Object);
+            _userServiceMock.Object,
+            _externalUserServiceMock.Object);
         _dummyAnswerGenerator = new DummyAnswerGenerator();
     }
 
