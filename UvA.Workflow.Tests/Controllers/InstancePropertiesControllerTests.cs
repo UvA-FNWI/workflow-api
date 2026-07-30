@@ -33,7 +33,8 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
             _workflowInstanceService,
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
-            _userServiceMock.Object);
+            _userServiceMock.Object,
+            _externalUserServiceMock.Object);
 
         _workflowInstanceRepoMock
             .Setup(r => r.UpdateFields(It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(),
@@ -75,7 +76,8 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
             _answerConversionService,
             _answerService,
             _modelService,
-            null!);
+            null!,
+            _eduIdUserServiceMock.Object);
 
         return (controller, instance);
     }

@@ -204,7 +204,7 @@ public class WorkflowInstanceService(
 
         await journalService.LogPropertyChange(
             instance.Id,
-            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
+            PropertyChangeEntry.Create(property, oldValue, user),
             ct);
     }
 
@@ -237,7 +237,7 @@ public class WorkflowInstanceService(
 
         await journalService.LogPropertyChange(
             instance.Id,
-            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
+            PropertyChangeEntry.Create(property, oldValue, user),
             ct);
     }
 
@@ -281,7 +281,7 @@ public class WorkflowInstanceService(
 
             await journalService.LogPropertyChange(
                 instance.Id,
-                PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
+                PropertyChangeEntry.Create(property, oldValue, user),
                 ct);
         }
     }

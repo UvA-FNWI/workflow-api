@@ -6,7 +6,6 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
-using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
 
@@ -146,7 +145,7 @@ public class WorkflowInstancesController(
     /// <summary>
     /// Overrides a single property. Always recorded in the instance journal.
     /// </summary>
-    [HttpPost("{id}/properties/{path}")]
+    [HttpPut("{id}/properties/{path}")]
     public async Task<ActionResult> SaveProperty(string id, string path,
         [FromBody] SaveInstancePropertyRequest input, CancellationToken ct)
     {
