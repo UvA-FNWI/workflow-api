@@ -26,7 +26,8 @@ public record WorkflowInstanceDto(
     bool CanUseAdminTools,
     bool CanImpersonate,
     string[] ViewerRoles,
-    RelatedUserGroupsDto RelatedUserGroups
+    RelatedUserGroupsDto RelatedUserGroups,
+    ResourceDto[] Resources
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value);
@@ -124,17 +125,56 @@ public record InstanceEventDto(
     }
 }
 
-public record RelatedUserDto(
+public record RelatedUserRolesDto(
+    string Role,
     BilingualString Title,
-    UserDto? User
+    UserDto[] Users,
+    bool AllowsExternalUsers,
+    bool AllowsAssignment,
+    bool AllowsMultipleUsers,
+    bool CanEdit
 );
 
 public record RelatedUserGroupDto(
     string Name,
     BilingualString Title,
-    RelatedUserDto[] Users
+    RelatedUserRolesDto[] UserRoles
 );
 
 public record RelatedUserGroupsDto(
     RelatedUserGroupDto[] Groups
 );
+
+public record ResourceItemDto(
+    string Name,
+    ResourceType Type,
+    BilingualString Text,
+    BilingualString? Url
+)
+{
+    public static ResourceItemDto Create(ResourceItem item, ObjectContext context) =>
+        new(item.Name, item.Type, item.Text, item.UrlTemplate?.Apply(context));
+}
+
+public record ResourceDto(
+    string Name,
+    BilingualString Title,
+    ResourceLayout Type,
+    ResourceItemDto[]? Items,
+    BilingualString? Content
+)
+{
+    public static ResourceDto? TryCreate(Resource resource, IEnumerable<string> userRoles, ObjectContext context)
+    {
+        if (resource.Sources is { Length: > 0 } && !resource.Sources.Intersect(userRoles).Any())
+            return null;
+
+        return new ResourceDto(
+            resource.Name,
+            resource.Title,
+            resource.Type,
+            resource.Items?.Select(i => ResourceItemDto.Create(i, context)).ToArray(),
+            resource.Content
+        );
+    }
+}

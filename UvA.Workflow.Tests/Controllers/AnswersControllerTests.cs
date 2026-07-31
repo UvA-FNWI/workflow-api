@@ -34,7 +34,7 @@ public class AnswersControllerTests : ControllerTestsBase
     {
         _artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _workflowInstanceRepoMock.Object,
-            _instanceJournalServiceMock.Object, _eventRepoMock.Object);
+            _instanceJournalServiceMock.Object, _userServiceMock.Object);
         _submissionDtoFactory =
             new SubmissionDtoFactory(_artifactTokenService, _modelService);
         _workflowInstanceDtoFactory =
@@ -61,7 +61,8 @@ public class AnswersControllerTests : ControllerTestsBase
             _workflowInstanceService,
             _instanceEventService.Object,
             _instanceJournalServiceMock.Object,
-            _userServiceMock.Object);
+            _userServiceMock.Object,
+            _externalUserServiceMock.Object);
     }
 
     [Fact]
@@ -268,9 +269,7 @@ public class AnswersControllerTests : ControllerTestsBase
         var controller =
             new AnswersController(
                 _answerService,
-                _answerConversionService,
                 _rightsService,
-                _externalUserServiceMock.Object,
                 _artifactTokenService,
                 _submissionDtoFactory,
                 _instanceService,

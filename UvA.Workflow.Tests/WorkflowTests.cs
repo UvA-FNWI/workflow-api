@@ -36,6 +36,7 @@ public class WorkflowTests
     readonly Mock<IUserRepository> _userRepoMock;
     readonly Mock<IOrganizationService> _organizationServiceMock;
     readonly Mock<IConfiguration> _configurationMock;
+    protected readonly Mock<IExternalUserService> _externalUserServiceMock;
 
 
     readonly ModelService _modelService;
@@ -76,6 +77,7 @@ public class WorkflowTests
         _userRepoMock = new Mock<IUserRepository>();
         _organizationServiceMock = new Mock<IOrganizationService>();
         _jobRepositoryMock = new Mock<IJobRepository>();
+        _externalUserServiceMock = new Mock<IExternalUserService>();
 
         // Services
         var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
@@ -86,7 +88,7 @@ public class WorkflowTests
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
-            _instanceJournalServiceMock.Object, _eventRepoMock.Object);
+            _instanceJournalServiceMock.Object, _userServiceMock.Object);
         _assessmentService = new AssessmentService(_modelService, _workflowInstanceService, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
@@ -117,7 +119,8 @@ public class WorkflowTests
             _userRepoMock.Object);
         _answerService = new AnswerService(_modelService, _instanceService, _rightsService,
             _artifactServiceMock.Object, _answerConversionService, _workflowInstanceService,
-            _instanceEventService.Object, _instanceJournalServiceMock.Object, _userServiceMock.Object);
+            _instanceEventService.Object, _instanceJournalServiceMock.Object, _userServiceMock.Object,
+            _externalUserServiceMock.Object);
     }
 
     [Fact]

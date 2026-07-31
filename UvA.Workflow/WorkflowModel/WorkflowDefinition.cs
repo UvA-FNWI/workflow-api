@@ -80,6 +80,11 @@ public class WorkflowDefinition : INamed
     public RelatedUserGrouping? RelatedUserGrouping { get; set; }
 
     /// <summary>
+    /// List of resources for this entity type
+    /// </summary>
+    public Resource[] Resources { get; set; } = [];
+
+    /// <summary>
     /// Indicated whether this entity type is stored as an embedded document in the parent instance
     /// </summary>
     public bool IsEmbedded { get; set; }

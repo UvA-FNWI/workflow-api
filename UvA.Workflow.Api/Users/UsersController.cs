@@ -145,7 +145,7 @@ public class UsersController(
             user.UserName = email;
 
         await userRepository.Update(user, ct);
-        await externalUserEmailUpdateService.UpdateAnswerReferences(updatePlan, user, ct);
+        await externalUserEmailUpdateService.UpdateAnswerReferences(updatePlan, user, instance, ct);
 
         return Ok(UserDto.Create(user));
     }
