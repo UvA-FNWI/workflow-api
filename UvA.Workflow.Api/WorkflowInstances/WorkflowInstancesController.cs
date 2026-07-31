@@ -145,7 +145,7 @@ public class WorkflowInstancesController(
     /// <summary>
     /// Overrides a single property. Always recorded in the instance journal.
     /// </summary>
-    [HttpPut("{id}/properties/{path}")]
+    [HttpPost("{id}/properties/{path}")]
     public async Task<ActionResult> SaveProperty(string id, string path,
         [FromBody] SaveInstancePropertyRequest input, CancellationToken ct)
     {
@@ -320,58 +320,9 @@ public class WorkflowInstancesController(
     }
 
 
-    [HttpPost("{id}/properties/{property}")]
-    public async Task<ActionResult<UpdateInstancePropertyResponse>> AddPropertyItem(string id, string property,
-        [FromBody] UpdateInstancePropertyRequest input, CancellationToken ct)
-    {
-        var currentUser = await userService.GetCurrentUser(ct);
-        if (currentUser == null)
-            return Unauthorized();
-
-        var instance = await repository.GetById(id, ct);
-        if (instance == null)
-            return WorkflowInstanceNotFound;
-
-        if (!await rightsService.CanEditProperty(instance, property))
-            return Forbidden();
-
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
-        if (propertyDefinition == null)
-            return BadRequest($"Property '{property}' does not exist");
-
-        var externalUserInput = input.ExternalUser is { } eu
-            ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
-            : null;
-
-        try
-        {
-            var (value, createdUser) = await answerService.ValidateAndResolveValue(
-                propertyDefinition, input.Value, externalUserInput, ct);
-
-            await workflowInstanceService.UpdateProperty(id, property, value, answerConversionService, ct);
-
-            if (createdUser != null)
-            {
-                await eduIdUserService.EnsureExternalAccount(
-                    createdUser.Email,
-                    createdUser.DisplayName,
-                    EduIdInviteDeliveryMode.SendEmail,
-                    ct);
-            }
-
-            return Ok();
-        }
-        catch (ExternalUserCreationException ex)
-        {
-            return MapExternalUserCreationError(ex); // now on ApiControllerBase
-        }
-    }
-
-    [HttpDelete("{id}/properties/{property}")]
-    [HttpDelete("{id}/properties/{property}/{itemId}")]
-    public async Task<ActionResult> RemovePropertyItem(string id, string property, CancellationToken ct,
-        string? itemId = null)
+    [HttpPost("{id}/related-users/{property}")]
+    public async Task<ActionResult> AssignRelatedUser(string id, string property,
+        [FromBody] AssignRelatedUserRequest input, CancellationToken ct)
     {
         if (await userService.GetCurrentUser(ct) == null)
             return Unauthorized();
@@ -383,20 +334,92 @@ public class WorkflowInstancesController(
         if (!await rightsService.CanEditProperty(instance, property))
             return Forbidden();
 
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
+        var propertyDefinition = GetRelatedUserProperty(instance, property);
         if (propertyDefinition == null)
-            return BadRequest("InvalidProperty", $"Property '{property}' does not exist");
+            return BadRequest("InvalidRelatedUser", $"Related user '{property}' does not exist");
 
-        if (propertyDefinition.IsArray && !string.IsNullOrEmpty(itemId))
+        var externalUserInput = input.ExternalUser is { } eu
+            ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
+            : null;
+
+        try
         {
-            await workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, property, itemId, ct);
+            var (value, createdUser) = await answerService.ValidateAndResolveValue(
+                propertyDefinition, input.User, externalUserInput, ct);
+
+            var newValue = await answerConversionService.ConvertToValue(value, propertyDefinition, ct);
+            var pathParts = property.Split('.');
+            if (propertyDefinition.IsArray)
+                await workflowInstanceService.AppendPropertyValue(instance, pathParts, newValue, ct);
+            else
+                await answerService.SavePropertyValue(instance, pathParts, propertyDefinition, newValue,
+                    shouldLog: true, ct);
+
+            if (createdUser != null)
+            {
+                await eduIdUserService.EnsureExternalAccount(
+                    createdUser.Email,
+                    createdUser.DisplayName,
+                    EduIdInviteDeliveryMode.SendEmail,
+                    ct);
+            }
+
+            return NoContent();
+        }
+        catch (ExternalUserCreationException ex)
+        {
+            return MapExternalUserCreationError(ex);
+        }
+    }
+
+    [HttpDelete("{id}/related-users/{property}/{userId}")]
+    public async Task<ActionResult> RemoveRelatedUser(string id, string property, string userId, CancellationToken ct)
+    {
+        if (await userService.GetCurrentUser(ct) == null)
+            return Unauthorized();
+
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.CanEditProperty(instance, property))
+            return Forbidden();
+
+        var propertyDefinition = GetRelatedUserProperty(instance, property);
+        if (propertyDefinition == null)
+            return BadRequest("InvalidRelatedUser", $"Related user '{property}' does not exist");
+
+        var pathParts = property.Split('.');
+        var currentValue = instance.GetProperty(pathParts);
+
+        bool IsRequestedUser(BsonValue? value) =>
+            value is BsonDocument user && user.GetValue("_id", BsonNull.Value).ToString() == userId;
+
+        BsonValue newValue;
+        if (propertyDefinition.IsArray)
+        {
+            if (currentValue is not BsonArray users || users.All(user => !IsRequestedUser(user)))
+                return NoContent();
+
+            var remaining = new BsonArray(users.Where(user => !IsRequestedUser(user)));
+            newValue = remaining.Count == 0 ? BsonNull.Value : remaining;
         }
         else
         {
-            await workflowInstanceService.RemoveProperty(instance.Id, property, ct);
+            if (!IsRequestedUser(currentValue))
+                return NoContent();
+
+            newValue = BsonNull.Value;
         }
 
-        return Ok();
+        await answerService.SavePropertyValue(instance, pathParts, propertyDefinition, newValue, shouldLog: true, ct);
+        return NoContent();
     }
+
+    private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)
+        => modelService.WorkflowDefinitions[instance.WorkflowDefinition].RelatedUsers
+                .FirstOrDefault(relatedUser => relatedUser.Property == property)?.PropertyDefinition
+            is { DataType: DataType.User } definition
+            ? definition
+            : null;
 }

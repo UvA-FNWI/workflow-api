@@ -3,9 +3,6 @@ using UvA.Workflow.Api.Users.Dtos;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
-public record UpdateInstancePropertyRequest(
-    JsonElement? Value,
+public record AssignRelatedUserRequest(
+    JsonElement? User,
     CreateExternalUserDto? ExternalUser = null);
-
-public record UpdateInstancePropertyResponse(
-    UserSearchResultDto? User = null);

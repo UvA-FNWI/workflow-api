@@ -49,9 +49,9 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
     }
 
     private (WorkflowInstancesController Controller, WorkflowInstance Instance) Build(
-        string role, string? impersonatedRole = null)
+        string role, string? impersonatedRole = null, WorkflowInstance? instance = null)
     {
-        var instance = new WorkflowInstanceBuilder()
+        instance ??= new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Title", b => b.Value("My Thesis")))
             .Build();
@@ -212,5 +212,55 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         await controller.SaveProperty(instance.Id, "Title", Value("My Thesis"), _ct);
 
         Assert.Empty(_loggedChanges);
+    }
+
+    [Fact]
+    public async Task AssignRelatedUser_UsesTheRelatedUserProperty()
+    {
+        var user = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "reader",
+            DisplayName = "Reader",
+            Email = "reader@example.com"
+        };
+        _userServiceMock.Setup(service => service.GetUser(user.UserName, _ct)).ReturnsAsync(user);
+        var (controller, instance) = Build("Student");
+        var input = new AssignRelatedUserRequest(JsonSerializer.SerializeToElement(new
+        {
+            user.UserName,
+            user.DisplayName,
+            user.Email
+        }));
+
+        var result = await controller.AssignRelatedUser(instance.Id, "SecondReader", input, _ct);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Equal(user.Id, instance.GetProperty("SecondReader")?.AsBsonDocument["_id"].ToString());
+        Assert.Equal("SecondReader", Assert.Single(_loggedChanges).Path);
+    }
+
+    [Fact]
+    public async Task RemoveRelatedUser_RemovesOnlyTheRequestedUser()
+    {
+        var keepId = ObjectId.GenerateNewId();
+        var removeId = ObjectId.GenerateNewId();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("PracticalSupervisor", _ => new BsonArray
+            {
+                new BsonDocument("_id", keepId),
+                new BsonDocument("_id", removeId)
+            }))
+            .Build();
+        var (controller, _) = Build("Student", instance: instance);
+
+        var result = await controller.RemoveRelatedUser(
+            instance.Id, "PracticalSupervisor", removeId.ToString(), _ct);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Equal(keepId, Assert.Single(instance.GetProperty("PracticalSupervisor")!.AsBsonArray)
+            .AsBsonDocument["_id"].AsObjectId);
+        Assert.Equal("PracticalSupervisor", Assert.Single(_loggedChanges).Path);
     }
 }
