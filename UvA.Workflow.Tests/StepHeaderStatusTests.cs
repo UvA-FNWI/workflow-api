@@ -330,7 +330,8 @@ public class StepHeaderStatusTests
         var workflowInstanceService = new WorkflowInstanceService(
             modelService,
             repository.Object,
-            Mock.Of<IInstanceJournalService>()
+            Mock.Of<IInstanceJournalService>(),
+            userService.Object
         );
 
         return new WorkflowInstanceDtoFactory(
