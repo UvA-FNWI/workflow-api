@@ -143,10 +143,11 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var versions = stepVersionsMap.GetValueOrDefault(step.Name);
 
-        if (versions is { Count: > 0 } && step.HasEnded(context))
-            versions.RemoveAt(versions.Count - 1);
+        // The newest version is the step's live state, already rendered as the current submission.
+        var versions = stepVersionsMap.GetValueOrDefault(step.Name)
+            ?.OrderByDescending(version => version.SubmittedAt)
+            .Skip(step.HasEnded(context) ? 1 : 0);
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children

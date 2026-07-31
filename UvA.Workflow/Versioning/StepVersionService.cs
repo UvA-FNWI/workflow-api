@@ -1,5 +1,4 @@
 using UvA.Workflow.Events;
-using UvA.Workflow.Infrastructure;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -14,34 +13,14 @@ public record StepVersion
 
 public interface IStepVersionService
 {
-    Task<List<StepVersion>> GetStepVersions(WorkflowInstance instance, string stepName, CancellationToken ct);
-
     List<StepVersion> GetStepVersions(
         WorkflowInstance instance,
         Step step,
         IEnumerable<InstanceEventLogEntry> eventLogs);
 }
 
-public class StepVersionService(
-    ModelService modelService,
-    IInstanceEventRepository eventRepository) : IStepVersionService
+public class StepVersionService : IStepVersionService
 {
-    public async Task<List<StepVersion>> GetStepVersions(
-        WorkflowInstance instance,
-        string stepName,
-        CancellationToken ct)
-    {
-        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var step = ResolveTargetStep(workflowDef, stepName);
-        var allChildEvents = DetermineEventSets(step).AllEvents;
-
-        // Get all event log entries for ALL child events, ordered by timestamp
-        var eventLogs = await eventRepository.GetEventLogEntriesForInstance(
-            instance.Id, allChildEvents, ct);
-
-        return GetStepVersions(instance, step, eventLogs);
-    }
-
     public List<StepVersion> GetStepVersions(
         WorkflowInstance instance,
         Step step,
@@ -58,20 +37,6 @@ public class StepVersionService(
             .ToList();
 
         return BuildVersions(step, submissionEvents, completionCondition);
-    }
-
-    private static Step ResolveTargetStep(WorkflowDefinition workflowDef, string stepName)
-    {
-        var step = workflowDef.AllSteps.FirstOrDefault(s => s.Name == stepName);
-        if (step == null)
-            throw new EntityNotFoundException("Step", stepName);
-
-        var parentStep = workflowDef.AllSteps.FirstOrDefault(s =>
-            s.Children.Any(c => c.Name == stepName));
-
-        return parentStep is { Children.Length: > 1 }
-            ? parentStep
-            : step;
     }
 
     private static (List<string> AllEvents, Condition? CompletionCondition) DetermineEventSets(Step step)

@@ -323,10 +323,6 @@ public class StepHeaderStatusTests
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService);
         var stepVersionService = new Mock<IStepVersionService>();
-        stepVersionService
-            .Setup(s => s.GetStepVersions(It.IsAny<WorkflowInstance>(), It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
 
         var workflowInstanceService = new WorkflowInstanceService(
             modelService,

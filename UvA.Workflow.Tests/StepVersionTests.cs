@@ -1,5 +1,4 @@
 using MongoDB.Bson;
-using Moq;
 using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Versioning;
@@ -288,7 +287,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task ParentStepVersioning_CurrentCycleWithoutLastChildCompletionIsNotReturned()
+    public void ParentStepVersioning_CurrentCycleWithoutLastChildCompletionIsNotReturned()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var instance = new WorkflowInstanceBuilder()
@@ -296,18 +295,16 @@ public class StepVersionTests
             .WithCurrentStep("SubjectFeedback")
             .WithEvent("Start", submittedAt)
             .Build();
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", submittedAt)
         ]);
-
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         Assert.Empty(versions);
     }
 
     [Fact]
-    public async Task ParentStepVersioning_LastChildCompletionCreatesVersion()
+    public void ParentStepVersioning_LastChildCompletionCreatesVersion()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var feedbackAt = DateTime.UtcNow.AddMinutes(-5);
@@ -317,13 +314,11 @@ public class StepVersionTests
             .WithEvent("Start", submittedAt)
             .WithEvent("RejectSubject", feedbackAt)
             .Build();
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", submittedAt),
             EventLog(instance, "RejectSubject", feedbackAt)
         ]);
-
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         var version = Assert.Single(versions);
         Assert.Equal(1, version.VersionNumber);
@@ -332,7 +327,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task ParentStepVersioning_FeedbackStaysWithSubmissionAndResubmissionStartsNewVersion()
+    public void ParentStepVersioning_FeedbackStaysWithSubmissionAndResubmissionStartsNewVersion()
     {
         var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-15);
         var feedbackAt = DateTime.UtcNow.AddMinutes(-10);
@@ -343,14 +338,12 @@ public class StepVersionTests
             .WithEvent("Start", secondSubmittedAt)
             .WithEvent("RejectSubject", feedbackAt)
             .Build();
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", firstSubmittedAt),
             EventLog(instance, "RejectSubject", feedbackAt),
             EventLog(instance, "Start", secondSubmittedAt)
         ]);
-
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         var version = Assert.Single(versions);
         Assert.Equal(1, version.VersionNumber);
@@ -359,7 +352,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task ParentStepVersioning_EachLastChildCompletionFinishesOneVersion()
+    public void ParentStepVersioning_EachLastChildCompletionFinishesOneVersion()
     {
         var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
         var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
@@ -369,15 +362,13 @@ public class StepVersionTests
             .WithWorkflowDefinition("Project")
             .WithCurrentStep("Upload")
             .Build();
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", firstSubmittedAt),
             EventLog(instance, "RejectSubject", rejectedAt),
             EventLog(instance, "Start", secondSubmittedAt),
             EventLog(instance, "ApproveSubject", approvedAt)
         ]);
-
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         Assert.Collection(versions,
             first =>
@@ -395,7 +386,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task ParentStepVersioning_CompletedStepIncludesLatestVersion()
+    public void ParentStepVersioning_CompletedStepIncludesLatestVersion()
     {
         var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
         var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
@@ -408,15 +399,13 @@ public class StepVersionTests
             .WithEvent("Start", secondSubmittedAt)
             .WithEvent("ApproveSubject", approvedAt)
             .Build();
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", firstSubmittedAt),
             EventLog(instance, "RejectSubject", rejectedAt),
             EventLog(instance, "Start", secondSubmittedAt),
             EventLog(instance, "ApproveSubject", approvedAt)
         ]);
-
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         Assert.Collection(versions,
             first =>
@@ -434,7 +423,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task ParentStepVersioning_WaitsForCompositeLastChildCompletionCondition()
+    public void ParentStepVersioning_WaitsForCompositeLastChildCompletionCondition()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var approvedAt = DateTime.UtcNow.AddMinutes(-5);
@@ -443,16 +432,9 @@ public class StepVersionTests
             .WithWorkflowDefinition("Project")
             .WithCurrentStep("Start")
             .Build();
-        Step? versionedStep = null;
-        var service = CreateStepVersionService(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "ApproveSubject", approvedAt),
-            EventLog(instance, "RejectSubject", rejectedAt)
-        ], modelService =>
+
+        void ConfigureModel(ModelService modelService)
         {
-            versionedStep = modelService.WorkflowDefinitions["Project"].AllSteps
-                .Single(step => step.Name == "Subject");
             modelService.WorkflowDefinitions["Project"].AllSteps
                 .Single(step => step.Name == "SubjectFeedback").Ends = new Condition
             {
@@ -466,14 +448,19 @@ public class StepVersionTests
                     ]
                 }
             };
-        });
+        }
 
-        var incompleteVersions = service.GetStepVersions(instance, versionedStep!,
+        var incompleteVersions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", submittedAt),
             EventLog(instance, "RejectSubject", rejectedAt)
-        ]);
-        var completeVersions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
+        ], ConfigureModel);
+        var completeVersions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ApproveSubject", approvedAt),
+            EventLog(instance, "RejectSubject", rejectedAt)
+        ], ConfigureModel);
 
         Assert.Empty(incompleteVersions);
         var version = Assert.Single(completeVersions);
@@ -482,20 +469,18 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task RmssProposalVersioning_ParallelLastChildCompletionCreatesVersion()
+    public void RmssProposalVersioning_ParallelLastChildCompletionCreatesVersion()
     {
         var instance = CreateRmssInstance();
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
         var approvedAt = DateTime.UtcNow.AddMinutes(-2);
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", submittedAt),
             EventLog(instance, "ProposalRejectedSupervisor", rejectedAt),
             EventLog(instance, "ProposalApprovedReviewer", approvedAt)
         ]);
-
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         var version = Assert.Single(versions);
         Assert.Equal(1, version.VersionNumber);
@@ -504,35 +489,31 @@ public class StepVersionTests
     }
 
     [Fact]
-    public async Task RmssProposalVersioning_SingleApprovalDoesNotCompleteVersion()
+    public void RmssProposalVersioning_SingleApprovalDoesNotCompleteVersion()
     {
         var instance = CreateRmssInstance();
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var approvedAt = DateTime.UtcNow.AddMinutes(-5);
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", submittedAt),
             EventLog(instance, "ProposalApprovedSupervisor", approvedAt)
         ]);
 
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
-
         Assert.Empty(versions);
     }
 
     [Fact]
-    public async Task RmssProposalVersioning_SingleRejectionDoesNotCompleteVersion()
+    public void RmssProposalVersioning_SingleRejectionDoesNotCompleteVersion()
     {
         var instance = CreateRmssInstance();
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
-        var service = CreateStepVersionService(instance,
+        var versions = GetStepVersions(instance,
         [
             EventLog(instance, "Start", submittedAt),
             EventLog(instance, "ProposalRejectedSupervisor", rejectedAt)
         ]);
-
-        var versions = await service.GetStepVersions(instance, "Start", CancellationToken.None);
 
         Assert.Empty(versions);
     }
@@ -549,7 +530,7 @@ public class StepVersionTests
             .WithCurrentStep("ProposalPhase")
             .Build();
 
-    private static StepVersionService CreateStepVersionService(
+    private static List<StepVersion> GetStepVersions(
         WorkflowInstance instance,
         List<InstanceEventLogEntry> eventLogs,
         Action<ModelService>? configureModel = null)
@@ -557,16 +538,13 @@ public class StepVersionTests
         var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
         var modelService = new ModelService(new ModelParser(modelProvider));
         configureModel?.Invoke(modelService);
-        var repository = new Mock<IInstanceEventRepository>();
-        repository
-            .Setup(r => r.GetEventLogEntriesForInstance(
-                instance.Id,
-                It.IsAny<List<string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string _, List<string> eventIds, CancellationToken _) =>
-                eventLogs.Where(log => eventIds.Contains(log.EventId)).ToList());
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var step = workflowDefinition.AllSteps.Single(step => step.Name == "Start");
+        var parentStep = workflowDefinition.AllSteps.FirstOrDefault(parent =>
+            parent.Children.Any(child => child.Name == step.Name));
+        var versionedStep = parentStep is { Children.Length: > 1 } ? parentStep : step;
 
-        return new StepVersionService(modelService, repository.Object);
+        return new StepVersionService().GetStepVersions(instance, versionedStep, eventLogs);
     }
 
     private static InstanceEventLogEntry EventLog(

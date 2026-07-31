@@ -190,21 +190,9 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         stepVersionService
             .Setup(s => s.GetStepVersions(
                 It.IsAny<WorkflowInstance>(),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-        stepVersionService
-            .Setup(s => s.GetStepVersions(
-                It.IsAny<WorkflowInstance>(),
                 It.IsAny<Step>(),
                 It.IsAny<IEnumerable<InstanceEventLogEntry>>()))
             .Returns([]);
-        stepVersionService
-            .Setup(s => s.GetStepVersions(
-                It.IsAny<WorkflowInstance>(),
-                stepName,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(versions.ToList());
         stepVersionService
             .Setup(s => s.GetStepVersions(
                 It.IsAny<WorkflowInstance>(),
