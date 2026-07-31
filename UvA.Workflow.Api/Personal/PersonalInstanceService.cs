@@ -34,10 +34,10 @@ public class PersonalInstanceService(
         var roles = instanceDtos
             .SelectMany(instance => instance.Roles)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Order(StringComparer.OrdinalIgnoreCase)
-            .Select(role => new PersonalRoleDto(
-                role,
-                modelService.Roles.GetValueOrDefault(role)?.DisplayTitle ?? role))
+            .Select(name => modelService.Roles.GetValueOrDefault(name) ?? new Role { Name = name })
+            .OrderBy(role => role.Order)
+            .ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(role => new PersonalRoleDto(role.Name, role.DisplayTitle))
             .ToArray();
 
         return new PersonalInstancesDto(roles, instanceDtos);

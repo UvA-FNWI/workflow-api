@@ -74,9 +74,9 @@ public class PersonalControllerTests : ControllerTestsBase
         var response = Assert.IsType<PersonalInstancesDto>(ok.Value);
         var rows = response.Instances;
         var projectRow = Assert.Single(rows);
-        Assert.Equal(["Reviewer", "Supervisor"], response.Roles.Select(role => role.Name));
-        Assert.Equal("Beoordelaar", response.Roles[0].Title.Nl);
-        Assert.Equal("Begeleider", response.Roles[1].Title.Nl);
+        Assert.Equal(["Supervisor", "Reviewer"], response.Roles.Select(role => role.Name));
+        Assert.Equal("Begeleider", response.Roles[0].Title.Nl);
+        Assert.Equal("Beoordelaar", response.Roles[1].Title.Nl);
 
         Assert.Equal(project.Id, projectRow.Id);
         Assert.Equal("Project", projectRow.WorkflowDefinition);
@@ -89,7 +89,7 @@ public class PersonalControllerTests : ControllerTestsBase
         Assert.Equal(["Reviewer", "Supervisor"], projectRow.Roles);
         Assert.Equal("Student Name", projectRow.Student);
         Assert.Equal("Software Engineering", projectRow.Course);
-        Assert.Equal(["Current Employee", "Examiner Name"], projectRow.Employees);
+        Assert.Equal(["Examiner Name"], projectRow.Employees);
 
         _workflowInstanceRepoMock.Verify(repository => repository.GetByFilter(
             It.IsAny<FilterDefinition<WorkflowInstance>>(),
