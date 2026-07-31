@@ -86,6 +86,7 @@ public class PersonalInstanceService(
         var employees = usersByRole
             .Where(entry => !string.Equals(entry.Key, "Student", StringComparison.OrdinalIgnoreCase))
             .SelectMany(entry => entry.Value)
+            .Where(instanceUser => !string.Equals(instanceUser.Id, user.Id, StringComparison.Ordinal))
             .Select(instanceUser => instanceUser.DisplayName)
             .Where(displayName => !string.IsNullOrWhiteSpace(displayName))
             .Distinct(StringComparer.OrdinalIgnoreCase)
