@@ -2,6 +2,7 @@ using System.Text.Json;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
+using UvA.Workflow.Events;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -25,7 +26,7 @@ public class WorkflowInstanceServiceTests
         _answerConversionService = new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object);
         _workflowInstanceService =
             new WorkflowInstanceService(modelService, _repositoryMock.Object, _journalServiceMock.Object,
-                _userServiceMock.Object);
+                Mock.Of<UvA.Workflow.Events.IInstanceEventRepository>(), _userServiceMock.Object);
         var currentUser = new User
         {
             Id = ObjectId.GenerateNewId().ToString(), UserName = "testuser", DisplayName = "Test User",

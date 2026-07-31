@@ -328,6 +328,7 @@ public class StepHeaderStatusTests
             modelService,
             repository.Object,
             Mock.Of<IInstanceJournalService>(),
+            Mock.Of<IInstanceEventRepository>(),
             userService.Object
         );
 
