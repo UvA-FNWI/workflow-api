@@ -55,8 +55,10 @@ public class WorkflowInstancesControllerImpersonationTests
             repository,
             null!,
             null!,
+            null!,
             modelService,
-            impersonationService
+            impersonationService,
+            null!
         );
 
         controller.ControllerContext = new ControllerContext
