@@ -21,28 +21,6 @@ fields:
   - currentStep: true
   - property: TurnitinId
 
-events:
-  - name: Start
-    suppresses:
-      - ProposalApprovedSupervisor
-      - ProposalRejectedSupervisor
-      - ProposalApprovedReviewer
-      - ProposalRejectedReviewer
-      - ProposalReturnedForRevision
-
-  - name: ProposalRejectedSupervisor
-    suppresses: [ProposalApprovedSupervisor]
-  - name: ProposalApprovedSupervisor
-    suppresses: [ProposalRejectedSupervisor]
-
-  - name: ProposalRejectedReviewer
-    suppresses: [ProposalApprovedReviewer]
-  - name: ProposalApprovedReviewer
-    suppresses: [ProposalRejectedReviewer]
-
-  - name: ProposalReturnedForRevision
-    suppresses: [Start]
-
 steps:
   - ProposalPhase
   - Finish
