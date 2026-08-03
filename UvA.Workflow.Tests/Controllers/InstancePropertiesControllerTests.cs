@@ -139,6 +139,17 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task SaveProperty_AllowsPropertyEditor()
+    {
+        var (controller, instance) = Build("Coordinator");
+
+        var result = await controller.SaveProperty(instance.Id, "Title", Value("Corrected title"), _ct);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Equal("Corrected title", instance.GetProperty("Title")?.AsString);
+    }
+
+    [Fact]
     public async Task PropertyRoutes_UseRealAdminRoleWhileImpersonating()
     {
         var (controller, instance) = Build("SystemAdmin", "Student");

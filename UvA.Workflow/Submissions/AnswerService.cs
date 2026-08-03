@@ -45,7 +45,7 @@ public class AnswerService(
             await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
 
         // Get the propertyDefinition
-        var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
+        var question = modelService.GetProperty(instance, form.PropertyName, questionName);
         if (question == null)
             throw new EntityNotFoundException("PropertyDefinition", questionName);
 

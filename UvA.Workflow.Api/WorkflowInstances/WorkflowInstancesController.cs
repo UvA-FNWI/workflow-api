@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using System.Text.Json;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
@@ -108,38 +107,7 @@ public class WorkflowInstancesController(
             .Select(p => QuestionDto.Create(p, context, totalWeight: 0))
             .ToArray();
 
-        return Ok(new InstancePropertiesDto(properties, GetPropertyValues(instance, definition)));
-    }
-
-    private static Dictionary<string, JsonElement?> GetPropertyValues(WorkflowInstance instance,
-        WorkflowDefinition definition)
-    {
-        var values = new Dictionary<string, JsonElement?>();
-        Collect(definition.Properties, []);
-        return values;
-
-        void Collect(IEnumerable<PropertyDefinition> properties, string[] prefix)
-        {
-            foreach (var property in properties)
-            {
-                string[] parts = [.. prefix, property.Name];
-                if (property is { DataType: DataType.Object, IsArray: false, WorkflowDefinition: not null })
-                {
-                    Collect(property.WorkflowDefinition.Properties, parts);
-                    continue;
-                }
-
-                var path = string.Join('.', parts);
-                try
-                {
-                    values[path] = Answer.GetValue(property, instance.GetProperty(parts));
-                }
-                catch
-                {
-                    values[path] = null;
-                }
-            }
-        }
+        return Ok(new InstancePropertiesDto(properties, instanceService.GetPropertyValues(instance)));
     }
 
     /// <summary>
@@ -153,17 +121,17 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        if (!await rightsService.Can(instance, [RoleAction.ViewAdminTools], RightsEvaluationMode.RealUser))
-            return Forbidden();
-
         var parts = path.Split('.');
         if (parts.Length > 2)
             return BadRequest("PropertyPathTooDeep",
                 $"Cannot edit '{path}': only properties nested at most one level deep can be saved.");
 
-        var property = modelService.GetQuestion(instance, parts);
+        var property = modelService.GetProperty(instance, parts);
         if (property == null)
             return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
+
+        if (!await rightsService.CanEditProperty(instance, path))
+            return Forbidden();
 
         var newValue = await answerConversionService.ConvertToValue(input.Value, property, ct);
 
