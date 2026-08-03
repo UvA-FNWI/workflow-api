@@ -1,9 +1,15 @@
+using System.Collections;
+using System.Linq.Expressions;
+
 namespace UvA.Workflow.WorkflowModel;
 
 public partial class ModelParser
 {
     // Explicit empty lists clear; omitted lists inherit or merge.
-    private static bool Cleared(IDeclaredKeys target, string key, int count) => target.Declared(key) && count == 0;
+    private static bool Cleared<T, TCollection>(T target, Expression<Func<T, TCollection>> property)
+        where T : IDeclaredKeys
+        where TCollection : ICollection =>
+        target.Declared(property) && property.Compile()(target).Count == 0;
 
     private void ApplyInheritance(WorkflowDefinition target, WorkflowDefinition source)
     {
@@ -20,7 +26,7 @@ public partial class ModelParser
                 target.Forms.Add(sourceForm.Clone());
         }
 
-        if (!Cleared(target, "properties", target.Properties.Count))
+        if (!Cleared(target, d => d.Properties))
         {
             var stepProperties = target.AllSteps.SelectMany(s => s.Properties).Select(s => s.Name).ToHashSet();
             foreach (var property in source.Properties.Where(p =>
@@ -44,14 +50,14 @@ public partial class ModelParser
         }
 
         // Reset-parent processing mutates event definitions, so inherited events cannot be shared.
-        if (!Cleared(target, "events", target.Events.Count))
+        if (!Cleared(target, d => d.Events))
             foreach (var ev in source.Events.Where(e => !target.Events.Contains(e.Name)))
                 target.Events.Add(ev.Clone());
 
         foreach (var screen in source.Screens.Where(s => !target.Screens.Contains(s.Name)))
             target.Screens.Add(screen);
 
-        if (!Cleared(target, "globalActions", target.GlobalActions.Count))
+        if (!Cleared(target, d => d.GlobalActions))
             target.GlobalActions = MergeActions(target.GlobalActions, source.GlobalActions);
 
         // Global and overridden-step actions are registered from the merged definition.
@@ -68,32 +74,35 @@ public partial class ModelParser
             role.Actions.Add(newAction);
         }
 
-        if (!target.Declared("steps")) target.StepNames = source.StepNames;
-        if (!target.Declared("title")) target.Title = source.Title;
-        if (!target.Declared("titlePlural")) target.TitlePlural = source.TitlePlural;
-        if (!target.Declared("instanceTitle")) target.InstanceTitle = source.InstanceTitle;
-        if (!target.Declared("isEmbedded")) target.IsEmbedded = source.IsEmbedded;
-        if (!target.Declared("isAlwaysVisible")) target.IsAlwaysVisible = source.IsAlwaysVisible;
-        if (!target.Declared("assessments")) target.AssessmentConfiguration = source.AssessmentConfiguration;
+        if (!target.Declared(d => d.StepNames)) target.StepNames = source.StepNames;
+        if (!target.Declared(d => d.Title)) target.Title = source.Title;
+        if (!target.Declared(d => d.TitlePlural)) target.TitlePlural = source.TitlePlural;
+        if (!target.Declared(d => d.InstanceTitle)) target.InstanceTitle = source.InstanceTitle;
+        if (!target.Declared(d => d.IsEmbedded)) target.IsEmbedded = source.IsEmbedded;
+        if (!target.Declared(d => d.IsAlwaysVisible)) target.IsAlwaysVisible = source.IsAlwaysVisible;
+        if (!target.Declared(d => d.AssessmentConfiguration))
+            target.AssessmentConfiguration = source.AssessmentConfiguration;
 
-        if (!Cleared(target, "fields", target.Fields.Length))
+        if (!Cleared(target, d => d.Fields))
         {
             var targetProperties = target.Fields.Select(f => f.Property).ToHashSet();
             target.Fields = source.Fields.Where(f => !targetProperties.Contains(f.Property))
                 .Concat(target.Fields).ToArray();
         }
 
-        if (!Cleared(target, "relatedUsers", target.RelatedUsers.Length))
+        if (!Cleared(target, d => d.RelatedUsers))
             target.RelatedUsers = source.RelatedUsers
                 .Where(sourceRelatedUser => target.RelatedUsers.All(targetRelatedUser =>
                     targetRelatedUser.Property != sourceRelatedUser.Property))
                 .Concat(target.RelatedUsers)
                 .ToArray();
 
-        if (!Cleared(target, "relatedUserGrouping", target.RelatedUserGrouping?.Groups.Length ?? 0))
+        var groupingCleared = target.Declared(d => d.RelatedUserGrouping)
+                              && (target.RelatedUserGrouping == null || target.RelatedUserGrouping.Groups.Length == 0);
+        if (!groupingCleared)
             target.RelatedUserGrouping =
                 MergeRelatedUserGrouping(target.RelatedUserGrouping, source.RelatedUserGrouping);
-        if (!Cleared(target, "resources", target.Resources.Length))
+        if (!Cleared(target, d => d.Resources))
             target.Resources = MergeResources(target.Resources, source.Resources);
     }
 
@@ -156,7 +165,7 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
-        if (Cleared(target, "pages", target.Pages.Count))
+        if (Cleared(target, f => f.Pages))
             return;
         foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
             target.Pages.Insert(0, sourcePage.Clone());
@@ -164,22 +173,22 @@ public partial class ModelParser
 
     private void ApplyInheritance(Step target, Step source)
     {
-        if (!target.Declared("title")) target.Title = source.Title;
-        if (!target.Declared("progress")) target.Progress = source.Progress;
-        if (!target.Declared("icon")) target.Icon = source.Icon;
-        if (!target.Declared("headerStatus")) target.HeaderStatus = source.HeaderStatus;
-        if (!target.Declared("condition")) target.Condition = source.Condition;
-        if (!target.Declared("ends")) target.Ends = source.Ends;
-        if (!target.Declared("hierarchyMode")) target.HierarchyMode = source.HierarchyMode;
-        if (!target.Declared("resultsType")) target.ResultsType = source.ResultsType;
-        if (!target.Declared("children")) target.ChildNames = source.ChildNames;
+        if (!target.Declared(s => s.Title)) target.Title = source.Title;
+        if (!target.Declared(s => s.Progress)) target.Progress = source.Progress;
+        if (!target.Declared(s => s.Icon)) target.Icon = source.Icon;
+        if (!target.Declared(s => s.HeaderStatus)) target.HeaderStatus = source.HeaderStatus;
+        if (!target.Declared(s => s.Condition)) target.Condition = source.Condition;
+        if (!target.Declared(s => s.Ends)) target.Ends = source.Ends;
+        if (!target.Declared(s => s.HierarchyMode)) target.HierarchyMode = source.HierarchyMode;
+        if (!target.Declared(s => s.ResultsType)) target.ResultsType = source.ResultsType;
+        if (!target.Declared(s => s.ChildNames)) target.ChildNames = source.ChildNames;
 
         // Reset-parent processing mutates event definitions, so inherited events cannot be shared.
-        if (!Cleared(target, "events", target.Events.Count))
+        if (!Cleared(target, s => s.Events))
             foreach (var ev in source.Events.Where(e => !target.Events.Contains(e.Name)))
                 target.Events.Add(ev.Clone());
 
-        if (!Cleared(target, "actions", target.Actions.Count))
+        if (!Cleared(target, s => s.Actions))
             target.Actions = MergeActions(target.Actions, source.Actions);
     }
 
