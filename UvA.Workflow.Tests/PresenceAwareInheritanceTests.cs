@@ -48,7 +48,7 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
-    public void StepActions_RespectPresenceAndKeepAuthorizationInSync()
+    public void StepActions_MergeUnlessClearedAndKeepAuthorizationInSync()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
@@ -58,9 +58,9 @@ public class PresenceAwareInheritanceTests
                 "name: Approval\ntitle: Approval\nactions:\n  - name: Approve\n    type: Execute\n    roles: [Reviewer]",
             ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
             ["Omit/Steps/Approval.yaml"] = "name: Approval\ntitle: Approved?",
-            ["Replace/Entity.yaml"] = "name: Replace\ntitlePlural: Rs\ninheritsFrom: Base",
-            ["Replace/Steps/Approval.yaml"] =
-                "name: Approval\nactions:\n  - name: Reject\n    type: Execute\n    roles: [Reviewer]",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Merge/Steps/Approval.yaml"] =
+                "name: Approval\nactions:\n  - name: Approve\n    label: Child approval\n    type: Execute\n    roles: [Reviewer]\n  - name: Reject\n    type: Execute\n    roles: [Reviewer]",
             ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base",
             ["Clear/Steps/Approval.yaml"] = "name: Approval\nactions: []"
         }));
@@ -70,16 +70,18 @@ public class PresenceAwareInheritanceTests
         Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Approve");
         Assert.Equal(1, reviewer.Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Approve"));
 
-        Assert.DoesNotContain(parser.WorkflowDefinitions["Replace"].AllActions, a => a.Name == "Approve");
-        Assert.DoesNotContain(reviewer.Actions, a => a.WorkflowDefinition == "Replace" && a.Name == "Approve");
-        Assert.Single(parser.WorkflowDefinitions["Replace"].AllActions, a => a.Name == "Reject");
+        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Approve");
+        Assert.Single(reviewer.Actions, a => a.WorkflowDefinition == "Merge" && a.Name == "Approve");
+        Assert.Equal("Child approval",
+            parser.WorkflowDefinitions["Merge"].AllActions.Single(a => a.Name == "Approve").Label!.En);
+        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Reject");
 
         Assert.DoesNotContain(parser.WorkflowDefinitions["Clear"].AllActions, a => a.Name == "Approve");
         Assert.DoesNotContain(reviewer.Actions, a => a.WorkflowDefinition == "Clear" && a.Name == "Approve");
     }
 
     [Fact]
-    public void GlobalActions_RespectPresenceAndRemainDiscoverable()
+    public void GlobalActions_MergeUnlessClearedAndRemainDiscoverable()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
@@ -87,6 +89,8 @@ public class PresenceAwareInheritanceTests
             ["Base/Entity.yaml"] =
                 "name: Base\ntitlePlural: Bases\nglobalActions:\n  - name: Make\n    type: CreateInstance\n    roles: [Registered]",
             ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
+            ["Merge/Entity.yaml"] =
+                "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base\nglobalActions:\n  - name: Remove\n    type: Delete\n    roles: [Registered]",
             ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base\nglobalActions: []"
         }));
 
@@ -94,6 +98,10 @@ public class PresenceAwareInheritanceTests
 
         Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Make");
         Assert.Equal(1, registered.Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Make"));
+
+        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Make");
+        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Remove");
+        Assert.Equal(2, registered.Actions.Count(a => a.WorkflowDefinition == "Merge"));
 
         Assert.DoesNotContain(parser.WorkflowDefinitions["Clear"].AllActions, a => a.Name == "Make");
         Assert.DoesNotContain(registered.Actions, a => a.WorkflowDefinition == "Clear" && a.Name == "Make");

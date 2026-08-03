@@ -51,8 +51,8 @@ public partial class ModelParser
         foreach (var screen in source.Screens.Where(s => !target.Screens.Contains(s.Name)))
             target.Screens.Add(screen);
 
-        if (!target.Declared("globalActions"))
-            target.GlobalActions = source.GlobalActions.Select(a => a.Clone()).ToList();
+        if (!Cleared(target, "globalActions", target.GlobalActions.Count))
+            target.GlobalActions = MergeActions(target.GlobalActions, source.GlobalActions);
 
         // Global and overridden-step actions are registered from the merged definition.
         var sourceGlobals = source.GlobalActions.ToHashSet();
@@ -147,6 +147,13 @@ public partial class ModelParser
         return result.ToArray();
     }
 
+    private static List<Action> MergeActions(List<Action> target, List<Action> source)
+    {
+        var targetNames = target.Select(a => a.Name).Where(n => n != null).ToHashSet();
+        return source.Where(a => a.Name == null || !targetNames.Contains(a.Name))
+            .Select(a => a.Clone()).Concat(target).ToList();
+    }
+
     private void ApplyInheritance(Form target, Form source)
     {
         if (Cleared(target, "pages", target.Pages.Count))
@@ -172,8 +179,8 @@ public partial class ModelParser
             foreach (var ev in source.Events.Where(e => !target.Events.Contains(e.Name)))
                 target.Events.Add(ev.Clone());
 
-        if (!target.Declared("actions"))
-            target.Actions = source.Actions.Select(a => a.Clone()).ToList();
+        if (!Cleared(target, "actions", target.Actions.Count))
+            target.Actions = MergeActions(target.Actions, source.Actions);
     }
 
     private void ApplyInheritance(SendMessage target, SendMessage source)
