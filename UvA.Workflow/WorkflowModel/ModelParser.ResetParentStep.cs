@@ -66,7 +66,9 @@ public partial class ModelParser
                     $"ends of leaf '{leaf.Name}' under target '{p.Name}' in workflow '{def.Name}'"))
                 .Distinct()
                 .ToArray();
-            var nestedResets = resets
+            // Every reset marker in the target subtree, this target's own included. A fired reset keeps
+            // its date, so without an edge retiring it, it reads as active for the rest of the instance.
+            var subtreeResets = resets
                 .Where(r => r.Target != null && subtreeNames.Contains(r.Target.Name))
                 .Select(r => r.Event)
                 .ToArray();
@@ -96,9 +98,9 @@ public partial class ModelParser
                         resetEvent: e.Name, targetStep: p.Name);
 
             foreach (var reset in resetEvents)
-                Accumulate(generated, reset, restartEvents.Concat(nestedResets.Where(n => n != reset)));
+                Accumulate(generated, reset, restartEvents.Concat(subtreeResets.Where(n => n != reset)));
             foreach (var restart in restartEvents)
-                Accumulate(generated, restart, completionEvents.Where(c => c != restart).Concat(nestedResets));
+                Accumulate(generated, restart, completionEvents.Where(c => c != restart).Concat(subtreeResets));
         }
 
         // Union with authored suppresses, drop self-edges, dedupe, order deterministically.
