@@ -53,15 +53,29 @@ public class WorkflowInstance
         }
 
         if (!Properties.TryGetValue(relevantParts[0], out var document) || document.IsBsonNull)
+        {
+            if (value == null)
+                return;
             Properties[relevantParts[0]] = document = new BsonDocument();
-        foreach (var part in parts.Skip(1).Take(parts.Length - 2))
+        }
+
+        foreach (var part in relevantParts[1..^1])
         {
             if (!document.AsBsonDocument.Contains(part))
+            {
+                if (value == null)
+                    return;
                 document.AsBsonDocument.Add(part, new BsonDocument());
+            }
+
             document = document.AsBsonDocument[part];
         }
 
-        document[parts.Last()] = value;
+        // null means unset, same as the single-part branch above
+        if (value == null)
+            document.AsBsonDocument.Remove(relevantParts[^1]);
+        else
+            document[relevantParts[^1]] = value;
     }
 
     /// <summary>

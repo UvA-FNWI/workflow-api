@@ -37,6 +37,29 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
+    public async Task GetAsOfVersion_RevertsNestedValueThatWasUnset()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project-PP", currentStep: "AssessmentSupervisor")
+            .WithProperties(("AssessmentSupervisor", _ => new BsonDocument("ProblemStatement", "8")))
+            .Build();
+        var change = PropertyChangeEntry.Create("AssessmentSupervisor.ProblemStatement", null, new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "testuser"
+        });
+        change.Version = 2;
+
+        _repository.Setup(repository => repository.GetById(instance.Id, _ct)).ReturnsAsync(instance);
+        _journal.Setup(journal => journal.GetInstanceJournal(instance.Id, false, _ct))
+            .ReturnsAsync(new InstanceJournalEntry { InstanceId = instance.Id, PropertyChanges = [change] });
+
+        var result = await _service.GetAsOfVersion(instance.Id, 1, _ct);
+
+        Assert.Null(result.GetProperty("AssessmentSupervisor", "ProblemStatement"));
+    }
+
+    [Fact]
     public async Task AppendPropertyValue_AppendsAndJournals()
     {
         var instance = new WorkflowInstanceBuilder()
