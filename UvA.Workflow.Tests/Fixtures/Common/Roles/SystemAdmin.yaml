@@ -1,4 +1,7 @@
 name: SystemAdmin
+title:
+  en: System administrator
+  nl: Systeembeheerder
 actions:
   - type: ViewAdminTools
   - type: ImpersonateRoles
