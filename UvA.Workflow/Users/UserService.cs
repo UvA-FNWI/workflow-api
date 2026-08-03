@@ -253,11 +253,8 @@ public class UserService(
         if (userPropertyNames.Count == 0) return;
 
         var filter = Builders<WorkflowInstance>.Filter.Or(
-            userPropertyNames.SelectMany(name => new[]
-            {
-                Builders<WorkflowInstance>.Filter.Eq($"Properties.{name}._id", userId),
-                Builders<WorkflowInstance>.Filter.AnyEq($"Properties.{name}._id", userId)
-            }));
+            userPropertyNames.Select(name =>
+                Builders<WorkflowInstance>.Filter.Eq($"Properties.{name}._id", userId)));
 
         var instances = await instanceRepository.GetByFilter(filter, ct);
 
