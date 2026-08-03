@@ -107,18 +107,6 @@ public class InstanceService(
                         workflowDefinition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? stepName;
             }
         }
-
-        // Enrich Picture on embedded instance user snapshots from the live users table
-        var allInstanceUsers = contexts
-            .SelectMany(c => workflowDefinition.Properties
-                .Where(p => p.DataType == DataType.User)
-                .SelectMany(p => c.Get(p.Name) switch
-                {
-                    InstanceUser u => (IEnumerable<InstanceUser>)[u],
-                    InstanceUser[] arr => arr,
-                    _ => []
-                }));
-        await userService.EnrichInstanceUserPictures(allInstanceUsers, ct);
     }
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Users;
 
@@ -19,10 +20,11 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     /// <param name="email">A string containing the email address of the user.</param>
     /// <param name="providerKey">Identifies the source provider for the user.</param>
     /// <param name="organization">An Organization object containing the id and name of the user's organization.</param>
+    /// <param name="picture">A string containing the picture url of the user.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
     public async Task<User> AddOrUpdateUser(string username, string displayName, string email, string providerKey,
-        Organization? organization, CancellationToken ct)
+        Organization? organization, string? picture, CancellationToken ct)
     {
         username = username.ToLower();
         providerKey = UserProviderKeys.Normalize(providerKey);
@@ -39,6 +41,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 UserName = username,
                 DisplayName = displayName,
                 Email = email,
+                Picture = picture,
                 ProviderKey = providerKey,
                 Organization = organization,
                 IsActive = true
@@ -72,7 +75,17 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 user.Organization = organization;
             }
 
-            if (changed) await UserRepository.Update(user, ct);
+            if (picture != null && user.Picture != picture)
+            {
+                changed = true;
+                user.Picture = picture;
+            }
+
+            if (changed)
+            {
+                await UserRepository.Update(user, ct);
+                await OnUserChanged(user, ct);
+            }
         }
 
         memoryCache.Set(cacheKey, user, UserCacheExpiration);
@@ -101,6 +114,8 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     }
 
     protected bool IsCached(string username) => memoryCache.TryGetValue(GetCacheKeyForUser(username), out _);
+
+    protected virtual Task OnUserChanged(User user, CancellationToken ct) => Task.CompletedTask;
 }
 
 public class UserService(
@@ -109,8 +124,10 @@ public class UserService(
     IOrganizationService organizationService,
     IMemoryCache cache,
     IEnumerable<IUserDirectory> userDirectories,
-    IEnumerable<IUserSearchSource> userSearchSources)
-    : UserServiceBase(userRepository, cache), IUserService
+    IEnumerable<IUserSearchSource> userSearchSources,
+    IWorkflowInstanceRepository instanceRepository,
+    ModelService modelService
+) : UserServiceBase(userRepository, cache), IUserService
 {
     private readonly IMemoryCache _cache = cache;
     private readonly IReadOnlyList<IUserDirectory> _userDirectories = userDirectories.ToList();
@@ -215,26 +232,72 @@ public class UserService(
         }
     }
 
-    public async Task UpdatePicture(string username, string? picture, CancellationToken ct = default)
-    {
-        var user = await GetUser(username, ct);
-        if (user == null || user.Picture == picture) return;
+    protected override Task OnUserChanged(User user, CancellationToken ct)
+        => SyncUserInInstances(user, ct);
 
-        user.Picture = picture;
-        await UserRepository.Update(user, ct);
+    /// <summary>
+    /// Finds all instances containing this user in any user-type property and replaces the
+    /// embedded snapshot with a fresh one from the current User state.
+    /// </summary>
+    private async Task SyncUserInInstances(User user, CancellationToken ct)
+    {
+        if (!ObjectId.TryParse(user.Id, out var userId)) return;
+
+        var userPropertyNames = modelService.WorkflowDefinitions.Values
+            .SelectMany(wd => wd.Properties)
+            .Where(p => p.DataType == DataType.User)
+            .Select(p => p.Name)
+            .Distinct()
+            .ToList();
+
+        if (userPropertyNames.Count == 0) return;
+
+        var filter = Builders<WorkflowInstance>.Filter.Or(
+            userPropertyNames.SelectMany(name => new[]
+            {
+                Builders<WorkflowInstance>.Filter.Eq($"Properties.{name}._id", userId),
+                Builders<WorkflowInstance>.Filter.AnyEq($"Properties.{name}._id", userId)
+            }));
+
+        var instances = await instanceRepository.GetByFilter(filter, ct);
+
+        foreach (var instance in instances)
+        {
+            if (SyncUserInInstance(instance, user))
+                await instanceRepository.Update(instance, ct);
+        }
     }
 
-    public async Task EnrichInstanceUserPictures(IEnumerable<InstanceUser> instanceUsers,
-        CancellationToken ct = default)
+    private bool SyncUserInInstance(WorkflowInstance instance, User user)
     {
-        var users = instanceUsers.DistinctBy(u => u.Id).ToList();
-        if (users.Count == 0) return;
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var updatedUser = InstanceUser.FromUser(user);
+        var changed = false;
 
-        var freshUsers = await UserRepository.GetByIds(users.Select(u => u.Id).ToList(), ct);
-        var pictureById = freshUsers.ToDictionary(u => u.Id, u => u.Picture);
+        foreach (var property in workflowDef.Properties.Where(p => p.DataType == DataType.User))
+        {
+            var rawValue = instance.GetProperty(property.Name);
+            if (rawValue == null || rawValue.IsBsonNull) continue;
 
-        foreach (var user in users)
-            if (pictureById.TryGetValue(user.Id, out var picture))
-                user.Picture = picture;
+            if (property.IsArray)
+            {
+                if (ObjectContext.GetValue(rawValue, property) is not InstanceUser[] users ||
+                    users.All(u => u.Id != user.Id)) continue;
+
+                instance.Properties[property.Name] = new BsonArray(
+                    users.Select(u => u.Id == user.Id ? updatedUser.ToBsonDocument() : u.ToBsonDocument()));
+            }
+            else
+            {
+                var instanceUser = ObjectContext.GetValue(rawValue, property) as InstanceUser;
+                if (instanceUser?.Id != user.Id) continue;
+
+                instance.Properties[property.Name] = updatedUser.ToBsonDocument();
+            }
+
+            changed = true;
+        }
+
+        return changed;
     }
 }

@@ -16,9 +16,8 @@ public class CanvasClaimsResolver(
             launchInfo.DisplayName,
             launchInfo.Email,
             UserProviderKeys.Internal,
-            organization);
-
-        await userService.UpdatePicture(launchInfo.UvanetId, launchInfo.Picture);
+            organization,
+            launchInfo.Picture);
 
         var target = await targetResolver.ResolveTarget(user, launchInfo, CancellationToken.None);
 

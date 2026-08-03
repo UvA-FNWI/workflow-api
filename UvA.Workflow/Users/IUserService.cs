@@ -33,10 +33,11 @@ public interface IUserService
     /// <param name="email">A string containing the email address of the user.</param>
     /// <param name="providerKey">Identifies the source provider for the user.</param>
     /// <param name="organization">An Organization object containing the id and name of the user's organization.</param>
+    /// <param name="picture">A string containing the picture url of the user.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
     Task<User> AddOrUpdateUser(string username, string displayName, string email, string providerKey,
-        Organization? organization = null,
+        Organization? organization = null, string? picture = null,
         CancellationToken ct = default);
 
     /// <summary>
@@ -46,17 +47,4 @@ public interface IUserService
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     Task<User?> GetUser(string username, CancellationToken ct);
-
-    /// <summary>
-    /// Updates the profile picture URL for an existing user if it has changed.
-    /// </summary>
-    /// <param name="username">The unique username of the user to update.</param>
-    /// <param name="picture">The new picture URL, or null to clear it.</param>
-    /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
-    Task UpdatePicture(string username, string? picture, CancellationToken ct = default);
-
-    /// <summary>
-    /// Enriches the Picture field on embedded InstanceUser snapshots from the live users table.
-    /// </summary>
-    Task EnrichInstanceUserPictures(IEnumerable<InstanceUser> instanceUsers, CancellationToken ct = default);
 }
