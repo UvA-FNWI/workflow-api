@@ -14,6 +14,7 @@ public class UsersController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     RightsService rightsService,
     IEduIdUserService eduIdUserService,
+    IExternalUserService externalUserService,
     HttpContextCurrentUserAccessor realUserAccessor,
     UserImpersonationTokenService userImpersonationTokenService,
     ExternalUserEmailUpdateService externalUserEmailUpdateService,
@@ -97,8 +98,8 @@ public class UsersController(
         return Ok(UserDto.Create(user));
     }
 
-    [HttpPut("{id}/email")]
-    public async Task<ActionResult<UserDto>> UpdateEmail(
+    [HttpPut("{id}")]
+    public async Task<ActionResult<UserDto>> UpdateExternalUser(
         string id,
         [FromBody] UpdateUserEmailDto dto,
         CancellationToken ct)
@@ -107,15 +108,19 @@ public class UsersController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
+        if (id != dto.ExternalUser.UserId)
+            return Unprocessable("UserIdMismatch",
+                "The user ID in the URL does not match the user ID in the request body");
+
         var user = await userRepository.GetById(id, ct);
         if (user == null)
             return UserNotFound;
 
-        if (!ExternalUserEmailUpdateService.CanUpdateExternalUserEmail(user))
+        if (!UserProviderKeys.IsExternal(user.ProviderKey) || user.InvitationState is UserInvitationState.Completed)
         {
             return Unprocessable(
-                "UserEmailUpdateNotAllowed",
-                "Email address can only be updated for external users that have not started an invitation");
+                "UserUpdateNotAllowed",
+                "User information can only be updated for external users that do not have an active account");
         }
 
         var updatePlan = await externalUserEmailUpdateService.PrepareAnswerReferenceUpdate(instance, user, ct);
@@ -127,27 +132,24 @@ public class UsersController(
                 return Forbidden();
         }
 
-        if (user.Email != dto.Email)
+        try
         {
-            var emailValidationResult = await ValidateEmail(dto.Email, ct);
-            if (emailValidationResult != null)
-                return emailValidationResult;
+            await externalUserService.CreateOrUpdateExternalUser(
+                dto.ExternalUser.DisplayName, dto.ExternalUser.Email,
+                dto.ExternalUser.Organization, dto.ExternalUser.UserId, ct);
+        }
+        catch (ExternalUserCreationException ex)
+        {
+            return MapExternalUserCreationError(ex);
         }
 
-        var previousEmail = user.Email;
-        var email = dto.Email.Trim();
-        var userChanged = !string.Equals(user.Email, email, StringComparison.Ordinal);
-        if (!userChanged)
-            return Ok(UserDto.Create(user));
+        var refreshedUser = await userRepository.GetById(id, ct);
+        if (refreshedUser == null)
+            return UserNotFound;
 
-        user.Email = email;
-        if (string.Equals(user.UserName, previousEmail, StringComparison.OrdinalIgnoreCase))
-            user.UserName = email;
+        await externalUserEmailUpdateService.UpdateAnswerReferences(updatePlan, refreshedUser, instance, ct);
 
-        await userRepository.Update(user, ct);
-        await externalUserEmailUpdateService.UpdateAnswerReferences(updatePlan, user, instance, ct);
-
-        return Ok(UserDto.Create(user));
+        return Ok(UserDto.Create(refreshedUser));
     }
 
     [HttpGet("find")]

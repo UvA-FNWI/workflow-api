@@ -30,27 +30,30 @@ public class EduIdUserService(
         string displayName,
         string email,
         Organization? organization,
+        string? userId,
         CancellationToken ct = default)
     {
         var trimmedEmail = email.Trim();
         if (string.IsNullOrWhiteSpace(trimmedEmail) || !EmailAddressAttribute.IsValid(trimmedEmail))
-        {
             throw new ExternalUserCreationException(
                 ExternalUserCreationFailureReason.InvalidEmailAddress,
                 "Invalid email address");
-        }
 
         if (IsInternalEmailAddress(trimmedEmail))
-        {
             throw new ExternalUserCreationException(
                 ExternalUserCreationFailureReason.InternalEmailAddress,
                 "Internal email address");
-        }
 
         var resolvedDisplayName = string.IsNullOrWhiteSpace(displayName)
             ? trimmedEmail
             : displayName.Trim();
-        var existingUser = await userRepository.GetByEmail(trimmedEmail, ct);
+
+        var existingUser = userId != null ? await userRepository.GetById(userId, ct) : null;
+
+        if (userId != null && existingUser == null)
+            throw new ExternalUserCreationException(
+                ExternalUserCreationFailureReason.InvalidUserId,
+                $"User with id '{userId}' not found.");
 
         if (existingUser == null)
         {
@@ -72,33 +75,45 @@ public class EduIdUserService(
         }
 
         if (!CanUpdateExternalPlaceholder(existingUser))
-        {
             throw new ExternalUserCreationException(
                 ExternalUserCreationFailureReason.UserAlreadyExists,
                 "Email already exists");
-        }
 
+        var wasPending = existingUser.InvitationState == UserInvitationState.Pending;
         var changed = false;
-        if (!string.Equals(existingUser.DisplayName, resolvedDisplayName, StringComparison.Ordinal))
+        var emailChanged = false;
+
+        if (!wasPending)
         {
-            existingUser.DisplayName = resolvedDisplayName;
-            changed = true;
+            if (!string.Equals(existingUser.DisplayName, resolvedDisplayName, StringComparison.Ordinal))
+            {
+                existingUser.DisplayName = resolvedDisplayName;
+                changed = true;
+            }
+
+            if (existingUser.Organization != organization)
+            {
+                existingUser.Organization = organization;
+                changed = true;
+            }
         }
 
         if (!string.Equals(existingUser.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase))
         {
+            if (string.Equals(existingUser.UserName, existingUser.Email, StringComparison.OrdinalIgnoreCase))
+                existingUser.UserName = trimmedEmail;
+
             existingUser.Email = trimmedEmail;
             changed = true;
+            emailChanged = true;
         }
 
-        if (existingUser.Organization != organization)
-        {
-            existingUser.Organization = organization;
-            changed = true;
-        }
 
         if (changed)
             await userRepository.Update(existingUser, ct);
+
+        if (wasPending && emailChanged)
+            await SendInviteAfterEmailUpdate(existingUser, ct);
 
         return CreateSearchResult(existingUser);
     }
@@ -150,6 +165,17 @@ public class EduIdUserService(
         return existingUser.IsActive
             ? new EduIdExternalAccountResult(EduIdExternalAccountStatus.AlreadyActive, existingUser)
             : new EduIdExternalAccountResult(EduIdExternalAccountStatus.PendingInvitation, existingUser);
+    }
+
+    public async Task SendInviteAfterEmailUpdate(
+        User user,
+        CancellationToken ct = default)
+    {
+        if (user.InvitationState != UserInvitationState.Pending)
+            throw new InvalidOperationException(
+                $"SendInviteAfterEmailUpdate requires a Pending user, but user {user.Id} has state {user.InvitationState}.");
+
+        await InviteExternalAccount(user, EduIdInviteDeliveryMode.SendEmail, ct);
     }
 
     public async Task<User?> ResolveAuthenticatedUser(string uid,
