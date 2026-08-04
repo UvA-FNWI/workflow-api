@@ -1,3 +1,7 @@
 name: Examiner
+order: 2
+title:
+  en: Examiner
+  nl: Examinator
 actions:
   - type: View

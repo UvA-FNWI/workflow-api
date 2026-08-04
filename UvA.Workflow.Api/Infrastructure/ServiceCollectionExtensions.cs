@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using UvA.Workflow.Api.Assessments.Dtos;
+using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users;
@@ -41,6 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<StepHeaderStatusResolver>();
         services.AddScoped<WorkflowInstanceDtoFactory>();
 
+        services.AddScoped<PersonalInstanceService>();
         services.AddScoped<ScreenDataService>();
         services.AddScoped<InstanceAuthorizationFilterService>();
         services.AddScoped<RoleImpersonationService>();

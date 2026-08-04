@@ -15,6 +15,11 @@ public class Role : INamed
     public BilingualString? Title { get; set; }
 
     /// <summary>
+    /// Order in which this role should be shown
+    /// </summary>
+    public int Order { get; set; } = int.MaxValue;
+
+    /// <summary>
     /// List of roles to inherit actions from 
     /// </summary>
     public string[] InheritFrom { get; set; } = [];
