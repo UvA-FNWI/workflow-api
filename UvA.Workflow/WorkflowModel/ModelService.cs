@@ -21,12 +21,16 @@ public class ModelService(ModelParser parser)
         => WorkflowDefinitions[instance.WorkflowDefinition].Forms
             .Where(f => f.Name == formName || f.TargetFormName == formName);
 
-    public PropertyDefinition? GetQuestion(WorkflowInstance instance, params string?[] parts)
+    public PropertyDefinition? GetProperty(WorkflowInstance instance, params string?[] parts)
     {
-        var type = WorkflowDefinitions[instance.WorkflowDefinition];
+        WorkflowDefinition? type = WorkflowDefinitions[instance.WorkflowDefinition];
         foreach (var part in parts.Take(parts.Length - 1).Where(p => p != null))
-            type = type.Properties.Get(part!).WorkflowDefinition!;
-        return type.Properties.GetOrDefault(parts[^1]!);
+        {
+            type = type.Properties.GetOrDefault(part!)?.WorkflowDefinition;
+            if (type == null) return null;
+        }
+
+        return parts.Length == 0 || parts[^1] == null ? null : type.Properties.GetOrDefault(parts[^1]!);
     }
 
     public ObjectContext CreateContext(WorkflowInstance instance)
