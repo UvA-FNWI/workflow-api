@@ -32,4 +32,14 @@ public class ConfigFileReaderTests
             original.WorkflowDefinitions.Keys.OrderBy(k => k),
             reparsed.WorkflowDefinitions.Keys.OrderBy(k => k));
     }
+
+    [Fact]
+    public void ReadAll_DoesNotIncludeTheMailLayout_SoCallersMustMergeItBack()
+    {
+        var files = ReadFixtures();
+
+        // The layout is html, and both providers serve only yaml. ModelServiceResolver.ResolveFiles is
+        // responsible for adding it, because POST /Versions/{version} rejects an upload without it.
+        Assert.DoesNotContain("Layouts/default.html", files.Keys);
+    }
 }
