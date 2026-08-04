@@ -10,6 +10,9 @@ public partial class ModelParser
 {
     private readonly IContentProvider _contentProvider;
 
+    /// The source the model was parsed from. Exposed so the API can serve the raw files back for editing.
+    public IContentProvider ContentProvider => _contentProvider;
+
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
