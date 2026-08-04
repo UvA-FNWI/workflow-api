@@ -1,4 +1,7 @@
 name: Api
+title:
+  en: API
+  nl: API
 inheritFrom: [Coordinator]
 actions:
 - type: CreateInstance

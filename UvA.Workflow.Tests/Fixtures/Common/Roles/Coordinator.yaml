@@ -1,3 +1,6 @@
 name: Coordinator
+title:
+  en: Coordinator
+  nl: Coördinator
 actions:
   - type: ViewAdminTools
