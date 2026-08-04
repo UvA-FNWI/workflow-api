@@ -75,6 +75,22 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
+    public void ResolveFiles_ReturnsYamlAndSelectedVersionLayout()
+    {
+        var context = new DefaultHttpContext();
+        var resolver = CreateResolver(new HttpContextAccessor { HttpContext = context });
+        var parser = UnitTestsHelpers.CreateModelParser();
+        resolver.AddOrUpdate("", parser, "baseline layout", kind: VersionKind.Baseline);
+        resolver.AddOrUpdate("feature/x", parser, "branch layout", kind: VersionKind.Branch);
+        context.Request.Headers["Workflow-Version"] = "feature/x";
+
+        var files = resolver.ResolveFiles();
+
+        Assert.Contains("Project/Entity.yaml", files.Keys);
+        Assert.Equal("branch layout", files[WorkflowConfigLoader.LayoutPath]);
+    }
+
+    [Fact]
     public void ApiScope_UsesResolvedModelAndLayoutFromSameVersion()
     {
         var services = new ServiceCollection();
