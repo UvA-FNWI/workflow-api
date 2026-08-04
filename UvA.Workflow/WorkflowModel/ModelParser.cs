@@ -142,7 +142,18 @@ public partial class ModelParser
                 }
 
                 foreach (var prop in step.Properties)
+                {
+                    // The definition's own files are merged first and win every lookup, so a step
+                    // redeclaring one only adds an unreachable copy.
+                    if (definition.Properties.Contains(prop.Name))
+                    {
+                        Log.Warning("Step {Step} of {Definition} redeclares property {Property}, ignoring it",
+                            step.Name, definition.Name, prop.Name);
+                        continue;
+                    }
+
                     definition.Properties.Add(prop);
+                }
             }
         }
 
