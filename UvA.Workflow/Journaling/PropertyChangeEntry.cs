@@ -1,5 +1,4 @@
 using MongoDB.Bson.Serialization.Attributes;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Journaling;
 
@@ -29,13 +28,6 @@ public class PropertyChangeEntry
         OldValue = oldValue;
         ModifiedBy = modifiedBy;
     }
-
-    // Factory for your application code.
-    public static PropertyChangeEntry Create(
-        PropertyDefinition propertyDefinition,
-        BsonValue? oldValue,
-        User modifiedBy)
-        => Create(propertyDefinition.Name, oldValue, modifiedBy);
 
     public static PropertyChangeEntry Create(
         string path,

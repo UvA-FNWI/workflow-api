@@ -11,7 +11,8 @@ public record WorkflowDefinitionDto(
     string? InheritsFrom,
     bool IsEmbedded,
     string[] Screens,
-    bool CanCreateInstance
+    bool CanCreateInstance,
+    bool IsPropertyOnly
 )
 {
     public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition,
@@ -26,7 +27,8 @@ public record WorkflowDefinitionDto(
             workflowDefinition.InheritsFrom,
             workflowDefinition.IsEmbedded,
             workflowDefinition.Screens.Select(s => s.Name).ToArray(),
-            canCreateInstance
+            canCreateInstance,
+            workflowDefinition.Steps.Count == 0
         );
     }
 }

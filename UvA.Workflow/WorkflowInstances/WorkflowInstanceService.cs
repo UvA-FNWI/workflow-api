@@ -1,4 +1,3 @@
-using System.Text.Json;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
@@ -195,134 +194,22 @@ public class WorkflowInstanceService(
             ?.Name;
     }
 
-    /// <summary>
-    /// Updates a single property on a workflow instance, converts the value and saves a new version in the logs.
-    /// </summary>
-    public async Task UpdateProperty(
-        string instanceId,
-        string property,
-        JsonElement? newValue,
-        AnswerConversionService answerConversionService,
+    public async Task AppendPropertyValue(WorkflowInstance instance, string[] pathParts, BsonValue newValue,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
-
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
-        if (propertyDefinition == null)
-            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
-
         var user = await userService.GetCurrentUser(ct);
         if (user == null)
             throw new InvalidOperationException("User not logged in");
 
-        var oldValue = instance.GetProperty(null, property);
+        var oldValue = instance.GetProperty(pathParts);
+        var values = oldValue is BsonArray array ? new BsonArray(array) : new BsonArray();
+        values.Add(newValue);
+        instance.SetProperty(values, pathParts);
 
-        var convertedValue = await answerConversionService.ConvertToValue(newValue, propertyDefinition, ct);
-
-        if (propertyDefinition.IsArray)
-        {
-            if (instance.Properties.TryGetValue(property, out var existing) && existing is BsonArray array)
-                array.Add(convertedValue);
-            else
-                instance.Properties[property] = new BsonArray { convertedValue };
-
-            await repository.UpdateFields(instance.Id,
-                Builders<WorkflowInstance>.Update.Push($"Properties.{property}", convertedValue), ct);
-        }
-        else
-        {
-            instance.SetProperty(convertedValue, property);
-            await repository.UpdateFields(instance.Id,
-                Builders<WorkflowInstance>.Update.Set(i => i.Properties[property], convertedValue), ct);
-        }
-
-        await journalService.LogPropertyChange(
-            instance.Id,
-            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
-            ct);
-    }
-
-    public async Task RemoveProperty(
-        string instanceId,
-        string property,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
-
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
-        if (propertyDefinition == null)
-            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
-
-        var user = await userService.GetCurrentUser(ct);
-        if (user == null)
-            throw new InvalidOperationException("User not logged in");
-
-        var oldValue = instance.GetProperty(null, property);
-
-        instance.SetProperty(null, property);
         await repository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Unset(i => i.Properties[property]), ct);
+            Builders<WorkflowInstance>.Update.Push($"Properties.{string.Join('.', pathParts)}", newValue), ct);
 
-        await journalService.LogPropertyChange(
-            instance.Id,
-            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
-            ct);
-    }
-
-    public async Task RemoveArrayPropertyItemById(
-        string instanceId,
-        string property,
-        string itemId,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
-
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
-        if (propertyDefinition == null)
-            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
-
-        if (!propertyDefinition.IsArray)
-            throw new ArgumentException($"Property '{property}' is not an array property");
-
-        var user = await userService.GetCurrentUser(ct);
-        if (user == null)
-            throw new InvalidOperationException("User not logged in");
-
-        if (instance.Properties.TryGetValue(property, out var existing) && existing is BsonArray array)
-        {
-            var oldValue = existing;
-
-            var newArray = new BsonArray(
-                array.Where(v => !(v is BsonDocument doc && doc["_id"].ToString() == itemId)));
-
-            BsonValue newValue = newArray.Count == 0 ? BsonNull.Value : newArray;
-            instance.SetProperty(newValue, property);
-
-            await repository.UpdateFields(instance.Id,
-                Builders<WorkflowInstance>.Update.Set($"Properties.{property}", newValue), ct);
-
-            await journalService.LogPropertyChange(
-                instance.Id,
-                PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
-                ct);
-        }
+        await journalService.LogPropertyChange(instance.Id,
+            PropertyChangeEntry.Create(string.Join('.', pathParts), oldValue, user), ct);
     }
 }
