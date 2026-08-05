@@ -166,7 +166,7 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Users_UpdateEmail_UpdatesRequiredExternalUser()
+    public async Task Users_UpdateExternalUser_UpdatesRequiredExternalUser()
     {
         var user = new User
         {
@@ -179,26 +179,32 @@ public class UsersControllerTests : ControllerTestsBase
             IsActive = false
         };
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
+        _externalUserServiceMock
+            .Setup(s => s.CreateOrUpdateExternalUser("External User", "new@example.org", null, user.Id, _ct))
+            .Callback(() =>
+            {
+                user.Email = "new@example.org";
+                user.UserName = "new@example.org";
+            })
+            .ReturnsAsync((UserSearchResult)null!);
         var controller = BuildControllerWithRoles(["Api"]);
-        _userServiceMock.Setup(s => s.GetUser("new@example.org", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
 
-        var result = await controller.UpdateEmail(user.Id,
-            new UpdateUserEmailDto("  new@example.org  ", InstanceId), _ct);
+
+        var result = await controller.UpdateExternalUser(user.Id,
+            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, user.Id),
+                InstanceId), _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var dto = Assert.IsType<UserDto>(okResult.Value);
         Assert.Equal("new@example.org", dto.Email);
         Assert.Equal("new@example.org", dto.UserName);
         Assert.True(dto.RequiresInvitation);
-        _userRepoMock.Verify(r => r.Update(It.Is<User>(u =>
-            u.Id == user.Id &&
-            u.Email == "new@example.org" &&
-            u.UserName == "new@example.org"), _ct), Times.Once);
+        _externalUserServiceMock.Verify(s => s.CreateOrUpdateExternalUser(
+            "External User", "new@example.org", null, user.Id, _ct), Times.Once);
     }
 
     [Fact]
-    public async Task Users_UpdateEmail_UpdatesEveryEditableUserReferenceInInstance()
+    public async Task Users_UpdateExternalUser_UpdatesEveryEditableUserReferenceInInstance()
     {
         var userId = ObjectId.GenerateNewId().ToString();
         var user = new User
@@ -231,13 +237,24 @@ public class UsersControllerTests : ControllerTestsBase
             .WithEvent("Start", DateTime.UtcNow)
             .Build();
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
+        _externalUserServiceMock
+            .Setup(s => s.CreateOrUpdateExternalUser("External User", "new@example.org", null, user.Id, _ct))
+            .Callback(() =>
+            {
+                user.Email = "new@example.org";
+                user.UserName = "new@example.org";
+            })
+            .ReturnsAsync((UserSearchResult)null!);
+
         var controller = BuildControllerWithRoles(["Api"]);
+
         _workflowInstanceRepoMock.Setup(r => r.GetById(InstanceId, _ct)).ReturnsAsync(instance);
         _userServiceMock.Setup(s => s.GetUser("new@example.org", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
-        await controller.UpdateEmail(user.Id,
-            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
+        await controller.UpdateExternalUser(user.Id,
+            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, user.Id),
+                InstanceId), _ct);
 
         Assert.Equal("new@example.org", instance.Properties["Supervisor"].AsBsonDocument["Email"].AsString);
         Assert.Equal("new@example.org", instance.Properties["Supervisor"].AsBsonDocument["UserName"].AsString);
@@ -248,12 +265,14 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Users_UpdateEmail_ReturnsNotFound_WhenUserDoesNotExist()
+    public async Task Users_UpdateExternalUser_ReturnsNotFound_WhenUserDoesNotExist()
     {
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail("missing-user-id",
-            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
+        var result = await controller.UpdateExternalUser("missing-user-id",
+            new UpdateUserEmailDto(
+                new CreateExternalUserDto("External User", "new@example.org", null, "missing-user-id"), InstanceId),
+            _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
@@ -263,7 +282,7 @@ public class UsersControllerTests : ControllerTestsBase
     [Theory]
     [InlineData("internal", UserInvitationState.Required)]
     [InlineData("eduid", UserInvitationState.Completed)]
-    public async Task Users_UpdateEmail_RejectsUsersThatAreNotEligible(
+    public async Task Users_UpdateExternalUser_RejectsUsersThatAreNotEligible(
         string providerKey,
         UserInvitationState invitationState)
     {
@@ -279,18 +298,19 @@ public class UsersControllerTests : ControllerTestsBase
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id,
-            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
+        var result = await controller.UpdateExternalUser(user.Id,
+            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, user.Id),
+                InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status422UnprocessableEntity, objectResult.StatusCode);
         var error = Assert.IsType<Error>(objectResult.Value);
-        Assert.Equal("UserEmailUpdateNotAllowed", error.ErrorCode);
+        Assert.Equal("UserUpdateNotAllowed", error.ErrorCode);
         _userRepoMock.Verify(r => r.Update(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Users_UpdateEmail_RejectsDuplicateEmailFromAnotherUser()
+    public async Task Users_UpdateExternalUser_RejectsDuplicateEmailFromAnotherUser()
     {
         var user = new User
         {
@@ -302,12 +322,16 @@ public class UsersControllerTests : ControllerTestsBase
             InvitationState = UserInvitationState.Required
         };
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
-        _userRepoMock.Setup(r => r.GetByEmail("duplicate@example.org", _ct))
-            .ReturnsAsync(new User { Id = "other-user-id", Email = "duplicate@example.org" });
+        _externalUserServiceMock
+            .Setup(s => s.CreateOrUpdateExternalUser(It.IsAny<string>(), "duplicate@example.org",
+                It.IsAny<Organization?>(), It.IsAny<string?>(), _ct))
+            .ThrowsAsync(new ExternalUserCreationException(
+                ExternalUserCreationFailureReason.UserAlreadyExists, "Email already taken"));
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id,
-            new UpdateUserEmailDto("duplicate@example.org", InstanceId), _ct);
+        var result = await controller.UpdateExternalUser(user.Id,
+            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "duplicate@example.org", null, user.Id),
+                InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status409Conflict, objectResult.StatusCode);
@@ -317,7 +341,7 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Users_UpdateEmail_AllowsSameEmailForSameUser()
+    public async Task Users_UpdateExternalUser_AllowsSameEmailForSameUser()
     {
         var user = new User
         {
@@ -329,27 +353,30 @@ public class UsersControllerTests : ControllerTestsBase
             InvitationState = UserInvitationState.Required
         };
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
-        _userRepoMock.Setup(r => r.GetByEmail("old@example.org", _ct)).ReturnsAsync(user);
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id,
-            new UpdateUserEmailDto("old@example.org", InstanceId), _ct);
+        var result = await controller.UpdateExternalUser(user.Id,
+            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "old@example.org", null, user.Id),
+                InstanceId), _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var dto = Assert.IsType<UserDto>(okResult.Value);
         Assert.Equal("old@example.org", dto.Email);
+        _externalUserServiceMock.Verify(s => s.CreateOrUpdateExternalUser(
+            "External User", "old@example.org", null, user.Id, _ct), Times.Once);
         _userRepoMock.Verify(r => r.Update(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
-        _workflowInstanceRepoMock.Verify(r => r.UpdateFields(It.IsAny<string>(),
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Theory]
-    [InlineData("student@uva.nl", StatusCodes.Status400BadRequest, "ManualUserInternalEmail")]
-    [InlineData("not-an-email", StatusCodes.Status400BadRequest, "InvalidEmailAddress")]
-    public async Task Users_UpdateEmail_RejectsInvalidTargetEmail(
+    [InlineData("student@uva.nl", StatusCodes.Status400BadRequest, "ManualUserInternalEmail",
+        ExternalUserCreationFailureReason.InternalEmailAddress)]
+    [InlineData("not-an-email", StatusCodes.Status400BadRequest, "InvalidEmailAddress",
+        ExternalUserCreationFailureReason.InvalidEmailAddress)]
+    public async Task Users_UpdateExternalUser_RejectsInvalidTargetEmail(
         string email,
         int expectedStatusCode,
-        string expectedErrorCode)
+        string expectedErrorCode,
+        ExternalUserCreationFailureReason reason)
     {
         var user = new User
         {
@@ -361,10 +388,15 @@ public class UsersControllerTests : ControllerTestsBase
             InvitationState = UserInvitationState.Required
         };
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
+        _externalUserServiceMock
+            .Setup(s => s.CreateOrUpdateExternalUser(It.IsAny<string>(), email,
+                It.IsAny<Organization?>(), It.IsAny<string?>(), _ct))
+            .ThrowsAsync(new ExternalUserCreationException(reason, "Service error"));
+
         var controller = BuildControllerWithRoles(["Api"]);
 
-        var result = await controller.UpdateEmail(user.Id,
-            new UpdateUserEmailDto(email, InstanceId), _ct);
+        var result = await controller.UpdateExternalUser(user.Id,
+            new UpdateUserEmailDto(new CreateExternalUserDto("External User", email, null, user.Id), InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(expectedStatusCode, objectResult.StatusCode);
@@ -374,7 +406,7 @@ public class UsersControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Users_UpdateEmail_RequiresAnswerEditRights()
+    public async Task Users_UpdateExternalUser_RequiresAnswerEditRights()
     {
         _userRepoMock.Setup(r => r.GetById(ExternalUserId, _ct)).ReturnsAsync(new User
         {
@@ -387,11 +419,27 @@ public class UsersControllerTests : ControllerTestsBase
         });
         var controller = BuildControllerWithRoles(["HasNoRights"]);
 
-        var result = await controller.UpdateEmail(ExternalUserId,
-            new UpdateUserEmailDto("new@example.org", InstanceId), _ct);
+        var result = await controller.UpdateExternalUser(ExternalUserId,
+            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, ExternalUserId),
+                InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task Users_UpdateExternalUser_ReturnsUnprocessable_WhenUserIdMismatch()
+    {
+        var controller = BuildControllerWithRoles(["Api"]);
+
+        var result = await controller.UpdateExternalUser("url-id",
+            new UpdateUserEmailDto(new CreateExternalUserDto("Name", "new@example.org", null, "body-id"), InstanceId),
+            _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status422UnprocessableEntity, objectResult.StatusCode);
+        var error = Assert.IsType<Error>(objectResult.Value);
+        Assert.Equal("UserIdMismatch", error.ErrorCode);
     }
 
     [Theory]
@@ -484,6 +532,7 @@ public class UsersControllerTests : ControllerTestsBase
             _workflowInstanceRepoMock.Object,
             _rightsService,
             _eduIdUserServiceMock.Object,
+            _externalUserServiceMock.Object,
             null!,
             null!,
             _externalUserEmailUpdateService,
@@ -631,6 +680,7 @@ public class UsersControllerTests : ControllerTestsBase
             _workflowInstanceRepoMock.Object,
             _rightsService,
             _eduIdUserServiceMock.Object,
+            _externalUserServiceMock.Object,
             null!,
             null!,
             _externalUserEmailUpdateService,

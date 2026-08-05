@@ -108,6 +108,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 "External User",
                 "external@example.org",
                 organization,
+                null,
                 _ct))
             .ReturnsAsync(new UserSearchResult(
                 "external@example.org",
@@ -234,6 +235,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<Organization?>(),
+                It.IsAny<string?>(),
                 _ct))
             .ThrowsAsync(new ExternalUserCreationException(reason, "Service error"));
 
