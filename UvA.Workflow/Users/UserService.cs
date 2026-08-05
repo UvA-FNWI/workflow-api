@@ -5,7 +5,7 @@ namespace UvA.Workflow.Users;
 
 public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCache memoryCache)
 {
-    protected IUserRepository UserRepository { get; } = userRepository;
+    private IUserRepository UserRepository { get; } = userRepository;
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
     private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
     public const string ApiUserName = "__apiuser";
@@ -51,7 +51,6 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
         else
         {
             var changed = false;
-            var pictureChanged = false;
             if (user.DisplayName != displayName)
             {
                 changed = true;
@@ -79,15 +78,11 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
             if (picture != null && user.Picture != picture)
             {
                 changed = true;
-                pictureChanged = true;
                 user.Picture = picture;
             }
 
             if (changed)
                 await UserRepository.Update(user, ct);
-
-            if (pictureChanged)
-                await OnUserPictureChanged(user, ct);
         }
 
         memoryCache.Set(cacheKey, user, UserCacheExpiration);
@@ -116,8 +111,6 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     }
 
     protected bool IsCached(string username) => memoryCache.TryGetValue(GetCacheKeyForUser(username), out _);
-
-    protected virtual Task OnUserPictureChanged(User user, CancellationToken ct) => Task.CompletedTask;
 }
 
 public class UserService(
@@ -234,14 +227,11 @@ public class UserService(
         }
     }
 
-    protected override Task OnUserPictureChanged(User user, CancellationToken ct)
-        => SyncUserInInstances(user, ["Picture"], ct);
-
     /// <summary>
     /// Finds all instances containing this user in any user-type property and replaces the
-    /// embedded snapshot with a fresh one from the current User state.
+    /// fields in the embedded snapshot with the value from the current User state.
     /// </summary>
-    private async Task SyncUserInInstances(User user, string[] fields, CancellationToken ct)
+    public async Task SyncUserInInstances(User user, string[] fields, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var userId)) return;
 

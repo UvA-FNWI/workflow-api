@@ -47,4 +47,14 @@ public interface IUserService
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     Task<User?> GetUser(string username, CancellationToken ct);
+
+    /// <summary>
+    /// Finds all instances containing this user in any user-type property and replaces the
+    /// fields in the embedded snapshot with the value from the current User state.
+    /// </summary>
+    /// <param name="user">The user that is updated</param>
+    /// <param name="fields">The fields on the user object that are updated, e.g. DisplayName or Picture</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
+    /// <returns></returns>
+    Task SyncUserInInstances(User user, string[] fields, CancellationToken ct);
 }

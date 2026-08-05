@@ -11,6 +11,10 @@ public class CanvasClaimsResolver(
     {
         var launchInfo = CanvasLaunchInfo.FromPrincipal(principal);
         var organization = await userService.GetOrganizationForUser(launchInfo.UvanetId);
+
+        var existingUser = await userService.GetUser(launchInfo.UvanetId, CancellationToken.None);
+        var existingPicture = existingUser?.Picture;
+
         var user = await userService.AddOrUpdateUser(
             launchInfo.UvanetId,
             launchInfo.DisplayName,
@@ -18,6 +22,9 @@ public class CanvasClaimsResolver(
             UserProviderKeys.Internal,
             organization,
             launchInfo.Picture);
+
+        if (launchInfo.Picture != null && existingPicture != launchInfo.Picture)
+            await userService.SyncUserInInstances(user, ["Picture"], CancellationToken.None);
 
         var target = await targetResolver.ResolveTarget(user, launchInfo, CancellationToken.None);
 

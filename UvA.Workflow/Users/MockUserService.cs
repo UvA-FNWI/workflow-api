@@ -34,4 +34,6 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
 
     public Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
         => Task.FromResult<Organization?>(null);
+
+    public Task SyncUserInInstances(User user, string[] fields, CancellationToken ct) => Task.CompletedTask;
 }
