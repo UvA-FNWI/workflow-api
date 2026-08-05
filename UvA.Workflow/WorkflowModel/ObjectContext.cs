@@ -69,7 +69,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         foreach (var (k, v) in instance.Properties)
         {
             // Only add property values that are present in the workflow definition
-            var propertyDefinition = modelService.GetQuestion(instance, k);
+            var propertyDefinition = modelService.GetProperty(instance, k);
             if (propertyDefinition != null)
             {
                 dict.Add(k, GetValue(v, propertyDefinition));

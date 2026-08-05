@@ -1,3 +1,4 @@
+using System.Text.Json;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Submissions;
@@ -16,6 +17,35 @@ public class InstanceService(
     IAssessmentService assessmentService
 )
 {
+    public Dictionary<string, JsonElement?> GetPropertyValues(WorkflowInstance instance)
+    {
+        var values = new Dictionary<string, JsonElement?>();
+        Collect(modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties, []);
+        return values;
+
+        void Collect(IEnumerable<PropertyDefinition> properties, string[] prefix)
+        {
+            foreach (var property in properties)
+            {
+                string[] parts = [.. prefix, property.Name];
+                if (property is { DataType: DataType.Object, IsArray: false, WorkflowDefinition: not null })
+                {
+                    Collect(property.WorkflowDefinition.Properties, parts);
+                    continue;
+                }
+
+                try
+                {
+                    values[string.Join('.', parts)] = Answer.GetValue(property, instance.GetProperty(parts));
+                }
+                catch
+                {
+                    values[string.Join('.', parts)] = null;
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// Populates references in object contexts based on the specified entity type and lookup properties.
     /// </summary>
@@ -241,7 +271,7 @@ public class InstanceService(
         foreach (var rel in related)
             if (await CheckLimit(instance, rel, ct))
             {
-                var propDef = modelService.GetQuestion(instance, rel.Property!);
+                var propDef = modelService.GetProperty(instance, rel.Property!);
                 if (propDef is not null)
                 {
                     actions.Add(new AllowedAction(rel,
