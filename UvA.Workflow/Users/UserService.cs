@@ -51,6 +51,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
         else
         {
             var changed = false;
+            var pictureChanged = false;
             if (user.DisplayName != displayName)
             {
                 changed = true;
@@ -78,14 +79,15 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
             if (picture != null && user.Picture != picture)
             {
                 changed = true;
+                pictureChanged = true;
                 user.Picture = picture;
             }
 
             if (changed)
-            {
                 await UserRepository.Update(user, ct);
-                await OnUserChanged(user, ct);
-            }
+
+            if (pictureChanged)
+                await OnUserPictureChanged(user, ct);
         }
 
         memoryCache.Set(cacheKey, user, UserCacheExpiration);
@@ -115,7 +117,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
 
     protected bool IsCached(string username) => memoryCache.TryGetValue(GetCacheKeyForUser(username), out _);
 
-    protected virtual Task OnUserChanged(User user, CancellationToken ct) => Task.CompletedTask;
+    protected virtual Task OnUserPictureChanged(User user, CancellationToken ct) => Task.CompletedTask;
 }
 
 public class UserService(
@@ -232,14 +234,14 @@ public class UserService(
         }
     }
 
-    protected override Task OnUserChanged(User user, CancellationToken ct)
-        => SyncUserInInstances(user, ct);
+    protected override Task OnUserPictureChanged(User user, CancellationToken ct)
+        => SyncUserInInstances(user, ["Picture"], ct);
 
     /// <summary>
     /// Finds all instances containing this user in any user-type property and replaces the
     /// embedded snapshot with a fresh one from the current User state.
     /// </summary>
-    private async Task SyncUserInInstances(User user, CancellationToken ct)
+    private async Task SyncUserInInstances(User user, string[] fields, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var userId)) return;
 
@@ -260,15 +262,15 @@ public class UserService(
 
         foreach (var instance in instances)
         {
-            if (SyncUserInInstance(instance, user))
+            if (SyncUserInInstance(instance, user, fields))
                 await instanceRepository.Update(instance, ct);
         }
     }
 
-    private bool SyncUserInInstance(WorkflowInstance instance, User user)
+    private bool SyncUserInInstance(WorkflowInstance instance, User user, string[] fields)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var updatedUser = InstanceUser.FromUser(user);
+        var updatedUserDoc = InstanceUser.FromUser(user).ToBsonDocument();
         var changed = false;
 
         foreach (var property in workflowDef.Properties.Where(p => p.DataType == DataType.User))
@@ -281,15 +283,17 @@ public class UserService(
                 if (ObjectContext.GetValue(rawValue, property) is not InstanceUser[] users ||
                     users.All(u => u.Id != user.Id)) continue;
 
-                instance.Properties[property.Name] = new BsonArray(
-                    users.Select(u => u.Id == user.Id ? updatedUser.ToBsonDocument() : u.ToBsonDocument()));
+                foreach (var elem in rawValue.AsBsonArray.Where(e => e["_id"] == ObjectId.Parse(user.Id)))
+                foreach (var field in fields)
+                    elem.AsBsonDocument[field] = updatedUserDoc[field];
             }
             else
             {
                 var instanceUser = ObjectContext.GetValue(rawValue, property) as InstanceUser;
                 if (instanceUser?.Id != user.Id) continue;
 
-                instance.Properties[property.Name] = updatedUser.ToBsonDocument();
+                foreach (var field in fields)
+                    rawValue.AsBsonDocument[field] = updatedUserDoc[field];
             }
 
             changed = true;
