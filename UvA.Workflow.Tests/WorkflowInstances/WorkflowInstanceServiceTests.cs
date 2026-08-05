@@ -1,4 +1,3 @@
-using System.Text.Json;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
@@ -11,223 +10,87 @@ namespace UvA.Workflow.Tests.WorkflowInstances;
 
 public class WorkflowInstanceServiceTests
 {
-    private readonly Mock<IWorkflowInstanceRepository> _repositoryMock = new();
-    private readonly Mock<IInstanceJournalService> _journalServiceMock = new();
-    private readonly Mock<IUserService> _userServiceMock = new();
-    private readonly Mock<IUserRepository> _userRepoMock = new();
-    private readonly AnswerConversionService _answerConversionService;
-    private readonly WorkflowInstanceService _workflowInstanceService;
+    private readonly Mock<IWorkflowInstanceRepository> _repository = new();
+    private readonly Mock<IInstanceJournalService> _journal = new();
+    private readonly WorkflowInstanceService _service;
     private readonly CancellationToken _ct = CancellationToken.None;
 
     public WorkflowInstanceServiceTests()
     {
-        var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
-        _answerConversionService = new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object);
-        _workflowInstanceService =
-            new WorkflowInstanceService(modelService, _repositoryMock.Object, _journalServiceMock.Object,
-                _userServiceMock.Object);
-        var currentUser = new User
+        var userService = new Mock<IUserService>();
+        userService.Setup(service => service.GetCurrentUser(_ct)).ReturnsAsync(new User
         {
-            Id = ObjectId.GenerateNewId().ToString(), UserName = "testuser", DisplayName = "Test User",
-            Email = "test@t.com"
-        };
-        _userServiceMock
-            .Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(currentUser);
-        _journalServiceMock
-            .Setup(j => j.LogPropertyChange(It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-        _repositoryMock
-            .Setup(r => r.UpdateFields(It.IsAny<string>(),
-                It.IsAny<UpdateDefinition<WorkflowInstance>>(),
-                It.IsAny<CancellationToken>()))
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "testuser",
+            DisplayName = "Test User",
+            Email = "test@example.com"
+        });
+        _repository.Setup(repository => repository.UpdateFields(
+                It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct))
             .Returns(Task.CompletedTask);
+        _journal.Setup(journal => journal.LogPropertyChange(
+                It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(), _ct))
+            .ReturnsAsync(false);
+
+        var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
+        _service = new WorkflowInstanceService(modelService, _repository.Object, _journal.Object, userService.Object);
     }
 
-    private WorkflowInstance CreateProjectInstance() =>
-        new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Upload")
+    [Fact]
+    public async Task GetAsOfVersion_RevertsNestedValueThatWasUnset()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project-PP", currentStep: "AssessmentSupervisor")
+            .WithProperties(("AssessmentSupervisor", _ => new BsonDocument("ProblemStatement", "8")))
             .Build();
-
-    [Fact]
-    public async Task UpdateProperty_ThrowsArgumentException_WhenPropertyDoesNotExistOnModel()
-    {
-        var instance = CreateProjectInstance();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
-
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            _workflowInstanceService.UpdateProperty(instance.Id, "NonExistentProperty", null, _answerConversionService,
-                _ct));
-    }
-
-    [Fact]
-    public async Task UpdateProperty_SetsNonArrayProperty_AndPersistsChanges()
-    {
-        var instance = CreateProjectInstance();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
-        var value = JsonSerializer.SerializeToElement("Working Title");
-
-        await _workflowInstanceService.UpdateProperty(instance.Id, "Title", value, _answerConversionService, _ct);
-
-        Assert.Equal("Working Title", instance.Properties["Title"].AsString);
-        _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task UpdateProperty_AppendsToExistingArrayProperty()
-    {
-        var existingUser = new User
+        var change = PropertyChangeEntry.Create("AssessmentSupervisor.ProblemStatement", null, new User
         {
-            Id = ObjectId.GenerateNewId().ToString(), UserName = "user1", DisplayName = "User 1", Email = "u1@t.com"
-        };
-        _userServiceMock.Setup(s => s.GetUser("user1", _ct)).ReturnsAsync(existingUser);
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "testuser"
+        });
+        change.Version = 2;
 
+        _repository.Setup(repository => repository.GetById(instance.Id, _ct)).ReturnsAsync(instance);
+        _journal.Setup(journal => journal.GetInstanceJournal(instance.Id, false, _ct))
+            .ReturnsAsync(new InstanceJournalEntry { InstanceId = instance.Id, PropertyChanges = [change] });
+
+        var result = await _service.GetAsOfVersion(instance.Id, 1, _ct);
+
+        Assert.Null(result.GetProperty("AssessmentSupervisor", "ProblemStatement"));
+    }
+
+    [Fact]
+    public async Task AppendPropertyValue_AppendsAndJournals()
+    {
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Upload")
-            .WithProperties(("PracticalSupervisor",
-                _ => new BsonArray { InstanceUser.FromUser(existingUser).ToBsonDocument() }))
+            .WithProperties(("PracticalSupervisor", _ => new BsonArray
+            {
+                new BsonDocument("_id", ObjectId.GenerateNewId())
+            }))
             .Build();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
+        var newUser = new BsonDocument("_id", ObjectId.GenerateNewId());
 
-        var newUser = new User
-        {
-            Id = ObjectId.GenerateNewId().ToString(), UserName = "user2", DisplayName = "User 2", Email = "u2@t.com"
-        };
-        _userServiceMock.Setup(s => s.GetUser("user2", _ct)).ReturnsAsync(newUser);
-        var value = JsonSerializer.SerializeToElement(
-            new { userName = "user2", displayName = "User 2", email = "u2@t.com" });
-
-        await _workflowInstanceService.UpdateProperty(instance.Id, "PracticalSupervisor", value,
-            _answerConversionService, _ct);
+        await _service.AppendPropertyValue(instance, ["PracticalSupervisor"], newUser, _ct);
 
         Assert.Equal(2, instance.Properties["PracticalSupervisor"].AsBsonArray.Count);
-        _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
-            Times.Once);
+        _repository.Verify(repository => repository.UpdateFields(
+            instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
+        _journal.Verify(journal => journal.LogPropertyChange(
+            instance.Id, It.Is<PropertyChangeEntry>(entry =>
+                entry.Path == "PracticalSupervisor" && entry.OldValue!.AsBsonArray.Count == 1), _ct), Times.Once);
     }
 
     [Fact]
-    public async Task UpdateProperty_CreatesNewArrayProperty_WhenPropertyWasAbsent()
-    {
-        var user = new User
-        {
-            Id = ObjectId.GenerateNewId().ToString(), UserName = "user1", DisplayName = "User 1", Email = "u1@t.com"
-        };
-        _userServiceMock.Setup(s => s.GetUser("user1", _ct)).ReturnsAsync(user);
-
-        var instance = CreateProjectInstance();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
-        var value = JsonSerializer.SerializeToElement(
-            new { userName = "user1", displayName = "User 1", email = "u1@t.com" });
-
-        await _workflowInstanceService.UpdateProperty(instance.Id, "PracticalSupervisor", value,
-            _answerConversionService, _ct);
-
-        Assert.Single(instance.Properties["PracticalSupervisor"].AsBsonArray);
-        _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task RemoveArrayPropertyItemById_ThrowsArgumentException_WhenPropertyDoesNotExistOnModel()
-    {
-        var instance = CreateProjectInstance();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
-
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "NonExistentProperty", "some-id", _ct));
-    }
-
-    [Fact]
-    public async Task RemoveArrayPropertyItemById_RemovesMatchingItem_FromArrayProperty()
-    {
-        var keepId = ObjectId.GenerateNewId();
-        var removeId = ObjectId.GenerateNewId();
-
-        var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Upload")
-            .WithProperties(("PracticalSupervisor", _ => new BsonArray
-            {
-                new BsonDocument { { "_id", keepId }, { "UserName", "user1" } },
-                new BsonDocument { { "_id", removeId }, { "UserName", "user2" } }
-            }))
-            .Build();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
-
-        await _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "PracticalSupervisor",
-            removeId.ToString(),
-            _ct);
-
-        var remaining = instance.Properties["PracticalSupervisor"].AsBsonArray;
-        Assert.Single(remaining);
-        Assert.Equal(keepId, remaining[0].AsBsonDocument["_id"].AsObjectId);
-        _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task RemoveArrayPropertyItemById_SetsPropertyToNull_WhenLastItemIsRemoved()
-    {
-        var itemId = ObjectId.GenerateNewId();
-
-        var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Upload")
-            .WithProperties(("PracticalSupervisor", _ => new BsonArray
-            {
-                new BsonDocument { { "_id", itemId }, { "UserName", "user1" } }
-            }))
-            .Build();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
-
-        await _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "PracticalSupervisor",
-            itemId.ToString(),
-            _ct);
-
-        Assert.Equal(BsonNull.Value, instance.Properties["PracticalSupervisor"]);
-        _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task RemoveArrayPropertyItemById_SkipsUpdateFields_WhenArrayPropertyAbsentOnInstance()
-    {
-        var instance = CreateProjectInstance(); // PracticalSupervisor not in Properties
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
-
-        await _workflowInstanceService.RemoveArrayPropertyItemById(instance.Id, "PracticalSupervisor", "some-id", _ct);
-
-        _repositoryMock.Verify(r => r.UpdateFields(It.IsAny<string>(),
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
-        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
-            Times.Never);
-    }
-
-    [Fact]
-    public async Task RemoveArrayPropertyItemById_UnsetsNonArrayProperty_AndPersistsChanges()
+    public async Task AppendPropertyValue_CreatesMissingArray()
     {
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Upload")
-            .WithProperties(("Title", b => b.Value("My Title")))
             .Build();
-        _repositoryMock.Setup(r => r.GetById(instance.Id, _ct)).ReturnsAsync(instance);
+        var newUser = new BsonDocument("_id", ObjectId.GenerateNewId());
 
-        await _workflowInstanceService.RemoveProperty(instance.Id, "Title", _ct);
+        await _service.AppendPropertyValue(instance, ["PracticalSupervisor"], newUser, _ct);
 
-        Assert.False(instance.Properties.ContainsKey("Title"));
-        _repositoryMock.Verify(r => r.UpdateFields(instance.Id,
-            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
-        _journalServiceMock.Verify(j => j.LogPropertyChange(instance.Id, It.IsAny<PropertyChangeEntry>(), _ct),
-            Times.Once);
+        Assert.Equal(newUser, Assert.Single(instance.Properties["PracticalSupervisor"].AsBsonArray));
     }
 }

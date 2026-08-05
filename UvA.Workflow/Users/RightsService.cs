@@ -297,6 +297,16 @@ public class RightsService(
 
     public async Task<bool> CanEditProperty(WorkflowInstance instance, string propertyName)
     {
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var parts = propertyName.Split('.');
+        if (parts.Length > 1 && definition.Properties.GetOrDefault(parts[0])?.DataType != DataType.Object)
+            return false;
+
+        var realUserEditActions =
+            await GetAllowedActions(instance, RightsEvaluationMode.RealUser, RoleAction.Edit);
+        if (realUserEditActions.Any(a => a.AllForms.Length == 0 && a.PropertyDefinition == null))
+            return true;
+
         var allowedEditActions =
             await GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
         return CanEditProperties(instance, [propertyName], allowedEditActions)[propertyName];

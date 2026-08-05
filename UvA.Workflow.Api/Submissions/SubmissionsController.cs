@@ -94,7 +94,7 @@ public class SubmissionsController(
             {
                 if (filledQuestionIds.Contains(questionName)) continue;
 
-                var question = modelService.GetQuestion(instance, form.PropertyName, questionName);
+                var question = modelService.GetProperty(instance, form.PropertyName, questionName);
                 if (question == null) continue;
 
                 var existingAnswer = instance.GetProperty(form.PropertyName, questionName);
