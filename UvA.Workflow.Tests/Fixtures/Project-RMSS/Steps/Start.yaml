@@ -8,10 +8,10 @@ title:
   en: Submit proposal
 
 progress:
-  color: green
-  text:
-    en: Writing proposal
-    nl: Schrijft voorstel
+  - color: green
+    text:
+      en: Writing proposal
+      nl: Schrijft voorstel
 
 properties:
   - name: Topic

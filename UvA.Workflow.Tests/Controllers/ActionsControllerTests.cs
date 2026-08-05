@@ -33,7 +33,6 @@ public class ActionsControllerTests : ControllerTestsBase
                 _instanceService,
                 _modelService,
                 submissionDtoFactory,
-                _workflowInstanceRepoMock.Object,
                 _rightsService,
                 new StepVersionService(_modelService, _eventRepoMock.Object),
                 new StepHeaderStatusResolver(_modelService),

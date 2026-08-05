@@ -8,10 +8,10 @@ title:
   nl: Scriptie
 
 progress:
-  color: green
-  text:
-    en: Thesis in progress
-    nl: Bezig met scriptie
+  - color: green
+    text:
+      en: Thesis in progress
+      nl: Bezig met scriptie
 
 ends:
   event: Finish

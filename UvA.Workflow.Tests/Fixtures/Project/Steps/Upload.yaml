@@ -11,7 +11,7 @@ actions:
     form: Upload
 
 progress:
-  color: green
+  - color: green
 
 ends:
   event: Upload

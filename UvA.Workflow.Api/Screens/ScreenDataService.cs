@@ -1,3 +1,4 @@
+using UvA.Workflow.Events;
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.WorkflowModel;
@@ -50,7 +51,10 @@ public class ScreenDataService(
         return entity.Screens.GetOrDefault(screenName);
     }
 
-    private Dictionary<string, string> BuildProjection(Column[] columns, string workflowDefinition)
+    private Dictionary<string, string> BuildProjection(
+        Column[] columns,
+        string workflowDefinition,
+        IEnumerable<Lookup> progressLookups)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
@@ -64,6 +68,9 @@ public class ScreenDataService(
             foreach (var prop in column.Properties)
                 AddLookupToProjection(projection, prop, entity);
         }
+
+        foreach (var lookup in progressLookups)
+            AddLookupToProjection(projection, lookup, entity);
 
         return projection;
     }
@@ -123,8 +130,17 @@ public class ScreenDataService(
 
     private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
     {
+        var definition = modelService.WorkflowDefinitions[workflowDefinition];
+        var hasProgressColumn = screen.Columns.Any(column => column.CurrentStep);
+        var progressLookups = hasProgressColumn
+            ? definition.AllSteps
+                .SelectMany(step => step.Progress.SelectMany(progress => progress.Lookups))
+                .Where(lookup => !IsEventContextLookup(lookup, definition))
+                .ToArray()
+            : [];
+
         // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen.Columns, workflowDefinition);
+        var projection = BuildProjection(screen.Columns, workflowDefinition, progressLookups);
         projection.TryAdd("CurrentStep", "$CurrentStep");
         projection.TryAdd("Events", "$Events");
 
@@ -133,13 +149,59 @@ public class ScreenDataService(
             await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(r => modelService.CreateContext(workflowDefinition, r)).ToList();
+        var contexts = rawData.Select(row =>
+        {
+            var context = modelService.CreateContext(workflowDefinition, row);
+            if (hasProgressColumn)
+                AddEventActivity(context, row, definition);
+            return context;
+        }).ToList();
 
         // Add related properties as needed
-        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition],
-            contexts, screen.Columns.SelectMany(c => c.Properties), ct, false);
+        await instanceService.Enrich(definition,
+            contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups), ct, false);
 
         return contexts;
+    }
+
+    private static void AddEventActivity(
+        ObjectContext context,
+        IReadOnlyDictionary<string, BsonValue> row,
+        WorkflowDefinition definition)
+    {
+        if (!row.TryGetValue("Events", out var eventsValue) || eventsValue is not BsonDocument eventsDocument)
+            return;
+
+        var events = eventsDocument.Elements.ToDictionary(
+            element => element.Name,
+            element => new InstanceEvent
+            {
+                Id = element.Name,
+                Date = (element.Value as BsonDocument)?.GetValue("Date", BsonNull.Value) is BsonDateTime date
+                    ? date.ToLocalTime()
+                    : null
+            });
+        var instance = new WorkflowInstance
+        {
+            Id = string.Empty,
+            WorkflowDefinition = definition.Name,
+            Properties = [],
+            Events = events
+        };
+
+        foreach (var eventId in events.Keys)
+            context.Values[eventId + "EventActive"] =
+                EventSuppressionHelper.IsEventActive(eventId, instance, definition);
+    }
+
+    private static bool IsEventContextLookup(Lookup lookup, WorkflowDefinition definition)
+    {
+        if (lookup is not PropertyLookup propertyLookup)
+            return false;
+
+        var property = propertyLookup.Parts[0];
+        return property.EndsWith("EventActive") && definition.Events.Contains(property[..^11])
+               || property.EndsWith("Event") && definition.Events.Contains(property[..^5]);
     }
 
     /// <summary>

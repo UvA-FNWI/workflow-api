@@ -5,10 +5,10 @@ title:
   nl: Beoordeling
 
 progress:
-  color: red
-  text:
-    en: Waiting for approval {{ coalesce(formatDate(StartEvent, =dd-MM-yyyy), =) }}
-    nl: Wacht op goedkeuring {{ coalesce(formatDate(StartEvent, =dd-MM-yyyy), =) }}
+  - color: red
+    text:
+      en: Waiting for approval {{ coalesce(formatDate(StartEvent, =dd-MM-yyyy), =) }}
+      nl: Wacht op goedkeuring {{ coalesce(formatDate(StartEvent, =dd-MM-yyyy), =) }}
 
 hierarchyMode: Parallel
 

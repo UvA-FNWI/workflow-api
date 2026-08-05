@@ -33,10 +33,10 @@ properties:
       multiline: true
       
 progress:
-  color: red
-  text:
-    en: Waits {{ coalesce(formatDate(StartEvent, =dd/MM), =) }} for approval
-    nl: Wacht {{ coalesce(formatDate(StartEvent, =dd-MM), =) }} op goedkeuring
+  - color: red
+    text:
+      en: Waits {{ coalesce(formatDate(StartEvent, =dd/MM), =) }} for approval
+      nl: Wacht {{ coalesce(formatDate(StartEvent, =dd-MM), =) }} op goedkeuring
 
 ends: 
   logical:

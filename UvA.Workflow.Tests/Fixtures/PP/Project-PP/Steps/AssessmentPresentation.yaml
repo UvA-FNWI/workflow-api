@@ -5,10 +5,10 @@ icon:
   color: green
 
 progress:
-  color: red
-  text:
-    en: Waiting for assessment presentation {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
-    nl: Wacht op beoordeling presentatie {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
+  - color: red
+    text:
+      en: Waiting for assessment presentation {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
+      nl: Wacht op beoordeling presentatie {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
 
 properties:
   - name: PresentationResearchTopic

@@ -32,9 +32,21 @@ public record Icon
 
 public record ProgressInformation
 {
+    /// <summary>
+    /// Condition that determines whether this progress information applies. Omit for the fallback entry.
+    /// </summary>
+    public Condition? Condition { get; init; }
+
     public StatusColor? Color { get; init; }
     public BilingualString? Text { get; init; } = null!;
     [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        ..Condition?.Properties ?? [],
+        ..ProgressTextTemplate?.Properties ?? []
+    ];
 }
 
 public enum StepResultsType
@@ -59,7 +71,7 @@ public class Step : INamed
     /// <summary>
     /// The progress information about the step
     /// </summary>
-    public ProgressInformation? Progress { get; set; }
+    public List<ProgressInformation> Progress { get; set; } = [];
 
     /// <summary>
     /// Determines whether assessment results are shown in the step

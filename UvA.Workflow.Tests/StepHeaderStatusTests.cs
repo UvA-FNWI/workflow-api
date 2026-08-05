@@ -338,7 +338,6 @@ public class StepHeaderStatusTests
             instanceService,
             modelService,
             submissionDtoFactory,
-            repository.Object,
             rightsService,
             stepVersionService.Object,
             new StepHeaderStatusResolver(modelService),

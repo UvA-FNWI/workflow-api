@@ -1,4 +1,5 @@
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -19,8 +20,11 @@ public record ProgressInformationDto(
         if (currentStep == null)
             return Completed;
 
-        var displayText = currentStep.Progress?.ProgressTextTemplate?.Apply(context)
+        var progress = currentStep.Progress.FirstOrDefault(candidate =>
+                           candidate.Condition?.IsMet(context) == true)
+                       ?? currentStep.Progress.FirstOrDefault(candidate => candidate.Condition == null);
+        var displayText = progress?.ProgressTextTemplate?.Apply(context)
                           ?? currentStep.DisplayTitle;
-        return new ProgressInformationDto(displayText, currentStep.Progress?.Color);
+        return new ProgressInformationDto(displayText, progress?.Color);
     }
 }
