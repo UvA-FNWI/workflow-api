@@ -63,7 +63,6 @@ public class WorkflowInstanceDtoFactory(
             .OfType<ResourceDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
-
         var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -72,7 +71,10 @@ public class WorkflowInstanceDtoFactory(
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             fields,
-            steps,
+            workflowDefinition.Steps
+                .Where(s => s.Condition.IsMet(context))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, allowedForms))
+                .ToArray(),
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
                     permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
