@@ -26,6 +26,11 @@ public class Screen : INamed
     /// Optional grouping configuration for grouping screen data by steps
     /// </summary>
     public ScreenGrouping? Grouping { get; set; }
+
+    /// <summary>
+    /// Enable bulk editing of instances in the screen
+    /// </summary>
+    public bool? EnableBulkEdit { get; set; } = false;
 }
 
 /// <summary>
