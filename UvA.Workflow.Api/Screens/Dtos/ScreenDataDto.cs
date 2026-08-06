@@ -6,6 +6,7 @@ namespace UvA.Workflow.Api.Screens.Dtos;
 public record ScreenDataDto(
     string Name,
     WorkflowDefinitionDto WorkflowDefinition,
+    bool IsBulkEditEnabled,
     ScreenColumnDto[] Columns,
     ScreenRowDto[] Rows,
     ScreenGroupDto[]? Groups = null)
@@ -17,6 +18,7 @@ public record ScreenDataDto(
         return new ScreenDataDto(
             screen.Name,
             WorkflowDefinitionDto.Create(definition),
+            screen.EnableBulkEdit ?? false,
             columns,
             rows,
             groups);

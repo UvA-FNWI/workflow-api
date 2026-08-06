@@ -30,7 +30,7 @@ public class Screen : INamed
     /// <summary>
     /// Enable bulk editing of instances in the screen
     /// </summary>
-    public bool? EnableBulkEdit { get; set; } = false;
+    public bool? EnableBulkEdit { get; set; }
 }
 
 /// <summary>
