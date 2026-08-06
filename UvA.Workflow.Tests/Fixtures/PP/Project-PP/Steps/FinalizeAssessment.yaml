@@ -5,7 +5,7 @@ title:
   nl: Beoordeling afronden
 
 progress:
-  - color: red
+  - color: Red
     text:
       en: Waiting for final grade {{ coalesce(formatDate(AssessmentPresentationEvent, =dd-MM-yyyy), =) }}
       nl: Wacht op eindcijfer {{ coalesce(formatDate(AssessmentPresentationEvent, =dd-MM-yyyy), =) }}

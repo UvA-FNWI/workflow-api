@@ -7,7 +7,7 @@ icon:
   type: law-balance-line
 
 progress:
-  - color: red
+  - color: Red
     text:
       en: Waiting for assessment thesis {{ coalesce(formatDate(UploadFinalThesisEvent, =dd-MM-yyyy), =) }}
       nl: Wacht op beoordeling scriptie {{ coalesce(formatDate(UploadFinalThesisEvent, =dd-MM-yyyy), =) }}

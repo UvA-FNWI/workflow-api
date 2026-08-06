@@ -14,7 +14,7 @@ properties:
     type: Assessment!
     
 progress:
-  - color: red
+  - color: Red
     text:
       en: Waits {{ coalesce(formatDate(UploadEvent, =dd/MM), =) }} for assessment
       nl: Wacht {{ coalesce(formatDate(UploadEvent, =dd-MM), =) }} op beoordeling

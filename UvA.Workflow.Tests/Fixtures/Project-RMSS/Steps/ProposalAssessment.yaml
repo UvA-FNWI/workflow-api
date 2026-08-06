@@ -5,7 +5,7 @@ title:
   nl: Beoordeling
 
 progress:
-  - color: red
+  - color: Red
     text:
       en: Waiting for approval {{ coalesce(formatDate(StartEvent, =dd-MM-yyyy), =) }}
       nl: Wacht op goedkeuring {{ coalesce(formatDate(StartEvent, =dd-MM-yyyy), =) }}

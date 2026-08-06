@@ -4,7 +4,7 @@ title:
   en: Approve proposal
 icon:
   type: checkmark-line
-  color: green
+  color: Green
 
 actions:
 - name: Approve
@@ -33,7 +33,7 @@ properties:
       multiline: true
       
 progress:
-  - color: red
+  - color: Red
     text:
       en: Waits {{ coalesce(formatDate(StartEvent, =dd/MM), =) }} for approval
       nl: Wacht {{ coalesce(formatDate(StartEvent, =dd-MM), =) }} op goedkeuring

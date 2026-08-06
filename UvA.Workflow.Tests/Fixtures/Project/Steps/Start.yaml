@@ -7,11 +7,11 @@ title:
 progress:
   - condition:
       event: RejectSubject
-    color: red
+    color: Red
     text:
       en: Revising proposal
       nl: Past voorstel aan
-  - color: green
+  - color: Green
     text:
       en: Writing proposal
       nl: Schrijft voorstel
