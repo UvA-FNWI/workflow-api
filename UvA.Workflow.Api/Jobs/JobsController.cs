@@ -32,7 +32,7 @@ public class JobsController(
         return Ok(await ToDto(job, ct));
     }
 
-    [HttpPost("{instanceId}/{jobId}/run")]
+    [HttpPost("{instanceId}/{jobId}/Run")]
     public async Task<ActionResult<JobDto>> Run(string instanceId, string jobId, CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);

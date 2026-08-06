@@ -48,7 +48,7 @@ public class AnswersController(
         }
     }
 
-    [HttpPost("{instanceId}/{submissionId}/{questionName}/artifacts")]
+    [HttpPost("{instanceId}/{submissionId}/{questionName}/Artifacts")]
     [Consumes("multipart/form-data")]
     [Produces("application/json")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswerFile(string instanceId, string submissionId,
@@ -62,7 +62,7 @@ public class AnswersController(
         return Ok(new SaveAnswerFileResponse(true));
     }
 
-    [HttpDelete("{instanceId}/{submissionId}/{questionName}/artifacts/{artifactId}")]
+    [HttpDelete("{instanceId}/{submissionId}/{questionName}/Artifacts/{artifactId}")]
     public async Task<IActionResult> DeleteAnswerFile(string instanceId, string submissionId, string questionName,
         string artifactId, CancellationToken ct)
     {
@@ -74,7 +74,7 @@ public class AnswersController(
     }
 
     [AllowAnonymous]
-    [HttpGet("{instanceId}/{submissionId}/{questionName}/artifacts/{artifactId}")]
+    [HttpGet("{instanceId}/{submissionId}/{questionName}/Artifacts/{artifactId}")]
     public async Task<IActionResult> GetAnswerFile(string instanceId, string submissionId, string questionName,
         string artifactId, [FromQuery] string token, CancellationToken ct)
     {

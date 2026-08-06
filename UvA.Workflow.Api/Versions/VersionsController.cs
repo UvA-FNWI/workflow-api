@@ -14,7 +14,7 @@ public class VersionsController(
     : ApiControllerBase
 {
     /// Reload the default version from the configured source.
-    [HttpPost("reload")]
+    [HttpPost("Reload")]
     public async Task<ActionResult> Reload()
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
@@ -32,7 +32,7 @@ public class VersionsController(
     }
 
     /// Load a branch as a named preview version; send it back in the Workflow-Version header to view it.
-    [HttpPost("branch")]
+    [HttpPost("Branch")]
     public async Task<ActionResult<string>> LoadBranch([FromQuery] string @ref)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
@@ -91,7 +91,7 @@ public class VersionsController(
         => Ok(modelServiceResolver.GetVersions().Select(v => v.Name));
 
     /// Version names plus provenance (commit + load time).
-    [HttpGet("details")]
+    [HttpGet("Details")]
     public ActionResult<IReadOnlyCollection<VersionInfo>> GetVersionDetails()
         => Ok(modelServiceResolver.GetVersions());
 }
