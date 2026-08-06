@@ -70,7 +70,7 @@ public class SubmissionsController(
             EffectResult: result.EffectResult));
     }
 
-    [HttpPost("{instanceId}/{submissionId}/dummyData")]
+    [HttpPost("{instanceId}/{submissionId}/DummyData")]
     public async Task<ActionResult<SubmissionDto>> GenerateDummyData(string instanceId, string submissionId,
         CancellationToken ct)
     {
