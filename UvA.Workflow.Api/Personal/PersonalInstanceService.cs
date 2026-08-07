@@ -6,8 +6,14 @@ namespace UvA.Workflow.Api.Personal;
 
 public class PersonalInstanceService(
     ModelService modelService,
+    InstanceService instanceService,
     IWorkflowInstanceRepository workflowInstanceRepository)
 {
+    private static readonly Lookup[] PersonalOverviewLookups =
+    [
+        new PropertyLookup("Course.Name")
+    ];
+
     public async Task<PersonalInstancesDto> GetInstances(User user, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var userId))
@@ -22,10 +28,14 @@ public class PersonalInstanceService(
 
         var userFilter = BuildUserFilter(definitions, userId);
         var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
-        var courseNames = await GetCourseNames(instances, ct);
+        var instanceContexts = instances
+            .Select(instance => new PersonalInstanceContext(instance, modelService.CreateContext(instance)))
+            .ToArray();
 
-        var instanceDtos = instances
-            .Select(instance => CreateDto(instance, user, courseNames))
+        await Enrich(instanceContexts, ct);
+
+        var instanceDtos = instanceContexts
+            .Select(item => CreateDto(item.Instance, item.Context, user))
             .Where(dto => dto.Roles.Length > 0)
             .OrderByDescending(dto => dto.CreatedOn)
             .ThenByDescending(dto => dto.Id)
@@ -63,11 +73,10 @@ public class PersonalInstanceService(
 
     private PersonalInstanceDto CreateDto(
         WorkflowInstance instance,
-        User user,
-        IReadOnlyDictionary<string, string> courseNames)
+        ObjectContext context,
+        User user)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
         var usersByRole = GetUserProperties(definition)
             .ToDictionary(
                 property => property.Name,
@@ -103,9 +112,32 @@ public class PersonalInstanceService(
             instance.CreatedOn,
             roles,
             student,
-            GetCourseName(instance.Properties.GetValueOrDefault("Course"), courseNames),
+            context.Get("Course.Name") as string,
             employees
         );
+    }
+
+    private async Task Enrich(
+        IEnumerable<PersonalInstanceContext> instanceContexts,
+        CancellationToken ct)
+    {
+        foreach (var group in instanceContexts.GroupBy(item => item.Instance.WorkflowDefinition))
+        {
+            var definition = modelService.WorkflowDefinitions[group.Key];
+            var lookups = definition.ProgressLookups
+                .Concat(PersonalOverviewLookups)
+                .Distinct()
+                .ToArray();
+            if (lookups.Length == 0)
+                continue;
+
+            await instanceService.Enrich(
+                definition,
+                group.Select(item => item.Context).ToArray(),
+                lookups,
+                ct,
+                replaceStep: false);
+        }
     }
 
     private static IEnumerable<PropertyDefinition> GetUserProperties(WorkflowDefinition definition)
@@ -124,54 +156,6 @@ public class PersonalInstanceService(
             .Where(property => rolesWithViewAccess.Contains(property.Name));
     }
 
-    private async Task<IReadOnlyDictionary<string, string>> GetCourseNames(
-        IEnumerable<WorkflowInstance> instances,
-        CancellationToken ct)
-    {
-        var ids = instances
-            .Select(instance => GetReferenceId(instance.Properties.GetValueOrDefault("Course")))
-            .OfType<string>()
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-
-        if (ids.Length == 0)
-            return new Dictionary<string, string>();
-
-        var courses = await workflowInstanceRepository.GetAllById(ids, new Dictionary<string, string>
-        {
-            ["Name"] = "$Properties.Name"
-        }, ct);
-
-        return courses
-            .Select(course => new
-            {
-                Id = GetReferenceId(course.GetValueOrDefault("_id")),
-                Name = course.GetValueOrDefault("Name") is BsonString name ? name.Value : null
-            })
-            .Where(course => course.Id != null && !string.IsNullOrWhiteSpace(course.Name))
-            .ToDictionary(course => course.Id!, course => course.Name!, StringComparer.Ordinal);
-    }
-
-    private static string? GetCourseName(
-        BsonValue? value,
-        IReadOnlyDictionary<string, string> courseNames)
-    {
-        if (value is BsonDocument course &&
-            course.GetValue("Name", BsonNull.Value) is BsonString embeddedName)
-            return embeddedName.Value;
-
-        var id = GetReferenceId(value);
-        return id != null ? courseNames.GetValueOrDefault(id) : null;
-    }
-
-    private static string? GetReferenceId(BsonValue? value)
-        => value switch
-        {
-            BsonObjectId objectId => objectId.Value.ToString(),
-            BsonString text => text.Value,
-            _ => null
-        };
-
     private static IEnumerable<InstanceUser> GetUsers(object? value)
         => value switch
         {
@@ -179,4 +163,6 @@ public class PersonalInstanceService(
             InstanceUser[] users => users,
             _ => []
         };
+
+    private sealed record PersonalInstanceContext(WorkflowInstance Instance, ObjectContext Context);
 }

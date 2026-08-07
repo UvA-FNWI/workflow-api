@@ -106,6 +106,12 @@ public class WorkflowDefinition : INamed
     [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
+    [YamlIgnore]
+    public IEnumerable<Lookup> ProgressLookups => AllSteps
+        .SelectMany(step => step.Progress)
+        .SelectMany(progress => progress.Lookups)
+        .Distinct();
+
     private static IEnumerable<Step> GetSteps(Step s) =>
         s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
             ? s.Children.SelectMany(GetSteps)

@@ -19,7 +19,10 @@ public class PersonalControllerTests : ControllerTestsBase
 
     public PersonalControllerTests()
     {
-        personalInstanceService = new PersonalInstanceService(_modelService, _workflowInstanceRepoMock.Object);
+        personalInstanceService = new PersonalInstanceService(
+            _modelService,
+            _instanceService,
+            _workflowInstanceRepoMock.Object);
     }
 
     [Fact]
@@ -105,6 +108,64 @@ public class PersonalControllerTests : ControllerTestsBase
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Supervisor._id", userId);
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Reviewer._id", userId);
         AssertDefinitionIsExcluded(renderedFilter, "Context");
+    }
+
+    [Fact]
+    public async Task GetInstances_CombinesPersonalAndProgressRelatedLookups()
+    {
+        var userId = ObjectId.Parse(UnitTestsHelpers.AdminUser.Id);
+        var courseId = ObjectId.GenerateNewId();
+        var uploadStep = _modelService.WorkflowDefinitions["Project"].AllSteps
+            .Single(step => step.Name == "Upload");
+        uploadStep.Progress =
+        [
+            new ProgressInformation
+            {
+                Text = new BilingualString(
+                    "Working on {{ Course.Type }}",
+                    "Werkt aan {{ Course.Type }}")
+            }
+        ];
+        var project = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Upload")
+            .WithProperties(
+                ("Course", property => property.Value(courseId.ToString())),
+                ("Supervisor", property => property.Value(
+                    UserDocument(userId, "Current Employee"))))
+            .Build();
+
+        _workflowInstanceRepoMock
+            .Setup(repository => repository.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([project]);
+        _workflowInstanceRepoMock
+            .Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids => ids.SequenceEqual(new[] { courseId.ToString() })),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 2 &&
+                    projection["Name"] == "$Properties.Name" &&
+                    projection["Type"] == "$Properties.Type"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new Dictionary<string, BsonValue>
+                {
+                    ["_id"] = courseId,
+                    ["Name"] = "Software Engineering",
+                    ["Type"] = "Course"
+                }
+            ]);
+
+        var result = await personalInstanceService.GetInstances(UnitTestsHelpers.AdminUser, _ct);
+
+        var progress = Assert.Single(result.Instances).Progress;
+        Assert.Equal("Working on Course", progress.Text.En);
+        Assert.Equal("Werkt aan Course", progress.Text.Nl);
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

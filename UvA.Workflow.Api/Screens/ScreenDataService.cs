@@ -132,9 +132,7 @@ public class ScreenDataService(
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
         var hasProgressColumn = screen.Columns.Any(column => column.CurrentStep);
         var progressLookups = hasProgressColumn
-            ? definition.AllSteps
-                .SelectMany(step => step.Progress.SelectMany(progress => progress.Lookups))
-                .ToArray()
+            ? definition.ProgressLookups.ToArray()
             : [];
 
         // Build projection based on screen columns, always including CurrentStep for grouping
