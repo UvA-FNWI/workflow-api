@@ -34,7 +34,7 @@ public class ActionsControllerTests : ControllerTestsBase
                 _modelService,
                 submissionDtoFactory,
                 _rightsService,
-                new StepVersionService(_modelService, _eventRepoMock.Object),
+                new StepVersionService(),
                 new StepHeaderStatusResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
