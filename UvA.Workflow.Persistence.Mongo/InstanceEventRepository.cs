@@ -131,4 +131,19 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             .SortBy(e => e.Timestamp)
             .ToListAsync(ct);
     }
+
+    /// <summary>
+    /// Gets all event log entries for an instance.
+    /// </summary>
+    public async Task<List<InstanceEventLogEntry>> GetEventLogEntriesForInstance(
+        string instanceId,
+        CancellationToken ct)
+    {
+        var filter = Builders<InstanceEventLogEntry>.Filter.Eq(e => e.WorkflowInstanceId, instanceId);
+
+        return await _eventLogCollection
+            .Find(filter)
+            .SortBy(e => e.Timestamp)
+            .ToListAsync(ct);
+    }
 }

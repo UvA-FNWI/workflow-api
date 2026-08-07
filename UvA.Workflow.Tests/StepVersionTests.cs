@@ -1,4 +1,9 @@
 using MongoDB.Bson;
+using UvA.Workflow.Events;
+using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.Versioning;
+using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
@@ -152,149 +157,365 @@ public class StepVersionTests
         Assert.Equal(expectedOrdered, eventIds);
     }
 
-    [Fact]
-    public void SequentialVersioning_TwoCycles_AllEventsGroupedByVersion()
+    public static IEnumerable<object?[]> HistoricalEventConditionCases()
     {
-        // Arrange: Sequential parent step with two complete cycles
-        // Cycle 1: Submit Start -> Reject (version 1)
-        // Cycle 2: Re-submit Start -> Approve (version 2)
-        var events = new List<(string EventId, DateTime Timestamp)>
-        {
-            ("Start", DateTime.UtcNow.AddMinutes(-20)),
-            ("RejectSubject", DateTime.UtcNow.AddMinutes(-15)), // End of cycle 1
-            ("Start", DateTime.UtcNow.AddMinutes(-10)),
-            ("ApproveSubject", DateTime.UtcNow.AddMinutes(-5)) // End of cycle 2
-        };
+        yield return
+        [
+            null,
+            new[] { "SubmitProposal" },
+            false
+        ];
+        yield return
+        [
+            new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+            new[] { "SubmitProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+            new[] { "ApproveProposal" },
+            false
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Not = true,
+                Event = new EventCondition { Id = "RejectProposal" }
+            },
+            new[] { "ApproveProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.And,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "SubmitProposal" } },
+                        new Condition { Event = new EventCondition { Id = "ApproveProposal" } }
+                    ]
+                }
+            },
+            new[] { "SubmitProposal", "ApproveProposal" },
+            true
+        ];
+        yield return
+        [
+            new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.Or,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "ApproveProposal" } },
+                        new Condition { Event = new EventCondition { Id = "RejectProposal" } }
+                    ]
+                }
+            },
+            new[] { "RejectProposal" },
+            true
+        ];
+    }
 
-        var completionEventIds = new[] { "RejectSubject", "ApproveSubject" };
+    [Theory]
+    [MemberData(nameof(HistoricalEventConditionCases))]
+    public void IsMet_WithHistoricalEventIds_EvaluatesOnlyEventConditions(
+        Condition? condition,
+        string[] eventIds,
+        bool expected)
+    {
+        Assert.Equal(expected, condition.IsMet(eventIds));
+    }
 
-        // Act: Assign version numbers
-        var versioned = new List<(string EventId, int Version)>();
-        int currentVersion = 1;
+    public static IEnumerable<object[]> UnsupportedHistoricalConditionCases()
+    {
+        yield return
+        [
+            new Condition { Date = new Date { Source = "Deadline" } },
+            nameof(Date)
+        ];
+        yield return
+        [
+            new Condition { Deadline = new Deadline { ExpressionText = "Deadline" } },
+            nameof(Deadline)
+        ];
+        yield return
+        [
+            new Condition { Value = new Value { Property = "Status", Equal = "=Approved" } },
+            nameof(Value)
+        ];
+    }
 
-        foreach (var evt in events)
-        {
-            versioned.Add((evt.EventId, currentVersion));
-            if (completionEventIds.Contains(evt.EventId))
-                currentVersion++;
-        }
+    [Theory]
+    [MemberData(nameof(UnsupportedHistoricalConditionCases))]
+    public void IsMet_WithHistoricalEventIds_ThrowsForUnsupportedConditionTypes(
+        Condition condition,
+        string conditionType)
+    {
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            condition.IsMet(Array.Empty<string>()));
 
-        // Assert: 4 events total, 2 per version
-        Assert.Equal(4, versioned.Count);
-        Assert.Equal(1, versioned[0].Version); // First Start
-        Assert.Equal(1, versioned[1].Version); // RejectSubject
-        Assert.Equal(2, versioned[2].Version); // Second Start
-        Assert.Equal(2, versioned[3].Version); // ApproveSubject
+        Assert.Contains(conditionType, exception.Message);
     }
 
     [Fact]
-    public void SequentialVersioning_IncompleteVersion_IsFilteredOut()
+    public void IsMet_WithHistoricalEventIds_ThrowsForUnsupportedLogicalChildWithoutShortCircuiting()
     {
-        // Arrange: Sequential parent step with incomplete version (only Start, no Reject yet)
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>
+        var condition = new Condition
         {
-            (1, "Start", DateTime.UtcNow.AddMinutes(-10))
-        };
-
-        var completionEventIds = new[] { "RejectSubject", "ApproveSubject" };
-
-        // Act: Filter to only complete versions
-        var consolidatedVersions = tempVersions
-            .GroupBy(v => v.VersionNumber)
-            .Select(g => new
+            Logical = new Logical
             {
-                VersionNumber = g.Key,
-                EventIds = g.Select(v => v.EventId).ToList(),
-                SubmittedAt = g.Max(v => v.Timestamp)
-            })
-            .Where(v => v.EventIds.Any(e => completionEventIds.Contains(e)))
-            .ToList();
-
-        // Assert: Incomplete version is filtered out
-        Assert.Empty(consolidatedVersions);
-    }
-
-    [Fact]
-    public void ParallelVersioning_TwoCompleteCycles_AllEventsGroupedByVersion()
-    {
-        // Arrange: Parallel parent with 2 children completing twice
-        var childNames = new[] { "Child1", "Child2" };
-        var events = new List<(string EventId, DateTime Timestamp, string ChildName)>
-        {
-            // First cycle
-            ("Event1", DateTime.UtcNow.AddMinutes(-40), "Child1"),
-            ("Event2", DateTime.UtcNow.AddMinutes(-35), "Child2"),
-
-            // Second cycle
-            ("Event1", DateTime.UtcNow.AddMinutes(-20), "Child1"),
-            ("Event2", DateTime.UtcNow.AddMinutes(-15), "Child2")
-        };
-
-        // Act: Track completion and assign versions
-        var completedChildren = new HashSet<string>();
-        var versioned = new List<(string EventId, int Version)>();
-        int currentVersion = 1;
-
-        foreach (var evt in events.OrderBy(e => e.Timestamp))
-        {
-            versioned.Add((evt.EventId, currentVersion));
-            completedChildren.Add(evt.ChildName);
-
-            if (completedChildren.Count == childNames.Length)
-            {
-                currentVersion++;
-                completedChildren.Clear();
+                Operator = LogicalOperator.Or,
+                Children =
+                [
+                    new Condition { Event = new EventCondition { Id = "Submitted" } },
+                    new Condition { Date = new Date { Source = "Deadline" } }
+                ]
             }
-        }
+        };
 
-        // Assert: 4 events, 2 in each version
-        Assert.Equal(4, versioned.Count);
-        Assert.Equal(1, versioned[0].Version); // First Event1
-        Assert.Equal(1, versioned[1].Version); // First Event2
-        Assert.Equal(2, versioned[2].Version); // Second Event1
-        Assert.Equal(2, versioned[3].Version); // Second Event2
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            condition.IsMet(new[] { "Submitted" }));
+
+        Assert.Contains(nameof(Date), exception.Message);
     }
 
     [Fact]
-    public void ParallelVersioning_IncompleteVersion_IsFilteredOut()
+    public void ParentStepVersioning_CurrentCycleWithoutLastChildCompletionIsNotReturned()
     {
-        // Arrange: Parallel parent with 3 children, but only 2 have completed
-        var tempVersions = new List<(int VersionNumber, string EventId, DateTime Timestamp)>
-        {
-            (1, "Event1", DateTime.UtcNow.AddMinutes(-20)),
-            (1, "Event2", DateTime.UtcNow.AddMinutes(-15))
-        };
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("SubjectFeedback")
+            .WithEvent("Start", submittedAt)
+            .Build();
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt)
+        ]);
 
-        var childEventMap = new Dictionary<string, string>
-        {
-            ["Event1"] = "Child1",
-            ["Event2"] = "Child2",
-            ["Event3"] = "Child3"
-        };
+        Assert.Empty(versions);
+    }
 
-        var childNames = new[] { "Child1", "Child2", "Child3" };
+    [Fact]
+    public void ParentStepVersioning_LastChildCompletionCreatesVersion()
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var feedbackAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Start")
+            .WithEvent("Start", submittedAt)
+            .WithEvent("RejectSubject", feedbackAt)
+            .Build();
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "RejectSubject", feedbackAt)
+        ]);
 
-        // Act: Filter to only complete versions
-        var consolidatedVersions = tempVersions
-            .GroupBy(v => v.VersionNumber)
-            .Select(g => new
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
+        Assert.Equal(feedbackAt, version.SubmittedAt);
+    }
+
+    [Fact]
+    public void ParentStepVersioning_FeedbackStaysWithSubmissionAndResubmissionStartsNewVersion()
+    {
+        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-15);
+        var feedbackAt = DateTime.UtcNow.AddMinutes(-10);
+        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("SubjectFeedback")
+            .WithEvent("Start", secondSubmittedAt)
+            .WithEvent("RejectSubject", feedbackAt)
+            .Build();
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", firstSubmittedAt),
+            EventLog(instance, "RejectSubject", feedbackAt),
+            EventLog(instance, "Start", secondSubmittedAt)
+        ]);
+
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
+        Assert.Equal(feedbackAt, version.SubmittedAt);
+    }
+
+    [Fact]
+    public void ParentStepVersioning_EachLastChildCompletionFinishesOneVersion()
+    {
+        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
+        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Upload")
+            .Build();
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", firstSubmittedAt),
+            EventLog(instance, "RejectSubject", rejectedAt),
+            EventLog(instance, "Start", secondSubmittedAt),
+            EventLog(instance, "ApproveSubject", approvedAt)
+        ]);
+
+        Assert.Collection(versions,
+            first =>
             {
-                VersionNumber = g.Key,
-                EventIds = g.Select(v => v.EventId).ToList()
-            })
-            .Where(v =>
+                Assert.Equal(1, first.VersionNumber);
+                Assert.Equal(["Start", "RejectSubject"], first.EventIds);
+                Assert.Equal(rejectedAt, first.SubmittedAt);
+            },
+            latest =>
             {
-                var childrenWithEvents = v.EventIds
-                    .Select(e => childEventMap.GetValueOrDefault(e))
-                    .Where(name => name != null)
-                    .Distinct()
-                    .ToHashSet();
-                return childrenWithEvents.Count == childNames.Length;
-            })
-            .ToList();
+                Assert.Equal(2, latest.VersionNumber);
+                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
+                Assert.Equal(approvedAt, latest.SubmittedAt);
+            });
+    }
 
-        // Assert: Incomplete version is filtered out
-        Assert.Empty(consolidatedVersions);
+    [Fact]
+    public void ParentStepVersioning_CompletedStepIncludesLatestVersion()
+    {
+        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
+        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Upload")
+            .WithEvent("RejectSubject", rejectedAt)
+            .WithEvent("Start", secondSubmittedAt)
+            .WithEvent("ApproveSubject", approvedAt)
+            .Build();
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", firstSubmittedAt),
+            EventLog(instance, "RejectSubject", rejectedAt),
+            EventLog(instance, "Start", secondSubmittedAt),
+            EventLog(instance, "ApproveSubject", approvedAt)
+        ]);
+
+        Assert.Collection(versions,
+            first =>
+            {
+                Assert.Equal(1, first.VersionNumber);
+                Assert.Equal(["Start", "RejectSubject"], first.EventIds);
+                Assert.Equal(rejectedAt, first.SubmittedAt);
+            },
+            latest =>
+            {
+                Assert.Equal(2, latest.VersionNumber);
+                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
+                Assert.Equal(approvedAt, latest.SubmittedAt);
+            });
+    }
+
+    [Fact]
+    public void ParentStepVersioning_WaitsForCompositeLastChildCompletionCondition()
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-2);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Start")
+            .Build();
+
+        void ConfigureModel(ModelService modelService)
+        {
+            modelService.WorkflowDefinitions["Project"].AllSteps
+                .Single(step => step.Name == "SubjectFeedback").Ends = new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.And,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = "RejectSubject" } },
+                        new Condition { Event = new EventCondition { Id = "ApproveSubject" } }
+                    ]
+                }
+            };
+        }
+
+        var incompleteVersions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "RejectSubject", rejectedAt)
+        ], ConfigureModel);
+        var completeVersions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ApproveSubject", approvedAt),
+            EventLog(instance, "RejectSubject", rejectedAt)
+        ], ConfigureModel);
+
+        Assert.Empty(incompleteVersions);
+        var version = Assert.Single(completeVersions);
+        Assert.Equal(["Start", "ApproveSubject", "RejectSubject"], version.EventIds);
+        Assert.Equal(rejectedAt, version.SubmittedAt);
+    }
+
+    [Fact]
+    public void RmssProposalVersioning_ParallelLastChildCompletionCreatesVersion()
+    {
+        var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-2);
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt),
+            EventLog(instance, "ProposalApprovedReviewer", approvedAt)
+        ]);
+
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(approvedAt, version.SubmittedAt);
+        Assert.Equal(["Start", "ProposalRejectedSupervisor", "ProposalApprovedReviewer"], version.EventIds);
+    }
+
+    [Fact]
+    public void RmssProposalVersioning_SingleApprovalDoesNotCompleteVersion()
+    {
+        var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalApprovedSupervisor", approvedAt)
+        ]);
+
+        Assert.Empty(versions);
+    }
+
+    [Fact]
+    public void RmssProposalVersioning_SingleRejectionDoesNotCompleteVersion()
+    {
+        var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt)
+        ]);
+
+        Assert.Empty(versions);
     }
 
     private static Dictionary<string, BsonValue?> CloneProperties(Dictionary<string, BsonValue?> original)
@@ -302,6 +523,42 @@ public class StepVersionTests
             kvp => kvp.Key,
             kvp => kvp.Value?.DeepClone()
         );
+
+    private static WorkflowInstance CreateRmssInstance()
+        => new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project-RMSS")
+            .WithCurrentStep("ProposalPhase")
+            .Build();
+
+    private static List<StepVersion> GetStepVersions(
+        WorkflowInstance instance,
+        List<InstanceEventLogEntry> eventLogs,
+        Action<ModelService>? configureModel = null)
+    {
+        var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
+        var modelService = new ModelService(new ModelParser(modelProvider));
+        configureModel?.Invoke(modelService);
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var step = workflowDefinition.AllSteps.Single(step => step.Name == "Start");
+        var parentStep = workflowDefinition.AllSteps.FirstOrDefault(parent =>
+            parent.Children.Any(child => child.Name == step.Name));
+        var versionedStep = parentStep is { Children.Length: > 1 } ? parentStep : step;
+
+        return new StepVersionService().GetStepVersions(instance, versionedStep, eventLogs);
+    }
+
+    private static InstanceEventLogEntry EventLog(
+        WorkflowInstance instance,
+        string eventId,
+        DateTime timestamp)
+        => new()
+        {
+            WorkflowInstanceId = instance.Id,
+            EventId = eventId,
+            EventDate = timestamp,
+            Operation = EventLogOperation.Create,
+            Timestamp = timestamp
+        };
 
     private static Dictionary<string, BsonValue?> RestorePropertiesToVersion(
         Dictionary<string, BsonValue?> current,
