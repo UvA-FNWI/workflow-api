@@ -1,4 +1,3 @@
-using UvA.Workflow.Events;
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.WorkflowModel;
@@ -135,7 +134,6 @@ public class ScreenDataService(
         var progressLookups = hasProgressColumn
             ? definition.AllSteps
                 .SelectMany(step => step.Progress.SelectMany(progress => progress.Lookups))
-                .Where(lookup => !IsEventContextLookup(lookup, definition))
                 .ToArray()
             : [];
 
@@ -149,59 +147,13 @@ public class ScreenDataService(
             await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(row =>
-        {
-            var context = modelService.CreateContext(workflowDefinition, row);
-            if (hasProgressColumn)
-                AddEventActivity(context, row, definition);
-            return context;
-        }).ToList();
+        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
 
         // Add related properties as needed
         await instanceService.Enrich(definition,
             contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups), ct, false);
 
         return contexts;
-    }
-
-    private static void AddEventActivity(
-        ObjectContext context,
-        IReadOnlyDictionary<string, BsonValue> row,
-        WorkflowDefinition definition)
-    {
-        if (!row.TryGetValue("Events", out var eventsValue) || eventsValue is not BsonDocument eventsDocument)
-            return;
-
-        var events = eventsDocument.Elements.ToDictionary(
-            element => element.Name,
-            element => new InstanceEvent
-            {
-                Id = element.Name,
-                Date = (element.Value as BsonDocument)?.GetValue("Date", BsonNull.Value) is BsonDateTime date
-                    ? date.ToLocalTime()
-                    : null
-            });
-        var instance = new WorkflowInstance
-        {
-            Id = string.Empty,
-            WorkflowDefinition = definition.Name,
-            Properties = [],
-            Events = events
-        };
-
-        foreach (var eventId in events.Keys)
-            context.Values[eventId + "EventActive"] =
-                EventSuppressionHelper.IsEventActive(eventId, instance, definition);
-    }
-
-    private static bool IsEventContextLookup(Lookup lookup, WorkflowDefinition definition)
-    {
-        if (lookup is not PropertyLookup propertyLookup)
-            return false;
-
-        var property = propertyLookup.Parts[0];
-        return property.EndsWith("EventActive") && definition.Events.Contains(property[..^11])
-               || property.EndsWith("Event") && definition.Events.Contains(property[..^5]);
     }
 
     /// <summary>
