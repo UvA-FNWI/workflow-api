@@ -55,6 +55,19 @@ public class ProgressInformationTests
     }
 
     [Fact]
+    public void EffectiveCondition_PrefersConditionOverEventShorthand()
+    {
+        var condition = new Condition { Event = new EventCondition { Id = "ExplicitEvent" } };
+        var progress = new ProgressInformation
+        {
+            Event = "ShorthandEvent",
+            Condition = condition
+        };
+
+        Assert.Same(condition, progress.EffectiveCondition);
+    }
+
+    [Fact]
     public void Resolve_DoesNotUseEntryForSuppressedEvent()
     {
         var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
@@ -96,8 +109,7 @@ public class ProgressInformationTests
                                                                          name: Start
                                                                          progress:
                                                                            - color: green
-                                                                           - condition:
-                                                                               event: Submitted
+                                                                           - event: Submitted
                                                                              color: red
                                                                          """));
 

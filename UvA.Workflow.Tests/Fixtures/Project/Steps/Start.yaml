@@ -5,8 +5,7 @@ title:
   nl: Indienen voorstel
   en: Subject proposal
 progress:
-  - condition:
-      event: RejectSubject
+  - event: RejectSubject
     color: Red
     text:
       en: Revising proposal

@@ -140,8 +140,15 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "event": {
+          "description": "Shorthand for progress information that applies when a single event is active. For arbitrary logic use Condition instead.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
         "condition": {
-          "description": "Condition that determines whether this progress information applies. Omit for the fallback entry.",
+          "description": "Condition that determines whether this progress information applies. Takes precedence over Event when set. Omit both properties for the fallback entry.",
           "oneOf": [
             {
               "type": "null"

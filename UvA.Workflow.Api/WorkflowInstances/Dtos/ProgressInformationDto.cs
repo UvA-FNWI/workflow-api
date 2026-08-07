@@ -21,8 +21,8 @@ public record ProgressInformationDto(
             return Completed;
 
         var progress = currentStep.Progress.FirstOrDefault(candidate =>
-                           candidate.Condition?.IsMet(context) == true)
-                       ?? currentStep.Progress.FirstOrDefault(candidate => candidate.Condition == null);
+                           candidate.EffectiveCondition?.IsMet(context) == true)
+                       ?? currentStep.Progress.FirstOrDefault(candidate => candidate.EffectiveCondition == null);
         var displayText = progress?.ProgressTextTemplate?.Apply(context)
                           ?? currentStep.DisplayTitle;
         return new ProgressInformationDto(displayText, progress?.Color);
