@@ -1,0 +1,5 @@
+name: ExaminerReview
+title: Examiner review
+
+ends:
+  event: ExaminerApproved
