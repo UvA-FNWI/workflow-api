@@ -33,7 +33,7 @@ public class OrganizationsController(
         return Ok(organizations.Select(OrganizationDto.Create));
     }
 
-    [HttpGet("find")]
+    [HttpGet("Find")]
     public async Task<ActionResult<IEnumerable<OrganizationDto>>> Find(string query, int? limit,
         CancellationToken ct)
     {

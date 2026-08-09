@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization;
 using Moq;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Assessments;
+using UvA.Workflow.Events;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Helpers;
@@ -57,7 +58,7 @@ public class ExternalUserEmailUpdateServiceTests
         var journalServiceMock = new Mock<IInstanceJournalService>();
         var workflowInstanceService =
             new WorkflowInstanceService(modelService, repoMock.Object, journalServiceMock.Object,
-                userServiceMock.Object);
+                Mock.Of<UvA.Workflow.Events.IInstanceEventRepository>(), userServiceMock.Object);
         var assessmentService = new AssessmentService(modelService, workflowInstanceService, repoMock.Object);
         var instanceService = new InstanceService(
             repoMock.Object, modelService, userServiceMock.Object, rightsService, mailBuilder, assessmentService);

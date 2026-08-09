@@ -37,7 +37,7 @@ public class UsersController(
     /// <summary>
     /// Returns the currently authenticated user.
     /// </summary>
-    [HttpGet("me")]
+    [HttpGet("Me")]
     public async Task<ActionResult<UserDto>> GetLoggedInUser(CancellationToken ct)
     {
         var user = await userService.GetCurrentUser(ct);
@@ -75,7 +75,7 @@ public class UsersController(
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, userDto);
     }
 
-    [HttpPost("verify-email")]
+    [HttpPost("VerifyEmail")]
     public async Task<ActionResult<VerifyEmailResponse>> VerifyEmail(
         [FromBody] VerifyEmailRequest? request,
         CancellationToken ct)
@@ -152,7 +152,7 @@ public class UsersController(
         return Ok(UserDto.Create(refreshedUser));
     }
 
-    [HttpGet("find")]
+    [HttpGet("Find")]
     public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
         [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
     {
@@ -166,7 +166,7 @@ public class UsersController(
     /// target. The real admin keeps their SurfConext identity, so authorisation here always checks the
     /// admin even when an impersonation is already active (enabling re-targeting, blocking escalation).
     /// </summary>
-    [HttpPost("impersonate")]
+    [HttpPost("Impersonate")]
     public async Task<ActionResult<UserImpersonationStartedDto>> Impersonate(
         [FromBody] StartUserImpersonationDto dto, CancellationToken ct)
     {
