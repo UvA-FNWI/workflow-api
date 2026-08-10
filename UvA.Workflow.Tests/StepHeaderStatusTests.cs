@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Assessments;
+using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
@@ -322,15 +323,12 @@ public class StepHeaderStatusTests
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService);
         var stepVersionService = new Mock<IStepVersionService>();
-        stepVersionService
-            .Setup(s => s.GetStepVersions(It.IsAny<WorkflowInstance>(), It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
 
         var workflowInstanceService = new WorkflowInstanceService(
             modelService,
             repository.Object,
             Mock.Of<IInstanceJournalService>(),
+            Mock.Of<IInstanceEventRepository>(),
             userService.Object
         );
 

@@ -44,8 +44,10 @@ public enum StepResultsType
     AssessmentFinalOverview
 }
 
-public class Step : INamed
+public class Step : INamed, IDeclaredKeys
 {
+    [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
+
     /// <summary>
     /// Internal name of the step
     /// </summary>
@@ -86,6 +88,9 @@ public class Step : INamed
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
     [YamlIgnore] public Step? ParentStep { get; set; }
+
+    // Derived definitions relink Children, so inherited steps cannot be shared.
+    public Step Clone() => (Step)MemberwiseClone();
 
     public List<StepHeaderStatusConfiguration>? HeaderStatus { get; set; }
 

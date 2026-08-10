@@ -1,4 +1,5 @@
 name: Project-PA
+inheritsFrom: Project-Base
 title:
   en: Project (PA)
   nl: Project (PA)
