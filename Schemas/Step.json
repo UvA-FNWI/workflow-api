@@ -1481,6 +1481,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "resetParentStep": {
+          "type": "boolean",
+          "description": "When declared on a step event, restarts the sequential parent of the declaring step; the suppression rules are generated from the effective hierarchy (see docs/reset-parent-step.md)."
         }
       }
     }

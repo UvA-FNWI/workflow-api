@@ -1,0 +1,14 @@
+name: Review
+title: Review
+
+hierarchyMode: Parallel
+
+children:
+  - SupervisorReview
+  - ExaminerReview
+
+events:
+  # Restarts Writing: reopens Draft and, on that restart, invalidates the
+  # supervisor/examiner outcomes from the previous pass.
+  - name: RequestRevision
+    resetParentStep: true

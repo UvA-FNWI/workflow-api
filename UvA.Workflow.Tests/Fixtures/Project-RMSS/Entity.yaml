@@ -4,29 +4,22 @@ titlePlural:
   en: Projects (RMSS)
   nl: Projecten (RMSS)
 instanceTitle: '{{ Title }}'
-inheritsFrom: Project
+inheritsFrom: Project-Base
 
-events:
-  - name: Start
-    suppresses:
-      - ProposalApprovedSupervisor
-      - ProposalRejectedSupervisor
-      - ProposalApprovedReviewer
-      - ProposalRejectedReviewer
-      - ProposalReturnedForRevision
-
-  - name: ProposalRejectedSupervisor
-    suppresses: [ProposalApprovedSupervisor]
-  - name: ProposalApprovedSupervisor
-    suppresses: [ProposalRejectedSupervisor]
-
-  - name: ProposalRejectedReviewer
-    suppresses: [ProposalApprovedReviewer]
-  - name: ProposalApprovedReviewer
-    suppresses: [ProposalRejectedReviewer]
-
-  - name: ProposalReturnedForRevision
-    suppresses: [Start]
+fields:
+  - property: Course.Name
+    title: Course
+  - property: Course.StudyManual
+    title:
+      en: Study Manual
+      nl: Studiehandleiding
+  - property: Student.DisplayName
+    title: Student
+  - property: Student.Email
+    title: Email
+  - property: Title
+  - currentStep: true
+  - property: TurnitinId
 
 steps:
   - ProposalPhase
