@@ -121,23 +121,23 @@ public class PersonalInstanceService(
         IEnumerable<PersonalInstanceContext> instanceContexts,
         CancellationToken ct)
     {
-        foreach (var group in instanceContexts.GroupBy(item => item.Instance.WorkflowDefinition))
-        {
-            var definition = modelService.WorkflowDefinitions[group.Key];
-            var lookups = definition.ProgressLookups
-                .Concat(PersonalOverviewLookups)
-                .Distinct()
-                .ToArray();
-            if (lookups.Length == 0)
-                continue;
+        var batches = instanceContexts
+            .GroupBy(item => item.Instance.WorkflowDefinition)
+            .Select(group =>
+            {
+                var definition = modelService.WorkflowDefinitions[group.Key];
+                var lookups = definition.ProgressLookups
+                    .Concat(PersonalOverviewLookups)
+                    .Distinct()
+                    .ToArray();
+                return new EnrichmentBatch(
+                    definition,
+                    group.Select(item => item.Context).ToArray(),
+                    lookups);
+            })
+            .ToArray();
 
-            await instanceService.Enrich(
-                definition,
-                group.Select(item => item.Context).ToArray(),
-                lookups,
-                ct,
-                replaceStep: false);
-        }
+        await instanceService.Enrich(batches, ct, replaceStep: false);
     }
 
     private static IEnumerable<PropertyDefinition> GetUserProperties(WorkflowDefinition definition)

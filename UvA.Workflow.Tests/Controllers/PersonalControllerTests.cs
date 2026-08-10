@@ -169,6 +169,65 @@ public class PersonalControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task GetInstances_BatchesSharedReferencesAcrossWorkflowDefinitions()
+    {
+        var userId = ObjectId.Parse(UnitTestsHelpers.AdminUser.Id);
+        var projectCourseId = ObjectId.GenerateNewId();
+        var rmssCourseId = ObjectId.GenerateNewId();
+        var project = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Upload")
+            .WithProperties(
+                ("Course", property => property.Value(projectCourseId.ToString())),
+                ("Supervisor", property => property.Value(
+                    UserDocument(userId, "Current Employee"))))
+            .Build();
+        var rmssProject = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project-RMSS")
+            .WithCurrentStep("Start")
+            .WithProperties(
+                ("Course", property => property.Value(rmssCourseId.ToString())),
+                ("Supervisor", property => property.Value(
+                    UserDocument(userId, "Current Employee"))))
+            .Build();
+
+        _workflowInstanceRepoMock
+            .Setup(repository => repository.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([project, rmssProject]);
+        _workflowInstanceRepoMock
+            .Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids => ids.ToHashSet().SetEquals(
+                    new[] { projectCourseId.ToString(), rmssCourseId.ToString() })),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 1 && projection["Name"] == "$Properties.Name"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new Dictionary<string, BsonValue>
+                {
+                    ["_id"] = projectCourseId,
+                    ["Name"] = "Software Engineering"
+                },
+                new Dictionary<string, BsonValue>
+                {
+                    ["_id"] = rmssCourseId,
+                    ["Name"] = "Research Master"
+                }
+            ]);
+
+        var result = await personalInstanceService.GetInstances(UnitTestsHelpers.AdminUser, _ct);
+
+        Assert.Equal(2, result.Instances.Length);
+        Assert.Contains(result.Instances, instance => instance.Course == "Software Engineering");
+        Assert.Contains(result.Instances, instance => instance.Course == "Research Master");
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task GetInstances_WithoutCurrentUser_ReturnsUnauthorizedWithoutQueryingMongo()
     {
         _userServiceMock
