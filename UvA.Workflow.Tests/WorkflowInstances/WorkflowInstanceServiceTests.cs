@@ -1,6 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
+using UvA.Workflow.Events;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -28,12 +29,15 @@ public class WorkflowInstanceServiceTests
         _repository.Setup(repository => repository.UpdateFields(
                 It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct))
             .Returns(Task.CompletedTask);
+
         _journal.Setup(journal => journal.LogPropertyChange(
                 It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(), _ct))
             .ReturnsAsync(false);
 
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
-        _service = new WorkflowInstanceService(modelService, _repository.Object, _journal.Object, userService.Object);
+        _service = new WorkflowInstanceService(modelService, _repository.Object, _journal.Object,
+            Mock.Of<IInstanceEventRepository>(),
+            userService.Object);
     }
 
     [Fact]

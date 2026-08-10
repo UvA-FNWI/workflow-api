@@ -44,7 +44,6 @@ grouping:
         nl: Werkt aan scriptie
       steps:
         - Finish
-  
     - name: completed
       title:
         en: Completed

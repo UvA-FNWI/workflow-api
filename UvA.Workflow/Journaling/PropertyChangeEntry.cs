@@ -29,7 +29,6 @@ public class PropertyChangeEntry
         ModifiedBy = modifiedBy;
     }
 
-    // Journal replay splits dotted paths to restore nested values.
     public static PropertyChangeEntry Create(
         string path,
         BsonValue? oldValue,

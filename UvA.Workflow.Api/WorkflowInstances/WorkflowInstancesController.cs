@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
@@ -89,7 +90,7 @@ public class WorkflowInstancesController(
     /// <summary>
     /// Returns all properties and values available to the admin data view.
     /// </summary>
-    [HttpGet("{id}/properties")]
+    [HttpGet("{id}/Properties")]
     public async Task<ActionResult<InstancePropertiesDto>> GetProperties(string id, CancellationToken ct)
     {
         var instance = await repository.GetById(id, ct);
@@ -113,7 +114,7 @@ public class WorkflowInstancesController(
     /// <summary>
     /// Overrides a single property. Always recorded in the instance journal.
     /// </summary>
-    [HttpPost("{id}/properties/{path}")]
+    [HttpPost("{id}/Properties/{path}")]
     public async Task<ActionResult> SaveProperty(string id, string path,
         [FromBody] SaveInstancePropertyRequest input, CancellationToken ct)
     {
@@ -140,7 +141,7 @@ public class WorkflowInstancesController(
         return NoContent();
     }
 
-    [HttpGet("{id}/impersonation/roles")]
+    [HttpGet("{id}/Impersonation/Roles")]
     public async Task<ActionResult<IEnumerable<ImpersonationRoleDto>>> GetImpersonationRoles(string id,
         CancellationToken ct)
     {
@@ -158,7 +159,7 @@ public class WorkflowInstancesController(
         return Ok(roles);
     }
 
-    [HttpPost("{id}/impersonation")]
+    [HttpPost("{id}/Impersonation")]
     public async Task<ActionResult<StartImpersonationResultDto>> StartImpersonation(string id,
         [FromBody] StartImpersonationDto input, CancellationToken ct)
     {
@@ -192,7 +193,7 @@ public class WorkflowInstancesController(
     /// TODO: remove this or use it to create some kind of generic export function 
     /// </summary>
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
-    [HttpGet("instances/{workflowDefinition}/full")]
+    [HttpGet("Instances/{workflowDefinition}/Full")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetFullInstances(string workflowDefinition,
         [FromQuery] string[] properties, CancellationToken ct)
     {
@@ -208,13 +209,13 @@ public class WorkflowInstancesController(
         return Ok(contexts
             .OrderByDescending(i => i.Id)
             .Select(row => properties.ToDictionary(
-                p => p,
+                JsonNamingPolicy.CamelCase.ConvertName,
                 p => row.Get(p)
             )));
     }
 
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
-    [HttpGet("instances/{workflowDefinition}")]
+    [HttpGet("Instances/{workflowDefinition}")]
     public async Task<ActionResult<IEnumerable<Dictionary<string, object>>>> GetInstances(string workflowDefinition,
         [FromQuery] string[] properties, CancellationToken ct, [FromQuery] bool includeTitle = false)
     {
@@ -253,13 +254,13 @@ public class WorkflowInstancesController(
                 return row;
             })
             .Select(row => row.ToDictionary(
-                k => char.ToLowerInvariant(k.Key[0]) + k.Key[1..],
+                k => JsonNamingPolicy.CamelCase.ConvertName(k.Key),
                 v => v.Value
             )));
     }
 
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
-    [HttpPost("instances/{workflowDefinition}/recalculate-current-step")]
+    [HttpPost("Instances/{workflowDefinition}/RecalculateCurrentStep")]
     public async Task<ActionResult<RecalculateCurrentStepsResultDto>> RecalculateCurrentSteps(
         string workflowDefinition, CancellationToken ct)
     {
@@ -288,7 +289,7 @@ public class WorkflowInstancesController(
     }
 
 
-    [HttpPost("{id}/related-users/{property}")]
+    [HttpPost("{id}/RelatedUsers/{property}")]
     public async Task<ActionResult> AssignRelatedUser(string id, string property,
         [FromBody] AssignRelatedUserRequest input, CancellationToken ct)
     {
@@ -340,7 +341,7 @@ public class WorkflowInstancesController(
         }
     }
 
-    [HttpDelete("{id}/related-users/{property}/{userId}")]
+    [HttpDelete("{id}/RelatedUsers/{property}/{userId}")]
     public async Task<ActionResult> RemoveRelatedUser(string id, string property, string userId, CancellationToken ct)
     {
         if (await userService.GetCurrentUser(ct) == null)
