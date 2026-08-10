@@ -23,3 +23,5 @@ public record ImportConfirmRequest(
     string WorkflowDefinition,
     ColumnMapping[] Mappings
 );
+
+public record ImportablePropertyDto(string Name, BilingualString Title, DataType DataType);

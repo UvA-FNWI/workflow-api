@@ -14,6 +14,10 @@ public class ImportService(
     AnswerService answerService,
     ModelService modelService)
 {
+    public bool IsImportableType(DataType dt) => dt is
+        DataType.String or DataType.Int or DataType.Double or
+        DataType.Date or DataType.DateTime or DataType.User;
+
     public async Task<ImportPreview> PreviewAsync(
         Stream fileStream,
         string contentType,
