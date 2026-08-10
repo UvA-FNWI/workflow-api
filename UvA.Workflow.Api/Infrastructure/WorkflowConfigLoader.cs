@@ -14,6 +14,16 @@ public sealed class WorkflowConfigFetchException(
     public TimeSpan? RetryAfter { get; } = retryAfter;
 }
 
+/// Thrown when an on-demand workflow version cannot be loaded.
+public sealed class WorkflowVersionLoadException(string @ref, bool missing, Exception? inner = null)
+    : Exception($"Workflow version '{@ref}' could not be loaded", inner)
+{
+    public const string MissingCode = "UnknownWorkflowVersion";
+    public const string UnavailableCode = "WorkflowVersionUnavailable";
+
+    public bool Missing { get; } = missing;
+}
+
 /// Loads workflow definitions (from a local dir, or a GitHub repo fetched as a tarball) into
 /// the <see cref="ModelServiceResolver"/>.
 public class WorkflowConfigLoader(
@@ -27,6 +37,9 @@ public class WorkflowConfigLoader(
 
     private readonly WorkflowSourceOptions _opts = options.Value;
     private readonly SemaphoreSlim _baselineLock = new(1, 1); // one baseline reload at a time (poller vs. /reload)
+
+    // ponytail: one lock for all refs; use per-ref locks if this becomes a bottleneck.
+    private readonly SemaphoreSlim _branchLock = new(1, 1);
 
     // Last commit SHA installed per version; we compare the freshly-resolved SHA against it to skip the tarball
     // download + re-parse when the ref hasn't moved. Baseline is keyed by "".
@@ -49,9 +62,35 @@ public class WorkflowConfigLoader(
         }
     }
 
+    public async Task EnsureLoadedAsync(string @ref)
+    {
+        if (resolver.Contains(@ref))
+            return;
+        await _branchLock.WaitAsync();
+        try
+        {
+            if (!resolver.Contains(@ref))
+                await LoadBranchAsync(@ref);
+        }
+        catch (Exception ex)
+        {
+            // Only GitHub failures other than 404 are treated as retryable.
+            var transient = ex is WorkflowConfigFetchException { StatusCode: not HttpStatusCode.NotFound };
+            logger.LogError(ex, "Error loading requested version {Ref}", @ref);
+            throw new WorkflowVersionLoadException(@ref, !transient, ex);
+        }
+        finally
+        {
+            _branchLock.Release();
+        }
+    }
+
     /// Load a branch, tag, or SHA as a named preview version, keyed by the ref.
     public async Task LoadBranchAsync(string @ref)
     {
+        // LocalPath cannot resolve refs; without this check, any ref would load the local checkout.
+        if (!string.IsNullOrWhiteSpace(_opts.LocalPath))
+            throw new InvalidOperationException("Loading a ref is not possible with WorkflowSource:LocalPath set");
         if (string.IsNullOrWhiteSpace(_opts.RepoUrl))
             throw new InvalidOperationException("Loading a ref requires WorkflowSource:RepoUrl to be configured");
         ValidateRef(@ref);
