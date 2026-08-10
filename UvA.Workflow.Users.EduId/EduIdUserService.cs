@@ -48,7 +48,9 @@ public class EduIdUserService(
             ? trimmedEmail
             : displayName.Trim();
 
-        var existingUser = userId != null ? await userRepository.GetById(userId, ct) : null;
+        var existingUser = userId != null
+            ? await userRepository.GetById(userId, ct)
+            : await userRepository.GetByEmail(trimmedEmail, ct);
 
         if (userId != null && existingUser == null)
             throw new ExternalUserCreationException(
