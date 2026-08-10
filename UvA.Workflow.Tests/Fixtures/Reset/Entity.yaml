@@ -1,0 +1,11 @@
+name: Reset
+title: Reset test
+titlePlural: Reset tests
+instanceTitle: '{{ Title }}'
+
+properties:
+  - name: Title
+    type: String!
+
+steps:
+  - Thesis

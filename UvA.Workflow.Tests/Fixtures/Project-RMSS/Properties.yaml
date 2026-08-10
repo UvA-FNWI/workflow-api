@@ -1,8 +1,4 @@
 properties:
-  - name: Course
-    type: Context!
-    inheritedRoles: [Coordinator, Impersonator]
-
   - name: EC
     type: EcType!
     text:
@@ -27,3 +23,6 @@ properties:
     text:
       en: Proposal reviewer
       nl: Voorstel beoordelaar
+
+  - name: TurnitinId
+    type: String

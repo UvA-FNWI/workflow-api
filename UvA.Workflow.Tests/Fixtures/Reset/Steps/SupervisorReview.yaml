@@ -1,0 +1,5 @@
+name: SupervisorReview
+title: Supervisor review
+
+ends:
+  event: SupervisorApproved
