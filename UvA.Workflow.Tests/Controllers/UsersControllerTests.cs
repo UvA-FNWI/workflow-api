@@ -191,7 +191,7 @@ public class UsersControllerTests : ControllerTestsBase
 
 
         var result = await controller.UpdateExternalUser(user.Id,
-            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, user.Id),
+            new UpdateUserEmailDto(new ExternalUserDto("External User", "new@example.org", null, user.Id),
                 InstanceId), _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -253,7 +253,7 @@ public class UsersControllerTests : ControllerTestsBase
             .ReturnsAsync(user);
 
         await controller.UpdateExternalUser(user.Id,
-            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, user.Id),
+            new UpdateUserEmailDto(new ExternalUserDto("External User", "new@example.org", null, user.Id),
                 InstanceId), _ct);
 
         Assert.Equal("new@example.org", instance.Properties["Supervisor"].AsBsonDocument["Email"].AsString);
@@ -271,7 +271,7 @@ public class UsersControllerTests : ControllerTestsBase
 
         var result = await controller.UpdateExternalUser("missing-user-id",
             new UpdateUserEmailDto(
-                new CreateExternalUserDto("External User", "new@example.org", null, "missing-user-id"), InstanceId),
+                new ExternalUserDto("External User", "new@example.org", null, "missing-user-id"), InstanceId),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -299,7 +299,7 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = BuildControllerWithRoles(["Api"]);
 
         var result = await controller.UpdateExternalUser(user.Id,
-            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, user.Id),
+            new UpdateUserEmailDto(new ExternalUserDto("External User", "new@example.org", null, user.Id),
                 InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -330,7 +330,7 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = BuildControllerWithRoles(["Api"]);
 
         var result = await controller.UpdateExternalUser(user.Id,
-            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "duplicate@example.org", null, user.Id),
+            new UpdateUserEmailDto(new ExternalUserDto("External User", "duplicate@example.org", null, user.Id),
                 InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -356,7 +356,7 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = BuildControllerWithRoles(["Api"]);
 
         var result = await controller.UpdateExternalUser(user.Id,
-            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "old@example.org", null, user.Id),
+            new UpdateUserEmailDto(new ExternalUserDto("External User", "old@example.org", null, user.Id),
                 InstanceId), _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -396,7 +396,7 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = BuildControllerWithRoles(["Api"]);
 
         var result = await controller.UpdateExternalUser(user.Id,
-            new UpdateUserEmailDto(new CreateExternalUserDto("External User", email, null, user.Id), InstanceId), _ct);
+            new UpdateUserEmailDto(new ExternalUserDto("External User", email, null, user.Id), InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(expectedStatusCode, objectResult.StatusCode);
@@ -420,7 +420,7 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = BuildControllerWithRoles(["HasNoRights"]);
 
         var result = await controller.UpdateExternalUser(ExternalUserId,
-            new UpdateUserEmailDto(new CreateExternalUserDto("External User", "new@example.org", null, ExternalUserId),
+            new UpdateUserEmailDto(new ExternalUserDto("External User", "new@example.org", null, ExternalUserId),
                 InstanceId), _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -433,7 +433,7 @@ public class UsersControllerTests : ControllerTestsBase
         var controller = BuildControllerWithRoles(["Api"]);
 
         var result = await controller.UpdateExternalUser("url-id",
-            new UpdateUserEmailDto(new CreateExternalUserDto("Name", "new@example.org", null, "body-id"), InstanceId),
+            new UpdateUserEmailDto(new ExternalUserDto("Name", "new@example.org", null, "body-id"), InstanceId),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
