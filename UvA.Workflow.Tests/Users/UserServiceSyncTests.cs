@@ -1,5 +1,7 @@
+using System.Linq.Expressions;
 using Microsoft.Extensions.Caching.Memory;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Organizations;
@@ -11,7 +13,7 @@ namespace UvA.Workflow.Tests.Users;
 
 public class UserServiceSyncTests
 {
-    private static readonly string[] AllFields = ["DisplayName", "Email"];
+    private static readonly Expression<Func<InstanceUser, object>>[] AllFields = [u => u.DisplayName, u => u.Email];
     private static readonly CancellationToken Ct = CancellationToken.None;
 
     private static UserService CreateService(
@@ -37,6 +39,12 @@ public class UserServiceSyncTests
             Email = email
         };
 
+    private static BsonDocument RenderUpdate(UpdateDefinition<WorkflowInstance> update)
+    {
+        var registry = BsonSerializer.SerializerRegistry;
+        var serializer = registry.GetSerializer<WorkflowInstance>();
+        return update.Render(new RenderArgs<WorkflowInstance>(serializer, registry)).AsBsonDocument;
+    }
 
     [Fact]
     public async Task SyncUserInInstances_UserWithInvalidId_DoesNotQueryRepository()
@@ -65,11 +73,15 @@ public class UserServiceSyncTests
 
         await service.SyncUserInInstances(user, AllFields, Ct);
 
-        instanceRepo.Verify(r => r.Update(It.IsAny<WorkflowInstance>(), Ct), Times.Never);
+        instanceRepo.Verify(r => r.UpdateFields(It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), Ct),
+            Times.Never);
+        instanceRepo.Verify(
+            r => r.UpdateArrayFields(It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                It.IsAny<IEnumerable<ArrayFilterDefinition>>(), Ct), Times.Never);
     }
 
     [Fact]
-    public async Task SyncUserInInstances_ScalarUserPropertyMatches_UpdatesFieldsAndCallsUpdate()
+    public async Task SyncUserInInstances_ScalarUserPropertyMatches_CallsUpdateFieldsWithCorrectValues()
     {
         var user = MakeUser();
 
@@ -84,19 +96,26 @@ public class UserServiceSyncTests
                     userName: "jdoe")))
             .Build();
 
+        UpdateDefinition<WorkflowInstance>? capturedUpdate = null;
         var instanceRepo = new Mock<IWorkflowInstanceRepository>();
         instanceRepo
             .Setup(r => r.GetByFilter(It.IsAny<FilterDefinition<WorkflowInstance>>(), Ct))
             .ReturnsAsync([instance]);
+        instanceRepo
+            .Setup(r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(), Ct))
+            .Callback<string, UpdateDefinition<WorkflowInstance>, CancellationToken>((_, update, _) =>
+                capturedUpdate = update)
+            .Returns(Task.CompletedTask);
 
         var service = CreateService(instanceRepo);
-
         await service.SyncUserInInstances(user, AllFields, Ct);
 
-        var updated = instance.Properties["Student"].AsBsonDocument;
-        Assert.Equal("Jane Doe", updated["DisplayName"].AsString);
-        Assert.Equal("jane@invalid.invalid", updated["Email"].AsString);
-        instanceRepo.Verify(r => r.Update(instance, Ct), Times.Once);
+        instanceRepo.Verify(r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(), Ct),
+            Times.Once);
+
+        var rendered = RenderUpdate(capturedUpdate!);
+        Assert.Equal("Jane Doe", rendered["$set"]["Properties.Student.DisplayName"].AsString);
+        Assert.Equal("jane@invalid.invalid", rendered["$set"]["Properties.Student.Email"].AsString);
     }
 
     [Fact]
@@ -118,14 +137,14 @@ public class UserServiceSyncTests
             .ReturnsAsync([instance]);
 
         var service = CreateService(instanceRepo);
-
         await service.SyncUserInInstances(user, AllFields, Ct);
 
-        instanceRepo.Verify(r => r.Update(It.IsAny<WorkflowInstance>(), Ct), Times.Never);
+        instanceRepo.Verify(r => r.UpdateFields(It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), Ct),
+            Times.Never);
     }
 
     [Fact]
-    public async Task SyncUserInInstances_ArrayUserPropertyContainsUser_UpdatesOnlyMatchingElement()
+    public async Task SyncUserInInstances_ArrayUserPropertyContainsUser_CallsUpdateArrayFieldsForMatchingElement()
     {
         var user = MakeUser();
         var otherUserId = ObjectId.GenerateNewId().ToString();
@@ -140,23 +159,30 @@ public class UserServiceSyncTests
                         userName: "other"))))
             .Build();
 
+        UpdateDefinition<WorkflowInstance>? capturedUpdate = null;
         var instanceRepo = new Mock<IWorkflowInstanceRepository>();
         instanceRepo
             .Setup(r => r.GetByFilter(It.IsAny<FilterDefinition<WorkflowInstance>>(), Ct))
             .ReturnsAsync([instance]);
+        instanceRepo
+            .Setup(r => r.UpdateArrayFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                It.IsAny<IEnumerable<ArrayFilterDefinition>>(), Ct))
+            .Callback<string, UpdateDefinition<WorkflowInstance>, IEnumerable<ArrayFilterDefinition>,
+                CancellationToken>((_, update, _, _) => capturedUpdate = update)
+            .Returns(Task.CompletedTask);
 
         var service = CreateService(instanceRepo);
-
         await service.SyncUserInInstances(user, AllFields, Ct);
 
-        var array = instance.Properties["PracticalSupervisor"].AsBsonArray;
-        var matchedElem = array.First(e => e.AsBsonDocument["_id"] == ObjectId.Parse(user.Id)).AsBsonDocument;
-        var otherElem = array.First(e => e.AsBsonDocument["_id"] == ObjectId.Parse(otherUserId)).AsBsonDocument;
+        instanceRepo.Verify(
+            r => r.UpdateArrayFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                It.IsAny<IEnumerable<ArrayFilterDefinition>>(), Ct), Times.Once);
+        instanceRepo.Verify(r => r.UpdateFields(It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), Ct),
+            Times.Never);
 
-        Assert.Equal("Jane Doe", matchedElem["DisplayName"].AsString);
-        Assert.Equal("jane@invalid.invalid", matchedElem["Email"].AsString);
-        Assert.Equal("Other Person", otherElem["DisplayName"].AsString); // unchanged
-        instanceRepo.Verify(r => r.Update(instance, Ct), Times.Once);
+        var rendered = RenderUpdate(capturedUpdate!);
+        Assert.Equal("Jane Doe", rendered["$set"]["Properties.PracticalSupervisor.$[elem].DisplayName"].AsString);
+        Assert.Equal("jane@invalid.invalid", rendered["$set"]["Properties.PracticalSupervisor.$[elem].Email"].AsString);
     }
 
     [Fact]
@@ -178,14 +204,15 @@ public class UserServiceSyncTests
             .ReturnsAsync([instance]);
 
         var service = CreateService(instanceRepo);
-
         await service.SyncUserInInstances(user, AllFields, Ct);
 
-        instanceRepo.Verify(r => r.Update(It.IsAny<WorkflowInstance>(), Ct), Times.Never);
+        instanceRepo.Verify(
+            r => r.UpdateArrayFields(It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                It.IsAny<IEnumerable<ArrayFilterDefinition>>(), Ct), Times.Never);
     }
 
     [Fact]
-    public async Task SyncUserInInstances_OnlySpecifiedFieldsAreOverwritten()
+    public async Task SyncUserInInstances_OnlySpecifiedFieldsAreUpdated()
     {
         var user = MakeUser();
 
@@ -200,18 +227,25 @@ public class UserServiceSyncTests
                     userName: "original-username")))
             .Build();
 
+        UpdateDefinition<WorkflowInstance>? capturedUpdate = null;
         var instanceRepo = new Mock<IWorkflowInstanceRepository>();
         instanceRepo
             .Setup(r => r.GetByFilter(It.IsAny<FilterDefinition<WorkflowInstance>>(), Ct))
             .ReturnsAsync([instance]);
+        instanceRepo
+            .Setup(r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(), Ct))
+            .Callback<string, UpdateDefinition<WorkflowInstance>, CancellationToken>((_, update, _) =>
+                capturedUpdate = update)
+            .Returns(Task.CompletedTask);
 
         var service = CreateService(instanceRepo);
 
         // Only sync DisplayName, not Email
-        await service.SyncUserInInstances(user, ["DisplayName"], Ct);
+        await service.SyncUserInInstances(user, [u => u.DisplayName!], Ct);
 
-        var updated = instance.Properties["Student"].AsBsonDocument;
-        Assert.Equal("Jane Doe", updated["DisplayName"].AsString);
-        Assert.Equal("old@uva.nl", updated["Email"].AsString); // not in requested fields, unchanged
+        var rendered = RenderUpdate(capturedUpdate!);
+        var setFields = rendered["$set"].AsBsonDocument;
+        Assert.True(setFields.Contains("Properties.Student.DisplayName"));
+        Assert.False(setFields.Contains("Properties.Student.Email")); // not requested, must be absent
     }
 }

@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 namespace UvA.Workflow.Users;
 
 public interface IUserService
@@ -56,5 +58,5 @@ public interface IUserService
     /// <param name="fields">The fields on the user object that are updated, e.g. DisplayName or Picture</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns></returns>
-    Task SyncUserInInstances(User user, string[] fields, CancellationToken ct);
+    Task SyncUserInInstances(User user, Expression<Func<InstanceUser, object>>[] fields, CancellationToken ct);
 }

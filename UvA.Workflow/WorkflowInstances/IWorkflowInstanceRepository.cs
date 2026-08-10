@@ -48,4 +48,7 @@ public interface IWorkflowInstanceRepository
         CancellationToken ct);
 
     Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct);
+
+    Task UpdateArrayFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition,
+        IEnumerable<ArrayFilterDefinition> arrayFilters, CancellationToken ct);
 }

@@ -24,7 +24,7 @@ public class CanvasClaimsResolver(
             launchInfo.Picture);
 
         if (launchInfo.Picture != null && existingPicture != launchInfo.Picture)
-            await userService.SyncUserInInstances(user, ["Picture"], CancellationToken.None);
+            await userService.SyncUserInInstances(user, [u => u.Picture!], CancellationToken.None);
 
         var target = await targetResolver.ResolveTarget(user, launchInfo, CancellationToken.None);
 
