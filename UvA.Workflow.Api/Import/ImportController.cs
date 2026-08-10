@@ -39,15 +39,14 @@ public class ImportController(ImportService importService, ModelService modelSer
     public async Task<ActionResult<ImportPreview>> Preview(
         [FromForm] ImportPreviewRequest request, CancellationToken ct)
     {
-        // await using var stream = request.File.OpenReadStream();
-        //
-        // var preview = await importService.PreviewAsync(
-        //     stream,
-        //     request.File.ContentType,
-        //     request.WorkflowDefinition,
-        //     request.Mappings,
-        //     ct);
-        var preview = request;
+        await using var stream = request.File.OpenReadStream();
+
+        var preview = await importService.PreviewAsync(
+            stream,
+            request.File.ContentType,
+            request.WorkflowDefinition,
+            request.Mappings,
+            ct);
 
         return Ok(preview);
     }

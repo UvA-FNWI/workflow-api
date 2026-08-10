@@ -6,7 +6,6 @@ using UvA.Workflow.DocumentIO;
 
 namespace UvA.Workflow.Import;
 
-// TODO: This implementation is made by AI. It needs to be changed into an own version.
 public class ImportService(
     IExcelService excelService,
     IWorkflowInstanceRepository workflowInstanceRepository,
@@ -14,6 +13,8 @@ public class ImportService(
     AnswerService answerService,
     ModelService modelService)
 {
+    private const string StudentNumberProperty = "StudentNumber";
+
     public bool IsImportableType(DataType dt) => dt is
         DataType.String or DataType.Int or DataType.Double or
         DataType.Date or DataType.DateTime or DataType.User;
@@ -25,50 +26,73 @@ public class ImportService(
         ColumnMapping[] mappings,
         CancellationToken ct)
     {
-        var rows = ParseFile(fileStream, contentType);
-        var instances = (await workflowInstanceRepository
-                .GetByWorkflowDefinition(workflowDefinition, Builders<WorkflowInstance>.Filter.Empty, ct))
-            .ToList();
+        var studentNumberMapping = mappings.FirstOrDefault(m => m.PropertyName == StudentNumberProperty)
+                                   ?? throw new InvalidOperationException(
+                                       "No StudentNumber column mapping was provided.");
 
-        var previewRows = new List<ImportPreviewRow>();
+        var dataMappings = mappings.Where(m => m.PropertyName != StudentNumberProperty).ToArray();
 
-        foreach (var (row, index) in rows.Select((r, i) => (r, i)))
+        var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
+
+        var columns = dataMappings
+            .Select(m =>
+            {
+                var prop = modelService.GetProperty(stub, m.PropertyName);
+                return prop == null ? null : new ImportPreviewColumn(m.PropertyName, prop.DisplayName, prop.DataType);
+            })
+            .OfType<ImportPreviewColumn>()
+            .ToArray();
+
+        var rows = ParseFile(fileStream, contentType).ToList();
+
+        var studentNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var duplicates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var sn = row.GetValueOrDefault(studentNumberMapping.ExcelColumn)?.Trim();
+            if (string.IsNullOrEmpty(sn)) continue;
+            if (!studentNumbers.Add(sn)) duplicates.Add(sn);
+        }
+
+        var studentFilter = Builders<WorkflowInstance>.Filter.In("Properties.Student.UserName", studentNumbers);
+        var instances = await workflowInstanceRepository.GetByWorkflowDefinition(workflowDefinition, studentFilter, ct);
+        var instanceByStudentNumber = BuildStudentLookup(instances);
+
+        var previewRows = new List<ImportPreviewRow>(rows.Count);
+        foreach (var row in rows)
         {
             var errors = new List<string>();
-            var values = new Dictionary<string, string?>();
+            var studentNumber = row.GetValueOrDefault(studentNumberMapping.ExcelColumn)?.Trim() ?? string.Empty;
 
-            // Try to find matching instance by a key column (e.g. "Id")
-            var instanceId = row.GetValueOrDefault("Id");
-            var instance = instances.FirstOrDefault(i => i.Id == instanceId);
-
-            if (instance == null)
+            if (string.IsNullOrEmpty(studentNumber))
             {
-                previewRows.Add(new ImportPreviewRow(
-                    instanceId ?? $"row-{index}",
-                    values,
-                    [$"No instance found for Id '{instanceId}'"]));
+                errors.Add(nameof(ImportPreviewErrorType.StudentNotFound));
+                previewRows.Add(new ImportPreviewRow(string.Empty, string.Empty, [], errors.ToArray()));
                 continue;
             }
 
-            foreach (var mapping in mappings)
+            if (duplicates.Contains(studentNumber))
+                errors.Add(nameof(ImportPreviewErrorType.DuplicateStudent));
+
+            if (!instanceByStudentNumber.TryGetValue(studentNumber, out var instance))
             {
-                if (!row.TryGetValue(mapping.ExcelColumn, out var rawValue))
-                    continue;
-
-                var property = modelService.GetProperty(instance, mapping.PropertyName);
-                if (property == null)
-                {
-                    errors.Add($"Property '{mapping.PropertyName}' not found on '{workflowDefinition}'");
-                    continue;
-                }
-
-                values[mapping.PropertyName] = rawValue;
+                errors.Add(nameof(ImportPreviewErrorType.StudentNotFound));
+                previewRows.Add(new ImportPreviewRow(string.Empty, studentNumber, [], errors.ToArray()));
+                continue;
             }
 
-            previewRows.Add(new ImportPreviewRow(instance.Id, values, errors.ToArray()));
+            var values = new Dictionary<string, string>();
+            foreach (var mapping in dataMappings)
+            {
+                if (row.TryGetValue(mapping.ExcelColumn, out var rawValue))
+                    values[mapping.PropertyName] = rawValue;
+            }
+
+            previewRows.Add(new ImportPreviewRow(instance.Id, studentNumber, values, errors.ToArray()));
         }
 
-        return new ImportPreview(previewRows.ToArray(), []);
+
+        return new ImportPreview(columns, previewRows);
     }
 
     public async Task ImportAsync(
@@ -104,6 +128,29 @@ public class ImportService(
                 await answerService.SavePropertyValue(instance, pathParts, property, bsonValue, shouldLog: true, ct);
             }
         }
+    }
+
+    /// <summary>
+    /// Builds a case-insensitive lookup of StudentNumber → WorkflowInstance
+    /// by reading the Student user property from each instance.
+    /// </summary>
+    private static Dictionary<string, WorkflowInstance> BuildStudentLookup(
+        IEnumerable<WorkflowInstance> instances)
+    {
+        var lookup = new Dictionary<string, WorkflowInstance>(StringComparer.OrdinalIgnoreCase);
+        foreach (var instance in instances)
+        {
+            var studentBson = instance.GetProperty("Student");
+            if (studentBson is not BsonDocument studentDoc) continue;
+            if (!studentDoc.TryGetValue("UserName", out var userName)) continue;
+
+            var key = userName.AsString?.Trim();
+            if (string.IsNullOrEmpty(key)) continue;
+
+            lookup.TryAdd(key, instance);
+        }
+
+        return lookup;
     }
 
     private IEnumerable<Dictionary<string, string>> ParseFile(Stream fileStream, string contentType)
