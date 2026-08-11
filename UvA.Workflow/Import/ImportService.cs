@@ -11,7 +11,8 @@ public class ImportService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     AnswerConversionService answerConversionService,
     AnswerService answerService,
-    ModelService modelService)
+    ModelService modelService,
+    IUserRepository userRepository)
 {
     private const string StudentNumberProperty = "UserName";
     private const string StudentNameProperty = "DisplayName";
@@ -74,10 +75,28 @@ public class ImportService(
             var errors = new List<ImportPreviewError>();
             var studentNumber = row.GetValueOrDefault(studentNumberMapping.ExcelColumn)?.Trim() ?? string.Empty;
 
+            var values = new Dictionary<string, string>();
+            foreach (var mapping in mappings)
+            {
+                if (row.TryGetValue(mapping.ExcelColumn, out var rawValue))
+                {
+                    values[mapping.PropertyName] = rawValue;
+
+                    var prop = modelService.GetProperty(stub, mapping.PropertyName);
+                    if (prop?.DataType == DataType.User && !string.IsNullOrWhiteSpace(rawValue))
+                    {
+                        var user = await userRepository.GetByEmail(rawValue.Trim(), ct);
+                        if (user == null)
+                            errors.Add(ImportPreviewError.From(ImportPreviewErrorType.UserNotFound,
+                                mapping.PropertyName));
+                    }
+                }
+            }
+
             if (string.IsNullOrEmpty(studentNumber))
             {
                 errors.Add(ImportPreviewError.From(ImportPreviewErrorType.StudentNotFound, StudentNameProperty));
-                previewRows.Add(new ImportPreviewRow(string.Empty, [], errors.ToArray()));
+                previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
                 continue;
             }
 
@@ -87,19 +106,11 @@ public class ImportService(
             if (!instanceByStudentNumber.TryGetValue(studentNumber, out var entry))
             {
                 errors.Add(ImportPreviewError.From(ImportPreviewErrorType.StudentNotFound, StudentNameProperty));
-                previewRows.Add(new ImportPreviewRow(string.Empty,
-                    new Dictionary<string, string> { [StudentNumberProperty] = studentNumber }, errors.ToArray()));
+                previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
                 continue;
             }
 
-            var values = new Dictionary<string, string>();
-            values[StudentNumberProperty] = studentNumber;
             values[StudentNameProperty] = entry.DisplayName;
-            foreach (var mapping in mappings)
-            {
-                if (row.TryGetValue(mapping.ExcelColumn, out var rawValue))
-                    values[mapping.PropertyName] = rawValue;
-            }
 
             previewRows.Add(new ImportPreviewRow(entry.Instance.Id, values, errors.ToArray()));
         }
@@ -115,32 +126,7 @@ public class ImportService(
         ColumnMapping[] mappings,
         CancellationToken ct)
     {
-        var rows = ParseFile(fileStream, contentType);
-        var instances = (await workflowInstanceRepository
-                .GetByWorkflowDefinition(workflowDefinition, Builders<WorkflowInstance>.Filter.Empty, ct))
-            .ToList();
-
-        foreach (var row in rows)
-        {
-            var instanceId = row.GetValueOrDefault("Id");
-            var instance = instances.FirstOrDefault(i => i.Id == instanceId);
-            if (instance == null) continue;
-
-            foreach (var mapping in mappings)
-            {
-                if (!row.TryGetValue(mapping.ExcelColumn, out var rawValue)) continue;
-
-                var property = modelService.GetProperty(instance, mapping.PropertyName);
-                if (property == null) continue;
-
-                // Wrap raw string as JsonElement so AnswerConversionService can handle type conversion
-                var jsonElement = JsonSerializer.SerializeToElement(rawValue);
-                var bsonValue = await answerConversionService.ConvertToValue(jsonElement, property, ct);
-                var pathParts = new[] { mapping.PropertyName };
-
-                await answerService.SavePropertyValue(instance, pathParts, property, bsonValue, shouldLog: true, ct);
-            }
-        }
+        //todo: Implement
     }
 
     /// <summary>

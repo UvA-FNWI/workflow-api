@@ -36,7 +36,8 @@ public class ImportControllerTests : ControllerTestsBase
             _workflowInstanceRepoMock.Object,
             answerConversionService,
             answerService,
-            _modelService);
+            _modelService,
+            _userRepoMock.Object);
     }
 
     private ImportController BuildController(params string[] roles)
