@@ -72,40 +72,41 @@ public class ImportService(
         var previewRows = new List<ImportPreviewRow>(rows.Count);
         foreach (var row in rows)
         {
-            var errors = new List<ImportPreviewError>();
+            var errors = new List<ImportError>();
             var studentNumber = row.GetValueOrDefault(studentNumberMapping.ExcelColumn)?.Trim() ?? string.Empty;
 
             var values = new Dictionary<string, string>();
             foreach (var mapping in mappings)
             {
-                if (row.TryGetValue(mapping.ExcelColumn, out var rawValue))
-                {
-                    values[mapping.PropertyName] = rawValue;
+                if (!row.TryGetValue(mapping.ExcelColumn, out var rawValue)) continue;
 
-                    var prop = modelService.GetProperty(stub, mapping.PropertyName);
-                    if (prop?.DataType == DataType.User && !string.IsNullOrWhiteSpace(rawValue))
-                    {
-                        var user = await userRepository.GetByEmail(rawValue.Trim(), ct);
-                        if (user == null)
-                            errors.Add(ImportPreviewError.From(ImportPreviewErrorType.UserNotFound,
-                                mapping.PropertyName));
-                    }
-                }
+                values[mapping.PropertyName] = rawValue;
+
+                var prop = modelService.GetProperty(stub, mapping.PropertyName);
+
+                if (prop == null || string.IsNullOrWhiteSpace(rawValue) || prop.DataType == DataType.String) continue;
+
+
+                var converted = await ConvertRawValueToBson(prop, rawValue, ct);
+                if (converted == BsonNull.Value)
+                    errors.Add(ImportError.From(
+                        prop.DataType == DataType.User ? ImportErrorType.UserNotFound : ImportErrorType.InvalidDataType,
+                        mapping.PropertyName));
             }
 
             if (string.IsNullOrEmpty(studentNumber))
             {
-                errors.Add(ImportPreviewError.From(ImportPreviewErrorType.StudentNotFound, StudentNameProperty));
+                errors.Add(ImportError.From(ImportErrorType.StudentNotFound, StudentNameProperty));
                 previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
                 continue;
             }
 
             if (duplicates.Contains(studentNumber))
-                errors.Add(ImportPreviewError.From(ImportPreviewErrorType.DuplicateStudent, StudentNameProperty));
+                errors.Add(ImportError.From(ImportErrorType.DuplicateStudent, StudentNameProperty));
 
             if (!instanceByStudentNumber.TryGetValue(studentNumber, out var entry))
             {
-                errors.Add(ImportPreviewError.From(ImportPreviewErrorType.StudentNotFound, StudentNameProperty));
+                errors.Add(ImportError.From(ImportErrorType.StudentNotFound, StudentNameProperty));
                 previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
                 continue;
             }

@@ -12,7 +12,7 @@ public record ImportPreviewColumn(string Name, BilingualString Title, DataType D
 public record ImportPreviewRow(
     string InstanceId,
     Dictionary<string, string> Values, // propertyName → parsed value
-    ImportPreviewError[] ValidationErrors
+    ImportError[] ValidationErrors
 );
 
 public record ImportConfirmRow(
@@ -20,25 +20,29 @@ public record ImportConfirmRow(
     Dictionary<string, string> Values // propertyName → raw string value
 );
 
-public record ImportPreviewError(string Column, string Code, BilingualString Message)
+public record ImportError(string Column, string Code, BilingualString Message)
 {
-    public static ImportPreviewError From(ImportPreviewErrorType type, string column) => type switch
+    public static ImportError From(ImportErrorType type, string column) => type switch
     {
-        ImportPreviewErrorType.StudentNotFound => new(column, "StudentNotFound",
+        ImportErrorType.StudentNotFound => new(column, "StudentNotFound",
             new("Student not found", "Student niet gevonden")),
-        ImportPreviewErrorType.DuplicateStudent => new(column, "DuplicateStudent",
+        ImportErrorType.DuplicateStudent => new(column, "DuplicateStudent",
             new("Student occurs multiple times", "Student komt meerdere keren voor")),
-        ImportPreviewErrorType.UnknownColumn => new(column, "UnknownColumn", new("Unknown column", "Onbekende kolom")),
-        ImportPreviewErrorType.UserNotFound => new(column, "UserNotFound",
+        ImportErrorType.UnknownColumn => new(column, "UnknownColumn", new("Unknown column", "Onbekende kolom")),
+        ImportErrorType.UserNotFound => new(column, "UserNotFound",
             new("User not found", "Gebruiker niet gevonden")),
+        ImportErrorType.InvalidDataType => new(column, "InvalidDataType",
+            new("Value does not match the expected data type",
+                "Waarde komt niet overeen met het verwachte gegevenstype")),
         _ => new(column, type.ToString(), new(type.ToString(), type.ToString()))
     };
 }
 
-public enum ImportPreviewErrorType
+public enum ImportErrorType
 {
     UnknownColumn,
     DuplicateStudent,
     StudentNotFound,
-    UserNotFound
+    UserNotFound,
+    InvalidDataType
 }
