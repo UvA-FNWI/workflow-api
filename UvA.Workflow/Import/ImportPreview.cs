@@ -15,6 +15,11 @@ public record ImportPreviewRow(
     ImportPreviewError[] ValidationErrors
 );
 
+public record ImportConfirmRow(
+    string InstanceId,
+    Dictionary<string, string> Values // propertyName → raw string value
+);
+
 public record ImportPreviewError(string Column, string Code, BilingualString Message)
 {
     public static ImportPreviewError From(ImportPreviewErrorType type, string column) => type switch

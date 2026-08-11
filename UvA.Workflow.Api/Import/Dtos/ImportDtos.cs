@@ -19,9 +19,8 @@ public class ImportPreviewRequest
 }
 
 public record ImportConfirmRequest(
-    string SessionToken, // or re-send file + mappings
     string WorkflowDefinition,
-    ColumnMapping[] Mappings
+    ImportConfirmRow[] Rows
 );
 
 public record ImportablePropertyDto(string Name, BilingualString Title, DataType DataType);

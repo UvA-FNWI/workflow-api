@@ -52,19 +52,13 @@ public class ImportController(ImportService importService, ModelService modelSer
     }
 
     [HttpPost("Confirm")]
-    [Consumes("multipart/form-data")]
     public async Task<IActionResult> Confirm(
-        [FromForm] ImportPreviewRequest request, CancellationToken ct)
+        [FromBody] ImportConfirmRequest request, CancellationToken ct)
     {
-        var response = request;
-        // await using var stream = request.File.OpenReadStream();
-        //
-        // await importService.ImportAsync(
-        //     stream,
-        //     request.File.ContentType,
-        //     request.WorkflowDefinition,
-        //     request.Mappings,
-        //     ct);
+        await importService.ImportAsync(
+            request.WorkflowDefinition,
+            request.Rows,
+            ct);
 
         return Ok();
     }

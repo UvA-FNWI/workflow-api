@@ -120,13 +120,30 @@ public class ImportService(
     }
 
     public async Task ImportAsync(
-        Stream fileStream,
-        string contentType,
         string workflowDefinition,
-        ColumnMapping[] mappings,
+        ImportConfirmRow[] rows,
         CancellationToken ct)
     {
-        //todo: Implement
+        var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
+
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrEmpty(row.InstanceId)) continue;
+
+            var instance = await workflowInstanceRepository.GetById(row.InstanceId, ct);
+            if (instance == null) continue;
+
+            foreach (var (propertyName, rawValue) in row.Values)
+            {
+                if (propertyName is StudentNumberProperty or StudentNameProperty) continue;
+
+                var prop = modelService.GetProperty(stub, propertyName);
+                if (prop == null) continue;
+
+                var bsonValue = await ConvertRawValueToBson(prop, rawValue, ct);
+                await answerService.SavePropertyValue(instance, [propertyName], prop, bsonValue, shouldLog: true, ct);
+            }
+        }
     }
 
     /// <summary>
@@ -152,6 +169,34 @@ public class ImportService(
         }
 
         return lookup;
+    }
+
+    private async Task<BsonValue> ConvertRawValueToBson(PropertyDefinition prop, string rawValue, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue)) return BsonNull.Value;
+
+        JsonElement element = prop.DataType switch
+        {
+            DataType.Int when int.TryParse(rawValue, out var i)
+                => JsonSerializer.SerializeToElement(i),
+            DataType.Double when double.TryParse(rawValue, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var d)
+                => JsonSerializer.SerializeToElement(d),
+            DataType.User => await ResolveUserElement(rawValue, ct),
+            _
+                => JsonSerializer.SerializeToElement(rawValue)
+        };
+
+        return await answerConversionService.ConvertToValue(element, prop, ct);
+    }
+
+    private async Task<JsonElement> ResolveUserElement(string email, CancellationToken ct)
+    {
+        var user = await userRepository.GetByEmail(email.Trim(), ct);
+        if (user == null) return JsonSerializer.SerializeToElement<object?>(null);
+
+        var userInput = new { userName = user.UserName, displayName = user.DisplayName, email = user.Email };
+        return JsonSerializer.SerializeToElement(userInput, AnswerConversionService.Options);
     }
 
     private IEnumerable<Dictionary<string, string>> ParseFile(Stream fileStream, string contentType)
