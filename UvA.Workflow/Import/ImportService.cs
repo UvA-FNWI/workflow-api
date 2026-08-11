@@ -71,22 +71,22 @@ public class ImportService(
         var previewRows = new List<ImportPreviewRow>(rows.Count);
         foreach (var row in rows)
         {
-            var errors = new List<string>();
+            var errors = new List<ImportPreviewError>();
             var studentNumber = row.GetValueOrDefault(studentNumberMapping.ExcelColumn)?.Trim() ?? string.Empty;
 
             if (string.IsNullOrEmpty(studentNumber))
             {
-                errors.Add(nameof(ImportPreviewErrorType.StudentNotFound));
+                errors.Add(ImportPreviewError.From(ImportPreviewErrorType.StudentNotFound, StudentNameProperty));
                 previewRows.Add(new ImportPreviewRow(string.Empty, [], errors.ToArray()));
                 continue;
             }
 
             if (duplicates.Contains(studentNumber))
-                errors.Add(nameof(ImportPreviewErrorType.DuplicateStudent));
+                errors.Add(ImportPreviewError.From(ImportPreviewErrorType.DuplicateStudent, StudentNameProperty));
 
             if (!instanceByStudentNumber.TryGetValue(studentNumber, out var entry))
             {
-                errors.Add(nameof(ImportPreviewErrorType.StudentNotFound));
+                errors.Add(ImportPreviewError.From(ImportPreviewErrorType.StudentNotFound, StudentNameProperty));
                 previewRows.Add(new ImportPreviewRow(string.Empty,
                     new Dictionary<string, string> { [StudentNumberProperty] = studentNumber }, errors.ToArray()));
                 continue;
