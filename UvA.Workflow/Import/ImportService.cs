@@ -13,7 +13,8 @@ public class ImportService(
     AnswerService answerService,
     ModelService modelService)
 {
-    private const string StudentNumberProperty = "StudentNumber";
+    private const string StudentNumberProperty = "UserName";
+    private const string StudentNameProperty = "DisplayName";
 
     public bool IsImportableType(DataType dt) => dt is
         DataType.String or DataType.Int or DataType.Double or
@@ -32,9 +33,15 @@ public class ImportService(
 
         var dataMappings = mappings.Where(m => m.PropertyName != StudentNumberProperty).ToArray();
 
+        var studentNumberColumn = new ImportPreviewColumn(StudentNumberProperty,
+            new BilingualString("Student Number", "Studentnummer"), DataType.String);
+
+        var studentNameColumn = new ImportPreviewColumn(StudentNameProperty,
+            new BilingualString("Student Name (from database)", "Naam student (uit database)"), DataType.String);
+
         var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
 
-        var columns = dataMappings
+        var dataColumns = dataMappings
             .Select(m =>
             {
                 var prop = modelService.GetProperty(stub, m.PropertyName);
@@ -42,6 +49,8 @@ public class ImportService(
             })
             .OfType<ImportPreviewColumn>()
             .ToArray();
+
+        var columns = new[] { studentNumberColumn, studentNameColumn }.Concat(dataColumns).ToArray();
 
         var rows = ParseFile(fileStream, contentType).ToList();
 
@@ -54,7 +63,8 @@ public class ImportService(
             if (!studentNumbers.Add(sn)) duplicates.Add(sn);
         }
 
-        var studentFilter = Builders<WorkflowInstance>.Filter.In("Properties.Student.UserName", studentNumbers);
+        var studentFilter =
+            Builders<WorkflowInstance>.Filter.In($"Properties.Student.{StudentNumberProperty}", studentNumbers);
         var instances = await workflowInstanceRepository.GetByWorkflowDefinition(workflowDefinition, studentFilter, ct);
         var instanceByStudentNumber = BuildStudentLookup(instances);
 
@@ -67,28 +77,31 @@ public class ImportService(
             if (string.IsNullOrEmpty(studentNumber))
             {
                 errors.Add(nameof(ImportPreviewErrorType.StudentNotFound));
-                previewRows.Add(new ImportPreviewRow(string.Empty, string.Empty, [], errors.ToArray()));
+                previewRows.Add(new ImportPreviewRow(string.Empty, [], errors.ToArray()));
                 continue;
             }
 
             if (duplicates.Contains(studentNumber))
                 errors.Add(nameof(ImportPreviewErrorType.DuplicateStudent));
 
-            if (!instanceByStudentNumber.TryGetValue(studentNumber, out var instance))
+            if (!instanceByStudentNumber.TryGetValue(studentNumber, out var entry))
             {
                 errors.Add(nameof(ImportPreviewErrorType.StudentNotFound));
-                previewRows.Add(new ImportPreviewRow(string.Empty, studentNumber, [], errors.ToArray()));
+                previewRows.Add(new ImportPreviewRow(string.Empty,
+                    new Dictionary<string, string> { [StudentNumberProperty] = studentNumber }, errors.ToArray()));
                 continue;
             }
 
             var values = new Dictionary<string, string>();
-            foreach (var mapping in dataMappings)
+            values[StudentNumberProperty] = studentNumber;
+            values[StudentNameProperty] = entry.DisplayName;
+            foreach (var mapping in mappings)
             {
                 if (row.TryGetValue(mapping.ExcelColumn, out var rawValue))
                     values[mapping.PropertyName] = rawValue;
             }
 
-            previewRows.Add(new ImportPreviewRow(instance.Id, studentNumber, values, errors.ToArray()));
+            previewRows.Add(new ImportPreviewRow(entry.Instance.Id, values, errors.ToArray()));
         }
 
 
@@ -134,10 +147,10 @@ public class ImportService(
     /// Builds a case-insensitive lookup of StudentNumber → WorkflowInstance
     /// by reading the Student user property from each instance.
     /// </summary>
-    private static Dictionary<string, WorkflowInstance> BuildStudentLookup(
+    private static Dictionary<string, (WorkflowInstance Instance, string DisplayName)> BuildStudentLookup(
         IEnumerable<WorkflowInstance> instances)
     {
-        var lookup = new Dictionary<string, WorkflowInstance>(StringComparer.OrdinalIgnoreCase);
+        var lookup = new Dictionary<string, (WorkflowInstance, string)>(StringComparer.OrdinalIgnoreCase);
         foreach (var instance in instances)
         {
             var studentBson = instance.GetProperty("Student");
@@ -147,7 +160,9 @@ public class ImportService(
             var key = userName.AsString?.Trim();
             if (string.IsNullOrEmpty(key)) continue;
 
-            lookup.TryAdd(key, instance);
+            var displayName = studentDoc.TryGetValue("DisplayName", out var dn) ? dn.AsString ?? "" : "";
+
+            lookup.TryAdd(key, (instance, displayName));
         }
 
         return lookup;

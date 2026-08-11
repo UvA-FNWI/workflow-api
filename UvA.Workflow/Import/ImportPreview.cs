@@ -11,7 +11,6 @@ public record ImportPreviewColumn(string Name, BilingualString Title, DataType D
 
 public record ImportPreviewRow(
     string InstanceId,
-    string StudentNumber,
     Dictionary<string, string> Values, // propertyName → parsed value
     string[] ValidationErrors
 );
