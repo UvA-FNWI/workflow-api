@@ -1,13 +1,11 @@
 using System.Text.Json;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
-using UvA.Workflow.DocumentIO;
-
 
 namespace UvA.Workflow.Import;
 
 public class ImportService(
-    IExcelService excelService,
+    IEnumerable<IFileParserService> parsers,
     IWorkflowInstanceRepository workflowInstanceRepository,
     AnswerConversionService answerConversionService,
     AnswerService answerService,
@@ -202,11 +200,8 @@ public class ImportService(
 
     private IEnumerable<Dictionary<string, string>> ParseFile(Stream fileStream, string contentType)
     {
-        return contentType switch
-        {
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or ".xlsx"
-                => excelService.ParseRows(fileStream),
-            _ => throw new NotSupportedException($"File type '{contentType}' is not supported for import.")
-        };
+        var parser = parsers.FirstOrDefault(p => p.CanHandle(contentType))
+                     ?? throw new NotSupportedException($"File type '{contentType}' is not supported for import.");
+        return parser.ParseRows(fileStream);
     }
 }

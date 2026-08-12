@@ -53,7 +53,7 @@ builder.Services.AddWorkflowDataNoseUsers(builder.Configuration);
 builder.Services.AddWorkflowEduIdUsers(builder.Configuration);
 builder.Services.AddWorkflowSurfConextAuthentication(builder.Configuration);
 builder.Services.AddWorkflowCanvasLtiAuthentication(builder.Configuration);
-builder.Services.AddWorkflowDocumentIO();
+builder.Services.AddWorkflowDocumentIo();
 
 
 builder.Services.AddCors(options =>

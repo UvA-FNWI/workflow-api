@@ -1,9 +1,13 @@
 ﻿using ClosedXML.Excel;
+using UvA.Workflow.Import;
 
 namespace UvA.Workflow.DocumentIO;
 
-public class ExcelService : IExcelService
+public class ExcelService : IFileParserService
 {
+    public bool CanHandle(string contentType) =>
+        contentType is "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or ".xlsx";
+
     public IEnumerable<Dictionary<string, string>> ParseRows(Stream fileStream)
     {
         using var workbook = new XLWorkbook(fileStream);
@@ -19,12 +23,5 @@ public class ExcelService : IExcelService
                 dict[headers[i]] = row.Cell(i + 1).GetValue<string>();
             yield return dict;
         }
-    }
-
-    public (IExcelService.FileImportResult, List<Dictionary<int, string>>?, Dictionary<int, string>?)
-        LoadWorksheetData(Stream stream, string? sheetName, IEnumerable<int> columnIndices)
-    {
-        // implement as needed
-        throw new NotImplementedException();
     }
 }

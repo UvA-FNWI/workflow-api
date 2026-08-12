@@ -3,12 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using UvA.Workflow.Api.Import;
 using UvA.Workflow.Api.Import.Dtos;
-using UvA.Workflow.DocumentIO;
 using UvA.Workflow.Import;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.WorkflowInstances;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -32,7 +30,7 @@ public class ImportControllerTests : ControllerTestsBase
             _externalUserServiceMock.Object);
 
         _importService = new ImportService(
-            new Mock<IExcelService>().Object,
+            [new Mock<IFileParserService>().Object],
             _workflowInstanceRepoMock.Object,
             answerConversionService,
             answerService,

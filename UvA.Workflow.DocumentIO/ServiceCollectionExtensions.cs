@@ -1,13 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
-using UvA.Workflow.DocumentIO;
+using UvA.Workflow.Import;
 
 namespace UvA.Workflow.DocumentIO;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddWorkflowDocumentIO(this IServiceCollection services)
+    public static IServiceCollection AddWorkflowDocumentIo(this IServiceCollection services)
     {
-        services.AddScoped<IExcelService, ExcelService>();
+        services.AddScoped<IFileParserService, ExcelService>();
+        services.AddScoped<IFileParserService, CsvService>();
         return services;
     }
 }
