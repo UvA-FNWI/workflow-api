@@ -12,13 +12,13 @@ public record ScreenDataDto(
     ScreenGroupDto[]? Groups = null)
 {
     public static ScreenDataDto Create(Screen screen, WorkflowDefinition definition, ScreenColumnDto[] columns,
-        ScreenRowDto[] rows,
+        ScreenRowDto[] rows, bool canBulkEdit,
         ScreenGroupDto[]? groups = null)
     {
         return new ScreenDataDto(
             screen.Name,
             WorkflowDefinitionDto.Create(definition),
-            screen.EnableBulkEdit ?? false,
+            screen.BulkEditProperties is { Length: > 0 } && canBulkEdit,
             columns,
             rows,
             groups);

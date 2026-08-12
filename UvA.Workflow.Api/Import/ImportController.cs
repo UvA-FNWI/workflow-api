@@ -8,8 +8,9 @@ using UvA.Workflow.Import;
 public class ImportController(ImportService importService, ModelService modelService, RightsService rightsService)
     : ApiControllerBase
 {
-    [HttpGet("Columns/{workflowDefinition}")]
+    [HttpGet("Columns/{workflowDefinition}/{screenName}")]
     public async Task<ActionResult<ImportablePropertyDto[]>> GetColumnNames(string workflowDefinition,
+        string screenName,
         CancellationToken ct)
     {
         var definition =
@@ -18,13 +19,15 @@ public class ImportController(ImportService importService, ModelService modelSer
         if (definition == null)
             return NotFound("DefinitionNotFound", $"Workflow definition '{workflowDefinition}' not found.");
 
-        var editActions = await rightsService.GetAllowedActions(definition.Name, RoleAction.Edit);
+        var screen = definition.Screens.FirstOrDefault(s => s.Name == screenName);
+        if (screen == null)
+            return NotFound("ScreenNotFound", $"Screen '{screenName}' not found for workflow '{workflowDefinition}'.");
 
-        var propertyNames = definition.Properties.Select(p => p.Name);
+        if (screen.BulkEditProperties is not { Length: > 0 })
+            return BadRequest("BulkEditNotEnabled", $"Screen '{screenName}' does not support bulk edit.");
 
-        var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
-
-        var editablePropertiesMap = rightsService.CanEditProperties(stub, propertyNames, editActions);
+        var editablePropertiesMap =
+            await rightsService.CanEditProperties(workflowDefinition, screen.BulkEditProperties);
 
         var result = definition.Properties
             .Where(p => editablePropertiesMap.GetValueOrDefault(p.Name) && importService.IsImportableType(p.DataType))

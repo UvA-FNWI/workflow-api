@@ -28,9 +28,9 @@ public class Screen : INamed
     public ScreenGrouping? Grouping { get; set; }
 
     /// <summary>
-    /// Enable bulk editing of instances in the screen
+    /// Enable bulk editing for these properties for all instances in the screen
     /// </summary>
-    public bool? EnableBulkEdit { get; set; }
+    public string[]? BulkEditProperties { get; set; }
 }
 
 /// <summary>

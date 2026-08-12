@@ -429,6 +429,18 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        // Validate BulkEditProperties exist on the workflow definition
+        if (screen.BulkEditProperties != null)
+        {
+            var unknownProps = screen.BulkEditProperties
+                .Where(p => workflowDefinition.Properties.GetOrDefault(p) == null)
+                .ToArray();
+            if (unknownProps.Length > 0)
+                throw new Exception(
+                    $"Screen '{screen.Name}' in '{workflowDefinition.Name}' has bulkEditProperties that do not exist: " +
+                    $"{unknownProps.ToSeparatedString()}");
+        }
+
         foreach (var col in screen.Columns)
         {
             if (col.Property != null)

@@ -1,5 +1,17 @@
 name: Projects
 workflowDefinition: Project
+bulkEditProperties:
+  - Title
+  - Supervisor
+  - Reviewer
+  - StartDate
+  - EndDate
+  - EC
+  - SecondReader
+  - PracticalSupervisor
+  - Report
+  - Course
+
 columns:
   - title:
       en: Student name

@@ -8,9 +8,18 @@ public class ScreenDataService(
     ModelService modelService,
     InstanceService instanceService,
     IWorkflowInstanceRepository repository,
-    InstanceAuthorizationFilterService instanceAuthorizationFilterService)
+    InstanceAuthorizationFilterService instanceAuthorizationFilterService,
+    RightsService rightsService)
 {
     private static readonly string EmptyStepId = "null";
+
+    private async Task<bool> CanBulkEdit(Screen screen, string workflowDefinition)
+    {
+        if (screen.BulkEditProperties is not { Length: > 0 })
+            return false;
+        var map = await rightsService.CanEditProperties(workflowDefinition, screen.BulkEditProperties);
+        return map.Values.Any(v => v);
+    }
 
     /// <summary>
     /// Gets screen data for the given screen. When the screen defines a grouping configuration,
@@ -31,15 +40,17 @@ public class ScreenDataService(
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
 
+        var canBulkEdit = await CanBulkEdit(screen, workflowDefinition);
+
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
         {
             var groups = BuildGroups(contexts, screen, columns);
-            return ScreenDataDto.Create(screen, definition, columns, [], groups);
+            return ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups);
         }
 
         var rows = ProcessRows(contexts, screen, columns);
-        return ScreenDataDto.Create(screen, definition, columns, rows);
+        return ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit);
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)

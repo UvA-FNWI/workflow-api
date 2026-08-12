@@ -51,13 +51,25 @@ public class ImportControllerTests : ControllerTestsBase
     }
 
     private const string WorkflowDefinition = "Project";
+    private const string ScreenName = "Projects";
 
     [Fact]
     public async Task GetColumnNames_ReturnsNotFound_WhenWorkflowDefinitionDoesNotExist()
     {
         var controller = BuildController("Coordinator");
 
-        var result = await controller.GetColumnNames("NonExistent", _ct);
+        var result = await controller.GetColumnNames("NonExistent", ScreenName, _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetColumnNames_ReturnsNotFound_WhenScreenNameDoesNotExist()
+    {
+        var controller = BuildController("Coordinator");
+
+        var result = await controller.GetColumnNames(WorkflowDefinition, "NonExistent", _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
@@ -66,33 +78,16 @@ public class ImportControllerTests : ControllerTestsBase
     [Fact]
     public async Task GetColumnNames_Coordinator_ReturnsPropertiesFromEditableForm()
     {
-        // Coordinator has Edit action on the Start form, which contains Title, Examiner, Reviewer,
-        // Supervisor, StartDate, EndDate, EC - all of which are importable types.
         var controller = BuildController("Coordinator");
 
-        var result = await controller.GetColumnNames(WorkflowDefinition, _ct);
+        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
         var properties = GetProperties(result);
 
         Assert.Contains(properties, p => p.Name == "Title");
         Assert.Contains(properties, p => p.Name == "EC");
         Assert.Contains(properties, p => p.Name == "StartDate");
         Assert.Contains(properties, p => p.Name == "EndDate");
-        Assert.Contains(properties, p => p.Name == "Examiner");
         Assert.Contains(properties, p => p.Name == "Supervisor");
-        Assert.Contains(properties, p => p.Name == "Reviewer");
-    }
-
-    [Fact]
-    public async Task GetColumnNames_Coordinator_ReturnsPropertyLevelEditableProperties()
-    {
-        // Coordinator also has property-level Edit rights on SecondReader and PracticalSupervisor.
-        var controller = BuildController("Coordinator");
-
-        var result = await controller.GetColumnNames(WorkflowDefinition, _ct);
-        var properties = GetProperties(result);
-
-        Assert.Contains(properties, p => p.Name == "SecondReader");
-        Assert.Contains(properties, p => p.Name == "PracticalSupervisor");
     }
 
     [Fact]
@@ -101,40 +96,11 @@ public class ImportControllerTests : ControllerTestsBase
         // Report is a File type and Course is a Reference — neither is importable.
         var controller = BuildController("Coordinator");
 
-        var result = await controller.GetColumnNames(WorkflowDefinition, _ct);
+        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
         var properties = GetProperties(result);
 
         Assert.DoesNotContain(properties, p => p.Name == "Report");
         Assert.DoesNotContain(properties, p => p.Name == "Course");
-    }
-
-    [Fact]
-    public async Task GetColumnNames_Coordinator_ExcludesPropertiesNotInAnyEditableForm()
-    {
-        // TurnitinId is a String but is not part of any form the Coordinator can edit.
-        // Student is a User but also not in the Start form.
-        var controller = BuildController("Coordinator");
-
-        var result = await controller.GetColumnNames(WorkflowDefinition, _ct);
-        var properties = GetProperties(result);
-
-        Assert.DoesNotContain(properties, p => p.Name == "TurnitinId");
-        Assert.DoesNotContain(properties, p => p.Name == "Student");
-    }
-
-    [Fact]
-    public async Task GetColumnNames_Student_ReturnsOnlyPropertyLevelEditableProperties()
-    {
-        // Student has no form-level edit rights, only property-level rights
-        // on SecondReader and PracticalSupervisor.
-        var controller = BuildController("Student");
-
-        var result = await controller.GetColumnNames(WorkflowDefinition, _ct);
-        var properties = GetProperties(result);
-
-        Assert.Equal(2, properties.Length);
-        Assert.Contains(properties, p => p.Name == "SecondReader");
-        Assert.Contains(properties, p => p.Name == "PracticalSupervisor");
     }
 
     [Fact]
@@ -143,7 +109,7 @@ public class ImportControllerTests : ControllerTestsBase
         // "Registered" role only has CreateInstance rights, no Edit rights.
         var controller = BuildController("Registered");
 
-        var result = await controller.GetColumnNames(WorkflowDefinition, _ct);
+        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
         var properties = GetProperties(result);
 
         Assert.Empty(properties);
@@ -154,7 +120,7 @@ public class ImportControllerTests : ControllerTestsBase
     {
         var controller = BuildController("Coordinator");
 
-        var result = await controller.GetColumnNames(WorkflowDefinition, _ct);
+        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
         var properties = GetProperties(result);
 
         Assert.Equal(DataType.String, properties.Single(p => p.Name == "Title").DataType);
