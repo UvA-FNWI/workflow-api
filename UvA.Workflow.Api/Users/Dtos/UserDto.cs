@@ -9,6 +9,7 @@ public record UserDto(
     string DisplayName,
     string Email,
     string? PreferredLanguage,
+    string? Picture,
     Organization? Organization,
     bool IsExternal,
     bool IsSuperAdmin,
@@ -28,6 +29,7 @@ public record UserDto(
             user.DisplayName,
             user.Email,
             user.PreferredLanguage,
+            user.Picture,
             user.Organization,
             UserProviderKeys.IsExternal(user.ProviderKey),
             isSuperAdmin,
@@ -39,6 +41,6 @@ public record UserDto(
     /// Creates a UserDto from an Instance User entity
     /// </summary>
     public static UserDto CreateFromInstanceUser(InstanceUser u) =>
-        new(u.Id, u.UserName, u.DisplayName, u.Email, u.PreferredLanguage, u.Organization, u.IsExternal,
+        new(u.Id, u.UserName, u.DisplayName, u.Email, u.PreferredLanguage, u.Picture, u.Organization, u.IsExternal,
             false, u.InvitationState == UserInvitationState.Required);
 }
