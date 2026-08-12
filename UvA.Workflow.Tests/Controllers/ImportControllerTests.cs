@@ -35,13 +35,14 @@ public class ImportControllerTests : ControllerTestsBase
             answerConversionService,
             answerService,
             _modelService,
-            _userRepoMock.Object);
+            _userRepoMock.Object,
+            _rightsService);
     }
 
     private ImportController BuildController(params string[] roles)
     {
         MockCurrentUser(roles);
-        return new ImportController(_importService, _modelService, _rightsService);
+        return new ImportController(_importService, _modelService);
     }
 
     private static ImportablePropertyDto[] GetProperties(ActionResult<ImportablePropertyDto[]> result)

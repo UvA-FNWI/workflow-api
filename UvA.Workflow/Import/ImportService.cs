@@ -10,7 +10,8 @@ public class ImportService(
     AnswerConversionService answerConversionService,
     AnswerService answerService,
     ModelService modelService,
-    IUserRepository userRepository)
+    IUserRepository userRepository,
+    RightsService rightsService)
 {
     private const string StudentNumberProperty = "UserName";
     private const string StudentNameProperty = "DisplayName";
@@ -18,6 +19,17 @@ public class ImportService(
     public bool IsImportableType(DataType dt) => dt is
         DataType.String or DataType.Int or DataType.Double or
         DataType.Date or DataType.DateTime or DataType.User;
+
+    public async Task<PropertyDefinition[]> GetEditableImportableProperties(
+        string workflowDefinition, string[] bulkEditProperties)
+    {
+        var definition = modelService.WorkflowDefinitions[workflowDefinition];
+        var editableMap = await rightsService.CanEditProperties(workflowDefinition, bulkEditProperties);
+
+        return definition.Properties
+            .Where(p => editableMap.GetValueOrDefault(p.Name) && IsImportableType(p.DataType))
+            .ToArray();
+    }
 
     public async Task<ImportPreview> PreviewAsync(
         Stream fileStream,

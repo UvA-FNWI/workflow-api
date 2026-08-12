@@ -1,6 +1,6 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.Import;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -9,7 +9,7 @@ public class ScreenDataService(
     InstanceService instanceService,
     IWorkflowInstanceRepository repository,
     InstanceAuthorizationFilterService instanceAuthorizationFilterService,
-    RightsService rightsService)
+    ImportService importService)
 {
     private static readonly string EmptyStepId = "null";
 
@@ -17,8 +17,9 @@ public class ScreenDataService(
     {
         if (screen.BulkEditProperties is not { Length: > 0 })
             return false;
-        var map = await rightsService.CanEditProperties(workflowDefinition, screen.BulkEditProperties);
-        return map.Values.Any(v => v);
+        var properties =
+            await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEditProperties);
+        return properties.Length > 0;
     }
 
     /// <summary>

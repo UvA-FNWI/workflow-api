@@ -5,7 +5,7 @@ namespace UvA.Workflow.Api.Import;
 using Infrastructure;
 using UvA.Workflow.Import;
 
-public class ImportController(ImportService importService, ModelService modelService, RightsService rightsService)
+public class ImportController(ImportService importService, ModelService modelService)
     : ApiControllerBase
 {
     [HttpGet("Columns/{workflowDefinition}/{screenName}")]
@@ -26,11 +26,9 @@ public class ImportController(ImportService importService, ModelService modelSer
         if (screen.BulkEditProperties is not { Length: > 0 })
             return BadRequest("BulkEditNotEnabled", $"Screen '{screenName}' does not support bulk edit.");
 
-        var editablePropertiesMap =
-            await rightsService.CanEditProperties(workflowDefinition, screen.BulkEditProperties);
-
-        var result = definition.Properties
-            .Where(p => editablePropertiesMap.GetValueOrDefault(p.Name) && importService.IsImportableType(p.DataType))
+        var editableProperties =
+            await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEditProperties);
+        var result = editableProperties
             .Select(p => new ImportablePropertyDto(p.Name, p.DisplayName, p.DataType))
             .ToArray();
 
