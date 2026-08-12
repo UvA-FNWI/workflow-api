@@ -12,5 +12,6 @@
 
     <ItemGroup>
       <PackageReference Include="ClosedXML" Version="0.105.1" />
+      <PackageReference Include="CsvHelper" Version="33.1.0" />
     </ItemGroup>
 </Project>
