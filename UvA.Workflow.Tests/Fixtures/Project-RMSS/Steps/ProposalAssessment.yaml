@@ -4,6 +4,9 @@ title:
   en: Assessment
   nl: Beoordeling
 
+icon:
+  type: law-balance-line
+  
 progress:
   color: red
   text:
@@ -15,3 +18,8 @@ hierarchyMode: Parallel
 children:
   - ProposalAssessmentSupervisor
   - ProposalAssessmentReviewer
+
+events:
+  # Resets ProposalPhase: reopens Start, and resubmitting it clears both assessments.
+  - name: ProposalReturnedForRevision
+    resetParentStep: true

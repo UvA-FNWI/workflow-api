@@ -1,16 +1,21 @@
-using System.Text.Json;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowInstances;
+
+public record WorkflowInstanceHistory(
+    InstanceJournalEntry? Journal,
+    List<InstanceEventLogEntry> EventLogs);
 
 public class WorkflowInstanceService(
     ModelService modelService,
     IWorkflowInstanceRepository repository,
     IInstanceJournalService journalService,
+    IInstanceEventRepository eventRepository,
     IUserService userService)
 {
     /// <summary>
@@ -89,36 +94,55 @@ public class WorkflowInstanceService(
             throw new EntityNotFoundException(nameof(WorkflowInstance), instanceId);
 
         var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
-        if (journal != null)
-        {
-            // Revert all changes after the specified version
-            foreach (var change in journal.PropertyChanges
-                         .OrderByDescending(p => p.Timestamp)
-                         .Where(p => p.Version > version))
-            {
-                workflowInstance.SetProperty(change.OldValue, change.Path.Split('.'));
-            }
-        }
+        EnrichInstanceByJournalEntries(workflowInstance, journal, version);
 
         return workflowInstance;
     }
 
-    /// <summary>
-    /// Retrieves a specific snapshot of a workflow instance at the provided timestamp.
-    /// </summary>
-    public async Task<WorkflowInstance> GetAsOfTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)
+    public WorkflowInstance GetAsOfTimestamp(
+        WorkflowInstance instance,
+        DateTime timestamp,
+        WorkflowInstanceHistory history)
     {
-        var version = await GetVersionAtTimestamp(instanceId, timestamp, ct);
-        return await GetAsOfVersion(instanceId, version, ct);
+        var instanceAtTimestamp = CloneInstance(instance);
+        var version = GetVersionAtTimestamp(history.Journal, timestamp);
+
+        EnrichInstanceByJournalEntries(instanceAtTimestamp, history.Journal, version);
+
+        instanceAtTimestamp.Events = RebuildEventsUntil(history.EventLogs, timestamp);
+
+        RecalculateCurrentStep(instanceAtTimestamp);
+
+        return instanceAtTimestamp;
     }
 
-    /// <summary>
-    /// Gets the version number that was active at a specific timestamp.
-    /// </summary>
-    public async Task<int> GetVersionAtTimestamp(string instanceId, DateTime timestamp, CancellationToken ct)
+    public async Task<WorkflowInstanceHistory> GetInstanceHistory(string instanceId, CancellationToken ct)
     {
         var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
+        var eventLogs = await eventRepository.GetEventLogEntriesForInstance(instanceId, ct) ?? [];
 
+        return new WorkflowInstanceHistory(journal, eventLogs);
+    }
+
+    private static void EnrichInstanceByJournalEntries(
+        WorkflowInstance instance,
+        InstanceJournalEntry? journal,
+        int version)
+    {
+        if (journal == null)
+            return;
+
+        // Revert all changes after the target version against the current instance state.
+        foreach (var change in journal.PropertyChanges
+                     .OrderByDescending(p => p.Timestamp)
+                     .Where(p => p.Version > version))
+        {
+            instance.SetProperty(change.OldValue, change.Path.Split('.'));
+        }
+    }
+
+    private static int GetVersionAtTimestamp(InstanceJournalEntry? journal, DateTime timestamp)
+    {
         if (journal is not { PropertyChanges.Length: > 0 })
             return 0;
 
@@ -131,158 +155,61 @@ public class WorkflowInstanceService(
             : 0;
     }
 
-    /// <summary>
-    /// Updates multiple properties on a workflow instance in a single operation
-    /// </summary>
-    public async Task UpdateProperties(
-        string instanceId,
-        Dictionary<string, BsonValue> properties,
-        CancellationToken ct)
+    private static WorkflowInstance CloneInstance(WorkflowInstance instance)
+        => BsonSerializer.Deserialize<WorkflowInstance>(instance.ToBsonDocument());
+
+    private static Dictionary<string, InstanceEvent> RebuildEventsUntil(
+        IEnumerable<InstanceEventLogEntry> eventLogs,
+        DateTime timestamp)
     {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
+        var events = new Dictionary<string, InstanceEvent>();
 
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        foreach (var (propertyPath, value) in properties)
+        foreach (var logEntry in eventLogs
+                     .Where(e => e.Timestamp <= timestamp)
+                     .OrderBy(e => e.Timestamp))
         {
-            var pathParts = propertyPath.Split('.');
-            instance.SetProperty(value, pathParts);
+            if (logEntry.Operation == EventLogOperation.Delete)
+            {
+                events.Remove(logEntry.EventId);
+                continue;
+            }
+
+            events[logEntry.EventId] = new InstanceEvent
+            {
+                Id = logEntry.EventId,
+                Date = logEntry.EventDate
+            };
         }
 
-        await repository.Update(instance, ct);
+        return events;
     }
 
-    /// <summary>
-    /// Updates a single property on a workflow instance, converts the value and saves a new version in the logs.
-    /// </summary>
-    public async Task UpdateProperty(
-        string instanceId,
-        string property,
-        JsonElement? newValue,
-        AnswerConversionService answerConversionService,
+    private void RecalculateCurrentStep(WorkflowInstance instance)
+    {
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var context = modelService.CreateContext(instance);
+
+        instance.CurrentStep = workflowDefinition.FlattenedSteps
+            .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context))
+            ?.Name;
+    }
+
+    public async Task AppendPropertyValue(WorkflowInstance instance, string[] pathParts, BsonValue newValue,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
-
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
-        if (propertyDefinition == null)
-            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
-
         var user = await userService.GetCurrentUser(ct);
         if (user == null)
             throw new InvalidOperationException("User not logged in");
 
-        var oldValue = instance.GetProperty(null, property);
+        var oldValue = instance.GetProperty(pathParts);
+        var values = oldValue is BsonArray array ? new BsonArray(array) : new BsonArray();
+        values.Add(newValue);
+        instance.SetProperty(values, pathParts);
 
-        var convertedValue = await answerConversionService.ConvertToValue(newValue, propertyDefinition, ct);
-
-        if (propertyDefinition.IsArray)
-        {
-            if (instance.Properties.TryGetValue(property, out var existing) && existing is BsonArray array)
-                array.Add(convertedValue);
-            else
-                instance.Properties[property] = new BsonArray { convertedValue };
-
-            await repository.UpdateFields(instance.Id,
-                Builders<WorkflowInstance>.Update.Push($"Properties.{property}", convertedValue), ct);
-        }
-        else
-        {
-            instance.SetProperty(convertedValue, property);
-            await repository.UpdateFields(instance.Id,
-                Builders<WorkflowInstance>.Update.Set(i => i.Properties[property], convertedValue), ct);
-        }
-
-        await journalService.LogPropertyChange(
-            instance.Id,
-            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
-            ct);
-    }
-
-    public async Task RemoveProperty(
-        string instanceId,
-        string property,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
-
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
-        if (propertyDefinition == null)
-            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
-
-        var user = await userService.GetCurrentUser(ct);
-        if (user == null)
-            throw new InvalidOperationException("User not logged in");
-
-        var oldValue = instance.GetProperty(null, property);
-
-        instance.SetProperty(null, property);
         await repository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Unset(i => i.Properties[property]), ct);
+            Builders<WorkflowInstance>.Update.Push($"Properties.{string.Join('.', pathParts)}", newValue), ct);
 
-        await journalService.LogPropertyChange(
-            instance.Id,
-            PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
-            ct);
-    }
-
-    public async Task RemoveArrayPropertyItemById(
-        string instanceId,
-        string property,
-        string itemId,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(instanceId))
-            throw new ArgumentException("InstanceId is required", nameof(instanceId));
-
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance == null)
-            throw new ArgumentException("Instance not found", nameof(instanceId));
-
-        var propertyDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties
-            .GetOrDefault(property);
-        if (propertyDefinition == null)
-            throw new ArgumentException($"Property '{property}' does not exist on '{instance.WorkflowDefinition}'");
-
-        if (!propertyDefinition.IsArray)
-            throw new ArgumentException($"Property '{property}' is not an array property");
-
-        var user = await userService.GetCurrentUser(ct);
-        if (user == null)
-            throw new InvalidOperationException("User not logged in");
-
-        if (instance.Properties.TryGetValue(property, out var existing) && existing is BsonArray array)
-        {
-            var oldValue = existing;
-
-            var newArray = new BsonArray(
-                array.Where(v => !(v is BsonDocument doc && doc["_id"].ToString() == itemId)));
-
-            BsonValue newValue = newArray.Count == 0 ? BsonNull.Value : newArray;
-            instance.SetProperty(newValue, property);
-
-            await repository.UpdateFields(instance.Id,
-                Builders<WorkflowInstance>.Update.Set($"Properties.{property}", newValue), ct);
-
-            await journalService.LogPropertyChange(
-                instance.Id,
-                PropertyChangeEntry.Create(propertyDefinition, oldValue, user),
-                ct);
-        }
+        await journalService.LogPropertyChange(instance.Id,
+            PropertyChangeEntry.Create(string.Join('.', pathParts), oldValue, user), ct);
     }
 }

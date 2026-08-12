@@ -1,0 +1,5 @@
+name: Draft
+title: Draft
+
+ends:
+  event: DraftSubmitted

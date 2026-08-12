@@ -1,6 +1,7 @@
 using Serilog;
 using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization.NamingConventions;
 using Path = System.IO.Path;
 
@@ -32,7 +33,7 @@ public partial class ModelParser
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
 
-        var definitions = GetWorkflowDefinitionFolders()
+        var parsed = GetWorkflowDefinitionFolders()
             .Select(folder =>
             {
                 var definition = Parse<WorkflowDefinition>(Path.Combine(folder, "Entity.yaml"));
@@ -41,7 +42,28 @@ public partial class ModelParser
                 definition.SourceFolder = folder;
                 return definition;
             })
-            .OrderBy(e => e.InheritsFrom != null);
+            .ToList();
+
+        // Order by inheritance depth so a parent is always processed before its children.
+        // Supports chains deeper than one level (base <- mid <- leaf), unlike a simple has-parent sort.
+        var byName = parsed.ToDictionary(d => d.Name);
+        var definitions = parsed.OrderBy(InheritanceDepth);
+
+        int InheritanceDepth(WorkflowDefinition def)
+        {
+            var depth = 0;
+            var seen = new HashSet<string>();
+            var current = def;
+            while (current.InheritsFrom != null && byName.TryGetValue(current.InheritsFrom, out var parent))
+            {
+                if (!seen.Add(current.Name))
+                    throw new Exception($"Cyclic inheritsFrom detected involving '{current.Name}'");
+                depth++;
+                current = parent;
+            }
+
+            return depth;
+        }
 
         foreach (var definition in definitions)
         {
@@ -50,6 +72,7 @@ public partial class ModelParser
                          .Where(f => Path.GetFileName(f) != "Entity.yaml"))
             {
                 var content = Parse<WorkflowDefinition>(file);
+                definition.DeclaredKeys.UnionWith(content.DeclaredKeys);
                 foreach (var prop in content.Properties)
                 {
                     if (definition.Properties.Contains(prop.Name))
@@ -76,6 +99,7 @@ public partial class ModelParser
             definition.Forms = Read<Form>(definition.SourceFolder);
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
+            var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
@@ -101,10 +125,12 @@ public partial class ModelParser
                     Roles.Get(role).Actions.Add(action);
             }
 
-            foreach (var step in
-                     definition.AllSteps.Except((IEnumerable<Step>?)definition.Parent?.AllSteps ?? []))
-            {
+            // Inherited parents must resolve child references against this definition's steps.
+            foreach (var step in definition.AllSteps)
                 step.Children = step.ChildNames.Select(s => definition.AllSteps.Get(s)).ToArray();
+
+            foreach (var step in definition.AllSteps.Where(s => declaredStepNames.Contains(s.Name)))
+            {
                 foreach (var action in step.Actions)
                 {
                     action.WorkflowDefinition = definition.Name;
@@ -119,7 +145,18 @@ public partial class ModelParser
                 }
 
                 foreach (var prop in step.Properties)
+                {
+                    // The definition's own files are merged first and win every lookup, so a step
+                    // redeclaring one only adds an unreachable copy.
+                    if (definition.Properties.Contains(prop.Name))
+                    {
+                        Log.Warning("Step {Step} of {Definition} redeclares property {Property}, ignoring it",
+                            step.Name, definition.Name, prop.Name);
+                        continue;
+                    }
+
                     definition.Properties.Add(prop);
+                }
             }
         }
 
@@ -288,6 +325,8 @@ public partial class ModelParser
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
+        ExpandResetParentSteps(workflowDefinition);
+
         workflowDefinition.ModelParser = this;
     }
 
@@ -334,6 +373,8 @@ public partial class ModelParser
                         $"Event '{ev.Name}' in workflow '{workflowDefinition.Name}' already has a suppresses value defined.");
                 if (ev.Suppresses != null)
                     existing.Suppresses = ev.Suppresses;
+                if (ev.ResetParentStep)
+                    existing.ResetParentStep = true;
             }
             else
             {
@@ -540,16 +581,36 @@ public partial class ModelParser
 
     private T Parse<T>(string file)
     {
+        var content = _contentProvider.GetFile(file);
         try
         {
             Log.Debug("Parsing {File} for {Type}", file, typeof(T).Name);
-            var obj = _deserializer.Deserialize<T>(_contentProvider.GetFile(file));
+            var obj = _deserializer.Deserialize<T>(content);
+            if (obj is IDeclaredKeys tracked)
+                tracked.DeclaredKeys = ReadTopLevelKeys(content);
             return obj;
         }
         catch (YamlException ex)
         {
             throw new Exception($"Failed to parse {file}:{ex.Start.Line}:{ex.Start.Column}. {ex.Message}");
         }
+    }
+
+    // Deserialization loses the distinction between omitted keys and explicit default values.
+    private static HashSet<string> ReadTopLevelKeys(string content)
+    {
+        var keys = new HashSet<string>();
+        var parser = new Parser(new StringReader(content));
+        parser.Consume<StreamStart>();
+        if (!parser.TryConsume<DocumentStart>(out _) || !parser.TryConsume<MappingStart>(out _))
+            return keys;
+        while (parser.TryConsume<Scalar>(out var key))
+        {
+            keys.Add(key.Value);
+            parser.SkipThisAndNestedEvents();
+        }
+
+        return keys;
     }
 
     private List<T> Read<T>(string? root = null)

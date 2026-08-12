@@ -53,15 +53,29 @@ public class WorkflowInstance
         }
 
         if (!Properties.TryGetValue(relevantParts[0], out var document) || document.IsBsonNull)
+        {
+            if (value == null)
+                return;
             Properties[relevantParts[0]] = document = new BsonDocument();
-        foreach (var part in parts.Skip(1).Take(parts.Length - 2))
+        }
+
+        foreach (var part in relevantParts[1..^1])
         {
             if (!document.AsBsonDocument.Contains(part))
+            {
+                if (value == null)
+                    return;
                 document.AsBsonDocument.Add(part, new BsonDocument());
+            }
+
             document = document.AsBsonDocument[part];
         }
 
-        document[parts.Last()] = value;
+        // null means unset, same as the single-part branch above
+        if (value == null)
+            document.AsBsonDocument.Remove(relevantParts[^1]);
+        else
+            document[relevantParts[^1]] = value;
     }
 
     /// <summary>
@@ -80,10 +94,27 @@ public class WorkflowInstance
         var newEvent = new InstanceEvent
         {
             Id = eventId,
-            Date = date ?? DateTime.Now
+            Date = date ?? NextEventDate()
         };
         Events[eventId] = newEvent;
         return newEvent;
+    }
+
+    /// <summary>
+    /// A strictly increasing UTC timestamp for a new event. Suppression orders events by a strict
+    /// comparison on <see cref="InstanceEvent.Date"/>, so two events in one instance must never share
+    /// a timestamp; MongoDB stores millisecond precision, hence the 1ms floor.
+    /// </summary>
+    private DateTime NextEventDate()
+    {
+        var now = DateTime.UtcNow;
+        var candidate = Events.Values
+            .Where(e => e.Date != null)
+            .Select(e => e.Date!.Value)
+            .DefaultIfEmpty()
+            .Max()
+            .AddMilliseconds(1);
+        return now > candidate ? now : candidate;
     }
 
     /// <summary>

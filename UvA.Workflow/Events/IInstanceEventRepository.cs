@@ -47,4 +47,11 @@ public interface IInstanceEventRepository
         string instanceId,
         List<string> eventIds,
         CancellationToken ct);
+
+    /// <summary>
+    /// Gets all event log entries for an instance.
+    /// </summary>
+    Task<List<InstanceEventLogEntry>> GetEventLogEntriesForInstance(
+        string instanceId,
+        CancellationToken ct);
 }

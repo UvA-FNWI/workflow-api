@@ -67,8 +67,10 @@ public class Page : INamed
     }
 }
 
-public class Form : INamed
+public class Form : INamed, IDeclaredKeys
 {
+    [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
+
     /// <summary>
     /// Internal name of the form
     /// </summary>

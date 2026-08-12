@@ -47,7 +47,8 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
 
         Assert.True(allDtos.Count > defaultDtos.Count);
         Assert.Contains(allDtos, d => d.Screens.Length == 0);
-        Assert.Contains(allDtos, d => d.Name == "Assessment");
+        Assert.True(Assert.Single(allDtos, d => d.Name == "Assessment").IsPropertyOnly);
+        Assert.False(Assert.Single(allDtos, d => d.Name == "Project").IsPropertyOnly);
     }
 
     [Fact]

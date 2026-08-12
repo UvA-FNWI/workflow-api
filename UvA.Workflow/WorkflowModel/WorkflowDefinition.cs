@@ -6,8 +6,10 @@ namespace UvA.Workflow.WorkflowModel;
 /// <summary>
 /// Represents a type of object ("entity") in the workflow system
 /// </summary>
-public class WorkflowDefinition : INamed
+public class WorkflowDefinition : INamed, IDeclaredKeys
 {
+    [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
+
     /// <summary>
     /// Short internal name of the entity type
     /// </summary>
@@ -143,4 +145,16 @@ public class EventDefinition : INamed
     /// List of event names that are suppressed when this event occurs. Only the most recent event will be suppressed.
     /// </summary>
     public List<string>? Suppresses { get; set; }
+
+    /// <summary>
+    /// When declared on a step event, restarts the sequential parent of the declaring step; the suppression rules are generated from the effective hierarchy (see docs/reset-parent-step.md).
+    /// </summary>
+    public bool ResetParentStep { get; set; }
+
+    public EventDefinition Clone() => new()
+    {
+        Name = Name,
+        Suppresses = Suppresses == null ? null : [..Suppresses],
+        ResetParentStep = ResetParentStep
+    };
 }

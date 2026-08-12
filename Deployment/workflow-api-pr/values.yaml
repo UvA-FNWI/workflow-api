@@ -62,11 +62,10 @@ apiPaths:
   - /Users
   - /Organizations
   - /WorkflowInstances
-  - /Submissions
-  - /Artifacts
   - /Assessments
   - /Personal
   - /Jobs
+  - /Steps
   - /oidc
   - /signin-oidc
 
