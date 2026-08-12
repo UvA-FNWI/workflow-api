@@ -160,7 +160,7 @@ public class WorkflowInstancesController(
     }
 
     /// <summary>Returns allowed actions for each impersonatable role, grouped by active step.</summary>
-    [HttpGet("{id}/impersonation/actions")]
+    [HttpGet("{id}/Impersonation/Actions")]
     public async Task<ActionResult<IEnumerable<ActiveStepDto>>> GetImpersonationActions(string id,
         CancellationToken ct)
     {
@@ -202,7 +202,6 @@ public class WorkflowInstancesController(
                 .ToArray();
     }
 
-    [HttpPost("{id}/impersonation")]
     [HttpPost("{id}/Impersonation")]
     public async Task<ActionResult<StartImpersonationResultDto>> StartImpersonation(string id,
         [FromBody] StartImpersonationDto input, CancellationToken ct)
