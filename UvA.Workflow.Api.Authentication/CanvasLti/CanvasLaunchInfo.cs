@@ -9,7 +9,8 @@ public record CanvasLaunchInfo(
     string Email,
     string[] CourseIdentifiers,
     bool IsTeacher,
-    string Locale)
+    string Locale,
+    string? Picture)
 {
     private const string InstructorRole = "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor";
 
@@ -37,7 +38,8 @@ public record CanvasLaunchInfo(
             email,
             courseIdentifiers,
             HasTeacherRole(principal.Roles),
-            principal.Locale ?? "en");
+            principal.Locale ?? "en",
+            principal.Picture);
     }
 
     private static bool HasTeacherRole(IEnumerable<string>? roles)

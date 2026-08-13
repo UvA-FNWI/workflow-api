@@ -162,7 +162,8 @@ public class CanvasLaunchTargetResolverTests
         "teacher@example.com",
         courseIdentifiers,
         isTeacher,
-        "en");
+        "en",
+        null);
 
     private static WorkflowInstance Course(string id, string externalId) => new()
     {

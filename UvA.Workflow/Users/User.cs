@@ -49,4 +49,8 @@ public class User
     [BsonRepresentation(BsonType.String)]
     [BsonIgnoreIfNull]
     public UserInvitationState? InvitationState { get; set; } = null;
+
+    [BsonElement("Picture")]
+    [BsonIgnoreIfNull]
+    public string? Picture { get; set; }
 }

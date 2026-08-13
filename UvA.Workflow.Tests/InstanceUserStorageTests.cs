@@ -132,6 +132,7 @@ public class InstanceUserStorageTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<Organization?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -180,6 +181,7 @@ public class InstanceUserStorageTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<Organization?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -205,6 +207,7 @@ public class InstanceUserStorageTests
                 "student@uva.nl",
                 UserProviderKeys.Internal,
                 It.Is<Organization?>(o => o == null),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
@@ -228,6 +231,7 @@ public class InstanceUserStorageTests
                 "student@uva.nl",
                 UserProviderKeys.Internal,
                 It.Is<Organization?>(o => o == null),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -254,6 +258,7 @@ public class InstanceUserStorageTests
                 "student2@uva.nl",
                 UserProviderKeys.Internal,
                 It.Is<Organization>(o => o.Id == user.Organization.Id && o.Name == "FNWI"),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
@@ -280,6 +285,7 @@ public class InstanceUserStorageTests
                 "student2@uva.nl",
                 UserProviderKeys.Internal,
                 It.Is<Organization>(o => o.Id == user.Organization.Id && o.Name == "FNWI"),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

@@ -19,6 +19,10 @@ public class InstanceUser
     [BsonIgnoreIfNull]
     public string? PreferredLanguage { get; set; }
 
+    [BsonElement("Picture")]
+    [BsonIgnoreIfNull]
+    public string? Picture { get; set; }
+
     [BsonElement("Organization")] public Organization? Organization { get; set; }
 
     [BsonElement("IsExternal")] public bool IsExternal { get; set; }
@@ -35,6 +39,7 @@ public class InstanceUser
         DisplayName = user.DisplayName,
         Email = user.Email,
         PreferredLanguage = user.PreferredLanguage,
+        Picture = user.Picture,
         Organization = user.Organization,
         IsExternal = UserProviderKeys.IsExternal(user.ProviderKey),
         InvitationState = user.InvitationState
