@@ -8,6 +8,13 @@ using Domain_Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
 
+/// <summary>
+/// A group of workflow instances that need extra values before their text and conditions can be evaluated.
+/// Groups can be handled together so shared values only have to be loaded once.
+/// </summary>
+/// <param name="WorkflowDefinition">Describes the properties available on these instances.</param>
+/// <param name="Contexts">Contains the instance values and receives the loaded values.</param>
+/// <param name="Lookups">The values used by text, conditions, or the response.</param>
 public sealed record EnrichmentBatch(
     WorkflowDefinition WorkflowDefinition,
     ICollection<ObjectContext> Contexts,
@@ -52,14 +59,15 @@ public class InstanceService(
     }
 
     /// <summary>
-    /// Populates references in object contexts based on the specified entity type and lookup properties.
+    /// Loads values referenced through another workflow instance, such as <c>Course.Name</c>, and adds them
+    /// to the supplied contexts. This overload is for callers working with one workflow definition.
     /// </summary>
     /// <param name="workflowDefinition">The entity type defining the properties to be enriched.</param>
     /// <param name="contexts">The object contexts whose values will be updated.</param>
     /// <param name="properties">The collection of lookup properties to be used for enrichment.</param>
     /// <param name="ct">A token to monitor for cancellation requests.</param>
     /// <param name="replaceStep">If <c>true</c>, replace the step name by the localized title</param>
-    /// <returns>A task representing the asynchronous enrichment operation.</returns>
+    /// <returns>A task that completes when all requested values have been added.</returns>
     public Task Enrich(WorkflowDefinition workflowDefinition,
         ICollection<ObjectContext> contexts,
         IEnumerable<Lookup> properties,
@@ -71,13 +79,23 @@ public class InstanceService(
             replaceStep);
 
     /// <summary>
-    /// Populates references for multiple workflow definitions with a single repository query.
+    /// Loads extra values for several workflow definitions together. For example, if Project and
+    /// Project-RMSS both need course information, all of those courses are loaded in one database call.
+    /// Each result is then added back to the instance that referred to it. Values already present on the
+    /// instance, including events, do not require another database call.
     /// </summary>
+    /// <param name="batches">The groups of instances and values to load together.</param>
+    /// <param name="ct">Stops the work if the request is cancelled.</param>
+    /// <param name="replaceStep">
+    /// Whether to replace internal step names with their display titles.
+    /// </param>
+    /// <returns>A task that completes when all requested values have been added.</returns>
     public async Task Enrich(
         IEnumerable<EnrichmentBatch> batches,
         CancellationToken ct,
         bool replaceStep = true)
     {
+        // Assessments need some course settings in addition to the values requested by the caller.
         var states = batches.Select(batch =>
         {
             var lookups = batch.Lookups.ToList();
@@ -94,6 +112,9 @@ public class InstanceService(
         var referenceEnrichments = states
             .SelectMany(GetReferenceEnrichments)
             .ToArray();
+
+        // Work out which referenced instances and values are needed. All workflow types are stored together,
+        // so they can be loaded in one database call even when the source instances have different types.
         var targetGroups = referenceEnrichments
             .GroupBy(enrichment => enrichment.TargetDefinition.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -115,6 +136,7 @@ public class InstanceService(
                 ct);
             var resultsById = results.ToDictionary(result => result["_id"].ToString()!);
 
+            // Interpret each result using its own workflow definition, then add it to the instances that use it.
             foreach (var targetGroup in targetGroups)
             {
                 var targetDefinition = targetGroup.First().TargetDefinition;
@@ -148,6 +170,7 @@ public class InstanceService(
             }
         }
 
+        // Calculate assessment values using the settings of the original workflow instances.
         foreach (var state in states.Where(state => state.HasAssessment))
         {
             foreach (var context in state.Batch.Contexts)
@@ -173,7 +196,7 @@ public class InstanceService(
             }
         }
 
-        // Add CurrentStep to context
+        // Replace internal step names using the titles from the original workflow definition.
         if (replaceStep)
         {
             foreach (var state in states)
@@ -188,6 +211,10 @@ public class InstanceService(
         }
     }
 
+    /// <summary>
+    /// Groups values that belong to the same referenced instance. For example, <c>Course.Name</c> and
+    /// <c>Course.Type</c> can be loaded together for each course.
+    /// </summary>
     private static IEnumerable<ReferenceEnrichment> GetReferenceEnrichments(EnrichmentState state)
     {
         var workflowDefinition = state.Batch.WorkflowDefinition;
@@ -215,6 +242,7 @@ public class InstanceService(
         }
     }
 
+    /// <summary>Returns the IDs stored in a single reference or a list of references.</summary>
     private static IEnumerable<string> GetReferenceIds(object? value)
         => value switch
         {
