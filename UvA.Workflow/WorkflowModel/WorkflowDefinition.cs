@@ -101,6 +101,12 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
     [YamlIgnore] public string SourceFolder { get; set; } = null!;
 
+    /// <summary>
+    /// Value sets declared in this definition's own ValueSets folder, plus the ones it inherits.
+    /// </summary>
+    [YamlIgnore]
+    public List<ValueSet> ValueSets { get; set; } = [];
+
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
