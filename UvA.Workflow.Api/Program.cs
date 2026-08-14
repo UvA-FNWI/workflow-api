@@ -38,7 +38,7 @@ config.AddJsonFile("appsettings.local.json", true, true);
 builder.Services.AddWorkflowCore(builder.Configuration);
 builder.Services.AddWorkflowApiCore();
 builder.Services
-    .AddControllers()
+    .AddControllers(opts => opts.Filters.Add<WorkflowVersionFilter>())
     .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();

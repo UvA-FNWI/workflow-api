@@ -19,6 +19,11 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         var (statusCode, code, message) = exception switch
         {
             EntityNotFoundException enf => (HttpStatusCode.NotFound, enf.Code, enf.Message),
+            // The client drops unknown versions on a 404; GitHub failures should remain retryable.
+            WorkflowVersionLoadException { Missing: true } wvl =>
+                (HttpStatusCode.NotFound, WorkflowVersionLoadException.MissingCode, wvl.Message),
+            WorkflowVersionLoadException wvl =>
+                (HttpStatusCode.ServiceUnavailable, WorkflowVersionLoadException.UnavailableCode, wvl.Message),
             ForbiddenWorkflowActionException fwae => (HttpStatusCode.Forbidden, fwae.Code, fwae.Message),
             InvalidWorkflowStateException iwse => (HttpStatusCode.UnprocessableEntity, iwse.Code, iwse.Message),
             WorkflowException wfe => (HttpStatusCode.InternalServerError, wfe.Code, wfe.Message),
