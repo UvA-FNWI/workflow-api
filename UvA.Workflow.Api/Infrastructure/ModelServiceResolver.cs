@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using UvA.Workflow.Migrations;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -12,6 +13,8 @@ public enum VersionKind
 
 /// A loaded config version and where it came from.
 public record VersionInfo(string Name, string? Commit, DateTimeOffset LoadedAt, VersionKind Kind);
+
+public record PendingBaselineInfo(string? ActiveCommit, string TargetCommit, DateTimeOffset LoadedAt);
 
 public record ResolvedWorkflowConfig(ModelService ModelService, string DefaultMailLayout);
 
@@ -28,11 +31,30 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
         DateTimeOffset LoadedAt,
         VersionKind Kind);
 
+    private record PendingEntry(
+        ModelParser Parser,
+        string DefaultMailLayout,
+        string? ActiveCommit,
+        string TargetCommit,
+        DateTimeOffset LoadedAt);
+
     private readonly ConcurrentDictionary<string, Entry> _entries = new();
+    private PendingEntry? _pendingBaseline;
 
     public void AddOrUpdate(string version, ModelParser parser, string defaultMailLayout, string? commit = null,
         VersionKind kind = VersionKind.Upload)
-        => _entries[version] = new Entry(parser, defaultMailLayout, commit, DateTimeOffset.UtcNow, kind);
+    {
+        _entries[version] = new Entry(parser, defaultMailLayout, commit, DateTimeOffset.UtcNow, kind);
+        if (version == "")
+            Volatile.Write(ref _pendingBaseline, null);
+    }
+
+    public void StagePendingBaseline(ModelParser parser, string defaultMailLayout, string targetCommit)
+    {
+        var activeCommit = _entries.GetValueOrDefault("")?.Commit;
+        Volatile.Write(ref _pendingBaseline,
+            new PendingEntry(parser, defaultMailLayout, activeCommit, targetCommit, DateTimeOffset.UtcNow));
+    }
 
     public bool Contains(string version) => _entries.ContainsKey(version);
 
@@ -45,4 +67,21 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 
     public IReadOnlyCollection<VersionInfo> GetVersions()
         => _entries.Select(kv => new VersionInfo(kv.Key, kv.Value.Commit, kv.Value.LoadedAt, kv.Value.Kind)).ToArray();
+
+    public PendingBaselineInfo? GetPendingBaseline()
+    {
+        var pending = Volatile.Read(ref _pendingBaseline);
+        return pending == null
+            ? null
+            : new PendingBaselineInfo(pending.ActiveCommit, pending.TargetCommit, pending.LoadedAt);
+    }
+
+    public IReadOnlyList<MigrationDefinition> GetBaselineMigrationPlans()
+        => _entries.GetValueOrDefault("")?.Parser.Migrations ?? [];
+
+    public IReadOnlyList<MigrationDefinition> GetPendingMigrationPlans()
+        => Volatile.Read(ref _pendingBaseline)?.Parser.Migrations ?? [];
+
+    internal ModelParser? GetBaselineParser()
+        => _entries.GetValueOrDefault("")?.Parser;
 }

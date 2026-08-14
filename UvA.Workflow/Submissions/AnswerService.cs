@@ -103,6 +103,10 @@ public class AnswerService(
     }
 
     public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
+        => await SaveAnswer(context, value, appendToArray: false, ct);
+
+    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, bool appendToArray,
+        CancellationToken ct)
     {
         var (instance, _, form, question) = context;
 
@@ -111,6 +115,14 @@ public class AnswerService(
 
         // Convert new answer to BsonValue
         var newAnswer = await answerConversionService.ConvertToValue(value, question, ct);
+        if (appendToArray && question.IsArray)
+        {
+            var values = currentAnswer is BsonArray currentValues
+                ? new BsonArray(currentValues)
+                : [];
+            values.Add(newAnswer);
+            newAnswer = values;
+        }
 
         // Save if value changed
         await SaveAndLogAnswer(context, currentAnswer, newAnswer, ct);

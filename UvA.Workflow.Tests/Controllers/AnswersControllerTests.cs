@@ -155,6 +155,58 @@ public class AnswersControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Answers_SaveAnswer_AppendsExternalUser_ToExistingUserArray()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var existingUser = new User
+        {
+            Id = "665f35fb3f1b3c6d4b3d0f11",
+            UserName = "existing-user",
+            DisplayName = "Existing User",
+            Email = "existing@example.org"
+        };
+        var createdExternalUser = new User
+        {
+            Id = "665f35fb3f1b3c6d4b3d0f12",
+            UserName = "external@example.org",
+            DisplayName = "External User",
+            Email = "external@example.org",
+            ProviderKey = "backend-provider"
+        };
+        instance.Properties["PracticalSupervisor"] =
+            new BsonArray { InstanceUser.FromUser(existingUser).ToBsonDocument() };
+        _externalUserServiceMock.Setup(s => s.CreateOrUpdateExternalUser(
+                "External User",
+                "external@example.org",
+                null,
+                _ct))
+            .ReturnsAsync(new UserSearchResult(
+                "external@example.org",
+                "External User",
+                "external@example.org",
+                UserSearchSources.Repository,
+                "backend-provider"));
+        _userServiceMock.Setup(s => s.GetUser("external@example.org", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(createdExternalUser);
+
+        var result = await controller.SaveAnswer(
+            instance.Id,
+            "Start",
+            "PracticalSupervisor",
+            new SaveAnswerRequest(
+                Value: null,
+                ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+            _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.IsType<SaveAnswerResponse>(okResult.Value);
+        var savedUsers = instance.Properties["PracticalSupervisor"].AsBsonArray;
+        Assert.Collection(savedUsers,
+            user => Assert.Equal("existing-user", user["UserName"].AsString),
+            user => Assert.Equal("external@example.org", user["UserName"].AsString));
+    }
+
+    [Fact]
     public async Task Answers_SaveAnswer_WithExternalUser_ThrowsForbiddenWithoutEditRights()
     {
         var (controller, instance) = BuildControllerWithRoles(["HasNoRights"], "Start");

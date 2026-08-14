@@ -1,4 +1,5 @@
 using Serilog;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
@@ -18,6 +19,10 @@ public partial class ModelParser
     public List<Service> Services { get; }
     public List<Role> Roles { get; }
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
+
+    public IReadOnlyList<MigrationDefinition> Migrations =>
+        WorkflowDefinitions.Values.SelectMany(definition => definition.Migrations).ToArray();
+
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
 
@@ -98,6 +103,9 @@ public partial class ModelParser
             definition.AllSteps = Read<Step>(definition.SourceFolder);
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
+            definition.Migrations = Read<MigrationDefinition>(definition.SourceFolder);
+            foreach (var migration in definition.Migrations)
+                migration.WorkflowDefinition = definition.Name;
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
                 NamedConditions.Add(entry);
@@ -160,6 +168,7 @@ public partial class ModelParser
         Roles.ForEach(PreProcess);
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+        MigrationPlanValidator.Validate(this);
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)
@@ -619,6 +628,7 @@ public partial class ModelParser
         var folder = typeName switch
         {
             nameof(TemplateMessage) => "Emails",
+            nameof(MigrationDefinition) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };

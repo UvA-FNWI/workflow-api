@@ -33,12 +33,23 @@ public class WorkflowConfigLoaderTests
         => new(accessor ?? new Mock<IHttpContextAccessor>().Object);
 
     private static WorkflowConfigLoader CreateLoader(ModelServiceResolver resolver, WorkflowSourceOptions opts,
-        HttpMessageHandler? handler = null)
+        HttpMessageHandler? handler = null, ISettingsStore? settingsStore = null)
     {
         var factory = new Mock<IHttpClientFactory>();
         if (handler is not null)
             factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient(handler));
-        return new WorkflowConfigLoader(factory.Object, resolver, Options.Create(opts),
+        if (settingsStore == null)
+        {
+            var settings = new Mock<ISettingsStore>();
+            settings.Setup(store => store.Get(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string?)null);
+            settings.Setup(store => store.Set(It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            settingsStore = settings.Object;
+        }
+
+        return new WorkflowConfigLoader(factory.Object, resolver, settingsStore, Options.Create(opts),
             NullLogger<WorkflowConfigLoader>.Instance);
     }
 
@@ -175,6 +186,71 @@ public class WorkflowConfigLoaderTests
         Assert.True(await loader.ReloadBaselineIfChangedAsync());
 
         Assert.Equal("sha-2", Assert.Single(resolver.GetVersions()).Commit);
+    }
+
+    [Fact]
+    public async Task ChangedBaseline_WithNewMigrationPlan_IsStagedInsteadOfInstalled()
+    {
+        var github = new FakeGitHub("sha-1")
+        {
+            Archive = () => CreatePropertyArchive("Title")
+        };
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(), github.Handler());
+        await loader.LoadBaselineAsync();
+
+        github.Sha = "sha-2";
+        github.Archive = () => CreatePropertyArchive("ProjectTitle", """
+                                                                     kind: renameProperty
+                                                                     oldPath: Title
+                                                                     newPath: ProjectTitle
+                                                                     """);
+
+        Assert.True(await loader.ReloadBaselineIfChangedAsync());
+
+        Assert.Equal("sha-1", Assert.Single(resolver.GetVersions()).Commit);
+        Assert.Contains(resolver.Resolve().ModelService.WorkflowDefinitions["Project"].Properties,
+            property => property.Name == "Title");
+        Assert.Equal("sha-2", resolver.GetPendingBaseline()?.TargetCommit);
+        Assert.Equal("ProjectTitle", Assert.Single(resolver.GetPendingMigrationPlans()).NewPath);
+    }
+
+    [Fact]
+    public async Task Startup_RestoresSharedActiveCommitBeforeStagingNewMigrationCommit()
+    {
+        var handler = new StubHttpMessageHandler((request, _) =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            if (request.RequestUri.Host == "api.github.com")
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(path.EndsWith("/active-sha") ? "active-sha" : "target-sha")
+                });
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(path.EndsWith("/active-sha")
+                    ? CreatePropertyArchive("Title")
+                    : CreatePropertyArchive("ProjectTitle", """
+                                                            kind: renameProperty
+                                                            oldPath: Title
+                                                            newPath: ProjectTitle
+                                                            """))
+            });
+        });
+        var settings = new Mock<ISettingsStore>();
+        settings.Setup(store => store.Get("workflow.activeBaselineCommit", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("active-sha");
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(), handler, settings.Object);
+
+        Assert.True(await loader.LoadBaselineAsync());
+
+        Assert.Equal("active-sha", Assert.Single(resolver.GetVersions()).Commit);
+        Assert.Equal("target-sha", resolver.GetPendingBaseline()?.TargetCommit);
+        Assert.Contains(resolver.Resolve().ModelService.WorkflowDefinitions["Project"].Properties,
+            property => property.Name == "Title");
+        settings.Verify(store => store.Set(It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -549,6 +625,41 @@ public class WorkflowConfigLoaderTests
             using var result = new MemoryStream();
             using (var gzip = new GZipStream(result, CompressionMode.Compress, leaveOpen: true))
                 TarFile.CreateFromDirectory(Path.Combine(root, "archive"), gzip, includeBaseDirectory: true);
+            return result.ToArray();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static byte[] CreatePropertyArchive(string propertyName, string? migration = null)
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var archive = Path.Combine(root, "archive");
+        var project = Path.Combine(archive, "Projects", "Project");
+        Directory.CreateDirectory(project);
+        Directory.CreateDirectory(Path.Combine(archive, "Layouts"));
+        File.WriteAllText(Path.Combine(project, "Entity.yaml"), $$"""
+                                                                  name: Project
+                                                                  titlePlural: Projects
+                                                                  properties:
+                                                                    - name: {{propertyName}}
+                                                                      type: String
+                                                                  """);
+        File.WriteAllText(Path.Combine(archive, "Layouts", "default.html"), "<html></html>");
+        if (migration != null)
+        {
+            var migrations = Path.Combine(project, "Migrations");
+            Directory.CreateDirectory(migrations);
+            File.WriteAllText(Path.Combine(migrations, "RenameTitleToProjectTitle.yaml"), migration);
+        }
+
+        try
+        {
+            using var result = new MemoryStream();
+            using (var gzip = new GZipStream(result, CompressionMode.Compress, leaveOpen: true))
+                TarFile.CreateFromDirectory(archive, gzip, includeBaseDirectory: true);
             return result.ToArray();
         }
         finally

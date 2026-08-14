@@ -1,4 +1,5 @@
 using UvA.Workflow.SchemaGenerator.Generation;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.SchemaGenerator;
@@ -18,7 +19,8 @@ public class Worker(IHostApplicationLifetime lifetime) : BackgroundService
             typeof(Screen),
             typeof(Role),
             typeof(Step),
-            typeof(ValueSet)
+            typeof(ValueSet),
+            typeof(MigrationDefinition)
         ];
 
         foreach (var type in types)

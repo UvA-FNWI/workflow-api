@@ -237,6 +237,49 @@ public class InstanceUserStorageTests
     }
 
     [Fact]
+    public async Task ConvertToValue_ForInternalUserWithAlternateLogin_FallsBackToEmailLookup()
+    {
+        var existingUser = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "existing-login",
+            DisplayName = "Existing User",
+            Email = "existing@uva.nl",
+            ProviderKey = UserProviderKeys.Internal
+        };
+        var userService = new Mock<IUserService>();
+        var userRepository = new Mock<IUserRepository>();
+        userService.Setup(s => s.GetUser("alternate-login", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        userRepository.Setup(r => r.GetByEmail("existing@uva.nl", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+        var service = new AnswerConversionService(userService.Object, userRepository.Object);
+        var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
+        var value = JsonDocument.Parse("""
+                                       {
+                                         "userName": "alternate-login",
+                                         "displayName": "Existing User",
+                                         "email": "existing@uva.nl",
+                                         "isExternal": false
+                                       }
+                                       """).RootElement;
+
+        var result = await service.ConvertToValue(value, property, CancellationToken.None);
+
+        Assert.Equal(existingUser.Id, result.AsBsonDocument["_id"].ToString());
+        Assert.Equal("existing-login", result.AsBsonDocument["UserName"].AsString);
+        userService.Verify(s => s.AddOrUpdateUser(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<Organization?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task ConvertToValue_ForMissingInternalUser_PreservesExplicitOrganization()
     {
         var user = new User

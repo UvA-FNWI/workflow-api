@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Migrations;
 using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -106,6 +107,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
+    [YamlIgnore] public List<MigrationDefinition> Migrations { get; set; } = [];
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
     private static IEnumerable<Step> GetSteps(Step s) =>

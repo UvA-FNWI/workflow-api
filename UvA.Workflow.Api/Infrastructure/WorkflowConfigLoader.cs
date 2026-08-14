@@ -3,6 +3,8 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
+using UvA.Workflow.Migrations;
+using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -29,11 +31,13 @@ public sealed class WorkflowVersionLoadException(string @ref, bool missing, Exce
 public class WorkflowConfigLoader(
     IHttpClientFactory httpClientFactory,
     ModelServiceResolver resolver,
+    ISettingsStore settingsStore,
     IOptions<WorkflowSourceOptions> options,
     ILogger<WorkflowConfigLoader> logger)
 {
     // Repo-root-relative path to the default mail layout; read alongside, but outside, the workflow model.
     public const string LayoutPath = "Layouts/default.html";
+    private const string ActiveBaselineCommitKey = "workflow.activeBaselineCommit";
 
     private readonly WorkflowSourceOptions _opts = options.Value;
     private readonly SemaphoreSlim _baselineLock = new(1, 1); // one baseline reload at a time (poller vs. /reload)
@@ -41,20 +45,33 @@ public class WorkflowConfigLoader(
     // ponytail: one lock for all refs; use per-ref locks if this becomes a bottleneck.
     private readonly SemaphoreSlim _branchLock = new(1, 1);
 
-    // Last commit SHA installed per version; we compare the freshly-resolved SHA against it to skip the tarball
-    // download + re-parse when the ref hasn't moved. Baseline is keyed by "".
+    // Last commit SHA fetched per version, including a pending baseline. We compare the freshly-resolved SHA
+    // against it to skip the tarball download + re-parse when the ref hasn't moved. Baseline is keyed by "".
     private readonly ConcurrentDictionary<string, string> _shas = new();
+    private bool _baselineRestored;
 
     // Polling needs a baseline SHA to diff against; LocalPath dev mode has none, so it won't poll.
     public bool CanPoll => _shas.ContainsKey("");
 
-    /// Fetch the configured ref and install it as the default version. Returns false when it has not changed.
+    /// Fetch the configured ref and install it as the default version, or stage it when migration approval is
+    /// required. Returns false when the ref has not changed.
     public async Task<bool> LoadBaselineAsync()
     {
         await _baselineLock.WaitAsync();
         try
         {
-            return await LoadAsync(_opts.Ref, "", VersionKind.Baseline);
+            var restored = false;
+            if (!_baselineRestored && !string.IsNullOrWhiteSpace(_opts.RepoUrl))
+            {
+                _baselineRestored = true;
+                var activeCommit = await settingsStore.Get(ActiveBaselineCommitKey);
+                if (!string.IsNullOrWhiteSpace(activeCommit))
+                    restored = await LoadAsync(activeCommit, "", VersionKind.Baseline,
+                        allowPending: false, rememberAsActiveBaseline: false);
+            }
+
+            var loaded = await LoadAsync(_opts.Ref, "", VersionKind.Baseline);
+            return restored || loaded;
         }
         finally
         {
@@ -102,7 +119,8 @@ public class WorkflowConfigLoader(
     }
 
     // Fetch @ref, install it under versionKey, and remember its SHA. Returns false when the ref is unchanged.
-    private async Task<bool> LoadAsync(string @ref, string versionKey, VersionKind kind)
+    private async Task<bool> LoadAsync(string @ref, string versionKey, VersionKind kind,
+        bool allowPending = true, bool rememberAsActiveBaseline = true)
     {
         _shas.TryGetValue(versionKey, out var previousSha);
         var model = await BuildModelAsync(@ref, previousSha);
@@ -110,17 +128,36 @@ public class WorkflowConfigLoader(
             return false;
 
         var (parser, layout, sha) = model.Value;
-        resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
+        var staged = false;
+        if (allowPending && kind == VersionKind.Baseline && resolver.GetBaselineParser() is { } activeParser)
+        {
+            var plansRequiringApproval = MigrationPlanValidator.Compare(activeParser, parser);
+            if (plansRequiringApproval.Count > 0)
+            {
+                resolver.StagePendingBaseline(parser, layout, sha ?? "local-checkout");
+                staged = true;
+                logger.LogInformation(
+                    "Staged baseline config ref {Ref} at {Revision} with {MigrationCount} migration plan(s) " +
+                    "waiting for approval",
+                    @ref, Short(sha), plansRequiringApproval.Count);
+            }
+        }
+
+        if (!staged && kind == VersionKind.Baseline && rememberAsActiveBaseline && sha != null)
+            await settingsStore.Set(ActiveBaselineCommitKey, sha);
+        if (!staged)
+            resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
         if (sha is not null)
             _shas[versionKey] = sha;
         else
             _shas.TryRemove(versionKey, out _);
-        logger.LogInformation("Installed {Kind} config ref {Ref} at {Revision} (was {Previous})",
-            kind, @ref, Short(sha), Short(previousSha));
+        if (!staged)
+            logger.LogInformation("Installed {Kind} config ref {Ref} at {Revision} (was {Previous})",
+                kind, @ref, Short(sha), Short(previousSha));
         return true;
     }
 
-    /// Re-fetch the baseline; returns true when a newer commit was installed.
+    /// Re-fetch the baseline; returns true when a newer commit was installed or staged.
     public Task<bool> ReloadBaselineIfChangedAsync()
         => string.IsNullOrWhiteSpace(_opts.RepoUrl) ? Task.FromResult(false) : LoadBaselineAsync();
 

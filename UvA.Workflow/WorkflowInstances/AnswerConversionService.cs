@@ -149,11 +149,12 @@ public class AnswerConversionService(
         var user = await userService.GetUser(userInput.UserName, ct);
         if (user == null)
         {
-            if (userInput.IsExternal && !string.IsNullOrWhiteSpace(userInput.Email))
+            if (!string.IsNullOrWhiteSpace(userInput.Email))
             {
-                var existingExternalUser = await userRepository.GetByEmail(userInput.Email, ct);
-                if (existingExternalUser != null && UserProviderKeys.IsExternal(existingExternalUser.ProviderKey))
-                    user = existingExternalUser;
+                var existingUser = await userRepository.GetByEmail(userInput.Email, ct);
+                if (existingUser != null &&
+                    UserProviderKeys.IsExternal(existingUser.ProviderKey) == userInput.IsExternal)
+                    user = existingUser;
             }
 
             // External users must already exist; don't recreate them from answer payloads.

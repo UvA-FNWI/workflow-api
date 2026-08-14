@@ -1,4 +1,5 @@
 using UvA.Workflow.Organizations;
+using UvA.Workflow.Migrations;
 
 namespace UvA.Workflow.Persistence.Mongo;
 
@@ -24,7 +25,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJobRepository, JobRepository>();
         services.AddScoped<IInstanceJournalService, InstanceJournalService>();
         services.AddScoped<IMailLogRepository, MailLogRepository>();
-        services.AddScoped<ISettingsStore, SettingsStore>();
+        services.AddSingleton<ISettingsStore, SettingsStore>();
+        services.AddScoped<IMigrationStore, MigrationStore>();
 
         return services;
     }
