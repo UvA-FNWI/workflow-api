@@ -8,58 +8,52 @@ namespace UvA.Workflow.Api.Migrations;
 [ApiExplorerSettings(IgnoreApi = true)]
 [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
 public class MigrationsController(
-    ModelServiceResolver modelServiceResolver,
-    WorkflowConfigLoader configLoader,
-    IMigrationStore migrationStore,
+    MigrationService migrationService,
     RightsService rightsService,
-    ICurrentUserAccessor currentUserAccessor)
-    : ApiControllerBase
+    ICurrentUserAccessor currentUserAccessor) : ApiControllerBase
 {
-    /// <summary>Returns migration plans and progress without changing configuration or data.</summary>
     [HttpGet]
-    public async Task<ActionResult<MigrationOverviewDto>> Get(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<MigrationDto>>> Get(CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-
-        var activeConfiguration = modelServiceResolver.GetVersions()
-            .SingleOrDefault(version => version.Name == "");
-        var migrations = await migrationStore.GetAll(ct);
-
-        return Ok(new MigrationOverviewDto(
-            activeConfiguration,
-            modelServiceResolver.GetPendingBaseline(),
-            migrations.Select(MigrationDto.Create).ToArray()));
+        return Ok((await migrationService.GetAll(ct)).Select(MigrationDto.Create).ToArray());
     }
 
-    /// <summary>
-    /// Publishes the pending rename mappings. The new configuration remains pending until all instance values
-    /// have been copied and verified.
-    /// </summary>
-    [HttpPost]
-    public async Task<ActionResult<CreateMigrationResponseDto>> Create(
-        CreateMigrationDto input,
+    [HttpPost("property-renames")]
+    public async Task<ActionResult<MigrationDto>> CreatePropertyRename(
+        CreatePropertyRenameDto input,
         CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        return await Run(() => migrationService.CreatePropertyRename(
+            input.Name,
+            input.WorkflowDefinition,
+            input.OldProperty,
+            input.NewProperty,
+            input.Description,
+            currentUserAccessor.GetCurrentUserName() ?? "unknown administrator",
+            ct));
+    }
 
+    [HttpPost("{id}/finish")]
+    public async Task<ActionResult<MigrationDto>> Finish(string id, CancellationToken ct)
+    {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        return await Run(() => migrationService.Finish(id, ct));
+    }
+
+    [HttpPost("{id}/revert")]
+    public async Task<ActionResult<MigrationDto>> Revert(string id, CancellationToken ct)
+    {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        return await Run(() => migrationService.Revert(id, ct));
+    }
+
+    private async Task<ActionResult<MigrationDto>> Run(Func<Task<Migration>> action)
+    {
         try
         {
-            var migration = await configLoader.CreateMigrationAsync(
-                migrationStore,
-                input.Name,
-                input.Kind,
-                input.WorkflowDefinition,
-                input.OldPath,
-                input.NewPath,
-                input.TargetRef,
-                input.Description,
-                currentUserAccessor.GetCurrentUserName() ?? "unknown administrator",
-                ct);
-            var pendingCommit = modelServiceResolver.GetPendingBaseline()!.TargetCommit;
-            return Ok(new CreateMigrationResponseDto(
-                pendingCommit,
-                "Migration created. The current configuration remains active while existing data is copied to the new field.",
-                MigrationDto.Create(migration)));
+            return Ok(MigrationDto.Create(await action()));
         }
         catch (InvalidOperationException exception)
         {

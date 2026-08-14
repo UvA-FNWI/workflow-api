@@ -5,7 +5,7 @@ using UvA.Workflow.Persistence.Mongo;
 
 namespace UvA.Workflow.Tests;
 
-public class MigrationStoreTests
+public class MigrationRepositoryTests
 {
     [Fact]
     public void UsesSharedMigrationsCollection()
@@ -16,7 +16,7 @@ public class MigrationStoreTests
                 It.IsAny<MongoCollectionSettings>()))
             .Returns(collection.Object);
 
-        _ = new MigrationStore(database.Object);
+        _ = new MigrationRepository(database.Object);
 
         database.Verify(value => value.GetCollection<Migration>("migrations",
             It.IsAny<MongoCollectionSettings>()), Times.Once);

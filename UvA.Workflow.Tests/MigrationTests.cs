@@ -1,9 +1,7 @@
-using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using Moq;
-using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Migrations;
-using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
@@ -11,131 +9,135 @@ namespace UvA.Workflow.Tests;
 public class MigrationTests
 {
     [Fact]
-    public void Validator_AcceptsCompatibleRename()
+    public void RenamePropertyDefinition_RoundTripsThroughMongoSerialization()
     {
-        var active = CreateParser("Title", "String!");
-        var target = CreateParser("ProjectTitle", "String");
+        var migration = ReadyMigration();
 
-        MigrationValidator.ValidatePropertyRename(active, target, "Project", "Title", "ProjectTitle");
+        var restored = BsonSerializer.Deserialize<Migration>(migration.ToBson());
+
+        var definition = Assert.IsType<RenamePropertyDefinition>(restored.Definition);
+        Assert.Equal("Project", definition.WorkflowDefinition);
+        Assert.Equal("Title", definition.OldProperty);
+        Assert.Equal("ProjectTitle", definition.NewProperty);
     }
 
     [Fact]
-    public void Validator_RejectsRenameThatChangesStoredType()
+    public async Task CreatePropertyRename_CopiesPropertyValuesAndBecomesReadyToFinish()
     {
-        var active = CreateParser("Title", "String");
-        var target = CreateParser("ProjectTitle", "Int");
+        var repository = new Mock<IMigrationRepository>();
+        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Migration>());
+        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(), false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyCopyResult(3, 3));
+        var service = CreateService(repository);
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            MigrationValidator.ValidatePropertyRename(active, target, "Project", "Title", "ProjectTitle"));
+        var migration = await service.CreatePropertyRename(
+            "Rename title", "Project", "Title", "ProjectTitle", "Clearer name", "admin");
 
-        Assert.Contains("changes the stored type", exception.Message);
+        Assert.Equal(MigrationStatus.ReadyToFinish, migration.Status);
+        Assert.Equal(3, migration.Progress.ItemsMatched);
+        Assert.Equal(3, migration.Progress.ItemsUpdated);
+        var definition = Assert.IsType<RenamePropertyDefinition>(migration.Definition);
+        Assert.Equal("Project", definition.WorkflowDefinition);
+        Assert.Equal("Title", definition.OldProperty);
+        Assert.Equal("ProjectTitle", definition.NewProperty);
+        repository.Verify(value => value.Create(migration, It.IsAny<CancellationToken>()), Times.Once);
+        repository.Verify(value => value.Update(migration, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public void PendingBaseline_DoesNotReplaceActiveConfiguration()
+    public async Task Finish_RefreshesCopiedValuesAndRenamesJournalPaths()
     {
-        var context = new DefaultHttpContext();
-        var resolver = new ModelServiceResolver(new HttpContextAccessor { HttpContext = context });
-        var active = CreateParser("Title", "String");
-        var pending = CreateParser("ProjectTitle", "String");
-        resolver.AddOrUpdate("", active, "active-layout", "source-sha", VersionKind.Baseline);
+        var migration = ReadyMigration();
+        var repository = new Mock<IMigrationRepository>();
+        repository.Setup(value => value.GetById(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(migration);
+        repository.Setup(value => value.CopyPropertyValues(migration, true,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyCopyResult(4, 4));
+        repository.Setup(value => value.RenameJournalPaths(migration, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(7);
+        var service = CreateService(repository);
 
-        resolver.StagePendingBaseline(pending, "pending-layout", "target-sha");
+        var result = await service.Finish(migration.Id);
 
-        Assert.Contains(resolver.Resolve().ModelService.WorkflowDefinitions["Project"].Properties,
-            property => property.Name == "Title");
-        Assert.Equal("active-layout", resolver.Resolve().DefaultMailLayout);
-        Assert.Equal("target-sha", resolver.GetPendingBaseline()?.TargetCommit);
+        Assert.Equal(MigrationStatus.Finished, result.Status);
+        Assert.Equal(4, result.Progress.ItemsUpdated);
+        Assert.Equal(7, result.Progress.Details["JournalEntriesUpdated"]);
+        Assert.NotNull(result.FinishedAt);
+        repository.Verify(value => value.Update(migration, It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
     }
 
     [Fact]
-    public async Task Compatibility_OldDocumentCanBeReadAndWrittenThroughEitherName()
+    public async Task Revert_RemovesTheCopiedTargetProperty()
     {
-        var store = new Mock<IMigrationStore>();
-        store.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([ActiveRename()]);
-        var instance = Instance(new Dictionary<string, BsonValue> { ["Title"] = "Original" });
+        var migration = ReadyMigration();
+        var repository = new Mock<IMigrationRepository>();
+        repository.Setup(value => value.GetById(migration.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(migration);
+        var service = CreateService(repository);
 
-        await new MigrationCompatibilityService(store.Object).Attach(instance);
+        var result = await service.Revert(migration.Id);
 
-        Assert.Equal("Original", instance.GetProperty("Title")?.AsString);
-        Assert.Equal("Original", instance.GetProperty("ProjectTitle")?.AsString);
-        Assert.Equal("Original", instance.Properties["ProjectTitle"].AsString);
-
-        instance.SetProperty("Changed by old code", "Title");
-
-        Assert.Equal("Changed by old code", instance.Properties["Title"].AsString);
-        Assert.Equal("Changed by old code", instance.Properties["ProjectTitle"].AsString);
+        Assert.Equal(MigrationStatus.Reverted, result.Status);
+        repository.Verify(value => value.RemoveTargetFields(migration,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task Compatibility_StopsAfterOldFieldRemovalBegins()
+    public async Task CreatePropertyRename_RejectsAnExistingTargetField()
     {
-        var migration = ActiveRename();
-        migration.Stage = MigrationStage.RemovingOldName;
-        var store = new Mock<IMigrationStore>();
-        store.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([migration]);
-        var aliases = await new MigrationCompatibilityService(store.Object).GetAliases("Project");
+        var repository = new Mock<IMigrationRepository>();
+        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Migration>());
+        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+        var service = CreateService(repository);
 
-        Assert.Empty(aliases);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreatePropertyRename("Rename title", "Project", "Title", "ProjectTitle",
+                null, "admin"));
+
+        Assert.Contains("already contain", error.Message);
+        repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
-    [Fact]
-    public void Compatibility_SupportsNestedPropertyPaths()
+    private static MigrationService CreateService(Mock<IMigrationRepository> repository)
+        => new(new ModelService(CreateParser()), repository.Object);
+
+    private static Migration ReadyMigration() => new()
     {
-        var instance = Instance(new Dictionary<string, BsonValue>
-        {
-            ["Details"] = new BsonDocument("Title", "Original")
-        });
-        instance.PropertyRenameAliases =
-        [
-            new PropertyRenameAlias("Project", "Details.Title", "Details.ProjectTitle")
-        ];
-
-        instance.MaterializeMissingPropertyAliases();
-        instance.SetProperty("Changed", "Details", "ProjectTitle");
-
-        var details = instance.Properties["Details"].AsBsonDocument;
-        Assert.Equal("Changed", details["Title"].AsString);
-        Assert.Equal("Changed", details["ProjectTitle"].AsString);
-    }
-
-    private static Migration ActiveRename() => new()
-    {
-        Id = "Project:RenameTitleToProjectTitle",
+        Id = "migration-id",
+        Name = "Rename title",
         Kind = MigrationKind.RenameProperty,
-        WorkflowDefinition = "Project",
-        OldPath = "Title",
-        NewPath = "ProjectTitle",
-        SourceCommit = "source",
-        TargetCommit = "target",
-        Stage = MigrationStage.SupportingBothNames,
-        RunStatus = MigrationRunStatus.Running,
-        RequestedBy = "admin",
-        RequestedAt = DateTime.UtcNow
-    };
-
-    private static WorkflowInstance Instance(Dictionary<string, BsonValue> properties) => new()
-    {
-        Id = ObjectId.GenerateNewId().ToString(),
-        WorkflowDefinition = "Project",
-        Properties = properties,
-        Events = []
-    };
-
-    private static ModelParser CreateParser(string propertyName, string type)
-    {
-        var files = new Dictionary<string, string>
+        Status = MigrationStatus.ReadyToFinish,
+        Definition = new RenamePropertyDefinition
         {
-            ["Projects/Project/Entity.yaml"] = $$"""
-                                                 name: Project
-                                                 titlePlural: Projects
-                                                 properties:
-                                                   - name: {{propertyName}}
-                                                     type: {{type}}
-                                                 """
-        };
-        return new ModelParser(new DictionaryProvider(files));
-    }
+            WorkflowDefinition = "Project",
+            OldProperty = "Title",
+            NewProperty = "ProjectTitle"
+        },
+        RequestedBy = "admin",
+        RequestedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
+
+    private static ModelParser CreateParser() => new(new DictionaryProvider(
+        new Dictionary<string, string>
+        {
+            ["Projects/Project/Entity.yaml"] = """
+                                               name: Project
+                                               titlePlural: Projects
+                                               properties:
+                                                 - name: Title
+                                                   type: String
+                                               """
+        }));
 }

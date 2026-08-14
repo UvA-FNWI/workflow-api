@@ -222,14 +222,16 @@ public class InstanceService(
 
     public Task SaveValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
         => workflowInstanceRepository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Combine(instance.GetPropertyWritePaths(part1, part2)
-                .Select(path => Builders<WorkflowInstance>.Update.Set(
-                    $"Properties.{path}", instance.GetProperty(part1, part2)))), ct);
+            Builders<WorkflowInstance>.Update.Set(part1 == null
+                    ? (i => i.Properties[part2])
+                    : (i => i.Properties[part1][part2]),
+                instance.GetProperty(part1, part2)), ct);
 
     public Task UnsetValue(WorkflowInstance instance, string? part1, string part2, CancellationToken ct)
         => workflowInstanceRepository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Combine(instance.GetPropertyWritePaths(part1, part2)
-                .Select(path => Builders<WorkflowInstance>.Update.Unset($"Properties.{path}"))), ct);
+            Builders<WorkflowInstance>.Update.Unset(part1 == null
+                ? (i => i.Properties[part2])
+                : (i => i.Properties[part1][part2])), ct);
 
     public record AllowedAction(
         Domain_Action Action,

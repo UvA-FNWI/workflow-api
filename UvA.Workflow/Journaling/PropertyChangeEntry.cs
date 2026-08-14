@@ -38,4 +38,6 @@ public class PropertyChangeEntry
             path,
             oldValue,
             modifiedBy.UserName);
+
+    public void RenamePath(string path) => Path = path;
 }

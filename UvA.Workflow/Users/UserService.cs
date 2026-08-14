@@ -278,20 +278,18 @@ public class UserService(
                 if (ObjectContext.GetValue(rawValue, property) is not InstanceUser[] users ||
                     users.All(u => u.Id != userId)) continue;
 
-                foreach (var path in instance.GetPropertyWritePaths(property.Name))
                 foreach (var key in fieldKeys)
                     arrayUpdates.Add(Builders<WorkflowInstance>.Update
-                        .Set($"Properties.{path}.$[elem].{key}", updatedUserDoc[key]));
+                        .Set($"Properties.{property.Name}.$[elem].{key}", updatedUserDoc[key]));
             }
             else
             {
                 if (ObjectContext.GetValue(rawValue, property) is not InstanceUser instanceUser ||
                     instanceUser.Id != userId) continue;
 
-                foreach (var path in instance.GetPropertyWritePaths(property.Name))
                 foreach (var key in fieldKeys)
                     scalarUpdates.Add(Builders<WorkflowInstance>.Update
-                        .Set($"Properties.{path}.{key}", updatedUserDoc[key]));
+                        .Set($"Properties.{property.Name}.{key}", updatedUserDoc[key]));
             }
         }
 

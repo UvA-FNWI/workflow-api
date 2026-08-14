@@ -45,7 +45,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<EffectService>();
         services.AddScoped<AnswerConversionService>();
         services.AddScoped<InitializationService>();
-        services.AddScoped<MigrationCompatibilityService>();
+        services.AddScoped<MigrationService>();
 
         services.AddHostedService<JobWorker>();
 
