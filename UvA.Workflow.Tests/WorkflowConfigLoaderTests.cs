@@ -388,12 +388,14 @@ public class WorkflowConfigLoaderTests
         Assert.True(resolver.Contains("feature/x"));
     }
 
-    [Fact]
-    public async Task VersionFilter_MissingRef_ThrowsMissingWithoutRunningTheAction()
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)] // what GitHub actually answers for an unknown ref
+    public async Task VersionFilter_MissingRef_ThrowsMissingWithoutRunningTheAction(HttpStatusCode status)
     {
         var resolver = CreateResolver();
         var handler = new StubHttpMessageHandler((_, _) =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)));
+            Task.FromResult(new HttpResponseMessage(status)));
         var loader = CreateLoader(resolver, RepoOptions(), handler);
         var called = false;
 

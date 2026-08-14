@@ -74,8 +74,12 @@ public class WorkflowConfigLoader(
         }
         catch (Exception ex)
         {
-            // Only GitHub failures other than 404 are treated as retryable.
-            var transient = ex is WorkflowConfigFetchException { StatusCode: not HttpStatusCode.NotFound };
+            // A ref that doesn't exist is a 422 ("No commit found for SHA") on the commits endpoint;
+            // only the other GitHub failures are treated as retryable.
+            var transient = ex is WorkflowConfigFetchException
+            {
+                StatusCode: not (HttpStatusCode.NotFound or HttpStatusCode.UnprocessableEntity)
+            };
             logger.LogError(ex, "Error loading requested version {Ref}", @ref);
             throw new WorkflowVersionLoadException(@ref, !transient, ex);
         }
