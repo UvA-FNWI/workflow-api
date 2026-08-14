@@ -1,5 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 using UvA.Workflow.Events;
+using UvA.Workflow.Migrations;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -22,27 +23,101 @@ public class WorkflowInstance
     public Dictionary<string, BsonValue> Properties { get; set; } = null!;
     public Dictionary<string, InstanceEvent> Events { get; set; } = null!;
 
+    /// <summary>Runtime-only aliases loaded from the global migrations collection.</summary>
+    [BsonIgnore]
+    public IReadOnlyList<PropertyRenameAlias> PropertyRenameAliases { get; set; } = [];
+
 
     public string? ParentId { get; set; }
 
     public bool HasAnswer(string property)
-        => Properties.TryGetValue(property, out var value) && value != BsonNull.Value;
+        => GetProperty(property) is { } value && value != BsonNull.Value;
 
     public BsonValue? GetProperty(params string?[] parts)
     {
         string[] relevantParts = parts.Where(p => p != null).ToArray()!;
         if (relevantParts.Length == 0) return null;
 
-        var rootValue = Properties.GetValueOrDefault(relevantParts[0]);
-        if (relevantParts.Length == 1)
-            return rootValue;
-
-        return BsonConversionTools.NavigateNestedBsonValue(rootValue, relevantParts.Skip(1));
+        return GetRawProperty(relevantParts);
     }
 
     public void SetProperty(BsonValue? value, params string?[] parts)
     {
         string[] relevantParts = parts.Where(p => p != null).ToArray()!;
+        if (relevantParts.Length == 0)
+            return;
+
+        var path = string.Join('.', relevantParts);
+        foreach (var writePath in WritePaths(path))
+            SetRawProperty(value?.DeepClone(), writePath.Split('.'));
+    }
+
+    public IReadOnlyList<string> GetPropertyWritePaths(params string?[] parts)
+    {
+        var relevantParts = parts.Where(part => part != null).ToArray()!;
+        return relevantParts.Length == 0
+            ? []
+            : WritePaths(string.Join('.', relevantParts)).ToArray();
+    }
+
+    public void MaterializeMissingPropertyAliases()
+    {
+        bool changed;
+        do
+        {
+            changed = false;
+            foreach (var alias in PropertyRenameAliases)
+            {
+                var target = GetRawProperty(alias.NewPath.Split('.'));
+                var source = GetRawProperty(alias.OldPath.Split('.'));
+                if (target == null && source != null)
+                {
+                    SetRawProperty(source.DeepClone(), alias.NewPath.Split('.'));
+                    changed = true;
+                }
+                else if (source == null && target != null)
+                {
+                    SetRawProperty(target.DeepClone(), alias.OldPath.Split('.'));
+                    changed = true;
+                }
+            }
+        } while (changed);
+    }
+
+    private IEnumerable<string> WritePaths(string requestedPath)
+    {
+        var paths = new List<string> { requestedPath };
+        for (var index = 0; index < paths.Count; index++)
+        {
+            var path = paths[index];
+            foreach (var alias in PropertyRenameAliases)
+            {
+                if (Matches(path, alias.OldPath))
+                    AddPath(ReplacePrefix(path, alias.OldPath, alias.NewPath));
+                if (Matches(path, alias.NewPath))
+                    AddPath(ReplacePrefix(path, alias.NewPath, alias.OldPath));
+            }
+        }
+
+        return paths;
+
+        void AddPath(string path)
+        {
+            if (!paths.Contains(path, StringComparer.Ordinal))
+                paths.Add(path);
+        }
+    }
+
+    private BsonValue? GetRawProperty(string[] parts)
+    {
+        var rootValue = Properties.GetValueOrDefault(parts[0]);
+        return parts.Length == 1
+            ? rootValue
+            : BsonConversionTools.NavigateNestedBsonValue(rootValue, parts.Skip(1));
+    }
+
+    private void SetRawProperty(BsonValue? value, string[] relevantParts)
+    {
         if (relevantParts.Length == 1)
         {
             if (value == null)
@@ -77,6 +152,12 @@ public class WorkflowInstance
         else
             document[relevantParts[^1]] = value;
     }
+
+    private static bool Matches(string path, string prefix)
+        => path == prefix || path.StartsWith(prefix + '.', StringComparison.Ordinal);
+
+    private static string ReplacePrefix(string path, string oldPrefix, string newPrefix)
+        => newPrefix + path[oldPrefix.Length..];
 
     /// <summary>
     /// Transitions the workflow to a new step
@@ -134,7 +215,7 @@ public class WorkflowInstance
     /// </summary>
     public void ClearProperty(string property)
     {
-        Properties.Remove(property);
+        SetProperty(null, property);
     }
 
     /// <summary>

@@ -2,6 +2,11 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Migrations;
 
+public enum MigrationKind
+{
+    RenameProperty
+}
+
 public enum MigrationStage
 {
     Planned,
@@ -35,7 +40,6 @@ public class Migration
     public string OldPath { get; set; } = null!;
     public string NewPath { get; set; } = null!;
     public string? Description { get; set; }
-    public string DefinitionChecksum { get; set; } = null!;
     public string SourceCommit { get; set; } = null!;
     public string TargetCommit { get; set; } = null!;
 

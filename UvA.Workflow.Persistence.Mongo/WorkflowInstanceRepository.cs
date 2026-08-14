@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using UvA.Workflow.Migrations;
 
 namespace UvA.Workflow.Persistence.Mongo;
 
@@ -6,13 +7,16 @@ namespace UvA.Workflow.Persistence.Mongo;
 /// MongoDB implementation of the IWorkflowInstanceRepository contract.
 /// Handles mapping between domain entities and MongoDB documents.
 /// </summary>
-public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInstanceRepository
+public class WorkflowInstanceRepository(
+    IMongoDatabase database,
+    MigrationCompatibilityService? migrationCompatibility = null) : IWorkflowInstanceRepository
 {
     private readonly IMongoCollection<WorkflowInstance> instanceCollection =
         database.GetCollection<WorkflowInstance>("instances");
 
     public async Task Create(WorkflowInstance instance, CancellationToken ct)
     {
+        await AttachCompatibility(instance, ct);
         var document = instance;
         await instanceCollection.InsertOneAsync(document, cancellationToken: ct);
         instance.Id = document.Id; // Update with generated ID
@@ -25,6 +29,8 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
 
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
         var instance = await instanceCollection.Find(filter).FirstOrDefaultAsync(ct);
+        if (instance != null)
+            await AttachCompatibility(instance, ct);
         return instance;
     }
 
@@ -33,6 +39,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         if (!ObjectId.TryParse(instance.Id, out var objectId))
             throw new ArgumentException("Invalid instance ID", nameof(instance.Id));
 
+        await AttachCompatibility(instance, ct);
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
         await instanceCollection.ReplaceOneAsync(filter, instance, cancellationToken: ct);
     }
@@ -56,6 +63,7 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
 
         var filter = Builders<WorkflowInstance>.Filter.In("_id", objectIds);
         var documents = await instanceCollection.Find(filter).ToListAsync(ct);
+        await AttachCompatibility(documents, ct);
         return documents;
     }
 
@@ -68,26 +76,32 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
             filter
         );
         var documents = await instanceCollection.Find(combinedFilter).ToListAsync(ct);
+        await AttachCompatibility(documents, ct);
         return documents;
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetByFilter(FilterDefinition<WorkflowInstance> filter,
         CancellationToken ct)
     {
-        return await instanceCollection.Find(filter).ToListAsync(ct);
+        var documents = await instanceCollection.Find(filter).ToListAsync(ct);
+        await AttachCompatibility(documents, ct);
+        return documents;
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetByParentId(string parentId, CancellationToken ct)
     {
         var filter = Builders<WorkflowInstance>.Filter.Eq(x => x.ParentId, parentId);
         var documents = await instanceCollection.Find(filter).ToListAsync(ct);
+        await AttachCompatibility(documents, ct);
         return documents;
     }
 
     public async Task<List<WorkflowInstance>> GetAll(Expression<Func<WorkflowInstance, bool>> expression,
         CancellationToken ct)
     {
-        return await instanceCollection.Find(expression).ToListAsync(ct);
+        var documents = await instanceCollection.Find(expression).ToListAsync(ct);
+        await AttachCompatibility(documents, ct);
+        return documents;
     }
 
     public async Task<T?> Get<T>(string instanceId, Expression<Func<WorkflowInstance, T>> expression,
@@ -204,5 +218,17 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         var filter = Builders<WorkflowInstance>.Filter.Eq("_id", objectId);
         var options = new UpdateOptions { ArrayFilters = arrayFilters.ToList() };
         await instanceCollection.UpdateOneAsync(filter, updateDefinition, options, cancellationToken: ct);
+    }
+
+    private async Task AttachCompatibility(WorkflowInstance instance, CancellationToken ct)
+    {
+        if (migrationCompatibility != null)
+            await migrationCompatibility.Attach(instance, ct);
+    }
+
+    private async Task AttachCompatibility(IEnumerable<WorkflowInstance> instances, CancellationToken ct)
+    {
+        if (migrationCompatibility != null)
+            await migrationCompatibility.Attach(instances, ct);
     }
 }

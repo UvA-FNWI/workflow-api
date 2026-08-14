@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using UvA.Workflow.Migrations;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -39,6 +38,7 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
         DateTimeOffset LoadedAt);
 
     private readonly ConcurrentDictionary<string, Entry> _entries = new();
+    private readonly object _baselineGate = new();
     private PendingEntry? _pendingBaseline;
 
     public void AddOrUpdate(string version, ModelParser parser, string defaultMailLayout, string? commit = null,
@@ -51,9 +51,12 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 
     public void StagePendingBaseline(ModelParser parser, string defaultMailLayout, string targetCommit)
     {
-        var activeCommit = _entries.GetValueOrDefault("")?.Commit;
-        Volatile.Write(ref _pendingBaseline,
-            new PendingEntry(parser, defaultMailLayout, activeCommit, targetCommit, DateTimeOffset.UtcNow));
+        lock (_baselineGate)
+        {
+            var activeCommit = _entries.GetValueOrDefault("")?.Commit;
+            Volatile.Write(ref _pendingBaseline,
+                new PendingEntry(parser, defaultMailLayout, activeCommit, targetCommit, DateTimeOffset.UtcNow));
+        }
     }
 
     public bool Contains(string version) => _entries.ContainsKey(version);
@@ -76,12 +79,25 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
             : new PendingBaselineInfo(pending.ActiveCommit, pending.TargetCommit, pending.LoadedAt);
     }
 
-    public IReadOnlyList<MigrationDefinition> GetBaselineMigrationPlans()
-        => _entries.GetValueOrDefault("")?.Parser.Migrations ?? [];
-
-    public IReadOnlyList<MigrationDefinition> GetPendingMigrationPlans()
-        => Volatile.Read(ref _pendingBaseline)?.Parser.Migrations ?? [];
-
     internal ModelParser? GetBaselineParser()
         => _entries.GetValueOrDefault("")?.Parser;
+
+    internal bool PromotePendingBaseline(string expectedTargetCommit)
+    {
+        lock (_baselineGate)
+        {
+            var pending = Volatile.Read(ref _pendingBaseline);
+            if (pending == null || pending.TargetCommit != expectedTargetCommit)
+                return false;
+
+            _entries[""] = new Entry(
+                pending.Parser,
+                pending.DefaultMailLayout,
+                pending.TargetCommit,
+                DateTimeOffset.UtcNow,
+                VersionKind.Baseline);
+            Volatile.Write(ref _pendingBaseline, null);
+            return true;
+        }
+    }
 }

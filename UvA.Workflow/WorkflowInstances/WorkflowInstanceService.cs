@@ -49,7 +49,7 @@ public class WorkflowInstanceService(
         {
             var user = InstanceUser.FromUser(createdBy).ToBsonDocument();
             var property = modelService.WorkflowDefinitions[workflowDefinition].Properties.Get(userProperty);
-            instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
+            instance.SetProperty(property.IsArray ? new BsonArray { user } : user, userProperty);
         }
 
         await repository.Create(instance, ct);
@@ -207,7 +207,8 @@ public class WorkflowInstanceService(
         instance.SetProperty(values, pathParts);
 
         await repository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Push($"Properties.{string.Join('.', pathParts)}", newValue), ct);
+            Builders<WorkflowInstance>.Update.Combine(instance.GetPropertyWritePaths(pathParts)
+                .Select(path => Builders<WorkflowInstance>.Update.Push($"Properties.{path}", newValue))), ct);
 
         await journalService.LogPropertyChange(instance.Id,
             PropertyChangeEntry.Create(string.Join('.', pathParts), oldValue, user), ct);

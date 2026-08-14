@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Versions;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Helpers;
@@ -189,7 +190,7 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
-    public async Task ChangedBaseline_WithNewMigrationPlan_IsStagedInsteadOfInstalled()
+    public async Task ChangedBaseline_WithoutApiMigration_IsInstalledNormally()
     {
         var github = new FakeGitHub("sha-1")
         {
@@ -200,19 +201,14 @@ public class WorkflowConfigLoaderTests
         await loader.LoadBaselineAsync();
 
         github.Sha = "sha-2";
-        github.Archive = () => CreatePropertyArchive("ProjectTitle", """
-                                                                     kind: renameProperty
-                                                                     oldPath: Title
-                                                                     newPath: ProjectTitle
-                                                                     """);
+        github.Archive = () => CreatePropertyArchive("ProjectTitle");
 
         Assert.True(await loader.ReloadBaselineIfChangedAsync());
 
-        Assert.Equal("sha-1", Assert.Single(resolver.GetVersions()).Commit);
+        Assert.Equal("sha-2", Assert.Single(resolver.GetVersions()).Commit);
         Assert.Contains(resolver.Resolve().ModelService.WorkflowDefinitions["Project"].Properties,
-            property => property.Name == "Title");
-        Assert.Equal("sha-2", resolver.GetPendingBaseline()?.TargetCommit);
-        Assert.Equal("ProjectTitle", Assert.Single(resolver.GetPendingMigrationPlans()).NewPath);
+            property => property.Name == "ProjectTitle");
+        Assert.Null(resolver.GetPendingBaseline());
     }
 
     [Fact]
@@ -230,16 +226,17 @@ public class WorkflowConfigLoaderTests
             {
                 Content = new ByteArrayContent(path.EndsWith("/active-sha")
                     ? CreatePropertyArchive("Title")
-                    : CreatePropertyArchive("ProjectTitle", """
-                                                            kind: renameProperty
-                                                            oldPath: Title
-                                                            newPath: ProjectTitle
-                                                            """))
+                    : CreatePropertyArchive("ProjectTitle"))
             });
         });
         var settings = new Mock<ISettingsStore>();
-        settings.Setup(store => store.Get("workflow.activeBaselineCommit", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("active-sha");
+        settings.Setup(store => store.Get(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string key, CancellationToken _) => key switch
+            {
+                "workflow.activeBaselineCommit" => "active-sha",
+                "workflow.pendingBaselineCommit" => "target-sha",
+                _ => null
+            });
         var resolver = CreateResolver();
         var loader = CreateLoader(resolver, RepoOptions(), handler, settings.Object);
 
@@ -251,6 +248,51 @@ public class WorkflowConfigLoaderTests
             property => property.Name == "Title");
         settings.Verify(store => store.Set(It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateMigration_LoadsTargetAndLeavesConfigurationPending()
+    {
+        var github = new FakeGitHub("sha-1")
+        {
+            Archive = () => CreatePropertyArchive("Title")
+        };
+        var settings = new Mock<ISettingsStore>();
+        settings.Setup(store => store.Get("workflow.activeBaselineCommit", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        settings.Setup(store => store.Set(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var migrations = new Mock<IMigrationStore>();
+        migrations.Setup(store => store.EnsureCreated(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Migration value, CancellationToken _) => value);
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(), github.Handler(), settings.Object);
+        await loader.LoadBaselineAsync();
+        github.Sha = "sha-2";
+        github.Archive = () => CreatePropertyArchive("ProjectTitle");
+
+        var migration = await loader.CreateMigrationAsync(
+            migrations.Object,
+            "RenameTitleToProjectTitle",
+            MigrationKind.RenameProperty,
+            "Project",
+            "Title",
+            "ProjectTitle",
+            "feature/rename-title",
+            "Use a clearer title",
+            "admin");
+
+        Assert.Equal("Project:RenameTitleToProjectTitle", migration.Id);
+        Assert.Equal(MigrationStage.SupportingBothNames, migration.Stage);
+        Assert.Equal(MigrationRunStatus.Waiting, migration.RunStatus);
+        Assert.Equal("admin", migration.RequestedBy);
+        Assert.Equal("sha-1", Assert.Single(resolver.GetVersions()).Commit);
+        Assert.Equal("sha-2", resolver.GetPendingBaseline()?.TargetCommit);
+        Assert.Contains(resolver.Resolve().ModelService.WorkflowDefinitions["Project"].Properties,
+            property => property.Name == "Title");
+        settings.Verify(store => store.Set("workflow.pendingBaselineCommit", "sha-2",
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -633,7 +675,7 @@ public class WorkflowConfigLoaderTests
         }
     }
 
-    private static byte[] CreatePropertyArchive(string propertyName, string? migration = null)
+    private static byte[] CreatePropertyArchive(string propertyName)
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var archive = Path.Combine(root, "archive");
@@ -648,13 +690,6 @@ public class WorkflowConfigLoaderTests
                                                                       type: String
                                                                   """);
         File.WriteAllText(Path.Combine(archive, "Layouts", "default.html"), "<html></html>");
-        if (migration != null)
-        {
-            var migrations = Path.Combine(project, "Migrations");
-            Directory.CreateDirectory(migrations);
-            File.WriteAllText(Path.Combine(migrations, "RenameTitleToProjectTitle.yaml"), migration);
-        }
-
         try
         {
             using var result = new MemoryStream();

@@ -103,7 +103,7 @@ public class PersonalInstanceService(
             instance.CreatedOn,
             roles,
             student,
-            GetCourseName(instance.Properties.GetValueOrDefault("Course"), courseNames),
+            GetCourseName(instance.GetProperty("Course"), courseNames),
             employees
         );
     }
@@ -129,7 +129,7 @@ public class PersonalInstanceService(
         CancellationToken ct)
     {
         var ids = instances
-            .Select(instance => GetReferenceId(instance.Properties.GetValueOrDefault("Course")))
+            .Select(instance => GetReferenceId(instance.GetProperty("Course")))
             .OfType<string>()
             .Distinct(StringComparer.Ordinal)
             .ToArray();

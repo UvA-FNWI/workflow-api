@@ -38,6 +38,7 @@ public class WorkflowConfigLoader(
     // Repo-root-relative path to the default mail layout; read alongside, but outside, the workflow model.
     public const string LayoutPath = "Layouts/default.html";
     private const string ActiveBaselineCommitKey = "workflow.activeBaselineCommit";
+    private const string PendingBaselineCommitKey = "workflow.pendingBaselineCommit";
 
     private readonly WorkflowSourceOptions _opts = options.Value;
     private readonly SemaphoreSlim _baselineLock = new(1, 1); // one baseline reload at a time (poller vs. /reload)
@@ -48,7 +49,6 @@ public class WorkflowConfigLoader(
     // Last commit SHA fetched per version, including a pending baseline. We compare the freshly-resolved SHA
     // against it to skip the tarball download + re-parse when the ref hasn't moved. Baseline is keyed by "".
     private readonly ConcurrentDictionary<string, string> _shas = new();
-    private bool _baselineRestored;
 
     // Polling needs a baseline SHA to diff against; LocalPath dev mode has none, so it won't poll.
     public bool CanPoll => _shas.ContainsKey("");
@@ -60,15 +60,7 @@ public class WorkflowConfigLoader(
         await _baselineLock.WaitAsync();
         try
         {
-            var restored = false;
-            if (!_baselineRestored && !string.IsNullOrWhiteSpace(_opts.RepoUrl))
-            {
-                _baselineRestored = true;
-                var activeCommit = await settingsStore.Get(ActiveBaselineCommitKey);
-                if (!string.IsNullOrWhiteSpace(activeCommit))
-                    restored = await LoadAsync(activeCommit, "", VersionKind.Baseline,
-                        allowPending: false, rememberAsActiveBaseline: false);
-            }
+            var restored = await SynchronizeSharedBaselineAsync();
 
             var loaded = await LoadAsync(_opts.Ref, "", VersionKind.Baseline);
             return restored || loaded;
@@ -77,6 +69,104 @@ public class WorkflowConfigLoader(
         {
             _baselineLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Loads a target configuration, validates an API-requested migration against it, and publishes the
+    /// migration mapping. The target remains pending until copying and verification have completed.
+    /// </summary>
+    public async Task<Migration> CreateMigrationAsync(
+        IMigrationStore migrationStore,
+        string name,
+        MigrationKind kind,
+        string workflowDefinition,
+        string oldPath,
+        string newPath,
+        string targetRef,
+        string? description,
+        string requestedBy,
+        CancellationToken ct = default)
+    {
+        await _baselineLock.WaitAsync(ct);
+        try
+        {
+            if (string.IsNullOrWhiteSpace(name) || name.Any(character =>
+                    !(char.IsLetterOrDigit(character) || character is '-' or '_')))
+                throw new InvalidOperationException(
+                    "Migration name may only contain letters, numbers, hyphens, and underscores");
+            if (string.IsNullOrWhiteSpace(_opts.RepoUrl))
+                throw new InvalidOperationException("API migrations require WorkflowSource:RepoUrl");
+            ValidateRef(targetRef);
+
+            var activeParser = resolver.GetBaselineParser()
+                               ?? throw new InvalidOperationException("No active configuration is loaded");
+            var activeCommit = resolver.GetVersions().Single(version => version.Name == "").Commit
+                               ?? throw new InvalidOperationException("The active configuration has no commit");
+            var target = await BuildModelAsync(targetRef, null)
+                         ?? throw new InvalidOperationException("Could not load the target configuration");
+            if (target.Sha == null)
+                throw new InvalidOperationException("The target configuration has no commit");
+
+            if (kind != MigrationKind.RenameProperty)
+                throw new InvalidOperationException($"Migration kind '{kind}' is not supported");
+            MigrationValidator.ValidatePropertyRename(
+                activeParser, target.Parser, workflowDefinition, oldPath, newPath);
+
+            var migration = await migrationStore.EnsureCreated(new Migration
+            {
+                Id = $"{workflowDefinition}:{name}",
+                Kind = kind,
+                WorkflowDefinition = workflowDefinition,
+                OldPath = oldPath,
+                NewPath = newPath,
+                Description = description,
+                SourceCommit = activeCommit,
+                TargetCommit = target.Sha,
+                Stage = MigrationStage.SupportingBothNames,
+                RunStatus = MigrationRunStatus.Waiting,
+                RequestedBy = requestedBy,
+                RequestedAt = DateTime.UtcNow
+            }, ct);
+
+            await settingsStore.Set(PendingBaselineCommitKey, target.Sha, ct);
+            resolver.StagePendingBaseline(target.Parser, target.Layout, target.Sha);
+            logger.LogInformation(
+                "Created migration {MigrationId} for pending configuration {Revision}; " +
+                "the active configuration is unchanged",
+                migration.Id, Short(target.Sha));
+            return migration;
+        }
+        finally
+        {
+            _baselineLock.Release();
+        }
+    }
+
+    private async Task<bool> SynchronizeSharedBaselineAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_opts.RepoUrl))
+            return false;
+
+        var sharedCommit = await settingsStore.Get(ActiveBaselineCommitKey);
+        if (string.IsNullOrWhiteSpace(sharedCommit))
+            return false;
+
+        var currentCommit = resolver.GetVersions().SingleOrDefault(version => version.Name == "")?.Commit;
+        if (currentCommit == sharedCommit)
+            return false;
+
+        if (resolver.PromotePendingBaseline(sharedCommit))
+        {
+            _shas[""] = sharedCommit;
+            logger.LogInformation("Adopted approved baseline configuration at {Revision}", Short(sharedCommit));
+            return true;
+        }
+
+        // A freshly started or lagging replica may not have staged this commit locally yet. Force a load even
+        // when it previously downloaded that SHA as a pending candidate.
+        _shas.TryRemove("", out _);
+        return await LoadAsync(sharedCommit, "", VersionKind.Baseline,
+            allowPending: false, rememberAsActiveBaseline: false);
     }
 
     public async Task EnsureLoadedAsync(string @ref)
@@ -129,17 +219,18 @@ public class WorkflowConfigLoader(
 
         var (parser, layout, sha) = model.Value;
         var staged = false;
-        if (allowPending && kind == VersionKind.Baseline && resolver.GetBaselineParser() is { } activeParser)
+        if (allowPending && kind == VersionKind.Baseline && sha != null &&
+            resolver.GetBaselineParser() != null)
         {
-            var plansRequiringApproval = MigrationPlanValidator.Compare(activeParser, parser);
-            if (plansRequiringApproval.Count > 0)
+            var pendingCommit = await settingsStore.Get(PendingBaselineCommitKey);
+            var activeCommit = resolver.GetVersions().Single(version => version.Name == "").Commit;
+            if (pendingCommit == sha && activeCommit != sha)
             {
-                resolver.StagePendingBaseline(parser, layout, sha ?? "local-checkout");
+                resolver.StagePendingBaseline(parser, layout, sha);
                 staged = true;
                 logger.LogInformation(
-                    "Staged baseline config ref {Ref} at {Revision} with {MigrationCount} migration plan(s) " +
-                    "waiting for approval",
-                    @ref, Short(sha), plansRequiringApproval.Count);
+                    "Staged baseline config ref {Ref} at {Revision} while its migration is running",
+                    @ref, Short(sha));
             }
         }
 
