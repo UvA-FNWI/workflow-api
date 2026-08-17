@@ -3,7 +3,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using UvA.Workflow.Import;
 
-namespace UvA.Workflow.DocumentIO;
+namespace UvA.Workflow.ImportExport;
 
 public class CsvService : IFileParserService
 {

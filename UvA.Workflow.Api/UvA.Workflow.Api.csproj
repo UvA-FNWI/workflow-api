@@ -25,7 +25,7 @@
         <ProjectReference Include="..\UvA.Workflow.Notifications.Graph\UvA.Workflow.Notifications.Graph.csproj" />
         <ProjectReference Include="..\UvA.Workflow.Users.DataNose\UvA.Workflow.Users.DataNose.csproj" />
         <ProjectReference Include="..\UvA.Workflow.Users.EduId\UvA.Workflow.Users.EduId.csproj" />
-        <ProjectReference Include="..\UvA.Workflow.DocumentIO\UvA.Workflow.DocumentIO.csproj" />
+        <ProjectReference Include="..\UvA.Workflow.ImportExport\UvA.Workflow.ImportExport.csproj" />
     </ItemGroup>
 
     <ItemGroup>

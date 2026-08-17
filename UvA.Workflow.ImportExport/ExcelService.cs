@@ -1,7 +1,7 @@
 ﻿using ClosedXML.Excel;
 using UvA.Workflow.Import;
 
-namespace UvA.Workflow.DocumentIO;
+namespace UvA.Workflow.ImportExport;
 
 public class ExcelService : IFileParserService
 {

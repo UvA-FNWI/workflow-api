@@ -13,7 +13,7 @@
   </Folder>
   <Project Path="UvA.Workflow.Api/UvA.Workflow.Api.csproj" />
   <Project Path="UvA.Workflow.Api.Authentication/UvA.Workflow.Api.Authentication.csproj" />
-  <Project Path="UvA.Workflow.DocumentIO/UvA.Workflow.DocumentIO.csproj" />
+  <Project Path="UvA.Workflow.ImportExport\UvA.Workflow.ImportExport.csproj" />
   <Project Path="UvA.Workflow.Notifications.Graph/UvA.Workflow.Notifications.Graph.csproj" />
   <Project Path="UvA.Workflow.Persistence.Mongo/UvA.Workflow.Persistence.Mongo.csproj" />
   <Project Path="UvA.Workflow.SchemaGenerator/UvA.Workflow.SchemaGenerator.csproj" />
