@@ -5,7 +5,9 @@ namespace UvA.Workflow.WorkflowModel;
 public class ModelService(ModelParser parser)
 {
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => parser.WorkflowDefinitions;
+
     public Dictionary<string, Role> Roles => parser.Roles.ToDictionary(r => r.Name, r => r);
+
     public List<Service> Services => parser.Services;
 
     public Form GetForm(WorkflowInstance instance, string formName)
@@ -69,6 +71,11 @@ public class ModelService(ModelParser parser)
             .Where(s => s != null)
             .ToArray()!;
     }
+
+    /// <summary>
+    /// Returns CurrentStep when it resolves; otherwise returns the first open step.
+    /// </summary>
+    public Step? GetCurrentStep(WorkflowInstance instance) => ResolveCurrentStep(instance).Step;
 
     private (Step? Step, ObjectContext? Context) ResolveCurrentStep(WorkflowInstance instance,
         ObjectContext? context = null)

@@ -16,6 +16,8 @@ public enum RightsEvaluationMode
 
 public record WorkflowImpersonationRole(string Name, BilingualString Title);
 
+public record RoleAllowedActions(WorkflowImpersonationRole Role, Domain_Action[] Actions);
+
 public class RightsService(
     ModelService modelService,
     IUserService userService,
@@ -34,7 +36,9 @@ public class RightsService(
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
             return [];
 
-        var actionRoles = modelService.Roles.Values
+        var roles = modelService.Roles;
+
+        var actionRoles = roles.Values
             .Where(r => r.Actions.Any(a => a.WorkflowDefinition == null || a.WorkflowDefinition == workflowDefinition))
             .Select(r => r.Name);
 
@@ -46,7 +50,7 @@ public class RightsService(
         return actionRoles
             .Concat(definitionRoles)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(r => modelService.Roles.GetValueOrDefault(r))
+            .Select(r => roles.GetValueOrDefault(r))
             .Where(r => r != null)
             .Select(r => new WorkflowImpersonationRole(r!.Name, r.DisplayTitle))
             .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
@@ -56,17 +60,31 @@ public class RightsService(
     // Only roles that can actually view this instance are useful to impersonate; if a role can't
     // see anything there's no point loading the page as it.
     public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
-        => GetImpersonationCandidateRoles(instance.WorkflowDefinition)
-            .Where(r =>
-            {
-                var role = modelService.Roles.GetValueOrDefault(r.Name);
-                return role != null && GetAllowedActions(instance, [role], RoleAction.View).Any();
-            })
+    {
+        var roles = modelService.Roles;
+        return GetImpersonationCandidateRoles(instance.WorkflowDefinition)
+            .Where(r => roles.GetValueOrDefault(r.Name) is { } role
+                        && GetAllowedActions(instance, [role], RoleAction.View).Any())
             .ToArray();
+    }
 
     public WorkflowImpersonationRole? NormalizeImpersonationTargetRole(WorkflowInstance instance, string roleName)
         => GetImpersonationTargetRoles(instance)
             .FirstOrDefault(r => string.Equals(r.Name, roleName, StringComparison.OrdinalIgnoreCase));
+
+    public RoleAllowedActions[] GetAllowedActionsPerTargetRole(WorkflowInstance instance,
+        params RoleAction[] actions)
+    {
+        var roles = modelService.Roles;
+        var context = modelService.CreateContext(instance);
+        var activeSteps = modelService.GetActiveSteps(instance);
+
+        return GetImpersonationTargetRoles(instance)
+            .Select(r => new RoleAllowedActions(r,
+                GetAllowedActions(instance, context, activeSteps,
+                    [roles.GetValueOrDefault(r.Name)], actions)))
+            .ToArray();
+    }
 
 
     public async Task<Domain_Action[]> GetAllowedActions(string? workflowDefinition, params RoleAction[] actions)
@@ -157,10 +175,12 @@ public class RightsService(
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, IEnumerable<Role?> roles,
         params RoleAction[] actions)
-    {
-        var context = modelService.CreateContext(instance);
-        var activeSteps = modelService.GetActiveSteps(instance);
+        => GetAllowedActions(instance, modelService.CreateContext(instance),
+            modelService.GetActiveSteps(instance), roles, actions);
 
+    private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
+        string[] activeSteps, IEnumerable<Role?> roles, params RoleAction[] actions)
+    {
         return roles
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
