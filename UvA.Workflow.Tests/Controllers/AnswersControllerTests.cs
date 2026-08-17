@@ -107,6 +107,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 "External User",
                 "external@example.org",
                 organization,
+                null,
                 _ct))
             .ReturnsAsync(new UserSearchResult(
                 "external@example.org",
@@ -124,7 +125,7 @@ public class AnswersControllerTests : ControllerTestsBase
             "Supervisor",
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org", organization)),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org", organization)),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -166,7 +167,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 "Supervisor",
                 new SaveAnswerRequest(
                     Value: null,
-                    ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                    ExternalUser: new ExternalUserDto("External User", "external@example.org")),
                 _ct));
     }
 
@@ -181,7 +182,7 @@ public class AnswersControllerTests : ControllerTestsBase
             "Title",
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org")),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -205,7 +206,7 @@ public class AnswersControllerTests : ControllerTestsBase
             questionName,
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org")),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -233,6 +234,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<Organization?>(),
+                It.IsAny<string?>(),
                 _ct))
             .ThrowsAsync(new ExternalUserCreationException(reason, "Service error"));
 
@@ -242,7 +244,7 @@ public class AnswersControllerTests : ControllerTestsBase
             "Supervisor",
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org")),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
