@@ -4,7 +4,8 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "name"
+    "name",
+    "order"
   ],
   "properties": {
     "name": {
@@ -24,6 +25,10 @@
           "$ref": "#/definitions/BilingualString"
         }
       ]
+    },
+    "order": {
+      "type": "integer",
+      "description": "Order in which this role should be shown"
     },
     "inheritFrom": {
       "type": "array",

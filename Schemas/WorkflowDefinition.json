@@ -98,6 +98,29 @@
         "$ref": "#/definitions/Field"
       }
     },
+    "relatedUsers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/RelatedUser"
+      }
+    },
+    "relatedUserGrouping": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/RelatedUserGrouping"
+        }
+      ]
+    },
+    "resources": {
+      "type": "array",
+      "description": "List of resources for this entity type",
+      "items": {
+        "$ref": "#/definitions/Resource"
+      }
+    },
     "isEmbedded": {
       "type": "boolean",
       "description": "Indicated whether this entity type is stored as an embedded document in the parent instance"
@@ -340,6 +363,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "linkedTo": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The name of another property this property is linked to."
         }
       }
     },
@@ -1431,6 +1461,200 @@
         }
       }
     },
+    "RelatedUser": {
+      "title": "RelatedUser",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "property",
+        "group"
+      ],
+      "properties": {
+        "property": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "RelatedUserGrouping": {
+      "title": "RelatedUserGrouping",
+      "type": "object",
+      "description": "Configuration for grouping related users",
+      "additionalProperties": false,
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RelatedUserGroup"
+          }
+        }
+      }
+    },
+    "RelatedUserGroup": {
+      "title": "RelatedUserGroup",
+      "type": "object",
+      "description": "Defines a named group of related users",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "title"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Internal identifier for the group"
+        },
+        "title": {
+          "description": "Display name of the group",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "Resource": {
+      "title": "Resource",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "title"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Short internal name of the resource"
+        },
+        "title": {
+          "description": "Localized title of the resource",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "type": {
+          "description": "The type of this resource, e.g. text or links",
+          "$ref": "#/definitions/ResourceLayout"
+        },
+        "items": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "List of items for a resource type links",
+          "items": {
+            "$ref": "#/definitions/ResourceItem"
+          }
+        },
+        "content": {
+          "description": "The content for a resource of type text",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "sources": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "If set, this resource is included only for the matching sources",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ResourceLayout": {
+      "type": "string",
+      "enum": [
+        "Links",
+        "Text"
+      ]
+    },
+    "ResourceItem": {
+      "title": "ResourceItem",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "text"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Short internal name of the resource item"
+        },
+        "type": {
+          "description": "The type of the resource, e.g. link, text or download",
+          "$ref": "#/definitions/ResourceType"
+        },
+        "text": {
+          "description": "Localized text of the resource item",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "url": {
+          "description": "Optional (Localized) URL of the resource item, e.g. for a link or download",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "ResourceType": {
+      "type": "string",
+      "enum": [
+        "Link",
+        "Download",
+        "Text"
+      ]
+    },
     "Dictionary`2": {
       "title": "Dictionary`2",
       "type": "object",
@@ -1535,6 +1759,20 @@
         "name": {
           "type": "string",
           "description": "Name of the property (assessor) that provides the score for this part"
+        },
+        "title": {
+          "description": "Localized title of the source",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         },
         "weight": {
           "type": "number",
