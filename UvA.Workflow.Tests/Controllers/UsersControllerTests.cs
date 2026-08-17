@@ -198,7 +198,7 @@ public class UsersControllerTests : ControllerTestsBase
         var dto = Assert.IsType<UserDto>(okResult.Value);
         Assert.Equal("new@example.org", dto.Email);
         Assert.Equal("new@example.org", dto.UserName);
-        Assert.True(dto.RequiresInvitation);
+        Assert.True(dto.IsEmailEditable);
         _externalUserServiceMock.Verify(s => s.CreateOrUpdateExternalUser(
             "External User", "new@example.org", null, user.Id, _ct), Times.Once);
     }
