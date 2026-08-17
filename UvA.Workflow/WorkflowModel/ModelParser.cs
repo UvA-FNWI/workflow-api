@@ -429,10 +429,9 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
-        // Validate BulkEditProperties exist on the workflow definition
-        if (screen.BulkEditProperties != null)
+        if (screen.BulkEdit != null)
         {
-            var unknownProps = screen.BulkEditProperties
+            var unknownProps = screen.BulkEdit.EditableProperties
                 .Where(p => workflowDefinition.Properties.GetOrDefault(p) == null)
                 .ToArray();
             if (unknownProps.Length > 0)

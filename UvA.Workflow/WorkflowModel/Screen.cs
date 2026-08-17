@@ -28,9 +28,9 @@ public class Screen : INamed
     public ScreenGrouping? Grouping { get; set; }
 
     /// <summary>
-    /// Enable bulk editing for these properties for all instances in the screen
+    /// Config for bulk editing for all instances in the screen
     /// </summary>
-    public string[]? BulkEditProperties { get; set; }
+    public BulkEditConfig? BulkEdit { get; set; }
 }
 
 /// <summary>
@@ -104,4 +104,17 @@ public class Column : Field
     /// If true, this column becomes a link to the instance 
     /// </summary>
     public bool Link { get; set; }
+}
+
+public class BulkEditConfig
+{
+    public BulkEditProperty Identifier { get; set; } = null!;
+    public BulkEditProperty[]? ReadOnlyProperties { get; set; } = [];
+    public string[] EditableProperties { get; set; } = [];
+}
+
+public class BulkEditProperty
+{
+    public string Property { get; set; } = null!;
+    public BilingualString? Title { get; set; }
 }

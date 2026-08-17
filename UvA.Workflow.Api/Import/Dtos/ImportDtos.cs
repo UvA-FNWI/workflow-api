@@ -11,7 +11,6 @@ public class ImportPreviewRequest
     };
 
     [FromForm] public required IFormFile File { get; set; }
-    [FromForm] public required string WorkflowDefinition { get; set; }
     [FromForm] public required string ColumnMapping { get; set; }
 
     public ColumnMapping[] Mappings =>
@@ -19,7 +18,6 @@ public class ImportPreviewRequest
 }
 
 public record ImportConfirmRequest(
-    string WorkflowDefinition,
     ImportConfirmRow[] Rows
 );
 

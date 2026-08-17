@@ -18,7 +18,7 @@ public record ScreenDataDto(
         return new ScreenDataDto(
             screen.Name,
             WorkflowDefinitionDto.Create(definition),
-            screen.BulkEditProperties is { Length: > 0 } && canBulkEdit,
+            screen.BulkEdit != null && canBulkEdit,
             columns,
             rows,
             groups);

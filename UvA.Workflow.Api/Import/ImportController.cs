@@ -8,7 +8,7 @@ using UvA.Workflow.Import;
 public class ImportController(ImportService importService, ModelService modelService)
     : ApiControllerBase
 {
-    [HttpGet("Columns/{workflowDefinition}/{screenName}")]
+    [HttpGet("{workflowDefinition}/{screenName}/Columns")]
     public async Task<ActionResult<ImportablePropertyDto[]>> GetColumnNames(string workflowDefinition,
         string screenName,
         CancellationToken ct)
@@ -23,11 +23,11 @@ public class ImportController(ImportService importService, ModelService modelSer
         if (screen == null)
             return NotFound("ScreenNotFound", $"Screen '{screenName}' not found for workflow '{workflowDefinition}'.");
 
-        if (screen.BulkEditProperties is not { Length: > 0 })
+        if (screen.BulkEdit is null)
             return BadRequest("BulkEditNotEnabled", $"Screen '{screenName}' does not support bulk edit.");
 
         var editableProperties =
-            await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEditProperties);
+            await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEdit.EditableProperties);
         var result = editableProperties
             .Select(p => new ImportablePropertyDto(p.Name, p.DisplayName, p.DataType))
             .ToArray();
@@ -35,29 +35,33 @@ public class ImportController(ImportService importService, ModelService modelSer
         return Ok(result);
     }
 
-    [HttpPost("Preview")]
+    [HttpPost("{workflowDefinition}/{screenName}/Preview")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<ImportPreview>> Preview(
-        [FromForm] ImportPreviewRequest request, CancellationToken ct)
+        [FromForm] ImportPreviewRequest request, string workflowDefinition,
+        string screenName, CancellationToken ct)
     {
         await using var stream = request.File.OpenReadStream();
 
         var preview = await importService.PreviewAsync(
+            workflowDefinition,
+            screenName,
             stream,
             request.File.ContentType,
-            request.WorkflowDefinition,
             request.Mappings,
             ct);
 
         return Ok(preview);
     }
 
-    [HttpPost("Confirm")]
+    [HttpPost("{workflowDefinition}/{screenName}/Confirm")]
     public async Task<IActionResult> Confirm(
-        [FromBody] ImportConfirmRequest request, CancellationToken ct)
+        [FromBody] ImportConfirmRequest request, string workflowDefinition,
+        string screenName, CancellationToken ct)
     {
         await importService.ImportAsync(
-            request.WorkflowDefinition,
+            workflowDefinition,
+            screenName,
             request.Rows,
             ct);
 

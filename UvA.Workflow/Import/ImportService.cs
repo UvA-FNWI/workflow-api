@@ -13,9 +13,6 @@ public class ImportService(
     IUserRepository userRepository,
     RightsService rightsService)
 {
-    private const string StudentNumberProperty = "UserName";
-    private const string StudentNameProperty = "DisplayName";
-
     public bool IsImportableType(DataType dt) => dt is
         DataType.String or DataType.Int or DataType.Double or
         DataType.Date or DataType.DateTime or DataType.User;
@@ -32,58 +29,72 @@ public class ImportService(
     }
 
     public async Task<ImportPreview> PreviewAsync(
+        string workflowDefinition,
+        string screenName,
         Stream fileStream,
         string contentType,
-        string workflowDefinition,
         ColumnMapping[] mappings,
         CancellationToken ct)
     {
-        var studentNumberMapping = mappings.FirstOrDefault(m => m.PropertyName == StudentNumberProperty)
-                                   ?? throw new InvalidOperationException(
-                                       "No StudentNumber column mapping was provided.");
+        var bulkEditConfig = modelService.WorkflowDefinitions[workflowDefinition]
+                                 .Screens.FirstOrDefault(s => s.Name == screenName)?.BulkEdit
+                             ?? throw new InvalidOperationException(
+                                 $"Screen '{screenName}' does not support bulk edit.");
 
-        var dataMappings = mappings.Where(m => m.PropertyName != StudentNumberProperty).ToArray();
+        var identifierMapping = mappings.FirstOrDefault(m => m.PropertyName == bulkEditConfig.Identifier.Property)
+                                ?? throw new InvalidOperationException(
+                                    $"No mapping provided for identifier property '{bulkEditConfig.Identifier.Property}'.");
 
-        var studentNumberColumn = new ImportPreviewColumn(StudentNumberProperty,
-            new BilingualString("Student Number", "Studentnummer"), DataType.String);
-
-        var studentNameColumn = new ImportPreviewColumn(StudentNameProperty,
-            new BilingualString("Student Name (from database)", "Naam student (uit database)"), DataType.String);
-
+        var dataMappings = mappings.Where(m => m.PropertyName != bulkEditConfig.Identifier.Property).ToArray();
         var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
+
+        var identifierProperty = modelService.GetProperty(stub, bulkEditConfig.Identifier.Property.Split('.'))
+                                 ?? throw new InvalidOperationException(
+                                     $"Property '{bulkEditConfig.Identifier.Property}' defined as BulkEdit identifier was not found on workflow '{workflowDefinition}'.");
+
+        var identifierColumn = ImportPreviewColumn.FromBulkEditProperty(bulkEditConfig.Identifier,
+            identifierProperty);
+
+        var readOnlyColumns = bulkEditConfig.ReadOnlyProperties != null
+            ? bulkEditConfig.ReadOnlyProperties.Select(p =>
+                ImportPreviewColumn.FromBulkEditProperty(p, modelService.GetProperty(stub, p.Property.Split('.'))!))
+            : [];
 
         var dataColumns = dataMappings
             .Select(m =>
             {
-                var prop = modelService.GetProperty(stub, m.PropertyName);
+                var prop = modelService.GetProperty(stub, m.PropertyName.Split('.'));
                 return prop == null ? null : new ImportPreviewColumn(m.PropertyName, prop.DisplayName, prop.DataType);
             })
             .OfType<ImportPreviewColumn>()
             .ToArray();
 
-        var columns = new[] { studentNumberColumn, studentNameColumn }.Concat(dataColumns).ToArray();
+        var columns = new ImportPreviewColumn[] { identifierColumn }.Concat(readOnlyColumns).Concat(dataColumns)
+            .ToArray();
 
         var rows = ParseFile(fileStream, contentType).ToList();
 
-        var studentNumbers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var identifierValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var duplicates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {
-            var sn = row.GetValueOrDefault(studentNumberMapping.ExcelColumn)?.Trim();
+            var sn = row.GetValueOrDefault(identifierMapping.ExcelColumn)?.Trim();
             if (string.IsNullOrEmpty(sn)) continue;
-            if (!studentNumbers.Add(sn)) duplicates.Add(sn);
+            if (!identifierValues.Add(sn)) duplicates.Add(sn);
         }
 
-        var studentFilter =
-            Builders<WorkflowInstance>.Filter.In($"Properties.Student.{StudentNumberProperty}", studentNumbers);
-        var instances = await workflowInstanceRepository.GetByWorkflowDefinition(workflowDefinition, studentFilter, ct);
-        var instanceByStudentNumber = BuildStudentLookup(instances);
+        var identifierFilter = Builders<WorkflowInstance>.Filter.In(
+            $"Properties.{bulkEditConfig.Identifier.Property}",
+            identifierValues);
+        var instances =
+            await workflowInstanceRepository.GetByWorkflowDefinition(workflowDefinition, identifierFilter, ct);
+        var instanceByIdentifier = BuildIdentifierLookup(instances, bulkEditConfig);
 
         var previewRows = new List<ImportPreviewRow>(rows.Count);
         foreach (var row in rows)
         {
             var errors = new List<ImportError>();
-            var studentNumber = row.GetValueOrDefault(studentNumberMapping.ExcelColumn)?.Trim() ?? string.Empty;
+            var identifier = row.GetValueOrDefault(identifierMapping.ExcelColumn)?.Trim() ?? string.Empty;
 
             var values = new Dictionary<string, string>();
             foreach (var mapping in mappings)
@@ -92,7 +103,7 @@ public class ImportService(
 
                 values[mapping.PropertyName] = rawValue;
 
-                var prop = modelService.GetProperty(stub, mapping.PropertyName);
+                var prop = modelService.GetProperty(stub, mapping.PropertyName.Split('.'));
 
                 if (prop == null || string.IsNullOrWhiteSpace(rawValue) || prop.DataType == DataType.String) continue;
 
@@ -104,26 +115,33 @@ public class ImportService(
                         mapping.PropertyName));
             }
 
-            if (string.IsNullOrEmpty(studentNumber))
+            if (string.IsNullOrEmpty(identifier))
             {
-                errors.Add(ImportError.From(ImportErrorType.StudentNotFound, StudentNameProperty));
+                errors.Add(ImportError.From(ImportErrorType.EntryNotFound, bulkEditConfig.Identifier.Property));
                 previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
                 continue;
             }
 
-            if (duplicates.Contains(studentNumber))
-                errors.Add(ImportError.From(ImportErrorType.DuplicateStudent, StudentNameProperty));
+            if (duplicates.Contains(identifier))
+                errors.Add(ImportError.From(ImportErrorType.DuplicateEntry, bulkEditConfig.Identifier.Property));
 
-            if (!instanceByStudentNumber.TryGetValue(studentNumber, out var entry))
+            if (!instanceByIdentifier.TryGetValue(identifier, out var instance))
             {
-                errors.Add(ImportError.From(ImportErrorType.StudentNotFound, StudentNameProperty));
+                errors.Add(ImportError.From(ImportErrorType.EntryNotFound, bulkEditConfig.Identifier.Property));
                 previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
                 continue;
             }
 
-            values[StudentNameProperty] = entry.DisplayName;
+            values[bulkEditConfig.Identifier.Property] = identifier;
 
-            previewRows.Add(new ImportPreviewRow(entry.Instance.Id, values, errors.ToArray()));
+            foreach (var roProp in bulkEditConfig.ReadOnlyProperties ?? [])
+            {
+                var bson = instance.GetProperty(roProp.Property.Split('.'));
+                if (bson != null && bson != BsonNull.Value)
+                    values[roProp.Property] = bson.ToString() ?? "";
+            }
+
+            previewRows.Add(new ImportPreviewRow(instance.Id, values, errors.ToArray()));
         }
 
 
@@ -132,9 +150,15 @@ public class ImportService(
 
     public async Task ImportAsync(
         string workflowDefinition,
+        string screenName,
         ImportConfirmRow[] rows,
         CancellationToken ct)
     {
+        var bulkEditConfig = modelService.WorkflowDefinitions[workflowDefinition]
+                                 .Screens.FirstOrDefault(s => s.Name == screenName)?.BulkEdit
+                             ?? throw new InvalidOperationException(
+                                 $"Screen '{screenName}' does not support bulk edit.");
+
         var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
 
         foreach (var row in rows)
@@ -146,37 +170,36 @@ public class ImportService(
 
             foreach (var (propertyName, rawValue) in row.Values)
             {
-                if (propertyName is StudentNumberProperty or StudentNameProperty) continue;
+                if (propertyName == bulkEditConfig.Identifier.Property ||
+                    (bulkEditConfig.ReadOnlyProperties?.Select(p => p.Property).Contains(propertyName) ??
+                     false)) continue;
 
-                var prop = modelService.GetProperty(stub, propertyName);
+                var prop = modelService.GetProperty(stub, propertyName.Split('.'));
                 if (prop == null) continue;
 
                 var bsonValue = await ConvertRawValueToBson(prop, rawValue, ct);
-                await answerService.SavePropertyValue(instance, [propertyName], prop, bsonValue, shouldLog: true, ct);
+                await answerService.SavePropertyValue(instance, propertyName.Split('.'), prop, bsonValue,
+                    shouldLog: true, ct);
             }
         }
     }
 
     /// <summary>
-    /// Builds a case-insensitive lookup of StudentNumber → WorkflowInstance
-    /// by reading the Student user property from each instance.
+    /// Builds a case-insensitive lookup of Identifier → WorkflowInstance
+    /// by reading the Identifier property from each instance.
     /// </summary>
-    private static Dictionary<string, (WorkflowInstance Instance, string DisplayName)> BuildStudentLookup(
-        IEnumerable<WorkflowInstance> instances)
+    private static Dictionary<string, WorkflowInstance> BuildIdentifierLookup(
+        IEnumerable<WorkflowInstance> instances, BulkEditConfig bulkEditConfig)
     {
-        var lookup = new Dictionary<string, (WorkflowInstance, string)>(StringComparer.OrdinalIgnoreCase);
+        var lookup = new Dictionary<string, WorkflowInstance>(StringComparer.OrdinalIgnoreCase);
+        var pathParts = bulkEditConfig.Identifier.Property.Split('.');
+
         foreach (var instance in instances)
         {
-            var studentBson = instance.GetProperty("Student");
-            if (studentBson is not BsonDocument studentDoc) continue;
-            if (!studentDoc.TryGetValue("UserName", out var userName)) continue;
-
-            var key = userName.AsString?.Trim();
+            var bson = instance.GetProperty(pathParts);
+            var key = bson?.ToString()?.Trim();
             if (string.IsNullOrEmpty(key)) continue;
-
-            var displayName = studentDoc.TryGetValue("DisplayName", out var dn) ? dn.AsString ?? "" : "";
-
-            lookup.TryAdd(key, (instance, displayName));
+            lookup.TryAdd(key, instance);
         }
 
         return lookup;

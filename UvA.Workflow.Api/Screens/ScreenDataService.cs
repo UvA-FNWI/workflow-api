@@ -15,10 +15,10 @@ public class ScreenDataService(
 
     private async Task<bool> CanBulkEdit(Screen screen, string workflowDefinition)
     {
-        if (screen.BulkEditProperties is not { Length: > 0 })
+        if (screen.BulkEdit is null)
             return false;
         var properties =
-            await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEditProperties);
+            await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEdit.EditableProperties);
         return properties.Length > 0;
     }
 

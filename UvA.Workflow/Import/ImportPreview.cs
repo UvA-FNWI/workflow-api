@@ -7,7 +7,17 @@ public record ImportPreview(
     List<ImportPreviewRow> Rows
 );
 
-public record ImportPreviewColumn(string Name, BilingualString Title, DataType DataType);
+public record ImportPreviewColumn(string Name, BilingualString Title, DataType DataType)
+{
+    public static ImportPreviewColumn FromBulkEditProperty(
+        BulkEditProperty bulkEditProperty,
+        PropertyDefinition propertyDefinition) =>
+        new(
+            bulkEditProperty.Property,
+            bulkEditProperty.Title ?? propertyDefinition.DisplayName,
+            propertyDefinition.DataType
+        );
+};
 
 public record ImportPreviewRow(
     string InstanceId,
@@ -24,10 +34,10 @@ public record ImportError(string Column, string Code, BilingualString Message)
 {
     public static ImportError From(ImportErrorType type, string column) => type switch
     {
-        ImportErrorType.StudentNotFound => new(column, "StudentNotFound",
-            new("Student not found", "Student niet gevonden")),
-        ImportErrorType.DuplicateStudent => new(column, "DuplicateStudent",
-            new("Student occurs multiple times", "Student komt meerdere keren voor")),
+        ImportErrorType.EntryNotFound => new(column, "EntryNotFound",
+            new("Row not found", "Rij niet gevonden")),
+        ImportErrorType.DuplicateEntry => new(column, "DuplicateEntry",
+            new("Row occurs multiple times", "Rij komt meerdere keren voor")),
         ImportErrorType.UnknownColumn => new(column, "UnknownColumn", new("Unknown column", "Onbekende kolom")),
         ImportErrorType.UserNotFound => new(column, "UserNotFound",
             new("User not found", "Gebruiker niet gevonden")),
@@ -41,8 +51,8 @@ public record ImportError(string Column, string Code, BilingualString Message)
 public enum ImportErrorType
 {
     UnknownColumn,
-    DuplicateStudent,
-    StudentNotFound,
+    DuplicateEntry,
+    EntryNotFound,
     UserNotFound,
     InvalidDataType
 }
