@@ -1244,6 +1244,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "linkedTo": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The name of another property this property is linked to."
         }
       }
     },
