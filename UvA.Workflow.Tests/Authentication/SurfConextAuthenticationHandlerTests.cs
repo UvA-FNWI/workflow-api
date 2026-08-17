@@ -54,6 +54,7 @@ public class SurfConextAuthenticationHandlerTests
         userServiceMock.Verify(s => s.AddOrUpdateUser(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<Organization?>(),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -107,6 +108,7 @@ public class SurfConextAuthenticationHandlerTests
                 "jane.doe@uva.nl",
                 UserProviderKeys.Internal,
                 organization,
+                null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User
             {

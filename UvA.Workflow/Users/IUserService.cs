@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 namespace UvA.Workflow.Users;
 
 public interface IUserService
@@ -33,10 +35,11 @@ public interface IUserService
     /// <param name="email">A string containing the email address of the user.</param>
     /// <param name="providerKey">Identifies the source provider for the user.</param>
     /// <param name="organization">An Organization object containing the id and name of the user's organization.</param>
+    /// <param name="picture">A string containing the picture url of the user.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
     Task<User> AddOrUpdateUser(string username, string displayName, string email, string providerKey,
-        Organization? organization = null,
+        Organization? organization = null, string? picture = null,
         CancellationToken ct = default);
 
     /// <summary>
@@ -46,4 +49,14 @@ public interface IUserService
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     Task<User?> GetUser(string username, CancellationToken ct);
+
+    /// <summary>
+    /// Finds all instances containing this user in any user-type property and replaces the
+    /// fields in the embedded snapshot with the value from the current User state.
+    /// </summary>
+    /// <param name="user">The user that is updated</param>
+    /// <param name="fields">The fields on the user object that are updated, e.g. DisplayName or Picture</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
+    /// <returns></returns>
+    Task SyncUserInInstances(User user, Expression<Func<InstanceUser, object>>[] fields, CancellationToken ct);
 }

@@ -1,4 +1,8 @@
+using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Bson.Serialization.Attributes;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Users;
 
@@ -19,10 +23,11 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
     /// <param name="email">A string containing the email address of the user.</param>
     /// <param name="providerKey">Identifies the source provider for the user.</param>
     /// <param name="organization">An Organization object containing the id and name of the user's organization.</param>
+    /// <param name="picture">A string containing the picture url of the user.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object representing the added or updated user.</returns>
     public async Task<User> AddOrUpdateUser(string username, string displayName, string email, string providerKey,
-        Organization? organization, CancellationToken ct)
+        Organization? organization, string? picture, CancellationToken ct)
     {
         username = username.ToLower();
         providerKey = UserProviderKeys.Normalize(providerKey);
@@ -39,6 +44,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 UserName = username,
                 DisplayName = displayName,
                 Email = email,
+                Picture = picture,
                 ProviderKey = providerKey,
                 Organization = organization,
                 IsActive = true
@@ -72,7 +78,14 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
                 user.Organization = organization;
             }
 
-            if (changed) await UserRepository.Update(user, ct);
+            if (picture != null && user.Picture != picture)
+            {
+                changed = true;
+                user.Picture = picture;
+            }
+
+            if (changed)
+                await UserRepository.Update(user, ct);
         }
 
         memoryCache.Set(cacheKey, user, UserCacheExpiration);
@@ -109,8 +122,10 @@ public class UserService(
     IOrganizationService organizationService,
     IMemoryCache cache,
     IEnumerable<IUserDirectory> userDirectories,
-    IEnumerable<IUserSearchSource> userSearchSources)
-    : UserServiceBase(userRepository, cache), IUserService
+    IEnumerable<IUserSearchSource> userSearchSources,
+    IWorkflowInstanceRepository instanceRepository,
+    ModelService modelService
+) : UserServiceBase(userRepository, cache), IUserService
 {
     private readonly IMemoryCache _cache = cache;
     private readonly IReadOnlyList<IUserDirectory> _userDirectories = userDirectories.ToList();
@@ -213,5 +228,101 @@ public class UserService(
             // Directory lookup unavailable (e.g. DataNose down). Don't block login, leave it unset.
             return null;
         }
+    }
+
+    /// <summary>
+    /// Finds all instances containing this user in any user-type property and replaces the
+    /// fields in the embedded snapshot with the value from the current User state.
+    /// </summary>
+    public async Task SyncUserInInstances(User user, Expression<Func<InstanceUser, object>>[] fields,
+        CancellationToken ct)
+    {
+        if (!ObjectId.TryParse(user.Id, out var userId)) return;
+
+        var userPropertyNames = modelService.WorkflowDefinitions.Values
+            .SelectMany(wd => wd.Properties)
+            .Where(p => p.DataType == DataType.User)
+            .Select(p => p.Name)
+            .Distinct()
+            .ToList();
+
+        if (userPropertyNames.Count == 0) return;
+
+        var filter = Builders<WorkflowInstance>.Filter.Or(
+            userPropertyNames.Select(name =>
+                Builders<WorkflowInstance>.Filter.Eq($"Properties.{name}._id", userId)));
+
+        var instances = await instanceRepository.GetByFilter(filter, ct);
+
+        var fieldKeys = fields.Select(GetBsonFieldName).ToList();
+        var updatedUserDoc = InstanceUser.FromUser(user).ToBsonDocument();
+
+        await Task.WhenAll(instances.Select(instance =>
+            SyncUserInInstance(instance, user.Id, userId, fieldKeys, updatedUserDoc, ct)));
+    }
+
+    private async Task SyncUserInInstance(WorkflowInstance instance, string userId, ObjectId userObjectId,
+        List<string> fieldKeys, BsonDocument updatedUserDoc, CancellationToken ct)
+    {
+        var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var scalarUpdates = new List<UpdateDefinition<WorkflowInstance>>();
+        var arrayUpdates = new List<UpdateDefinition<WorkflowInstance>>();
+
+        foreach (var property in workflowDef.Properties.Where(p => p.DataType == DataType.User))
+        {
+            var rawValue = instance.GetProperty(property.Name);
+            if (rawValue == null || rawValue.IsBsonNull) continue;
+
+            if (property.IsArray)
+            {
+                if (ObjectContext.GetValue(rawValue, property) is not InstanceUser[] users ||
+                    users.All(u => u.Id != userId)) continue;
+
+                foreach (var key in fieldKeys)
+                    arrayUpdates.Add(Builders<WorkflowInstance>.Update
+                        .Set($"Properties.{property.Name}.$[elem].{key}", updatedUserDoc[key]));
+            }
+            else
+            {
+                if (ObjectContext.GetValue(rawValue, property) is not InstanceUser instanceUser ||
+                    instanceUser.Id != userId) continue;
+
+                foreach (var key in fieldKeys)
+                    scalarUpdates.Add(Builders<WorkflowInstance>.Update
+                        .Set($"Properties.{property.Name}.{key}", updatedUserDoc[key]));
+            }
+        }
+
+        if (scalarUpdates.Count > 0)
+            await instanceRepository.UpdateFields(instance.Id,
+                Builders<WorkflowInstance>.Update.Combine(scalarUpdates), ct);
+
+        if (arrayUpdates.Count > 0)
+        {
+            var arrayFilter = new BsonDocumentArrayFilterDefinition<WorkflowInstance>(
+                new BsonDocument("elem._id", userObjectId));
+            await instanceRepository.UpdateArrayFields(instance.Id,
+                Builders<WorkflowInstance>.Update.Combine(arrayUpdates), [arrayFilter], ct);
+        }
+    }
+
+    /// <summary>
+    /// Resolves the BSON field name for an <see cref="InstanceUser"/> property from a lambda expression.
+    /// Uses the <see cref="BsonElementAttribute"/> name if declared on the property, otherwise falls back
+    /// to the C# property name.
+    /// </summary>
+    /// <remarks>
+    /// Reference type properties return a <see cref="MemberExpression"/> directly. Value type properties
+    /// are boxed into a <see cref="UnaryExpression"/> when the lambda return type is <c>object</c>, so
+    /// the operand is unwrapped first.
+    /// </remarks>
+    private static string GetBsonFieldName(Expression<Func<InstanceUser, object>> field)
+    {
+        // Value types get boxed into a UnaryExpression when the return type is object
+        var body = field.Body is UnaryExpression boxing ? boxing.Operand : field.Body;
+        var member = (MemberExpression)body;
+
+        var bsonElement = member.Member.GetCustomAttribute<BsonElementAttribute>();
+        return bsonElement?.ElementName ?? member.Member.Name;
     }
 }

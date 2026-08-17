@@ -4,9 +4,11 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Organizations;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.DataNose;
 using UvA.Workflow.Users.EduId;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Users;
 
@@ -27,7 +29,9 @@ public class UserServiceEduIdTests
             [
                 new DataNoseUserSearchSource(dataNoseApiClientMock.Object),
                 new RepositoryUserSearchSource(userRepositoryMock.Object)
-            ]);
+            ],
+            Mock.Of<IWorkflowInstanceRepository>(),
+            new ModelService(UnitTestsHelpers.CreateModelParser()));
 
     [Fact]
     public async Task GetRoles_EduIdUser_ReturnsEmpty_WithoutCallingDataNose()
@@ -298,12 +302,15 @@ public class UserServiceEduIdTests
             organizationServiceMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [],
-            []);
+            [],
+            Mock.Of<IWorkflowInstanceRepository>(),
+            new ModelService(UnitTestsHelpers.CreateModelParser()));
 
         var result = await service.AddOrUpdateUser("external-123",
             "External User",
             "external@example.org",
             EduIdDirectoryKeys.ProviderKey,
+            null,
             null,
             CancellationToken.None);
 
@@ -330,12 +337,15 @@ public class UserServiceEduIdTests
             organizationServiceMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [],
-            []);
+            [],
+            Mock.Of<IWorkflowInstanceRepository>(),
+            new ModelService(UnitTestsHelpers.CreateModelParser()));
 
         await service.AddOrUpdateUser("external-123",
             "External User",
             "external@example.org",
             EduIdDirectoryKeys.ProviderKey,
+            null,
             null,
             CancellationToken.None);
 
@@ -378,7 +388,10 @@ public class UserServiceEduIdTests
             organizationServiceMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
             [new EduIdUserDirectory()],
-            []);
+            [],
+            Mock.Of<IWorkflowInstanceRepository>(),
+            new ModelService(UnitTestsHelpers.CreateModelParser()));
+
         var user = new User
         {
             UserName = "unknown-123",
