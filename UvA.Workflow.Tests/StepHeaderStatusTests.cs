@@ -27,9 +27,7 @@ public class StepHeaderStatusTests
         var modelService = CreateExampleModelService();
         var resolver = new StepHeaderStatusResolver(modelService);
         var instance = CreateProjectInstance(("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)));
-
         var status = resolver.Resolve(GetStep(modelService, "Subject"), instance);
-
         var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
 
         Assert.NotNull(status);
@@ -336,7 +334,6 @@ public class StepHeaderStatusTests
             instanceService,
             modelService,
             submissionDtoFactory,
-            repository.Object,
             rightsService,
             stepVersionService.Object,
             new StepHeaderStatusResolver(modelService),
