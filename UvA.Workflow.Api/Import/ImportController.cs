@@ -5,7 +5,7 @@ namespace UvA.Workflow.Api.Import;
 using Infrastructure;
 using UvA.Workflow.Import;
 
-public class ImportController(ImportService importService, ModelService modelService)
+public class ImportController(IImportService importService, ModelService modelService, RightsService rightsService)
     : ApiControllerBase
 {
     [HttpGet("{workflowDefinition}/{screenName}/Columns")]
@@ -13,6 +13,7 @@ public class ImportController(ImportService importService, ModelService modelSer
         string screenName,
         CancellationToken ct)
     {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.Import);
         var definition =
             modelService.WorkflowDefinitions.GetValueOrDefault(workflowDefinition);
 
@@ -41,6 +42,8 @@ public class ImportController(ImportService importService, ModelService modelSer
         [FromForm] ImportPreviewRequest request, string workflowDefinition,
         string screenName, CancellationToken ct)
     {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.Import);
+
         await using var stream = request.File.OpenReadStream();
 
         var preview = await importService.PreviewAsync(
@@ -59,6 +62,8 @@ public class ImportController(ImportService importService, ModelService modelSer
         [FromBody] ImportConfirmRequest request, string workflowDefinition,
         string screenName, CancellationToken ct)
     {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.Import);
+
         await importService.ImportAsync(
             workflowDefinition,
             screenName,

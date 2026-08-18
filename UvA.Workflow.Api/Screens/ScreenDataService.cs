@@ -9,7 +9,7 @@ public class ScreenDataService(
     InstanceService instanceService,
     IWorkflowInstanceRepository repository,
     InstanceAuthorizationFilterService instanceAuthorizationFilterService,
-    ImportService importService)
+    IImportService importService)
 {
     private static readonly string EmptyStepId = "null";
 

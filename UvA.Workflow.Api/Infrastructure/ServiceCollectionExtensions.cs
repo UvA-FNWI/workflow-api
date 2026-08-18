@@ -49,7 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<RoleImpersonationService>();
         services.AddScoped<IImpersonationContextService>(sp => sp.GetRequiredService<RoleImpersonationService>());
         services.AddScoped<ExternalUserEmailUpdateService>();
-        services.AddScoped<ImportService>();
+        services.AddScoped<IImportService, ImportService>();
 
         return services;
     }

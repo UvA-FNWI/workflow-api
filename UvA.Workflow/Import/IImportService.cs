@@ -1,18 +1,22 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Import;
 
 public interface IImportService
 {
+    Task<PropertyDefinition[]> GetEditableImportableProperties(string workflowDefinition, string[] bulkEditProperties);
+
     Task<ImportPreview> PreviewAsync(
-        Stream fileStream,
-        string fileType,
-        ColumnMapping[] mappings,
         string workflowDefinition,
+        string screenName,
+        Stream fileStream,
+        string contentType,
+        ColumnMapping[] mappings,
         CancellationToken ct);
 
     Task ImportAsync(
-        Stream fileStream,
-        string fileType,
-        ColumnMapping[] mappings,
         string workflowDefinition,
+        string screenName,
+        ImportConfirmRow[] rows,
         CancellationToken ct);
 }

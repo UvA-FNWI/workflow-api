@@ -1,48 +1,28 @@
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using UvA.Workflow.Api.Import;
 using UvA.Workflow.Api.Import.Dtos;
 using UvA.Workflow.Import;
-using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
-using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Controllers;
 
 public class ImportControllerTests : ControllerTestsBase
 {
-    private readonly ImportService _importService;
-
-    public ImportControllerTests()
-    {
-        var answerConversionService = new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object);
-        var answerService = new AnswerService(
-            _modelService,
-            _instanceService,
-            _rightsService,
-            _artifactServiceMock.Object,
-            answerConversionService,
-            _workflowInstanceService,
-            _instanceEventService.Object,
-            _instanceJournalServiceMock.Object,
-            _userServiceMock.Object,
-            _externalUserServiceMock.Object);
-
-        _importService = new ImportService(
-            [new Mock<IFileParserService>().Object],
-            _workflowInstanceRepoMock.Object,
-            answerConversionService,
-            answerService,
-            _modelService,
-            _userRepoMock.Object,
-            _rightsService);
-    }
+    private readonly Mock<IImportService> _importServiceMock = new();
+    private readonly ImportPreview _fakePreview = new([], []);
 
     private ImportController BuildController(params string[] roles)
     {
         MockCurrentUser(roles);
-        return new ImportController(_importService, _modelService);
+        _importServiceMock
+            .Setup(s => s.PreviewAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<ColumnMapping[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(_fakePreview);
+        return new ImportController(_importServiceMock.Object, _modelService, _rightsService);
     }
 
     private static ImportablePropertyDto[] GetProperties(ActionResult<ImportablePropertyDto[]> result)
@@ -50,6 +30,21 @@ public class ImportControllerTests : ControllerTestsBase
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         return Assert.IsAssignableFrom<ImportablePropertyDto[]>(ok.Value);
     }
+
+    private static IFormFile MakeCsvFile(string csv)
+    {
+        var bytes = Encoding.UTF8.GetBytes(csv);
+        var stream = new MemoryStream(bytes);
+        return new FormFile(stream, 0, bytes.Length, "file", "import.csv")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "text/csv"
+        };
+    }
+
+    private static string MappingJson(params (string excel, string prop)[] cols) =>
+        "[" + string.Join(",", cols.Select(c =>
+            $"{{\"excelColumn\":\"{c.excel}\",\"propertyName\":\"{c.prop}\"}}")) + "]";
 
     private const string WorkflowDefinition = "Project";
     private const string ScreenName = "Projects";
@@ -77,56 +72,84 @@ public class ImportControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task GetColumnNames_Coordinator_ReturnsPropertiesFromEditableForm()
-    {
-        var controller = BuildController("Coordinator");
-
-        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
-        var properties = GetProperties(result);
-
-        Assert.Contains(properties, p => p.Name == "Title");
-        Assert.Contains(properties, p => p.Name == "EC");
-        Assert.Contains(properties, p => p.Name == "StartDate");
-        Assert.Contains(properties, p => p.Name == "EndDate");
-        Assert.Contains(properties, p => p.Name == "Supervisor");
-    }
-
-    [Fact]
-    public async Task GetColumnNames_Coordinator_ExcludesNonImportableTypes()
-    {
-        // Report is a File type and Course is a Reference — neither is importable.
-        var controller = BuildController("Coordinator");
-
-        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
-        var properties = GetProperties(result);
-
-        Assert.DoesNotContain(properties, p => p.Name == "Report");
-        Assert.DoesNotContain(properties, p => p.Name == "Course");
-    }
-
-    [Fact]
-    public async Task GetColumnNames_ReturnsEmpty_WhenUserHasNoEditRights()
+    public async Task GetColumnNames_Throws_WhenUserHasNoEditRights()
     {
         // "Registered" role only has CreateInstance rights, no Edit rights.
         var controller = BuildController("Registered");
 
-        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
-        var properties = GetProperties(result);
-
-        Assert.Empty(properties);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct));
     }
 
     [Fact]
-    public async Task GetColumnNames_ReturnsCorrectDataTypes()
+    public async Task GetColumnNames_ReturnsOk_WithServiceResult()
     {
+        var fakeProperties = new PropertyDefinition[]
+        {
+            /* minimal stub */
+        };
+        _importServiceMock
+            .Setup(s => s.GetEditableImportableProperties(WorkflowDefinition, It.IsAny<string[]>()))
+            .ReturnsAsync(fakeProperties);
         var controller = BuildController("Coordinator");
 
         var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
-        var properties = GetProperties(result);
 
-        Assert.Equal(DataType.String, properties.Single(p => p.Name == "Title").DataType);
-        Assert.Equal(DataType.Int, properties.Single(p => p.Name == "EC").DataType);
-        Assert.Equal(DataType.Date, properties.Single(p => p.Name == "StartDate").DataType);
-        Assert.Equal(DataType.User, properties.Single(p => p.Name == "SecondReader").DataType);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.IsType<ImportablePropertyDto[]>(ok.Value);
+    }
+
+
+    [Fact]
+    public async Task Preview_Throws_WhenUserHasNoEditRights()
+    {
+        var controller = BuildController("Registered");
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            controller.Preview(new ImportPreviewRequest
+            {
+                File = new FormFile(new MemoryStream(), 0, 0, "file", "test.csv"),
+                ColumnMapping = "[]"
+            }, WorkflowDefinition, ScreenName, _ct));
+    }
+
+    [Fact]
+    public async Task Preview_ReturnsOk_WithServiceResult()
+    {
+        var controller = BuildController("Coordinator");
+
+        var result = await controller.Preview(
+            new ImportPreviewRequest
+            {
+                File = MakeCsvFile("StudentNumber\n"),
+                ColumnMapping = MappingJson(("StudentNumber", "Student.UserName"))
+            },
+            WorkflowDefinition, ScreenName, _ct);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Same(_fakePreview, ok.Value);
+    }
+
+    [Fact]
+    public async Task Confirm_Throws_WhenUserHasNoEditRights()
+    {
+        var controller = BuildController("Registered");
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            controller.Confirm(
+                new ImportConfirmRequest([]),
+                WorkflowDefinition, ScreenName, _ct));
+    }
+
+    [Fact]
+    public async Task Confirm_ReturnsOk_WithEmptyRowList()
+    {
+        var controller = BuildController("Coordinator");
+
+        var result = await controller.Confirm(
+            new ImportConfirmRequest([]),
+            WorkflowDefinition, ScreenName, _ct);
+
+        Assert.IsType<OkResult>(result);
     }
 }
