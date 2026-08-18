@@ -15,10 +15,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup .NET 9.x
+      - name: Setup .NET 10.x
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.x'
+      - name: Check schemas
+        working-directory: UvA.Workflow.SchemaGenerator
+        run: dotnet run
       - name: Get changed C# files
         id: changed-cs-files
         uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
