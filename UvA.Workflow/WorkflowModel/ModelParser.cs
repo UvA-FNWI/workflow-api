@@ -369,6 +369,16 @@ public partial class ModelParser
         PreProcess(step.Condition);
         PreProcess(step.Ends);
 
+        if (step.Progress.Count(progress => progress.EffectiveCondition == null) > 1)
+            throw new Exception($"Step {step.Name} has more than one fallback progress entry");
+
+        var fallbackIndex = step.Progress.FindIndex(progress => progress.EffectiveCondition == null);
+        if (fallbackIndex >= 0 && fallbackIndex != step.Progress.Count - 1)
+            throw new Exception($"Fallback progress entry in step {step.Name} must be last");
+
+        foreach (var progress in step.Progress)
+            PreProcess(progress.EffectiveCondition);
+
         foreach (var ev in step.Events)
         {
             var existing = workflowDefinition.Events.Find(e => e.Name == ev.Name);
