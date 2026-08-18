@@ -1,19 +1,36 @@
 using UvA.Workflow.Api.Import.Dtos;
+using UvA.Workflow.Api.Screens;
 
 namespace UvA.Workflow.Api.Import;
 
 using Infrastructure;
 using UvA.Workflow.Import;
 
-public class ImportController(IImportService importService, ModelService modelService, RightsService rightsService)
+public class ImportController(
+    IImportService importService,
+    ModelService modelService,
+    RightsService rightsService,
+    InstanceAuthorizationFilterService authorizationFilterService)
     : ApiControllerBase
 {
+    private async Task<bool> CanImport(string workflowDefinition, CancellationToken ct)
+    {
+        // Global admin always allowed
+        if (await rightsService.CanAny(workflowDefinition, RoleAction.ViewAdminTools))
+            return true;
+
+        // User level with edit rights on at least one instance is allowed
+        return await authorizationFilterService.HasEditableInstances(workflowDefinition, ct);
+    }
+
     [HttpGet("{workflowDefinition}/{screenName}/Columns")]
     public async Task<ActionResult<ImportablePropertyDto[]>> GetColumnNames(string workflowDefinition,
         string screenName,
         CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.Import);
+        if (!await CanImport(workflowDefinition, ct))
+            return Forbidden();
+
         var definition =
             modelService.WorkflowDefinitions.GetValueOrDefault(workflowDefinition);
 
@@ -42,7 +59,8 @@ public class ImportController(IImportService importService, ModelService modelSe
         [FromForm] ImportPreviewRequest request, string workflowDefinition,
         string screenName, CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.Import);
+        if (!await CanImport(workflowDefinition, ct))
+            return Forbidden();
 
         await using var stream = request.File.OpenReadStream();
 
@@ -62,7 +80,8 @@ public class ImportController(IImportService importService, ModelService modelSe
         [FromBody] ImportConfirmRequest request, string workflowDefinition,
         string screenName, CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.Import);
+        if (!await CanImport(workflowDefinition, ct))
+            return Forbidden();
 
         await importService.ImportAsync(
             workflowDefinition,

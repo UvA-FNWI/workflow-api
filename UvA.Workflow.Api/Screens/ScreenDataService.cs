@@ -13,15 +13,6 @@ public class ScreenDataService(
 {
     private static readonly string EmptyStepId = "null";
 
-    private async Task<bool> CanBulkEdit(Screen screen, string workflowDefinition)
-    {
-        if (screen.BulkEdit is null)
-            return false;
-        var properties =
-            await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEdit.EditableProperties);
-        return properties.Length > 0;
-    }
-
     /// <summary>
     /// Gets screen data for the given screen. When the screen defines a grouping configuration,
     /// the rows are partitioned into groups by their current workflow step (and the flat row list
@@ -41,7 +32,7 @@ public class ScreenDataService(
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
 
-        var canBulkEdit = await CanBulkEdit(screen, workflowDefinition);
+        var canBulkEdit = await instanceAuthorizationFilterService.HasEditableInstances(workflowDefinition, ct);
 
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
@@ -142,7 +133,7 @@ public class ScreenDataService(
 
         // Build authorization filter to restrict instances to those the user can view
         var authorizationFilter =
-            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, ct);
+            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
         var contexts = rawData.Select(r => modelService.CreateContext(workflowDefinition, r)).ToList();

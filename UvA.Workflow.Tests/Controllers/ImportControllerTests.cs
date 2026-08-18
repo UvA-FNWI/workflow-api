@@ -1,9 +1,11 @@
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Import;
 using UvA.Workflow.Api.Import.Dtos;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Import;
 using UvA.Workflow.Tests.Controllers.Helpers;
 
@@ -22,7 +24,19 @@ public class ImportControllerTests : ControllerTestsBase
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
                 It.IsAny<string>(), It.IsAny<ColumnMapping[]>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_fakePreview);
-        return new ImportController(_importServiceMock.Object, _modelService, _rightsService);
+
+        _workflowInstanceRepoMock
+            .Setup(r => r.GetAllByType(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var authorizationFilterService = new InstanceAuthorizationFilterService(
+            _rightsService, _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+        return new ImportController(_importServiceMock.Object, _modelService, _rightsService,
+            authorizationFilterService);
     }
 
     private static ImportablePropertyDto[] GetProperties(ActionResult<ImportablePropertyDto[]> result)
@@ -72,13 +86,14 @@ public class ImportControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task GetColumnNames_Throws_WhenUserHasNoEditRights()
+    public async Task GetColumnNames_ReturnsForbidden_WhenUserHasNoEditRights()
     {
         // "Registered" role only has CreateInstance rights, no Edit rights.
         var controller = BuildController("Registered");
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct));
+        var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
     }
 
     [Fact]
@@ -101,16 +116,18 @@ public class ImportControllerTests : ControllerTestsBase
 
 
     [Fact]
-    public async Task Preview_Throws_WhenUserHasNoEditRights()
+    public async Task Preview_ReturnsForbidden_WhenUserHasNoEditRights()
     {
         var controller = BuildController("Registered");
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            controller.Preview(new ImportPreviewRequest
-            {
-                File = new FormFile(new MemoryStream(), 0, 0, "file", "test.csv"),
-                ColumnMapping = "[]"
-            }, WorkflowDefinition, ScreenName, _ct));
+        var result = await controller.Preview(new ImportPreviewRequest
+        {
+            File = new FormFile(new MemoryStream(), 0, 0, "file", "test.csv"),
+            ColumnMapping = "[]"
+        }, WorkflowDefinition, ScreenName, _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
     }
 
     [Fact]
@@ -131,14 +148,16 @@ public class ImportControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Confirm_Throws_WhenUserHasNoEditRights()
+    public async Task Confirm_ReturnsForbidden_WhenUserHasNoEditRights()
     {
         var controller = BuildController("Registered");
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            controller.Confirm(
-                new ImportConfirmRequest([]),
-                WorkflowDefinition, ScreenName, _ct));
+        var result = await controller.Confirm(
+            new ImportConfirmRequest([]),
+            WorkflowDefinition, ScreenName, _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
     }
 
     [Fact]
