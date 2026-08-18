@@ -26,15 +26,11 @@
       ]
     },
     "progress": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "description": "The progress information about the step",
-          "$ref": "#/definitions/ProgressInformation"
-        }
-      ]
+      "type": "array",
+      "description": "The progress information about the step",
+      "items": {
+        "$ref": "#/definitions/ProgressInformation"
+      }
     },
     "resultsType": {
       "description": "Determines whether assessment results are shown in the step",
@@ -144,6 +140,27 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "event": {
+          "description": "Shorthand for progress information that applies when a single event is active. For arbitrary logic use Condition instead.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "condition": {
+          "description": "Condition that determines whether this progress information applies. Takes precedence over Event when set. Omit both properties for the fallback entry.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
         "color": {
           "oneOf": [
             {
