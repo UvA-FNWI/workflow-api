@@ -1,6 +1,7 @@
 namespace UvA.Workflow.Api.Users.Dtos;
 
-public record CreateExternalUserDto(
+public record ExternalUserDto(
     string DisplayName,
     string Email,
-    Organization? Organization = null);
+    Organization? Organization = null,
+    string? UserId = null);

@@ -25,7 +25,7 @@ public class AnswersController(
         await EnsureAuthorizedToEdit(context);
 
         var externalUserInput = input.ExternalUser is { } eu
-            ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
+            ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization, eu.UserId)
             : null;
 
         try

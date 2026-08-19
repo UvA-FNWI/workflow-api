@@ -271,7 +271,8 @@ public class AnswerService(
                     "ExternalUsersNotAllowed");
 
             createdUser = await externalUserService.CreateOrUpdateExternalUser(
-                externalUser.DisplayName, externalUser.Email, externalUser.Organization, ct);
+                externalUser.DisplayName, externalUser.Email, externalUser.Organization, externalUser.UserId, ct);
+
             value = JsonSerializer.SerializeToElement(createdUser, AnswerConversionService.Options);
         }
 

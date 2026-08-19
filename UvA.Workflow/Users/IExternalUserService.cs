@@ -6,10 +6,15 @@ public enum ExternalUserCreationFailureReason
     InternalEmailAddress,
     UserAlreadyExists,
     ExternalUsersNotAllowed,
-    InvalidQuestionType
+    InvalidQuestionType,
+    InvalidUserId
 }
 
-public record ExternalUserInput(string DisplayName, string Email, Organization? Organization = null);
+public record ExternalUserInput(
+    string DisplayName,
+    string Email,
+    Organization? Organization = null,
+    string? UserId = null);
 
 public class ExternalUserCreationException(
     ExternalUserCreationFailureReason reason,
@@ -24,5 +29,6 @@ public interface IExternalUserService
         string displayName,
         string email,
         Organization? organization,
+        string? userId,
         CancellationToken ct = default);
 }

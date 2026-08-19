@@ -49,6 +49,7 @@ public class UsersControllerImpersonationTests
             null!,
             null!,
             null!,
+            null!,
             new HttpContextCurrentUserAccessor(httpAccessor),
             new UserImpersonationTokenService(config, httpAccessor),
             null!,
