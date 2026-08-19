@@ -72,4 +72,6 @@ public class Field
 
         return Default;
     }
+
+    public string? GetHref(ObjectContext context) => LinkTemplate?.Apply(context);
 }

@@ -3,26 +3,24 @@ title: Project (base)
 titlePlural: Projects
 instanceTitle: '{{ Title }}'
 
-relatedUsers:
-  - property: Supervisor
-    group: default
-  - property: Examiner
-    group: default
-  - property: Reviewer
-    group: default
-  - property: SecondReader
-    group: default
-  - property: Course.Coordinator
-    group: support
-  - property: Course.ConfidentialAdviser
-    group: support
-  - property: Course.StudyAdviser
-    group: support
-
-relatedUserGrouping:
-  groups:
-    - name: default
-    - name: support
-      title:
-        en: Other involved staff
-        nl: Andere betrokkenen
+infoCards:
+  - name: Staff
+    type: RelatedUsers
+    title: Staff
+    groups:
+      - name: default
+        title: ""
+        allowEditing: true
+        users:
+          - property: Supervisor
+          - property: Examiner
+          - property: Reviewer
+          - property: SecondReader
+      - name: support
+        title:
+          en: Other involved staff
+          nl: Andere betrokkenen
+        users:
+          - property: Course.Coordinator
+          - property: Course.ConfidentialAdviser
+          - property: Course.StudyAdviser
