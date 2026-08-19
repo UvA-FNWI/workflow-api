@@ -37,7 +37,13 @@ public class Field
     public Expression? PropertyExpression => _propertyExpression ??= ExpressionParser.Parse(ComputedProperty);
     public BilingualString? Title { get; set; } = null!;
     public bool? IsHighlighted { get; set; }
+
+    /// <summary>
+    /// Conditions that determines if the field is included in the DTO
+    /// </summary>
     public Condition? Condition { get; set; }
+
+    public int? Order { get; set; }
 
     [YamlIgnore] public PropertyDefinition? PropertyDefinition { get; set; }
     [YamlIgnore] public EventDefinition? Event { get; set; }
