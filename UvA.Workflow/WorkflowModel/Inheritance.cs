@@ -57,6 +57,14 @@ public partial class ModelParser
         foreach (var screen in source.Screens.Where(s => !target.Screens.Contains(s.Name)))
             target.Screens.Add(screen);
 
+        foreach (var set in source.ValueSets)
+        {
+            if (target.ValueSets.Contains(set.Name))
+                throw new Exception($"Definition '{target.Name}' redeclares value set '{set.Name}', " +
+                                    $"which it inherits from '{source.Name}'.");
+            target.ValueSets.Add(set);
+        }
+
         if (!Cleared(target, d => d.GlobalActions))
             target.GlobalActions = MergeActions(target.GlobalActions, source.GlobalActions);
 

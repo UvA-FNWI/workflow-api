@@ -98,6 +98,15 @@ public partial class ModelParser
             definition.AllSteps = Read<Step>(definition.SourceFolder);
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
+            definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
+
+            foreach (var set in definition.ValueSets)
+            {
+                if (ValueSets.Contains(set.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares value set '{set.Name}', which already exists in Common.");
+                PreProcess(set);
+            }
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
                 NamedConditions.Add(entry);
@@ -360,6 +369,16 @@ public partial class ModelParser
         PreProcess(step.Condition);
         PreProcess(step.Ends);
 
+        if (step.Progress.Count(progress => progress.EffectiveCondition == null) > 1)
+            throw new Exception($"Step {step.Name} has more than one fallback progress entry");
+
+        var fallbackIndex = step.Progress.FindIndex(progress => progress.EffectiveCondition == null);
+        if (fallbackIndex >= 0 && fallbackIndex != step.Progress.Count - 1)
+            throw new Exception($"Fallback progress entry in step {step.Name} must be last");
+
+        foreach (var progress in step.Progress)
+            PreProcess(progress.EffectiveCondition);
+
         foreach (var ev in step.Events)
         {
             var existing = workflowDefinition.Events.Find(e => e.Name == ev.Name);
@@ -458,7 +477,8 @@ public partial class ModelParser
         foreach (var entry in propertyDefinition.Values ?? [])
             PreProcess(entry);
 
-        if (ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out var set))
+        if (propertyDefinition.ParentType.ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out var set) ||
+            ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out set))
         {
             propertyDefinition.Values = set.Values;
             propertyDefinition.Sorting = set.Sorting;

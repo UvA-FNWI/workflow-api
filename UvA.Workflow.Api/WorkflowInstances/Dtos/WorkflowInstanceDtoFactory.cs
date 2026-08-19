@@ -13,7 +13,6 @@ public class WorkflowInstanceDtoFactory(
     InstanceService instanceService,
     ModelService modelService,
     SubmissionDtoFactory submissionDtoFactory,
-    IWorkflowInstanceRepository repository,
     RightsService rightsService,
     IStepVersionService stepVersionService,
     StepHeaderStatusResolver stepHeaderStatusResolver,
@@ -66,7 +65,7 @@ public class WorkflowInstanceDtoFactory(
             .Select(r => ResourceDto.TryCreate(r, viewerRoles, context))
             .OfType<ResourceDto>()
             .ToArray();
-
+        var fields = await CreateFields(workflowDefinition, instance, ct);
         var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -74,7 +73,7 @@ public class WorkflowInstanceDtoFactory(
             instance.CurrentStep,
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
-            CreateFields(workflowDefinition, instance.Id, ct).Result ?? [],
+            fields,
             steps,
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
@@ -91,24 +90,20 @@ public class WorkflowInstanceDtoFactory(
         return x;
     }
 
-    private async Task<FieldDto[]> CreateFields(WorkflowDefinition workflowDefinition, string instanceId,
+    private async Task<FieldDto[]> CreateFields(WorkflowDefinition workflowDefinition, WorkflowInstance instance,
         CancellationToken ct)
     {
         var result = new List<FieldDto>();
-        var instance = await repository.GetById(instanceId, ct);
-        if (instance is not null)
+        var context = ObjectContext.Create(instance, modelService);
+        await instanceService.Enrich(workflowDefinition, [context],
+            workflowDefinition.Fields.SelectMany(f => f.Properties), ct);
+        foreach (var field in workflowDefinition.Fields)
         {
-            var context = ObjectContext.Create(instance, modelService);
-            await instanceService.Enrich(workflowDefinition, [context],
-                workflowDefinition.Fields.SelectMany(f => f.Properties), ct);
-            foreach (var field in workflowDefinition.Fields)
-            {
-                var obj = field.GetValue(context);
-                if (obj is object[] arr && arr.Length == 1)
-                    obj = arr[0];
-                var key = field.CurrentStep ? "CurrentStep" : field.Property;
-                result.Add(new FieldDto(key, field.DisplayTitle, obj));
-            }
+            var obj = field.GetValue(context);
+            if (obj is object[] arr && arr.Length == 1)
+                obj = arr[0];
+            var key = field.CurrentStep ? "CurrentStep" : field.Property;
+            result.Add(new FieldDto(key, field.DisplayTitle, obj));
         }
 
         return result.ToArray();

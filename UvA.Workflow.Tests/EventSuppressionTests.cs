@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.WorkflowModel;
@@ -133,6 +134,33 @@ public class EventSuppressionTests
 
         // EventA (earlier) is suppressed by EventB
         Assert.False(context.Get("EventAEventActive") as bool?);
+    }
+
+    [Fact]
+    public void ObjectContext_FromRawDataNormalizesActiveAndSuppressedEvents()
+    {
+        var workflowDef = CreateWorkflowDefWithSuppression(
+            ("EventA", ["EventB"]),
+            ("EventB", ["EventA"])
+        );
+        var t1 = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
+        var t2 = t1.AddHours(1);
+        var rawData = new Dictionary<string, BsonValue>
+        {
+            ["EventAEvent"] = new BsonDateTime(t1),
+            ["Events"] = new BsonDocument
+            {
+                ["EventA"] = new BsonDocument("Date", t1),
+                ["EventB"] = new BsonDocument("Date", t2)
+            }
+        };
+
+        var context = ObjectContext.Create(workflowDef, rawData);
+
+        Assert.False(context.Get("EventAEventActive") as bool?);
+        Assert.Null(context.Get("EventAEvent"));
+        Assert.True(context.Get("EventBEventActive") as bool?);
+        Assert.Equal(t2.ToLocalTime(), context.Get("EventBEvent"));
     }
 
     [Fact]

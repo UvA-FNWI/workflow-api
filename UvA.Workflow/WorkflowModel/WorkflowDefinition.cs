@@ -101,12 +101,24 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
     [YamlIgnore] public string SourceFolder { get; set; } = null!;
 
+    /// <summary>
+    /// Value sets declared in this definition's own ValueSets folder, plus the ones it inherits.
+    /// </summary>
+    [YamlIgnore]
+    public List<ValueSet> ValueSets { get; set; } = [];
+
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> ProgressLookups => AllSteps
+        .SelectMany(step => step.Progress)
+        .SelectMany(progress => progress.Lookups)
+        .Distinct();
 
     private static IEnumerable<Step> GetSteps(Step s) =>
         s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential

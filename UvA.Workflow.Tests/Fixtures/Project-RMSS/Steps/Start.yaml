@@ -13,10 +13,10 @@ actions:
     form: Start
 
 progress:
-  color: green
-  text:
-    en: Writing proposal
-    nl: Schrijft voorstel
+  - color: Green
+    text:
+      en: Writing proposal
+      nl: Schrijft voorstel
 
 properties:
   - name: Topic
