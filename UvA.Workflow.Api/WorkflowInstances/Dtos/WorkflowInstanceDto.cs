@@ -30,7 +30,7 @@ public record WorkflowInstanceDto(
     ResourceDto[] Resources
 );
 
-public record FieldDto(string? Key, BilingualString Title, object? Value);
+public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted);
 
 public record StepVersionDto
 {

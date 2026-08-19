@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -35,7 +36,8 @@ public class Field
     private Expression? _propertyExpression;
     public Expression? PropertyExpression => _propertyExpression ??= ExpressionParser.Parse(ComputedProperty);
     public BilingualString? Title { get; set; } = null!;
-
+    public bool? IsHighlighted { get; set; }
+    public Condition? Condition { get; set; }
 
     [YamlIgnore] public PropertyDefinition? PropertyDefinition { get; set; }
     [YamlIgnore] public EventDefinition? Event { get; set; }
