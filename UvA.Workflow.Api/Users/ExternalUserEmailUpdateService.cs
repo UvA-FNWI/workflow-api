@@ -17,7 +17,7 @@ public record ExternalUserEmailAnswerUpdatePlan(
 
 public class ExternalUserEmailUpdateService(
     RightsService rightsService,
-    AnswerService answerService,
+    IAnswerService answerService,
     ModelService modelService,
     InstanceService instanceService)
 {
