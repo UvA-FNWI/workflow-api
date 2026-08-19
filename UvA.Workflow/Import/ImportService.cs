@@ -1,4 +1,5 @@
 using System.Text.Json;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 
@@ -8,10 +9,10 @@ public class ImportService(
     IEnumerable<IFileParserService> parsers,
     IWorkflowInstanceRepository workflowInstanceRepository,
     AnswerConversionService answerConversionService,
-    AnswerService answerService,
+    IAnswerService answerService,
     ModelService modelService,
     IUserRepository userRepository,
-    RightsService rightsService)
+    RightsService rightsService) : IImportService
 {
     public bool IsImportableType(DataType dt) => dt is
         DataType.String or DataType.Int or DataType.Double or
@@ -21,7 +22,16 @@ public class ImportService(
         string workflowDefinition, string[] bulkEditProperties)
     {
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
-        var editableMap = await rightsService.CanEditProperties(workflowDefinition, bulkEditProperties);
+        var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
+        // Collect edit actions from all roles that apply to this workflow definition,
+        var wfKey = workflowDefinition.Split('/')[0];
+        var editActions = modelService.Roles.Values
+            .SelectMany(r => r.Actions.Where(a =>
+                a.Type == RoleAction.Edit &&
+                (a.WorkflowDefinition == null || a.WorkflowDefinition == wfKey)))
+            .Distinct()
+            .ToArray();
+        var editableMap = rightsService.CanEditProperties(stub, bulkEditProperties, editActions);
 
         return definition.Properties
             .Where(p => editableMap.GetValueOrDefault(p.Name) && IsImportableType(p.DataType))
@@ -45,7 +55,9 @@ public class ImportService(
                                 ?? throw new InvalidOperationException(
                                     $"No mapping provided for identifier property '{bulkEditConfig.Identifier.Property}'.");
 
-        var dataMappings = mappings.Where(m => m.PropertyName != bulkEditConfig.Identifier.Property).ToArray();
+
+        // Define the columns, consisting of the identifier column,
+        // read only columns and data columns
         var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
 
         var identifierProperty = modelService.GetProperty(stub, bulkEditConfig.Identifier.Property.Split('.'))
@@ -60,6 +72,8 @@ public class ImportService(
                 ImportPreviewColumn.FromBulkEditProperty(p, modelService.GetProperty(stub, p.Property.Split('.'))!))
             : [];
 
+        var dataMappings = mappings.Where(m => m.PropertyName != bulkEditConfig.Identifier.Property).ToArray();
+
         var dataColumns = dataMappings
             .Select(m =>
             {
@@ -72,6 +86,7 @@ public class ImportService(
         var columns = new ImportPreviewColumn[] { identifierColumn }.Concat(readOnlyColumns).Concat(dataColumns)
             .ToArray();
 
+        // Get the rows from the file and get all related instances
         var rows = ParseFile(fileStream, contentType).ToList();
 
         var identifierValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -90,6 +105,7 @@ public class ImportService(
             await workflowInstanceRepository.GetByWorkflowDefinition(workflowDefinition, identifierFilter, ct);
         var instanceByIdentifier = BuildIdentifierLookup(instances, bulkEditConfig);
 
+        // Fill the rows for all instances
         var previewRows = new List<ImportPreviewRow>(rows.Count);
         foreach (var row in rows)
         {
@@ -134,6 +150,24 @@ public class ImportService(
 
             values[bulkEditConfig.Identifier.Property] = identifier;
 
+            var editActions =
+                await rightsService.GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
+
+            if (editActions.Length == 0)
+            {
+                errors.Add(ImportError.From(ImportErrorType.NotAllowed, bulkEditConfig.Identifier.Property));
+            }
+            else
+            {
+                var canEdit =
+                    rightsService.CanEditProperties(instance, dataMappings.Select(m => m.PropertyName), editActions);
+
+                errors.AddRange(dataMappings
+                    .Where(m => !canEdit.GetValueOrDefault(m.PropertyName))
+                    .Select(m => ImportError.From(ImportErrorType.NotAllowed, m.PropertyName)));
+            }
+
+
             foreach (var roProp in bulkEditConfig.ReadOnlyProperties ?? [])
             {
                 var bson = instance.GetProperty(roProp.Property.Split('.'));
@@ -160,7 +194,8 @@ public class ImportService(
                                  $"Screen '{screenName}' does not support bulk edit.");
 
         var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
-
+        var readOnlyProperties = bulkEditConfig.ReadOnlyProperties?.Select(p => p.Property).ToArray()
+                                 ?? [];
         foreach (var row in rows)
         {
             if (string.IsNullOrEmpty(row.InstanceId)) continue;
@@ -168,15 +203,30 @@ public class ImportService(
             var instance = await workflowInstanceRepository.GetById(row.InstanceId, ct);
             if (instance == null) continue;
 
-            foreach (var (propertyName, rawValue) in row.Values)
+            var instanceEditActions =
+                await rightsService.GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
+            if (instanceEditActions.Length == 0)
+                throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Edit, null);
+
+            var propertiesToWrite = row.Values.Keys
+                .Where(p => p != bulkEditConfig.Identifier.Property && !readOnlyProperties.Contains(p))
+                .ToArray();
+
+            var canEditPropertiesDictionary =
+                rightsService.CanEditProperties(instance, propertiesToWrite, instanceEditActions);
+
+            foreach (var propertyName in propertiesToWrite)
             {
-                if (propertyName == bulkEditConfig.Identifier.Property ||
-                    (bulkEditConfig.ReadOnlyProperties?.Select(p => p.Property).Contains(propertyName) ??
-                     false)) continue;
+                if (!canEditPropertiesDictionary[propertyName])
+                    throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Edit, propertyName);
 
                 var prop = modelService.GetProperty(stub, propertyName.Split('.'));
-                if (prop == null) continue;
+                if (prop == null)
+                    throw new InvalidOperationException(
+                        $"Property '{propertyName}' does not exist on workflow definition '{workflowDefinition}'.");
+                ;
 
+                var rawValue = row.Values[propertyName];
                 var bsonValue = await ConvertRawValueToBson(prop, rawValue, ct);
                 await answerService.SavePropertyValue(instance, propertyName.Split('.'), prop, bsonValue,
                     shouldLog: true, ct);

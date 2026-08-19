@@ -358,11 +358,4 @@ public class RightsService(
                 return allowedEditActions.Any(a => a.PropertyDefinition == propertyName);
             });
     }
-
-    public async Task<Dictionary<string, bool>> CanEditProperties(string workflowDefinition, string[] properties)
-    {
-        var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
-        var editActions = await GetAllowedActions(workflowDefinition, RoleAction.Edit);
-        return CanEditProperties(stub, properties, editActions);
-    }
 }

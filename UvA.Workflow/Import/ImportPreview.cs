@@ -44,6 +44,9 @@ public record ImportError(string Column, string Code, BilingualString Message)
         ImportErrorType.InvalidDataType => new(column, "InvalidDataType",
             new("Value does not match the expected data type",
                 "Waarde komt niet overeen met het verwachte gegevenstype")),
+        ImportErrorType.NotAllowed => new(column, "NotAllowed",
+            new("You do not have permission to edit this row",
+                "U heeft geen toestemming om deze rij te bewerken")),
         _ => new(column, type.ToString(), new(type.ToString(), type.ToString()))
     };
 }
@@ -54,5 +57,6 @@ public enum ImportErrorType
     DuplicateEntry,
     EntryNotFound,
     UserNotFound,
-    InvalidDataType
+    InvalidDataType,
+    NotAllowed
 }
