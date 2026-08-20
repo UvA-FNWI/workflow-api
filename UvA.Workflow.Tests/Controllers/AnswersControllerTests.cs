@@ -275,7 +275,8 @@ public class AnswersControllerTests : ControllerTestsBase
                 _submissionDtoFactory,
                 _instanceService,
                 _modelService,
-                _workflowInstanceRepoMock.Object);
+                _workflowInstanceRepoMock.Object,
+                _instanceJournalServiceMock.Object);
 
         return (controller, instance);
     }
