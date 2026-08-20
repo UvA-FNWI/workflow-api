@@ -44,5 +44,13 @@ infoCards:
           nl: Andere betrokkenen
         users:
           - property: Course.Coordinator
-          - property: Course.ConfidentialAdviser
           - property: Course.StudyAdviser
+    items:
+      - name: ConfidentialAdvisers
+        type: Link
+        text:
+          en: Confidential advisers
+          nl: Vertrouwenspersonen
+        url:
+          en: "https://student.uva.nl/en/information/confidential-advisers"
+          nl: "https://student.uva.nl/informatie/vertrouwenspersonen"

@@ -288,19 +288,25 @@ public class WorkflowInstanceDtoFactory(
                         .ToArray()))
                 .Where(group => group.UserRoles.Length > 0)
                 .ToArray();
-            return groups.Length == 0 ? null : new InfoCardDto(card.Name, card.Title!, type, Groups: groups);
+            var items = CreateInfoCardItems(card, context);
+            return groups.Length == 0 && items.Length == 0
+                ? null
+                : new InfoCardDto(card.Name, card.Title!, type, Groups: groups, Items: items);
         }
 
         if (type == InfoCardType.Links)
         {
-            var items = card.Items.Select(item => InfoCardItemDto.TryCreate(item, context))
-                .OfType<InfoCardItemDto>()
-                .ToArray();
+            var items = CreateInfoCardItems(card, context);
             return items.Length == 0 ? null : new InfoCardDto(card.Name, card.Title!, type, Items: items);
         }
 
         return new InfoCardDto(card.Name, card.Title!, type, Content: card.Content);
     }
+
+    private static InfoCardItemDto[] CreateInfoCardItems(InfoCard card, ObjectContext context) =>
+        card.Items.Select(item => InfoCardItemDto.TryCreate(item, context))
+            .OfType<InfoCardItemDto>()
+            .ToArray();
 
     private static InfoCardFieldDto? CreateInfoCardField(InfoCardField field, ObjectContext context)
     {
