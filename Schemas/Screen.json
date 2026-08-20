@@ -114,6 +114,32 @@
             }
           ]
         },
+        "isHighlighted": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "condition": {
+          "description": "Conditions that determines if the field is included in the DTO",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "order": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "endDate": {
           "type": [
             "null",
@@ -161,6 +187,224 @@
           "type": "string"
         },
         "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "Condition": {
+      "title": "Condition",
+      "type": "object",
+      "description": "Represents a logical condition",
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "type": "boolean",
+          "description": "If true, this condition is inverted"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Compare property values",
+              "$ref": "#/definitions/Value"
+            }
+          ]
+        },
+        "logical": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "For and/or constructs",
+              "$ref": "#/definitions/Logical"
+            }
+          ]
+        },
+        "event": {
+          "description": "Check if an event has occurred",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EventCondition"
+            }
+          ]
+        },
+        "date": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a date has passed",
+              "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a deadline has passed",
+              "$ref": "#/definitions/Deadline"
+            }
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Use a named reusable condition"
+        },
+        "message": {
+          "description": "Message that is shown then the condition is not, for use in form validation",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "Value": {
+      "title": "Value",
+      "type": "object",
+      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix a string value with an equals sign to indicate a literal value)",
+      "additionalProperties": false,
+      "required": [
+        "property"
+      ],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "Target property"
+        },
+        "equal": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be equal to. If this is a literal string, it must be prefixed with an equals sign"
+        },
+        "lessThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than"
+        },
+        "greaterThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than"
+        },
+        "greaterThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than or equal to"
+        },
+        "in": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Array the property should be in"
+        },
+        "isEmpty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If set, check whether the property is empty"
+        },
+        "maxLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum length of a string"
+        }
+      }
+    },
+    "Logical": {
+      "title": "Logical",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "$ref": "#/definitions/LogicalOperator"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          }
+        }
+      }
+    },
+    "LogicalOperator": {
+      "type": "string",
+      "enum": [
+        "And",
+        "Or"
+      ]
+    },
+    "EventCondition": {
+      "title": "EventCondition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Id of the event to check for"
+        }
+      }
+    },
+    "Date": {
+      "title": "Date",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "Deadline": {
+      "title": "Deadline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionText"
+      ],
+      "properties": {
+        "expressionText": {
           "type": "string"
         }
       }
