@@ -30,7 +30,7 @@ public record WorkflowInstanceDto(
     ResourceDto[] Resources
 );
 
-public record FieldDto(string? Key, BilingualString Title, object? Value);
+public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
 
 public record StepVersionDto
 {
@@ -55,6 +55,8 @@ public record StepDto(
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,
+    bool ExpectsSubmission,
+    bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
     List<StepVersionDto>? Versions = null);
 

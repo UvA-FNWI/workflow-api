@@ -50,9 +50,10 @@ public class WorkflowInstanceDtoFactory(
         // Fetch versions for all steps
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
+        var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, ct)));
+            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -99,11 +100,14 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.Fields.SelectMany(f => f.Properties), ct);
         foreach (var field in workflowDefinition.Fields)
         {
+            if (!field.Condition.IsMet(context))
+                continue;
+
             var obj = field.GetValue(context);
             if (obj is object[] arr && arr.Length == 1)
                 obj = arr[0];
             var key = field.CurrentStep ? "CurrentStep" : field.Property;
-            result.Add(new FieldDto(key, field.DisplayTitle, obj));
+            result.Add(new FieldDto(key, field.DisplayTitle, obj, field.IsHighlighted ?? false, field.Order));
         }
 
         return result.ToArray();
@@ -149,6 +153,7 @@ public class WorkflowInstanceDtoFactory(
         Dictionary<string, List<StepVersion>> stepVersionsMap,
         WorkflowInstanceHistory instanceHistory,
         ObjectContext context,
+        HashSet<string> activeSteps,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -161,13 +166,34 @@ public class WorkflowInstanceDtoFactory(
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, ct)))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
             : null;
         var versionDtos = versions != null
             ? await Task.WhenAll(versions
                 .OrderByDescending(version => version.SubmittedAt)
                 .Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
             : null;
+
+        var submissionForms = step.Actions
+            .Where(action => action.Type == RoleAction.Submit)
+            .SelectMany(action => action.AllForms)
+            .Distinct()
+            .Select(formName => modelService.GetForm(instance, formName))
+            .ToArray();
+        var submissionEventIds = submissionForms
+            .SelectMany(FormSubmissionState.GetSubmissionEventIds)
+            .ToHashSet();
+        var hasSubmission = submissionForms.Any(form =>
+                                FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted) ||
+                            instanceHistory.EventLogs.Any(log =>
+                                submissionEventIds.Contains(log.EventId) &&
+                                log.Operation is EventLogOperation.Create or EventLogOperation.Update);
+        var expectsSubmission = activeSteps.Contains(step.Name) && step.Actions
+            .Where(action => action.Type == RoleAction.Submit && action.Condition.IsMet(context))
+            .SelectMany(action => action.AllForms)
+            .Distinct()
+            .Select(formName => modelService.GetForm(instance, formName))
+            .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
 
         return new StepDto(
             step.Name,
@@ -179,6 +205,8 @@ public class WorkflowInstanceDtoFactory(
             children,
             stepHeaderStatusResolver.Resolve(step, instance),
             step.ResultsType,
+            expectsSubmission,
+            hasSubmission,
             step.HierarchyMode,
             versionDtos?.ToList()
         );
