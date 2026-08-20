@@ -99,11 +99,14 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.Fields.SelectMany(f => f.Properties), ct);
         foreach (var field in workflowDefinition.Fields)
         {
+            if (!field.Condition.IsMet(context))
+                continue;
+
             var obj = field.GetValue(context);
             if (obj is object[] arr && arr.Length == 1)
                 obj = arr[0];
             var key = field.CurrentStep ? "CurrentStep" : field.Property;
-            result.Add(new FieldDto(key, field.DisplayTitle, obj));
+            result.Add(new FieldDto(key, field.DisplayTitle, obj, field.IsHighlighted ?? false, field.Order));
         }
 
         return result.ToArray();

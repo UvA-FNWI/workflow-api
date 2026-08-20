@@ -1431,6 +1431,32 @@
             }
           ]
         },
+        "isHighlighted": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "condition": {
+          "description": "Conditions that determines if the field is included in the DTO",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "order": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "endDate": {
           "type": [
             "null",

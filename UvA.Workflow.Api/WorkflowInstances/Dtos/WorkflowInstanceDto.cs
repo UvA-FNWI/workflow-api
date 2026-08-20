@@ -29,7 +29,7 @@ public record WorkflowInstanceDto(
     InfoCardDto[] InfoCards
 );
 
-public record FieldDto(string? Key, BilingualString Title, object? Value);
+public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
 
 public record StepVersionDto
 {
