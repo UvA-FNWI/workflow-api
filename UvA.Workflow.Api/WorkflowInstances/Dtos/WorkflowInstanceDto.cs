@@ -55,6 +55,8 @@ public record StepDto(
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,
+    bool ExpectsSubmission,
+    bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
     List<StepVersionDto>? Versions = null);
 
