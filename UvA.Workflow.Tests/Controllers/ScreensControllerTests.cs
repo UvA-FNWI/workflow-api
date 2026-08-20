@@ -5,7 +5,6 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
-using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -17,7 +16,7 @@ public class ScreensControllerTests : ControllerTestsBase
     {
         _screenDataService = new ScreenDataService(_modelService, _instanceService, _workflowInstanceRepoMock.Object,
             new InstanceAuthorizationFilterService(_rightsService, _modelService, _userServiceMock.Object,
-                _workflowInstanceRepoMock.Object));
+                _workflowInstanceRepoMock.Object), _importService);
     }
 
     [Fact]

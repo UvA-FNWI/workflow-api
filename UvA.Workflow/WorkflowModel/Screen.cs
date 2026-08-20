@@ -26,6 +26,11 @@ public class Screen : INamed
     /// Optional grouping configuration for grouping screen data by steps
     /// </summary>
     public ScreenGrouping? Grouping { get; set; }
+
+    /// <summary>
+    /// Config for bulk editing for all instances in the screen
+    /// </summary>
+    public BulkEditConfig? BulkEdit { get; set; }
 }
 
 /// <summary>
@@ -99,4 +104,17 @@ public class Column : Field
     /// If true, this column becomes a link to the instance 
     /// </summary>
     public bool Link { get; set; }
+}
+
+public class BulkEditConfig
+{
+    public BulkEditProperty Identifier { get; set; } = null!;
+    public BulkEditProperty[]? ReadOnlyProperties { get; set; } = [];
+    public string[] EditableProperties { get; set; } = [];
+}
+
+public class BulkEditProperty
+{
+    public string Property { get; set; } = null!;
+    public BilingualString? Title { get; set; }
 }

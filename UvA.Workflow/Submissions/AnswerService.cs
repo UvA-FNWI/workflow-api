@@ -36,7 +36,7 @@ public class AnswerService(
     IInstanceEventService instanceEventService,
     IInstanceJournalService instanceJournalService,
     IUserService userService,
-    IExternalUserService externalUserService)
+    IExternalUserService externalUserService) : IAnswerService
 {
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)

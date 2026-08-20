@@ -1,6 +1,6 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.Import;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -8,7 +8,8 @@ public class ScreenDataService(
     ModelService modelService,
     InstanceService instanceService,
     IWorkflowInstanceRepository repository,
-    InstanceAuthorizationFilterService instanceAuthorizationFilterService)
+    InstanceAuthorizationFilterService instanceAuthorizationFilterService,
+    IImportService importService)
 {
     private static readonly string EmptyStepId = "null";
 
@@ -31,15 +32,17 @@ public class ScreenDataService(
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
 
+        var canBulkEdit = await instanceAuthorizationFilterService.HasEditableInstances(workflowDefinition, ct);
+
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
         {
             var groups = BuildGroups(contexts, screen, columns);
-            return ScreenDataDto.Create(screen, definition, columns, [], groups);
+            return ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups);
         }
 
         var rows = ProcessRows(contexts, screen, columns);
-        return ScreenDataDto.Create(screen, definition, columns, rows);
+        return ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit);
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)
@@ -142,7 +145,7 @@ public class ScreenDataService(
 
         // Build authorization filter to restrict instances to those the user can view
         var authorizationFilter =
-            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, ct);
+            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
         var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
