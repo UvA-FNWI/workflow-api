@@ -19,13 +19,16 @@ public class WorkflowInstanceServiceTests
     public WorkflowInstanceServiceTests()
     {
         var userService = new Mock<IUserService>();
-        userService.Setup(service => service.GetCurrentUser(_ct)).ReturnsAsync(new User
+        var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
             UserName = "testuser",
             DisplayName = "Test User",
             Email = "test@example.com"
-        });
+        };
+        userService.Setup(service => service.GetCurrentUser(_ct)).ReturnsAsync(user);
+        userService.Setup(service => service.GetRealUser(_ct)).ReturnsAsync(user);
+
         _repository.Setup(repository => repository.UpdateFields(
                 It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct))
             .Returns(Task.CompletedTask);

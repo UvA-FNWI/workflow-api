@@ -131,6 +131,8 @@ public abstract class ControllerTestsBase
             .ReturnsAsync(roles);
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        _userServiceMock.Setup(s => s.GetRealUser(It.IsAny<CancellationToken>())) // ← add this
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
     }
 
     protected void MockInstance(WorkflowInstance instance)
