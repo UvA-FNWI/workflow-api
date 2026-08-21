@@ -3,6 +3,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions;
@@ -14,7 +15,8 @@ public class AnswersController(
     SubmissionDtoFactory submissionDtoFactory,
     InstanceService instanceService,
     ModelService modelService,
-    IWorkflowInstanceRepository workflowInstanceRepository) : ApiControllerBase
+    IWorkflowInstanceRepository workflowInstanceRepository,
+    IInstanceJournalService instanceJournalService) : ApiControllerBase
 {
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
@@ -36,9 +38,11 @@ public class AnswersController(
             var permissions =
                 await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
                     RoleAction.Edit);
-            var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
+            var journal = await instanceJournalService.GetInstanceJournal(context.Instance.Id, false, ct);
+            var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
+                context.SubmissionState,
                 modelService.GetQuestionStatus(context.Instance, context.Form, true),
-                permissions.Select(p => p.Type).ToArray());
+                permissions.Select(p => p.Type).ToArray(), journal, ct);
             return Ok(new SaveAnswerResponse(true, answers, updatedSubmission,
                 User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }
