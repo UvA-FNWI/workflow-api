@@ -140,27 +140,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "event": {
-          "description": "Shorthand for progress information that applies when a single event is active. For arbitrary logic use Condition instead.",
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "condition": {
-          "description": "Condition that determines whether this progress information applies. Takes precedence over Event when set. Omit both properties for the fallback entry.",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
         "color": {
           "oneOf": [
             {
@@ -183,62 +162,16 @@
               "$ref": "#/definitions/BilingualString"
             }
           ]
-        }
-      }
-    },
-    "StatusColor": {
-      "type": "string",
-      "enum": [
-        "Red",
-        "Green"
-      ]
-    },
-    "StepResultsType": {
-      "type": "string",
-      "enum": [
-        "Normal",
-        "AssessmentPartOverview",
-        "AssessmentFinalOverview"
-      ]
-    },
-    "Icon": {
-      "title": "Icon",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "type"
-      ],
-      "properties": {
-        "type": {
-          "type": "string"
         },
-        "color": {
-          "$ref": "#/definitions/StatusColor"
-        }
-      }
-    },
-    "StepHierarchyMode": {
-      "type": "string",
-      "enum": [
-        "Sequential",
-        "Parallel"
-      ]
-    },
-    "StepHeaderStatusConfiguration": {
-      "title": "StepHeaderStatusConfiguration",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "label"
-      ],
-      "properties": {
         "event": {
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "description": "Shorthand for a condition that applies when a single event is active.\n            For arbitrary logic use <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Condition\"/> instead."
         },
         "condition": {
+          "description": "Condition that determines whether this configuration applies. Takes precedence over\n            <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Event\"/> when set. Omit both properties for an unconditional configuration.",
           "oneOf": [
             {
               "type": "null"
@@ -250,21 +183,15 @@
               "$ref": "#/definitions/Condition"
             }
           ]
-        },
-        "type": {
-          "$ref": "#/definitions/StepHeaderPillType"
-        },
-        "label": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
         }
       }
+    },
+    "StatusColor": {
+      "type": "string",
+      "enum": [
+        "Red",
+        "Green"
+      ]
     },
     "Condition": {
       "title": "Condition",
@@ -481,6 +408,81 @@
       "properties": {
         "expressionText": {
           "type": "string"
+        }
+      }
+    },
+    "StepResultsType": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "AssessmentPartOverview",
+        "AssessmentFinalOverview"
+      ]
+    },
+    "Icon": {
+      "title": "Icon",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/definitions/StatusColor"
+        }
+      }
+    },
+    "StepHierarchyMode": {
+      "type": "string",
+      "enum": [
+        "Sequential",
+        "Parallel"
+      ]
+    },
+    "StepHeaderStatusConfiguration": {
+      "title": "StepHeaderStatusConfiguration",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/StepHeaderPillType"
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "event": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Shorthand for a condition that applies when a single event is active.\n            For arbitrary logic use <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Condition\"/> instead."
+        },
+        "condition": {
+          "description": "Condition that determines whether this configuration applies. Takes precedence over\n            <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Event\"/> when set. Omit both properties for an unconditional configuration.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
         }
       }
     },
