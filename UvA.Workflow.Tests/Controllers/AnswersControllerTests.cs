@@ -155,6 +155,50 @@ public class AnswersControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task ValidateAndResolveValue_AppendsExternalUserToUserArray()
+    {
+        var property = new PropertyDefinition
+        {
+            Name = "PracticalSupervisor",
+            Type = "[User]!",
+            AllowsExternalUsers = true
+        };
+        var existingUser = new UserSearchResult(
+            "internal-user",
+            "Internal User",
+            "internal@example.org",
+            UserSearchSources.Repository);
+        var currentValue = JsonSerializer.SerializeToElement(
+            new[] { existingUser }, AnswerConversionService.Options);
+        var createdExternalUser = new UserSearchResult(
+            "external@example.org",
+            "External User",
+            "external@example.org",
+            UserSearchSources.Repository,
+            "backend-provider");
+        _externalUserServiceMock.Setup(s => s.CreateOrUpdateExternalUser(
+                "External User",
+                "external@example.org",
+                null,
+                null,
+                _ct))
+            .ReturnsAsync(createdExternalUser);
+
+        var (value, createdUser) = await _answerService.ValidateAndResolveValue(
+            property,
+            currentValue,
+            new ExternalUserInput("External User", "external@example.org"),
+            _ct);
+
+        Assert.Equal(createdExternalUser, createdUser);
+        Assert.True(value.HasValue);
+        var users = value.Value.EnumerateArray().ToArray();
+        Assert.Equal(2, users.Length);
+        Assert.Equal("internal-user", users[0].GetProperty("userName").GetString());
+        Assert.Equal("external@example.org", users[1].GetProperty("userName").GetString());
+    }
+
+    [Fact]
     public async Task Answers_SaveAnswer_WithExternalUser_ThrowsForbiddenWithoutEditRights()
     {
         var (controller, instance) = BuildControllerWithRoles(["HasNoRights"], "Start");
