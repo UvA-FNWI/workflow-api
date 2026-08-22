@@ -378,6 +378,29 @@ public class UserServiceEduIdTests
     }
 
     [Fact]
+    public async Task GetRoles_InternalUser_ReturnsEmpty_WhenDataNoseFails()
+    {
+        var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var organizationServiceMock = new Mock<IOrganizationService>();
+        dataNoseApiClientMock.Setup(c => c.GetRolesByUser("internal-123", CancellationToken.None))
+            .ThrowsAsync(new HttpRequestException("GetRolesForUser failed: 401 Unauthorized. Body:"));
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
+        var user = new User
+        {
+            UserName = "internal-123",
+            DisplayName = "Internal User",
+            Email = "internal@example.org",
+            ProviderKey = UserProviderKeys.Internal,
+            IsActive = true
+        };
+
+        var roles = await service.GetRoles(user, CancellationToken.None);
+
+        Assert.Empty(roles);
+    }
+
+    [Fact]
     public async Task GetRoles_UnknownProvider_ReturnsEmpty_WhenNoSourceResolves()
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();

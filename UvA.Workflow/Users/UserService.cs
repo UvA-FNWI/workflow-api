@@ -157,9 +157,18 @@ public class UserService(
         {
             var directory = _userDirectories.FirstOrDefault(source =>
                 UserProviderKeys.AreEqual(source.ProviderKey, user.ProviderKey));
-            roles = directory == null
-                ? []
-                : (await directory.GetRoles(user, ct)).ToArray();
+            try
+            {
+                roles = directory == null
+                    ? []
+                    : (await directory.GetRoles(user, ct)).ToArray();
+            }
+            catch
+            {
+                // Directory lookup unavailable (e.g. DataNose down or unconfigured). Don't block
+                // the request; GetGlobalRoles still appends Registered.
+                roles = [];
+            }
         }
 
         _cache.Set(cacheKey, roles, RolesCacheExpiration);
