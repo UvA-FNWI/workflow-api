@@ -77,14 +77,21 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     /// </summary>
     public Field[] Fields { get; set; } = [];
 
-    public RelatedUser[] RelatedUsers { get; set; } = [];
+    public InfoCard[] InfoCards { get; set; } = [];
 
-    public RelatedUserGrouping? RelatedUserGrouping { get; set; }
+    [YamlIgnore]
+    public RelatedUser[] RelatedUsers => InfoCards
+        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
+        .SelectMany(card => card.Groups)
+        .SelectMany(group => group.Users)
+        .ToArray();
 
-    /// <summary>
-    /// List of resources for this entity type
-    /// </summary>
-    public Resource[] Resources { get; set; } = [];
+    [YamlIgnore]
+    public RelatedUser[] EditableRelatedUsers => InfoCards
+        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
+        .SelectMany(card => card.Groups.Where(group => group.AllowEditing))
+        .SelectMany(group => group.Users)
+        .ToArray();
 
     /// <summary>
     /// Indicated whether this entity type is stored as an embedded document in the parent instance

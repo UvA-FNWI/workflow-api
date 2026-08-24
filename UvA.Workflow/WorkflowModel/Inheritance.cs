@@ -98,67 +98,18 @@ public partial class ModelParser
                 .Concat(target.Fields).ToArray();
         }
 
-        if (!Cleared(target, d => d.RelatedUsers))
-            target.RelatedUsers = source.RelatedUsers
-                .Where(sourceRelatedUser => target.RelatedUsers.All(targetRelatedUser =>
-                    targetRelatedUser.Property != sourceRelatedUser.Property))
-                .Concat(target.RelatedUsers)
-                .ToArray();
-
-        var groupingCleared = target.Declared(d => d.RelatedUserGrouping)
-                              && (target.RelatedUserGrouping == null || target.RelatedUserGrouping.Groups.Length == 0);
-        if (!groupingCleared)
-            target.RelatedUserGrouping =
-                MergeRelatedUserGrouping(target.RelatedUserGrouping, source.RelatedUserGrouping);
-        if (!Cleared(target, d => d.Resources))
-            target.Resources = MergeResources(target.Resources, source.Resources);
+        if (!Cleared(target, d => d.InfoCards))
+            target.InfoCards = MergeInfoCards(target.InfoCards, source.InfoCards);
     }
 
-    private static RelatedUserGrouping? MergeRelatedUserGrouping(RelatedUserGrouping? target,
-        RelatedUserGrouping? source)
+    private static InfoCard[] MergeInfoCards(InfoCard[] target, InfoCard[] source)
     {
-        if (source == null)
-            return target;
-
-        if (target == null)
-            return new RelatedUserGrouping { Groups = source.Groups };
-
-        return new RelatedUserGrouping
+        var result = source.ToList();
+        foreach (var card in target)
         {
-            Groups = source.Groups
-                .Where(sourceGroup => target.Groups.All(targetGroup => targetGroup.Name != sourceGroup.Name))
-                .Concat(target.Groups)
-                .ToArray()
-        };
-    }
-
-    private static Resource[] MergeResources(Resource[] target, Resource[] source)
-    {
-        var result = target.ToList();
-
-        foreach (var sourceResource in source.Reverse())
-        {
-            var targetResource = result.FirstOrDefault(r => r.Name == sourceResource.Name);
-            if (targetResource == null)
-            {
-                result.Insert(0, sourceResource);
-                continue;
-            }
-
-            if (sourceResource.Items == null) continue;
-
-            if (targetResource.Items is { Length: 0 }) continue;
-
-            if (targetResource.Items == null)
-            {
-                targetResource.Items = sourceResource.Items;
-                continue;
-            }
-
-            var targetItemNames = targetResource.Items.Select(i => i.Name).ToHashSet();
-            targetResource.Items = targetResource.Items
-                .Concat(sourceResource.Items.Where(i => !targetItemNames.Contains(i.Name)))
-                .ToArray();
+            var index = result.FindIndex(inherited => inherited.Name == card.Name);
+            if (index < 0) result.Add(card);
+            else result[index] = card;
         }
 
         return result.ToArray();
