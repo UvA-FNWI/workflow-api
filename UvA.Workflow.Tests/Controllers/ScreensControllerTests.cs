@@ -17,7 +17,7 @@ public class ScreensControllerTests : ControllerTestsBase
     {
         _screenDataService = new ScreenDataService(_modelService, _instanceService, _workflowInstanceRepoMock.Object,
             new InstanceAuthorizationFilterService(_rightsService, _modelService, _userServiceMock.Object,
-                _workflowInstanceRepoMock.Object));
+                _workflowInstanceRepoMock.Object), _rightsService);
     }
 
     [Fact]
