@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
@@ -10,7 +11,9 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Organizations;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -152,6 +155,60 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.Equal("External User", submissionAnswer.Value.Value.GetProperty("displayName").GetString());
         Assert.Equal("external@example.org", submissionAnswer.Value.Value.GetProperty("email").GetString());
         Assert.True(submissionAnswer.Value.Value.GetProperty("isExternal").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_ClearsEveryFormAnswerAndPreservesOtherProperties()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        const string artifactId = "artifact-1";
+        instance.Properties["Subject"] = "Original subject";
+        instance.Properties["Description"] = new ArtifactInfo(artifactId, "description.pdf").ToBsonDocument();
+        instance.Properties["CanBePublished"] = true;
+
+        var result = await controller.ClearAnswers(instance.Id, "Start", _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var submission = Assert.IsType<SubmissionDto>(okResult.Value);
+        Assert.All(submission.Answers, answer => Assert.False(answer.Value.HasValue));
+        Assert.All(submission.Answers.Where(answer => answer.Files != null),
+            answer => Assert.Empty(answer.Files!));
+        Assert.All(instance.Properties.Where(property => property.Key is "Title" or "Subject" or "Description"),
+            property => Assert.True(property.Value.IsBsonNull));
+        Assert.True(instance.Properties["CanBePublished"].AsBoolean);
+        _artifactServiceMock.Verify(service => service.TryDeleteArtifact(artifactId, _ct), Times.Once);
+        _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(instance.Id,
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_ThrowsForbiddenWithoutEditRights()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["HasNoRights"], "Start");
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            controller.ClearAnswers(instance.Id, "Start", _ct));
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_PreservesFilesFromEarlierSubmittedVersions()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        const string artifactId = "submitted-artifact";
+        instance.Properties["Description"] = new ArtifactInfo(artifactId, "description.pdf").ToBsonDocument();
+        _instanceEventService.Setup(service =>
+                service.WasEventEverTriggered(instance.Id, "Start", _ct))
+            .ReturnsAsync(true);
+        _instanceJournalServiceMock.Setup(service => service.LogPropertyChange(instance.Id,
+                It.Is<PropertyChangeEntry>(entry => entry.Path == "Description"), _ct))
+            .ReturnsAsync(false);
+
+        await controller.ClearAnswers(instance.Id, "Start", _ct);
+
+        _instanceJournalServiceMock.Verify(service => service.LogPropertyChange(instance.Id,
+            It.Is<PropertyChangeEntry>(entry => entry.Path == "Description"), _ct), Times.Once);
+        _artifactServiceMock.Verify(service =>
+            service.TryDeleteArtifact(artifactId, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

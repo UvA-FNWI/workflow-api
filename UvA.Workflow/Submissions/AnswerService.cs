@@ -38,6 +38,10 @@ public class AnswerService(
     IUserService userService,
     IExternalUserService externalUserService)
 {
+    public Task<SubmissionContext> GetSubmissionContext(
+        string instanceId, string submissionId, CancellationToken ct)
+        => workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
+
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
@@ -124,6 +128,22 @@ public class AnswerService(
 
         // Build response
         return Answer.Create(instance, form, updates);
+    }
+
+    public async Task ClearAnswers(SubmissionContext context, CancellationToken ct)
+    {
+        var (instance, submissionState, form, _) = context;
+        var shouldLog = await WasFormEverSubmitted(instance.Id, form, ct);
+
+        foreach (var question in form.PropertyDefinitions)
+        {
+            var questionContext = new QuestionContext(instance, submissionState, form, question);
+            var currentAnswer = instance.GetProperty(questionContext.PathParts);
+            if (currentAnswer is null || currentAnswer.IsBsonNull)
+                continue;
+
+            await SavePropertyValue(instance, questionContext.PathParts, question, BsonNull.Value, shouldLog, ct);
+        }
     }
 
     private async Task<bool> WasFormEverSubmitted(string instanceId, Form form, CancellationToken ct)
