@@ -18,11 +18,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Create milestones-config token
+        id: milestones-config-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.MILESTONES_CONFIG_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MILESTONES_CONFIG_APP_PRIVATE_KEY }}
+          owner: UvA-FNWI
+          repositories: milestones-config
         
       - name: Build and deploy
         env:
           PR_NUMBER: ${{ github.event.number }}
           UPDATER_SECRET: ${{ secrets.UPDATER_SECRET_DN }}
+          MILESTONES_CONFIG_TOKEN: ${{ steps.milestones-config-token.outputs.token }}
           DESCR: ${{ github.event.pull_request.body }}
         run: |
           set -euxo pipefail
@@ -35,9 +45,11 @@ jobs:
           config_ref=main
           if [[ "$DESCR" =~ milestones-config/pull/([0-9]+) ]]; then
             config_ref="refs/pull/${BASH_REMATCH[1]}/head"
+            set +x
             git ls-remote --exit-code \
-              https://github.com/UvA-FNWI/milestones-config.git \
+              "https://x-access-token:${MILESTONES_CONFIG_TOKEN}@github.com/UvA-FNWI/milestones-config.git" \
               "$config_ref" >/dev/null
+            set -x
           fi
           curl --fail --no-progress-meter --get \
             --data-urlencode "name=workflow-api-pr" \
