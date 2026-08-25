@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Authentication;
@@ -17,7 +18,8 @@ public class UserServiceEduIdTests
     private static UserService CreateService(
         Mock<IDataNoseApiClient> dataNoseApiClientMock,
         Mock<IUserRepository> userRepositoryMock,
-        Mock<IOrganizationService> organizationServiceMock)
+        Mock<IOrganizationService> organizationServiceMock,
+        ILogger<UserService>? logger = null)
         => new(Mock.Of<ICurrentUserAccessor>(),
             userRepositoryMock.Object,
             organizationServiceMock.Object,
@@ -31,7 +33,8 @@ public class UserServiceEduIdTests
                 new RepositoryUserSearchSource(userRepositoryMock.Object)
             ],
             Mock.Of<IWorkflowInstanceRepository>(),
-            new ModelService(UnitTestsHelpers.CreateModelParser()));
+            new ModelService(UnitTestsHelpers.CreateModelParser()),
+            logger ?? Mock.Of<ILogger<UserService>>());
 
     [Fact]
     public async Task GetRoles_EduIdUser_ReturnsEmpty_WithoutCallingDataNose()
@@ -304,7 +307,8 @@ public class UserServiceEduIdTests
             [],
             [],
             Mock.Of<IWorkflowInstanceRepository>(),
-            new ModelService(UnitTestsHelpers.CreateModelParser()));
+            new ModelService(UnitTestsHelpers.CreateModelParser()),
+            Mock.Of<ILogger<UserService>>());
 
         var result = await service.AddOrUpdateUser("external-123",
             "External User",
@@ -339,7 +343,8 @@ public class UserServiceEduIdTests
             [],
             [],
             Mock.Of<IWorkflowInstanceRepository>(),
-            new ModelService(UnitTestsHelpers.CreateModelParser()));
+            new ModelService(UnitTestsHelpers.CreateModelParser()),
+            Mock.Of<ILogger<UserService>>());
 
         await service.AddOrUpdateUser("external-123",
             "External User",
@@ -385,7 +390,8 @@ public class UserServiceEduIdTests
         var organizationServiceMock = new Mock<IOrganizationService>();
         dataNoseApiClientMock.Setup(c => c.GetRolesByUser("internal-123", CancellationToken.None))
             .ThrowsAsync(new HttpRequestException("GetRolesForUser failed: 401 Unauthorized. Body:"));
-        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
+        var logger = new Mock<ILogger<UserService>>();
+        var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock, logger.Object);
         var user = new User
         {
             UserName = "internal-123",
@@ -398,6 +404,14 @@ public class UserServiceEduIdTests
         var roles = await service.GetRoles(user, CancellationToken.None);
 
         Assert.Empty(roles);
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("GetRoles")),
+                It.IsAny<HttpRequestException>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     [Fact]
@@ -413,7 +427,8 @@ public class UserServiceEduIdTests
             [new EduIdUserDirectory()],
             [],
             Mock.Of<IWorkflowInstanceRepository>(),
-            new ModelService(UnitTestsHelpers.CreateModelParser()));
+            new ModelService(UnitTestsHelpers.CreateModelParser()),
+            Mock.Of<ILogger<UserService>>());
 
         var user = new User
         {

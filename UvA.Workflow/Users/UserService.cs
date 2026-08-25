@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson.Serialization.Attributes;
 using UvA.Workflow.WorkflowModel;
 
@@ -124,7 +125,8 @@ public class UserService(
     IEnumerable<IUserDirectory> userDirectories,
     IEnumerable<IUserSearchSource> userSearchSources,
     IWorkflowInstanceRepository instanceRepository,
-    ModelService modelService
+    ModelService modelService,
+    ILogger<UserService> logger
 ) : UserServiceBase(userRepository, cache), IUserService
 {
     private readonly IMemoryCache _cache = cache;
@@ -163,10 +165,17 @@ public class UserService(
                     ? []
                     : (await directory.GetRoles(user, ct)).ToArray();
             }
-            catch
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Directory lookup unavailable (e.g. DataNose down or unconfigured). Don't block
-                // the request; GetGlobalRoles still appends Registered.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Directory lookup unavailable (e.g. DataNose down or a placeholder API key).
+                // Don't block the request; GetGlobalRoles still appends Registered.
+                logger.LogWarning(ex,
+                    "Directory GetRoles failed for user {UserName} (provider {ProviderKey}); continuing with empty directory roles",
+                    user.UserName, user.ProviderKey);
                 roles = [];
             }
         }
