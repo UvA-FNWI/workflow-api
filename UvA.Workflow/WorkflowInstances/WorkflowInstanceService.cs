@@ -212,7 +212,10 @@ public class WorkflowInstanceService(
         await repository.UpdateFields(instance.Id,
             Builders<WorkflowInstance>.Update.Push($"Properties.{string.Join('.', pathParts)}", newValue), ct);
 
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            throw new Exception("Could not resolve real user");
         await journalService.LogPropertyChange(instance.Id,
-            PropertyChangeEntry.Create(string.Join('.', pathParts), oldValue, user), ct);
+            PropertyChangeEntry.Create(string.Join('.', pathParts), oldValue, realUser), ct);
     }
 }

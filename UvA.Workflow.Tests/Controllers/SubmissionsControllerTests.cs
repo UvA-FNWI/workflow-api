@@ -364,6 +364,41 @@ public class SubmissionsControllerTests : ControllerTestsBase
         }
     }
 
+    [Fact]
+    public async Task Submissions_SubmitSubmission_AttributesRealAdmin_WhenImpersonating()
+    {
+        const string submissionId = "Start";
+        var (controller, instance) = BuildControllerWithRoles(
+            ["Student"], submissionId, "Start",
+            ("Title", _ => "Title"),
+            ("Subject", _ => "Subject"),
+            ("Description", _ => new BsonDocument { { "ArtifactId", "ArtifactId" }, { "Name", "Name" } }),
+            ("Examiner", _ => new BsonDocument()),
+            ("Reviewer", _ => new BsonDocument()),
+            ("Supervisor", _ => new BsonDocument()),
+            ("StartDate", _ => new DateTime(2056, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+            ("EndDate", _ => new DateTime(2057, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+            ("Deadline", _ => new DateTime(2058, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+            ("EC", _ => 1));
+        MockImpersonation("Student"); // overrides MockCurrentUser set by BuildControllerWithRoles
+
+        User? capturedEventUser = null;
+        _eventRepoMock
+            .Setup(r => r.AddOrUpdateEvent(
+                It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
+                It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken>((_, _, user, _) =>
+                capturedEventUser = user)
+            .Returns(Task.CompletedTask);
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.NotNull(capturedEventUser);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, capturedEventUser.Id);
+        Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.Id, capturedEventUser.Id);
+    }
+
     private static (string name, Func<PropertyBuilder, BsonValue> builder)[] RequiredStartProperties() =>
     [
         ("Title", _ => "Title"),

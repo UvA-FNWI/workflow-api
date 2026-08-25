@@ -19,13 +19,17 @@ public class EventsController(
         if (user == null)
             return Unauthorized();
 
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            throw new Exception("Could not resolve real user");
+
         var instance = await workflowRepository.GetById(instanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
 
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
 
-        await eventService.DeleteEvent(instance, eventName, user, ct);
+        await eventService.DeleteEvent(instance, eventName, realUser, ct);
         return Ok();
     }
 }

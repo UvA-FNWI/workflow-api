@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using Moq;
 using Serilog;
 using UvA.Workflow.Assessments;
@@ -130,6 +131,18 @@ public abstract class ControllerTestsBase
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles);
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        _userServiceMock.Setup(s => s.GetRealUser(It.IsAny<CancellationToken>())) // ← add this
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+    }
+
+    protected void MockImpersonation(params string[] roles)
+    {
+        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(roles);
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.ImpersonatedTarget);
+        _userServiceMock.Setup(s => s.GetRealUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(UnitTestsHelpers.AdminUser);
     }
 
