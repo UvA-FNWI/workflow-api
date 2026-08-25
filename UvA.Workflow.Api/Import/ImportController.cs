@@ -24,7 +24,7 @@ public class ImportController(
     }
 
     [HttpGet("{workflowDefinition}/{screenName}/Columns")]
-    public async Task<ActionResult<ImportablePropertyDto[]>> GetColumnNames(string workflowDefinition,
+    public async Task<ActionResult<GetColumnNamesResponse>> GetColumnNames(string workflowDefinition,
         string screenName,
         CancellationToken ct)
     {
@@ -46,11 +46,17 @@ public class ImportController(
 
         var editableProperties =
             await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEdit.EditableProperties);
-        var result = editableProperties
+        var columns = editableProperties
             .Select(p => new ImportablePropertyDto(p.Name, p.DisplayName, p.DataType))
             .ToArray();
 
-        return Ok(result);
+        var identifierProperty = screen.BulkEdit.Identifier;
+        var identifier = new ImportablePropertyDto(
+            identifierProperty.Property,
+            identifierProperty.Title ?? identifierProperty.Property,
+            DataType.String);
+
+        return Ok(new GetColumnNamesResponse(identifier, columns));
     }
 
     [HttpPost("{workflowDefinition}/{screenName}/Preview")]

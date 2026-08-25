@@ -22,3 +22,5 @@ public record ImportConfirmRequest(
 );
 
 public record ImportablePropertyDto(string Name, BilingualString Title, DataType DataType);
+
+public record GetColumnNamesResponse(ImportablePropertyDto Identifier, ImportablePropertyDto[] Columns);
