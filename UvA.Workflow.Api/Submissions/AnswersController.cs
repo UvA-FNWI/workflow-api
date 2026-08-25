@@ -16,6 +16,21 @@ public class AnswersController(
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository) : ApiControllerBase
 {
+    [HttpDelete("{instanceId}/{submissionId}")]
+    public async Task<ActionResult<SubmissionDto>> ClearAnswers(string instanceId, string submissionId,
+        CancellationToken ct)
+    {
+        var context = await answerService.GetSubmissionContext(instanceId, submissionId, ct);
+        await EnsureAuthorizedToEdit(context);
+
+        await answerService.ClearAnswers(context, ct);
+        var permissions = await rightsService.GetAllowedActionsForForm(context.Instance, context.Form,
+            RoleAction.ViewAdminTools, RoleAction.Edit);
+        return Ok(submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
+            modelService.GetQuestionStatus(context.Instance, context.Form, true),
+            permissions.Select(permission => permission.Type).ToArray()));
+    }
+
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
         string questionName,
@@ -139,6 +154,11 @@ public class AnswersController(
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
         await EnsureAuthorizedForAction(context,
             context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
+
+    private async Task EnsureAuthorizedToEdit(SubmissionContext context) =>
+        await rightsService.EnsureAuthorizedForAction(context.Instance,
+            [context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit],
+            RightsEvaluationMode.RequestContext, context.Form.Name);
 
     private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>
         await rightsService.EnsureAuthorizedForAction(context.Instance, [action], RightsEvaluationMode.RequestContext,
