@@ -9,12 +9,11 @@ public class AnswerChangeHistoryTests
 {
     private static readonly User Alice = new() { UserName = "alice" };
     private static readonly User Bob = new() { UserName = "bob" };
-    private static readonly DateTime Submitted = new(2026, 3, 1, 10, 0, 0);
 
     [Fact]
     public void For_EmptyJournal_ReturnsEmpty()
     {
-        var result = AnswerChangeHistory.For([], "Credits", null, Submitted, 12);
+        var result = AnswerChangeHistory.For([], "Credits", null, DateTime.Now, 12);
 
         Assert.Empty(result);
     }
@@ -30,11 +29,11 @@ public class AnswerChangeHistoryTests
     }
 
     [Fact]
-    public void For_ChangeBeforeSubmit_ReturnsEmpty()
+    public void For_ChangeBeforeLatestSubmit_ReturnsEmpty()
     {
         var change = PropertyChangeEntry.Create("Credits", 6, Alice);
 
-        var result = AnswerChangeHistory.For([change], "Credits", null, DateTime.Now.AddDays(1), 12);
+        var result = AnswerChangeHistory.For([change], "Credits", null, change.Timestamp.AddTicks(1), 12);
 
         Assert.Empty(result);
     }
@@ -43,8 +42,9 @@ public class AnswerChangeHistoryTests
     public void For_ChangeAfterSubmit_ReturnsCurrentThenOriginal()
     {
         var change = PropertyChangeEntry.Create("Credits", 6, Alice);
+        var submitted = change.Timestamp.AddTicks(-1);
 
-        var result = AnswerChangeHistory.For([change], "Credits", null, Submitted, 12);
+        var result = AnswerChangeHistory.For([change], "Credits", null, submitted, 12);
 
         Assert.Equal(2, result.Length);
         Assert.Equal(2, result[0].Version);
@@ -53,7 +53,7 @@ public class AnswerChangeHistoryTests
         Assert.Equal("alice", result[0].ChangedBy);
         Assert.Equal(1, result[1].Version);
         Assert.Equal(6, result[1].Value);
-        Assert.Equal(Submitted, result[1].ChangedAt);
+        Assert.Equal(submitted, result[1].ChangedAt);
         Assert.Null(result[1].ChangedBy);
     }
 
@@ -63,7 +63,7 @@ public class AnswerChangeHistoryTests
         var first = PropertyChangeEntry.Create("Credits", 6, Alice);
         var second = PropertyChangeEntry.Create("Credits", 12, Bob);
 
-        var result = AnswerChangeHistory.For([first, second], "Credits", null, Submitted, 15);
+        var result = AnswerChangeHistory.For([first, second], "Credits", null, first.Timestamp.AddTicks(-1), 15);
 
         Assert.Equal(3, result.Length);
         Assert.Equal(3, result[0].Version);
@@ -83,7 +83,7 @@ public class AnswerChangeHistoryTests
     {
         var change = PropertyChangeEntry.Create("Review.Credits", 6, Alice);
 
-        var result = AnswerChangeHistory.For([change], "Credits", "Review", Submitted, 12);
+        var result = AnswerChangeHistory.For([change], "Credits", "Review", change.Timestamp.AddTicks(-1), 12);
 
         Assert.Equal(2, result.Length);
         Assert.Equal(12, result[0].Value);
@@ -95,7 +95,7 @@ public class AnswerChangeHistoryTests
     {
         var change = PropertyChangeEntry.Create("Credits", 6, Alice);
 
-        var result = AnswerChangeHistory.For([change], "Credits", "Review", Submitted, 12);
+        var result = AnswerChangeHistory.For([change], "Credits", "Review", change.Timestamp.AddTicks(-1), 12);
 
         Assert.Equal(2, result.Length);
     }
@@ -105,7 +105,7 @@ public class AnswerChangeHistoryTests
     {
         var change = PropertyChangeEntry.Create("Title", "old", Alice);
 
-        var result = AnswerChangeHistory.For([change], "Credits", null, Submitted, 12);
+        var result = AnswerChangeHistory.For([change], "Credits", null, change.Timestamp.AddTicks(-1), 12);
 
         Assert.Empty(result);
     }

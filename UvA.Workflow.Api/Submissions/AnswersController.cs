@@ -28,9 +28,10 @@ public class AnswersController(
         await answerService.ClearAnswers(context, ct);
         var permissions = await rightsService.GetAllowedActionsForForm(context.Instance, context.Form,
             RoleAction.ViewAdminTools, RoleAction.Edit);
-        return Ok(submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
+        var journal = await instanceJournalService.GetInstanceJournal(context.Instance.Id, false, ct);
+        return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
             modelService.GetQuestionStatus(context.Instance, context.Form, true),
-            permissions.Select(permission => permission.Type).ToArray()));
+            permissions.Select(permission => permission.Type).ToArray(), journal, ct));
     }
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]

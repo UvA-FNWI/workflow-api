@@ -152,9 +152,10 @@ public class SubmissionsController(
 
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
-        var updatedSubmission = submissionDtoFactory.Create(instance, form, submissionState,
+        var journal = await workflowInstanceService.GetInstanceJournal(instance.Id, ct);
+        var updatedSubmission = await submissionDtoFactory.CreateAsync(instance, form, submissionState,
             modelService.GetQuestionStatus(instance, form, true),
-            permissions.Select(p => p.Type).ToArray());
+            permissions.Select(p => p.Type).ToArray(), journal, ct);
 
         return Ok(updatedSubmission);
     }

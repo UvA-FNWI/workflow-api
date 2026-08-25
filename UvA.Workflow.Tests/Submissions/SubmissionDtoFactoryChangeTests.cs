@@ -37,11 +37,13 @@ public class SubmissionDtoFactoryChangeTests
         var ec = dto.Answers.Single(a => a.QuestionName == "EC");
         Assert.NotNull(ec.Changes);
         Assert.Equal(2, ec.Changes.Length);
+        Assert.Equal(2, ec.Changes[0].Version);
         Assert.Equal(12, ec.Changes[0].Value?.GetInt32());
         Assert.Equal(change.Timestamp, ec.Changes[0].ChangedAt);
         Assert.Equal("admin", ec.Changes[0].ChangedBy);
-        Assert.Equal(6, ec.Changes[1].Value?.GetInt32());
         Assert.Equal(1, ec.Changes[1].Version);
+        Assert.Equal(6, ec.Changes[1].Value?.GetInt32());
+        Assert.Equal(submitted, ec.Changes[1].ChangedAt);
     }
 
     [Fact]
