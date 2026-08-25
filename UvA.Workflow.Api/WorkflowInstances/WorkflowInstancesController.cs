@@ -429,7 +429,7 @@ public class WorkflowInstancesController(
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)
-        => modelService.WorkflowDefinitions[instance.WorkflowDefinition].RelatedUsers
+        => modelService.WorkflowDefinitions[instance.WorkflowDefinition].EditableRelatedUsers
                 .FirstOrDefault(relatedUser => relatedUser.Property == property)?.PropertyDefinition
             is { DataType: DataType.User } definition
             ? definition
