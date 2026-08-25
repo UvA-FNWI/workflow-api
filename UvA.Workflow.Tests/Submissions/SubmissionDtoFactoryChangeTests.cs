@@ -49,8 +49,11 @@ public class SubmissionDtoFactoryChangeTests
     {
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
         var users = new Mock<IUserService>();
-        users.Setup(s => s.GetUser("admin", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new User { UserName = "admin", DisplayName = "Ada Admin" });
+        users.Setup(s => s.GetUsers(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, User>
+            {
+                ["admin"] = new() { UserName = "admin", DisplayName = "Ada Admin" }
+            });
         var factory = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
             users.Object);
         var submitted = new DateTime(2026, 3, 1, 10, 0, 0);

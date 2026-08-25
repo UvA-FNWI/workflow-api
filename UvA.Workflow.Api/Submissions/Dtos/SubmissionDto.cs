@@ -55,11 +55,14 @@ public class SubmissionDtoFactory(
         if (userService == null || journal?.PropertyChanges is not { Length: > 0 })
             return names;
 
-        foreach (var userName in journal.PropertyChanges.Select(c => c.ModifiedBy).Distinct())
-        {
-            var user = await userService.GetUser(userName, ct);
-            names[userName] = string.IsNullOrWhiteSpace(user?.DisplayName) ? userName : user.DisplayName;
-        }
+        var userNames = journal.PropertyChanges.Select(c => c.ModifiedBy)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var users = await userService.GetUsers(userNames, ct);
+        foreach (var userName in userNames)
+            names[userName] = users.TryGetValue(userName, out var user) && !string.IsNullOrWhiteSpace(user.DisplayName)
+                ? user.DisplayName
+                : userName;
 
         return names;
     }
