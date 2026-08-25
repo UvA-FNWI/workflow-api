@@ -433,4 +433,33 @@ public class AnswersControllerTests : ControllerTestsBase
         var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
         Assert.True(response.Success);
     }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_Journal_RecordsRealAdmin_WhenImpersonating()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        MockImpersonation("Student");
+
+        // Simulate the form having been submitted before so shouldLog=true reaches SavePropertyValue
+        _instanceEventService
+            .Setup(s => s.WasEventEverTriggered(
+                instance.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        PropertyChangeEntry? capturedEntry = null;
+        _instanceJournalServiceMock
+            .Setup(j => j.LogPropertyChange(
+                It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()))
+            .Callback<string, PropertyChangeEntry, CancellationToken>((_, entry, _) => capturedEntry = entry)
+            .ReturnsAsync(false);
+
+        await controller.SaveAnswer(
+            instance.Id, "Start", "Title",
+            new SaveAnswerRequest(Value: JsonSerializer.SerializeToElement("New Title")),
+            _ct);
+
+        Assert.NotNull(capturedEntry);
+        Assert.Equal(UnitTestsHelpers.AdminUser.UserName, capturedEntry.ModifiedBy);
+        Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.UserName, capturedEntry.ModifiedBy);
+    }
 }

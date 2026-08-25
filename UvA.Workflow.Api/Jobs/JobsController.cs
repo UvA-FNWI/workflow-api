@@ -41,7 +41,7 @@ public class JobsController(
         if (job == null)
             return JobNotFound;
 
-        var user = await userService.GetCurrentUser(ct);
+        var user = await userService.GetRealUser(ct);
         if (user == null)
             return UserNotFound;
 

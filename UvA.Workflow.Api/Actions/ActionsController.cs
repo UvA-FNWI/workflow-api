@@ -25,6 +25,10 @@ public class ActionsController(
         if (currentUser == null)
             return Unauthorized();
 
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            throw new Exception("Could not resolve real user");
+
         var instance = await workflowInstanceRepository.GetById(input.InstanceId, ct);
         if (instance == null)
             return WorkflowInstanceNotFound;
@@ -49,9 +53,9 @@ public class ActionsController(
                     return Forbidden();
 
                 // Always log execute events implicitly
-                await effectService.AddEvent(instance, input.Name, currentUser, ct);
+                await effectService.AddEvent(instance, input.Name, realUser, ct);
 
-                result = await jobService.CreateAndRunJob(instance, action, currentUser, input.JobInput, ct);
+                result = await jobService.CreateAndRunJob(instance, action, realUser, input.JobInput, ct);
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
         }

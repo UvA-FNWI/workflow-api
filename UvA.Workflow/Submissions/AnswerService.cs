@@ -73,9 +73,12 @@ public class AnswerService(
         instance.SetProperty(newValue, pathParts);
         await instanceService.SaveValue(instance, pathParts.Length > 1 ? pathParts[0] : null, pathParts[^1], ct);
 
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            throw new Exception("Could not resolve real user");
         // If the old value is not retained in the journal, its file can be deleted.
         var isReplaced = !shouldLog || await instanceJournalService.LogPropertyChange(instance.Id,
-            PropertyChangeEntry.Create(string.Join('.', pathParts), currentValue, user), ct);
+            PropertyChangeEntry.Create(string.Join('.', pathParts), currentValue, realUser), ct);
 
         if (isReplaced && propertyDefinition.DataType == DataType.File)
         {
