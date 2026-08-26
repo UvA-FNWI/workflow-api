@@ -7,6 +7,9 @@ namespace UvA.Workflow.Submissions;
 
 public interface IAnswerService
 {
+    Task<SubmissionContext> GetSubmissionContext(
+        string instanceId, string submissionId, CancellationToken ct);
+
     Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct);
 
@@ -19,6 +22,8 @@ public interface IAnswerService
         CancellationToken ct);
 
     Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct);
+
+    Task ClearAnswers(SubmissionContext context, CancellationToken ct);
 
     Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct);
 

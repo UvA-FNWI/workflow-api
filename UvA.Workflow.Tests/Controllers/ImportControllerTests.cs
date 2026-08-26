@@ -111,7 +111,7 @@ public class ImportControllerTests : ControllerTestsBase
         var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.IsType<ImportablePropertyDto[]>(ok.Value);
+        Assert.IsType<GetColumnNamesResponse>(ok.Value);
     }
 
 

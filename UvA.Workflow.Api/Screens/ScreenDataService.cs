@@ -11,8 +11,7 @@ public class ScreenDataService(
     InstanceService instanceService,
     IWorkflowInstanceRepository repository,
     InstanceAuthorizationFilterService instanceAuthorizationFilterService,
-    RightsService rightsService,
-    IImportService importService)
+    RightsService rightsService)
 {
     private static readonly string EmptyStepId = "null";
 
