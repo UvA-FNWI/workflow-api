@@ -52,7 +52,11 @@ public class SubmissionsController(
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
 
-        var result = await submissionService.SubmitSubmission(context, user, ct);
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            throw new Exception("Could not resolve real user");
+
+        var result = await submissionService.SubmitSubmission(context, realUser, ct);
 
         if (!result.Success)
         {
