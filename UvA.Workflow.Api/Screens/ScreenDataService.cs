@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Screens;
@@ -8,7 +9,8 @@ public class ScreenDataService(
     ModelService modelService,
     InstanceService instanceService,
     IWorkflowInstanceRepository repository,
-    InstanceAuthorizationFilterService instanceAuthorizationFilterService)
+    InstanceAuthorizationFilterService instanceAuthorizationFilterService,
+    RightsService rightsService)
 {
     private static readonly string EmptyStepId = "null";
 
@@ -25,6 +27,8 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
 
+        var canCreateInstance = await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
+
         // Build projection based on screen columns
         var contexts = await LoadData(screen, workflowDefinition, ct);
 
@@ -35,11 +39,11 @@ public class ScreenDataService(
         if (screen.Grouping != null)
         {
             var groups = BuildGroups(contexts, screen, columns);
-            return ScreenDataDto.Create(screen, definition, columns, [], groups);
+            return ScreenDataDto.Create(screen, definition, columns, [], groups, canCreateInstance);
         }
 
         var rows = ProcessRows(contexts, screen, columns);
-        return ScreenDataDto.Create(screen, definition, columns, rows);
+        return ScreenDataDto.Create(screen, definition, columns, rows, canCreateInstance: canCreateInstance);
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)
@@ -50,7 +54,10 @@ public class ScreenDataService(
         return entity.Screens.GetOrDefault(screenName);
     }
 
-    private Dictionary<string, string> BuildProjection(Column[] columns, string workflowDefinition)
+    private Dictionary<string, string> BuildProjection(
+        Column[] columns,
+        string workflowDefinition,
+        IEnumerable<Lookup> progressLookups)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
@@ -64,6 +71,9 @@ public class ScreenDataService(
             foreach (var prop in column.Properties)
                 AddLookupToProjection(projection, prop, entity);
         }
+
+        foreach (var lookup in progressLookups)
+            AddLookupToProjection(projection, lookup, entity);
 
         return projection;
     }
@@ -123,8 +133,14 @@ public class ScreenDataService(
 
     private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
     {
+        var definition = modelService.WorkflowDefinitions[workflowDefinition];
+        var hasProgressColumn = screen.Columns.Any(column => column.CurrentStep);
+        var progressLookups = hasProgressColumn
+            ? definition.ProgressLookups.ToArray()
+            : [];
+
         // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen.Columns, workflowDefinition);
+        var projection = BuildProjection(screen.Columns, workflowDefinition, progressLookups);
         projection.TryAdd("CurrentStep", "$CurrentStep");
         projection.TryAdd("Events", "$Events");
 
@@ -133,11 +149,11 @@ public class ScreenDataService(
             await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(r => modelService.CreateContext(workflowDefinition, r)).ToList();
+        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
 
         // Add related properties as needed
-        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition],
-            contexts, screen.Columns.SelectMany(c => c.Properties), ct, false);
+        await instanceService.Enrich(definition,
+            contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups), ct, false);
 
         return contexts;
     }

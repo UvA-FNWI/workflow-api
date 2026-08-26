@@ -159,6 +159,49 @@ public class WorkflowInstancesController(
         return Ok(roles);
     }
 
+    /// <summary>Returns allowed actions for each impersonatable role, grouped by active step.</summary>
+    [HttpGet("{id}/Impersonation/Actions")]
+    public async Task<ActionResult<IEnumerable<ActiveStepDto>>> GetImpersonationActions(string id,
+        CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var perRole = rightsService.GetAllowedActionsPerTargetRole(instance,
+            RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
+            RoleAction.Undo);
+
+        var currentStepName = modelService.GetCurrentStep(instance)?.Name;
+
+        // Exclude step-independent actions: this endpoint answers who can act in each active step.
+        // Keep GetActiveSteps' child/self/parent order, except place the current step first.
+        var steps = modelService.GetActiveSteps(instance)
+            .Select(definition.AllSteps.GetOrDefault)
+            .OfType<Step>()
+            .OrderByDescending(s => s.Name == currentStepName)
+            .Select(s => new ActiveStepDto(
+                s.Name,
+                s.DisplayTitle,
+                s.Name == currentStepName,
+                RolesFor(s.Name)))
+            .ToArray();
+
+        return Ok(steps);
+
+        ActiveStepRoleDto[] RolesFor(string stepName)
+            => perRole
+                .Select(r => new ActiveStepRoleDto(r.Role.Name, r.Role.Title,
+                    r.Actions.Where(a => a.Steps.Contains(stepName))
+                        .Select(AllowedActionDto.Create).ToArray()))
+                .Where(r => r.Actions.Length > 0)
+                .ToArray();
+    }
+
     [HttpPost("{id}/Impersonation")]
     public async Task<ActionResult<StartImpersonationResultDto>> StartImpersonation(string id,
         [FromBody] StartImpersonationDto input, CancellationToken ct)
@@ -386,7 +429,7 @@ public class WorkflowInstancesController(
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)
-        => modelService.WorkflowDefinitions[instance.WorkflowDefinition].RelatedUsers
+        => modelService.WorkflowDefinitions[instance.WorkflowDefinition].EditableRelatedUsers
                 .FirstOrDefault(relatedUser => relatedUser.Property == property)?.PropertyDefinition
             is { DataType: DataType.User } definition
             ? definition

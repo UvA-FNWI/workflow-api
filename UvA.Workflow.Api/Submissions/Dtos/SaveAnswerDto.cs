@@ -7,7 +7,7 @@ namespace UvA.Workflow.Api.Submissions.Dtos;
 public record SaveAnswerRequest(
     JsonElement? Value,
     int? DeleteFileId = null,
-    CreateExternalUserDto? ExternalUser = null);
+    ExternalUserDto? ExternalUser = null);
 
 public record SaveAnswerResponse(
     bool Success,

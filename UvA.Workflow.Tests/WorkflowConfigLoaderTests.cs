@@ -2,8 +2,12 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -64,13 +68,13 @@ public class WorkflowConfigLoaderTests
         resolver.AddOrUpdate("", parser, "baseline layout", kind: VersionKind.Baseline);
         resolver.AddOrUpdate("feature/x", parser, "branch layout", kind: VersionKind.Branch);
 
-        context.Request.Headers["Workflow-Version"] = "feature/x";
+        context.Request.Headers[ModelServiceResolver.VersionHeader] = "feature/x";
         Assert.Equal("branch layout", resolver.Resolve().DefaultMailLayout);
 
-        context.Request.Headers["Workflow-Version"] = "missing";
+        context.Request.Headers[ModelServiceResolver.VersionHeader] = "missing";
         Assert.Equal("baseline layout", resolver.Resolve().DefaultMailLayout);
 
-        context.Request.Headers.Remove("Workflow-Version");
+        context.Request.Headers.Remove(ModelServiceResolver.VersionHeader);
         Assert.Equal("baseline layout", resolver.Resolve().DefaultMailLayout);
     }
 
@@ -117,11 +121,16 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
-    public async Task LoadBranch_WithoutRepoUrl_Throws()
+    public async Task LoadBranch_WithoutUsableRepo_Throws()
     {
-        var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesRoot });
+        // LocalPath takes precedence over RepoUrl but cannot resolve refs.
+        var localPathAndRepo = RepoOptions();
+        localPathAndRepo.LocalPath = FixturesRoot;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => loader.LoadBranchAsync("feature/x"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateLoader(CreateResolver(), new WorkflowSourceOptions()).LoadBranchAsync("feature/x"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateLoader(CreateResolver(), localPathAndRepo).LoadBranchAsync("feature/x"));
     }
 
     [Fact]
@@ -251,7 +260,7 @@ public class WorkflowConfigLoaderTests
         var loader = CreateLoader(resolver, RepoOptions(), new FakeGitHub("sha-1").Handler());
 
         await loader.LoadBranchAsync("feature/x");
-        context.Request.Headers["Workflow-Version"] = "feature/x";
+        context.Request.Headers[ModelServiceResolver.VersionHeader] = "feature/x";
 
         Assert.Equal(File.ReadAllText(Path.Combine(FixturesRoot, "Layouts", "default.html")),
             resolver.Resolve().DefaultMailLayout);
@@ -276,7 +285,7 @@ public class WorkflowConfigLoaderTests
         var resolver = CreateResolver(new HttpContextAccessor { HttpContext = context });
 
         var result = await CreateVersionsController(resolver).CreateVersion("upload", UploadFiles());
-        context.Request.Headers["Workflow-Version"] = "upload";
+        context.Request.Headers[ModelServiceResolver.VersionHeader] = "upload";
         var config = resolver.Resolve();
 
         Assert.IsType<OkResult>(result);
@@ -380,6 +389,125 @@ public class WorkflowConfigLoaderTests
         var loader = CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesRoot });
 
         Assert.False(await loader.ReloadBaselineIfChangedAsync());
+    }
+
+    [Fact]
+    public async Task VersionFilter_UnknownRef_LoadsItAndContinues()
+    {
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(), new FakeGitHub("sha-1").Handler());
+        var called = false;
+
+        await RunFilter(resolver, loader, Request("feature/x"), () => called = true);
+
+        Assert.True(called);
+        Assert.True(resolver.Contains("feature/x"));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)] // what GitHub actually answers for an unknown ref
+    public async Task VersionFilter_MissingRef_ThrowsMissingWithoutRunningTheAction(HttpStatusCode status)
+    {
+        var resolver = CreateResolver();
+        var handler = new StubHttpMessageHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(status)));
+        var loader = CreateLoader(resolver, RepoOptions(), handler);
+        var called = false;
+
+        var exception = await Assert.ThrowsAsync<WorkflowVersionLoadException>(() =>
+            RunFilter(resolver, loader, Request("feature/gone"), () => called = true));
+
+        Assert.True(exception.Missing);
+        Assert.False(called);
+    }
+
+    [Fact]
+    public async Task VersionFilter_GitHubUnavailable_ThrowsNotMissing()
+    {
+        var resolver = CreateResolver();
+        var handler = new StubHttpMessageHandler((_, _) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        var loader = CreateLoader(resolver, RepoOptions(), handler);
+
+        var exception = await Assert.ThrowsAsync<WorkflowVersionLoadException>(() =>
+            RunFilter(resolver, loader, Request("feature/x")));
+
+        Assert.False(exception.Missing);
+    }
+
+    [Theory]
+    [InlineData("feature/x")] // already loaded
+    [InlineData("")] // baseline
+    public async Task VersionFilter_NothingToLoad_MakesNoRequests(string version)
+    {
+        var requests = new List<Uri?>();
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(),
+            new FakeGitHub("sha-1", r => requests.Add(r.RequestUri)).Handler());
+        await loader.LoadBranchAsync("feature/x");
+        requests.Clear();
+
+        await RunFilter(resolver, loader, Request(version));
+
+        Assert.Empty(requests);
+    }
+
+    [Fact]
+    public async Task VersionFilter_AnonymousRequest_MakesNoRequests()
+    {
+        var requests = new List<Uri?>();
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(),
+            new FakeGitHub("sha-1", r => requests.Add(r.RequestUri)).Handler());
+
+        await RunFilter(resolver, loader, Request("feature/x", authenticated: false));
+
+        Assert.Empty(requests);
+    }
+
+    [Fact]
+    public async Task EnsureLoaded_ConcurrentFirstHitsOnSameRef_FetchOnce()
+    {
+        var gate = new TaskCompletionSource();
+        var refResolutions = 0;
+        // Keep all calls in flight long enough to expose duplicate ref lookups.
+        var handler = new StubHttpMessageHandler(async (request, _) =>
+        {
+            if (request.RequestUri!.Host != "api.github.com")
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(CreateArchive()) };
+            Interlocked.Increment(ref refResolutions);
+            await gate.Task;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("sha-1") };
+        });
+        var loader = CreateLoader(CreateResolver(), RepoOptions(), handler);
+
+        var loads = Enumerable.Range(0, 5).Select(_ => loader.EnsureLoadedAsync("feature/x")).ToArray();
+        gate.SetResult();
+        await Task.WhenAll(loads);
+
+        Assert.Equal(1, refResolutions);
+    }
+
+    private static async Task RunFilter(ModelServiceResolver resolver, WorkflowConfigLoader loader,
+        HttpContext httpContext, System.Action? onNext = null)
+    {
+        var context = new ResourceExecutingContext(
+            new ActionContext(httpContext, new RouteData(), new ActionDescriptor()), [], []);
+        await new WorkflowVersionFilter(resolver, loader).OnResourceExecutionAsync(context, () =>
+        {
+            onNext?.Invoke();
+            return Task.FromResult(new ResourceExecutedContext(context, []));
+        });
+    }
+
+    private static HttpContext Request(string version, bool authenticated = true)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers[ModelServiceResolver.VersionHeader] = version;
+        if (authenticated)
+            context.User = new ClaimsPrincipal(new ClaimsIdentity("test"));
+        return context;
     }
 
     private static VersionsController CreateVersionsController(ModelServiceResolver resolver)

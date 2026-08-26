@@ -26,11 +26,10 @@ public record WorkflowInstanceDto(
     bool CanUseAdminTools,
     bool CanImpersonate,
     string[] ViewerRoles,
-    RelatedUserGroupsDto RelatedUserGroups,
-    ResourceDto[] Resources
+    InfoCardDto[] InfoCards
 );
 
-public record FieldDto(string? Key, BilingualString Title, object? Value);
+public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
 
 public record StepVersionDto
 {
@@ -55,6 +54,8 @@ public record StepDto(
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,
+    bool ExpectsSubmission,
+    bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
     List<StepVersionDto>? Versions = null);
 
@@ -141,40 +142,39 @@ public record RelatedUserGroupDto(
     RelatedUserRolesDto[] UserRoles
 );
 
-public record RelatedUserGroupsDto(
-    RelatedUserGroupDto[] Groups
-);
-
-public record ResourceItemDto(
+public record InfoCardItemDto(
     string Name,
-    ResourceType Type,
+    InfoCardItemType Type,
     BilingualString Text,
-    BilingualString? Url
+    BilingualString Url
 )
 {
-    public static ResourceItemDto Create(ResourceItem item, ObjectContext context) =>
-        new(item.Name, item.Type, item.Text, item.UrlTemplate?.Apply(context));
-}
-
-public record ResourceDto(
-    string Name,
-    BilingualString Title,
-    ResourceLayout Type,
-    ResourceItemDto[]? Items,
-    BilingualString? Content
-)
-{
-    public static ResourceDto? TryCreate(Resource resource, IEnumerable<string> userRoles, ObjectContext context)
+    public static InfoCardItemDto? TryCreate(InfoCardItem item, ObjectContext context)
     {
-        if (resource.Sources is { Length: > 0 } && !resource.Sources.Intersect(userRoles).Any())
-            return null;
-
-        return new ResourceDto(
-            resource.Name,
-            resource.Title,
-            resource.Type,
-            resource.Items?.Select(i => ResourceItemDto.Create(i, context)).ToArray(),
-            resource.Content
-        );
+        var url = item.UrlTemplate?.Apply(context);
+        return url == null || string.IsNullOrWhiteSpace(url.En) && string.IsNullOrWhiteSpace(url.Nl)
+            ? null
+            : new InfoCardItemDto(item.Name, item.Type, item.Text, url);
     }
 }
+
+public record InfoCardUserDto(string DisplayName, string? Picture);
+
+public record InfoCardFieldDto(
+    BilingualString Title,
+    object Value,
+    string? Href,
+    string? Icon
+);
+
+public record InfoCardDto(
+    string Name,
+    BilingualString Title,
+    InfoCardType Type,
+    InfoCardUserDto? User = null,
+    InfoCardFieldDto[]? Fields = null,
+    BilingualString? EmptyText = null,
+    RelatedUserGroupDto[]? Groups = null,
+    InfoCardItemDto[]? Items = null,
+    BilingualString? Content = null
+);

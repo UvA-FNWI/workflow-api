@@ -19,6 +19,8 @@ public record ResolvedWorkflowConfig(ModelService ModelService, string DefaultMa
 /// header, or gets the default version, which is stored under the empty-string key.
 public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 {
+    public const string VersionHeader = "Workflow-Version";
+
     private record Entry(
         ModelParser Parser,
         string DefaultMailLayout,
@@ -31,6 +33,8 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
     public void AddOrUpdate(string version, ModelParser parser, string defaultMailLayout, string? commit = null,
         VersionKind kind = VersionKind.Upload)
         => _entries[version] = new Entry(parser, defaultMailLayout, commit, DateTimeOffset.UtcNow, kind);
+
+    public bool Contains(string version) => _entries.ContainsKey(version);
 
     public ResolvedWorkflowConfig Resolve()
     {

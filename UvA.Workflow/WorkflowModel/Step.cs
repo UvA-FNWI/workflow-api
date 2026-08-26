@@ -30,11 +30,18 @@ public record Icon
     public StatusColor Color { get; init; } = StatusColor.Red;
 }
 
-public record ProgressInformation
+public class ProgressInformation : ConditionalOption
 {
     public StatusColor? Color { get; init; }
     public BilingualString? Text { get; init; } = null!;
     [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        ..EffectiveCondition?.Properties ?? [],
+        ..ProgressTextTemplate?.Properties ?? []
+    ];
 }
 
 public enum StepResultsType
@@ -61,7 +68,7 @@ public class Step : INamed, IDeclaredKeys
     /// <summary>
     /// The progress information about the step
     /// </summary>
-    public ProgressInformation? Progress { get; set; }
+    public List<ProgressInformation> Progress { get; set; } = [];
 
     /// <summary>
     /// Determines whether assessment results are shown in the step
@@ -199,31 +206,10 @@ public class Step : INamed, IDeclaredKeys
         return false;
     }
 
-    public class StepHeaderStatusConfiguration
+    public class StepHeaderStatusConfiguration : ConditionalOption
     {
-        /// <summary>
-        /// Shorthand for a status that applies when a single event is active.
-        /// For arbitrary logic (AND/OR/NOT over multiple events) use <see cref="Condition"/> instead.
-        /// </summary>
-        public string? Event { get; set; }
-
-        /// <summary>
-        /// Condition that determines whether this status applies. Supports the full condition model
-        /// (logical AND/OR, NOT, events, ...). Takes precedence over <see cref="Event"/> when set.
-        /// </summary>
-        public Condition? Condition { get; set; }
-
         public StepHeaderPillType Type { get; set; }
         public BilingualString Label { get; set; } = null!;
         public BilingualTemplate LabelTemplate => field ??= BilingualTemplate.Create(Label)!;
-
-        /// <summary>
-        /// The effective condition for this status: the explicit <see cref="Condition"/> when set,
-        /// otherwise the <see cref="Event"/> shorthand normalised to an event condition.
-        /// </summary>
-        [YamlIgnore]
-        public Condition? EffectiveCondition
-            => field ??= Condition ??
-                         (Event != null ? new Condition { Event = new EventCondition { Id = Event } } : null);
     }
 }

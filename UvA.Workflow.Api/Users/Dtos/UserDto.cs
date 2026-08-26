@@ -13,7 +13,7 @@ public record UserDto(
     Organization? Organization,
     bool IsExternal,
     bool IsSuperAdmin,
-    bool RequiresInvitation
+    bool IsEmailEditable
 )
 {
     /// <summary>
@@ -33,7 +33,7 @@ public record UserDto(
             user.Organization,
             UserProviderKeys.IsExternal(user.ProviderKey),
             isSuperAdmin,
-            user.InvitationState == UserInvitationState.Required
+            user.InvitationState != UserInvitationState.Completed
         );
     }
 
@@ -42,5 +42,5 @@ public record UserDto(
     /// </summary>
     public static UserDto CreateFromInstanceUser(InstanceUser u) =>
         new(u.Id, u.UserName, u.DisplayName, u.Email, u.PreferredLanguage, u.Picture, u.Organization, u.IsExternal,
-            false, u.InvitationState == UserInvitationState.Required);
+            false, u.InvitationState != UserInvitationState.Completed);
 }

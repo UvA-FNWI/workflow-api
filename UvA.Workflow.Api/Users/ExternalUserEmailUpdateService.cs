@@ -21,10 +21,6 @@ public class ExternalUserEmailUpdateService(
     ModelService modelService,
     InstanceService instanceService)
 {
-    public static bool CanUpdateExternalUserEmail(User user)
-        => UserProviderKeys.IsExternal(user.ProviderKey) &&
-           user.InvitationState is UserInvitationState.Required or UserInvitationState.Pending;
-
     public async Task<ExternalUserEmailAnswerUpdatePlan> PrepareAnswerReferenceUpdate(
         WorkflowInstance instance,
         User user,

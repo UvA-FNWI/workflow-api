@@ -3,9 +3,6 @@ namespace UvA.Workflow.WorkflowModel;
 public class RelatedUser
 {
     public string Property { get; set; } = null!;
-
-    public string Group { get; set; } = null!;
-
     public BilingualString? Text { get; set; } = null;
 
     [YamlIgnore] public PropertyDefinition? PropertyDefinition { get; set; }
@@ -27,12 +24,7 @@ public class RelatedUserGroup
     /// Display name of the group
     /// </summary>
     public BilingualString Title { get; set; } = null!;
-}
 
-/// <summary>
-/// Configuration for grouping related users
-/// </summary>
-public class RelatedUserGrouping
-{
-    public RelatedUserGroup[] Groups { get; set; } = [];
+    public bool AllowEditing { get; set; }
+    public RelatedUser[] Users { get; set; } = [];
 }

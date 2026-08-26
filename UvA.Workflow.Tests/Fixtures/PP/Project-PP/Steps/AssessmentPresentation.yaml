@@ -2,13 +2,13 @@ name: AssessmentPresentation
 title: Assessment presentation
 icon:
   type: law-balance-line
-  color: green
+  color: Green
 
 progress:
-  color: red
-  text:
-    en: Waiting for assessment presentation {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
-    nl: Wacht op beoordeling presentatie {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
+  - color: Red
+    text:
+      en: Waiting for assessment presentation {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
+      nl: Wacht op beoordeling presentatie {{ coalesce(formatDate(AssessmentCombinedEvent, =dd-MM-yyyy), =) }}
 
 properties:
   - name: PresentationResearchTopic

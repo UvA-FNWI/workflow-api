@@ -79,4 +79,6 @@ public class ImpersonatingCurrentUserAccessor(
         _resolved = true;
         return _userName;
     }
+
+    public string? GetRealUserName() => inner.GetCurrentUserName();
 }

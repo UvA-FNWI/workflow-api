@@ -174,7 +174,6 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
             _instanceService,
             _modelService,
             submissionDtoFactory,
-            _workflowInstanceRepoMock.Object,
             _rightsService,
             stepVersionService,
             new StepHeaderStatusResolver(_modelService),

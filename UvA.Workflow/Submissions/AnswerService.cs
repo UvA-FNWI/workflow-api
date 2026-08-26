@@ -38,6 +38,10 @@ public class AnswerService(
     IUserService userService,
     IExternalUserService externalUserService)
 {
+    public Task<SubmissionContext> GetSubmissionContext(
+        string instanceId, string submissionId, CancellationToken ct)
+        => workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
+
     public async Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct)
     {
@@ -69,9 +73,12 @@ public class AnswerService(
         instance.SetProperty(newValue, pathParts);
         await instanceService.SaveValue(instance, pathParts.Length > 1 ? pathParts[0] : null, pathParts[^1], ct);
 
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            throw new Exception("Could not resolve real user");
         // If the old value is not retained in the journal, its file can be deleted.
         var isReplaced = !shouldLog || await instanceJournalService.LogPropertyChange(instance.Id,
-            PropertyChangeEntry.Create(string.Join('.', pathParts), currentValue, user), ct);
+            PropertyChangeEntry.Create(string.Join('.', pathParts), currentValue, realUser), ct);
 
         if (isReplaced && propertyDefinition.DataType == DataType.File)
         {
@@ -124,6 +131,22 @@ public class AnswerService(
 
         // Build response
         return Answer.Create(instance, form, updates);
+    }
+
+    public async Task ClearAnswers(SubmissionContext context, CancellationToken ct)
+    {
+        var (instance, submissionState, form, _) = context;
+        var shouldLog = await WasFormEverSubmitted(instance.Id, form, ct);
+
+        foreach (var question in form.PropertyDefinitions)
+        {
+            var questionContext = new QuestionContext(instance, submissionState, form, question);
+            var currentAnswer = instance.GetProperty(questionContext.PathParts);
+            if (currentAnswer is null || currentAnswer.IsBsonNull)
+                continue;
+
+            await SavePropertyValue(instance, questionContext.PathParts, question, BsonNull.Value, shouldLog, ct);
+        }
     }
 
     private async Task<bool> WasFormEverSubmitted(string instanceId, Form form, CancellationToken ct)
@@ -271,7 +294,8 @@ public class AnswerService(
                     "ExternalUsersNotAllowed");
 
             createdUser = await externalUserService.CreateOrUpdateExternalUser(
-                externalUser.DisplayName, externalUser.Email, externalUser.Organization, ct);
+                externalUser.DisplayName, externalUser.Email, externalUser.Organization, externalUser.UserId, ct);
+
             value = JsonSerializer.SerializeToElement(createdUser, AnswerConversionService.Options);
         }
 

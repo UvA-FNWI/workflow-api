@@ -50,14 +50,28 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
                 return GetValue(t.Value, prop?.DataType ?? DataType.String, prop);
             });
 
-        // Adds the date of the event to the properties so it can be used in templates
+        // Normalize projected event data in the same way as a fully loaded workflow instance.
         if (rawData.TryGetValue("Events", out var eventsValue) && eventsValue is BsonDocument eventsDoc)
         {
-            eventsDoc.Elements
-                .Select(ev => (ev.Name, Date: (ev.Value as BsonDocument)?["Date"]))
-                .Where(x => x.Date != null && !x.Date.IsBsonNull)
-                .ToList()
-                .ForEach(x => dict.TryAdd(x.Name + "Event", x.Date!.AsBsonDateTime.ToLocalTime()));
+            var events = eventsDoc.Elements.ToDictionary(
+                element => element.Name,
+                element => new InstanceEvent
+                {
+                    Id = element.Name,
+                    Date = (element.Value as BsonDocument)?.GetValue("Date", BsonNull.Value)
+                        is BsonDateTime date
+                            ? date.ToLocalTime()
+                            : null
+                });
+            var instance = new WorkflowInstance
+            {
+                Id = dict.GetValueOrDefault("Id")?.ToString() ?? string.Empty,
+                WorkflowDefinition = workflowDefinition.Name,
+                Properties = [],
+                Events = events
+            };
+
+            AddEventInformation(dict, instance, workflowDefinition);
         }
 
         return new ObjectContext(dict);
@@ -80,23 +94,30 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         dict.Add("CurrentStep", instance.CurrentStep);
         dict.Add("CreateDate", instance.CreatedOn);
 
-        // Get workflow definition for suppression computation
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-
-        // Add event information with computed suppression
-        foreach (var ev in instance.Events.Values)
-        {
-            // Compute and add event active status
-            bool isActive = EventSuppressionHelper.IsEventActive(ev.Id, instance, workflowDef);
-            dict.Add(ev.Id + "EventActive", isActive);
-
-            // Only add event date for active (non-suppressed) events
-            // Suppressed events should not affect step condition evaluation
-            if (ev.Date != null && isActive)
-                dict.Add(ev.Id + "Event", ev.Date);
-        }
+        AddEventInformation(dict, instance, workflowDef);
 
         return new ObjectContext(dict);
+    }
+
+    private static void AddEventInformation(
+        Dictionary<Lookup, object?> dict,
+        WorkflowInstance instance,
+        WorkflowDefinition workflowDefinition)
+    {
+        foreach (var ev in instance.Events.Values)
+        {
+            var eventKey = ev.Id + "Event";
+            var activeKey = ev.Id + "EventActive";
+            var isActive = EventSuppressionHelper.IsEventActive(ev.Id, instance, workflowDefinition);
+
+            // A projected event date may already exist. Replace it with the normalized active value.
+            dict.Remove(eventKey);
+            dict[activeKey] = isActive;
+
+            if (ev.Date != null && isActive)
+                dict[eventKey] = ev.Date;
+        }
     }
 
     public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)

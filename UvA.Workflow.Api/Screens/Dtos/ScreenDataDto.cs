@@ -12,11 +12,12 @@ public record ScreenDataDto(
 {
     public static ScreenDataDto Create(Screen screen, WorkflowDefinition definition, ScreenColumnDto[] columns,
         ScreenRowDto[] rows,
-        ScreenGroupDto[]? groups = null)
+        ScreenGroupDto[]? groups = null,
+        bool canCreateInstance = false)
     {
         return new ScreenDataDto(
             screen.Name,
-            WorkflowDefinitionDto.Create(definition),
+            WorkflowDefinitionDto.Create(definition, canCreateInstance),
             columns,
             rows,
             groups);
