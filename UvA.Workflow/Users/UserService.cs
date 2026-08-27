@@ -146,6 +146,19 @@ public class UserService(
             : await GetUser(userName, ct);
     }
 
+    /// <summary>
+    /// Retrieves the current authenticated real user (ignoring impersonation) from the HTTP context or cache. If the user is not present in cache, it retrieves the user from the repository and caches the result for a specified duration.
+    /// </summary>
+    /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
+    /// <returns>A <see cref="User"/> object representing the real user if authenticated, or null if the user is not authenticated or not found.</returns>
+    public async Task<User?> GetRealUser(CancellationToken ct = default)
+    {
+        var userName = currentUserAccessor.GetRealUserName();
+        return string.IsNullOrWhiteSpace(userName)
+            ? null
+            : await GetUser(userName, ct);
+    }
+
 
     public async Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default)
     {

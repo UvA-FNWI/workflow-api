@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Screens.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.WorkflowInstances;
 
@@ -16,7 +17,7 @@ public class ScreensControllerTests : ControllerTestsBase
     {
         _screenDataService = new ScreenDataService(_modelService, _instanceService, _workflowInstanceRepoMock.Object,
             new InstanceAuthorizationFilterService(_rightsService, _modelService, _userServiceMock.Object,
-                _workflowInstanceRepoMock.Object));
+                _workflowInstanceRepoMock.Object), _rightsService);
     }
 
     [Fact]
@@ -69,8 +70,64 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Equal(2, groups.Single(g => g.Name == "approve-subject").Rows.Length);
     }
 
+    [Fact]
+    public async Task Screens_GetScreenData_UsesConditionalProgressForActiveEvent()
+    {
+        var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["Events"] = new BsonDocument
+                {
+                    ["RejectSubject"] = new BsonDocument("Date", rejectedAt)
+                }
+            }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var progressColumn = response.Columns.Single(column => column.IsCurrentStep);
+        var row = Assert.Single(response.Groups!.Single(group => group.Name == "approve-subject").Rows);
+        var progress = Assert.IsType<ProgressInformationDto>(row.Values[progressColumn.Id]);
+        Assert.Equal("Revising proposal", progress.Text.En);
+        Assert.Equal(StatusColor.Red, progress.Color);
+    }
+
+    [Fact]
+    public async Task Screens_GetScreenData_IgnoresSuppressedProgressEvent()
+    {
+        var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["Events"] = new BsonDocument
+                {
+                    ["RejectSubject"] = new BsonDocument("Date", rejectedAt),
+                    ["Start"] = new BsonDocument("Date", rejectedAt.AddDays(1))
+                }
+            }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var progressColumn = response.Columns.Single(column => column.IsCurrentStep);
+        var row = Assert.Single(response.Groups!.Single(group => group.Name == "approve-subject").Rows);
+        var progress = Assert.IsType<ProgressInformationDto>(row.Values[progressColumn.Id]);
+        Assert.Equal("Writing proposal", progress.Text.En);
+        Assert.Equal(StatusColor.Green, progress.Color);
+    }
+
     private ScreensController BuildControllerWithRoles(
-        string[] roles, string workflowDefinition, string screenName = "Projects")
+        string[] roles,
+        string workflowDefinition,
+        string screenName = "Projects",
+        List<Dictionary<string, BsonValue>>? rows = null)
     {
         MockCurrentUser(roles);
         MockEmptyRelatedInstanceLookups();
@@ -79,7 +136,8 @@ public class ScreensControllerTests : ControllerTestsBase
                 It.IsAny<Dictionary<string, string>>(),
                 It.IsAny<BsonDocument?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync([
+            .ReturnsAsync(rows ??
+            [
                 new Dictionary<string, BsonValue>()
                 {
                     { "CurrentStep", "Start" }

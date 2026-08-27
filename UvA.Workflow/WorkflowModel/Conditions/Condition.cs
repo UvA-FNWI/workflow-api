@@ -244,7 +244,7 @@ public class Value : ConditionPart
 
     public override IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
         EqualExpression?.Properties, LessThanExpression?.Properties, GreaterThanExpression?.Properties,
-        InExpression?.Properties);
+        GreaterThanOrEqualExpression?.Properties, InExpression?.Properties);
 
     public override bool IsMet(ObjectContext context)
     {

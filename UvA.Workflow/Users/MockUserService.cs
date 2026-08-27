@@ -31,6 +31,8 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
             user.Picture, ct);
     }
 
+    public Task<User?> GetRealUser(CancellationToken ct = default) => GetCurrentUser(ct);
+
     public Task<IEnumerable<string>> GetRolesOfCurrentUser(CancellationToken ct = default) => Task.FromResult(Roles);
 
     public Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)

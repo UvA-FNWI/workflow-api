@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
@@ -10,7 +11,9 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Organizations;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -42,7 +45,6 @@ public class AnswersControllerTests : ControllerTestsBase
                 _instanceService,
                 _modelService,
                 _submissionDtoFactory,
-                _workflowInstanceRepoMock.Object,
                 _rightsService,
                 new StepVersionService(),
                 new StepHeaderStatusResolver(_modelService),
@@ -107,6 +109,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 "External User",
                 "external@example.org",
                 organization,
+                null,
                 _ct))
             .ReturnsAsync(new UserSearchResult(
                 "external@example.org",
@@ -124,7 +127,7 @@ public class AnswersControllerTests : ControllerTestsBase
             "Supervisor",
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org", organization)),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org", organization)),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -152,6 +155,60 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.Equal("External User", submissionAnswer.Value.Value.GetProperty("displayName").GetString());
         Assert.Equal("external@example.org", submissionAnswer.Value.Value.GetProperty("email").GetString());
         Assert.True(submissionAnswer.Value.Value.GetProperty("isExternal").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_ClearsEveryFormAnswerAndPreservesOtherProperties()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        const string artifactId = "artifact-1";
+        instance.Properties["Subject"] = "Original subject";
+        instance.Properties["Description"] = new ArtifactInfo(artifactId, "description.pdf").ToBsonDocument();
+        instance.Properties["CanBePublished"] = true;
+
+        var result = await controller.ClearAnswers(instance.Id, "Start", _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var submission = Assert.IsType<SubmissionDto>(okResult.Value);
+        Assert.All(submission.Answers, answer => Assert.False(answer.Value.HasValue));
+        Assert.All(submission.Answers.Where(answer => answer.Files != null),
+            answer => Assert.Empty(answer.Files!));
+        Assert.All(instance.Properties.Where(property => property.Key is "Title" or "Subject" or "Description"),
+            property => Assert.True(property.Value.IsBsonNull));
+        Assert.True(instance.Properties["CanBePublished"].AsBoolean);
+        _artifactServiceMock.Verify(service => service.TryDeleteArtifact(artifactId, _ct), Times.Once);
+        _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(instance.Id,
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_ThrowsForbiddenWithoutEditRights()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["HasNoRights"], "Start");
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            controller.ClearAnswers(instance.Id, "Start", _ct));
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_PreservesFilesFromEarlierSubmittedVersions()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        const string artifactId = "submitted-artifact";
+        instance.Properties["Description"] = new ArtifactInfo(artifactId, "description.pdf").ToBsonDocument();
+        _instanceEventService.Setup(service =>
+                service.WasEventEverTriggered(instance.Id, "Start", _ct))
+            .ReturnsAsync(true);
+        _instanceJournalServiceMock.Setup(service => service.LogPropertyChange(instance.Id,
+                It.Is<PropertyChangeEntry>(entry => entry.Path == "Description"), _ct))
+            .ReturnsAsync(false);
+
+        await controller.ClearAnswers(instance.Id, "Start", _ct);
+
+        _instanceJournalServiceMock.Verify(service => service.LogPropertyChange(instance.Id,
+            It.Is<PropertyChangeEntry>(entry => entry.Path == "Description"), _ct), Times.Once);
+        _artifactServiceMock.Verify(service =>
+            service.TryDeleteArtifact(artifactId, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -218,7 +275,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 "Supervisor",
                 new SaveAnswerRequest(
                     Value: null,
-                    ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                    ExternalUser: new ExternalUserDto("External User", "external@example.org")),
                 _ct));
     }
 
@@ -233,7 +290,7 @@ public class AnswersControllerTests : ControllerTestsBase
             "Title",
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org")),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -257,7 +314,7 @@ public class AnswersControllerTests : ControllerTestsBase
             questionName,
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org")),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -285,6 +342,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<Organization?>(),
+                It.IsAny<string?>(),
                 _ct))
             .ThrowsAsync(new ExternalUserCreationException(reason, "Service error"));
 
@@ -294,7 +352,7 @@ public class AnswersControllerTests : ControllerTestsBase
             "Supervisor",
             new SaveAnswerRequest(
                 Value: null,
-                ExternalUser: new CreateExternalUserDto("External User", "external@example.org")),
+                ExternalUser: new ExternalUserDto("External User", "external@example.org")),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -426,5 +484,34 @@ public class AnswersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
         Assert.True(response.Success);
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_Journal_RecordsRealAdmin_WhenImpersonating()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        MockImpersonation("Student");
+
+        // Simulate the form having been submitted before so shouldLog=true reaches SavePropertyValue
+        _instanceEventService
+            .Setup(s => s.WasEventEverTriggered(
+                instance.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        PropertyChangeEntry? capturedEntry = null;
+        _instanceJournalServiceMock
+            .Setup(j => j.LogPropertyChange(
+                It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()))
+            .Callback<string, PropertyChangeEntry, CancellationToken>((_, entry, _) => capturedEntry = entry)
+            .ReturnsAsync(false);
+
+        await controller.SaveAnswer(
+            instance.Id, "Start", "Title",
+            new SaveAnswerRequest(Value: JsonSerializer.SerializeToElement("New Title")),
+            _ct);
+
+        Assert.NotNull(capturedEntry);
+        Assert.Equal(UnitTestsHelpers.AdminUser.UserName, capturedEntry.ModifiedBy);
+        Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.UserName, capturedEntry.ModifiedBy);
     }
 }

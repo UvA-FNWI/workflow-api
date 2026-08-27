@@ -31,6 +31,12 @@ internal static class UnitTestsHelpers
         UserName = "admin"
     };
 
+    public static readonly User ImpersonatedTarget = new()
+    {
+        Id = ObjectId.GenerateNewId().ToString(),
+        UserName = "impersonated-target"
+    };
+
     public static MailBuilder CreateMailBuilder(
         IMailLayoutResolver layoutResolver,
         IConfiguration? configuration = null,

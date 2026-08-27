@@ -5,4 +5,4 @@ namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 public record AssignRelatedUserRequest(
     JsonElement? User,
-    CreateExternalUserDto? ExternalUser = null);
+    ExternalUserDto? ExternalUser = null);

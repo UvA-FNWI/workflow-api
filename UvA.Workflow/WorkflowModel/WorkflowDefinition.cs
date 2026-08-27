@@ -77,14 +77,21 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     /// </summary>
     public Field[] Fields { get; set; } = [];
 
-    public RelatedUser[] RelatedUsers { get; set; } = [];
+    public InfoCard[] InfoCards { get; set; } = [];
 
-    public RelatedUserGrouping? RelatedUserGrouping { get; set; }
+    [YamlIgnore]
+    public RelatedUser[] RelatedUsers => InfoCards
+        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
+        .SelectMany(card => card.Groups)
+        .SelectMany(group => group.Users)
+        .ToArray();
 
-    /// <summary>
-    /// List of resources for this entity type
-    /// </summary>
-    public Resource[] Resources { get; set; } = [];
+    [YamlIgnore]
+    public RelatedUser[] EditableRelatedUsers => InfoCards
+        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
+        .SelectMany(card => card.Groups.Where(group => group.AllowEditing))
+        .SelectMany(group => group.Users)
+        .ToArray();
 
     /// <summary>
     /// Indicated whether this entity type is stored as an embedded document in the parent instance
@@ -101,12 +108,24 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
     [YamlIgnore] public string SourceFolder { get; set; } = null!;
 
+    /// <summary>
+    /// Value sets declared in this definition's own ValueSets folder, plus the ones it inherits.
+    /// </summary>
+    [YamlIgnore]
+    public List<ValueSet> ValueSets { get; set; } = [];
+
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> ProgressLookups => AllSteps
+        .SelectMany(step => step.Progress)
+        .SelectMany(progress => progress.Lookups)
+        .Distinct();
 
     private static IEnumerable<Step> GetSteps(Step s) =>
         s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential

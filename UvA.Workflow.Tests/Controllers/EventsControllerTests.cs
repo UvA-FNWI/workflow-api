@@ -91,4 +91,35 @@ public class EventsControllerTests : ControllerTestsBase
 
         return (controller, instance);
     }
+
+    [Fact]
+    public async Task Events_DeleteEvent_AttributesRealAdmin_WhenImpersonating()
+    {
+        const string eventName = "Start";
+
+        // BuildControllerWithRoles calls MockCurrentUser internally; MockImpersonation
+        // must come after to override GetCurrentUser/GetRealUser for the impersonation scenario.
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], eventName);
+        MockImpersonation("Coordinator");
+
+        User? capturedUser = null;
+        _eventRepoMock
+            .Setup(r => r.DeleteEvent(
+                It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
+                It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken>((_, _, user, _) => capturedUser = user)
+            .Returns(Task.CompletedTask);
+
+        var result = await controller.DeleteEvent(instance.Id, eventName, _ct);
+
+        // The real admin (who is impersonating) must be attributed on the event,
+        // not the impersonated target user.
+        Assert.IsType<OkResult>(result);
+        Assert.NotNull(capturedUser);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, capturedUser.Id);
+        Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.Id, capturedUser.Id);
+
+        // Verify the service was asked for the *real* user, not just the current (impersonated) user.
+        _userServiceMock.Verify(s => s.GetRealUser(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
 }

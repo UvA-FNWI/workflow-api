@@ -6,8 +6,14 @@ namespace UvA.Workflow.Api.Personal;
 
 public class PersonalInstanceService(
     ModelService modelService,
+    InstanceService instanceService,
     IWorkflowInstanceRepository workflowInstanceRepository)
 {
+    private static readonly Lookup[] PersonalOverviewLookups =
+    [
+        new PropertyLookup("Course.Name")
+    ];
+
     public async Task<PersonalInstancesDto> GetInstances(User user, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var userId))
@@ -22,10 +28,14 @@ public class PersonalInstanceService(
 
         var userFilter = BuildUserFilter(definitions, userId);
         var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
-        var courseNames = await GetCourseNames(instances, ct);
+        var instanceContexts = instances
+            .Select(instance => new PersonalInstanceContext(instance, modelService.CreateContext(instance)))
+            .ToArray();
 
-        var instanceDtos = instances
-            .Select(instance => CreateDto(instance, user, courseNames))
+        await Enrich(instanceContexts, ct);
+
+        var instanceDtos = instanceContexts
+            .Select(item => CreateDto(item.Instance, item.Context, user))
             .Where(dto => dto.Roles.Length > 0)
             .OrderByDescending(dto => dto.CreatedOn)
             .ThenByDescending(dto => dto.Id)
@@ -63,11 +73,10 @@ public class PersonalInstanceService(
 
     private PersonalInstanceDto CreateDto(
         WorkflowInstance instance,
-        User user,
-        IReadOnlyDictionary<string, string> courseNames)
+        ObjectContext context,
+        User user)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
         var usersByRole = GetUserProperties(definition)
             .ToDictionary(
                 property => property.Name,
@@ -106,6 +115,29 @@ public class PersonalInstanceService(
             GetCourseName(instance.GetProperty("Course"), courseNames),
             employees
         );
+    }
+
+    private async Task Enrich(
+        IEnumerable<PersonalInstanceContext> instanceContexts,
+        CancellationToken ct)
+    {
+        var batches = instanceContexts
+            .GroupBy(item => item.Instance.WorkflowDefinition)
+            .Select(group =>
+            {
+                var definition = modelService.WorkflowDefinitions[group.Key];
+                var lookups = definition.ProgressLookups
+                    .Concat(PersonalOverviewLookups)
+                    .Distinct()
+                    .ToArray();
+                return new EnrichmentBatch(
+                    definition,
+                    group.Select(item => item.Context).ToArray(),
+                    lookups);
+            })
+            .ToArray();
+
+        await instanceService.Enrich(batches, ct, replaceStep: false);
     }
 
     private static IEnumerable<PropertyDefinition> GetUserProperties(WorkflowDefinition definition)
@@ -179,4 +211,6 @@ public class PersonalInstanceService(
             InstanceUser[] users => users,
             _ => []
         };
+
+    private sealed record PersonalInstanceContext(WorkflowInstance Instance, ObjectContext Context);
 }
