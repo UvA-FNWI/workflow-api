@@ -3,6 +3,10 @@ using UvA.Workflow.Events;
 
 namespace UvA.Workflow.WorkflowInstances;
 
+/// <summary>
+/// Represents a workflow instance - the core domain entity.
+/// Contains business logic for managing workflow state, properties, and events.
+/// </summary>
 public class WorkflowInstance
 {
     [BsonId]
@@ -11,9 +15,14 @@ public class WorkflowInstance
 
     public string WorkflowDefinition { get; set; } = null!;
     public string? CurrentStep { get; set; }
+
     public DateTime CreatedOn { get; set; }
+
+    // public List<LogEntry> LogEntries { get; set; } = [];
     public Dictionary<string, BsonValue> Properties { get; set; } = null!;
     public Dictionary<string, InstanceEvent> Events { get; set; } = null!;
+
+
     public string? ParentId { get; set; }
 
     public bool HasAnswer(string property)
@@ -62,14 +71,21 @@ public class WorkflowInstance
             document = document.AsBsonDocument[part];
         }
 
+        // null means unset, same as the single-part branch above
         if (value == null)
             document.AsBsonDocument.Remove(relevantParts[^1]);
         else
             document[relevantParts[^1]] = value;
     }
 
+    /// <summary>
+    /// Transitions the workflow to a new step
+    /// </summary>
     public void TransitionToStep(string newStep) => CurrentStep = newStep;
 
+    /// <summary>
+    /// Records an event in the workflow
+    /// </summary>
     public InstanceEvent RecordEvent(string eventId, DateTime? date = null)
     {
         var newEvent = new InstanceEvent { Id = eventId, Date = date ?? NextEventDate() };
@@ -77,6 +93,11 @@ public class WorkflowInstance
         return newEvent;
     }
 
+    /// <summary>
+    /// A strictly increasing UTC timestamp for a new event. Suppression orders events by a strict
+    /// comparison on <see cref="InstanceEvent.Date"/>, so two events in one instance must never share
+    /// a timestamp; MongoDB stores millisecond precision, hence the 1ms floor.
+    /// </summary>
     private DateTime NextEventDate()
     {
         var now = DateTime.UtcNow;
@@ -89,13 +110,25 @@ public class WorkflowInstance
         return now > candidate ? now : candidate;
     }
 
+    /// <summary>
+    /// Checks if an event has occurred
+    /// </summary>
     public bool HasEvent(string eventId) => Events.ContainsKey(eventId);
 
+    /// <summary>
+    /// Gets the date when an event occurred
+    /// </summary>
     public DateTime? GetEventDate(string eventId)
         => Events.TryGetValue(eventId, out var evt) ? evt.Date : null;
 
+    /// <summary>
+    /// Clears a property value
+    /// </summary>
     public void ClearProperty(string property) => Properties.Remove(property);
 
+    /// <summary>
+    /// Validates that required properties are set
+    /// </summary>
     public bool ValidateRequiredProperties(params string[] requiredProperties)
         => requiredProperties.All(HasAnswer);
 }

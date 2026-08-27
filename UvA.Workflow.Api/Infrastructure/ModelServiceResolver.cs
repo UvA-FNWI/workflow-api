@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
+/// How a loaded version got there: the default baseline, a git branch preview, or an uploaded set of files.
 public enum VersionKind
 {
     Baseline,
@@ -9,10 +10,13 @@ public enum VersionKind
     Upload
 }
 
+/// A loaded config version and where it came from.
 public record VersionInfo(string Name, string? Commit, DateTimeOffset LoadedAt, VersionKind Kind);
 
 public record ResolvedWorkflowConfig(ModelService ModelService, string DefaultMailLayout);
 
+/// Loaded workflow models and mail layouts, keyed by version. A request selects both with the Workflow-Version
+/// header, or gets the default version, which is stored under the empty-string key.
 public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 {
     public const string VersionHeader = "Workflow-Version";
