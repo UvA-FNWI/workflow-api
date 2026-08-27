@@ -24,37 +24,26 @@ public class MigrationsController(
         CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-        return await Run(() => migrationService.CreatePropertyRename(
+        var migration = await migrationService.CreatePropertyRename(
             input.WorkflowDefinitions,
             input.OldProperty,
             input.NewProperty,
             currentUserAccessor.GetCurrentUserName() ?? "unknown administrator",
-            ct));
+            ct);
+        return Ok(MigrationDto.Create(migration));
     }
 
     [HttpPost("{id}/Finish")]
     public async Task<ActionResult<MigrationDto>> Finish(string id, CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-        return await Run(() => migrationService.Finish(id, ct));
+        return Ok(MigrationDto.Create(await migrationService.Finish(id, ct)));
     }
 
     [HttpPost("{id}/Revert")]
     public async Task<ActionResult<MigrationDto>> Revert(string id, CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-        return await Run(() => migrationService.Revert(id, ct));
-    }
-
-    private async Task<ActionResult<MigrationDto>> Run(Func<Task<Migration>> action)
-    {
-        try
-        {
-            return Ok(MigrationDto.Create(await action()));
-        }
-        catch (InvalidOperationException exception)
-        {
-            return Conflict(exception.Message);
-        }
+        return Ok(MigrationDto.Create(await migrationService.Revert(id, ct)));
     }
 }
