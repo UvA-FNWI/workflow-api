@@ -16,7 +16,7 @@ public class MigrationTests
         var restored = BsonSerializer.Deserialize<Migration>(migration.ToBson());
 
         var definition = Assert.IsType<RenamePropertyDefinition>(restored.Definition);
-        Assert.Equal("Project", definition.WorkflowDefinition);
+        Assert.Equal(["Project"], definition.WorkflowDefinitions);
         Assert.Equal("Title", definition.OldProperty);
         Assert.Equal("ProjectTitle", definition.NewProperty);
     }
@@ -36,13 +36,13 @@ public class MigrationTests
         var service = CreateService(repository);
 
         var migration = await service.CreatePropertyRename(
-            "Rename title", "Project", "Title", "ProjectTitle", "Clearer name", "admin");
+            ["Project", "Course"], "Title", "ProjectTitle", "admin");
 
         Assert.Equal(MigrationStatus.ReadyToFinish, migration.Status);
         Assert.Equal(3, migration.Progress.ItemsMatched);
         Assert.Equal(3, migration.Progress.ItemsUpdated);
         var definition = Assert.IsType<RenamePropertyDefinition>(migration.Definition);
-        Assert.Equal("Project", definition.WorkflowDefinition);
+        Assert.Equal(["Project", "Course"], definition.WorkflowDefinitions);
         Assert.Equal("Title", definition.OldProperty);
         Assert.Equal("ProjectTitle", definition.NewProperty);
         repository.Verify(value => value.Create(migration, It.IsAny<CancellationToken>()), Times.Once);
@@ -101,8 +101,7 @@ public class MigrationTests
         var service = CreateService(repository);
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.CreatePropertyRename("Rename title", "Project", "Title", "ProjectTitle",
-                null, "admin"));
+            service.CreatePropertyRename(["Project"], "Title", "ProjectTitle", "admin"));
 
         Assert.Contains("already contain", error.Message);
         repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
@@ -115,12 +114,11 @@ public class MigrationTests
     private static Migration ReadyMigration() => new()
     {
         Id = "migration-id",
-        Name = "Rename title",
         Kind = MigrationKind.RenameProperty,
         Status = MigrationStatus.ReadyToFinish,
         Definition = new RenamePropertyDefinition
         {
-            WorkflowDefinition = "Project",
+            WorkflowDefinitions = ["Project"],
             OldProperty = "Title",
             NewProperty = "ProjectTitle"
         },
@@ -138,6 +136,13 @@ public class MigrationTests
                                                properties:
                                                  - name: Title
                                                    type: String
-                                               """
+                                               """,
+            ["Courses/Course/Entity.yaml"] = """
+                                             name: Course
+                                             titlePlural: Courses
+                                             properties:
+                                               - name: Title
+                                                 type: String
+                                             """
         }));
 }

@@ -28,9 +28,7 @@ public class Migration
     [BsonRepresentation(BsonType.String)] public MigrationKind Kind { get; set; }
     [BsonRepresentation(BsonType.String)] public MigrationStatus Status { get; set; }
 
-    public string Name { get; set; } = null!;
     public MigrationDefinition Definition { get; set; } = null!;
-    public string? Description { get; set; }
     public string RequestedBy { get; set; } = null!;
 
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
@@ -54,7 +52,7 @@ public abstract class MigrationDefinition
 
 public class RenamePropertyDefinition : MigrationDefinition
 {
-    public string WorkflowDefinition { get; set; } = null!;
+    public string[] WorkflowDefinitions { get; set; } = [];
     public string OldProperty { get; set; } = null!;
     public string NewProperty { get; set; } = null!;
 }

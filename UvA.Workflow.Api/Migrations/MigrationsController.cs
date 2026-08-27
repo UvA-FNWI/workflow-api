@@ -26,11 +26,9 @@ public class MigrationsController(
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
         return await Run(() => migrationService.CreatePropertyRename(
-            input.Name,
-            input.WorkflowDefinition,
+            input.WorkflowDefinitions,
             input.OldProperty,
             input.NewProperty,
-            input.Description,
             currentUserAccessor.GetCurrentUserName() ?? "unknown administrator",
             ct));
     }

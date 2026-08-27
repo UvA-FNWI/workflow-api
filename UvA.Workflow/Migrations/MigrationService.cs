@@ -10,36 +10,43 @@ public class MigrationService(
         => migrationRepository.GetAll(ct);
 
     public async Task<Migration> CreatePropertyRename(
-        string name,
-        string workflowDefinition,
+        IEnumerable<string>? workflowDefinitions,
         string oldProperty,
         string newProperty,
-        string? description,
         string requestedBy,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new InvalidOperationException("Migration name is required");
+        var workflows = (workflowDefinitions ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (workflows.Length == 0)
+            throw new InvalidOperationException("At least one workflow is required");
+
         ValidatePropertyName(oldProperty, nameof(oldProperty));
         ValidatePropertyName(newProperty, nameof(newProperty));
         if (oldProperty == newProperty)
             throw new InvalidOperationException("The old and new property names must be different");
 
-        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
-            throw new InvalidOperationException($"Unknown workflow '{workflowDefinition}'");
-        if (definition.Properties.GetOrDefault(oldProperty) == null)
-            throw new InvalidOperationException(
-                $"Property '{oldProperty}' does not exist in workflow '{workflowDefinition}'");
-        if (definition.Properties.GetOrDefault(newProperty) != null)
-            throw new InvalidOperationException(
-                $"Property '{newProperty}' already exists in workflow '{workflowDefinition}'");
+        foreach (var workflow in workflows)
+        {
+            if (!modelService.WorkflowDefinitions.TryGetValue(workflow, out var definition))
+                throw new InvalidOperationException($"Unknown workflow '{workflow}'");
+            if (definition.Properties.GetOrDefault(oldProperty) == null)
+                throw new InvalidOperationException(
+                    $"Property '{oldProperty}' does not exist in workflow '{workflow}'");
+            if (definition.Properties.GetOrDefault(newProperty) != null)
+                throw new InvalidOperationException(
+                    $"Property '{newProperty}' already exists in workflow '{workflow}'");
+        }
 
         var active = await migrationRepository.GetAll(ct);
         if (active.Any(value => value.Definition is RenamePropertyDefinition rename &&
-                                rename.WorkflowDefinition == workflowDefinition &&
+                                rename.WorkflowDefinitions.Intersect(workflows, StringComparer.Ordinal).Any() &&
                                 value.Status is not (MigrationStatus.Finished or MigrationStatus.Reverted)))
             throw new InvalidOperationException(
-                $"Workflow '{workflowDefinition}' already has an unfinished migration");
+                "One or more selected workflows already have an unfinished migration");
 
         var now = DateTime.UtcNow;
         var migration = new Migration
@@ -47,14 +54,12 @@ public class MigrationService(
             Id = ObjectId.GenerateNewId().ToString(),
             Kind = MigrationKind.RenameProperty,
             Status = MigrationStatus.Applying,
-            Name = name,
             Definition = new RenamePropertyDefinition
             {
-                WorkflowDefinition = workflowDefinition,
+                WorkflowDefinitions = workflows,
                 OldProperty = oldProperty,
                 NewProperty = newProperty
             },
-            Description = description,
             RequestedBy = requestedBy,
             RequestedAt = now,
             UpdatedAt = now
@@ -62,7 +67,7 @@ public class MigrationService(
 
         if (await migrationRepository.CountTargetFields(migration, ct) > 0)
             throw new InvalidOperationException(
-                $"Some '{workflowDefinition}' instances already contain property '{newProperty}'");
+                $"Some selected workflow instances already contain property '{newProperty}'");
 
         await migrationRepository.Create(migration, ct);
         try

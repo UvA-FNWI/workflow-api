@@ -3,20 +3,16 @@ using UvA.Workflow.Migrations;
 namespace UvA.Workflow.Api.Migrations;
 
 public record CreatePropertyRenameDto(
-    string Name,
-    string WorkflowDefinition,
+    string[] WorkflowDefinitions,
     string OldProperty,
-    string NewProperty,
-    string? Description);
+    string NewProperty);
 
 public record MigrationDto(
     string Id,
-    string Name,
     MigrationKind Kind,
     MigrationStatus Status,
     string StatusLabel,
     object Definition,
-    string? Description,
     string RequestedBy,
     DateTime RequestedAt,
     DateTime UpdatedAt,
@@ -26,7 +22,6 @@ public record MigrationDto(
 {
     public static MigrationDto Create(Migration migration) => new(
         migration.Id,
-        migration.Name,
         migration.Kind,
         migration.Status,
         migration.Status switch
@@ -43,7 +38,6 @@ public record MigrationDto(
             _ => migration.Status.ToString()
         },
         migration.Definition,
-        migration.Description,
         migration.RequestedBy,
         migration.RequestedAt,
         migration.UpdatedAt,

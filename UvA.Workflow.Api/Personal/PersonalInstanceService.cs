@@ -112,7 +112,7 @@ public class PersonalInstanceService(
             instance.CreatedOn,
             roles,
             student,
-            GetCourseName(instance.GetProperty("Course"), courseNames),
+            context.Get("Course.Name") as string,
             employees
         );
     }
@@ -155,54 +155,6 @@ public class PersonalInstanceService(
         return GetUserProperties(definition)
             .Where(property => rolesWithViewAccess.Contains(property.Name));
     }
-
-    private async Task<IReadOnlyDictionary<string, string>> GetCourseNames(
-        IEnumerable<WorkflowInstance> instances,
-        CancellationToken ct)
-    {
-        var ids = instances
-            .Select(instance => GetReferenceId(instance.GetProperty("Course")))
-            .OfType<string>()
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-
-        if (ids.Length == 0)
-            return new Dictionary<string, string>();
-
-        var courses = await workflowInstanceRepository.GetAllById(ids, new Dictionary<string, string>
-        {
-            ["Name"] = "$Properties.Name"
-        }, ct);
-
-        return courses
-            .Select(course => new
-            {
-                Id = GetReferenceId(course.GetValueOrDefault("_id")),
-                Name = course.GetValueOrDefault("Name") is BsonString name ? name.Value : null
-            })
-            .Where(course => course.Id != null && !string.IsNullOrWhiteSpace(course.Name))
-            .ToDictionary(course => course.Id!, course => course.Name!, StringComparer.Ordinal);
-    }
-
-    private static string? GetCourseName(
-        BsonValue? value,
-        IReadOnlyDictionary<string, string> courseNames)
-    {
-        if (value is BsonDocument course &&
-            course.GetValue("Name", BsonNull.Value) is BsonString embeddedName)
-            return embeddedName.Value;
-
-        var id = GetReferenceId(value);
-        return id != null ? courseNames.GetValueOrDefault(id) : null;
-    }
-
-    private static string? GetReferenceId(BsonValue? value)
-        => value switch
-        {
-            BsonObjectId objectId => objectId.Value.ToString(),
-            BsonString text => text.Value,
-            _ => null
-        };
 
     private static IEnumerable<InstanceUser> GetUsers(object? value)
         => value switch

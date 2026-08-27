@@ -36,8 +36,8 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
     {
         var definition = GetRenamePropertyDefinition(migration);
         return _instances.CountDocumentsAsync(Builders<WorkflowInstance>.Filter.And(
-                Builders<WorkflowInstance>.Filter.Eq(value => value.WorkflowDefinition,
-                    definition.WorkflowDefinition),
+                Builders<WorkflowInstance>.Filter.In(value => value.WorkflowDefinition,
+                    definition.WorkflowDefinitions),
                 Builders<WorkflowInstance>.Filter.Exists($"Properties.{definition.NewProperty}")),
             cancellationToken: ct);
     }
@@ -47,8 +47,8 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
     {
         var definition = GetRenamePropertyDefinition(migration);
         var sourceFilter = Builders<WorkflowInstance>.Filter.And(
-            Builders<WorkflowInstance>.Filter.Eq(value => value.WorkflowDefinition,
-                definition.WorkflowDefinition),
+            Builders<WorkflowInstance>.Filter.In(value => value.WorkflowDefinition,
+                definition.WorkflowDefinitions),
             Builders<WorkflowInstance>.Filter.Exists($"Properties.{definition.OldProperty}"));
         var filter = overwriteTarget
             ? sourceFilter
@@ -69,8 +69,8 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
     {
         var definition = GetRenamePropertyDefinition(migration);
         var filter = Builders<WorkflowInstance>.Filter.And(
-            Builders<WorkflowInstance>.Filter.Eq(value => value.WorkflowDefinition,
-                definition.WorkflowDefinition),
+            Builders<WorkflowInstance>.Filter.In(value => value.WorkflowDefinition,
+                definition.WorkflowDefinitions),
             Builders<WorkflowInstance>.Filter.Exists($"Properties.{definition.NewProperty}"));
         var result = await _instances.UpdateManyAsync(filter,
             Builders<WorkflowInstance>.Update.Unset($"Properties.{definition.NewProperty}"),
@@ -82,7 +82,8 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
     {
         var definition = GetRenamePropertyDefinition(migration);
         var instanceIds = await _instances
-            .Find(value => value.WorkflowDefinition == definition.WorkflowDefinition)
+            .Find(Builders<WorkflowInstance>.Filter.In(value => value.WorkflowDefinition,
+                definition.WorkflowDefinitions))
             .Project(value => value.Id)
             .ToListAsync(ct);
         if (instanceIds.Count == 0)

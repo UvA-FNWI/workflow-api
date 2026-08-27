@@ -18,12 +18,11 @@ public class MigrationsControllerTests
         var migration = new Migration
         {
             Id = "migration-id",
-            Name = "Rename title",
             Kind = MigrationKind.RenameProperty,
             Status = MigrationStatus.ReadyToFinish,
             Definition = new RenamePropertyDefinition
             {
-                WorkflowDefinition = "Project",
+                WorkflowDefinitions = ["Project"],
                 OldProperty = "Title",
                 NewProperty = "ProjectTitle"
             },
