@@ -47,11 +47,7 @@ public class AnswersController(
         {
             var (value, createdUser) = await answerService.ValidateAndResolveValue(
                 context.PropertyDefinition, input.Value, externalUserInput, ct);
-            var answers = await answerService.SaveAnswer(
-                context,
-                value,
-                appendToArray: createdUser != null && context.PropertyDefinition.IsArray,
-                ct);
+            var answers = await answerService.SaveAnswer(context, value, ct);
             var permissions =
                 await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
                     RoleAction.Edit);

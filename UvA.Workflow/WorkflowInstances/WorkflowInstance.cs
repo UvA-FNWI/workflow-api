@@ -81,14 +81,21 @@ public class WorkflowInstance
     /// <summary>
     /// Transitions the workflow to a new step
     /// </summary>
-    public void TransitionToStep(string newStep) => CurrentStep = newStep;
+    public void TransitionToStep(string newStep)
+    {
+        CurrentStep = newStep;
+    }
 
     /// <summary>
     /// Records an event in the workflow
     /// </summary>
     public InstanceEvent RecordEvent(string eventId, DateTime? date = null)
     {
-        var newEvent = new InstanceEvent { Id = eventId, Date = date ?? NextEventDate() };
+        var newEvent = new InstanceEvent
+        {
+            Id = eventId,
+            Date = date ?? NextEventDate()
+        };
         Events[eventId] = newEvent;
         return newEvent;
     }
@@ -113,7 +120,8 @@ public class WorkflowInstance
     /// <summary>
     /// Checks if an event has occurred
     /// </summary>
-    public bool HasEvent(string eventId) => Events.ContainsKey(eventId);
+    public bool HasEvent(string eventId)
+        => Events.ContainsKey(eventId);
 
     /// <summary>
     /// Gets the date when an event occurred
@@ -124,13 +132,18 @@ public class WorkflowInstance
     /// <summary>
     /// Clears a property value
     /// </summary>
-    public void ClearProperty(string property) => Properties.Remove(property);
+    public void ClearProperty(string property)
+    {
+        Properties.Remove(property);
+    }
 
     /// <summary>
     /// Validates that required properties are set
     /// </summary>
     public bool ValidateRequiredProperties(params string[] requiredProperties)
-        => requiredProperties.All(HasAnswer);
+    {
+        return requiredProperties.All(HasAnswer);
+    }
 }
 
 public record CurrencyAmount(string Currency, double Amount);
