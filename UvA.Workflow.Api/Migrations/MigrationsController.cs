@@ -5,7 +5,6 @@ using UvA.Workflow.Migrations;
 
 namespace UvA.Workflow.Api.Migrations;
 
-[ApiExplorerSettings(IgnoreApi = true)]
 [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
 public class MigrationsController(
     MigrationService migrationService,
@@ -19,7 +18,7 @@ public class MigrationsController(
         return Ok((await migrationService.GetAll(ct)).Select(MigrationDto.Create).ToArray());
     }
 
-    [HttpPost("property-renames")]
+    [HttpPost("PropertyRename")]
     public async Task<ActionResult<MigrationDto>> CreatePropertyRename(
         CreatePropertyRenameDto input,
         CancellationToken ct)
@@ -33,14 +32,14 @@ public class MigrationsController(
             ct));
     }
 
-    [HttpPost("{id}/finish")]
+    [HttpPost("{id}/Finish")]
     public async Task<ActionResult<MigrationDto>> Finish(string id, CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
         return await Run(() => migrationService.Finish(id, ct));
     }
 
-    [HttpPost("{id}/revert")]
+    [HttpPost("{id}/Revert")]
     public async Task<ActionResult<MigrationDto>> Revert(string id, CancellationToken ct)
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
