@@ -178,7 +178,7 @@ public class WorkflowConfigLoaderTests
     }
 
     [Fact]
-    public async Task ChangedBaseline_WithoutApiMigration_IsInstalledNormally()
+    public async Task ChangedBaseline_WithRenamedProperty_IsInstalledNormally()
     {
         var github = new FakeGitHub("sha-1")
         {
