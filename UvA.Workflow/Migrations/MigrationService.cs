@@ -22,33 +22,45 @@ public class MigrationService(
             .Distinct(StringComparer.Ordinal)
             .ToArray();
         if (workflows.Length == 0)
-            throw new InvalidOperationException("At least one workflow is required");
+            throw new MigrationValidationException("MigrationWorkflowRequired",
+                "At least one workflow is required");
 
         ValidatePropertyName(oldProperty, nameof(oldProperty));
         ValidatePropertyName(newProperty, nameof(newProperty));
         if (oldProperty == newProperty)
-            throw new InvalidOperationException("The old and new property names must be different");
+            throw new MigrationValidationException("MigrationPropertiesMustDiffer",
+                "The old and new property names must be different");
 
         foreach (var workflow in workflows)
         {
             if (!modelService.WorkflowDefinitions.TryGetValue(workflow, out var definition))
-                throw new InvalidOperationException($"Unknown workflow '{workflow}'");
+                throw new MigrationValidationException("MigrationUnknownWorkflow",
+                    $"Unknown workflow '{workflow}'");
 
             var hasOldProperty = definition.Properties.Contains(oldProperty);
             var hasNewProperty = definition.Properties.Contains(newProperty);
             if (hasOldProperty == hasNewProperty)
-                throw new InvalidOperationException(
+                throw new MigrationValidationException("MigrationInvalidModelState",
                     $"Workflow '{workflow}' must contain exactly one of '{oldProperty}' and '{newProperty}'");
         }
 
         var requestedProperties = new HashSet<string>([oldProperty, newProperty], StringComparer.Ordinal);
         var active = await migrationRepository.GetAll(ct);
-        if (active.Any(value => value.Definition is RenamePropertyDefinition rename &&
-                                rename.WorkflowDefinitions.Intersect(workflows, StringComparer.Ordinal).Any() &&
-                                requestedProperties.Overlaps([rename.OldProperty, rename.NewProperty]) &&
-                                value.Status is not (MigrationStatus.Finished or MigrationStatus.Reverted)))
-            throw new InvalidOperationException(
-                "One or more selected workflows already have an unfinished migration involving one of the selected properties");
+        var conflictingProperties = active
+            .Where(value => value.Status is not (MigrationStatus.Finished or MigrationStatus.Reverted))
+            .Select(value => value.Definition)
+            .OfType<RenamePropertyDefinition>()
+            .SelectMany(rename => rename.WorkflowDefinitions
+                .Intersect(workflows, StringComparer.Ordinal)
+                .SelectMany(workflow => new[] { rename.OldProperty, rename.NewProperty }
+                    .Intersect(requestedProperties, StringComparer.Ordinal)
+                    .Select(property => $"{workflow}.{property}")))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (conflictingProperties.Length > 0)
+            throw new MigrationValidationException("MigrationPropertyOverlap",
+                $"The following workflow properties already have an unfinished migration: {string.Join(", ", conflictingProperties)}");
 
         var now = DateTime.UtcNow;
         var migration = new Migration
@@ -68,7 +80,7 @@ public class MigrationService(
         };
 
         if (await migrationRepository.CountTargetFields(migration, ct) > 0)
-            throw new InvalidOperationException(
+            throw new MigrationValidationException("MigrationTargetPropertyExists",
                 $"Some selected workflow instances already contain property '{newProperty}'");
 
         await migrationRepository.Create(migration, ct);
@@ -93,7 +105,7 @@ public class MigrationService(
     {
         var migration = await Get(id, ct);
         if (migration.Status is not (MigrationStatus.ReadyToFinish or MigrationStatus.FinishFailed))
-            throw new InvalidOperationException($"Migration '{id}' is not ready to finish");
+            throw new InvalidMigrationStateException($"Migration '{id}' is not ready to finish");
 
         migration.Status = MigrationStatus.Finishing;
         migration.Error = null;
@@ -123,7 +135,7 @@ public class MigrationService(
         var migration = await Get(id, ct);
         if (migration.Status is not (MigrationStatus.ReadyToFinish or MigrationStatus.ApplyFailed or
             MigrationStatus.RevertFailed))
-            throw new InvalidOperationException($"Migration '{id}' can no longer be reverted");
+            throw new InvalidMigrationStateException($"Migration '{id}' can no longer be reverted");
 
         migration.Status = MigrationStatus.Reverting;
         migration.Error = null;
@@ -146,7 +158,7 @@ public class MigrationService(
 
     private async Task<Migration> Get(string id, CancellationToken ct)
         => await migrationRepository.GetById(id, ct)
-           ?? throw new InvalidOperationException($"Migration '{id}' does not exist");
+           ?? throw new MigrationNotFoundException(id);
 
     private async Task SaveFailure(Migration migration, MigrationStatus status, Exception exception,
         CancellationToken ct)
@@ -160,6 +172,7 @@ public class MigrationService(
     private static void ValidatePropertyName(string property, string field)
     {
         if (string.IsNullOrWhiteSpace(property) || property.Contains('.') || property.StartsWith('$'))
-            throw new InvalidOperationException($"{field} must be a top-level property name");
+            throw new MigrationValidationException("InvalidMigrationProperty",
+                $"{field} must be a top-level property name");
     }
 }

@@ -75,9 +75,10 @@ public class MigrationTests
         var repository = new Mock<IMigrationRepository>();
         var service = CreateService(repository);
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<MigrationValidationException>(() =>
             service.CreatePropertyRename(["Unknown"], "Title", "ProjectTitle", "admin"));
 
+        Assert.Equal("MigrationUnknownWorkflow", error.Code);
         Assert.Equal("Unknown workflow 'Unknown'", error.Message);
         repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -94,9 +95,10 @@ public class MigrationTests
             : CreateParser("Code");
         var service = CreateService(repository, parser);
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<MigrationValidationException>(() =>
             service.CreatePropertyRename(["Project"], "Title", "ProjectTitle", "admin"));
 
+        Assert.Equal("MigrationInvalidModelState", error.Code);
         Assert.Contains("must contain exactly one", error.Message);
         repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -134,11 +136,12 @@ public class MigrationTests
     }
 
     [Theory]
-    [InlineData("Title", "OtherTitle")]
-    [InlineData("LegacyTitle", "ProjectTitle")]
+    [InlineData("Title", "OtherTitle", "Project.Title")]
+    [InlineData("LegacyTitle", "ProjectTitle", "Project.ProjectTitle")]
     public async Task CreatePropertyRename_RejectsOverlappingMigrationForTheSameWorkflow(
         string existingOldProperty,
-        string existingNewProperty)
+        string existingNewProperty,
+        string expectedConflict)
     {
         var repository = new Mock<IMigrationRepository>();
         var existing = ReadyMigration();
@@ -149,10 +152,11 @@ public class MigrationTests
             .ReturnsAsync([existing]);
         var service = CreateService(repository);
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<MigrationValidationException>(() =>
             service.CreatePropertyRename(["Project"], "Title", "ProjectTitle", "admin"));
 
-        Assert.Contains("selected properties", error.Message);
+        Assert.Equal("MigrationPropertyOverlap", error.Code);
+        Assert.Contains(expectedConflict, error.Message);
         repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -208,9 +212,10 @@ public class MigrationTests
             .ReturnsAsync(1);
         var service = CreateService(repository);
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<MigrationValidationException>(() =>
             service.CreatePropertyRename(["Project"], "Title", "ProjectTitle", "admin"));
 
+        Assert.Equal("MigrationTargetPropertyExists", error.Code);
         Assert.Contains("already contain", error.Message);
         repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
             Times.Never);
