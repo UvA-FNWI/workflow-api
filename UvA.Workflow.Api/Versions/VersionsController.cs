@@ -92,7 +92,7 @@ public class VersionsController(
 
     /// Every config file for the version selected by the Workflow-Version header, keyed by
     /// repo-root-relative path. Feed the result straight back to POST /Versions/{version} to preview an edit.
-    [HttpGet("files")]
+    [HttpGet("Files")]
     public async Task<ActionResult<Dictionary<string, string>>> GetFiles()
     {
         await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
