@@ -1,4 +1,6 @@
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using UvA.Workflow.Events;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Users;
@@ -11,102 +13,223 @@ public class AnswerChangeHistoryTests
     private static readonly User Bob = new() { UserName = "bob" };
 
     [Fact]
-    public void For_EmptyJournal_ReturnsEmpty()
+    public void For_ChangesAcrossStepVersions_GroupsEachWithItsSubmittedValue()
     {
-        var result = AnswerChangeHistory.For([], "Credits", null, DateTime.Now, 12);
+        var submittedV1 = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+        var editedV1 = submittedV1.AddMinutes(1);
+        var submittedV2 = submittedV1.AddMinutes(2);
+        var editedV2 = submittedV1.AddMinutes(3);
+        var logs = new[] { Submit(submittedV1), Submit(submittedV2, EventLogOperation.Update) };
+
+        var result = AnswerChangeHistory.For(
+            [Change("Credits", 6, Alice, editedV1), Change("Credits", 12, Bob, editedV2)],
+            "Credits",
+            null,
+            ["ReviewSubmitted"],
+            logs,
+            WorkflowDefinition(),
+            15);
+
+        Assert.Collection(result,
+            version2 =>
+            {
+                Assert.Equal(2, version2.VersionNumber);
+                Assert.Collection(version2.Changes,
+                    current =>
+                    {
+                        Assert.Equal(15, current.Value);
+                        Assert.Equal(editedV2, current.ChangedAt);
+                        Assert.Equal("bob", current.ChangedBy);
+                    },
+                    submitted =>
+                    {
+                        Assert.Equal(12, submitted.Value);
+                        Assert.Equal(submittedV2, submitted.ChangedAt);
+                        Assert.Null(submitted.ChangedBy);
+                    });
+            },
+            version1 =>
+            {
+                Assert.Equal(1, version1.VersionNumber);
+                Assert.Collection(version1.Changes,
+                    current =>
+                    {
+                        Assert.Equal(12, current.Value);
+                        Assert.Equal(editedV1, current.ChangedAt);
+                        Assert.Equal("alice", current.ChangedBy);
+                    },
+                    submitted =>
+                    {
+                        Assert.Equal(6, submitted.Value);
+                        Assert.Equal(submittedV1, submitted.ChangedAt);
+                        Assert.Null(submitted.ChangedBy);
+                    });
+            });
+    }
+
+    [Fact]
+    public void For_ChangeBeforeFirstSubmission_ReturnsEmpty()
+    {
+        var submitted = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        var result = AnswerChangeHistory.For(
+            [Change("Credits", 6, Alice, submitted.AddTicks(-1))],
+            "Credits", null, ["ReviewSubmitted"],
+            [Submit(submitted)], WorkflowDefinition(), 12);
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public void For_UnsubmittedForm_ReturnsEmpty()
+    public void For_ChangeAtSubmissionTimestamp_IsTheSubmittedValueNotAnEdit()
     {
-        var change = PropertyChangeEntry.Create("Credits", 6, Alice);
+        var submitted = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
 
-        var result = AnswerChangeHistory.For([change], "Credits", null, dateSubmitted: null, 12);
+        var result = AnswerChangeHistory.For(
+            [Change("Credits", 6, Alice, submitted)],
+            "Credits", null, ["ReviewSubmitted"],
+            [Submit(submitted)], WorkflowDefinition(), 12);
+
+        Assert.Empty(result);
+    }
+
+    [Theory]
+    [InlineData("Credits")]
+    [InlineData("Review.Credits")]
+    public void For_LegacyAndNestedPaths_MatchesAnswer(string path)
+    {
+        var submitted = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        var result = AnswerChangeHistory.For(
+            [Change(path, 6, Alice, submitted.AddMinutes(1))],
+            "Credits", "Review", ["ReviewSubmitted"],
+            [Submit(submitted)], WorkflowDefinition(), 12);
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void For_UnrelatedPath_ReturnsEmpty()
+    {
+        var submitted = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        var result = AnswerChangeHistory.For(
+            [Change("Title", "old", Alice, submitted.AddMinutes(1))],
+            "Credits", null, ["ReviewSubmitted"],
+            [Submit(submitted)], WorkflowDefinition(), 12);
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public void For_ChangeBeforeLatestSubmit_ReturnsEmpty()
+    public void For_FillAfterSubmit_ShowsAsEditOnThatFormSubmit()
     {
-        var change = PropertyChangeEntry.Create("Credits", 6, Alice);
+        var formSubmitted = new DateTime(2026, 4, 15, 8, 0, 0, DateTimeKind.Utc);
+        var topicFilled = formSubmitted.AddDays(21);
+        var cycleEnded = new DateTime(2026, 6, 26, 7, 52, 16, DateTimeKind.Utc);
+        var logs = new[]
+        {
+            EventLog("ReviewSubmitted", formSubmitted, EventLogOperation.Create),
+            EventLog("ReviewRejected", cycleEnded, EventLogOperation.Create)
+        };
 
-        var result = AnswerChangeHistory.For([change], "Credits", null, change.Timestamp.AddTicks(1), 12);
+        var result = AnswerChangeHistory.For(
+            [Change("Topic", BsonNull.Value, Alice, topicFilled)],
+            "Topic", null, ["ReviewSubmitted"], logs,
+            WorkflowDefinition(), "This is my topic");
 
-        Assert.Empty(result);
+        var version1 = Assert.Single(result);
+        Assert.Collection(version1.Changes,
+            edit =>
+            {
+                Assert.Equal("This is my topic", edit.Value?.AsString);
+                Assert.Equal(topicFilled, edit.ChangedAt);
+            },
+            submitted =>
+            {
+                Assert.True(submitted.Value == null || submitted.Value.IsBsonNull);
+                Assert.Equal(formSubmitted, submitted.ChangedAt);
+            });
     }
 
     [Fact]
-    public void For_ChangeAfterSubmit_ReturnsCurrentThenOriginal()
+    public void For_QualifyingEdit_IncludesSubmittedVersionsWithoutEdits()
     {
-        var change = PropertyChangeEntry.Create("Credits", 6, Alice);
-        var submitted = change.Timestamp.AddTicks(-1);
+        var submittedV1 = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+        var rejectedV1 = submittedV1.AddMinutes(1);
+        var editedBeforeV2 = submittedV1.AddMinutes(2);
+        var submittedV2 = submittedV1.AddMinutes(3);
+        var rejectedV2 = submittedV1.AddMinutes(4);
+        var editedBeforeV3 = submittedV1.AddMinutes(5);
+        var submittedV3 = submittedV1.AddMinutes(6);
+        var editedV3 = submittedV1.AddMinutes(7);
+        var logs = new[]
+        {
+            Submit(submittedV1),
+            EventLog("ReviewRejected", rejectedV1, EventLogOperation.Create),
+            Submit(submittedV2, EventLogOperation.Update),
+            EventLog("ReviewRejected", rejectedV2, EventLogOperation.Update),
+            Submit(submittedV3, EventLogOperation.Update)
+        };
 
-        var result = AnswerChangeHistory.For([change], "Credits", null, submitted, 12);
+        var result = AnswerChangeHistory.For(
+            [
+                Change("Credits", "A", Alice, editedBeforeV2),
+                Change("Credits", "B", Alice, editedBeforeV3),
+                Change("Credits", "C", Alice, editedV3)
+            ],
+            "Credits", null, ["ReviewSubmitted"], logs, WorkflowDefinition(), "D");
 
-        Assert.Equal(2, result.Length);
-        Assert.Equal(2, result[0].Version);
-        Assert.Equal(12, result[0].Value);
-        Assert.Equal(change.Timestamp, result[0].ChangedAt);
-        Assert.Equal("alice", result[0].ChangedBy);
-        Assert.Equal(1, result[1].Version);
-        Assert.Equal(6, result[1].Value);
-        Assert.Equal(submitted, result[1].ChangedAt);
-        Assert.Null(result[1].ChangedBy);
+        Assert.Collection(result,
+            version3 =>
+            {
+                Assert.Equal(3, version3.VersionNumber);
+                Assert.Collection(version3.Changes,
+                    edit => Assert.Equal("D", edit.Value?.AsString),
+                    baseline => Assert.Equal("C", baseline.Value?.AsString));
+            },
+            version2 =>
+            {
+                Assert.Equal(2, version2.VersionNumber);
+                Assert.Equal("B", Assert.Single(version2.Changes).Value?.AsString);
+            },
+            version1 =>
+            {
+                Assert.Equal(1, version1.VersionNumber);
+                Assert.Equal("A", Assert.Single(version1.Changes).Value?.AsString);
+            });
     }
 
-    [Fact]
-    public void For_TwoEdits_ReconstructsValuesNewestFirst()
-    {
-        var first = PropertyChangeEntry.Create("Credits", 6, Alice);
-        var second = PropertyChangeEntry.Create("Credits", 12, Bob);
+    private static InstanceEventLogEntry Submit(DateTime submittedAt,
+        EventLogOperation operation = EventLogOperation.Create)
+        => EventLog("ReviewSubmitted", submittedAt, operation);
 
-        var result = AnswerChangeHistory.For([first, second], "Credits", null, first.Timestamp.AddTicks(-1), 15);
+    private static PropertyChangeEntry Change(string path, BsonValue oldValue, User user, DateTime timestamp)
+        => BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            [nameof(PropertyChangeEntry.Timestamp)] = timestamp,
+            [nameof(PropertyChangeEntry.Path)] = path,
+            [nameof(PropertyChangeEntry.OldValue)] = oldValue,
+            [nameof(PropertyChangeEntry.ModifiedBy)] = user.UserName
+        });
 
-        Assert.Equal(3, result.Length);
-        Assert.Equal(3, result[0].Version);
-        Assert.Equal(15, result[0].Value);
-        Assert.Equal(second.Timestamp, result[0].ChangedAt);
-        Assert.Equal("bob", result[0].ChangedBy);
-        Assert.Equal(2, result[1].Version);
-        Assert.Equal(12, result[1].Value);
-        Assert.Equal(first.Timestamp, result[1].ChangedAt);
-        Assert.Equal("alice", result[1].ChangedBy);
-        Assert.Equal(1, result[2].Version);
-        Assert.Equal(6, result[2].Value);
-    }
+    private static WorkflowDefinition WorkflowDefinition()
+        => new()
+        {
+            Events =
+            [
+                new EventDefinition { Name = "ReviewSubmitted", Suppresses = ["ReviewRejected"] },
+                new EventDefinition { Name = "ReviewRejected", Suppresses = ["ReviewSubmitted"] }
+            ]
+        };
 
-    [Fact]
-    public void For_NestedPath_MatchesFormProperty()
-    {
-        var change = PropertyChangeEntry.Create("Review.Credits", 6, Alice);
-
-        var result = AnswerChangeHistory.For([change], "Credits", "Review", change.Timestamp.AddTicks(-1), 12);
-
-        Assert.Equal(2, result.Length);
-        Assert.Equal(12, result[0].Value);
-        Assert.Equal(6, result[1].Value);
-    }
-
-    [Fact]
-    public void For_LegacyBarePath_MatchesQuestionName()
-    {
-        var change = PropertyChangeEntry.Create("Credits", 6, Alice);
-
-        var result = AnswerChangeHistory.For([change], "Credits", "Review", change.Timestamp.AddTicks(-1), 12);
-
-        Assert.Equal(2, result.Length);
-    }
-
-    [Fact]
-    public void For_UnrelatedPath_IsIgnored()
-    {
-        var change = PropertyChangeEntry.Create("Title", "old", Alice);
-
-        var result = AnswerChangeHistory.For([change], "Credits", null, change.Timestamp.AddTicks(-1), 12);
-
-        Assert.Empty(result);
-    }
+    private static InstanceEventLogEntry EventLog(string eventId, DateTime timestamp,
+        EventLogOperation operation)
+        => new()
+        {
+            EventId = eventId,
+            Timestamp = timestamp,
+            EventDate = timestamp,
+            Operation = operation
+        };
 }

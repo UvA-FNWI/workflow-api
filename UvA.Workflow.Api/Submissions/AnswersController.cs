@@ -3,8 +3,8 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Infrastructure;
-using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Api.Submissions;
 
@@ -16,7 +16,7 @@ public class AnswersController(
     InstanceService instanceService,
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository,
-    IInstanceJournalService instanceJournalService) : ApiControllerBase
+    WorkflowInstanceService workflowInstanceService) : ApiControllerBase
 {
     [HttpDelete("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> ClearAnswers(string instanceId, string submissionId,
@@ -28,10 +28,10 @@ public class AnswersController(
         await answerService.ClearAnswers(context, ct);
         var permissions = await rightsService.GetAllowedActionsForForm(context.Instance, context.Form,
             RoleAction.ViewAdminTools, RoleAction.Edit);
-        var journal = await instanceJournalService.GetInstanceJournal(context.Instance.Id, false, ct);
+        var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
         return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
             modelService.GetQuestionStatus(context.Instance, context.Form, true),
-            permissions.Select(permission => permission.Type).ToArray(), journal, ct));
+            permissions.Select(permission => permission.Type).ToArray(), history, ct));
     }
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
@@ -54,11 +54,11 @@ public class AnswersController(
             var permissions =
                 await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
                     RoleAction.Edit);
-            var journal = await instanceJournalService.GetInstanceJournal(context.Instance.Id, false, ct);
+            var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
             var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
                 context.SubmissionState,
                 modelService.GetQuestionStatus(context.Instance, context.Form, true),
-                permissions.Select(p => p.Type).ToArray(), journal, ct);
+                permissions.Select(p => p.Type).ToArray(), history, ct);
             return Ok(new SaveAnswerResponse(true, answers, updatedSubmission,
                 User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }

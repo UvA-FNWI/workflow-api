@@ -7,7 +7,9 @@ namespace UvA.Workflow.Api.Submissions.Dtos;
 
 public record ArtifactReference(string Id, string Name, string AccessToken);
 
-public record AnswerChangeDto(int Version, JsonElement? Value, DateTime ChangedAt, string? ChangedBy);
+public record AnswerChangeDto(JsonElement? Value, DateTime ChangedAt, string? ChangedBy);
+
+public record AnswerChangeGroupDto(int VersionNumber, AnswerChangeDto[] Changes);
 
 public record AnswerDto(
     string Id,
@@ -19,12 +21,12 @@ public record AnswerDto(
     JsonElement? Value = null,
     ArtifactReference[]? Files = null,
     string[]? VisibleChoices = null,
-    AnswerChangeDto[]? Changes = null
+    AnswerChangeGroupDto[]? Changes = null
 );
 
 public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
 {
-    public AnswerDto Create(Answer answer, AnswerChangeDto[]? changes = null)
+    public AnswerDto Create(Answer answer, AnswerChangeGroupDto[]? changes = null)
     {
         ArtifactReference[]? files = null;
         if (answer.Files != null && answer.Files.Length != 0)

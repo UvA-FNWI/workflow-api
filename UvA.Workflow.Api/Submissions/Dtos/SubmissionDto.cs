@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -23,15 +24,15 @@ public class SubmissionDtoFactory(
     public async Task<SubmissionDto> CreateAsync(WorkflowInstance inst, Form form,
         FormSubmissionState submissionState,
         Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null,
-        InstanceJournalEntry? journal = null, CancellationToken ct = default)
+        WorkflowInstanceHistory? history = null, CancellationToken ct = default)
     {
-        var displayNames = await ResolveDisplayNames(journal, ct);
-        return Create(inst, form, submissionState, shownQuestionIds, permissions, journal, displayNames);
+        var displayNames = await ResolveDisplayNames(history?.Journal, ct);
+        return Create(inst, form, submissionState, shownQuestionIds, permissions, history, displayNames);
     }
 
     public SubmissionDto Create(WorkflowInstance inst, Form form, FormSubmissionState submissionState,
         Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null,
-        InstanceJournalEntry? journal = null, IReadOnlyDictionary<string, string>? displayNames = null)
+        WorkflowInstanceHistory? history = null, IReadOnlyDictionary<string, string>? displayNames = null)
     {
         var context = modelService.CreateContext(inst);
         var answers = shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds);
@@ -40,7 +41,7 @@ public class SubmissionDtoFactory(
             inst.Id,
             answers.Select(a =>
                     _answerDtoFactory.Create(a,
-                        a.IsVisible ? CreateChanges(inst, form, a, submissionState, journal, displayNames) : null))
+                        a.IsVisible ? CreateChanges(inst, form, a, history, displayNames) : null))
                 .ToArray(),
             submissionState.DateSubmitted,
             FormDto.Create(form, context),
@@ -67,29 +68,32 @@ public class SubmissionDtoFactory(
         return names;
     }
 
-    private AnswerChangeDto[]? CreateChanges(WorkflowInstance inst, Form form, Answer answer,
-        FormSubmissionState submissionState, InstanceJournalEntry? journal,
+    private AnswerChangeGroupDto[]? CreateChanges(WorkflowInstance inst, Form form, Answer answer,
+        WorkflowInstanceHistory? history,
         IReadOnlyDictionary<string, string>? displayNames)
     {
-        if (journal?.PropertyChanges is not { Length: > 0 })
+        if (history?.Journal?.PropertyChanges is not { Length: > 0 })
             return null;
 
-        var history = AnswerChangeHistory.For(
-            journal.PropertyChanges,
+        var groupedHistory = AnswerChangeHistory.For(
+            history.Journal.PropertyChanges,
             answer.QuestionName,
             form.PropertyName,
-            submissionState.DateSubmitted,
+            FormSubmissionState.GetSubmissionEventIds(form),
+            history.EventLogs,
+            modelService.WorkflowDefinitions[inst.WorkflowDefinition],
             inst.GetProperty(form.PropertyName, answer.QuestionName));
-        if (history.Length == 0)
+        if (groupedHistory.Length == 0)
             return null;
 
         var question = modelService.GetProperty(inst, form.PropertyName, answer.QuestionName);
-        return history.Select(change => new AnswerChangeDto(
-            change.Version,
-            question == null ? null : Answer.GetValue(question, change.Value),
-            change.ChangedAt,
-            change.ChangedBy == null
-                ? null
-                : displayNames?.GetValueOrDefault(change.ChangedBy) ?? change.ChangedBy)).ToArray();
+        return groupedHistory.Select(group => new AnswerChangeGroupDto(
+            group.VersionNumber,
+            group.Changes.Select(change => new AnswerChangeDto(
+                question == null ? null : Answer.GetValue(question, change.Value),
+                change.ChangedAt,
+                change.ChangedBy == null
+                    ? null
+                    : displayNames?.GetValueOrDefault(change.ChangedBy) ?? change.ChangedBy)).ToArray())).ToArray();
     }
 }

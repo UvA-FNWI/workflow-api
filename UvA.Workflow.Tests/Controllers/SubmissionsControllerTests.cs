@@ -9,6 +9,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -98,6 +99,39 @@ public class SubmissionsControllerTests : ControllerTestsBase
         Assert.Equal(submissionId, payload.FormName);
         Assert.NotNull(payload.Form);
         Assert.NotNull(payload.Answers);
+    }
+
+    [Fact]
+    public async Task Submissions_GetSubmission_LiveRequestIncludesGroupedAnswerHistory()
+    {
+        const string submissionId = "Start";
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"],
+            b => b.WithId(submissionId).AsCompleted(submittedAt),
+            props: [("EC", _ => 12)]);
+        var change = PropertyChangeEntry.Create("EC", 6, UnitTestsHelpers.AdminUser);
+        _instanceJournalServiceMock
+            .Setup(service => service.GetInstanceJournal(instance.Id, false, _ct))
+            .ReturnsAsync(new InstanceJournalEntry { PropertyChanges = [change] });
+        _eventRepoMock
+            .Setup(repository => repository.GetEventLogEntriesForInstance(instance.Id, _ct))
+            .ReturnsAsync(
+            [
+                new InstanceEventLogEntry
+                {
+                    WorkflowInstanceId = instance.Id,
+                    EventId = submissionId,
+                    Timestamp = submittedAt,
+                    EventDate = submittedAt,
+                    Operation = EventLogOperation.Create
+                }
+            ]);
+
+        var result = await controller.GetSubmission(instance.Id, submissionId, null, _ct);
+
+        var payload = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var ec = payload.Answers.Single(answer => answer.QuestionName == "EC");
+        Assert.Single(ec.Changes!);
     }
 
     [Fact]
