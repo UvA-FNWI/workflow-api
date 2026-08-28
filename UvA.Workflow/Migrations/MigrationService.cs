@@ -33,20 +33,22 @@ public class MigrationService(
         {
             if (!modelService.WorkflowDefinitions.TryGetValue(workflow, out var definition))
                 throw new InvalidOperationException($"Unknown workflow '{workflow}'");
-            if (definition.Properties.GetOrDefault(oldProperty) == null)
+
+            var hasOldProperty = definition.Properties.Contains(oldProperty);
+            var hasNewProperty = definition.Properties.Contains(newProperty);
+            if (hasOldProperty == hasNewProperty)
                 throw new InvalidOperationException(
-                    $"Property '{oldProperty}' does not exist in workflow '{workflow}'");
-            if (definition.Properties.GetOrDefault(newProperty) != null)
-                throw new InvalidOperationException(
-                    $"Property '{newProperty}' already exists in workflow '{workflow}'");
+                    $"Workflow '{workflow}' must contain exactly one of '{oldProperty}' and '{newProperty}'");
         }
 
+        var requestedProperties = new HashSet<string>([oldProperty, newProperty], StringComparer.Ordinal);
         var active = await migrationRepository.GetAll(ct);
         if (active.Any(value => value.Definition is RenamePropertyDefinition rename &&
                                 rename.WorkflowDefinitions.Intersect(workflows, StringComparer.Ordinal).Any() &&
+                                requestedProperties.Overlaps([rename.OldProperty, rename.NewProperty]) &&
                                 value.Status is not (MigrationStatus.Finished or MigrationStatus.Reverted)))
             throw new InvalidOperationException(
-                "One or more selected workflows already have an unfinished migration");
+                "One or more selected workflows already have an unfinished migration involving one of the selected properties");
 
         var now = DateTime.UtcNow;
         var migration = new Migration

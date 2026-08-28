@@ -50,6 +50,114 @@ public class MigrationTests
     }
 
     [Fact]
+    public async Task CreatePropertyRename_AllowsPostDeploymentModel()
+    {
+        var repository = new Mock<IMigrationRepository>();
+        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Migration>());
+        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(), false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyCopyResult(3, 3));
+        var service = CreateService(repository, CreateParser("ProjectTitle"));
+
+        var migration = await service.CreatePropertyRename(
+            ["Project"], "Title", "ProjectTitle", "admin");
+
+        Assert.Equal(MigrationStatus.ReadyToFinish, migration.Status);
+    }
+
+    [Fact]
+    public async Task CreatePropertyRename_RejectsUnknownWorkflow()
+    {
+        var repository = new Mock<IMigrationRepository>();
+        var service = CreateService(repository);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreatePropertyRename(["Unknown"], "Title", "ProjectTitle", "admin"));
+
+        Assert.Equal("Unknown workflow 'Unknown'", error.Message);
+        repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CreatePropertyRename_RejectsModelContainingBothOrNeitherProperty(bool containsBoth)
+    {
+        var repository = new Mock<IMigrationRepository>();
+        var parser = containsBoth
+            ? CreateParser("Title", "ProjectTitle")
+            : CreateParser("Code");
+        var service = CreateService(repository, parser);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreatePropertyRename(["Project"], "Title", "ProjectTitle", "admin"));
+
+        Assert.Contains("must contain exactly one", error.Message);
+        repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory]
+    [InlineData("Project", "Code", "ProjectCode")]
+    [InlineData("Course", "Title", "ProjectTitle")]
+    public async Task CreatePropertyRename_AllowsMigrationWithoutWorkflowAndPropertyOverlap(
+        string existingWorkflow,
+        string existingOldProperty,
+        string existingNewProperty)
+    {
+        var repository = new Mock<IMigrationRepository>();
+        var existing = ReadyMigration();
+        var existingDefinition = Assert.IsType<RenamePropertyDefinition>(existing.Definition);
+        existingDefinition.WorkflowDefinitions = [existingWorkflow];
+        existingDefinition.OldProperty = existingOldProperty;
+        existingDefinition.NewProperty = existingNewProperty;
+        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([existing]);
+        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(), false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyCopyResult(3, 3));
+        var service = CreateService(repository);
+
+        var migration = await service.CreatePropertyRename(
+            ["Project"], "Title", "ProjectTitle", "admin");
+
+        Assert.Equal(MigrationStatus.ReadyToFinish, migration.Status);
+        repository.Verify(value => value.Create(migration, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("Title", "OtherTitle")]
+    [InlineData("LegacyTitle", "ProjectTitle")]
+    public async Task CreatePropertyRename_RejectsOverlappingMigrationForTheSameWorkflow(
+        string existingOldProperty,
+        string existingNewProperty)
+    {
+        var repository = new Mock<IMigrationRepository>();
+        var existing = ReadyMigration();
+        var existingDefinition = Assert.IsType<RenamePropertyDefinition>(existing.Definition);
+        existingDefinition.OldProperty = existingOldProperty;
+        existingDefinition.NewProperty = existingNewProperty;
+        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([existing]);
+        var service = CreateService(repository);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreatePropertyRename(["Project"], "Title", "ProjectTitle", "admin"));
+
+        Assert.Contains("selected properties", error.Message);
+        repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task Finish_RefreshesCopiedValuesAndRenamesJournalPaths()
     {
         var migration = ReadyMigration();
@@ -108,8 +216,9 @@ public class MigrationTests
             Times.Never);
     }
 
-    private static MigrationService CreateService(Mock<IMigrationRepository> repository)
-        => new(new ModelService(CreateParser()), repository.Object);
+    private static MigrationService CreateService(Mock<IMigrationRepository> repository,
+        ModelParser? parser = null)
+        => new(new ModelService(parser ?? CreateParser()), repository.Object);
 
     private static Migration ReadyMigration() => new()
     {
@@ -127,16 +236,21 @@ public class MigrationTests
         UpdatedAt = DateTime.UtcNow
     };
 
-    private static ModelParser CreateParser() => new(new DictionaryProvider(
-        new Dictionary<string, string>
+    private static ModelParser CreateParser(params string[] projectProperties)
+    {
+        if (projectProperties.Length == 0)
+            projectProperties = ["Title"];
+        var properties = string.Join('\n', projectProperties.Select(property =>
+            $"  - name: {property}\n    type: String"));
+
+        return new ModelParser(new DictionaryProvider(new Dictionary<string, string>
         {
-            ["Projects/Project/Entity.yaml"] = """
-                                               name: Project
-                                               titlePlural: Projects
-                                               properties:
-                                                 - name: Title
-                                                   type: String
-                                               """,
+            ["Projects/Project/Entity.yaml"] = $"""
+                                                name: Project
+                                                titlePlural: Projects
+                                                properties:
+                                                {properties}
+                                                """,
             ["Courses/Course/Entity.yaml"] = """
                                              name: Course
                                              titlePlural: Courses
@@ -145,4 +259,5 @@ public class MigrationTests
                                                  type: String
                                              """
         }));
+    }
 }
