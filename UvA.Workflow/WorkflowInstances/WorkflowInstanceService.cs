@@ -116,9 +116,6 @@ public class WorkflowInstanceService(
         return instanceAtTimestamp;
     }
 
-    public Task<InstanceJournalEntry?> GetInstanceJournal(string instanceId, CancellationToken ct)
-        => journalService.GetInstanceJournal(instanceId, false, ct);
-
     public async Task<WorkflowInstanceHistory> GetInstanceHistory(string instanceId, CancellationToken ct)
     {
         var journal = await journalService.GetInstanceJournal(instanceId, false, ct);
