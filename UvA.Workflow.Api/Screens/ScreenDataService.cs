@@ -179,7 +179,16 @@ public class ScreenDataService(
             var stepValue = context.Get("CurrentStep")?.ToString() ?? EmptyStepId;
 
             // Only include rows that match a configured group
-            if (!stepGroupMapping.TryGetValue(stepValue, out var groupName))
+            var definition = modelService.WorkflowDefinitions.GetValueOrDefault(screen.WorkflowDefinition ?? "");
+            string? groupName;
+            while (!stepGroupMapping.TryGetValue(stepValue, out groupName))
+            {
+                stepValue = definition?.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
+                if (stepValue == null)
+                    break;
+            }
+
+            if (groupName == null)
                 continue;
 
             if (!groupedContexts.TryGetValue(groupName, out var list))
