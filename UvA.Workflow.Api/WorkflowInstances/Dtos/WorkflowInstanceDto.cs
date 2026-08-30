@@ -97,7 +97,7 @@ public record ActionDto(
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
                 Form: action.Form?.Name,
                 FormLayout: action.Form?.Layout,
-                AutoOpenForm: !action.Action.NoAutoOpenForm
+                AutoOpenForm: !action.Action.NoAutoOpenForm && action.Form?.Layout != WorkflowModel.FormLayout.Modal
             ),
             _ => throw new ArgumentOutOfRangeException()
         };
