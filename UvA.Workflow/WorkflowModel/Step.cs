@@ -96,6 +96,8 @@ public class Step : INamed, IDeclaredKeys
     [YamlIgnore] public Step[] Children { get; set; } = [];
     [YamlIgnore] public Step? ParentStep { get; set; }
 
+    public Step RootStep => ParentStep?.RootStep ?? this;
+
     // Derived definitions relink Children, so inherited steps cannot be shared.
     public Step Clone() => (Step)MemberwiseClone();
 

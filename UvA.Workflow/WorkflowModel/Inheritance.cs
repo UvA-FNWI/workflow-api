@@ -38,7 +38,7 @@ public partial class ModelParser
         {
             if (target.AllSteps.TryGetValue(sourceStep.Name, out var targetStep))
                 ApplyInheritance(targetStep, sourceStep);
-            else
+            else if (target.StepNames.Contains(sourceStep.RootStep.Name))
                 target.AllSteps.Add(sourceStep.Clone());
         }
 
@@ -124,6 +124,8 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
+        if (!target.Declared(s => s.Step)) target.Step = source.Step;
+
         if (Cleared(target, f => f.Pages))
             return;
         foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
