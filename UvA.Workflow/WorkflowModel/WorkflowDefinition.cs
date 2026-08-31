@@ -132,7 +132,10 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
             ? s.Children.SelectMany(GetSteps)
             : [s];
 
-    public IEnumerable<Step> FlattenedSteps => Steps.SelectMany(GetSteps);
+    /// <summary>
+    /// Returns all leaf steps, i.e. that have no sequential children
+    /// </summary>
+    public IEnumerable<Step> LeafSteps => Steps.SelectMany(s => GetSteps(s));
 
     public DataType GetDataType(string property)
     {

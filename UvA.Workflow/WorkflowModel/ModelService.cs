@@ -110,7 +110,7 @@ public class ModelService(ModelParser parser)
     {
         var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
         context ??= CreateContext(instance);
-        return workflowDefinition.FlattenedSteps
+        return workflowDefinition.LeafSteps
             .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context));
     }
 }
