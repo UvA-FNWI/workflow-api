@@ -23,12 +23,29 @@ public class ModelService(ModelParser parser)
         => WorkflowDefinitions[instance.WorkflowDefinition].Forms
             .Where(f => f.Name == formName || f.TargetFormName == formName);
 
+    /// <summary>
+    /// Resolves a <see cref="PropertyDefinition"/> by traversing a dotted property path on the given instance's
+    /// workflow definition. Supports Reference and Object traversal (e.g. <c>Course.Title</c>), and User
+    /// sub-fields (e.g. <c>Student.UserName</c>), which are returned as a synthesized <c>String</c> property.
+    /// Returns <c>null</c> if any part of the path cannot be resolved.
+    /// </summary>
     public PropertyDefinition? GetProperty(WorkflowInstance instance, params string?[] parts)
     {
         WorkflowDefinition? type = WorkflowDefinitions[instance.WorkflowDefinition];
         foreach (var part in parts.Take(parts.Length - 1).Where(p => p != null))
         {
-            type = type.Properties.GetOrDefault(part!)?.WorkflowDefinition;
+            var prop = type!.Properties.GetOrDefault(part!);
+            if (prop == null) return null;
+
+            if (prop.DataType == DataType.User)
+                return new PropertyDefinition
+                {
+                    Name = parts[^1]!,
+                    Text = new BilingualString(parts[^1]!, parts[^1]!),
+                    Type = "String"
+                };
+
+            type = prop.WorkflowDefinition;
             if (type == null) return null;
         }
 

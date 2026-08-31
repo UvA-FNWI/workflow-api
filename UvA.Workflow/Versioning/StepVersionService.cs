@@ -72,22 +72,21 @@ public class StepVersionService : IStepVersionService
     private static List<StepVersion> BuildSingleEventVersions(
         List<InstanceEventLogEntry> submissionEvents)
     {
-        var versionDrafts = submissionEvents
-            .Select((logEntry, index) => (
-                VersionNumber: index + 1,
-                EventIds: new List<string> { logEntry.EventId },
-                SubmittedAt: logEntry.Timestamp))
+        return submissionEvents
+            .Select((logEntry, index) => new StepVersion
+            {
+                VersionNumber = index + 1,
+                EventIds = [logEntry.EventId],
+                SubmittedAt = logEntry.Timestamp
+            })
             .ToList();
-
-        return BuildStepVersions(versionDrafts);
     }
 
     private static List<StepVersion> BuildMultiEventVersions(
         List<InstanceEventLogEntry> submissionEvents,
         Condition? completionCondition)
     {
-        var versionDrafts =
-            new List<(int VersionNumber, List<string> EventIds, DateTime SubmittedAt)>();
+        var versions = new List<StepVersion>();
         var currentVersionEvents = new List<InstanceEventLogEntry>();
         var currentVersionEventIds = new HashSet<string>();
 
@@ -99,29 +98,17 @@ public class StepVersionService : IStepVersionService
             if (!completionCondition.IsMet(currentVersionEventIds))
                 continue;
 
-            versionDrafts.Add((
-                VersionNumber: versionDrafts.Count + 1,
-                EventIds: currentVersionEvents.Select(log => log.EventId).ToList(),
-                SubmittedAt: currentVersionEvents.Max(log => log.Timestamp)
-            ));
+            versions.Add(new StepVersion
+            {
+                VersionNumber = versions.Count + 1,
+                EventIds = currentVersionEvents.Select(log => log.EventId).ToList(),
+                SubmittedAt = currentVersionEvents.Max(log => log.Timestamp)
+            });
             currentVersionEvents.Clear();
             currentVersionEventIds.Clear();
         }
 
-        return BuildStepVersions(versionDrafts);
-    }
-
-    private static List<StepVersion> BuildStepVersions(
-        List<(int VersionNumber, List<string> EventIds, DateTime SubmittedAt)> versionDrafts)
-    {
-        return versionDrafts
-            .Select(versionDraft => new StepVersion
-            {
-                VersionNumber = versionDraft.VersionNumber,
-                EventIds = versionDraft.EventIds,
-                SubmittedAt = versionDraft.SubmittedAt
-            })
-            .ToList();
+        return versions;
     }
 
     private static IEnumerable<string> GetStepEventIds(Step step)

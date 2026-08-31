@@ -57,6 +57,8 @@ public interface IUserService
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     Task<User?> GetUser(string username, CancellationToken ct);
 
+    Task<IReadOnlyDictionary<string, User>> GetUsers(IReadOnlyCollection<string> userNames, CancellationToken ct);
+
     /// <summary>
     /// Finds all instances containing this user in any user-type property and replaces the
     /// fields in the embedded snapshot with the value from the current User state.
