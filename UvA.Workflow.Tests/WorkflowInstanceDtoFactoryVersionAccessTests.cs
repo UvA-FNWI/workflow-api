@@ -21,6 +21,35 @@ namespace UvA.Workflow.Tests;
 public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 {
     [Fact]
+    public async Task Create_LiveSubmissionIncludesGroupedAnswerHistory()
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Start")
+            .WithProperties(("EC", _ => 12))
+            .WithEvent("Start", submittedAt)
+            .Build();
+        var change = PropertyChangeEntry.Create("EC", 6, UnitTestsHelpers.AdminUser);
+        var factory = CreateFactory(Mock.Of<IStepVersionService>());
+
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockPropertyJournal(instance, (change, 1));
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+
+        var start = dto.Submissions.Single(submission => submission.FormName == "Start");
+        var ec = start.Answers.Single(answer => answer.QuestionName == "EC");
+        var group = Assert.Single(ec.Changes!);
+        Assert.Equal(1, group.VersionNumber);
+        Assert.Equal(12, group.Changes[0].Value?.GetInt32());
+        Assert.Equal(6, group.Changes[1].Value?.GetInt32());
+    }
+
+    [Fact]
     public async Task Create_UsesHistoricalViewRightsForVersionSubmissions()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
@@ -46,6 +75,8 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.NotEmpty(version.Submissions);
         Assert.All(version.Submissions, submission => Assert.Equal("Start", submission.FormName));
         Assert.All(version.Submissions, submission => Assert.Equal(submittedAt, submission.DateSubmitted));
+        Assert.All(version.Submissions.SelectMany(submission => submission.Answers),
+            answer => Assert.Null(answer.Changes));
     }
 
     [Fact]
