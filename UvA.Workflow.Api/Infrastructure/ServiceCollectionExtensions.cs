@@ -7,6 +7,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Import;
 using UvA.Workflow.Notifications;
 
 namespace UvA.Workflow.Api.Infrastructure;
@@ -48,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<RoleImpersonationService>();
         services.AddScoped<IImpersonationContextService>(sp => sp.GetRequiredService<RoleImpersonationService>());
         services.AddScoped<ExternalUserEmailUpdateService>();
+        services.AddScoped<IImportService, ImportService>();
 
         return services;
     }

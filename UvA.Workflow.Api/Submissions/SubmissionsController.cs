@@ -15,7 +15,7 @@ public class SubmissionsController(
     WorkflowInstanceService workflowInstanceService,
     SubmissionDtoFactory submissionDtoFactory,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
-    AnswerService answerService,
+    IAnswerService answerService,
     DummyAnswerGenerator dummyAnswerGenerator) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
