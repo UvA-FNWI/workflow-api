@@ -17,7 +17,8 @@ public record AnswerChangeGroup(int VersionNumber, AnswerChange[] Changes);
 ///
 /// If the answer changed after an active submission, the result contains every
 /// form submission. Groups and changes are newest first. Each group ends with
-/// the value that existed when that submission was made.
+/// the value that existed when that submission was made. If no answer change
+/// occurred after a submission, the result is empty, even when edit history exists.
 /// </summary>
 public static class AnswerChangeHistory
 {
