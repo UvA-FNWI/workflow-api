@@ -42,6 +42,12 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         return await _collection.Find(filter).FirstOrDefaultAsync(ct);
     }
 
+    public async Task<IEnumerable<User>> GetByUserNames(IReadOnlyCollection<string> userNames, CancellationToken ct)
+    {
+        var filter = Builders<User>.Filter.In(x => x.UserName, userNames);
+        return await _collection.Find(filter).ToListAsync(ct);
+    }
+
     public async Task<User?> GetByEmail(string email, CancellationToken ct)
     {
         var filter = Builders<User>.Filter.Regex(
