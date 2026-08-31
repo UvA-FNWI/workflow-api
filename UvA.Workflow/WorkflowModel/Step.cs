@@ -94,8 +94,16 @@ public class Step : INamed, IDeclaredKeys
     public string[] ChildNames { get; set; } = [];
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
-    [YamlIgnore] public Step? ParentStep { get; set; }
 
+    /// <summary>
+    /// Get the direct parent of this step
+    /// </summary>
+    [YamlIgnore]
+    public Step? ParentStep { get; set; }
+
+    /// <summary>
+    /// Get the top-level parent of this step, i.e. which has no parent
+    /// </summary>
     public Step RootStep => ParentStep?.RootStep ?? this;
 
     // Derived definitions relink Children, so inherited steps cannot be shared.
