@@ -40,15 +40,18 @@ public class WorkflowInstanceDtoFactory(
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
 
         var context = modelService.CreateContext(instance);
-        var relatedUserLookups = workflowDefinition.RelatedUsers
-            .Select(r => (Lookup)new PropertyLookup(r.Property));
-        var resourceLookups = workflowDefinition.Resources.SelectMany(r => r.Items ?? [])
-            .SelectMany(i => i.UrlTemplate?.Properties ?? []);
+        var visibleCards = workflowDefinition.InfoCards
+            .Where(card => card.Enabled && card.Type != null &&
+                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()))
+            .ToArray();
         await instanceService.Enrich(workflowDefinition, [context],
-            workflowDefinition.Steps.SelectMany(f => f.Lookups).Concat(relatedUserLookups).Concat(resourceLookups), ct);
+            workflowDefinition.Steps.SelectMany(f => f.Lookups)
+                .Concat(visibleCards.SelectMany(card => card.Properties)),
+            ct);
 
         // Fetch versions for all steps
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
+        var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
@@ -58,13 +61,11 @@ public class WorkflowInstanceDtoFactory(
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
             instance,
-            workflowDefinition.RelatedUsers.Select(r => r.Property),
+            workflowDefinition.EditableRelatedUsers.Select(r => r.Property),
             editActions);
-        var relatedUsers = GetRelatedUsers(workflowDefinition, context, canEditByProperty);
-
-        var resources = workflowDefinition.Resources
-            .Select(r => ResourceDto.TryCreate(r, viewerRoles, context))
-            .OfType<ResourceDto>()
+        var infoCards = visibleCards
+            .Select(card => CreateInfoCard(card, context, canEditByProperty))
+            .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
         var x = new WorkflowInstanceDto(
@@ -78,15 +79,15 @@ public class WorkflowInstanceDtoFactory(
             steps,
             submissions
                 .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
-                    permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray()))
+                    permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
+                    instanceHistory, displayNames))
                 .ToArray(),
             permissions.Where(a => a.AllForms.Length == 0 && a.PropertyDefinition == null).Select(a => a.Type)
                 .Distinct().ToArray(),
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            relatedUsers,
-            resources
+            infoCards
         );
         return x;
     }
@@ -284,46 +285,82 @@ public class WorkflowInstanceDtoFactory(
             FormSubmissionState.GetSubmissionEventIds(form).Contains(eventId));
     }
 
-    private RelatedUserGroupsDto GetRelatedUsers(WorkflowDefinition workflowDefinition, ObjectContext context,
+    private InfoCardDto? CreateInfoCard(InfoCard card, ObjectContext context,
         Dictionary<string, bool> canEditByProperty)
     {
-        // Resolve each RelatedUser to its user value, keyed by group name
-        var usersByGroup = workflowDefinition.RelatedUsers
-            .Select(relatedUser =>
+        var type = card.Type!.Value;
+        if (type == InfoCardType.User)
+        {
+            var user = context.Get(card.User!) switch
             {
-                var value = context.Get(relatedUser.Property);
+                InstanceUser value => value,
+                InstanceUser[] values => values.FirstOrDefault(),
+                _ => null
+            };
+            return new InfoCardDto(
+                card.Name,
+                card.Title!,
+                type,
+                user == null ? null : new InfoCardUserDto(user.DisplayName, user.Picture),
+                card.Fields.Select(field => CreateInfoCardField(field, context)).OfType<InfoCardFieldDto>().ToArray(),
+                card.EmptyText);
+        }
 
-                var users = value is InstanceUser u ? [u] : value as InstanceUser[] ?? [];
-                var allowsExternalUsers = relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false;
-                var allowsAssignment = !relatedUser.PropertyDefinition?.IsRequired ?? false;
+        if (type == InfoCardType.RelatedUsers)
+        {
+            var groups = card.Groups
+                .Select(group => new RelatedUserGroupDto(
+                    group.Name,
+                    group.Title,
+                    group.Users.Select(relatedUser => CreateRelatedUser(
+                            relatedUser, group.AllowEditing, context, canEditByProperty))
+                        .Where(role => role.Users.Length > 0 || role.AllowsAssignment)
+                        .ToArray()))
+                .Where(group => group.UserRoles.Length > 0)
+                .ToArray();
+            var items = CreateInfoCardItems(card, context);
+            return groups.Length == 0 && items.Length == 0
+                ? null
+                : new InfoCardDto(card.Name, card.Title!, type, Groups: groups, Items: items);
+        }
 
-                return new
-                {
-                    relatedUser.Group,
-                    Dto = new RelatedUserRolesDto(
-                        relatedUser.Property,
-                        relatedUser.DisplayTitle,
-                        users.Select(UserDto.CreateFromInstanceUser).ToArray(),
-                        allowsExternalUsers,
-                        allowsAssignment,
-                        relatedUser.PropertyDefinition?.IsArray ?? false,
-                        canEditByProperty.GetValueOrDefault(relatedUser.Property))
-                };
-            })
-            .Where(x => x.Dto.Users.Length > 0 || x.Dto.AllowsAssignment)
-            .GroupBy(x => x.Group)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.Dto).ToArray());
+        if (type == InfoCardType.Links)
+        {
+            var items = CreateInfoCardItems(card, context);
+            return items.Length == 0 ? null : new InfoCardDto(card.Name, card.Title!, type, Items: items);
+        }
 
-        // Build groups in the order defined, only including those with at least one resolved user
-        var groups = (workflowDefinition.RelatedUserGrouping?.Groups ?? [])
-            .Where(g => usersByGroup.ContainsKey(g.Name))
-            .Select(g => new RelatedUserGroupDto(
-                g.Name,
-                g.Title,
-                usersByGroup[g.Name]
-            ))
+        return new InfoCardDto(card.Name, card.Title!, type, Content: card.Content);
+    }
+
+    private static InfoCardItemDto[] CreateInfoCardItems(InfoCard card, ObjectContext context) =>
+        card.Items.Select(item => InfoCardItemDto.TryCreate(item, context))
+            .OfType<InfoCardItemDto>()
             .ToArray();
 
-        return new RelatedUserGroupsDto(groups);
+    private static InfoCardFieldDto? CreateInfoCardField(InfoCardField field, ObjectContext context)
+    {
+        var value = field.GetValue(context);
+        if (value is object[] values)
+            value = values.Length == 1 ? values[0] : values;
+        return value == null || value is string text && string.IsNullOrWhiteSpace(text) ||
+               value is Array { Length: 0 }
+            ? null
+            : new InfoCardFieldDto(field.DisplayTitle, value, field.GetHref(context), field.Icon);
+    }
+
+    private static RelatedUserRolesDto CreateRelatedUser(RelatedUser relatedUser, bool allowEditing,
+        ObjectContext context, Dictionary<string, bool> canEditByProperty)
+    {
+        var value = context.Get(relatedUser.Property);
+        var users = value is InstanceUser user ? [user] : value as InstanceUser[] ?? [];
+        return new RelatedUserRolesDto(
+            relatedUser.Property,
+            relatedUser.DisplayTitle,
+            users.Select(UserDto.CreateFromInstanceUser).ToArray(),
+            relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false,
+            !relatedUser.PropertyDefinition?.IsRequired ?? false,
+            relatedUser.PropertyDefinition?.IsArray ?? false,
+            allowEditing && canEditByProperty.GetValueOrDefault(relatedUser.Property));
     }
 }

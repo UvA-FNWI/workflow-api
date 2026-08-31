@@ -9,6 +9,7 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -98,6 +99,39 @@ public class SubmissionsControllerTests : ControllerTestsBase
         Assert.Equal(submissionId, payload.FormName);
         Assert.NotNull(payload.Form);
         Assert.NotNull(payload.Answers);
+    }
+
+    [Fact]
+    public async Task Submissions_GetSubmission_LiveRequestIncludesGroupedAnswerHistory()
+    {
+        const string submissionId = "Start";
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"],
+            b => b.WithId(submissionId).AsCompleted(submittedAt),
+            props: [("EC", _ => 12)]);
+        var change = PropertyChangeEntry.Create("EC", 6, UnitTestsHelpers.AdminUser);
+        _instanceJournalServiceMock
+            .Setup(service => service.GetInstanceJournal(instance.Id, false, _ct))
+            .ReturnsAsync(new InstanceJournalEntry { PropertyChanges = [change] });
+        _eventRepoMock
+            .Setup(repository => repository.GetEventLogEntriesForInstance(instance.Id, _ct))
+            .ReturnsAsync(
+            [
+                new InstanceEventLogEntry
+                {
+                    WorkflowInstanceId = instance.Id,
+                    EventId = submissionId,
+                    Timestamp = submittedAt,
+                    EventDate = submittedAt,
+                    Operation = EventLogOperation.Create
+                }
+            ]);
+
+        var result = await controller.GetSubmission(instance.Id, submissionId, null, _ct);
+
+        var payload = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var ec = payload.Answers.Single(answer => answer.QuestionName == "EC");
+        Assert.Single(ec.Changes!);
     }
 
     [Fact]
@@ -362,6 +396,41 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
             suppressingEvent.Suppresses = [markerEventId];
         }
+    }
+
+    [Fact]
+    public async Task Submissions_SubmitSubmission_AttributesRealAdmin_WhenImpersonating()
+    {
+        const string submissionId = "Start";
+        var (controller, instance) = BuildControllerWithRoles(
+            ["Student"], submissionId, "Start",
+            ("Title", _ => "Title"),
+            ("Subject", _ => "Subject"),
+            ("Description", _ => new BsonDocument { { "ArtifactId", "ArtifactId" }, { "Name", "Name" } }),
+            ("Examiner", _ => new BsonDocument()),
+            ("Reviewer", _ => new BsonDocument()),
+            ("Supervisor", _ => new BsonDocument()),
+            ("StartDate", _ => new DateTime(2056, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+            ("EndDate", _ => new DateTime(2057, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+            ("Deadline", _ => new DateTime(2058, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+            ("EC", _ => 1));
+        MockImpersonation("Student"); // overrides MockCurrentUser set by BuildControllerWithRoles
+
+        User? capturedEventUser = null;
+        _eventRepoMock
+            .Setup(r => r.AddOrUpdateEvent(
+                It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
+                It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken>((_, _, user, _) =>
+                capturedEventUser = user)
+            .Returns(Task.CompletedTask);
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.NotNull(capturedEventUser);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, capturedEventUser.Id);
+        Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.Id, capturedEventUser.Id);
     }
 
     private static (string name, Func<PropertyBuilder, BsonValue> builder)[] RequiredStartProperties() =>

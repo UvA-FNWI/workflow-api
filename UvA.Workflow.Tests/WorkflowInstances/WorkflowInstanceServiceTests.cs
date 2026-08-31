@@ -14,18 +14,22 @@ public class WorkflowInstanceServiceTests
     private readonly Mock<IWorkflowInstanceRepository> _repository = new();
     private readonly Mock<IInstanceJournalService> _journal = new();
     private readonly WorkflowInstanceService _service;
+    private readonly ModelService _modelService;
     private readonly CancellationToken _ct = CancellationToken.None;
 
     public WorkflowInstanceServiceTests()
     {
         var userService = new Mock<IUserService>();
-        userService.Setup(service => service.GetCurrentUser(_ct)).ReturnsAsync(new User
+        var user = new User
         {
             Id = ObjectId.GenerateNewId().ToString(),
             UserName = "testuser",
             DisplayName = "Test User",
             Email = "test@example.com"
-        });
+        };
+        userService.Setup(service => service.GetCurrentUser(_ct)).ReturnsAsync(user);
+        userService.Setup(service => service.GetRealUser(_ct)).ReturnsAsync(user);
+
         _repository.Setup(repository => repository.UpdateFields(
                 It.IsAny<string>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct))
             .Returns(Task.CompletedTask);
@@ -33,9 +37,8 @@ public class WorkflowInstanceServiceTests
         _journal.Setup(journal => journal.LogPropertyChange(
                 It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(), _ct))
             .ReturnsAsync(false);
-
-        var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
-        _service = new WorkflowInstanceService(modelService, _repository.Object, _journal.Object,
+        _modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
+        _service = new WorkflowInstanceService(_modelService, _repository.Object, _journal.Object,
             Mock.Of<IInstanceEventRepository>(),
             userService.Object);
     }
@@ -82,7 +85,8 @@ public class WorkflowInstanceServiceTests
             instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Once);
         _journal.Verify(journal => journal.LogPropertyChange(
             instance.Id, It.Is<PropertyChangeEntry>(entry =>
-                entry.Path == "PracticalSupervisor" && entry.OldValue!.AsBsonArray.Count == 1), _ct), Times.Once);
+                entry.Path == "PracticalSupervisor" && entry.OldValue!.AsBsonArray.Count == 1 &&
+                entry.ModifiedBy == "testuser"), _ct), Times.Once);
     }
 
     [Fact]
@@ -96,5 +100,33 @@ public class WorkflowInstanceServiceTests
         await _service.AppendPropertyValue(instance, ["PracticalSupervisor"], newUser, _ct);
 
         Assert.Equal(newUser, Assert.Single(instance.Properties["PracticalSupervisor"].AsBsonArray));
+    }
+
+    [Fact]
+    public async Task AppendPropertyValue_Journal_RecordsRealAdmin_WhenImpersonating()
+    {
+        var userService = new Mock<IUserService>();
+        userService.Setup(s => s.GetCurrentUser(_ct)).ReturnsAsync(UnitTestsHelpers.ImpersonatedTarget);
+        userService.Setup(s => s.GetRealUser(_ct)).ReturnsAsync(UnitTestsHelpers.AdminUser);
+
+        var service = new WorkflowInstanceService(_modelService, _repository.Object, _journal.Object,
+            Mock.Of<IInstanceEventRepository>(), userService.Object);
+
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .Build();
+
+        PropertyChangeEntry? capturedEntry = null;
+        _journal.Setup(j => j.LogPropertyChange(
+                It.IsAny<string>(), It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()))
+            .Callback<string, PropertyChangeEntry, CancellationToken>((_, entry, _) => capturedEntry = entry)
+            .ReturnsAsync(false);
+
+        await service.AppendPropertyValue(instance, ["PracticalSupervisor"],
+            new BsonDocument("_id", ObjectId.GenerateNewId()), _ct);
+
+        Assert.NotNull(capturedEntry);
+        Assert.Equal(UnitTestsHelpers.AdminUser.UserName, capturedEntry.ModifiedBy);
+        Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.UserName, capturedEntry.ModifiedBy);
     }
 }

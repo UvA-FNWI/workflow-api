@@ -149,122 +149,52 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
-    public void RelatedUserGroups_ExplicitEmptyClearsInheritedGroups()
+    public void InfoCards_ReplaceByNameInParentOrder_AppendNewCards_AndCanBeCleared()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
             ["Base/Entity.yaml"] = """
                                    name: Base
                                    titlePlural: Bases
-                                   relatedUserGrouping:
-                                     groups:
-                                       - name: default
-                                   """,
-            ["Clear/Entity.yaml"] = """
-                                    name: Clear
-                                    titlePlural: Clears
-                                    inheritsFrom: Base
-                                    relatedUserGrouping:
-                                      groups: []
-                                    """
-        }));
-
-        Assert.Empty(parser.WorkflowDefinitions["Clear"].RelatedUserGrouping!.Groups);
-    }
-
-    [Fact]
-    public void Resources_MergeUnlessExplicitlyCleared()
-    {
-        var parser = new ModelParser(new DictionaryProvider(new()
-        {
-            ["Base/Entity.yaml"] = """
-                                   name: Base
-                                   titlePlural: Bases
-                                   resources:
+                                   infoCards:
+                                     - name: Student
+                                       type: User
+                                       title: Student
+                                       user: Student
                                      - name: Support
-                                       title: Support
                                        type: Links
+                                       title: Support
                                        items:
                                          - name: Handbook
                                            type: Link
                                            text: Handbook
                                            url: https://example.com/handbook
-                                     - name: Guide
-                                       title: Guide
-                                       type: Text
-                                       content: Study guide
                                    """,
             ["Add/Entity.yaml"] = """
                                   name: Add
                                   titlePlural: Adds
                                   inheritsFrom: Base
-                                  resources:
-                                    - name: Course
-                                      title: Course
+                                  infoCards:
+                                    - name: Support
+                                      enabled: false
+                                    - name: Notice
                                       type: Text
+                                      title: Notice
                                       content: Course information
                                   """,
             ["Clear/Entity.yaml"] = """
                                     name: Clear
                                     titlePlural: Clears
                                     inheritsFrom: Base
-                                    resources: []
+                                    infoCards: []
                                     """
         }));
 
-        Assert.Equal(["Support", "Guide", "Course"],
-            parser.WorkflowDefinitions["Add"].Resources.Select(r => r.Name).ToArray());
-        Assert.Empty(parser.WorkflowDefinitions["Clear"].Resources);
-    }
-
-    [Fact]
-    public void ResourceItems_MergeUnlessExplicitlyCleared()
-    {
-        var parser = new ModelParser(new DictionaryProvider(new()
-        {
-            ["Base/Entity.yaml"] = """
-                                   name: Base
-                                   titlePlural: Bases
-                                   resources:
-                                     - name: Support
-                                       title: Support
-                                       type: Links
-                                       items:
-                                         - name: Handbook
-                                           type: Link
-                                           text: Handbook
-                                           url: https://example.com/handbook
-                                   """,
-            ["Add/Entity.yaml"] = """
-                                  name: Add
-                                  titlePlural: Adds
-                                  inheritsFrom: Base
-                                  resources:
-                                    - name: Support
-                                      title: Support
-                                      type: Links
-                                      items:
-                                        - name: Contact
-                                          type: Link
-                                          text: Contact
-                                          url: https://example.com/contact
-                                  """,
-            ["Clear/Entity.yaml"] = """
-                                    name: Clear
-                                    titlePlural: Clears
-                                    inheritsFrom: Base
-                                    resources:
-                                      - name: Support
-                                        title: Support
-                                        type: Text
-                                        content: Contact support
-                                        items: []
-                                    """
-        }));
-
-        Assert.Equal(["Contact", "Handbook"],
-            parser.WorkflowDefinitions["Add"].Resources.Single().Items!.Select(i => i.Name).ToArray());
-        Assert.Empty(parser.WorkflowDefinitions["Clear"].Resources.Single().Items!);
+        var cards = parser.WorkflowDefinitions["Add"].InfoCards;
+        Assert.Equal(["Student", "Support", "Notice"], cards.Select(card => card.Name));
+        Assert.False(cards[1].Enabled);
+        Assert.Equal(InfoCardType.Text, cards[2].Type);
+        Assert.Empty(parser.WorkflowDefinitions["Clear"].InfoCards);
     }
 
     [Fact]

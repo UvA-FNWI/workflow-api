@@ -11,6 +11,9 @@ public partial class ModelParser
 {
     private readonly IContentProvider _contentProvider;
 
+    /// The source the model was parsed from. Exposed so the API can serve the raw files back for editing.
+    public IContentProvider ContentProvider => _contentProvider;
+
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
@@ -78,12 +81,12 @@ public partial class ModelParser
                     definition.Properties.Add(prop);
                 }
 
-                if (content.Resources.Length > 0)
+                if (content.InfoCards.Length > 0)
                 {
-                    if (definition.Resources.Length > 0)
+                    if (definition.InfoCards.Length > 0)
                         throw new Exception(
-                            $"Definition '{definition.Name}' defines resources in multiple files.");
-                    definition.Resources = content.Resources;
+                            $"Definition '{definition.Name}' defines infoCards in multiple files.");
+                    definition.InfoCards = content.InfoCards;
                 }
 
                 if (content.GlobalActions.Count == 0) continue;
@@ -277,32 +280,35 @@ public partial class ModelParser
         }
     }
 
-    private void PreProcess(Resource resource, WorkflowDefinition workflowDefinition)
+    private void PreProcess(InfoCard card, WorkflowDefinition workflowDefinition)
     {
-        switch (resource.Type)
-        {
-            case ResourceLayout.Text:
-                if (resource.Content == null ||
-                    (string.IsNullOrWhiteSpace(resource.Content.En) && string.IsNullOrWhiteSpace(resource.Content.Nl)))
-                    throw new Exception(
-                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has type 'Text' but no content is set.");
-                if (resource.Items?.Length > 0)
-                    throw new Exception(
-                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has type 'Text' but also defines items. Remove the items or change the type to 'Links'.");
-                break;
+        if (!card.Enabled)
+            return;
+        if (card.Type == null || card.Title == null)
+            throw new Exception($"Info card '{card.Name}' in '{workflowDefinition.Name}' requires type and title.");
 
-            case ResourceLayout.Links:
-                if (resource.Items?.Length == 0)
+        switch (card.Type)
+        {
+            case InfoCardType.User:
+                if (string.IsNullOrWhiteSpace(card.User))
+                    throw new Exception($"Info card '{card.Name}' in '{workflowDefinition.Name}' requires a user.");
+                foreach (var field in card.Fields)
+                    PreProcess(field, workflowDefinition);
+                break;
+            case InfoCardType.RelatedUsers:
+                foreach (var user in card.Groups.SelectMany(group => group.Users))
+                    PreProcess(user, workflowDefinition);
+                break;
+            case InfoCardType.Text:
+                if (card.Content == null ||
+                    (string.IsNullOrWhiteSpace(card.Content.En) && string.IsNullOrWhiteSpace(card.Content.Nl)))
                     throw new Exception(
-                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has type 'Links' but contains no items.");
-                var invalidItems = resource.Items?
-                    .Where(i => i.Type != ResourceType.Link && i.Type != ResourceType.Download)
-                    .Select(i => $"'{i.Name}' (type: {i.Type})")
-                    .ToList() ?? [];
-                if (invalidItems.Count > 0)
+                        $"Info card '{card.Name}' in '{workflowDefinition.Name}' has type 'Text' but no content.");
+                break;
+            case InfoCardType.Links:
+                if (card.Items.Length == 0)
                     throw new Exception(
-                        $"Resource '{resource.Name}' in '{workflowDefinition.Name}' has items with invalid types for a 'Links' resource: " +
-                        $"{string.Join(", ", invalidItems)}. Only 'Link' and 'Download' are allowed.");
+                        $"Info card '{card.Name}' in '{workflowDefinition.Name}' has type 'Links' but contains no items.");
                 break;
         }
     }
@@ -324,10 +330,10 @@ public partial class ModelParser
             PreProcess(step, workflowDefinition);
         foreach (var field in workflowDefinition.Fields)
             PreProcess(field, workflowDefinition);
-        foreach (var relatedUser in workflowDefinition.RelatedUsers)
-            PreProcess(relatedUser, workflowDefinition);
-        foreach (var resource in workflowDefinition.Resources)
-            PreProcess(resource, workflowDefinition);
+        foreach (var card in workflowDefinition.InfoCards)
+            PreProcess(card, workflowDefinition);
+        if (workflowDefinition.InfoCards.Count(card => card.Enabled && card.Type == InfoCardType.User) > 1)
+            throw new Exception($"Definition '{workflowDefinition.Name}' has more than one enabled User info card.");
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
@@ -412,7 +418,7 @@ public partial class ModelParser
     private void PreProcess(Field field, WorkflowDefinition workflowDefinition)
     {
         if (field.Property != null)
-            field.PropertyDefinition = workflowDefinition.Properties.GetOrDefault(field.Property);
+            field.PropertyDefinition = ResolvePropertyDefinition(workflowDefinition, field.Property);
     }
 
     private void PreProcess(RelatedUser relatedUser, WorkflowDefinition workflowDefinition)

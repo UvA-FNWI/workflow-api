@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Screens;
@@ -8,7 +9,8 @@ public class ScreenDataService(
     ModelService modelService,
     InstanceService instanceService,
     IWorkflowInstanceRepository repository,
-    InstanceAuthorizationFilterService instanceAuthorizationFilterService)
+    InstanceAuthorizationFilterService instanceAuthorizationFilterService,
+    RightsService rightsService)
 {
     private static readonly string EmptyStepId = "null";
 
@@ -25,6 +27,8 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
 
+        var canCreateInstance = await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
+
         // Build projection based on screen columns
         var contexts = await LoadData(screen, workflowDefinition, ct);
 
@@ -35,11 +39,11 @@ public class ScreenDataService(
         if (screen.Grouping != null)
         {
             var groups = BuildGroups(contexts, screen, columns);
-            return ScreenDataDto.Create(screen, definition, columns, [], groups);
+            return ScreenDataDto.Create(screen, definition, columns, [], groups, canCreateInstance);
         }
 
         var rows = ProcessRows(contexts, screen, columns);
-        return ScreenDataDto.Create(screen, definition, columns, rows);
+        return ScreenDataDto.Create(screen, definition, columns, rows, canCreateInstance: canCreateInstance);
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)

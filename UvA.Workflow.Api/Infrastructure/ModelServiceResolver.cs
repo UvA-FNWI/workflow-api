@@ -38,9 +38,24 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 
     public ResolvedWorkflowConfig Resolve()
     {
-        var version = httpContextAccessor.HttpContext?.Request.Headers[VersionHeader].FirstOrDefault() ?? "";
-        var entry = _entries.GetValueOrDefault(version) ?? _entries[""];
+        var entry = ResolveEntry();
         return new ResolvedWorkflowConfig(new ModelService(entry.Parser), entry.DefaultMailLayout);
+    }
+
+    /// The raw files behind the resolved version: yaml from the content provider, plus the mail layout,
+    /// which is held separately on the entry but is required by POST /Versions/{version}.
+    public Dictionary<string, string> ResolveFiles()
+    {
+        var entry = ResolveEntry();
+        var files = ConfigFileReader.ReadAll(entry.Parser.ContentProvider);
+        files[WorkflowConfigLoader.LayoutPath] = entry.DefaultMailLayout;
+        return files;
+    }
+
+    private Entry ResolveEntry()
+    {
+        var version = httpContextAccessor.HttpContext?.Request.Headers["Workflow-Version"].FirstOrDefault() ?? "";
+        return _entries.GetValueOrDefault(version) ?? _entries[""];
     }
 
     public IReadOnlyCollection<VersionInfo> GetVersions()

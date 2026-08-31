@@ -11,7 +11,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
-using UvA.Workflow.Infrastructure.S3;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -205,5 +205,41 @@ public class ActionsControllerTests : ControllerTestsBase
                 _effectService, _jobService, _workflowInstanceDtoFactory, _instanceService);
 
         return (controller, instance);
+    }
+
+    [Fact]
+    public async Task Actions_ExecuteAction_AttributesRealAdmin_WhenImpersonating()
+    {
+        // "CoordinatorApproved" is the action defined on the "ApprovalCoordinator" step
+        const string stepName = "ApprovalCoordinator";
+        const string actionName = "CoordinatorApproved";
+
+        // BuildControllerWithRoles calls MockCurrentUser internally; MockImpersonation
+        // must come after to override GetCurrentUser/GetRealUser for the impersonation scenario.
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], stepName);
+        MockImpersonation("Coordinator");
+
+        User? capturedEventUser = null;
+        _eventRepoMock
+            .Setup(r => r.AddOrUpdateEvent(
+                It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
+                It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken>((_, _, user, _) =>
+                capturedEventUser = user)
+            .Returns(Task.CompletedTask);
+
+        var result = await controller.ExecuteAction(
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, actionName), _ct);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+
+        // The real admin (who is impersonating) must be attributed on the event log,
+        // not the impersonated target user.
+        Assert.NotNull(capturedEventUser);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, capturedEventUser.Id);
+        Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.Id, capturedEventUser.Id);
+
+        // Verify the service was asked for the real user, not just the current (impersonated) user.
+        _userServiceMock.Verify(s => s.GetRealUser(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 }
