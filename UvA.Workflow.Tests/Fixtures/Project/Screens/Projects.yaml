@@ -1,5 +1,28 @@
 name: Projects
 workflowDefinition: Project
+bulkEdit:
+  identifier:
+    property: Student.UserName
+    title:
+      en: Student Number
+      nl: Studentnummer
+  editableProperties:
+    - Title
+    - Supervisor
+    - Reviewer
+    - StartDate
+    - EndDate
+    - EC
+    - SecondReader
+    - PracticalSupervisor
+    - Report
+    - Course
+  readOnlyProperties:
+    - property: Student.DisplayName
+      title:
+        en: Student Name (from database)
+        nl: Naam student (uit database)
+
 columns:
   - title:
       en: Student name

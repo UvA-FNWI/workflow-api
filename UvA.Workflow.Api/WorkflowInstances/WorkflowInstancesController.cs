@@ -17,7 +17,7 @@ public class WorkflowInstancesController(
     IWorkflowInstanceRepository repository,
     InstanceService instanceService,
     AnswerConversionService answerConversionService,
-    AnswerService answerService,
+    IAnswerService answerService,
     ModelService modelService,
     RoleImpersonationService impersonationService,
     IEduIdUserService eduIdUserService

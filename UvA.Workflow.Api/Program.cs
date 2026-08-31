@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.CanvasLti;
 using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.ImportExport;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Persistence;
@@ -52,6 +53,8 @@ builder.Services.AddWorkflowDataNoseUsers(builder.Configuration);
 builder.Services.AddWorkflowEduIdUsers(builder.Configuration);
 builder.Services.AddWorkflowSurfConextAuthentication(builder.Configuration);
 builder.Services.AddWorkflowCanvasLtiAuthentication(builder.Configuration);
+builder.Services.AddWorkflowImportExport();
+
 
 builder.Services.AddCors(options =>
 {

@@ -9,7 +9,7 @@ using UvA.Workflow.WorkflowInstances;
 namespace UvA.Workflow.Api.Submissions;
 
 public class AnswersController(
-    AnswerService answerService,
+    IAnswerService answerService,
     RightsService rightsService,
     ArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
