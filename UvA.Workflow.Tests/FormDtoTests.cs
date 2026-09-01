@@ -29,6 +29,34 @@ public class FormDtoTests
         Assert.Null(result.Pages[0].Questions.Single(q => q.Name == "Comments").Percentage);
     }
 
+    [Fact]
+    public void Create_IncludesConfiguredFileTypesAndDefaultsToPdf()
+    {
+        var definition = new WorkflowDefinition { Name = "Documents" };
+        var configured = new PropertyDefinition
+        {
+            Name = "Archive",
+            Type = "File",
+            ParentType = definition,
+            AllowedFileTypes = ["zip", "tar.gz"],
+            AllowedFileSize = 25_000
+        };
+        var defaulted = new PropertyDefinition
+        {
+            Name = "Report",
+            Type = "File",
+            ParentType = definition
+        };
+
+        var configuredDto = QuestionDto.Create(configured, new ObjectContext([]), 0);
+        var defaultedDto = QuestionDto.Create(defaulted, new ObjectContext([]), 0);
+
+        Assert.Equal(["zip", "tar.gz"], configuredDto.AllowedFileTypes);
+        Assert.Equal(["pdf"], defaultedDto.AllowedFileTypes);
+        Assert.Equal(25_000, configuredDto.AllowedFileSize);
+        Assert.Equal(10_000, defaultedDto.AllowedFileSize);
+    }
+
     private static PropertyDefinition Question(string name, WorkflowDefinition parent, decimal? weight = null) =>
         new()
         {

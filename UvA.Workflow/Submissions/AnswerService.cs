@@ -202,6 +202,8 @@ public class AnswerService(
     public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents,
         CancellationToken ct = default)
     {
+        ValidateFile(propertyDefinition, artifactName, contents.Length);
+
         var (instance, _, _, propertyDefinition) = context;
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
         var artifactInfo = await artifactService.SaveArtifact(artifactId, artifactName, contents);
@@ -210,11 +212,28 @@ public class AnswerService(
 
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
+        ValidateFile(propertyDefinition, formFile.FileName, formFile.Length);
+
         var (instance, _, _, propertyDefinition) = context;
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
         var artifactInfo = await artifactService.SaveArtifact(artifactId, formFile);
 
         await SaveArtifact(context, artifactInfo, ct);
+    }
+
+    private static void ValidateFile(PropertyDefinition propertyDefinition, string fileName, long fileSize)
+    {
+        if (propertyDefinition.DataType != DataType.File)
+            throw new ArgumentException($"Property '{propertyDefinition.Name}' does not accept file uploads");
+
+        if (propertyDefinition.EffectiveAllowedFileTypes.All(fileType =>
+                !fileName.EndsWith($".{fileType}", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException(
+                $"File '{fileName}' does not have an allowed file type for property '{propertyDefinition.Name}'");
+
+        if (fileSize > propertyDefinition.EffectiveAllowedFileSizeInBytes)
+            throw new ArgumentException(
+                $"File '{fileName}' exceeds the maximum file size for property '{propertyDefinition.Name}'");
     }
 
     private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)

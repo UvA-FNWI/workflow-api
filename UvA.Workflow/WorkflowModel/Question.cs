@@ -68,6 +68,9 @@ public class TableLayoutOptions : LayoutOptions
 /// </summary>
 public class PropertyDefinition : INamed
 {
+    private static readonly string[] DefaultAllowedFileTypes = ["pdf"];
+    private const int DefaultAllowedFileSize = 10_000;
+
     /// <summary>
     /// Internal name of the propertyDefinition
     /// </summary>
@@ -105,6 +108,23 @@ public class PropertyDefinition : INamed
     /// a required value.
     /// </summary>
     public string Type { get; set; } = null!;
+
+    /// <summary>
+    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Defaults to pdf when omitted.
+    /// </summary>
+    public string[]? AllowedFileTypes { get; set; }
+
+    [YamlIgnore] public IReadOnlyList<string> EffectiveAllowedFileTypes => AllowedFileTypes ?? DefaultAllowedFileTypes;
+
+    /// <summary>
+    /// Maximum file size in kilobytes for a File propertyDefinition. Defaults to 10000 (10 MB) when omitted.
+    /// </summary>
+    public int? AllowedFileSize { get; set; }
+
+    [YamlIgnore] public int EffectiveAllowedFileSize => AllowedFileSize ?? DefaultAllowedFileSize;
+
+    [YamlIgnore] public long EffectiveAllowedFileSizeInBytes => (long)EffectiveAllowedFileSize * 1000;
 
     /// <summary>
     /// Values for a choice propertyDefinition.

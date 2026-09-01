@@ -95,7 +95,9 @@ public record QuestionDto(
     bool? AllowsExternalUsers,
     List<RubricEntryDto>? Rubric,
     ValueSetSorting? Sorting,
-    string? LinkedTo)
+    string? LinkedTo,
+    IReadOnlyList<string>? AllowedFileTypes,
+    int? AllowedFileSize)
 {
     public static QuestionDto Create(PropertyDefinition propertyDefinition, ObjectContext context,
         decimal totalWeight)
@@ -143,7 +145,13 @@ public record QuestionDto(
             AllowsExternalUsers: propertyDefinition.AllowsExternalUsers,
             Rubric: rubric,
             Sorting: propertyDefinition.Sorting,
-            LinkedTo: propertyDefinition.LinkedTo
+            LinkedTo: propertyDefinition.LinkedTo,
+            AllowedFileTypes: propertyDefinition.DataType == DataType.File
+                ? propertyDefinition.EffectiveAllowedFileTypes
+                : null,
+            AllowedFileSize: propertyDefinition.DataType == DataType.File
+                ? propertyDefinition.EffectiveAllowedFileSize
+                : null
         );
     }
 }
