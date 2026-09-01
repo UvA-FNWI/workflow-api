@@ -146,12 +146,8 @@ public record QuestionDto(
             Rubric: rubric,
             Sorting: propertyDefinition.Sorting,
             LinkedTo: propertyDefinition.LinkedTo,
-            AllowedFileTypes: propertyDefinition.DataType == DataType.File
-                ? propertyDefinition.EffectiveAllowedFileTypes
-                : null,
-            AllowedFileSize: propertyDefinition.DataType == DataType.File
-                ? propertyDefinition.EffectiveAllowedFileSize
-                : null
+            AllowedFileTypes: propertyDefinition.EffectiveAllowedFileTypes,
+            AllowedFileSize: propertyDefinition.EffectiveAllowedFileSize
         );
     }
 }
