@@ -60,7 +60,7 @@ properties:
   - name: Report
     type: File!
     allowedFileTypes: [PDF, zip]
-    allowedFileSize: 10000
+    allowedFileSize: 10000000
 
   - name: TurnitinId
     type: String

@@ -561,7 +561,7 @@ public partial class ModelParser
 
         if (propertyDefinition.AllowedFileSize <= 0)
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' contains an invalid allowedFileSize; use a positive number of kilobytes");
+                $"Property '{propertyDefinition.Name}' contains an invalid allowedFileSize; use a positive number of bytes");
     }
 
     private static Dictionary<string, object>? NormalizeLayout(Dictionary<string, object>? layout)

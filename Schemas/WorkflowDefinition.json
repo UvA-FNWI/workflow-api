@@ -229,7 +229,7 @@
             "integer",
             "null"
           ],
-          "description": "Maximum file size in kilobytes for a File propertyDefinition. Defaults to 10000 (10 MB) when omitted."
+          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted."
         },
         "values": {
           "type": [

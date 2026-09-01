@@ -39,7 +39,7 @@ public class FormDtoTests
             Type = "File",
             ParentType = definition,
             AllowedFileTypes = ["zip", "tar.gz"],
-            AllowedFileSize = 25_000
+            AllowedFileSize = 25_000_000
         };
         var defaulted = new PropertyDefinition
         {
@@ -53,8 +53,8 @@ public class FormDtoTests
 
         Assert.Equal(["zip", "tar.gz"], configuredDto.AllowedFileTypes);
         Assert.Equal(["pdf"], defaultedDto.AllowedFileTypes);
-        Assert.Equal(25_000, configuredDto.AllowedFileSize);
-        Assert.Equal(10_000, defaultedDto.AllowedFileSize);
+        Assert.Equal(25_000_000, configuredDto.AllowedFileSize);
+        Assert.Equal(10_000_000, defaultedDto.AllowedFileSize);
     }
 
     private static PropertyDefinition Question(string name, WorkflowDefinition parent, decimal? weight = null) =>

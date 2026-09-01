@@ -202,9 +202,8 @@ public class AnswerService(
     public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents,
         CancellationToken ct = default)
     {
-        ValidateFile(propertyDefinition, artifactName, contents.Length);
-
         var (instance, _, _, propertyDefinition) = context;
+        ValidateFile(propertyDefinition, artifactName, contents.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
         var artifactInfo = await artifactService.SaveArtifact(artifactId, artifactName, contents);
         await SaveArtifact(context, artifactInfo, ct);
@@ -212,9 +211,8 @@ public class AnswerService(
 
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
-        ValidateFile(propertyDefinition, formFile.FileName, formFile.Length);
-
         var (instance, _, _, propertyDefinition) = context;
+        ValidateFile(propertyDefinition, formFile.FileName, formFile.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
         var artifactInfo = await artifactService.SaveArtifact(artifactId, formFile);
 
@@ -231,7 +229,7 @@ public class AnswerService(
             throw new ArgumentException(
                 $"File '{fileName}' does not have an allowed file type for property '{propertyDefinition.Name}'");
 
-        if (fileSize > propertyDefinition.EffectiveAllowedFileSizeInBytes)
+        if (fileSize > propertyDefinition.EffectiveAllowedFileSize)
             throw new ArgumentException(
                 $"File '{fileName}' exceeds the maximum file size for property '{propertyDefinition.Name}'");
     }

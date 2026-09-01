@@ -265,7 +265,7 @@ public class WorkflowTests
             .Build();
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        questionContext.PropertyDefinition.AllowedFileSize = 1;
+        questionContext.PropertyDefinition.AllowedFileSize = 1000;
         using var contents = new MemoryStream(new byte[1001]);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
