@@ -224,7 +224,8 @@ public class AnswerService(
         if (propertyDefinition.DataType != DataType.File)
             throw new ArgumentException($"Property '{propertyDefinition.Name}' does not accept file uploads");
 
-        if (propertyDefinition.EffectiveAllowedFileTypes.All(fileType =>
+        if (propertyDefinition.EffectiveAllowedFileTypes == null ||
+            propertyDefinition.EffectiveAllowedFileTypes.All(fileType =>
                 !fileName.EndsWith($".{fileType}", StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException(
                 $"File '{fileName}' does not have an allowed file type for property '{propertyDefinition.Name}'");
