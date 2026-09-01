@@ -176,7 +176,7 @@ public class Step : INamed, IDeclaredKeys
         return null;
     }
 
-    public DateTime? GetDeadline(WorkflowInstance instance, ModelService modelService)
+    public DateTimeOffset? GetDeadline(WorkflowInstance instance, ModelService modelService)
     {
         if (Condition == null) return null;
         var deadlineCondition = FindDeadlineCondition(Condition);
