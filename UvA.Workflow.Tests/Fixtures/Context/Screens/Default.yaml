@@ -1,4 +1,3 @@
-workflowDefinition: Context
 columns:
   - property: Name
     link: true

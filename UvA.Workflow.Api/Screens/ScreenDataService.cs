@@ -1,8 +1,5 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.Users;
-using UvA.Workflow.WorkflowModel;
-using UvA.Workflow.Import;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -41,11 +38,11 @@ public class ScreenDataService(
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
         {
-            var groups = BuildGroups(contexts, screen, columns);
+            var groups = BuildGroups(definition, contexts, screen, columns);
             return ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups, canCreateInstance);
         }
 
-        var rows = ProcessRows(contexts, screen, columns);
+        var rows = ProcessRows(definition, contexts, screen, columns);
         return ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit,
             canCreateInstance: canCreateInstance);
     }
@@ -106,6 +103,7 @@ public class ScreenDataService(
     }
 
     private ScreenRowDto[] ProcessRows(
+        WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
         Screen screen,
         ScreenColumnDto[] columns
@@ -124,7 +122,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? GetCurrentStepProgress(screen, column.GetValue(context) as string ?? "", context)
+                    ? ProgressInformationDto.Resolve(definition, column.GetValue(context) as string ?? "", context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -168,6 +166,7 @@ public class ScreenDataService(
     /// step does not match any group are dropped.
     /// </summary>
     private ScreenGroupDto[] BuildGroups(
+        WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
         Screen screen,
         ScreenColumnDto[] columns)
@@ -183,11 +182,10 @@ public class ScreenDataService(
             var stepValue = context.Get("CurrentStep")?.ToString() ?? EmptyStepId;
 
             // Only include rows that match a configured group
-            var definition = modelService.WorkflowDefinitions.GetValueOrDefault(screen.WorkflowDefinition ?? "");
             string? groupName;
             while (!stepGroupMapping.TryGetValue(stepValue, out groupName))
             {
-                stepValue = definition?.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
+                stepValue = definition.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
                 if (stepValue == null)
                     break;
             }
@@ -209,7 +207,7 @@ public class ScreenDataService(
             .Select(g => new ScreenGroupDto(
                 g.Name,
                 g.Title,
-                ProcessRows(groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns)))
+                ProcessRows(definition, groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns)))
             .ToArray();
     }
 
@@ -226,14 +224,5 @@ public class ScreenDataService(
         }
 
         return mapping;
-    }
-
-    private ProgressInformationDto GetCurrentStepProgress(Screen screen, string internalName, ObjectContext context)
-    {
-        if (string.IsNullOrEmpty(screen.WorkflowDefinition) ||
-            !modelService.WorkflowDefinitions.TryGetValue(screen.WorkflowDefinition, out var workflowDef))
-            return new ProgressInformationDto(new BilingualString(internalName, internalName), null);
-
-        return ProgressInformationDto.Resolve(workflowDef, internalName, context);
     }
 }
