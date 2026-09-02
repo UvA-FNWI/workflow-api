@@ -136,10 +136,7 @@ public partial class ModelParser
 
             // Inherited parents must resolve child references against this definition's steps.
             foreach (var step in definition.AllSteps)
-            {
                 step.Children = step.ChildNames.Select(s => definition.AllSteps.Get(s)).ToArray();
-                step.Children.ForEach(c => c.ParentStep = step);
-            }
 
             foreach (var step in definition.AllSteps.Where(s => declaredStepNames.Contains(s.Name)))
             {
@@ -412,7 +409,10 @@ public partial class ModelParser
                 workflowDefinition.Events.Add(new EventDefinition { Name = ev! });
 
         foreach (var child in step.Children)
+        {
+            child.ParentStep = step;
             PreProcess(child, workflowDefinition);
+        }
     }
 
     private void PreProcess(Field field, WorkflowDefinition workflowDefinition)

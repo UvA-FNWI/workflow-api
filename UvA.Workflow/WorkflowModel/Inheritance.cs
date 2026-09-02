@@ -34,13 +34,11 @@ public partial class ModelParser
                 target.Properties.Add(property);
         }
 
-        HashSet<string> flattedStepNames = [..target.StepNames, ..target.AllSteps.SelectMany(s => s.ChildNames)];
         foreach (var sourceStep in source.AllSteps)
         {
             if (target.AllSteps.TryGetValue(sourceStep.Name, out var targetStep))
                 ApplyInheritance(targetStep, sourceStep);
-            else if (target.StepNames.Count == 0 || flattedStepNames.Contains(sourceStep.Name)
-                                                 || flattedStepNames.Contains(sourceStep.RootStep.Name))
+            else
                 target.AllSteps.Add(sourceStep.Clone());
         }
 
