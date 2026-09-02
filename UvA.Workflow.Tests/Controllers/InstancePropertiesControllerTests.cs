@@ -6,6 +6,7 @@ using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Builders;
@@ -125,6 +126,60 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         var result = await controller.GetProperties(instance.Id, _ct);
 
         Assert.Equal(403, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPropertyChoices_ReturnsReferenceTargets_WithoutASubmission()
+    {
+        var course = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Context", currentStep: "Start")
+            .WithProperties(("Name", b => b.Value("Introduction to AI")))
+            .Build();
+        _workflowInstanceRepoMock
+            .Setup(r => r.GetByWorkflowDefinition(
+                "Context",
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([course]);
+        var (controller, instance) = Build("Coordinator");
+        var result = await controller.GetPropertyChoices(instance.Id, "Course", _ct);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var choices = Assert.IsAssignableFrom<IEnumerable<ChoiceDto>>(ok.Value);
+        var choice = Assert.Single(choices);
+        Assert.Equal(course.Id, choice.Name);
+    }
+
+    [Fact]
+    public async Task GetPropertyChoices_ForbiddenForNonAdmin()
+    {
+        var (controller, instance) = Build("Student");
+        var result = await controller.GetPropertyChoices(instance.Id, "Course", _ct);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPropertyChoices_EmptyForNonReferenceProperty()
+    {
+        var (controller, instance) = Build("SystemAdmin");
+        var result = await controller.GetPropertyChoices(instance.Id, "Title", _ct);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Empty(Assert.IsAssignableFrom<IEnumerable<ChoiceDto>>(ok.Value));
+    }
+
+    [Fact]
+    public async Task GetPropertyChoices_NotFoundForUnknownProperty()
+    {
+        var (controller, instance) = Build("SystemAdmin");
+        var result = await controller.GetPropertyChoices(instance.Id, "NoSuchProperty", _ct);
+        Assert.Equal(404, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPropertyChoices_NotFoundForUnknownInstance()
+    {
+        var (controller, _) = Build("SystemAdmin");
+        var result = await controller.GetPropertyChoices("missing", "Course", _ct);
+        Assert.Equal(404, Assert.IsType<ObjectResult>(result.Result).StatusCode);
     }
 
     [Fact]
