@@ -72,6 +72,44 @@ public class WorkflowInheritanceTests
     }
 
     [Fact]
+    public void ModelParser_IgnoresResetParentStepOnUnusedInheritedStep()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - Flow",
+            ["Base/Steps/Flow.yaml"] = "name: Flow\nchildren:\n  - Submit\n  - Feedback",
+            ["Base/Steps/Submit.yaml"] = "name: Submit\nends:\n  event: Submitted",
+            ["Base/Steps/Feedback.yaml"] =
+                "name: Feedback\nevents:\n  - name: Reset\n    resetParentStep: true\nends:\n  event: Reset",
+            // A dormant step may safely reuse an event from the effective hierarchy.
+            ["Base/Steps/Dormant.yaml"] = "name: Dormant\nends:\n  event: Submitted",
+            ["Child/Entity.yaml"] =
+                "name: Child\ntitlePlural: Children\ninheritsFrom: Base\nsteps:\n  - Standalone",
+            ["Child/Steps/Standalone.yaml"] = "name: Standalone",
+            // The override inherits the reset declaration, but is not part of Child's rooted hierarchy.
+            ["Child/Steps/Feedback.yaml"] = "name: Feedback"
+        }));
+
+        var child = parser.WorkflowDefinitions["Child"];
+        Assert.Null(child.AllSteps.Single(step => step.Name == "Feedback").ParentStep);
+        Assert.DoesNotContain(child.Events, ev => ev.Name == "Reset");
+    }
+
+    [Fact]
+    public void ModelParser_RejectsResetParentStepOnReachableRootStep()
+    {
+        var exception = Assert.Throws<Exception>(() => new ModelParser(new DictionaryProvider(new()
+        {
+            ["Project/Entity.yaml"] =
+                "name: Project\ntitlePlural: Projects\nsteps:\n  - Feedback",
+            ["Project/Steps/Feedback.yaml"] =
+                "name: Feedback\nevents:\n  - name: Reset\n    resetParentStep: true\nends:\n  event: Reset"
+        })));
+
+        Assert.Contains("declaring step has no parent step to reset", exception.Message);
+    }
+
+    [Fact]
     public void ModelParser_OverridingStep_KeepsInheritedActionsInAllActions()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
