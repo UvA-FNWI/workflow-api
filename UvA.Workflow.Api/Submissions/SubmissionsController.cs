@@ -15,7 +15,7 @@ public class SubmissionsController(
     WorkflowInstanceService workflowInstanceService,
     SubmissionDtoFactory submissionDtoFactory,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
-    AnswerService answerService,
+    IAnswerService answerService,
     DummyAnswerGenerator dummyAnswerGenerator) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
@@ -32,8 +32,12 @@ public class SubmissionsController(
 
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
-        var dto = submissionDtoFactory.Create(instance, form, submissionState,
-            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
+        var history = version is null
+            ? await workflowInstanceService.GetInstanceHistory(instanceId, ct)
+            : null;
+        var dto = await submissionDtoFactory.CreateAsync(instance, form, submissionState,
+            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray(),
+            history, ct);
         return Ok(dto);
     }
 
@@ -52,21 +56,22 @@ public class SubmissionsController(
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
 
-        var result = await submissionService.SubmitSubmission(context, user, ct);
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            throw new Exception("Could not resolve real user");
+
+        var result = await submissionService.SubmitSubmission(context, realUser, ct);
+        var history = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
+        var submissionDto = await submissionDtoFactory.CreateAsync(instance, form, result.SubmissionState,
+            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray(),
+            history, ct);
 
         if (!result.Success)
-        {
-            var submissionDto = submissionDtoFactory.Create(instance, form, result.SubmissionState,
-                modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
-
             return UnprocessableEntity(new SubmitSubmissionResult(submissionDto, null, result.Errors, false));
-        }
 
-        var finalSubmissionDto = submissionDtoFactory.Create(instance, form, result.SubmissionState,
-            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray());
         var updatedInstanceDto = await workflowInstanceDtoFactory.Create(instance, ct);
 
-        return Ok(new SubmitSubmissionResult(finalSubmissionDto, updatedInstanceDto,
+        return Ok(new SubmitSubmissionResult(submissionDto, updatedInstanceDto,
             EffectResult: result.EffectResult));
     }
 
@@ -144,9 +149,10 @@ public class SubmissionsController(
 
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
-        var updatedSubmission = submissionDtoFactory.Create(instance, form, submissionState,
+        var history = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
+        var updatedSubmission = await submissionDtoFactory.CreateAsync(instance, form, submissionState,
             modelService.GetQuestionStatus(instance, form, true),
-            permissions.Select(p => p.Type).ToArray());
+            permissions.Select(p => p.Type).ToArray(), history, ct);
 
         return Ok(updatedSubmission);
     }

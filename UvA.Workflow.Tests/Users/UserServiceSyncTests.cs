@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
@@ -27,7 +28,8 @@ public class UserServiceSyncTests
             [],
             [],
             instanceRepoMock.Object,
-            new ModelService(UnitTestsHelpers.CreateModelParser()));
+            new ModelService(UnitTestsHelpers.CreateModelParser()),
+            Mock.Of<ILogger<UserService>>());
 
     private static User MakeUser(string? id = null, string displayName = "Jane Doe",
         string email = "jane@invalid.invalid")

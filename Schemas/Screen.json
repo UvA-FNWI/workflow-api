@@ -42,6 +42,17 @@
           "$ref": "#/definitions/ScreenGrouping"
         }
       ]
+    },
+    "bulkEdit": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Config for bulk editing for all instances in the screen",
+          "$ref": "#/definitions/BulkEditConfig"
+        }
+      ]
     }
   },
   "definitions": {
@@ -462,6 +473,60 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "BulkEditConfig": {
+      "title": "BulkEditConfig",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identifier"
+      ],
+      "properties": {
+        "identifier": {
+          "$ref": "#/definitions/BulkEditProperty"
+        },
+        "readOnlyProperties": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/BulkEditProperty"
+          }
+        },
+        "editableProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "BulkEditProperty": {
+      "title": "BulkEditProperty",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "property"
+      ],
+      "properties": {
+        "property": {
+          "type": "string"
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         }
       }
     }

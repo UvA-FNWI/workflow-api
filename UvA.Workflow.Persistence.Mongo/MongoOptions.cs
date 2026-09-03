@@ -9,5 +9,5 @@ public class MongoOptions
     public int Port { get; set; } = 27017;
 
     public string ConnectionString =>
-        $"mongodb://{Username}:{Password}@{Host}:{Port}/{(Host != "localhost" ? "?tls=true" : "")}";
+        $"mongodb://{Uri.EscapeDataString(Username)}:{Uri.EscapeDataString(Password)}@{Host}:{Port}/{(Host != "localhost" ? "?tls=true" : "")}";
 }

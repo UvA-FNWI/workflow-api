@@ -11,6 +11,9 @@ public partial class ModelParser
 {
     private readonly IContentProvider _contentProvider;
 
+    /// The source the model was parsed from. Exposed so the API can serve the raw files back for editing.
+    public IContentProvider ContentProvider => _contentProvider;
+
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
@@ -451,6 +454,17 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        if (screen.BulkEdit != null)
+        {
+            var unknownProps = screen.BulkEdit.EditableProperties
+                .Where(p => workflowDefinition.Properties.GetOrDefault(p) == null)
+                .ToArray();
+            if (unknownProps.Length > 0)
+                throw new Exception(
+                    $"Screen '{screen.Name}' in '{workflowDefinition.Name}' has bulkEditProperties that do not exist: " +
+                    $"{unknownProps.ToSeparatedString()}");
+        }
+
         foreach (var col in screen.Columns)
         {
             if (col.Property != null)

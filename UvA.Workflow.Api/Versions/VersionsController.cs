@@ -90,6 +90,15 @@ public class VersionsController(
     public ActionResult<IEnumerable<string>> GetVersions()
         => Ok(modelServiceResolver.GetVersions().Select(v => v.Name));
 
+    /// Every config file for the version selected by the Workflow-Version header, keyed by
+    /// repo-root-relative path. Feed the result straight back to POST /Versions/{version} to preview an edit.
+    [HttpGet("Files")]
+    public async Task<ActionResult<Dictionary<string, string>>> GetFiles()
+    {
+        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        return Ok(modelServiceResolver.ResolveFiles());
+    }
+
     /// Version names plus provenance (commit + load time).
     [HttpGet("Details")]
     public ActionResult<IReadOnlyCollection<VersionInfo>> GetVersionDetails()

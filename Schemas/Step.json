@@ -1303,7 +1303,8 @@
       "enum": [
         "Dropdown",
         "RadioList",
-        "Rubric"
+        "Rubric",
+        "ComboBox"
       ]
     },
     "TextLayoutOptions": {

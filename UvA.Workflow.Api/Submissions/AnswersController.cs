@@ -4,18 +4,36 @@ using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Api.Submissions;
 
 public class AnswersController(
-    AnswerService answerService,
+    IAnswerService answerService,
     RightsService rightsService,
     ArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
     InstanceService instanceService,
     ModelService modelService,
-    IWorkflowInstanceRepository workflowInstanceRepository) : ApiControllerBase
+    IWorkflowInstanceRepository workflowInstanceRepository,
+    WorkflowInstanceService workflowInstanceService) : ApiControllerBase
 {
+    [HttpDelete("{instanceId}/{submissionId}")]
+    public async Task<ActionResult<SubmissionDto>> ClearAnswers(string instanceId, string submissionId,
+        CancellationToken ct)
+    {
+        var context = await answerService.GetSubmissionContext(instanceId, submissionId, ct);
+        await EnsureAuthorizedToEdit(context);
+
+        await answerService.ClearAnswers(context, ct);
+        var permissions = await rightsService.GetAllowedActionsForForm(context.Instance, context.Form,
+            RoleAction.ViewAdminTools, RoleAction.Edit);
+        var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
+        return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
+            modelService.GetQuestionStatus(context.Instance, context.Form, true),
+            permissions.Select(permission => permission.Type).ToArray(), history, ct));
+    }
+
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
     public async Task<ActionResult<SaveAnswerResponse>> SaveAnswer(string instanceId, string submissionId,
         string questionName,
@@ -36,9 +54,11 @@ public class AnswersController(
             var permissions =
                 await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
                     RoleAction.Edit);
-            var updatedSubmission = submissionDtoFactory.Create(context.Instance, context.Form, context.SubmissionState,
+            var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
+            var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
+                context.SubmissionState,
                 modelService.GetQuestionStatus(context.Instance, context.Form, true),
-                permissions.Select(p => p.Type).ToArray());
+                permissions.Select(p => p.Type).ToArray(), history, ct);
             return Ok(new SaveAnswerResponse(true, answers, updatedSubmission,
                 User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }
@@ -139,6 +159,11 @@ public class AnswersController(
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
         await EnsureAuthorizedForAction(context,
             context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
+
+    private async Task EnsureAuthorizedToEdit(SubmissionContext context) =>
+        await rightsService.EnsureAuthorizedForAction(context.Instance,
+            [context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit],
+            RightsEvaluationMode.RequestContext, context.Form.Name);
 
     private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>
         await rightsService.EnsureAuthorizedForAction(context.Instance, [action], RightsEvaluationMode.RequestContext,

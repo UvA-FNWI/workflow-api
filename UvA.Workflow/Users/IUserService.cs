@@ -23,6 +23,13 @@ public interface IUserService
     /// <returns>A <see cref="User"/> object representing the current user if authenticated, or null if the user is not authenticated or not found.</returns>
     Task<User?> GetCurrentUser(CancellationToken ct = default);
 
+    /// <summary>
+    /// Retrieves the current authenticated real user (ignoring impersonation) from the HTTP context or cache. If the user is not present in cache, it retrieves the user from the repository and caches the result for a specified duration.
+    /// </summary>
+    /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
+    /// <returns>A <see cref="User"/> object representing the real user if authenticated, or null if the user is not authenticated or not found.</returns>
+    Task<User?> GetRealUser(CancellationToken ct = default);
+
     Task<IEnumerable<string>> GetRolesOfCurrentUser(CancellationToken ct = default);
 
     /// <summary>
@@ -49,6 +56,8 @@ public interface IUserService
     /// <param name="ct">A <see cref="CancellationToken"/> used to observe cancellation requests.</param>
     /// <returns>A <see cref="User"/> object matching the specified username if found, or null if no such user exists.</returns>
     Task<User?> GetUser(string username, CancellationToken ct);
+
+    Task<IReadOnlyDictionary<string, User>> GetUsers(IReadOnlyCollection<string> userNames, CancellationToken ct);
 
     /// <summary>
     /// Finds all instances containing this user in any user-type property and replaces the

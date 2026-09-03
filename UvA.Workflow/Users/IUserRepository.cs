@@ -13,6 +13,7 @@ public interface IUserRepository
 
     // Query operations
     Task<User?> GetByExternalId(string externalId, CancellationToken ct);
+    Task<IEnumerable<User>> GetByUserNames(IReadOnlyCollection<string> userNames, CancellationToken ct);
     Task<User?> GetByEmail(string email, CancellationToken ct);
     Task<User?> GetByEmailAndProvider(string email, string providerKey, CancellationToken ct);
     Task<IEnumerable<User>> SearchByQuery(string query, CancellationToken ct);

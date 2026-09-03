@@ -1,15 +1,18 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 using Moq;
 using Serilog;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
+using UvA.Workflow.Import;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Tests.Impersonation;
 using UvA.Workflow.Users;
@@ -44,6 +47,10 @@ public abstract class ControllerTestsBase
     protected readonly EffectService _effectService;
     protected readonly JobService _jobService;
     protected readonly AssessmentService _assessmentService;
+    protected readonly AnswerService _answerService;
+    protected readonly AnswerConversionService _answerConversionService;
+    protected readonly ImportService _importService;
+
 
     protected readonly CancellationToken _ct = new CancellationTokenSource().Token;
 
@@ -123,6 +130,31 @@ public abstract class ControllerTestsBase
                 _workflowInstanceRepoMock.Object, userRepository: _userRepoMock.Object,
                 _loggerFactory.CreateLogger<JobService>(),
                 _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
+
+        _answerConversionService = new AnswerConversionService(
+            _userServiceMock.Object,
+            _userRepoMock.Object);
+
+        _answerService = new AnswerService(
+            _modelService,
+            _instanceService,
+            _rightsService,
+            _artifactServiceMock.Object,
+            _answerConversionService,
+            _workflowInstanceService,
+            _instanceEventService.Object,
+            _instanceJournalServiceMock.Object,
+            _userServiceMock.Object,
+            _externalUserServiceMock.Object);
+
+        _importService = new ImportService(
+            [new Mock<IFileParserService>().Object], // IEnumerable<IFileParserService>
+            _workflowInstanceRepoMock.Object,
+            _answerConversionService,
+            _answerService,
+            _modelService,
+            _userRepoMock.Object,
+            _rightsService);
     }
 
     protected void MockCurrentUser(params string[] roles)
@@ -130,6 +162,18 @@ public abstract class ControllerTestsBase
         _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles);
         _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        _userServiceMock.Setup(s => s.GetRealUser(It.IsAny<CancellationToken>())) // ← add this
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+    }
+
+    protected void MockImpersonation(params string[] roles)
+    {
+        _userServiceMock.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(roles);
+        _userServiceMock.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.ImpersonatedTarget);
+        _userServiceMock.Setup(s => s.GetRealUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(UnitTestsHelpers.AdminUser);
     }
 
