@@ -102,6 +102,17 @@
         }
       ]
     },
+    "mode": {
+      "description": "Determines whether this is a regular, required alongside, or optional alongside step.",
+      "$ref": "#/definitions/StepMode"
+    },
+    "before": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Named step that must not become current until this alongside step has ended."
+    },
     "properties": {
       "type": "array",
       "description": "Properties related to this step. These will become properties of the corresponding entity",
@@ -440,6 +451,14 @@
       "enum": [
         "Sequential",
         "Parallel"
+      ]
+    },
+    "StepMode": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "Alongside",
+        "Optional"
       ]
     },
     "StepHeaderStatusConfiguration": {

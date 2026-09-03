@@ -4,6 +4,32 @@ public class PresenceAwareInheritanceTests
 {
     private static Step Step(WorkflowDefinition def, string name) => def.AllSteps.Single(s => s.Name == name);
 
+    [Theory]
+    [InlineData(StepMode.Normal, false, false)]
+    [InlineData(StepMode.Alongside, true, true)]
+    [InlineData(StepMode.Optional, true, false)]
+    public void StepMode_DescribesAlongsideAndBlockingBehavior(StepMode mode, bool isAlongside, bool blocksWorkflow)
+    {
+        var step = new Step { Mode = mode };
+
+        Assert.Equal(isAlongside, step.IsAlongside);
+        Assert.Equal(blocksWorkflow, step.BlocksWorkflow);
+    }
+
+    [Fact]
+    public void StepMode_IsParsedAndInherited()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - S",
+            ["Base/Steps/S.yaml"] = "name: S\nmode: Optional",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base"
+        }));
+
+        Assert.Equal(StepMode.Optional, Step(parser.WorkflowDefinitions["Base"], "S").Mode);
+        Assert.Equal(StepMode.Optional, Step(parser.WorkflowDefinitions["Child"], "S").Mode);
+    }
+
     [Fact]
     public void Step_ExplicitDefaultsAndEmptyList_WinOverParent()
     {

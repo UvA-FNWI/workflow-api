@@ -11,6 +11,13 @@ public enum StepHierarchyMode
     Parallel
 }
 
+public enum StepMode
+{
+    Normal,
+    Alongside,
+    Optional
+}
+
 public enum StepHeaderPillType
 {
     Info,
@@ -115,6 +122,19 @@ public class Step : INamed, IDeclaredKeys
     /// Condition that determines when the step ends 
     /// </summary>
     public Condition? Ends { get; set; }
+
+    /// <summary>
+    /// Determines whether this is a regular, required alongside, or optional alongside step.
+    /// </summary>
+    public StepMode Mode { get; set; }
+
+    [YamlIgnore] public bool IsAlongside => Mode is StepMode.Alongside or StepMode.Optional;
+    [YamlIgnore] public bool BlocksWorkflow => Mode == StepMode.Alongside;
+
+    /// <summary>
+    /// Named step that must not become current until this alongside step has ended.
+    /// </summary>
+    public string? Before { get; set; }
 
     /// <summary>
     /// Properties related to this step. These will become properties of the corresponding entity 
