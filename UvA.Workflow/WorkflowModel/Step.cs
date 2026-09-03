@@ -11,10 +11,28 @@ public enum StepHierarchyMode
     Parallel
 }
 
+/// <summary>
+/// Controls how a top-level step participates in workflow progression.
+/// </summary>
 public enum StepMode
 {
+    /// <summary>
+    /// Follows the ordered workflow progression. It becomes current when reached, unless its condition skips it,
+    /// and progression continues after it ends.
+    /// </summary>
     Normal,
+
+    /// <summary>
+    /// Becomes active after the nearest preceding normal step ends, or when the workflow starts if there is none.
+    /// Normal steps may continue while it remains active. It becomes current when its before target is reached or
+    /// when the workflow would otherwise finish, and blocks progression until it ends.
+    /// </summary>
     Alongside,
+
+    /// <summary>
+    /// Becomes active like an alongside step, but never blocks progression or becomes current. If still active when
+    /// the workflow finishes, it closes with the workflow.
+    /// </summary>
     Optional
 }
 

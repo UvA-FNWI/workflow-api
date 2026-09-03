@@ -1,3 +1,6 @@
+using UvA.Workflow.Events;
+using UvA.Workflow.WorkflowInstances;
+
 namespace UvA.Workflow.Tests;
 
 public class PresenceAwareInheritanceTests
@@ -28,6 +31,33 @@ public class PresenceAwareInheritanceTests
 
         Assert.Equal(StepMode.Optional, Step(parser.WorkflowDefinitions["Base"], "S").Mode);
         Assert.Equal(StepMode.Optional, Step(parser.WorkflowDefinitions["Child"], "S").Mode);
+    }
+
+    [Fact]
+    public void ConditionallySkippedAlongsideStep_IsNeitherActiveNorABlocker()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Project/Entity.yaml"] =
+                "name: Project\ntitlePlural: Projects\nsteps:\n  - Start\n  - Contract\n  - Assessment",
+            ["Project/Steps/Start.yaml"] = "name: Start\nends:\n  event: Started",
+            ["Project/Steps/Contract.yaml"] =
+                "name: Contract\nmode: Alongside\nbefore: Assessment\ncondition:\n  event: ContractRequired",
+            ["Project/Steps/Assessment.yaml"] = "name: Assessment"
+        }));
+        var service = new ModelService(parser);
+        var instance = new WorkflowInstance
+        {
+            WorkflowDefinition = "Project",
+            Properties = [],
+            Events = new Dictionary<string, InstanceEvent>
+            {
+                ["Started"] = new() { Id = "Started", Date = DateTime.UtcNow }
+            }
+        };
+
+        Assert.Equal("Assessment", service.FindOpenStep(instance)?.Name);
+        Assert.Equal(["Assessment"], service.GetActiveSteps(instance));
     }
 
     [Fact]
