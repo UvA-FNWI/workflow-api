@@ -83,6 +83,25 @@ public class Step : INamed, IDeclaredKeys
     public BilingualString DisplayTitle => Title ?? Name;
 
     /// <summary>
+    /// Name of a step template (folder under Common/StepTemplates) to resolve this step from
+    /// </summary>
+    [YamlMember(Alias = "template")]
+    public string? TemplateKey { get; set; }
+
+    /// <summary>
+    /// Parameter values passed to the resolved template
+    /// </summary>
+    [YamlMember(Alias = "values")]
+    public List<TemplateValue>? TemplateValues { get; set; }
+
+    /// <summary>
+    /// The fully resolved template parameter values (including inherited/default values) after template
+    /// resolution. Used to let child steps inherit values from their parent step by parameter name.
+    /// </summary>
+    [YamlIgnore]
+    public Dictionary<string, object>? ResolvedTemplateValues { get; set; }
+
+    /// <summary>
     /// Determines how the child steps of this step are handled
     /// </summary>
     public StepHierarchyMode HierarchyMode { get; set; }
