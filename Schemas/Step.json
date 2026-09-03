@@ -47,6 +47,23 @@
         }
       ]
     },
+    "template": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Name of a step template (folder under Common/StepTemplates) to resolve this step from"
+    },
+    "values": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Parameter values passed to the resolved template",
+      "items": {
+        "$ref": "#/definitions/TemplateValue"
+      }
+    },
     "hierarchyMode": {
       "description": "Determines how the child steps of this step are handled",
       "$ref": "#/definitions/StepHierarchyMode"
@@ -434,6 +451,28 @@
           "$ref": "#/definitions/StatusColor"
         }
       }
+    },
+    "TemplateValue": {
+      "title": "TemplateValue",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/definitions/Object"
+        }
+      }
+    },
+    "Object": {
+      "title": "Object",
+      "type": "object",
+      "additionalProperties": false
     },
     "StepHierarchyMode": {
       "type": "string",
