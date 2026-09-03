@@ -25,6 +25,18 @@ public partial class ModelParser
                 $"Duplicate template parameters '{string.Join(", ", duplicates)}' for step '{step.Name}'");
 
         var providedValues = values.ToDictionary(v => v.Name, v => v.Value, StringComparer.OrdinalIgnoreCase);
+        var prefix = step.Name.Contains('_') ? step.Name[..step.Name.IndexOf('_')] : step.Name;
+        providedValues.TryAdd("prefix", prefix);
+
+        template.Parameters.Add(
+            new StepTemplateParameter
+            {
+                Name = "prefix",
+                Type = "String",
+                Default = prefix
+            }
+        );
+
         var resolvedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var param in template.Parameters)
