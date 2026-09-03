@@ -1,5 +1,4 @@
 name: Projects
-workflowDefinition: Project
 bulkEdit:
   identifier:
     property: Student.UserName

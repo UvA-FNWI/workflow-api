@@ -11,13 +11,6 @@
       "type": "string",
       "description": "Internal name of the screen"
     },
-    "workflowDefinition": {
-      "type": [
-        "null",
-        "string"
-      ],
-      "description": "WorkflowDefinition this screen is used for"
-    },
     "columns": {
       "type": "array",
       "description": "List of columns to display on this screen",

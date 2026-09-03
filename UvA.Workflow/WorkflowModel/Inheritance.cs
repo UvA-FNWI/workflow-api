@@ -124,6 +124,8 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
+        if (!target.Declared(s => s.Step)) target.Step = source.Step;
+
         if (Cleared(target, f => f.Pages))
             return;
         foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))

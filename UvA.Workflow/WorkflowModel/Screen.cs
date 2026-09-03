@@ -8,11 +8,6 @@ public class Screen : INamed
     public string Name { get; set; } = null!;
 
     /// <summary>
-    /// WorkflowDefinition this screen is used for
-    /// </summary>
-    public string? WorkflowDefinition { get; set; }
-
-    /// <summary>
     /// List of columns to display on this screen
     /// </summary>
     public Column[] Columns { get; set; } = null!;
