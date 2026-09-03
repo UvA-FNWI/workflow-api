@@ -101,11 +101,6 @@ public class Step : INamed, IDeclaredKeys
     [YamlIgnore]
     public Step? ParentStep { get; set; }
 
-    /// <summary>
-    /// Get the top-level parent of this step, i.e. which has no parent
-    /// </summary>
-    public Step RootStep => ParentStep?.RootStep ?? this;
-
     // Derived definitions relink Children, so inherited steps cannot be shared.
     public Step Clone() => (Step)MemberwiseClone();
 
