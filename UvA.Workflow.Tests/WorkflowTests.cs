@@ -88,7 +88,8 @@ public class WorkflowTests
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
-            _instanceJournalServiceMock.Object, _eventRepoMock.Object, _userServiceMock.Object);
+            _instanceJournalServiceMock.Object, _eventRepoMock.Object, _userServiceMock.Object,
+            Mock.Of<IUserRepository>());
         _assessmentService = new AssessmentService(_modelService, _workflowInstanceService, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,

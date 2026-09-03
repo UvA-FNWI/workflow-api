@@ -1,3 +1,4 @@
+using System.Globalization;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
@@ -16,14 +17,15 @@ public class WorkflowInstanceService(
     IWorkflowInstanceRepository repository,
     IInstanceJournalService journalService,
     IInstanceEventRepository eventRepository,
-    IUserService userService)
+    IUserService userService,
+    IUserRepository userRepository)
 {
     /// <summary>
     /// Creates a new workflow instance
     /// </summary>
     public async Task<WorkflowInstance> Create(
         string workflowDefinition,
-        User createdBy,
+        User? createdBy,
         CancellationToken ct,
         string? userProperty = null,
         string? parentId = null,
@@ -47,13 +49,100 @@ public class WorkflowInstanceService(
         // supplies that user in the initial properties; in that case keep what was sent.
         if (userProperty != null && !instance.Properties.ContainsKey(userProperty))
         {
+            if (createdBy == null)
+                throw new ArgumentException("CreatedBy is required when UserProperty is set", nameof(createdBy));
             var user = InstanceUser.FromUser(createdBy).ToBsonDocument();
             var property = modelService.WorkflowDefinitions[workflowDefinition].Properties.Get(userProperty);
             instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
         }
 
+        await ApplyDefaults(instance, ct);
+
         await repository.Create(instance, ct);
         return instance;
+    }
+
+    private async Task ApplyDefaults(WorkflowInstance instance, CancellationToken ct)
+    {
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var properties = definition.Properties
+            .Where(property => property.DefaultExpression != null && !instance.Properties.ContainsKey(property.Name))
+            .ToArray();
+        if (properties.Length == 0)
+            return;
+
+        var context = modelService.CreateContext(instance);
+        await EnrichDefaultReferences(definition, properties, context, ct);
+        foreach (var property in properties)
+            instance.Properties[property.Name] = await ConvertDefault(
+                property, property.DefaultExpression!.Execute(context), ct);
+    }
+
+    private async Task EnrichDefaultReferences(WorkflowDefinition definition, PropertyDefinition[] properties,
+        ObjectContext context, CancellationToken ct)
+    {
+        var referenceRoots = properties
+            .SelectMany(property => property.DefaultExpression!.Properties)
+            .OfType<PropertyLookup>()
+            .Where(lookup => lookup.Parts.Length > 1)
+            .Select(lookup => lookup.Parts[0])
+            .Distinct();
+
+        foreach (var root in referenceRoots)
+        {
+            var property = definition.Properties.GetOrDefault(root);
+            if (property?.DataType != DataType.Reference)
+                continue;
+
+            var id = context.Get(root) as string;
+            var referenced = id == null ? null : await repository.GetById(id, ct);
+            if (referenced == null || referenced.WorkflowDefinition != property.WorkflowDefinition?.Name)
+                throw new InvalidOperationException($"Default reference {root} could not be resolved");
+
+            context.Values[root] = modelService.CreateContext(referenced).Values;
+        }
+    }
+
+    private async Task<BsonValue> ConvertDefault(PropertyDefinition property, object? value, CancellationToken ct)
+    {
+        if (property.DataType == DataType.User && value is string email)
+        {
+            var user = await userRepository.GetByEmail(email.Trim(), ct);
+            return user == null
+                ? throw new InvalidOperationException($"Default user for property {property.Name} was not found")
+                : InstanceUser.FromUser(user).ToBsonDocument();
+        }
+
+        if (property.DataType == DataType.Reference && value is string id)
+        {
+            var target = await repository.GetById(id, ct);
+            return target == null || target.WorkflowDefinition != property.WorkflowDefinition?.Name
+                ? throw new InvalidOperationException($"Default reference for property {property.Name} was not found")
+                : id;
+        }
+
+        return ConvertScalarDefault(property, value);
+    }
+
+    private static BsonValue ConvertScalarDefault(PropertyDefinition property, object? value)
+    {
+        BsonValue? converted = property.DataType switch
+        {
+            DataType.String when value is string text => text,
+            DataType.Choice when value is string choice && property.Values?.Any(v => v.Name == choice) == true =>
+                choice,
+            DataType.Int when value is int number => number,
+            DataType.Boolean when value is bool boolean => boolean,
+            DataType.Double when value is double number => number,
+            DataType.Double when value is int number => (double)number,
+            DataType.Date or DataType.DateTime when value is DateTime date => date,
+            DataType.Date or DataType.DateTime when value is string text && DateTime.TryParse(text,
+                CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var date) => date,
+            _ => null
+        };
+
+        return converted ?? throw new InvalidOperationException(
+            $"Default for property {property.Name} is not a valid {property.Type} value");
     }
 
     public async Task<SubmissionContext> GetSubmissionContext(string instanceId, string submissionId,

@@ -3,6 +3,30 @@ namespace UvA.Workflow.Tests;
 public class WorkflowInheritanceTests
 {
     [Fact]
+    public void ModelParser_InheritsPropertyDefault()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = """
+                                   name: Base
+                                   titlePlural: Bases
+                                   properties:
+                                     - name: SharedValue
+                                       type: String
+                                       default: =Shared
+                                   """,
+            ["Child/Entity.yaml"] = """
+                                    name: Child
+                                    titlePlural: Children
+                                    inheritsFrom: Base
+                                    """
+        }));
+
+        Assert.Equal("=Shared",
+            parser.WorkflowDefinitions["Child"].Properties.Single(property => property.Name == "SharedValue").Default);
+    }
+
+    [Fact]
     public void ModelParser_MergesOverriddenStepWithParentStep()
     {
         var parser = new ModelParser(new DictionaryProvider(new()

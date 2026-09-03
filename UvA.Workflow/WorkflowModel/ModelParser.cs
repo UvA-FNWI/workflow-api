@@ -519,6 +519,28 @@ public partial class ModelParser
             throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
         }
 
+        if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
+        {
+            propertyDefinition.Default = null;
+        }
+        else
+        {
+            try
+            {
+                _ = propertyDefinition.DefaultExpression;
+            }
+            catch (Exception exception)
+            {
+                throw new Exception(
+                    $"Invalid default for property {propertyDefinition.Name}: {exception.Message}", exception);
+            }
+
+            if (propertyDefinition.IsArray || propertyDefinition.DataType is DataType.Object or DataType.Currency
+                    or DataType.File)
+                throw new Exception(
+                    $"Defaults are not supported for property {propertyDefinition.Name} of type {propertyDefinition.Type}");
+        }
+
         return propertyDefinition;
     }
 
