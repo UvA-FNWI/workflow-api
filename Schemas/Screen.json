@@ -320,6 +320,13 @@
           ],
           "description": "Value the property should be less than"
         },
+        "lessThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than or equal to"
+        },
         "greaterThan": {
           "type": [
             "null",

@@ -101,7 +101,7 @@ public class DummyAnswerGenerator
     internal static double? TryGetLiteralNumber(string? exprString)
         => ExpressionParser.Parse(exprString) switch
         {
-            Number(var n) => (double)n,
+            Int(var n) => (double)n,
             _ => null
         };
 }
