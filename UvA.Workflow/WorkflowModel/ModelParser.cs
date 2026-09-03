@@ -525,45 +525,6 @@ public partial class ModelParser
         return propertyDefinition;
     }
 
-    private static void NormalizeAllowedFileTypes(PropertyDefinition propertyDefinition)
-    {
-        if (propertyDefinition.AllowedFileTypes == null)
-            return;
-
-        if (propertyDefinition.DataType != DataType.File)
-            throw new Exception(
-                $"Property '{propertyDefinition.Name}' defines allowedFileTypes but is not a File property");
-
-        var normalized = propertyDefinition.AllowedFileTypes
-            .Select(fileType => fileType.Trim())
-            .Select(fileType => fileType.TrimStart('.'))
-            .Select(fileType => fileType.ToLowerInvariant())
-            .Distinct()
-            .ToArray();
-
-        if (normalized.Length == 0 || normalized.Any(fileType =>
-                fileType.Length < 1 || fileType.Any(character =>
-                    !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_' and not '+')))
-            throw new Exception(
-                $"Property '{propertyDefinition.Name}' contains invalid allowedFileTypes; use file extensions such as pdf or zip");
-
-        propertyDefinition.AllowedFileTypes = normalized;
-    }
-
-    private static void ValidateAllowedFileSize(PropertyDefinition propertyDefinition)
-    {
-        if (propertyDefinition.AllowedFileSize == null)
-            return;
-
-        if (propertyDefinition.DataType != DataType.File)
-            throw new Exception(
-                $"Property '{propertyDefinition.Name}' defines allowedFileSize but is not a File property");
-
-        if (propertyDefinition.AllowedFileSize <= 0)
-            throw new Exception(
-                $"Property '{propertyDefinition.Name}' contains an invalid allowedFileSize; use a positive number of bytes");
-    }
-
     private static Dictionary<string, object>? NormalizeLayout(Dictionary<string, object>? layout)
     {
         if (layout == null)
