@@ -103,17 +103,7 @@ public partial class ModelParser
             definition.AllSteps = Read<Step>(definition.SourceFolder);
 
             var stepTemplatesByName = StepTemplates.ToDictionary(t => t.Name);
-            definition.AllSteps = definition.AllSteps.Select(step =>
-            {
-                if (string.IsNullOrWhiteSpace(step.TemplateKey))
-                    return step;
-
-                if (!stepTemplatesByName.TryGetValue(step.TemplateKey, out var template))
-                    throw new Exception(
-                        $"Step '{step.Name}' in definition '{definition.Name}' references unknown template '{step.TemplateKey}'");
-
-                return ResolveTemplate(step, template, _deserializer);
-            }).ToList();
+            definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
 
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
