@@ -17,8 +17,15 @@ public partial class ModelParser
     /// </summary>
     private static void ExpandResetParentSteps(WorkflowDefinition def)
     {
-        // Every step-level event flagged resetParentStep, with its declaring step.
-        var declarations = def.AllSteps
+        // Inherited definitions that are not reachable from this workflow's root steps are dormant.
+        // They have no linked parent in the effective hierarchy and cannot emit events here, so their
+        // reset declarations must not participate in validation or suppression generation.
+        var effectiveSteps = def.Steps
+            .SelectMany(Subtree)
+            .ToArray();
+
+        // Every effective step-level event flagged resetParentStep, with its declaring step.
+        var declarations = effectiveSteps
             .SelectMany(s => s.Events
                 .Where(e => e.ResetParentStep)
                 .Select(e => (Event: e.Name, Step: s)))
@@ -80,7 +87,7 @@ public partial class ModelParser
                         resetEvent: reset, targetStep: p.Name);
 
             // A completion event must not be referenced by an ends condition outside the target.
-            var outsideEndEvents = def.AllSteps
+            var outsideEndEvents = effectiveSteps
                 .Where(s => !subtreeNames.Contains(s.Name) && s.Ends != null)
                 .SelectMany(s => s.Ends.GetAllEventIds().Select(id => (Id: id, Step: s.Name)))
                 .ToArray();

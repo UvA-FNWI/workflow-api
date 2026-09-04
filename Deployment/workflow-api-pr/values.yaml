@@ -67,6 +67,7 @@ apiPaths:
   - /Jobs
   - /Migrations
   - /Steps
+  - /Import
   - /oidc
   - /signin-oidc
 

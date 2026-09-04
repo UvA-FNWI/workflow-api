@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson.Serialization.Attributes;
 using UvA.Workflow.WorkflowModel;
 
@@ -113,6 +114,33 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
         return user;
     }
 
+    public async Task<IReadOnlyDictionary<string, User>> GetUsers(IReadOnlyCollection<string> userNames,
+        CancellationToken ct)
+    {
+        var names = userNames.Select(name => name.ToLower()).Distinct().ToArray();
+        var users = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+        var missing = new List<string>();
+
+        foreach (var name in names)
+        {
+            if (memoryCache.TryGetValue(GetCacheKeyForUser(name), out User? user))
+                users[name] = user!;
+            else if (name == ApiUserName)
+                users[name] = new User { UserName = name, DisplayName = "Api", Email = "api@invalid.uva.nl" };
+            else
+                missing.Add(name);
+        }
+
+        if (missing.Count > 0)
+            foreach (var user in await UserRepository.GetByUserNames(missing, ct))
+                users[user.UserName] = user;
+
+        foreach (var (name, user) in users)
+            memoryCache.Set(GetCacheKeyForUser(name.ToLower()), user, UserCacheExpiration);
+
+        return users;
+    }
+
     protected bool IsCached(string username) => memoryCache.TryGetValue(GetCacheKeyForUser(username), out _);
 }
 
@@ -124,7 +152,8 @@ public class UserService(
     IEnumerable<IUserDirectory> userDirectories,
     IEnumerable<IUserSearchSource> userSearchSources,
     IWorkflowInstanceRepository instanceRepository,
-    ModelService modelService
+    ModelService modelService,
+    ILogger<UserService> logger
 ) : UserServiceBase(userRepository, cache), IUserService
 {
     private readonly IMemoryCache _cache = cache;
@@ -170,9 +199,25 @@ public class UserService(
         {
             var directory = _userDirectories.FirstOrDefault(source =>
                 UserProviderKeys.AreEqual(source.ProviderKey, user.ProviderKey));
-            roles = directory == null
-                ? []
-                : (await directory.GetRoles(user, ct)).ToArray();
+            try
+            {
+                roles = directory == null
+                    ? []
+                    : (await directory.GetRoles(user, ct)).ToArray();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Directory lookup unavailable (e.g. DataNose down or a placeholder API key).
+                // Don't block the request; GetGlobalRoles still appends Registered.
+                logger.LogWarning(ex,
+                    "Directory GetRoles failed for user {UserName} (provider {ProviderKey}); continuing with empty directory roles",
+                    user.UserName, user.ProviderKey);
+                roles = [];
+            }
         }
 
         _cache.Set(cacheKey, roles, RolesCacheExpiration);

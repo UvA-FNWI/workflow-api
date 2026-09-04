@@ -36,7 +36,7 @@ public class AnswerService(
     IInstanceEventService instanceEventService,
     IInstanceJournalService instanceJournalService,
     IUserService userService,
-    IExternalUserService externalUserService)
+    IExternalUserService externalUserService) : IAnswerService
 {
     public Task<SubmissionContext> GetSubmissionContext(
         string instanceId, string submissionId, CancellationToken ct)
@@ -296,7 +296,17 @@ public class AnswerService(
             createdUser = await externalUserService.CreateOrUpdateExternalUser(
                 externalUser.DisplayName, externalUser.Email, externalUser.Organization, externalUser.UserId, ct);
 
-            value = JsonSerializer.SerializeToElement(createdUser, AnswerConversionService.Options);
+            var createdUserValue = JsonSerializer.SerializeToElement(createdUser, AnswerConversionService.Options);
+            if (propertyDefinition.IsArray && value is { ValueKind: JsonValueKind.Array } currentUsers)
+            {
+                var users = currentUsers.EnumerateArray().Select(user => user.Clone()).ToList();
+                users.Add(createdUserValue);
+                value = JsonSerializer.SerializeToElement(users, AnswerConversionService.Options);
+            }
+            else
+            {
+                value = createdUserValue;
+            }
         }
 
         if (propertyDefinition.DataType == DataType.User &&

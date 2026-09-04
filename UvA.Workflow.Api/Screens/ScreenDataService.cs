@@ -2,6 +2,7 @@ using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.Import;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -35,15 +36,18 @@ public class ScreenDataService(
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
 
+        var canBulkEdit = await instanceAuthorizationFilterService.HasEditableInstances(workflowDefinition, ct);
+
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
         {
             var groups = BuildGroups(contexts, screen, columns);
-            return ScreenDataDto.Create(screen, definition, columns, [], groups, canCreateInstance);
+            return ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups, canCreateInstance);
         }
 
         var rows = ProcessRows(contexts, screen, columns);
-        return ScreenDataDto.Create(screen, definition, columns, rows, canCreateInstance: canCreateInstance);
+        return ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit,
+            canCreateInstance: canCreateInstance);
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)
@@ -146,7 +150,7 @@ public class ScreenDataService(
 
         // Build authorization filter to restrict instances to those the user can view
         var authorizationFilter =
-            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, ct);
+            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
         var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();

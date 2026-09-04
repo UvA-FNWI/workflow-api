@@ -11,7 +11,8 @@ public class InstanceAuthorizationFilterService(
     /// <summary>
     /// Returns a MongoDB filter for instances the user can view, or null if user has global access.
     /// </summary>
-    public async Task<BsonDocument?> BuildAuthorizationFilter(string workflowDefinition, CancellationToken ct)
+    public async Task<BsonDocument?> BuildAuthorizationFilter(string workflowDefinition, RoleAction action,
+        CancellationToken ct)
     {
         var user = await userService.GetCurrentUser(ct);
         if (user == null)
@@ -21,7 +22,7 @@ public class InstanceAuthorizationFilterService(
         }
 
         // Get all actions that allow viewing this workflow definition
-        var allowedActions = await rightsService.GetAllowedActions(workflowDefinition, RoleAction.View);
+        var allowedActions = await rightsService.GetAllowedActions(workflowDefinition, action);
 
         // Check if any action grants unconditional access (no condition, no step restrictions)
         var hasUnconditionalAccess = allowedActions.Any(a =>
@@ -33,7 +34,7 @@ public class InstanceAuthorizationFilterService(
             return null;
 
         var filters = new List<BsonDocument>();
-        filters.AddRange(await BuildInstanceRoleFilters(workflowDefinition, user));
+        filters.AddRange(await BuildInstanceRoleFilters(workflowDefinition, user, action));
         filters.AddRange(await BuildInheritedRoleFilters(workflowDefinition, user, ct));
 
         return filters.Count switch
@@ -50,7 +51,28 @@ public class InstanceAuthorizationFilterService(
     /// </summary>
     public async Task<bool> HasVisibleInstances(string workflowDefinition, CancellationToken ct)
     {
-        var authorizationFilter = await BuildAuthorizationFilter(workflowDefinition, ct);
+        var authorizationFilter = await BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
+
+        // A null filter means the user has unconditional view access (sees all instances).
+        if (authorizationFilter == null)
+            return true;
+
+        var rows = await workflowInstanceRepository.GetAllByType(
+            workflowDefinition,
+            new Dictionary<string, string> { ["_id"] = "$_id" },
+            authorizationFilter,
+            ct);
+
+        return rows.Count > 0;
+    }
+
+    /// <summary>
+    /// Whether the current user can edit at least one instance of the given workflow definition
+    /// (either unconditional edit access, or at least one instance they are authorized to edit).
+    /// </summary>
+    public async Task<bool> HasEditableInstances(string workflowDefinition, CancellationToken ct)
+    {
+        var authorizationFilter = await BuildAuthorizationFilter(workflowDefinition, RoleAction.Edit, ct);
 
         // A null filter means the user has unconditional view access (sees all instances).
         if (authorizationFilter == null)
@@ -67,7 +89,8 @@ public class InstanceAuthorizationFilterService(
 
     private async Task<List<BsonDocument>> BuildInstanceRoleFilters(
         string workflowDefinition,
-        User user)
+        User user,
+        RoleAction action)
     {
         var filters = new List<BsonDocument>();
 
@@ -81,7 +104,7 @@ public class InstanceAuthorizationFilterService(
         {
             var role = modelService.Roles.GetValueOrDefault(globalRoleName);
             if (role != null && role.Actions.Any(a =>
-                    a.Type == RoleAction.View &&
+                    a.Type == action &&
                     (a.WorkflowDefinition == null || a.WorkflowDefinition == workflowDefinition)))
             {
                 rolesWithViewAccess.Add(role.Name);
@@ -90,7 +113,7 @@ public class InstanceAuthorizationFilterService(
 
         rolesWithViewAccess.UnionWith(
             definition.GlobalActions
-                .Where(a => a.Type == RoleAction.View)
+                .Where(a => a.Type == action)
                 .SelectMany(a => a.Roles)
         );
 

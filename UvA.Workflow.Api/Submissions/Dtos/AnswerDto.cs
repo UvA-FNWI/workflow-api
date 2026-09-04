@@ -7,6 +7,10 @@ namespace UvA.Workflow.Api.Submissions.Dtos;
 
 public record ArtifactReference(string Id, string Name, string AccessToken);
 
+public record AnswerChangeDto(JsonElement? Value, DateTime ChangedAt, string? ChangedBy);
+
+public record AnswerChangeGroupDto(int VersionNumber, AnswerChangeDto[] Changes);
+
 public record AnswerDto(
     string Id,
     string QuestionName,
@@ -16,12 +20,13 @@ public record AnswerDto(
     BilingualString? ValidationError = null,
     JsonElement? Value = null,
     ArtifactReference[]? Files = null,
-    string[]? VisibleChoices = null
+    string[]? VisibleChoices = null,
+    AnswerChangeGroupDto[]? Changes = null
 );
 
 public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
 {
-    public AnswerDto Create(Answer answer)
+    public AnswerDto Create(Answer answer, AnswerChangeGroupDto[]? changes = null)
     {
         ArtifactReference[]? files = null;
         if (answer.Files != null && answer.Files.Length != 0)
@@ -37,6 +42,6 @@ public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
 
         return new AnswerDto(answer.Id, answer.QuestionName, answer.FormName, answer.WorkflowDefinition,
             answer.IsVisible,
-            answer.ValidationError, answer.Value, files, answer.VisibleChoices);
+            answer.ValidationError, answer.Value, files, answer.VisibleChoices, changes);
     }
 }

@@ -16,9 +16,19 @@ public record FormSubmissionState(
         => form.SubmittedWhenEvents is { Length: > 0 } ? form.SubmittedWhenEvents : [form.Name];
 
     public static FormSubmissionState Resolve(WorkflowInstance instance, Form form, WorkflowDefinition workflowDef)
+        => Resolve(instance, GetSubmissionEventIds(form), workflowDef);
+
+    /// <summary>
+    /// Resolves submission state from event IDs. History reconstruction uses this
+    /// after replaying the instance's events at an earlier time.
+    /// </summary>
+    public static FormSubmissionState Resolve(
+        WorkflowInstance instance,
+        IEnumerable<string> submissionEventIds,
+        WorkflowDefinition workflowDef)
     {
-        var submissionEventIds = GetSubmissionEventIds(form);
-        var activeSubmissionEvents = submissionEventIds
+        var ids = submissionEventIds as string[] ?? [.. submissionEventIds];
+        var activeSubmissionEvents = ids
             .Select(eventId => instance.Events.GetValueOrDefault(eventId))
             .Where(e => e?.Date != null)
             .Cast<InstanceEvent>()
@@ -26,9 +36,6 @@ public record FormSubmissionState(
             .OrderByDescending(e => e.Date)
             .ToArray();
 
-        return new FormSubmissionState(
-            submissionEventIds,
-            activeSubmissionEvents,
-            activeSubmissionEvents.FirstOrDefault()?.Date);
+        return new FormSubmissionState(ids, activeSubmissionEvents, activeSubmissionEvents.FirstOrDefault()?.Date);
     }
 }

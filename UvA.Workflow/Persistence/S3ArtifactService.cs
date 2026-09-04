@@ -23,7 +23,7 @@ public class S3ArtifactService : IArtifactService
         var uri = new Uri(s3Config.ServiceUrl);
 
         _minioClient = new MinioClient()
-            .WithEndpoint(uri.Host)
+            .WithEndpoint(uri.Host, uri.Port)
             .WithCredentials(s3Config.AccessKey, s3Config.SecretKey)
             .WithRegion(s3Config.AuthenticationRegion)
             .WithSSL(uri.Scheme == "https")
