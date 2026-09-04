@@ -369,7 +369,6 @@ public class AnswersControllerTests : ControllerTestsBase
             new AnswersController(
                 _answerService,
                 _rightsService,
-                _artifactTokenService,
                 _submissionDtoFactory,
                 _instanceService,
                 _modelService,

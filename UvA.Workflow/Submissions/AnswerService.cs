@@ -203,6 +203,7 @@ public class AnswerService(
         CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
+        ValidateFile(propertyDefinition, artifactName, contents.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
         var artifactInfo = await artifactService.SaveArtifact(artifactId, artifactName, contents);
         await SaveArtifact(context, artifactInfo, ct);
@@ -211,10 +212,27 @@ public class AnswerService(
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
+        ValidateFile(propertyDefinition, formFile.FileName, formFile.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
         var artifactInfo = await artifactService.SaveArtifact(artifactId, formFile);
 
         await SaveArtifact(context, artifactInfo, ct);
+    }
+
+    private static void ValidateFile(PropertyDefinition propertyDefinition, string fileName, long fileSize)
+    {
+        if (propertyDefinition.DataType != DataType.File)
+            throw new ArgumentException($"Property '{propertyDefinition.Name}' does not accept file uploads");
+
+        if (propertyDefinition.EffectiveAllowedFileTypes == null ||
+            propertyDefinition.EffectiveAllowedFileTypes.All(fileType =>
+                !fileName.EndsWith($".{fileType}", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException(
+                $"File '{fileName}' does not have an allowed file type for property '{propertyDefinition.Name}'");
+
+        if (fileSize > propertyDefinition.EffectiveAllowedFileSize)
+            throw new ArgumentException(
+                $"File '{fileName}' exceeds the maximum file size for property '{propertyDefinition.Name}'");
     }
 
     private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)

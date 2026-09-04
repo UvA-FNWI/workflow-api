@@ -108,6 +108,25 @@ public class PropertyDefinition : INamed
     public string Type { get; set; } = null!;
 
     /// <summary>
+    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Defaults to pdf when omitted.
+    /// </summary>
+    public string[]? AllowedFileTypes { get; set; }
+
+    [YamlIgnore]
+    public IReadOnlyList<string>? EffectiveAllowedFileTypes =>
+        AllowedFileTypes ?? (DataType == DataType.File ? ["pdf"] : null);
+
+    /// <summary>
+    /// Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.
+    /// </summary>
+    public int? AllowedFileSize { get; set; }
+
+    [YamlIgnore]
+    public int? EffectiveAllowedFileSize =>
+        AllowedFileSize ?? (DataType == DataType.File ? 10_000_000 : null);
+
+    /// <summary>
     /// Values for a choice propertyDefinition.
     /// </summary>
     public List<Choice>? Values { get; set; }
