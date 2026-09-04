@@ -16,22 +16,6 @@ public class GlobalExceptionHandlerTests
             "MigrationPropertyOverlap",
             "Properties overlap");
 
-    [Fact]
-    public Task MigrationNotFoundException_ReturnsNotFoundWithMessage()
-        => AssertResponse(
-            new MigrationNotFoundException("migration-id"),
-            StatusCodes.Status404NotFound,
-            "MigrationNotFound",
-            "Migration 'migration-id' does not exist");
-
-    [Fact]
-    public Task InvalidMigrationStateException_ReturnsConflictWithMessage()
-        => AssertResponse(
-            new InvalidMigrationStateException("Migration cannot be finished"),
-            StatusCodes.Status409Conflict,
-            "InvalidMigrationState",
-            "Migration cannot be finished");
-
     private static async Task AssertResponse(
         Exception exception,
         int expectedStatus,

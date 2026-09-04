@@ -10,25 +10,32 @@ public enum MigrationKind
 public enum MigrationStatus
 {
     Applying,
-    ReadyToFinish,
-    Finishing,
     Finished,
-    Reverting,
-    Reverted,
-    ApplyFailed,
-    FinishFailed,
-    RevertFailed
+    Failed
 }
 
+/// <summary>
+/// A durable record of an executed property migration.
+/// </summary>
 [BsonIgnoreExtraElements]
 public class Migration
 {
-    [BsonId] public string Id { get; set; } = null!;
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-    [BsonRepresentation(BsonType.String)] public MigrationKind Kind { get; set; }
+    public string MigrationId { get; set; } = null!;
+
+    /// <summary>Currently only <c>renameProperty</c> is supported.</summary>
+    [BsonRepresentation(BsonType.String)]
+    public MigrationKind Kind { get; set; }
+
     [BsonRepresentation(BsonType.String)] public MigrationStatus Status { get; set; }
 
-    public MigrationDefinition Definition { get; set; } = null!;
+    public string[] WorkflowDefinitions { get; set; } = [];
+    public string OldProperty { get; set; } = null!;
+    public string NewProperty { get; set; } = null!;
+
     public string RequestedBy { get; set; } = null!;
 
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
@@ -40,26 +47,8 @@ public class Migration
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? FinishedAt { get; set; }
 
-    public MigrationProgress Progress { get; set; } = new();
-    public string? Error { get; set; }
-}
-
-[BsonDiscriminator(RootClass = true)]
-[BsonKnownTypes(typeof(RenamePropertyDefinition))]
-public abstract class MigrationDefinition
-{
-}
-
-public class RenamePropertyDefinition : MigrationDefinition
-{
-    public string[] WorkflowDefinitions { get; set; } = [];
-    public string OldProperty { get; set; } = null!;
-    public string NewProperty { get; set; } = null!;
-}
-
-public class MigrationProgress
-{
     public long ItemsMatched { get; set; }
     public long ItemsUpdated { get; set; }
-    public Dictionary<string, long> Details { get; set; } = [];
+    public long JournalEntriesUpdated { get; set; }
+    public string? Error { get; set; }
 }

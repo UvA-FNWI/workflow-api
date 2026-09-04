@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.Api.Versions;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Helpers;
@@ -32,13 +33,17 @@ public class WorkflowConfigLoaderTests
         => new(accessor ?? new Mock<IHttpContextAccessor>().Object);
 
     private static WorkflowConfigLoader CreateLoader(ModelServiceResolver resolver, WorkflowSourceOptions opts,
-        HttpMessageHandler? handler = null)
+        HttpMessageHandler? handler = null, IConfiguredMigrationRunner? migrationRunner = null,
+        bool migrationsEnabled = true)
     {
         var factory = new Mock<IHttpClientFactory>();
         if (handler is not null)
             factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient(handler));
 
-        return new WorkflowConfigLoader(factory.Object, resolver, Options.Create(opts),
+        migrationRunner ??= Mock.Of<IConfiguredMigrationRunner>(runner =>
+            runner.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()) == Task.CompletedTask);
+        return new WorkflowConfigLoader(factory.Object, resolver, migrationRunner,
+            Options.Create(new ConfiguredMigrationOptions { Enabled = migrationsEnabled }), Options.Create(opts),
             NullLogger<WorkflowConfigLoader>.Instance);
     }
 
@@ -57,6 +62,49 @@ public class WorkflowConfigLoaderTests
         Assert.Contains(resolver.GetVersions(), v => v.Name == "");
         Assert.Equal(File.ReadAllText(Path.Combine(FixturesRoot, "Layouts", "default.html")),
             config.DefaultMailLayout);
+    }
+
+    [Fact]
+    public async Task LoadBaseline_RunsConfiguredMigrationsBeforeInstallingModel()
+    {
+        var runner = new Mock<IConfiguredMigrationRunner>();
+        runner.Setup(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var resolver = CreateResolver();
+
+        await CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot },
+            migrationRunner: runner.Object).LoadBaselineAsync();
+
+        runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.True(resolver.Contains(""));
+    }
+
+    [Fact]
+    public async Task LoadBranch_DoesNotRunConfiguredMigrations()
+    {
+        var runner = new Mock<IConfiguredMigrationRunner>();
+        var resolver = CreateResolver();
+
+        await CreateLoader(resolver, RepoOptions(), new FakeGitHub("sha-1").Handler(), runner.Object)
+            .LoadBranchAsync("feature/x");
+
+        runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task LoadBaseline_WhenConfiguredMigrationsAreDisabled_DoesNotRunThem()
+    {
+        var runner = new Mock<IConfiguredMigrationRunner>();
+        var resolver = CreateResolver();
+
+        await CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot },
+            migrationRunner: runner.Object, migrationsEnabled: false).LoadBaselineAsync();
+
+        runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.True(resolver.Contains(""));
     }
 
     [Fact]

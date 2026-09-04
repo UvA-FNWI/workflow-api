@@ -32,18 +32,4 @@ public class MigrationsController(
             ct);
         return Ok(MigrationDto.Create(migration));
     }
-
-    [HttpPost("{id}/Finish")]
-    public async Task<ActionResult<MigrationDto>> Finish(string id, CancellationToken ct)
-    {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-        return Ok(MigrationDto.Create(await migrationService.Finish(id, ct)));
-    }
-
-    [HttpPost("{id}/Revert")]
-    public async Task<ActionResult<MigrationDto>> Revert(string id, CancellationToken ct)
-    {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
-        return Ok(MigrationDto.Create(await migrationService.Revert(id, ct)));
-    }
 }

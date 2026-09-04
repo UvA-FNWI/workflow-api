@@ -8,40 +8,42 @@ public record CreatePropertyRenameDto(
     string NewProperty);
 
 public record MigrationDto(
-    string Id,
+    string MigrationId,
     MigrationKind Kind,
     MigrationStatus Status,
     string StatusLabel,
-    object Definition,
+    string[] WorkflowDefinitions,
+    string OldProperty,
+    string NewProperty,
     string RequestedBy,
     DateTime RequestedAt,
     DateTime UpdatedAt,
     DateTime? FinishedAt,
-    MigrationProgress Progress,
+    long ItemsMatched,
+    long ItemsUpdated,
+    long JournalEntriesUpdated,
     string? Error)
 {
     public static MigrationDto Create(Migration migration) => new(
-        migration.Id,
+        migration.MigrationId,
         migration.Kind,
         migration.Status,
         migration.Status switch
         {
             MigrationStatus.Applying => "Applying the property rename",
-            MigrationStatus.ReadyToFinish => "Ready to finish",
-            MigrationStatus.Finishing => "Finishing the rename",
             MigrationStatus.Finished => "Finished",
-            MigrationStatus.Reverting => "Reverting the copied property",
-            MigrationStatus.Reverted => "Reverted",
-            MigrationStatus.ApplyFailed => "Applying the property rename failed",
-            MigrationStatus.FinishFailed => "Finish failed",
-            MigrationStatus.RevertFailed => "Revert failed",
+            MigrationStatus.Failed => "Failed",
             _ => migration.Status.ToString()
         },
-        migration.Definition,
+        migration.WorkflowDefinitions,
+        migration.OldProperty,
+        migration.NewProperty,
         migration.RequestedBy,
         migration.RequestedAt,
         migration.UpdatedAt,
         migration.FinishedAt,
-        migration.Progress,
+        migration.ItemsMatched,
+        migration.ItemsUpdated,
+        migration.JournalEntriesUpdated,
         migration.Error);
 }

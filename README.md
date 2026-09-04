@@ -116,6 +116,25 @@ The API Docker build also runs the solution tests before publishing the applicat
 
 Workflow definitions are YAML-based and are organized under `Examples`. Schemas under `Schemas` describe the supported format and can be used by editors and tooling for validation and completion. We currently use this to power type checks in our [VS Code extension](https://github.com/uvA-FNWI/workflow-dev).
 
+### Configuration migrations
+
+Property renames can be declared in a workflow's `Migrations` folder. The workflow name and filename form a stable
+identifier, so never rename or reuse a migration file after it has run. For example,
+`Projects/Project/Migrations/rename-title.yaml` can contain:
+
+```yaml
+kind: renameProperty
+oldProperty: Title
+newProperty: ProjectTitle
+```
+
+The workflow configuration must declare `ProjectTitle` and no longer declare `Title`. When the baseline
+configuration is loaded, the API checks the migrations collection in its MongoDB database. A migration that is not
+recorded there is applied immediately, including its instance values and journal paths, and marked as finished.
+Already-finished migrations are skipped. Preview branches and uploaded preview versions never run migrations.
+Configured migrations are also disabled by the PR deployment chart, so PR builds cannot modify shared migration
+state or instance data.
+
 ## Development Notes
 
 The solution is split between core behavior, the API layer, and optional integration modules. For detailed guidance on where new code belongs, read [docs/architecture/project-boundaries.md](docs/architecture/project-boundaries.md).

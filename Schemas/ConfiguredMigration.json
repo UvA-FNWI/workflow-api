@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "ConfiguredMigration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "oldProperty",
+    "newProperty"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "description": "Currently only renameProperty is supported.",
+      "enum": [
+        "renameProperty"
+      ]
+    },
+    "oldProperty": {
+      "type": "string"
+    },
+    "newProperty": {
+      "type": "string"
+    }
+  }
+}

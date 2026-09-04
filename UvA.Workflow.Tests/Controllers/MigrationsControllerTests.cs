@@ -17,15 +17,12 @@ public class MigrationsControllerTests
     {
         var migration = new Migration
         {
-            Id = "migration-id",
+            MigrationId = "migration-id",
             Kind = MigrationKind.RenameProperty,
-            Status = MigrationStatus.ReadyToFinish,
-            Definition = new RenamePropertyDefinition
-            {
-                WorkflowDefinitions = ["Project"],
-                OldProperty = "Title",
-                NewProperty = "ProjectTitle"
-            },
+            Status = MigrationStatus.Failed,
+            WorkflowDefinitions = ["Project"],
+            OldProperty = "Title",
+            NewProperty = "ProjectTitle",
             RequestedBy = "admin",
             RequestedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -48,6 +45,6 @@ public class MigrationsControllerTests
 
         var migrations = Assert.IsAssignableFrom<IReadOnlyList<MigrationDto>>(
             Assert.IsType<OkObjectResult>(result.Result).Value);
-        Assert.Equal("Ready to finish", Assert.Single(migrations).StatusLabel);
+        Assert.Equal("Failed", Assert.Single(migrations).StatusLabel);
     }
 }

@@ -20,8 +20,6 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         var (statusCode, code, message) = exception switch
         {
             MigrationValidationException mve => (HttpStatusCode.BadRequest, mve.Code, mve.Message),
-            MigrationNotFoundException mnfe => (HttpStatusCode.NotFound, mnfe.Code, mnfe.Message),
-            InvalidMigrationStateException imse => (HttpStatusCode.Conflict, imse.Code, imse.Message),
             EntityNotFoundException enf => (HttpStatusCode.NotFound, enf.Code, enf.Message),
             // The client drops unknown versions on a 404; GitHub failures should remain retryable.
             WorkflowVersionLoadException { Missing: true } wvl =>

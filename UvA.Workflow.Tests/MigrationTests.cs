@@ -9,42 +9,47 @@ namespace UvA.Workflow.Tests;
 public class MigrationTests
 {
     [Fact]
-    public void RenamePropertyDefinition_RoundTripsThroughMongoSerialization()
+    public void Migration_RoundTripsThroughMongoSerialization()
     {
         var migration = ReadyMigration();
+        var document = migration.ToBsonDocument();
 
         var restored = BsonSerializer.Deserialize<Migration>(migration.ToBson());
 
-        var definition = Assert.IsType<RenamePropertyDefinition>(restored.Definition);
-        Assert.Equal(["Project"], definition.WorkflowDefinitions);
-        Assert.Equal("Title", definition.OldProperty);
-        Assert.Equal("ProjectTitle", definition.NewProperty);
+        Assert.Equal(BsonType.ObjectId, document["_id"].BsonType);
+        Assert.Equal("migration-id", document["MigrationId"].AsString);
+        Assert.False(document.Contains("Definition"));
+        Assert.Equal("Title", document["OldProperty"].AsString);
+        Assert.Equal(["Project"], restored.WorkflowDefinitions);
+        Assert.Equal("Title", restored.OldProperty);
+        Assert.Equal("ProjectTitle", restored.NewProperty);
     }
 
     [Fact]
-    public async Task CreatePropertyRename_CopiesPropertyValuesAndBecomesReadyToFinish()
+    public async Task CreatePropertyRename_RunsToCompletionImmediately()
     {
         var repository = new Mock<IMigrationRepository>();
         repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<Migration>());
-        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
-        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(), false,
+        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PropertyCopyResult(3, 3));
+        repository.Setup(value => value.RenameJournalPaths(It.IsAny<Migration>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(2);
         var service = CreateService(repository);
 
         var migration = await service.CreatePropertyRename(
             ["Project", "Course"], "Title", "ProjectTitle", "admin");
 
-        Assert.Equal(MigrationStatus.ReadyToFinish, migration.Status);
-        Assert.Equal(3, migration.Progress.ItemsMatched);
-        Assert.Equal(3, migration.Progress.ItemsUpdated);
-        var definition = Assert.IsType<RenamePropertyDefinition>(migration.Definition);
-        Assert.Equal(["Project", "Course"], definition.WorkflowDefinitions);
-        Assert.Equal("Title", definition.OldProperty);
-        Assert.Equal("ProjectTitle", definition.NewProperty);
+        Assert.Equal(MigrationStatus.Finished, migration.Status);
+        Assert.Equal(3, migration.ItemsMatched);
+        Assert.Equal(3, migration.ItemsUpdated);
+        Assert.Equal(["Project", "Course"], migration.WorkflowDefinitions);
+        Assert.Equal("Title", migration.OldProperty);
+        Assert.Equal("ProjectTitle", migration.NewProperty);
+        Assert.Equal(2, migration.JournalEntriesUpdated);
+        Assert.NotNull(migration.FinishedAt);
         repository.Verify(value => value.Create(migration, It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(value => value.Update(migration, It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -55,10 +60,7 @@ public class MigrationTests
         var repository = new Mock<IMigrationRepository>();
         repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<Migration>());
-        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
-        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(), false,
+        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PropertyCopyResult(3, 3));
         var service = CreateService(repository, CreateParser("ProjectTitle"));
@@ -66,7 +68,7 @@ public class MigrationTests
         var migration = await service.CreatePropertyRename(
             ["Project"], "Title", "ProjectTitle", "admin");
 
-        Assert.Equal(MigrationStatus.ReadyToFinish, migration.Status);
+        Assert.Equal(MigrationStatus.Finished, migration.Status);
     }
 
     [Fact]
@@ -114,16 +116,12 @@ public class MigrationTests
     {
         var repository = new Mock<IMigrationRepository>();
         var existing = ReadyMigration();
-        var existingDefinition = Assert.IsType<RenamePropertyDefinition>(existing.Definition);
-        existingDefinition.WorkflowDefinitions = [existingWorkflow];
-        existingDefinition.OldProperty = existingOldProperty;
-        existingDefinition.NewProperty = existingNewProperty;
+        existing.WorkflowDefinitions = [existingWorkflow];
+        existing.OldProperty = existingOldProperty;
+        existing.NewProperty = existingNewProperty;
         repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
             .ReturnsAsync([existing]);
-        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
-        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(), false,
+        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PropertyCopyResult(3, 3));
         var service = CreateService(repository);
@@ -131,7 +129,7 @@ public class MigrationTests
         var migration = await service.CreatePropertyRename(
             ["Project"], "Title", "ProjectTitle", "admin");
 
-        Assert.Equal(MigrationStatus.ReadyToFinish, migration.Status);
+        Assert.Equal(MigrationStatus.Finished, migration.Status);
         repository.Verify(value => value.Create(migration, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -145,9 +143,8 @@ public class MigrationTests
     {
         var repository = new Mock<IMigrationRepository>();
         var existing = ReadyMigration();
-        var existingDefinition = Assert.IsType<RenamePropertyDefinition>(existing.Definition);
-        existingDefinition.OldProperty = existingOldProperty;
-        existingDefinition.NewProperty = existingNewProperty;
+        existing.OldProperty = existingOldProperty;
+        existing.NewProperty = existingNewProperty;
         repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
             .ReturnsAsync([existing]);
         var service = CreateService(repository);
@@ -162,63 +159,69 @@ public class MigrationTests
     }
 
     [Fact]
-    public async Task Finish_RefreshesCopiedValuesAndRenamesJournalPaths()
+    public void ModelParser_ReadsMigrationsFromWorkflowFolder()
     {
-        var migration = ReadyMigration();
-        var repository = new Mock<IMigrationRepository>();
-        repository.Setup(value => value.GetById(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(migration);
-        repository.Setup(value => value.CopyPropertyValues(migration, true,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PropertyCopyResult(4, 4));
-        repository.Setup(value => value.RenameJournalPaths(migration, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(7);
-        var service = CreateService(repository);
+        var parser = CreateConfiguredParser();
 
-        var result = await service.Finish(migration.Id);
-
-        Assert.Equal(MigrationStatus.Finished, result.Status);
-        Assert.Equal(4, result.Progress.ItemsUpdated);
-        Assert.Equal(7, result.Progress.Details["JournalEntriesUpdated"]);
-        Assert.NotNull(result.FinishedAt);
-        repository.Verify(value => value.Update(migration, It.IsAny<CancellationToken>()),
-            Times.Exactly(2));
+        var migration = Assert.Single(parser.Migrations);
+        Assert.Equal("Project:rename-title", migration.MigrationId);
+        Assert.Equal(MigrationKind.RenameProperty, migration.Kind);
+        Assert.Equal("Title", migration.OldProperty);
+        Assert.Equal("ProjectTitle", migration.NewProperty);
     }
 
     [Fact]
-    public async Task Revert_RemovesTheCopiedTargetProperty()
+    public async Task RunConfigured_RunsOnlyOncePerRepository()
     {
-        var migration = ReadyMigration();
         var repository = new Mock<IMigrationRepository>();
-        repository.Setup(value => value.GetById(migration.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(migration);
-        var service = CreateService(repository);
+        Migration? stored = null;
+        repository.Setup(value => value.GetByMigrationId("Project:rename-title", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => stored);
+        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Migration>());
+        repository.Setup(value => value.CopyPropertyValues(It.IsAny<Migration>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyCopyResult(4, 4));
+        repository.Setup(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .Callback<Migration, CancellationToken>((migration, _) => stored = migration)
+            .Returns(Task.CompletedTask);
+        var parser = CreateConfiguredParser();
+        var service = CreateService(repository, parser);
 
-        var result = await service.Revert(migration.Id);
+        var first = await service.RunConfigured(Assert.Single(parser.Migrations));
+        var second = await service.RunConfigured(Assert.Single(parser.Migrations));
 
-        Assert.Equal(MigrationStatus.Reverted, result.Status);
-        repository.Verify(value => value.RemoveTargetFields(migration,
+        Assert.Same(first, second);
+        Assert.Equal(MigrationStatus.Finished, second.Status);
+        Assert.Equal("configuration", second.RequestedBy);
+        repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        repository.Verify(value => value.CopyPropertyValues(It.IsAny<Migration>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task CreatePropertyRename_RejectsAnExistingTargetField()
+    public async Task RunConfigured_SkipsAnExistingMigrationId()
     {
+        var parser = CreateConfiguredParser();
+        var configured = Assert.Single(parser.Migrations);
+        configured.OldProperty = "";
+        configured.NewProperty = "";
+        var existing = ReadyMigration();
+        existing.MigrationId = "Project:rename-title";
         var repository = new Mock<IMigrationRepository>();
-        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<Migration>());
-        repository.Setup(value => value.CountTargetFields(It.IsAny<Migration>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-        var service = CreateService(repository);
+        repository.Setup(value => value.GetByMigrationId(existing.MigrationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+        var service = CreateService(repository, parser);
 
-        var error = await Assert.ThrowsAsync<MigrationValidationException>(() =>
-            service.CreatePropertyRename(["Project"], "Title", "ProjectTitle", "admin"));
+        var result = await service.RunConfigured(configured);
 
-        Assert.Equal("MigrationTargetPropertyExists", error.Code);
-        Assert.Contains("already contain", error.Message);
+        Assert.Same(existing, result);
+        repository.Verify(value => value.GetAll(It.IsAny<CancellationToken>()), Times.Never);
         repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        repository.Verify(value => value.CopyPropertyValues(It.IsAny<Migration>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static MigrationService CreateService(Mock<IMigrationRepository> repository,
@@ -227,15 +230,12 @@ public class MigrationTests
 
     private static Migration ReadyMigration() => new()
     {
-        Id = "migration-id",
+        MigrationId = "migration-id",
         Kind = MigrationKind.RenameProperty,
-        Status = MigrationStatus.ReadyToFinish,
-        Definition = new RenamePropertyDefinition
-        {
-            WorkflowDefinitions = ["Project"],
-            OldProperty = "Title",
-            NewProperty = "ProjectTitle"
-        },
+        Status = MigrationStatus.Failed,
+        WorkflowDefinitions = ["Project"],
+        OldProperty = "Title",
+        NewProperty = "ProjectTitle",
         RequestedBy = "admin",
         RequestedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow
@@ -265,4 +265,21 @@ public class MigrationTests
                                              """
         }));
     }
+
+    private static ModelParser CreateConfiguredParser()
+        => new(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Projects/Project/Entity.yaml"] = """
+                                               name: Project
+                                               titlePlural: Projects
+                                               properties:
+                                                 - name: ProjectTitle
+                                                   type: String
+                                               """,
+            ["Projects/Project/Migrations/rename-title.yaml"] = """
+                                                                kind: renameProperty
+                                                                oldProperty: Title
+                                                                newProperty: ProjectTitle
+                                                                """
+        }));
 }
