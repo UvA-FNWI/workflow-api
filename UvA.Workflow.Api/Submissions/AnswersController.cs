@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
@@ -11,7 +10,6 @@ namespace UvA.Workflow.Api.Submissions;
 public class AnswersController(
     IAnswerService answerService,
     RightsService rightsService,
-    ArtifactTokenService artifactTokenService,
     SubmissionDtoFactory submissionDtoFactory,
     InstanceService instanceService,
     ModelService modelService,
@@ -91,24 +89,6 @@ public class AnswersController(
 
         await answerService.DeleteArtifact(context, artifactId, ct);
         return Ok(new SaveAnswerFileResponse(true));
-    }
-
-    [AllowAnonymous]
-    [HttpGet("{instanceId}/{submissionId}/{questionName}/Artifacts/{artifactId}")]
-    public async Task<IActionResult> GetAnswerFile(string instanceId, string submissionId, string questionName,
-        string artifactId, [FromQuery] string token, CancellationToken ct)
-    {
-        if (!await artifactTokenService.ValidateAccessToken(artifactId, token))
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
-            return Unauthorized();
-        }
-
-        var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        var file = await answerService.GetArtifact(context, artifactId, ct);
-        if (file == null) return NotFound();
-
-        return File(file.Content, file.Info.ContentType, file.Info.Name);
     }
 
     [HttpGet("{instanceId}/{submissionId}/{questionName}/Choices")]
