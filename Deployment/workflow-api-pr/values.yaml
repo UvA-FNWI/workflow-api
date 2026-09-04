@@ -65,6 +65,7 @@ apiPaths:
   - /Assessments
   - /Personal
   - /Jobs
+  - /Migrations
   - /Steps
   - /Import
   - /oidc

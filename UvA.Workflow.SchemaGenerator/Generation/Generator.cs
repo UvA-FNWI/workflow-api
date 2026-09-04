@@ -1,5 +1,6 @@
 using System.Reflection;
 using NJsonSchema;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel;
 using YamlDotNet.Serialization;
 
@@ -116,6 +117,14 @@ public class Generator(DocumentationReader documentationReader)
             : property.PropertyType;
 
         var isNullable = _nullabilityInfoContext.Create(property).WriteState == NullabilityState.Nullable;
+
+        if (property.DeclaringType == typeof(ConfiguredMigration) && property.Name == "Kind")
+            return new JsonSchemaProperty
+            {
+                Type = JsonObjectType.String,
+                Enumeration = { ConfiguredMigration.RenamePropertyKind },
+                Description = documentationReader.GetSummary(property)
+            };
 
         if (property.Name == "Icon" && targetType == typeof(string))
         {

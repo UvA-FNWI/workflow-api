@@ -1,4 +1,5 @@
 using Serilog;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
@@ -20,7 +21,12 @@ public partial class ModelParser
 
     public List<Service> Services { get; }
     public List<Role> Roles { get; }
+
+    public IReadOnlyList<ConfiguredMigration> Migrations =>
+        WorkflowDefinitions.Values.SelectMany(definition => definition.Migrations).ToArray();
+
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
+
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
 
@@ -102,6 +108,10 @@ public partial class ModelParser
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
+            definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
+
+            foreach (var migration in definition.Migrations)
+                migration.WorkflowDefinition = definition.Name;
 
             foreach (var set in definition.ValueSets)
             {
@@ -647,15 +657,16 @@ public partial class ModelParser
         return keys;
     }
 
-    private List<T> Read<T>(string? root = null)
+    private List<T> Read<T>(string? root = null, string? folder = null)
     {
         Log.Debug("Reading {Type} from {Root}", typeof(T).Name, root);
         root ??= "Common";
 
         var typeName = typeof(T).Name;
-        var folder = typeName switch
+        folder ??= typeName switch
         {
             nameof(TemplateMessage) => "Emails",
+            nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };

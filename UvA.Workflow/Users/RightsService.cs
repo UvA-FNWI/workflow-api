@@ -131,7 +131,7 @@ public class RightsService(
             {
                 Role = r,
                 p.WorkflowDefinition,
-                InstanceIds = instance.Properties.GetValueOrDefault(p.Name) switch
+                InstanceIds = instance.GetProperty(p.Name) switch
                 {
                     BsonArray a => a.Select(v => v.AsString).ToArray(),
                     BsonString s => [s.AsString],
@@ -158,7 +158,7 @@ public class RightsService(
 
         return properties
             .Where(p => p.DataType == DataType.User)
-            .Select(p => new { p.Name, Value = instance.Properties.GetValueOrDefault(p.Name) })
+            .Select(p => new { p.Name, Value = instance.GetProperty(p.Name) })
             .Concat(inheritedProperties)
             .Where(p => p.Value != null)
             .Where(p => p.Value switch

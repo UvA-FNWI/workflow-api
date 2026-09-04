@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Diagnostics;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Migrations;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -18,6 +19,7 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
 
         var (statusCode, code, message) = exception switch
         {
+            MigrationValidationException mve => (HttpStatusCode.BadRequest, mve.Code, mve.Message),
             EntityNotFoundException enf => (HttpStatusCode.NotFound, enf.Code, enf.Message),
             // The client drops unknown versions on a 404; GitHub failures should remain retryable.
             WorkflowVersionLoadException { Missing: true } wvl =>
