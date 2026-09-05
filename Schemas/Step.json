@@ -102,6 +102,17 @@
         }
       ]
     },
+    "mode": {
+      "description": "Controls how this top-level step participates in workflow progression. Normal follows the ordered progression and becomes current when reached. Alongside opens after the preceding normal step ends, remains active while normal steps continue, and blocks at its before target or workflow completion. Optional opens like Alongside but never blocks and closes when the workflow finishes.",
+      "$ref": "#/definitions/StepMode"
+    },
+    "before": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Named step that must not become current until this alongside step has ended."
+    },
     "properties": {
       "type": "array",
       "description": "Properties related to this step. These will become properties of the corresponding entity",
@@ -440,6 +451,15 @@
       "enum": [
         "Sequential",
         "Parallel"
+      ]
+    },
+    "StepMode": {
+      "type": "string",
+      "description": "Normal follows ordered progression. Alongside stays active beside later normal steps and must end before its obligation. Optional stays active beside later normal steps but never blocks progression.",
+      "enum": [
+        "Normal",
+        "Alongside",
+        "Optional"
       ]
     },
     "StepHeaderStatusConfiguration": {

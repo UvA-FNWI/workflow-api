@@ -11,6 +11,31 @@ public enum StepHierarchyMode
     Parallel
 }
 
+/// <summary>
+/// Controls how a top-level step participates in workflow progression.
+/// </summary>
+public enum StepMode
+{
+    /// <summary>
+    /// Follows the ordered workflow progression. It becomes current when reached, unless its condition skips it,
+    /// and progression continues after it ends.
+    /// </summary>
+    Normal,
+
+    /// <summary>
+    /// Becomes active after the nearest preceding normal step ends, or when the workflow starts if there is none.
+    /// Normal steps may continue while it remains active. It becomes current when its before target is reached or
+    /// when the workflow would otherwise finish, and blocks progression until it ends.
+    /// </summary>
+    Alongside,
+
+    /// <summary>
+    /// Becomes active like an alongside step, but never blocks progression or becomes current. If still active when
+    /// the workflow finishes, it closes with the workflow.
+    /// </summary>
+    Optional
+}
+
 public enum StepHeaderPillType
 {
     Info,
@@ -115,6 +140,19 @@ public class Step : INamed, IDeclaredKeys
     /// Condition that determines when the step ends 
     /// </summary>
     public Condition? Ends { get; set; }
+
+    /// <summary>
+    /// Determines whether this is a regular, required alongside, or optional alongside step.
+    /// </summary>
+    public StepMode Mode { get; set; }
+
+    [YamlIgnore] public bool IsAlongside => Mode is StepMode.Alongside or StepMode.Optional;
+    [YamlIgnore] public bool BlocksWorkflow => Mode == StepMode.Alongside;
+
+    /// <summary>
+    /// Named step that must not become current until this alongside step has ended.
+    /// </summary>
+    public string? Before { get; set; }
 
     /// <summary>
     /// Properties related to this step. These will become properties of the corresponding entity 

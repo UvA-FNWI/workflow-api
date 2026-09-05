@@ -138,6 +138,8 @@ public partial class ModelParser
         if (!target.Declared(s => s.HeaderStatus)) target.HeaderStatus = source.HeaderStatus;
         if (!target.Declared(s => s.Condition)) target.Condition = source.Condition;
         if (!target.Declared(s => s.Ends)) target.Ends = source.Ends;
+        if (!target.Declared(s => s.Mode)) target.Mode = source.Mode;
+        if (!target.Declared(s => s.Before)) target.Before = source.Before;
         if (!target.Declared(s => s.HierarchyMode)) target.HierarchyMode = source.HierarchyMode;
         if (!target.Declared(s => s.ResultsType)) target.ResultsType = source.ResultsType;
         if (!target.Declared(s => s.ChildNames)) target.ChildNames = source.ChildNames;

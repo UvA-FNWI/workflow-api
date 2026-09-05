@@ -385,6 +385,16 @@ public partial class ModelParser
         foreach (var progress in step.Progress)
             PreProcess(progress.EffectiveCondition);
 
+        if (step.IsAlongside)
+        {
+            if (step.Mode == StepMode.Optional && step.Before != null)
+                throw new Exception($"Step {step.Name}: optional and before cannot both be set");
+            if (step.Before != null && !workflowDefinition.AllSteps.Contains(step.Before))
+                throw new Exception($"Step {step.Name}: before '{step.Before}' does not exist");
+            if (workflowDefinition.FlattenedSteps.All(s => s.Name != step.Name))
+                throw new Exception($"Step {step.Name}: alongside is only valid on a step in the flattened walk");
+        }
+
         foreach (var ev in step.Events)
         {
             var existing = workflowDefinition.Events.Find(e => e.Name == ev.Name);

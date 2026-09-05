@@ -3,7 +3,6 @@ using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
-using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -186,12 +185,7 @@ public class WorkflowInstanceService(
 
     private void RecalculateCurrentStep(WorkflowInstance instance)
     {
-        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
-
-        instance.CurrentStep = workflowDefinition.FlattenedSteps
-            .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context))
-            ?.Name;
+        instance.CurrentStep = modelService.FindOpenStep(instance)?.Name;
     }
 
     public async Task AppendPropertyValue(WorkflowInstance instance, string[] pathParts, BsonValue newValue,
