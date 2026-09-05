@@ -2,7 +2,10 @@ using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-public class InitializationService(ModelService modelService, IWorkflowInstanceRepository instanceRepository)
+public class InitializationService(
+    ModelService modelService,
+    IWorkflowInstanceRepository instanceRepository,
+    WorkflowInstanceService workflowInstanceService)
 {
     public async Task CreateSeedData(CancellationToken ct = default)
     {
@@ -21,13 +24,8 @@ public class InitializationService(ModelService modelService, IWorkflowInstanceR
                     throw new Exception("Seed data must contain an ExternalId");
                 if (currentIds.Contains(externalId))
                     continue;
-                await instanceRepository.Create(new WorkflowInstance
-                {
-                    CreatedOn = DateTime.Now,
-                    WorkflowDefinition = definition.Name,
-                    Properties = row.ToDictionary(k => k.Key, k => (BsonValue)new BsonString(k.Value)),
-                    Events = new()
-                }, ct);
+                await workflowInstanceService.Create(definition.Name, null, ct,
+                    initialProperties: row.ToDictionary(k => k.Key, k => (BsonValue)new BsonString(k.Value)));
             }
         }
     }

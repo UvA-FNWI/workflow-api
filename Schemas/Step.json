@@ -1131,6 +1131,13 @@
           "type": "string",
           "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
         },
+        "default": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression used to initialize this property when an instance is created without a value."
+        },
         "values": {
           "type": [
             "array",

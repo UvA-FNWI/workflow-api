@@ -1,4 +1,5 @@
 using UvA.Workflow.WorkflowModel.Conditions;
+using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -106,6 +107,13 @@ public class PropertyDefinition : INamed
     /// a required value.
     /// </summary>
     public string Type { get; set; } = null!;
+
+    /// <summary>
+    /// Expression used to initialize this property when an instance is created without a value.
+    /// </summary>
+    public string? Default { get; set; }
+
+    [YamlIgnore] public Expression? DefaultExpression => ExpressionParser.Parse(Default);
 
     /// <summary>
     /// Values for a choice propertyDefinition.
