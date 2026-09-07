@@ -12,7 +12,8 @@ public enum ChoiceLayoutType
 {
     Dropdown,
     RadioList,
-    Rubric
+    Rubric,
+    ComboBox
 }
 
 public enum TableLayout

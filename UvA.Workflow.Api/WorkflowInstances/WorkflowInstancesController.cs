@@ -112,6 +112,35 @@ public class WorkflowInstancesController(
     }
 
     /// <summary>
+    /// Returns all choices for a property to the admin data view.
+    /// </summary>
+    [HttpGet("{id}/Properties/{path}/Choices")]
+    public async Task<ActionResult<IEnumerable<ChoiceDto>>> GetPropertyChoices(string id, string path,
+        CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, [RoleAction.ViewAdminTools], RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var property = modelService.GetProperty(instance, path.Split('.'));
+        if (property == null)
+            return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
+
+        if (property.DataType != DataType.Reference || property.WorkflowDefinition == null)
+            return Ok(Array.Empty<ChoiceDto>());
+        var insts = await instanceService.GetPossibleChoices(instance, property, ct);
+        var definition = property.WorkflowDefinition;
+        return Ok(insts.Select(i => new ChoiceDto(
+            i.Id,
+            definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",
+            null,
+            null)));
+    }
+
+    /// <summary>
     /// Overrides a single property. Always recorded in the instance journal.
     /// </summary>
     [HttpPost("{id}/Properties/{path}")]
