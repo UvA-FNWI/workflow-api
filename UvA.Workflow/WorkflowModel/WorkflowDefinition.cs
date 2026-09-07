@@ -176,7 +176,7 @@ public class EventDefinition : INamed
     public EventDefinition Clone() => new()
     {
         Name = Name,
-        Suppresses = Suppresses == null ? null : [..Suppresses],
+        Suppresses = Suppresses == null ? null : [.. Suppresses],
         ResetParentStep = ResetParentStep
     };
 }

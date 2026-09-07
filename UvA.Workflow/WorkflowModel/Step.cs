@@ -39,8 +39,8 @@ public class ProgressInformation : ConditionalOption
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>
     [
-        ..EffectiveCondition?.Properties ?? [],
-        ..ProgressTextTemplate?.Properties ?? []
+        .. EffectiveCondition?.Properties ?? [],
+        .. ProgressTextTemplate?.Properties ?? []
     ];
 }
 
@@ -133,9 +133,9 @@ public class Step : INamed, IDeclaredKeys
 
     public IEnumerable<Lookup> Lookups =>
     [
-        ..Ends?.Properties ?? [],
-        ..Condition?.Properties ?? [],
-        ..Children.SelectMany(c => c.Lookups)
+        .. Ends?.Properties ?? [],
+        .. Condition?.Properties ?? [],
+        .. Children.SelectMany(c => c.Lookups)
     ];
 
     public string? EndEvent => Ends?.Event?.Id;
