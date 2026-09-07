@@ -216,6 +216,67 @@ public class WorkflowTests
     }
 
     [Fact]
+    public async Task UploadArtifact_RejectsFileTypeThatIsNotAllowed()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        using var contents = new MemoryStream();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _answerService.SaveArtifact(questionContext, "report.docx", contents, _ct));
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task UploadArtifact_AcceptsConfiguredFileTypeCaseInsensitively()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        Assert.Equal(["pdf", "zip"], questionContext.PropertyDefinition.AllowedFileTypes!);
+        _artifactServiceMock
+            .Setup(service => service.SaveArtifact(It.IsAny<string>(), "archive.ZIP", It.IsAny<Stream>()))
+            .ReturnsAsync(new ArtifactInfo("artifact-id", "archive.ZIP"));
+        using var contents = new MemoryStream();
+
+        await _answerService.SaveArtifact(questionContext, "archive.ZIP", contents, _ct);
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), "archive.ZIP", It.IsAny<Stream>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadArtifact_RejectsFileThatExceedsConfiguredSize()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        questionContext.PropertyDefinition.AllowedFileSize = 1000;
+        using var contents = new MemoryStream(new byte[1001]);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _answerService.SaveArtifact(questionContext, "report.pdf", contents, _ct));
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()),
+            Times.Never);
+    }
+
+    [Fact]
     public void GroupedWorkflowDefinitions_AreLoadedFromTheirSourceFolder()
     {
         var assessmentPb = _modelService.WorkflowDefinitions["Assessment-PB"];

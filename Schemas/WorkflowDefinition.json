@@ -214,6 +214,23 @@
           "type": "string",
           "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
         },
+        "allowedFileTypes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Defaults to pdf when omitted.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedFileSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted."
+        },
         "values": {
           "type": [
             "array",

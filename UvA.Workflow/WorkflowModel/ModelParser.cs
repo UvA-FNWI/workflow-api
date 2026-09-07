@@ -519,6 +519,9 @@ public partial class ModelParser
             throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
         }
 
+        NormalizeAllowedFileTypes(propertyDefinition);
+        ValidateAllowedFileSize(propertyDefinition);
+
         return propertyDefinition;
     }
 
