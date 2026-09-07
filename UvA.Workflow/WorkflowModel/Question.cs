@@ -113,7 +113,7 @@ public class PropertyDefinition : INamed
     /// </summary>
     public string? Default { get; set; }
 
-    [YamlIgnore] public Expression? DefaultExpression => ExpressionParser.Parse(Default);
+    public Expression? DefaultExpression => ExpressionParser.Parse(Default);
 
     /// <summary>
     /// Values for a choice propertyDefinition.
