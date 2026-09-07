@@ -65,7 +65,7 @@ public partial class ModelParser
             return depth;
         }
 
-        foreach (var definition in definitions)
+        foreach (var definition in definitions.OrderBy(o => o.InheritsFrom != null))
         {
             Log.Debug("Processing definition {Name}", definition.Name);
             foreach (var file in contentProvider.GetFiles(definition.SourceFolder)

@@ -1,5 +1,4 @@
 name: Projects-PP
-workflowDefinition: Project-PP
 columns:
   - property: Student.DisplayName
     title:
