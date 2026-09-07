@@ -23,7 +23,7 @@ public class AssessmentPartResult : INamed
 
     public AssessmentPart PartConfig { get; set; } = null!;
 
-    public IEnumerable<SourceResult> AllResults => [..SourceResults, Combined];
+    public IEnumerable<SourceResult> AllResults => [.. SourceResults, Combined];
 }
 
 public class SourceResult : INamed

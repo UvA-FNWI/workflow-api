@@ -65,7 +65,7 @@ public partial class ModelParser
             return depth;
         }
 
-        foreach (var definition in definitions)
+        foreach (var definition in definitions.OrderBy(o => o.InheritsFrom != null))
         {
             Log.Debug("Processing definition {Name}", definition.Name);
             foreach (var file in contentProvider.GetFiles(definition.SourceFolder)
@@ -391,7 +391,7 @@ public partial class ModelParser
                 throw new Exception($"Step {step.Name}: optional and before cannot both be set");
             if (step.Before != null && !workflowDefinition.AllSteps.Contains(step.Before))
                 throw new Exception($"Step {step.Name}: before '{step.Before}' does not exist");
-            if (workflowDefinition.FlattenedSteps.All(s => s.Name != step.Name))
+            if (workflowDefinition.LeafSteps.All(s => s.Name != step.Name))
                 throw new Exception($"Step {step.Name}: alongside is only valid on a step in the flattened walk");
         }
 
@@ -528,6 +528,9 @@ public partial class ModelParser
         {
             throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
         }
+
+        NormalizeAllowedFileTypes(propertyDefinition);
+        ValidateAllowedFileSize(propertyDefinition);
 
         return propertyDefinition;
     }

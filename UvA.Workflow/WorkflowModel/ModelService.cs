@@ -78,7 +78,7 @@ public class ModelService(ModelParser parser)
     {
         var (step, context) = ResolveCurrentStep(instance);
         context ??= CreateContext(instance);
-        var walk = WorkflowDefinitions[instance.WorkflowDefinition].FlattenedSteps.ToList();
+        var walk = WorkflowDefinitions[instance.WorkflowDefinition].LeafSteps.ToList();
         var alongside = walk
             .Where(s => IsAvailableAlongside(s, walk, context))
             .Select(s => s.Name);
@@ -118,7 +118,7 @@ public class ModelService(ModelParser parser)
     {
         var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
         context ??= CreateContext(instance);
-        var walk = workflowDefinition.FlattenedSteps.ToList();
+        var walk = workflowDefinition.LeafSteps.ToList();
         var unfinishedAlongside = walk
             .Where(step => step.IsAlongside && step.Condition.IsMet(context) && !step.HasEnded(context))
             .ToList();
