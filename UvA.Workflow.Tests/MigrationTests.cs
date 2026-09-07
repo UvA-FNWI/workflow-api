@@ -257,15 +257,10 @@ public class MigrationTests
             Times.Never);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RunConfigured_CommonSkipsWorkflowsWithNeitherProperty(bool changesAfterParsing)
+    [Fact]
+    public async Task RunConfigured_CommonSkipsWorkflowsWithNeitherProperty()
     {
-        var parser = CreateConfiguredParser(includeCommon: true,
-            courseProperty: changesAfterParsing ? "ProjectTitle" : "Code");
-        if (changesAfterParsing)
-            parser.WorkflowDefinitions["Course"].Properties.Clear();
+        var parser = CreateConfiguredParser(includeCommon: true, courseProperty: "Code");
         var repository = new Mock<IMigrationRepository>();
         var unrelated = ReadyMigration();
         unrelated.WorkflowDefinitions = ["Course"];
@@ -286,14 +281,13 @@ public class MigrationTests
     [Fact]
     public async Task RunConfigured_CommonWithNoApplicableWorkflowsFinishesWithoutDataWrites()
     {
-        var parser = CreateConfiguredParser(includeCommon: true);
-        foreach (var definition in parser.WorkflowDefinitions.Values)
-            definition.Properties.Clear();
+        var parser = CreateConfiguredParser(includeCommon: true, courseProperty: "Code", projectProperty: "Code");
         var repository = new Mock<IMigrationRepository>();
         repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Migration>());
         var service = CreateService(repository, parser);
         var configured = Assert.Single(parser.Migrations, migration => migration.Scope == "Common");
 
+        Assert.Empty(configured.WorkflowDefinitions);
         var result = await service.RunConfigured(configured);
 
         Assert.Equal(MigrationStatus.Finished, result.Status);
@@ -375,17 +369,17 @@ public class MigrationTests
     }
 
     private static ModelParser CreateConfiguredParser(bool includeCommon = false,
-        string courseProperty = "ProjectTitle")
+        string courseProperty = "ProjectTitle", string projectProperty = "ProjectTitle")
     {
         var files = new Dictionary<string, string>
         {
-            ["Projects/Project/Entity.yaml"] = """
-                                               name: Project
-                                               titlePlural: Projects
-                                               properties:
-                                                 - name: ProjectTitle
-                                                   type: String
-                                               """,
+            ["Projects/Project/Entity.yaml"] = $"""
+                                                name: Project
+                                                titlePlural: Projects
+                                                properties:
+                                                  - name: {projectProperty}
+                                                    type: String
+                                                """,
             ["Projects/Project/Migrations/rename-title.yaml"] = """
                                                                 kind: renameProperty
                                                                 oldProperty: Title
