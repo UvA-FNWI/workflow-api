@@ -4,10 +4,19 @@ namespace UvA.Workflow.Migrations;
 public class ConfiguredMigration : INamed
 {
     public const string RenamePropertyKind = "renameProperty";
+    public const string CommonScope = "Common";
 
     [YamlIgnore] public string Name { get; set; } = null!;
-    [YamlIgnore] public string WorkflowDefinition { get; set; } = null!;
-    [YamlIgnore] public string MigrationId => $"{WorkflowDefinition}:{Name}";
+
+    /// <summary>The workflow names targeted by this migration.</summary>
+    [YamlIgnore]
+    public string[] WorkflowDefinitions { get; set; } = [];
+
+    /// <summary>The declaring workflow name or <see cref="CommonScope"/>, used for a stable migration identity.</summary>
+    [YamlIgnore]
+    public string Scope { get; set; } = null!;
+
+    [YamlIgnore] public string MigrationId => $"{Scope}:{Name}";
 
     /// <summary>Currently only <c>renameProperty</c> is supported.</summary>
     public MigrationKind Kind { get; set; }

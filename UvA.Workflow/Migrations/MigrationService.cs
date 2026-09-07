@@ -39,11 +39,12 @@ public class MigrationService(
         {
             MigrationId = configured.MigrationId,
             Kind = configured.Kind,
-            WorkflowDefinitions = [configured.WorkflowDefinition],
+            WorkflowDefinitions = NormalizeWorkflows(configured.WorkflowDefinitions),
             OldProperty = configured.OldProperty,
             NewProperty = configured.NewProperty
         };
-        await Prepare(migration, "configuration", ct);
+        await Prepare(migration, "configuration", ct,
+            skipWorkflowsWithoutProperties: configured.Scope == ConfiguredMigration.CommonScope);
         await migrationRepository.Create(migration, ct);
         return await Execute(migration, ct);
     }
@@ -51,9 +52,10 @@ public class MigrationService(
     private async Task Prepare(
         Migration migration,
         string requestedBy,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool skipWorkflowsWithoutProperties = false)
     {
-        if (migration.WorkflowDefinitions.Length == 0)
+        if (migration.WorkflowDefinitions.Length == 0 && !skipWorkflowsWithoutProperties)
             throw new MigrationValidationException("MigrationWorkflowRequired",
                 "At least one workflow is required");
 
@@ -66,6 +68,7 @@ public class MigrationService(
             throw new MigrationValidationException("MigrationPropertiesMustDiffer",
                 "The old and new property names must be different");
 
+        var applicableWorkflows = new List<string>();
         foreach (var workflow in migration.WorkflowDefinitions)
         {
             if (!modelService.WorkflowDefinitions.TryGetValue(workflow, out var definition))
@@ -74,10 +77,15 @@ public class MigrationService(
 
             var hasOldProperty = definition.Properties.Contains(migration.OldProperty);
             var hasNewProperty = definition.Properties.Contains(migration.NewProperty);
+            if (skipWorkflowsWithoutProperties && !hasOldProperty && !hasNewProperty)
+                continue;
             if (hasOldProperty == hasNewProperty)
                 throw new MigrationValidationException("MigrationInvalidModelState",
                     $"Workflow '{workflow}' must contain exactly one of '{migration.OldProperty}' and '{migration.NewProperty}'");
+            applicableWorkflows.Add(workflow);
         }
+
+        migration.WorkflowDefinitions = applicableWorkflows.ToArray();
 
         var requestedProperties = new HashSet<string>([migration.OldProperty, migration.NewProperty],
             StringComparer.Ordinal);
@@ -111,10 +119,14 @@ public class MigrationService(
 
         try
         {
-            var result = await migrationRepository.CopyPropertyValues(migration, ct);
-            migration.ItemsMatched = result.InstancesMatched;
-            migration.ItemsUpdated = result.InstancesUpdated;
-            migration.JournalEntriesUpdated = await migrationRepository.RenameJournalPaths(migration, ct);
+            if (migration.WorkflowDefinitions.Length > 0)
+            {
+                var result = await migrationRepository.CopyPropertyValues(migration, ct);
+                migration.ItemsMatched = result.InstancesMatched;
+                migration.ItemsUpdated = result.InstancesUpdated;
+                migration.JournalEntriesUpdated = await migrationRepository.RenameJournalPaths(migration, ct);
+            }
+
             migration.Status = MigrationStatus.Finished;
             migration.FinishedAt = migration.UpdatedAt = DateTime.UtcNow;
             await migrationRepository.Update(migration, ct);

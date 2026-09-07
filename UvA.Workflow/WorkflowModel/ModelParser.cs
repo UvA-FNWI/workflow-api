@@ -23,7 +23,9 @@ public partial class ModelParser
     public List<Role> Roles { get; }
 
     public IReadOnlyList<ConfiguredMigration> Migrations =>
-        WorkflowDefinitions.Values.SelectMany(definition => definition.Migrations).ToArray();
+        CommonMigrations.Concat(WorkflowDefinitions.Values.SelectMany(definition => definition.Migrations)).ToArray();
+
+    private List<ConfiguredMigration> CommonMigrations { get; }
 
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
 
@@ -38,6 +40,9 @@ public partial class ModelParser
         ValidateServices(Services);
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
+        CommonMigrations = Read<ConfiguredMigration>();
+        foreach (var migration in CommonMigrations)
+            migration.Scope = ConfiguredMigration.CommonScope;
 
         var parsed = GetWorkflowDefinitionFolders()
             .Select(folder =>
@@ -111,7 +116,10 @@ public partial class ModelParser
             definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
 
             foreach (var migration in definition.Migrations)
-                migration.WorkflowDefinition = definition.Name;
+            {
+                migration.Scope = definition.Name;
+                migration.WorkflowDefinitions = [definition.Name];
+            }
 
             foreach (var set in definition.ValueSets)
             {
@@ -182,6 +190,14 @@ public partial class ModelParser
         Roles.ForEach(PreProcess);
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+
+        foreach (var migration in CommonMigrations)
+            migration.WorkflowDefinitions = WorkflowDefinitions.Values
+                .Where(definition => definition.Properties.Contains(migration.OldProperty) ||
+                                     definition.Properties.Contains(migration.NewProperty))
+                .Select(definition => definition.Name)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)

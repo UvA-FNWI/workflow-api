@@ -46,5 +46,6 @@ public class MigrationsControllerTests
         var migrations = Assert.IsAssignableFrom<IReadOnlyList<MigrationDto>>(
             Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal("Failed", Assert.Single(migrations).StatusLabel);
+        Assert.Equal(["Project"], Assert.Single(migrations).WorkflowDefinitions);
     }
 }

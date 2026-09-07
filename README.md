@@ -128,6 +128,17 @@ oldProperty: Title
 newProperty: ProjectTitle
 ```
 
+Place a migration in `Common/Migrations` to target all applicable workflow definitions. The parser generates
+its `WorkflowDefinitions` array from workflows containing the old or new property; workflows containing neither
+are excluded. For example, `Common/Migrations/rename-title.yaml` is recorded once as `Common:rename-title`, with
+the applicable workflow names as its targets. Workflows containing both properties still fail validation before
+any data is changed. Migration overlap checks apply only to the remaining targets. If no workflows apply, the
+migration is recorded as finished without changing instance values or journals.
+
+Workflow-specific migrations remain limited to their own workflow, and their identifiers are independent of
+Common migrations with the same filename. A recorded Common migration is skipped on subsequent loads, including
+when new workflow definitions are added. The migration API uses a `workflowDefinitions` array in requests and responses.
+
 The workflow configuration must declare `ProjectTitle` and no longer declare `Title`. When the baseline
 configuration is loaded, the API checks the migrations collection in its MongoDB database. A migration that is not
 recorded there is applied immediately, including its instance values and journal paths, and marked as finished.
