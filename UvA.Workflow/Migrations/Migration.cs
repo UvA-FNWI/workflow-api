@@ -26,9 +26,9 @@ public class Migration
 
     public string MigrationId { get; set; } = null!;
 
-    /// <summary>Currently only <c>renameProperty</c> is supported.</summary>
+    /// <summary>Currently only <c>RenameProperty</c> is supported.</summary>
     [BsonRepresentation(BsonType.String)]
-    public MigrationKind Kind { get; set; }
+    public MigrationKind Kind { get; init; }
 
     [BsonRepresentation(BsonType.String)] public MigrationStatus Status { get; set; }
 
