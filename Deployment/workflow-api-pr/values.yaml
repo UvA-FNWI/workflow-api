@@ -55,6 +55,7 @@ apiPaths:
   - /swagger
   - /Actions
   - /Answers
+  - /Artifacts
   - /Screens
   - /Versions
   - /Submissions

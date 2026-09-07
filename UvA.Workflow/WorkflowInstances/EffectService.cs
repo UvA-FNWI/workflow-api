@@ -131,8 +131,9 @@ public class EffectService(
         CancellationToken ct)
     {
         var parts = setProperty.Property.Split('.');
+        var value = setProperty.ValueExpression.Execute(context);
         instance.SetProperty(
-            BsonValue.Create(setProperty.ValueExpression.Execute(context)),
+            value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value),
             parts
         );
         await instanceService.SaveValue(instance, parts.Reverse().Skip(1).FirstOrDefault(), parts.Last(), ct);

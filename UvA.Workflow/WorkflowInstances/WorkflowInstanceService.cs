@@ -189,7 +189,7 @@ public class WorkflowInstanceService(
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
 
-        instance.CurrentStep = workflowDefinition.FlattenedSteps
+        instance.CurrentStep = workflowDefinition.LeafSteps
             .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context))
             ?.Name;
     }
