@@ -411,8 +411,10 @@ public partial class ModelParser
                 throw new Exception($"Step {step.Name}: optional and before cannot both be set");
             if (step.Before != null && !workflowDefinition.AllSteps.Contains(step.Before))
                 throw new Exception($"Step {step.Name}: before '{step.Before}' does not exist");
-            if (workflowDefinition.LeafSteps.All(s => s.Name != step.Name))
-                throw new Exception($"Step {step.Name}: alongside is only valid on a step in the flattened walk");
+            if (workflowDefinition.WalkSteps.All(s => s.Name != step.Name))
+                throw new Exception(step.ParentStep != null
+                    ? $"Step {step.Name}: alongside is only valid on a listed step, not on a child of '{step.ParentStep.Name}'"
+                    : $"Step {step.Name}: alongside is only valid on a listed step");
         }
 
         foreach (var ev in step.Events)

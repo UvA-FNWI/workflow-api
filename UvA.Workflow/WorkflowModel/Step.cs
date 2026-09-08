@@ -12,7 +12,7 @@ public enum StepHierarchyMode
 }
 
 /// <summary>
-/// Controls how a top-level step participates in workflow progression.
+/// Controls how a step participates in the flattened walk.
 /// </summary>
 public enum StepMode
 {
@@ -245,7 +245,7 @@ public class Step : INamed, IDeclaredKeys
         if (Ends != null)
             return Ends.IsMet(context);
         if (Children.Any())
-            return Children.All(c => c.HasEnded(context));
+            return Children.Where(c => c.Condition.IsMet(context)).All(c => c.HasEnded(context));
         return false;
     }
 
