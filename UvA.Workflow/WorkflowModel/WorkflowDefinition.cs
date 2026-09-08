@@ -139,6 +139,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     public DataType GetDataType(string property)
     {
+        if (property == "LastEvent")
+            return DataType.DateTime;
         if (Properties.TryGetValue(property, out var prop))
             return prop.DataType;
         if (property.EndsWith("Event") && Events.Contains(property[..^5]))

@@ -1,3 +1,4 @@
+using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -10,6 +11,9 @@ public record ProgressInformationDto(
     private static readonly ProgressInformationDto Completed =
         new(new BilingualString("Completed", "Afgerond"), StatusColor.Green);
 
+    private static readonly BilingualTemplate CompletedText = BilingualTemplate.Create(new BilingualString(
+        "Completed ({{ dateShort(LastEvent) }})", "Afgerond ({{ dateShort(LastEvent) }})"))!;
+
     public static ProgressInformationDto Resolve(
         WorkflowDefinition workflowDefinition,
         string? internalName,
@@ -18,7 +22,9 @@ public record ProgressInformationDto(
         var currentStep = workflowDefinition.AllSteps.Find(step => step.Name == internalName);
 
         if (currentStep == null)
-            return Completed;
+            return context.Get("LastEvent") is DateTime
+                ? new ProgressInformationDto(CompletedText.Apply(context), StatusColor.Green)
+                : Completed;
 
         var progress = currentStep.Progress.FirstOrDefault(candidate =>
                            candidate.EffectiveCondition?.IsMet(context) == true)

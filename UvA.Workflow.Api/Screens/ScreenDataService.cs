@@ -85,6 +85,12 @@ public class ScreenDataService(
         {
             case PropertyLookup propertyLookup:
                 var propertyName = propertyLookup.Property.Split('.')[0];
+                if (propertyName == "LastEvent")
+                {
+                    projection.TryAdd("Events", "$Events");
+                    break;
+                }
+
                 var mongoPath = entity.GetKey(propertyName);
                 projection.TryAdd(propertyName, mongoPath);
                 break;

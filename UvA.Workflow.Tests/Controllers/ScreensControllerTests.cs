@@ -96,6 +96,55 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Screens_GetScreenData_RendersLastEventAndMissingDates()
+    {
+        var latest = new DateTime(2026, 9, 7, 12, 0, 0, DateTimeKind.Utc);
+        _modelService.WorkflowDefinitions["Project"].AllSteps.Single(step => step.Name == "Start").Progress =
+        [
+            new ProgressInformation
+            {
+                Color = StatusColor.Green,
+                Text = new BilingualString(
+                    "Working ({{ dateShort(LastEvent) }}) on proposal",
+                    "Werkt ({{ dateShort(LastEvent) }}) aan voorstel")
+            }
+        ];
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["Events"] = new BsonDocument
+                {
+                    ["RejectSubject"] = new BsonDocument("Date", latest),
+                    ["Start"] = new BsonDocument("Date", latest.AddDays(-5))
+                }
+            },
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["Events"] = new BsonDocument()
+            }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var column = response.Columns.Single(column => column.IsCurrentStep);
+        var rows = response.Groups!.Single(group => group.Name == "approve-subject").Rows;
+        var revised = Assert.IsType<ProgressInformationDto>(rows[0].Values[column.Id]);
+        var initial = Assert.IsType<ProgressInformationDto>(rows[1].Values[column.Id]);
+        Assert.Equal("Working (07/09) on proposal", revised.Text.En);
+        Assert.Equal("Werkt (07/09) aan voorstel", revised.Text.Nl);
+        Assert.Equal("Working () on proposal", initial.Text.En);
+        Assert.Equal("Werkt () aan voorstel", initial.Text.Nl);
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
+            It.Is<Dictionary<string, string>>(projection =>
+                projection["Events"] == "$Events" && !projection.ContainsKey("LastEvent")),
+            It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Screens_GetScreenData_IgnoresSuppressedProgressEvent()
     {
         var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
