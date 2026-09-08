@@ -245,7 +245,7 @@ public class Step : INamed, IDeclaredKeys
         if (Ends != null)
             return Ends.IsMet(context);
         if (Children.Any())
-            return Children.All(c => c.HasEnded(context));
+            return Children.Where(c => c.Condition.IsMet(context)).All(c => c.HasEnded(context));
         return false;
     }
 
