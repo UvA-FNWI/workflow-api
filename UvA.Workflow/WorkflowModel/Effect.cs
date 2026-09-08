@@ -86,15 +86,15 @@ public class Effect
 
     public IEnumerable<Lookup?> Properties =>
     [
-        ..Condition?.Properties ?? [],
-        ..SendMail?.SubjectTemplate?.Properties ?? [],
-        ..SendMail?.BodyTemplate?.Properties ?? [],
-        ..SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
-        ..SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
-        ..Toast?.MessageTemplate.Properties ?? [],
-        ..Http?.UrlTemplate.Properties ?? [],
-        ..SetProperty?.ValueExpression.Properties ?? [],
-        ..SendMail?.RecipientLookups ?? []
+        .. Condition?.Properties ?? [],
+        .. SendMail?.SubjectTemplate?.Properties ?? [],
+        .. SendMail?.BodyTemplate?.Properties ?? [],
+        .. SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
+        .. SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
+        .. Toast?.MessageTemplate.Properties ?? [],
+        .. Http?.UrlTemplate.Properties ?? [],
+        .. SetProperty?.ValueExpression.Properties ?? [],
+        .. SendMail?.RecipientLookups ?? []
     ];
 
     public string Identifier => this switch

@@ -221,6 +221,23 @@
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
         },
+        "allowedFileTypes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Defaults to pdf when omitted.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedFileSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted."
+        },
         "values": {
           "type": [
             "array",
