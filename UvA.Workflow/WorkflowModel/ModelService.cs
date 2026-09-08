@@ -78,17 +78,15 @@ public class ModelService(ModelParser parser)
     {
         var (step, context) = ResolveCurrentStep(instance);
         context ??= CreateContext(instance);
-        var walk = WorkflowDefinitions[instance.WorkflowDefinition].LeafSteps.ToList();
+        var walk = WorkflowDefinitions[instance.WorkflowDefinition].WalkSteps.ToList();
         var alongside = walk
             .Where(s => IsAvailableAlongside(s, walk, context))
-            .Select(s => s.Name);
+            .SelectMany(s => OpenDescendantNames(s, context).Append(s.Name));
 
         if (step == null)
             return alongside.ToArray();
 
-        return step.Children
-            .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
-            .Select(s => s.Name)
+        return OpenDescendantNames(step, context)
             .Append(step.Name)
             .Append(step.ParentStep?.Name)
             .Concat(alongside)
@@ -118,7 +116,7 @@ public class ModelService(ModelParser parser)
     {
         var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
         context ??= CreateContext(instance);
-        var walk = workflowDefinition.LeafSteps.ToList();
+        var walk = workflowDefinition.WalkSteps.ToList();
         var unfinishedAlongside = walk
             .Where(step => step.IsAlongside && step.Condition.IsMet(context) && !step.HasEnded(context))
             .ToList();
@@ -134,6 +132,12 @@ public class ModelService(ModelParser parser)
 
         return unfinishedAlongside.FirstOrDefault(step => step.BlocksWorkflow);
     }
+
+    private static IEnumerable<string> OpenDescendantNames(Step step, ObjectContext context) =>
+        step.Children
+            .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
+            .Take(step.HierarchyMode == StepHierarchyMode.Sequential ? 1 : int.MaxValue)
+            .SelectMany(s => OpenDescendantNames(s, context).Prepend(s.Name));
 
     private static bool IsAvailableAlongside(Step step, List<Step> walk, ObjectContext context)
     {
