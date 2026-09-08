@@ -12,7 +12,7 @@ public enum StepHierarchyMode
 }
 
 /// <summary>
-/// Controls how a top-level step participates in workflow progression.
+/// Controls how a step participates in the flattened walk.
 /// </summary>
 public enum StepMode
 {
