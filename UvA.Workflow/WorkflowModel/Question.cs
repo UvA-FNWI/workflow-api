@@ -114,6 +114,8 @@ public class PropertyDefinition : INamed
     public string? Default { get; set; }
 
     public Expression? DefaultExpression => ExpressionParser.Parse(Default);
+
+    /// <summary>
     /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
     /// Defaults to pdf when omitted.
     /// </summary>
