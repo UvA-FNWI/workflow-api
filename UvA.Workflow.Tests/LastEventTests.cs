@@ -32,12 +32,13 @@ public class LastEventTests
     }
 
     [Fact]
-    public void ProjectedInstance_NormalizesLastEvent()
+    public void ProjectedInstance_NormalizesLastEventAndCreationDate()
     {
         var latest = new DateTime(2026, 9, 7, 12, 0, 0, DateTimeKind.Utc);
         var definition = _modelService.WorkflowDefinitions["Project"];
         var context = ObjectContext.Create(definition, new Dictionary<string, BsonValue>
         {
+            ["CreateDate"] = new BsonDateTime(latest.AddDays(-2)),
             ["Events"] = new BsonDocument
             {
                 ["Start"] = new BsonDocument("Date", latest),
@@ -47,8 +48,10 @@ public class LastEventTests
         });
 
         Assert.Equal(latest.ToLocalTime(), context.Get("LastEvent"));
+        Assert.Equal(latest.AddDays(-2).ToLocalTime(), context.Get("CreateDate"));
         Assert.Equal("07/09", new Template("{{ dateShort(LastEvent) }}").Apply(context));
         Assert.Equal(DataType.DateTime, definition.GetDataType("LastEvent"));
+        Assert.Equal("$CreatedOn", definition.GetKey("CreateDate"));
     }
 
     [Theory]
@@ -56,17 +59,21 @@ public class LastEventTests
     [InlineData(true)]
     public void NoDatedEvents_ReturnsNullAndRendersEmptyDate(bool projected)
     {
+        var created = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
         var instance = new WorkflowInstanceBuilder()
             .WithWorkflowDefinition("Project").WithCurrentStep("Start").WithEvent("Undated").Build();
+        instance.CreatedOn = created;
         var context = projected
             ? ObjectContext.Create(_modelService.WorkflowDefinitions["Project"], new Dictionary<string, BsonValue>
             {
+                ["CreateDate"] = new BsonDateTime(created),
                 ["Events"] = new BsonDocument()
             })
             : _modelService.CreateContext(instance);
 
         Assert.Null(context.Get("LastEvent"));
         Assert.Equal("", new Template("{{ dateShort(LastEvent) }}").Apply(context));
+        Assert.Equal("01/09", new Template("{{ dateShort(CreateDate) }}").Apply(context));
     }
 
     [Theory]

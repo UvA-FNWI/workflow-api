@@ -98,7 +98,8 @@ public class ScreensControllerTests : ControllerTestsBase
     [Fact]
     public async Task Screens_GetScreenData_RendersLastEventAndMissingDates()
     {
-        var latest = new DateTime(2026, 9, 7, 12, 0, 0, DateTimeKind.Utc);
+        var createdAt = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+        var latest = createdAt.AddDays(6);
         _modelService.WorkflowDefinitions["Project"].AllSteps.Single(step => step.Name == "Start").Progress =
         [
             new ProgressInformation
@@ -114,15 +115,17 @@ public class ScreensControllerTests : ControllerTestsBase
             new Dictionary<string, BsonValue>
             {
                 ["CurrentStep"] = "Start",
+                ["CreateDate"] = new BsonDateTime(createdAt),
                 ["Events"] = new BsonDocument
                 {
                     ["RejectSubject"] = new BsonDocument("Date", latest),
-                    ["Start"] = new BsonDocument("Date", latest.AddDays(-5))
+                    ["Start"] = new BsonDocument("Date", createdAt.AddDays(1))
                 }
             },
             new Dictionary<string, BsonValue>
             {
                 ["CurrentStep"] = "Start",
+                ["CreateDate"] = new BsonDateTime(createdAt),
                 ["Events"] = new BsonDocument()
             }
         ]);
@@ -140,7 +143,8 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Equal("Werkt () aan voorstel", initial.Text.Nl);
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
             It.Is<Dictionary<string, string>>(projection =>
-                projection["Events"] == "$Events" && !projection.ContainsKey("LastEvent")),
+                projection["Events"] == "$Events" && !projection.ContainsKey("CreateDate") &&
+                !projection.ContainsKey("LastEvent")),
             It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
