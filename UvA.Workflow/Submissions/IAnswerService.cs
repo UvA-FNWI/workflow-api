@@ -27,8 +27,6 @@ public interface IAnswerService
 
     Task<Artifact?> GetArtifact(QuestionContext context, string artifactId, CancellationToken ct);
 
-    Task SaveArtifact(QuestionContext context, string artifactName, Stream contents, CancellationToken ct = default);
-
     Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default);
 
     Task DeleteArtifact(QuestionContext context, string artifactId, CancellationToken ct);

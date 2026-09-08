@@ -178,44 +178,6 @@ public class WorkflowTests
     }
 
     [Fact]
-    public async Task SubmitForm_UploadArtifact_Success()
-    {
-        // Arrange
-        var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Upload")
-            .WithEvents(b => b.WithId("Start").AsCompleted()
-            )
-            .Build();
-
-        using var ms = new MemoryStream();
-        await using var writer = new StreamWriter(ms);
-        await writer.WriteLineAsync("This is a test file");
-        await writer.FlushAsync(_ct);
-        const string fileName = "test.pdf";
-
-        var fileId = ObjectId.GenerateNewId();
-        var artifactId = S3ArtifactService.ToArtifactId(instance.Id, null, fileId);
-
-        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
-        _artifactServiceMock.Setup(a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()))
-            .ReturnsAsync(new ArtifactInfo(artifactId, fileName));
-
-        // Act
-        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        await _answerService.SaveArtifact(questionContext, fileName, ms, _ct);
-
-        // Assert
-        Assert.Contains(instance.Properties, p => p.Key == "Report");
-        var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
-        Assert.Equal(fileName, report.Name);
-        _artifactServiceMock.Verify(
-            a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()), Times.Once);
-        _instanceRepoMock.Verify(
-            r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
-                It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
     public async Task UploadArtifact_RejectsFileTypeThatIsNotAllowed()
     {
         var instance = new WorkflowInstanceBuilder()

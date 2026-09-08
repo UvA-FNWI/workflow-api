@@ -69,7 +69,8 @@ public class EffectServiceMailLoggingTests
             .ReturnsAsync(new MailDispatchResult(mail.To, mail.Cc!, mail.Bcc!, "testen-dn-fnwi@uva.nl"));
 
         artifactService
-            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
+            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync((string artifactId, string name, byte[] _) =>
                 new ArtifactInfo(artifactId, name));
 

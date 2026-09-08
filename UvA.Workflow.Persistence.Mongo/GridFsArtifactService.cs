@@ -47,8 +47,13 @@ public class GridFsArtifactService : IArtifactService
         return await SaveArtifact(artifactName, contents);
     }
 
-    public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, byte[] contents)
+    public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, byte[] contents,
+        string contentType, CancellationToken ct)
         => await SaveArtifact(artifactName, contents);
+
+    public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, Stream stream,
+        string contentType, CancellationToken ct)
+        => await SaveArtifact(artifactName, stream);
 
     public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, Stream stream)
         => await SaveArtifact(artifactName, stream);

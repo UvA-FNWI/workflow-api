@@ -1,3 +1,4 @@
+using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -235,6 +236,16 @@ public class PropertyDefinition : INamed
     /// The name of another property this property is linked to.
     /// </summary>
     public string? LinkedTo { get; set; }
+}
+
+public class FileSettings
+{
+    /// <summary>
+    /// Prefix (template) to use when storing files 
+    /// </summary>
+    public string? Prefix { get; set; }
+
+    public Template? PrefixTemplate => Template.Create(Prefix);
 }
 
 public enum CalculationType
