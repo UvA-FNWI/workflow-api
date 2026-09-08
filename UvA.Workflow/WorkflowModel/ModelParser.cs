@@ -411,6 +411,18 @@ public partial class ModelParser
         foreach (var progress in step.Progress)
             PreProcess(progress.EffectiveCondition);
 
+        if (step.IsAlongside)
+        {
+            if (step.Mode == StepMode.Optional && step.Before != null)
+                throw new Exception($"Step {step.Name}: optional and before cannot both be set");
+            if (step.Before != null && !workflowDefinition.AllSteps.Contains(step.Before))
+                throw new Exception($"Step {step.Name}: before '{step.Before}' does not exist");
+            if (workflowDefinition.WalkSteps.All(s => s.Name != step.Name))
+                throw new Exception(step.ParentStep != null
+                    ? $"Step {step.Name}: alongside is only valid on a listed step, not on a child of '{step.ParentStep.Name}'"
+                    : $"Step {step.Name}: alongside is only valid on a listed step");
+        }
+
         foreach (var ev in step.Events)
         {
             var existing = workflowDefinition.Events.Find(e => e.Name == ev.Name);
@@ -543,6 +555,28 @@ public partial class ModelParser
         catch (Exception)
         {
             throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
+        }
+
+        if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
+        {
+            propertyDefinition.Default = null;
+        }
+        else
+        {
+            try
+            {
+                _ = propertyDefinition.DefaultExpression;
+            }
+            catch (Exception exception)
+            {
+                throw new Exception(
+                    $"Invalid default for property {propertyDefinition.Name}: {exception.Message}", exception);
+            }
+
+            if (propertyDefinition.IsArray || propertyDefinition.DataType is DataType.Object or DataType.Currency
+                    or DataType.File)
+                throw new Exception(
+                    $"Defaults are not supported for property {propertyDefinition.Name} of type {propertyDefinition.Type}");
         }
 
         NormalizeAllowedFileTypes(propertyDefinition);

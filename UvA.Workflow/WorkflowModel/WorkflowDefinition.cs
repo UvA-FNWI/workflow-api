@@ -129,15 +129,17 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
         .SelectMany(progress => progress.Lookups)
         .Distinct();
 
-    private static IEnumerable<Step> GetSteps(Step s) =>
-        s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
-            ? s.Children.SelectMany(GetSteps)
-            : [s];
+    private static IEnumerable<Step> GetWalkSteps(Step s) =>
+        s.IsAlongside
+            ? [s]
+            : s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
+                ? s.Children.SelectMany(GetWalkSteps)
+                : [s];
 
     /// <summary>
-    /// Returns all leaf steps, i.e. that have no sequential children
+    /// Flattened walk: sequential children replace their parent, except an alongside parent stays one position.
     /// </summary>
-    public IEnumerable<Step> LeafSteps => Steps.SelectMany(s => GetSteps(s));
+    public IEnumerable<Step> WalkSteps => Steps.SelectMany(GetWalkSteps);
 
     public DataType GetDataType(string property)
     {
