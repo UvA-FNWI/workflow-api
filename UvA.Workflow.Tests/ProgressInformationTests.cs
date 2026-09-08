@@ -23,10 +23,23 @@ public class ProgressInformationTests
     }
 
     [Fact]
-    public void Resolve_CompletedWithoutEventsDoesNotInventDate()
+    public void Resolve_CompletedWithoutEventsUsesCreationDate()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project").WithCurrentStep("Start").Build();
+        instance.CreatedOn = new DateTime(2026, 9, 1);
+        var progress = ProgressInformationDto.Resolve(_modelService.WorkflowDefinitions["Project"], null,
+            _modelService.CreateContext(instance));
+
+        Assert.Equal("Completed (01/09)", progress.Text.En);
+        Assert.Equal("Afgerond (01/09)", progress.Text.Nl);
+    }
+
+    [Fact]
+    public void Resolve_CompletedWithoutAnyDateRendersPlainText()
     {
         var progress = ProgressInformationDto.Resolve(_modelService.WorkflowDefinitions["Project"], null,
-            CreateContext());
+            new ObjectContext([]));
 
         Assert.Equal("Completed", progress.Text.En);
         Assert.Equal("Afgerond", progress.Text.Nl);

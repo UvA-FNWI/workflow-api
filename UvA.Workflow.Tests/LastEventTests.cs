@@ -20,6 +20,7 @@ public class LastEventTests
             .WithEvent("RejectSubject", latest.AddDays(-1))
             .WithEvent("Undated")
             .Build();
+        instance.CreatedOn = latest.AddDays(1);
 
         var context = _modelService.CreateContext(instance);
 
@@ -29,6 +30,9 @@ public class LastEventTests
 
         instance.Events.Remove("Start");
         Assert.Equal(latest.AddDays(-1), _modelService.CreateContext(instance).Get("LastEvent"));
+
+        instance.Events.Remove("RejectSubject");
+        Assert.Equal(instance.CreatedOn, _modelService.CreateContext(instance).Get("LastEvent"));
     }
 
     [Fact]
@@ -51,29 +55,55 @@ public class LastEventTests
         Assert.Equal(latest.AddDays(-2).ToLocalTime(), context.Get("CreateDate"));
         Assert.Equal("07/09", new Template("{{ dateShort(LastEvent) }}").Apply(context));
         Assert.Equal(DataType.DateTime, definition.GetDataType("LastEvent"));
+        Assert.Equal(DataType.DateTime, definition.GetDataType("CreateDate"));
         Assert.Equal("$CreatedOn", definition.GetKey("CreateDate"));
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void NoDatedEvents_ReturnsNullAndRendersEmptyDate(bool projected)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void NoDatedEvents_UsesCreationDate(bool projected, bool hasUndatedEvent)
     {
         var created = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
         var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project").WithCurrentStep("Start").WithEvent("Undated").Build();
+            .WithWorkflowDefinition("Project").WithCurrentStep("Start").Build();
+        var events = new BsonDocument();
+        if (hasUndatedEvent)
+        {
+            instance.Events["Undated"] = new() { Id = "Undated" };
+            events["Undated"] = new BsonDocument("Date", BsonNull.Value);
+        }
+
         instance.CreatedOn = created;
         var context = projected
             ? ObjectContext.Create(_modelService.WorkflowDefinitions["Project"], new Dictionary<string, BsonValue>
             {
                 ["CreateDate"] = new BsonDateTime(created),
-                ["Events"] = new BsonDocument()
+                ["Events"] = events
             })
             : _modelService.CreateContext(instance);
 
+        Assert.Equal(projected ? created.ToLocalTime() : created, context.Get("LastEvent"));
+        Assert.Equal("01/09", new Template("{{ dateShort(LastEvent) }}").Apply(context));
+        Assert.Equal("01/09", new Template("{{ dateShort(CreateDate) }}").Apply(context));
+        if (!projected)
+            Assert.Equal("01/11", new Template("{{ dateShort(addMonths(CreateDate, 2)) }}").Apply(context));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ProjectedInstance_WithoutEventOrCreationDates_RendersEmptyDate(bool hasEvents)
+    {
+        var rawData = new Dictionary<string, BsonValue>();
+        if (hasEvents)
+            rawData["Events"] = new BsonDocument();
+        var context = ObjectContext.Create(_modelService.WorkflowDefinitions["Project"], rawData);
+
         Assert.Null(context.Get("LastEvent"));
         Assert.Equal("", new Template("{{ dateShort(LastEvent) }}").Apply(context));
-        Assert.Equal("01/09", new Template("{{ dateShort(CreateDate) }}").Apply(context));
     }
 
     [Theory]

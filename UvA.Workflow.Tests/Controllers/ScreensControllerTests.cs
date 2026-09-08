@@ -96,7 +96,7 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Screens_GetScreenData_RendersLastEventAndMissingDates()
+    public async Task Screens_GetScreenData_RendersLastEventWithCreationDateFallback()
     {
         var createdAt = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
         var latest = createdAt.AddDays(6);
@@ -127,6 +127,17 @@ public class ScreensControllerTests : ControllerTestsBase
                 ["CurrentStep"] = "Start",
                 ["CreateDate"] = new BsonDateTime(createdAt),
                 ["Events"] = new BsonDocument()
+            },
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["CreateDate"] = new BsonDateTime(createdAt),
+                ["Events"] = BsonNull.Value
+            },
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["CreateDate"] = new BsonDateTime(createdAt)
             }
         ]);
 
@@ -136,14 +147,18 @@ public class ScreensControllerTests : ControllerTestsBase
         var column = response.Columns.Single(column => column.IsCurrentStep);
         var rows = response.Groups!.Single(group => group.Name == "approve-subject").Rows;
         var revised = Assert.IsType<ProgressInformationDto>(rows[0].Values[column.Id]);
-        var initial = Assert.IsType<ProgressInformationDto>(rows[1].Values[column.Id]);
         Assert.Equal("Working (07/09) on proposal", revised.Text.En);
         Assert.Equal("Werkt (07/09) aan voorstel", revised.Text.Nl);
-        Assert.Equal("Working () on proposal", initial.Text.En);
-        Assert.Equal("Werkt () aan voorstel", initial.Text.Nl);
+        Assert.Equal(4, rows.Length);
+        Assert.All(rows.Skip(1), row =>
+        {
+            var initial = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
+            Assert.Equal("Working (01/09) on proposal", initial.Text.En);
+            Assert.Equal("Werkt (01/09) aan voorstel", initial.Text.Nl);
+        });
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
             It.Is<Dictionary<string, string>>(projection =>
-                projection["Events"] == "$Events" && !projection.ContainsKey("CreateDate") &&
+                projection["Events"] == "$Events" && projection["CreateDate"] == "$CreatedOn" &&
                 !projection.ContainsKey("LastEvent")),
             It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }

@@ -151,6 +151,7 @@ public class ScreenDataService(
         var projection = BuildProjection(screen.Columns, workflowDefinition, progressLookups);
         projection.TryAdd("CurrentStep", "$CurrentStep");
         projection.TryAdd("Events", "$Events");
+        projection.TryAdd("CreateDate", "$CreatedOn");
 
         // Build authorization filter to restrict instances to those the user can view
         var authorizationFilter =
