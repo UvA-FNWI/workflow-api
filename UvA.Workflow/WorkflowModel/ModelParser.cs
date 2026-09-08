@@ -550,6 +550,7 @@ public partial class ModelParser
                 throw new Exception(
                     $"Defaults are not supported for property {propertyDefinition.Name} of type {propertyDefinition.Type}");
         }
+
         NormalizeAllowedFileTypes(propertyDefinition);
         ValidateAllowedFileSize(propertyDefinition);
 
