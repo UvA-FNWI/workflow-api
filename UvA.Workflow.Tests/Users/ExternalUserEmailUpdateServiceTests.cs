@@ -58,7 +58,8 @@ public class ExternalUserEmailUpdateServiceTests
         var journalServiceMock = new Mock<IInstanceJournalService>();
         var workflowInstanceService =
             new WorkflowInstanceService(modelService, repoMock.Object, journalServiceMock.Object,
-                Mock.Of<UvA.Workflow.Events.IInstanceEventRepository>(), userServiceMock.Object);
+                Mock.Of<UvA.Workflow.Events.IInstanceEventRepository>(), userServiceMock.Object,
+                Mock.Of<IUserRepository>());
         var assessmentService = new AssessmentService(modelService, workflowInstanceService, repoMock.Object);
         var instanceService = new InstanceService(
             repoMock.Object, modelService, userServiceMock.Object, rightsService, mailBuilder, assessmentService);

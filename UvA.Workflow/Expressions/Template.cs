@@ -14,7 +14,7 @@ public record BilingualTemplate(Template En, Template Nl)
     public BilingualString Apply(ObjectContext context)
         => new(En.Apply(context), Nl.Apply(context));
 
-    public IEnumerable<Lookup> Properties => [..En.Properties, ..Nl.Properties];
+    public IEnumerable<Lookup> Properties => [.. En.Properties, .. Nl.Properties];
 }
 
 public partial record Template : Expression
