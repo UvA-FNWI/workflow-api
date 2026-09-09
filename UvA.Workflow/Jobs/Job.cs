@@ -1,4 +1,5 @@
 using MongoDB.Bson.Serialization.Attributes;
+using UvA.Workflow.Events;
 
 namespace UvA.Workflow.Jobs;
 
@@ -51,6 +52,8 @@ public class Job
     public string WorkerGroup { get; set; } = null!;
 
     public DateTime? ClaimedUntil { get; set; }
+
+    [BsonIgnoreIfNull] public OperationMetadata? Operation { get; set; }
 }
 
 [BsonIgnoreExtraElements]

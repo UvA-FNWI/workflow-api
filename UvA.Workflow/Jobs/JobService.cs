@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
+using UvA.Workflow.Events;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
@@ -20,12 +21,13 @@ public class JobService(
     IOptions<WorkerOptions> workerOptions)
 {
     public Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, Action action, User user,
-        JobInput? input, CancellationToken ct)
+        JobInput? input, CancellationToken ct, OperationMetadata? operation = null)
         => CreateAndRunJob(instance, JobSource.Action,
-            action.Name ?? throw new InvalidOperationException("Invalid action"), action.OnAction, user, input, ct);
+            action.Name ?? throw new InvalidOperationException("Invalid action"), action.OnAction, user, input, ct,
+            operation);
 
     public async Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, JobSource sourceType, string sourceName,
-        Effect[] effects, User user, JobInput? input, CancellationToken ct)
+        Effect[] effects, User user, JobInput? input, CancellationToken ct, OperationMetadata? operation = null)
     {
         var steps = effects
             .Where(e => e.Delay == null)
@@ -40,7 +42,8 @@ public class JobService(
             Input = input,
             IsSynchronous = true,
             WorkerGroup = workerOptions.Value.WorkerGroup,
-            Steps = steps.Keys.ToList()
+            Steps = steps.Keys.ToList(),
+            Operation = operation
         };
 
         var result = await RunJob(job, instance, effects, user, ct);
@@ -108,7 +111,8 @@ public class JobService(
                 Input = input,
                 IsSynchronous = false,
                 WorkerGroup = workerOptions.Value.WorkerGroup,
-                Steps = delayGroup.Select(e => new JobStep { Identifier = e.Identifier }).ToList()
+                Steps = delayGroup.Select(e => new JobStep { Identifier = e.Identifier }).ToList(),
+                Operation = operation
             }, ct);
 
         return result;

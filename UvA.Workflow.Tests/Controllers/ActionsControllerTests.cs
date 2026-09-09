@@ -59,6 +59,10 @@ public class ActionsControllerTests : ControllerTestsBase
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == actionName),
             UnitTestsHelpers.AdminUser,
+            It.Is<OperationMetadata>(operation => operation.Type == OperationType.ExecuteAction &&
+                                                  operation.Source == actionName &&
+                                                  operation.Step == stepName &&
+                                                  operation.TopLevelStep == stepName),
             _ct), Times.Once);
     }
 
@@ -174,6 +178,7 @@ public class ActionsControllerTests : ControllerTestsBase
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == "CoordinatorApproved"),
             It.IsAny<User>(),
+            It.IsAny<OperationMetadata?>(),
             _ct), Times.Once);
     }
 
@@ -202,7 +207,7 @@ public class ActionsControllerTests : ControllerTestsBase
 
         var controller =
             new ActionsController(_workflowInstanceRepoMock.Object, _userServiceMock.Object, _rightsService,
-                _effectService, _jobService, _workflowInstanceDtoFactory, _instanceService);
+                _effectService, _jobService, _workflowInstanceDtoFactory, _instanceService, _modelService);
 
         return (controller, instance);
     }
@@ -223,8 +228,9 @@ public class ActionsControllerTests : ControllerTestsBase
         _eventRepoMock
             .Setup(r => r.AddOrUpdateEvent(
                 It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
-                It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken>((_, _, user, _) =>
+                It.IsAny<User>(), It.IsAny<OperationMetadata?>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, OperationMetadata?,
+                CancellationToken>((_, _, user, _, _) =>
                 capturedEventUser = user)
             .Returns(Task.CompletedTask);
 

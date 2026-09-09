@@ -66,11 +66,13 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors, submissionState);
         }
 
+        var operation = OperationMetadata.CreateForSubmission(form, workflowDef, user);
+
         if (form.EmitFormSubmitEvent)
-            await effectService.AddEvent(instance, submissionId, user, ct);
+            await effectService.AddEvent(instance, submissionId, user, ct, operation);
 
         var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
-            form.Name, form.OnSubmit, user, null, ct);
+            form.Name, form.OnSubmit, user, null, ct, operation);
 
         var finalSubmissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
         if (!finalSubmissionState.IsSubmitted)

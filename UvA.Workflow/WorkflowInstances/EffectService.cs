@@ -52,8 +52,8 @@ public class EffectService(
         ObjectContext context, CancellationToken ct)
     {
         var input = job.Input;
-        if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
-        if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
+        if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct, job.Operation);
+        if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct, job.Operation);
         if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(instance, context, effect, ct);
@@ -111,20 +111,22 @@ public class EffectService(
         }, ct);
     }
 
-    private async Task UndoEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
+    private async Task UndoEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
+        OperationMetadata? operation = null)
     {
         if (!instance.Events.TryGetValue(eventName, out var ev))
             return;
         ev.Date = null;
-        await eventService.UpdateEvent(instance, ev.Id, user, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, operation, ct);
     }
 
-    public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
+    public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
+        OperationMetadata? operation = null)
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
         ev.Date = DateTime.Now;
-        await eventService.UpdateEvent(instance, ev.Id, user, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, operation, ct);
     }
 
     private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,

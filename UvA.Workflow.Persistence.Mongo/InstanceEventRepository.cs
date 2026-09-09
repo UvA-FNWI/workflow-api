@@ -19,6 +19,10 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     /// <returns>An asynchronous operation representing the add or update process.</returns>
     public async Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
         CancellationToken ct)
+        => await AddOrUpdateEvent(instance, newEvent, user, null, ct);
+
+    public async Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
+        OperationMetadata? operation, CancellationToken ct)
     {
         // Add or update existing event in the instance
         var filter = Builders<WorkflowInstance>.Filter.Eq(i => i.Id, instance.Id);
@@ -42,7 +46,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
 
         // Also add the event to the event log collection
         await AddEventLogEntry(instance, newEvent, user,
-            wasUpdated ? EventLogOperation.Update : EventLogOperation.Create, ct);
+            wasUpdated ? EventLogOperation.Update : EventLogOperation.Create, operation, ct);
     }
 
     /// <summary>
@@ -100,6 +104,10 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     /// </summary>
     public async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
         EventLogOperation operation, CancellationToken ct)
+        => await AddEventLogEntry(instance, instanceEvent, user, operation, null, ct);
+
+    public async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
+        EventLogOperation operation, OperationMetadata? operationMetadata, CancellationToken ct)
     {
         var logEntry = new InstanceEventLogEntry
         {
@@ -108,9 +116,57 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             EventId = instanceEvent.Id,
             EventDate = instanceEvent.Date,
             Operation = operation,
-            ExecutedBy = user.Id
+            ExecutedBy = user.Id,
+            OperationId = operationMetadata?.Id
         };
-        await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
+
+        if (operationMetadata == null)
+        {
+            await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
+            return;
+        }
+
+        var existingRoot = await _eventLogCollection
+            .Find(entry => entry.Id == operationMetadata.Id)
+            .FirstOrDefaultAsync(ct);
+        if (existingRoot != null)
+        {
+            await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
+            return;
+        }
+
+        while (true)
+        {
+            var latestRoot = await _eventLogCollection
+                .Find(entry => entry.WorkflowInstanceId == instance.Id &&
+                               entry.OperationMetadata!.TopLevelStep == operationMetadata.TopLevelStep)
+                .SortByDescending(entry => entry.OperationMetadata!.Revision)
+                .FirstOrDefaultAsync(ct);
+            var latestRevision = latestRoot?.OperationMetadata?.Revision ?? 0;
+
+            logEntry.Id = operationMetadata.Id;
+            logEntry.OperationMetadata = operationMetadata with { Revision = latestRevision + 1 };
+
+            try
+            {
+                await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
+                return;
+            }
+            catch (MongoWriteException exception) when (exception.WriteError.Category ==
+                                                        ServerErrorCategory.DuplicateKey)
+            {
+                existingRoot = await _eventLogCollection
+                    .Find(entry => entry.Id == operationMetadata.Id)
+                    .FirstOrDefaultAsync(ct);
+                if (existingRoot != null)
+                {
+                    logEntry.Id = null!;
+                    logEntry.OperationMetadata = null;
+                    await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
+                    return;
+                }
+            }
+        }
     }
 
     /// <summary>

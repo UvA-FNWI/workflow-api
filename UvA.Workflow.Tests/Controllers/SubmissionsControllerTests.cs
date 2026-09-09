@@ -420,8 +420,9 @@ public class SubmissionsControllerTests : ControllerTestsBase
         _eventRepoMock
             .Setup(r => r.AddOrUpdateEvent(
                 It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
-                It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken>((_, _, user, _) =>
+                It.IsAny<User>(), It.IsAny<OperationMetadata?>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, OperationMetadata?,
+                CancellationToken>((_, _, user, _, _) =>
                 capturedEventUser = user)
             .Returns(Task.CompletedTask);
 

@@ -14,6 +14,9 @@ public interface IInstanceEventRepository
     Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
         CancellationToken ct);
 
+    Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
+        OperationMetadata? operation, CancellationToken ct);
+
     /// <summary>
     /// Deletes a specified event from a workflow instance and logs the deletion.
     /// </summary>
@@ -39,6 +42,9 @@ public interface IInstanceEventRepository
     /// </summary>
     Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
         EventLogOperation operation, CancellationToken ct);
+
+    Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
+        EventLogOperation operation, OperationMetadata? operationMetadata, CancellationToken ct);
 
     /// <summary>
     /// Gets all event log entries for specific events in an instance
