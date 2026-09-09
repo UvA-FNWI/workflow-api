@@ -1,0 +1,8 @@
+ui:
+  overview:
+    title:
+      en: Registers
+      nl: Registers
+    noAccess:
+      en: No access
+      nl: Geen toegang

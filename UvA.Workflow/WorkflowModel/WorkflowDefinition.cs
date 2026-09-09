@@ -35,6 +35,16 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public int? Index { get; set; }
 
     /// <summary>
+    /// Optional icon for overview list entries (hub navigation).
+    /// </summary>
+    public Icon? Icon { get; set; }
+
+    /// <summary>
+    /// Optional short description shown under the title in overview list entries.
+    /// </summary>
+    public BilingualString? Description { get; set; }
+
+    /// <summary>
     /// Always show this entity type to the user, even if the user has no rights 
     /// </summary>
     public bool IsAlwaysVisible { get; set; }

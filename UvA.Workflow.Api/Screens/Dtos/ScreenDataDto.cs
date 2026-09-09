@@ -1,10 +1,12 @@
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.WorkflowModel;
 using SortDirection = UvA.Workflow.WorkflowModel.SortDirection;
 
 namespace UvA.Workflow.Api.Screens.Dtos;
 
 public record ScreenDataDto(
     string Name,
+    BilingualString? Title,
     WorkflowDefinitionDto WorkflowDefinition,
     bool IsBulkEditEnabled,
     ScreenColumnDto[] Columns,
@@ -19,6 +21,7 @@ public record ScreenDataDto(
     {
         return new ScreenDataDto(
             screen.Name,
+            screen.Title,
             WorkflowDefinitionDto.Create(definition, canCreateInstance),
             screen.BulkEdit != null && canBulkEdit,
             columns,

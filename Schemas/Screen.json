@@ -46,6 +46,62 @@
       "items": {
         "$ref": "#/definitions/BulkAction"
       }
+    },
+    "workflowDefinition": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Workflow definition whose instances this screen lists. Defaults to the owning definition."
+    },
+    "title": {
+      "description": "User-facing title for overview navigation and the screen page heading",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
+    "description": {
+      "description": "Optional subtitle shown on the overview list",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
+    "index": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Sort order when multiple screens from the same workflow appear on the overview"
+    },
+    "condition": {
+      "description": "Optional condition for showing this screen in overview navigation",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
     }
   },
   "definitions": {

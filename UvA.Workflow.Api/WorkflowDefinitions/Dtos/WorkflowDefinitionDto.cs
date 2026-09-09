@@ -6,11 +6,13 @@ public record WorkflowDefinitionDto(
     string Name,
     BilingualString? Title,
     BilingualString TitlePlural,
+    BilingualString? Description,
     int? Index,
+    Icon? Icon,
     bool IsAlwaysVisible,
     string? InheritsFrom,
     bool IsEmbedded,
-    string[] Screens,
+    ScreenSummaryDto[] Screens,
     bool CanCreateInstance,
     bool IsPropertyOnly
 )
@@ -22,11 +24,13 @@ public record WorkflowDefinitionDto(
             workflowDefinition.Name,
             workflowDefinition.Title,
             workflowDefinition.TitlePlural,
+            workflowDefinition.Description,
             workflowDefinition.Index,
+            workflowDefinition.Icon,
             workflowDefinition.IsAlwaysVisible,
             workflowDefinition.InheritsFrom,
             workflowDefinition.IsEmbedded,
-            workflowDefinition.Screens.Select(s => s.Name).ToArray(),
+            workflowDefinition.Screens.Select(ScreenSummaryDto.Create).ToArray(),
             canCreateInstance,
             workflowDefinition.Steps.Count == 0
         );

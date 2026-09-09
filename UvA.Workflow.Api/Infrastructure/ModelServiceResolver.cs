@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -13,7 +14,10 @@ public enum VersionKind
 /// A loaded config version and where it came from.
 public record VersionInfo(string Name, string? Commit, DateTimeOffset LoadedAt, VersionKind Kind);
 
-public record ResolvedWorkflowConfig(ModelService ModelService, string DefaultMailLayout);
+public record ResolvedWorkflowConfig(
+    ModelService ModelService,
+    string DefaultMailLayout,
+    WorkflowSettings? Settings);
 
 /// Loaded workflow models and mail layouts, keyed by version. A request selects both with the Workflow-Version
 /// header, or gets the default version, which is stored under the empty-string key.
@@ -39,7 +43,8 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
     public ResolvedWorkflowConfig Resolve()
     {
         var entry = ResolveEntry();
-        return new ResolvedWorkflowConfig(new ModelService(entry.Parser), entry.DefaultMailLayout);
+        return new ResolvedWorkflowConfig(new ModelService(entry.Parser), entry.DefaultMailLayout,
+            entry.Parser.Settings);
     }
 
     /// The raw files behind the resolved version: yaml from the content provider, plus the mail layout,

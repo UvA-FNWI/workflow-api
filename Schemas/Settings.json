@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Settings",
+  "type": "object",
+  "description": "Deployment settings for institution branding and UI copy",
+  "additionalProperties": false,
+  "properties": {
+    "institution": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/InstitutionSettings"
+        }
+      ]
+    },
+    "ui": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/UiSettings"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "BilingualString": {
+      "title": "BilingualString",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "InstitutionSettings": {
+      "title": "InstitutionSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "logoMapping": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "UiSettings": {
+      "title": "UiSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appName": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "overview": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/OverviewUiSettings"
+            }
+          ]
+        },
+        "personalPage": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/PersonalPageUiSettings"
+            }
+          ]
+        }
+      }
+    },
+    "OverviewUiSettings": {
+      "title": "OverviewUiSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pageTitle": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "subtitle": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "noAccess": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "PersonalPageUiSettings": {
+      "title": "PersonalPageUiSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "primaryColumn": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
