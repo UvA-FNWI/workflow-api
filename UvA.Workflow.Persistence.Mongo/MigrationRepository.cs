@@ -32,22 +32,17 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
             throw new InvalidOperationException($"Migration '{migration.MigrationId}' does not exist");
     }
 
-    public async Task<PropertyCopyResult> CopyPropertyValues(Migration migration,
+    public async Task<PropertyRenameResult> RenamePropertyValues(Migration migration,
         CancellationToken ct = default)
     {
         var sourceFilter = Builders<WorkflowInstance>.Filter.And(
             Builders<WorkflowInstance>.Filter.In(value => value.WorkflowDefinition,
                 migration.WorkflowDefinitions),
             Builders<WorkflowInstance>.Filter.Exists($"Properties.{migration.OldProperty}"));
-        var matched = await _instances.CountDocumentsAsync(sourceFilter, cancellationToken: ct);
-        PipelineDefinition<WorkflowInstance, WorkflowInstance> pipeline = new[]
-        {
-            new BsonDocument("$set", new BsonDocument(
-                $"Properties.{migration.NewProperty}", $"$Properties.{migration.OldProperty}"))
-        };
-        var update = new PipelineUpdateDefinition<WorkflowInstance>(pipeline);
+        var update = Builders<WorkflowInstance>.Update.Rename(
+            $"Properties.{migration.OldProperty}", $"Properties.{migration.NewProperty}");
         var result = await _instances.UpdateManyAsync(sourceFilter, update, cancellationToken: ct);
-        return new PropertyCopyResult(matched, result.ModifiedCount);
+        return new PropertyRenameResult(result.MatchedCount, result.ModifiedCount);
     }
 
     public async Task<long> RenameJournalPaths(Migration migration, CancellationToken ct = default)
@@ -67,23 +62,24 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
         long renamed = 0;
         foreach (var journal in journals)
         {
-            var changed = false;
-            foreach (var propertyChange in journal.PropertyChanges)
+            var updates = new List<UpdateDefinition<InstanceJournalEntry>>();
+            for (var index = 0; index < journal.PropertyChanges.Length; index++)
             {
+                var propertyChange = journal.PropertyChanges[index];
                 if (propertyChange.Path != migration.OldProperty &&
                     !propertyChange.Path.StartsWith(migration.OldProperty + '.', StringComparison.Ordinal))
                     continue;
 
-                propertyChange.RenamePath(
-                    migration.NewProperty + propertyChange.Path[migration.OldProperty.Length..]);
+                updates.Add(Builders<InstanceJournalEntry>.Update.Set(
+                    $"PropertyChanges.{index}.Path",
+                    migration.NewProperty + propertyChange.Path[migration.OldProperty.Length..]));
                 renamed++;
-                changed = true;
             }
 
-            if (changed)
-                writes.Add(new ReplaceOneModel<InstanceJournalEntry>(
+            if (updates.Count > 0)
+                writes.Add(new UpdateOneModel<InstanceJournalEntry>(
                     Builders<InstanceJournalEntry>.Filter.Eq(value => value.InstanceId, journal.InstanceId),
-                    journal));
+                    Builders<InstanceJournalEntry>.Update.Combine(updates)));
         }
 
         if (writes.Count > 0)

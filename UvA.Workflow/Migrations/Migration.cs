@@ -26,6 +26,9 @@ public class Migration
 
     public string MigrationId { get; set; } = null!;
 
+    /// <summary>The declaring workflow name.</summary>
+    public string Scope { get; set; } = null!;
+
     /// <summary>Currently only <c>RenameProperty</c> is supported.</summary>
     [BsonRepresentation(BsonType.String)]
     public MigrationKind Kind { get; init; }
@@ -35,8 +38,6 @@ public class Migration
     public string[] WorkflowDefinitions { get; set; } = [];
     public string OldProperty { get; set; } = null!;
     public string NewProperty { get; set; } = null!;
-
-    public string RequestedBy { get; set; } = null!;
 
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime RequestedAt { get; set; }

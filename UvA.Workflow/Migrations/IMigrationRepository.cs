@@ -7,9 +7,9 @@ public interface IMigrationRepository
     Task Create(Migration migration, CancellationToken ct = default);
     Task Update(Migration migration, CancellationToken ct = default);
 
-    Task<PropertyCopyResult> CopyPropertyValues(Migration migration, CancellationToken ct = default);
+    Task<PropertyRenameResult> RenamePropertyValues(Migration migration, CancellationToken ct = default);
 
     Task<long> RenameJournalPaths(Migration migration, CancellationToken ct = default);
 }
 
-public record PropertyCopyResult(long InstancesMatched, long InstancesUpdated);
+public record PropertyRenameResult(long InstancesMatched, long InstancesUpdated);

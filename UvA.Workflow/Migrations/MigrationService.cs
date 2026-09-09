@@ -9,30 +9,6 @@ public class MigrationService(
     public Task<IReadOnlyList<Migration>> GetAll(CancellationToken ct = default)
         => migrationRepository.GetAll(ct);
 
-    public async Task<Migration> CreatePropertyRename(
-        IEnumerable<string>? workflowDefinitions,
-        string oldProperty,
-        string newProperty,
-        string requestedBy,
-        CancellationToken ct = default)
-    {
-        var migration = new Migration
-        {
-            MigrationId = ObjectId.GenerateNewId().ToString(),
-            Kind = MigrationKind.RenameProperty,
-            WorkflowDefinitions = NormalizeWorkflows(workflowDefinitions),
-            OldProperty = oldProperty,
-            NewProperty = newProperty
-        };
-        if (migration.WorkflowDefinitions.Length == 0)
-            throw new MigrationValidationException("MigrationWorkflowRequired",
-                "At least one workflow is required");
-
-        await Prepare(migration, requestedBy, ct);
-        await migrationRepository.Create(migration, ct);
-        return await Execute(migration, ct);
-    }
-
     public async Task<Migration> RunConfigured(ConfiguredMigration configured, CancellationToken ct = default)
     {
         var existing = await migrationRepository.GetByMigrationId(configured.MigrationId, ct);
@@ -42,19 +18,19 @@ public class MigrationService(
         var migration = new Migration
         {
             MigrationId = configured.MigrationId,
+            Scope = configured.Scope,
             Kind = configured.Kind,
-            WorkflowDefinitions = NormalizeWorkflows(configured.WorkflowDefinitions),
+            WorkflowDefinitions = ResolveWorkflowDefinitions(configured.Scope),
             OldProperty = configured.OldProperty,
             NewProperty = configured.NewProperty
         };
-        await Prepare(migration, "configuration", ct);
+        await Prepare(migration, ct);
         await migrationRepository.Create(migration, ct);
         return await Execute(migration, ct);
     }
 
     private async Task Prepare(
         Migration migration,
-        string requestedBy,
         CancellationToken ct)
     {
         if (migration.Kind != MigrationKind.RenameProperty)
@@ -74,9 +50,9 @@ public class MigrationService(
 
             var hasOldProperty = definition.Properties.Contains(migration.OldProperty);
             var hasNewProperty = definition.Properties.Contains(migration.NewProperty);
-            if (hasOldProperty == hasNewProperty)
+            if (hasOldProperty || !hasNewProperty)
                 throw new MigrationValidationException("MigrationInvalidModelState",
-                    $"Workflow '{workflow}' must contain exactly one of '{migration.OldProperty}' and '{migration.NewProperty}'");
+                    $"Workflow '{workflow}' must contain '{migration.NewProperty}' and must not contain '{migration.OldProperty}'");
         }
 
         var requestedProperties = new HashSet<string>([migration.OldProperty, migration.NewProperty],
@@ -98,7 +74,6 @@ public class MigrationService(
 
         var now = DateTime.UtcNow;
         migration.Status = MigrationStatus.Applying;
-        migration.RequestedBy = requestedBy;
         migration.RequestedAt = now;
         migration.UpdatedAt = now;
     }
@@ -111,13 +86,10 @@ public class MigrationService(
 
         try
         {
-            if (migration.WorkflowDefinitions.Length > 0)
-            {
-                var result = await migrationRepository.CopyPropertyValues(migration, ct);
-                migration.ItemsMatched = result.InstancesMatched;
-                migration.ItemsUpdated = result.InstancesUpdated;
-                migration.JournalEntriesUpdated = await migrationRepository.RenameJournalPaths(migration, ct);
-            }
+            var result = await migrationRepository.RenamePropertyValues(migration, ct);
+            migration.ItemsMatched = result.InstancesMatched;
+            migration.ItemsUpdated = result.InstancesUpdated;
+            migration.JournalEntriesUpdated = await migrationRepository.RenameJournalPaths(migration, ct);
 
             migration.Status = MigrationStatus.Finished;
             migration.FinishedAt = migration.UpdatedAt = DateTime.UtcNow;
@@ -139,12 +111,26 @@ public class MigrationService(
         await migrationRepository.Update(migration, ct);
     }
 
-    private static string[] NormalizeWorkflows(IEnumerable<string>? workflowDefinitions)
-        => (workflowDefinitions ?? [])
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim())
-            .Distinct(StringComparer.Ordinal)
+    private string[] ResolveWorkflowDefinitions(string scope)
+    {
+        if (!modelService.WorkflowDefinitions.ContainsKey(scope))
+            throw new MigrationValidationException("MigrationUnknownWorkflow", $"Unknown workflow '{scope}'");
+
+        return modelService.WorkflowDefinitions.Values
+            .Where(definition => IsInScope(definition, scope))
+            .Select(definition => definition.Name)
+            .Order(StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static bool IsInScope(WorkflowDefinition definition, string scope)
+    {
+        for (var current = definition; current != null; current = current.Parent)
+            if (current.Name == scope)
+                return true;
+
+        return false;
+    }
 
     private static void ValidatePropertyName(string property, string field)
     {
