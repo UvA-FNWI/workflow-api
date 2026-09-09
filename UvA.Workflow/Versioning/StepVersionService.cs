@@ -28,9 +28,10 @@ public class StepVersionService : IStepVersionService
     {
         var (allChildEvents, completionCondition) = DetermineEventSets(step);
         var allChildEventSet = allChildEvents.ToHashSet();
+        var effectiveEventLogs = EventHistory.Project(eventLogs);
 
         // Get submission events (create/update only), ordered chronologically
-        var submissionEvents = eventLogs
+        var submissionEvents = effectiveEventLogs
             .Where(log => allChildEventSet.Contains(log.EventId))
             .Where(log => log.Operation is EventLogOperation.Create or EventLogOperation.Update)
             .OrderBy(log => log.Timestamp)

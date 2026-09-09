@@ -46,6 +46,9 @@ public interface IInstanceEventRepository
     Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
         EventLogOperation operation, OperationMetadata? operationMetadata, CancellationToken ct);
 
+    Task<bool> AddUndoEntry(string instanceId, string topLevelStep, string targetOperationId,
+        long expectedRevision, User user, string reason, CancellationToken ct);
+
     /// <summary>
     /// Gets all event log entries for specific events in an instance
     /// </summary>

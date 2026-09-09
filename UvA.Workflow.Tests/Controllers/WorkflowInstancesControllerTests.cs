@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using Moq;
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.WorkflowInstances;
@@ -13,7 +15,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
 {
     private const string WorkflowDefinition = "Project";
 
-    private WorkflowInstancesController CreateController()
+    private WorkflowInstancesController CreateController(UndoService? undoService = null)
         // Only the dependencies GetInstances touches are wired; the rest are unused here.
         => new(
             _userServiceMock.Object,
@@ -26,13 +28,72 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             null!,
             _modelService,
             null!,
-            null!);
+            null!,
+            undoService);
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)
         => _workflowInstanceRepoMock
             .Setup(r => r.GetAllByType(WorkflowDefinition,
                 It.IsAny<Dictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(rows.ToList());
+
+    [Fact]
+    public async Task Undo_InvalidReason_ReturnsBadRequest()
+    {
+        var result = await CreateController().Undo("instance", new UndoRequest("operation", "  "), _ct);
+
+        var error = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(400, error.StatusCode);
+        Assert.Equal("InvalidUndoReason", Assert.IsType<Error>(error.Value).ErrorCode);
+    }
+
+    [Fact]
+    public async Task Undo_MissingInstance_ReturnsNotFound()
+    {
+        MockCurrentUser("Undoer");
+
+        var result = await CreateController().Undo(
+            "instance", new UndoRequest("operation", "because"), _ct);
+
+        var error = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(404, error.StatusCode);
+    }
+
+    [Fact]
+    public async Task Undo_WithoutPermission_ReturnsForbidden()
+    {
+        var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
+        MockCurrentUser("Student");
+        MockInstance(instance);
+        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
+            .ReturnsAsync([
+                new InstanceEventLogEntry
+                {
+                    Id = "operation",
+                    WorkflowInstanceId = instance.Id,
+                    EventId = "Start",
+                    Operation = EventLogOperation.Create,
+                    OperationId = "operation",
+                    OperationMetadata = new OperationMetadata
+                    {
+                        Id = "operation",
+                        Type = OperationType.FormSubmission,
+                        Source = "Start",
+                        Step = "Subject",
+                        TopLevelStep = "Subject",
+                        Revision = 1
+                    }
+                }
+            ]);
+
+        var undoService = new UndoService(_eventRepoMock.Object, _workflowInstanceRepoMock.Object,
+            _instanceService, _rightsService);
+        var result = await CreateController(undoService).Undo(
+            instance.Id, new UndoRequest("operation", "because"), _ct);
+
+        var error = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(403, error.StatusCode);
+    }
 
     [Fact]
     public async Task GetInstances_IncludeTitle_RendersTitleFromTemplateAndCreatedOn()

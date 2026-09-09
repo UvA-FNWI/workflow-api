@@ -17,7 +17,8 @@ public class WorkflowInstanceDtoFactory(
     IStepVersionService stepVersionService,
     StepHeaderStatusResolver stepHeaderStatusResolver,
     WorkflowInstanceService workflowInstanceService,
-    ILogger<WorkflowInstanceDtoFactory> logger)
+    ILogger<WorkflowInstanceDtoFactory> logger,
+    UndoService? undoService = null)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -53,10 +54,13 @@ public class WorkflowInstanceDtoFactory(
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
+        var undoCandidates = await GetUndoCandidates(instance, workflowDefinition.Steps,
+            instanceHistory.EventLogs, ct);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)));
+            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
+                undoCandidates, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -145,6 +149,22 @@ public class WorkflowInstanceDtoFactory(
         return stepVersionsMap;
     }
 
+    private async Task<Dictionary<string, OperationMetadata>> GetUndoCandidates(
+        WorkflowInstance instance,
+        IEnumerable<Step> topLevelSteps,
+        IEnumerable<InstanceEventLogEntry> eventLogs,
+        CancellationToken ct)
+    {
+        if (undoService == null)
+            return [];
+
+        var candidates = await Task.WhenAll(topLevelSteps.Select(async step =>
+            (step.Name, Candidate: await undoService.GetCandidate(instance, step.Name, eventLogs))));
+        return candidates
+            .Where(candidate => candidate.Candidate != null)
+            .ToDictionary(candidate => candidate.Name, candidate => candidate.Candidate!);
+    }
+
     /// <summary>
     /// Creates a StepDto with versions from the map, recursively handling child steps
     /// </summary>
@@ -155,9 +175,11 @@ public class WorkflowInstanceDtoFactory(
         WorkflowInstanceHistory instanceHistory,
         ObjectContext context,
         HashSet<string> activeSteps,
+        IReadOnlyDictionary<string, OperationMetadata> undoCandidates,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
 
         // The newest version is the step's live state, already rendered as the current submission.
         var versions = stepVersionsMap.GetValueOrDefault(step.Name)
@@ -167,7 +189,8 @@ public class WorkflowInstanceDtoFactory(
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
+                    undoCandidates, ct)))
             : null;
         var versionDtos = versions != null
             ? await Task.WhenAll(versions
@@ -186,7 +209,7 @@ public class WorkflowInstanceDtoFactory(
             .ToHashSet();
         var hasSubmission = submissionForms.Any(form =>
                                 FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted) ||
-                            instanceHistory.EventLogs.Any(log =>
+                            effectiveEventLogs.Any(log =>
                                 submissionEventIds.Contains(log.EventId) &&
                                 log.Operation is EventLogOperation.Create or EventLogOperation.Update);
         var expectsSubmission = activeSteps.Contains(step.Name) && step.Actions
@@ -195,6 +218,9 @@ public class WorkflowInstanceDtoFactory(
             .Distinct()
             .Select(formName => modelService.GetForm(instance, formName))
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
+        var undoCandidate = step.ParentStep == null && undoCandidates.GetValueOrDefault(step.Name) is { } candidate
+            ? new UndoCandidateDto(candidate.Type, candidate.Step, candidate.Source, candidate.OccurredAt, candidate.Id)
+            : null;
 
         return new StepDto(
             step.Name,
@@ -209,7 +235,8 @@ public class WorkflowInstanceDtoFactory(
             expectsSubmission,
             hasSubmission,
             step.HierarchyMode,
-            versionDtos?.ToList()
+            versionDtos?.ToList(),
+            undoCandidate
         );
     }
 

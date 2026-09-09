@@ -197,7 +197,7 @@ public class WorkflowInstanceService(
 
         EnrichInstanceByJournalEntries(instanceAtTimestamp, history.Journal, version);
 
-        instanceAtTimestamp.Events = RebuildEventsUntil(history.EventLogs, timestamp);
+        instanceAtTimestamp.Events = EventHistory.RebuildEvents(history.EventLogs, timestamp);
 
         RecalculateCurrentStep(instanceAtTimestamp);
 
@@ -245,32 +245,6 @@ public class WorkflowInstanceService(
 
     private static WorkflowInstance CloneInstance(WorkflowInstance instance)
         => BsonSerializer.Deserialize<WorkflowInstance>(instance.ToBsonDocument());
-
-    private static Dictionary<string, InstanceEvent> RebuildEventsUntil(
-        IEnumerable<InstanceEventLogEntry> eventLogs,
-        DateTime timestamp)
-    {
-        var events = new Dictionary<string, InstanceEvent>();
-
-        foreach (var logEntry in eventLogs
-                     .Where(e => e.Timestamp <= timestamp)
-                     .OrderBy(e => e.Timestamp))
-        {
-            if (logEntry.Operation == EventLogOperation.Delete)
-            {
-                events.Remove(logEntry.EventId);
-                continue;
-            }
-
-            events[logEntry.EventId] = new InstanceEvent
-            {
-                Id = logEntry.EventId,
-                Date = logEntry.EventDate
-            };
-        }
-
-        return events;
-    }
 
     private void RecalculateCurrentStep(WorkflowInstance instance)
     {

@@ -25,6 +25,19 @@ public class MongoDbIndexInitializer(IMongoDatabase database)
         };
 
         await CreateOrUpdateIndexAsync(collection, new CreateIndexModel<InstanceEventLogEntry>(keys, options), ct);
+
+        var historyKeys = Builders<InstanceEventLogEntry>.IndexKeys
+            .Ascending(entry => entry.WorkflowInstanceId)
+            .Ascending(entry => entry.HistoryTopLevelStep)
+            .Ascending(entry => entry.HistoryRevision);
+        var historyOptions = new CreateIndexOptions<InstanceEventLogEntry>
+        {
+            Name = "eventlog_history_revision",
+            Unique = true,
+            PartialFilterExpression = Builders<InstanceEventLogEntry>.Filter.Exists(entry => entry.HistoryRevision)
+        };
+        await CreateOrUpdateIndexAsync(collection,
+            new CreateIndexModel<InstanceEventLogEntry>(historyKeys, historyOptions), ct);
     }
 
     private async Task OrganizationsIndexes(CancellationToken ct)

@@ -8,7 +8,8 @@ public enum EventLogOperation
 {
     Create,
     Update,
-    Delete
+    Delete,
+    Undo
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -75,6 +76,14 @@ public record OperationMetadata
     }
 }
 
+public record UndoMetadata
+{
+    public string TargetOperationId { get; init; } = null!;
+    public string TopLevelStep { get; init; } = null!;
+    public long Revision { get; init; }
+    public string Reason { get; init; } = null!;
+}
+
 public class InstanceEventLogEntry
 {
     [BsonId]
@@ -106,4 +115,10 @@ public class InstanceEventLogEntry
     public string? OperationId { get; set; }
 
     [BsonIgnoreIfNull] public OperationMetadata? OperationMetadata { get; set; }
+
+    [BsonIgnoreIfNull] public UndoMetadata? UndoMetadata { get; set; }
+
+    [BsonIgnoreIfNull] public string? HistoryTopLevelStep { get; set; }
+
+    [BsonIgnoreIfNull] public long? HistoryRevision { get; set; }
 }

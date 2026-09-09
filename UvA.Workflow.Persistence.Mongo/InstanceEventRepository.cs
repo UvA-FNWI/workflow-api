@@ -137,15 +137,17 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
 
         while (true)
         {
-            var latestRoot = await _eventLogCollection
+            var historyEntries = await _eventLogCollection
                 .Find(entry => entry.WorkflowInstanceId == instance.Id &&
-                               entry.OperationMetadata!.TopLevelStep == operationMetadata.TopLevelStep)
-                .SortByDescending(entry => entry.OperationMetadata!.Revision)
-                .FirstOrDefaultAsync(ct);
-            var latestRevision = latestRoot?.OperationMetadata?.Revision ?? 0;
+                               (entry.OperationMetadata!.TopLevelStep == operationMetadata.TopLevelStep ||
+                                entry.UndoMetadata!.TopLevelStep == operationMetadata.TopLevelStep))
+                .ToListAsync(ct);
+            var latestRevision = LatestHistoryRevision(historyEntries);
 
             logEntry.Id = operationMetadata.Id;
             logEntry.OperationMetadata = operationMetadata with { Revision = latestRevision + 1 };
+            logEntry.HistoryTopLevelStep = operationMetadata.TopLevelStep;
+            logEntry.HistoryRevision = latestRevision + 1;
 
             try
             {
@@ -168,6 +170,79 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             }
         }
     }
+
+    public async Task<bool> AddUndoEntry(string instanceId, string topLevelStep, string targetOperationId,
+        long expectedRevision, User user, string reason, CancellationToken ct)
+    {
+        using var session = await database.Client.StartSessionAsync(cancellationToken: ct);
+        session.StartTransaction();
+        try
+        {
+            var roots = await _eventLogCollection
+                .Find(session, entry => entry.WorkflowInstanceId == instanceId &&
+                                        entry.OperationMetadata!.TopLevelStep == topLevelStep)
+                .ToListAsync(ct);
+            var undone = await _eventLogCollection
+                .Find(session, entry => entry.WorkflowInstanceId == instanceId &&
+                                        entry.Operation == EventLogOperation.Undo &&
+                                        entry.UndoMetadata!.TopLevelStep == topLevelStep)
+                .ToListAsync(ct);
+            var candidate = EventHistory.LatestOperations(roots.Concat(undone))
+                .GetValueOrDefault(topLevelStep);
+
+            if (candidate?.Id != targetOperationId || candidate.Revision != expectedRevision)
+            {
+                await session.AbortTransactionAsync(ct);
+                return false;
+            }
+
+            try
+            {
+                var nextHistoryRevision = LatestHistoryRevision(roots.Concat(undone)) + 1;
+                await _eventLogCollection.InsertOneAsync(session, new InstanceEventLogEntry
+                {
+                    Id = ObjectId.GenerateNewId().ToString(),
+                    Timestamp = DateTime.UtcNow,
+                    WorkflowInstanceId = instanceId,
+                    EventId = targetOperationId,
+                    ExecutedBy = user.Id,
+                    Operation = EventLogOperation.Undo,
+                    OperationId = targetOperationId,
+                    HistoryTopLevelStep = topLevelStep,
+                    HistoryRevision = nextHistoryRevision,
+                    UndoMetadata = new UndoMetadata
+                    {
+                        TargetOperationId = targetOperationId,
+                        TopLevelStep = topLevelStep,
+                        Revision = expectedRevision,
+                        Reason = reason
+                    }
+                }, cancellationToken: ct);
+            }
+            catch (MongoWriteException exception) when (exception.WriteError.Category ==
+                                                        ServerErrorCategory.DuplicateKey)
+            {
+                await session.AbortTransactionAsync(ct);
+                return false;
+            }
+
+            await session.CommitTransactionAsync(ct);
+            return true;
+        }
+        catch
+        {
+            if (session.IsInTransaction)
+                await session.AbortTransactionAsync(ct);
+            throw;
+        }
+    }
+
+    private static long LatestHistoryRevision(IEnumerable<InstanceEventLogEntry> entries)
+        => entries
+            .Select(entry => entry.HistoryRevision ?? entry.OperationMetadata?.Revision ??
+                entry.UndoMetadata?.Revision ?? 0)
+            .DefaultIfEmpty()
+            .Max();
 
     /// <summary>
     /// Gets all event log entries for specific events in an instance

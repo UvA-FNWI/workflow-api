@@ -4,6 +4,8 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 
@@ -20,7 +22,8 @@ public class WorkflowInstancesController(
     IAnswerService answerService,
     ModelService modelService,
     RoleImpersonationService impersonationService,
-    IEduIdUserService eduIdUserService
+    IEduIdUserService eduIdUserService,
+    UndoService? undoService = null
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -85,6 +88,46 @@ public class WorkflowInstancesController(
         var result = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(result);
+    }
+
+    [HttpPost("{id}/Undo")]
+    public async Task<ActionResult<WorkflowInstanceDto>> Undo(
+        string id, [FromBody] UndoRequest input, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(input.OperationId))
+            return BadRequest("InvalidUndoOperation", "Operation identifier is required.");
+
+        var reason = input.Reason?.Trim();
+        if (string.IsNullOrWhiteSpace(reason) || reason.Length > 1000)
+            return BadRequest("InvalidUndoReason", "Undo reason must contain between 1 and 1,000 characters.");
+
+        var currentUser = await userService.GetCurrentUser(ct);
+        if (currentUser == null)
+            return Unauthorized();
+
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            return Unauthorized();
+
+        try
+        {
+            await (undoService ?? throw new InvalidOperationException("Undo service is not configured"))
+                .Undo(instance, input.OperationId, reason, realUser, ct);
+        }
+        catch (ForbiddenWorkflowActionException)
+        {
+            return Forbidden();
+        }
+        catch (UndoCandidateChangedException exception)
+        {
+            return Conflict(exception.Code, exception.Message);
+        }
+
+        return Ok(await workflowInstanceDtoFactory.Create(instance, ct));
     }
 
     /// <summary>

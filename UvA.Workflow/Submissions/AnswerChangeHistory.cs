@@ -36,9 +36,10 @@ public static class AnswerChangeHistory
             .Where(change => change.Path == questionName || change.Path == nestedPath)
             .OrderBy(change => change.Timestamp)
             .ToArray();
-        var logs = eventLogs.OrderBy(log => log.Timestamp).ToArray();
+        var logs = eventLogs.ToArray();
+        var effectiveLogs = EventHistory.Project(logs);
         var submitIds = submissionEventIds.ToHashSet();
-        var submits = logs
+        var submits = effectiveLogs
             .Where(log => submitIds.Contains(log.EventId) &&
                           log.Operation is EventLogOperation.Create or EventLogOperation.Update)
             .Select(log => log.EventDate ?? log.Timestamp)
@@ -96,20 +97,6 @@ public static class AnswerChangeHistory
 
     private static Dictionary<string, InstanceEvent> EventsAt(InstanceEventLogEntry[] logs, DateTime at)
     {
-        // Rebuild the instance's events at this point in time. FormSubmissionState
-        // then applies the same suppression rules used for the live instance.
-        var events = new Dictionary<string, InstanceEvent>();
-        foreach (var log in logs)
-        {
-            if ((log.EventDate ?? log.Timestamp) > at)
-                break;
-
-            if (log.Operation == EventLogOperation.Delete)
-                events.Remove(log.EventId);
-            else
-                events[log.EventId] = new InstanceEvent { Id = log.EventId, Date = log.EventDate };
-        }
-
-        return events;
+        return EventHistory.RebuildEvents(logs, at);
     }
 }

@@ -196,29 +196,14 @@ public class RightsService(
     private async Task<Domain_Action[]> GetAllowedActionsForRealUser(WorkflowInstance instance,
         params RoleAction[] actions)
     {
-        var globalUserRoles = await GetGlobalRoles();
-        var globalRoles = globalUserRoles.Select(gur => modelService.Roles.GetValueOrDefault(gur))
-            .Where(r => r != null)
-            .ToArray();
-        var instanceRoles = await GetInstanceRoles(instance);
-
-        return GetAllowedActions(instance, globalRoles.Concat(instanceRoles), actions);
+        return GetAllowedActions(instance, await GetRealUserRoles(instance), actions);
     }
 
     private async Task<Domain_Action[]> GetAllowedActionsForRequestContext(
         WorkflowInstance instance,
         params RoleAction[] actions)
     {
-        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance);
-        if (string.IsNullOrWhiteSpace(impersonatedRoleName))
-            return await GetAllowedActionsForRealUser(instance, actions);
-
-        var normalizedRoleName = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
-        if (normalizedRoleName == null) return [];
-
-        var role = modelService.Roles.GetValueOrDefault(normalizedRoleName.Name);
-        if (role == null) return [];
-        return GetAllowedActions(instance, [role], actions);
+        return GetAllowedActions(instance, await GetRequestContextRoles(instance), actions);
     }
 
     public async Task<Domain_Action[]> GetAllowedActionsForForm(WorkflowInstance instance, Form form,
@@ -240,6 +225,37 @@ public class RightsService(
             RightsEvaluationMode.RealUser => await GetAllowedActionsForRealUser(instance, actions),
             _ => await GetAllowedActionsForRequestContext(instance, actions)
         };
+
+    public async Task<Domain_Action[]> GetAllowedActionsForStep(
+        WorkflowInstance instance,
+        string stepName,
+        RightsEvaluationMode evaluationMode,
+        params RoleAction[] actions)
+    {
+        var context = modelService.CreateContext(instance);
+        var roles = evaluationMode == RightsEvaluationMode.RealUser
+            ? await GetRealUserRoles(instance)
+            : await GetRequestContextRoles(instance);
+        return GetAllowedActions(instance, context, [stepName], roles, actions);
+    }
+
+    private async Task<Role?[]> GetRealUserRoles(WorkflowInstance instance)
+        => (await GetGlobalRoles())
+            .Select(role => modelService.Roles.GetValueOrDefault(role))
+            .Concat(await GetInstanceRoles(instance))
+            .ToArray();
+
+    private async Task<Role?[]> GetRequestContextRoles(WorkflowInstance instance)
+    {
+        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance);
+        if (string.IsNullOrWhiteSpace(impersonatedRoleName))
+            return await GetRealUserRoles(instance);
+
+        var normalizedRoleName = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
+        return normalizedRoleName == null
+            ? []
+            : [modelService.Roles.GetValueOrDefault(normalizedRoleName.Name)];
+    }
 
     public async Task<bool> CanAny(string? workflowDefinition, params RoleAction[] actions)
         => (await GetAllowedActions(workflowDefinition, actions)).Any();
