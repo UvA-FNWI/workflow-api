@@ -85,11 +85,9 @@ public class ScreenDataService(
         {
             case PropertyLookup propertyLookup:
                 var propertyName = propertyLookup.Property.Split('.')[0];
+                // ObjectContext computes LastEvent from Events, which LoadData always projects.
                 if (propertyName == "LastEvent")
-                {
-                    projection.TryAdd("Events", "$Events");
                     break;
-                }
 
                 var mongoPath = entity.GetKey(propertyName);
                 projection.TryAdd(propertyName, mongoPath);
