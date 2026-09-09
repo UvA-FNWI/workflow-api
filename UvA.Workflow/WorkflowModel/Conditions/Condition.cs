@@ -239,15 +239,20 @@ public class Value : ConditionPart
     /// </summary>
     public int? MaxLength { get; set; }
 
+    /// <summary>
+    /// Minimum length of a string
+    /// </summary>
+    public int? MinLength { get; set; }
+
     public override Lookup[] Dependants =>
     [
         Property,
-        ..EqualExpression?.Properties ?? [],
-        ..LessThanExpression?.Properties ?? [],
-        ..LessThanOrEqualExpression?.Properties ?? [],
-        ..GreaterThanExpression?.Properties ?? [],
-        ..GreaterThanOrEqualExpression?.Properties ?? [],
-        ..InExpression?.Properties ?? []
+        .. EqualExpression?.Properties ?? [],
+        .. LessThanExpression?.Properties ?? [],
+        .. LessThanOrEqualExpression?.Properties ?? [],
+        .. GreaterThanExpression?.Properties ?? [],
+        .. GreaterThanOrEqualExpression?.Properties ?? [],
+        .. InExpression?.Properties ?? []
     ];
 
     public override IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
@@ -276,6 +281,8 @@ public class Value : ConditionPart
             return InExpression.Execute(context) is IEnumerable p && p.Cast<object>().Contains(prop);
         if (MaxLength != null)
             return prop is string s && s.Length <= MaxLength;
+        if (MinLength != null)
+            return prop is string s && s.Length >= MinLength;
         throw new InvalidOperationException("Invalid condition");
     }
 

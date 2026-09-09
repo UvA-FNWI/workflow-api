@@ -38,7 +38,7 @@ public class DummyAnswerGenerator
 
         return question.DataType switch
         {
-            DataType.String => JsonSerializer.SerializeToElement(DummyStringValue[..maxStringLength]),
+            DataType.String => JsonSerializer.SerializeToElement(BuildStringValue(constraints)),
             DataType.Int => JsonSerializer.SerializeToElement(
                 Random.Next((int)(constraints.Min ?? 1), (int)(constraints.Max ?? 10))),
             DataType.Double => JsonSerializer.SerializeToElement(
@@ -54,9 +54,25 @@ public class DummyAnswerGenerator
         };
     }
 
-    internal record ValidationConstraints(double? Min, double? Max, int? MaxLength)
+    private static string BuildStringValue(ValidationConstraints constraints)
     {
-        public static readonly ValidationConstraints None = new(null, null, null);
+        var minLength = constraints.MinLength ?? 0;
+        var maxLength = constraints.MaxLength ?? Math.Max(DummyStringValue.Length, minLength);
+
+        if (maxLength < minLength)
+            throw new InvalidOperationException(
+                $"Invalid string length constraints: MaxLength ({maxLength}) is smaller than MinLength ({minLength}).");
+
+        var source = DummyStringValue;
+        while (source.Length < minLength) source += " " + DummyStringValue;
+
+        var targetLength = Math.Min(maxLength, source.Length);
+        return source[..targetLength];
+    }
+
+    internal record ValidationConstraints(double? Min, double? Max, int? MaxLength, int? MinLength)
+    {
+        public static readonly ValidationConstraints None = new(null, null, null, null);
     };
 
     internal static ValidationConstraints ExtractConstraints(Condition? validation)
@@ -80,22 +96,24 @@ public class DummyAnswerGenerator
         double? min = greaterThan.HasValue ? greaterThan + 1 : greaterThanOrEqual;
         double? max = lessThan;
 
-        return new ValidationConstraints(min, max, v.MaxLength);
+        return new ValidationConstraints(min, max, v.MaxLength, v.MinLength);
     }
 
     internal static ValidationConstraints ExtractFromLogical(Logical logical)
     {
         double? min = null, max = null;
         int? maxLen = null;
+        int? minLen = null;
         foreach (var child in logical.Children)
         {
             var c = ExtractConstraints(child);
             if (c.Min.HasValue) min = min == null ? c.Min : Math.Max(min.Value, c.Min.Value);
             if (c.Max.HasValue) max = max == null ? c.Max : Math.Min(max.Value, c.Max.Value);
             if (c.MaxLength.HasValue) maxLen = maxLen == null ? c.MaxLength : Math.Min(maxLen.Value, c.MaxLength.Value);
+            if (c.MinLength.HasValue) minLen = minLen == null ? c.MinLength : Math.Max(minLen.Value, c.MinLength.Value);
         }
 
-        return new ValidationConstraints(min, max, maxLen);
+        return new ValidationConstraints(min, max, maxLen, minLen);
     }
 
     internal static double? TryGetLiteralNumber(string? exprString)
