@@ -16,7 +16,7 @@ public class MigrationsControllerTests
     {
         var migration = new Migration
         {
-            MigrationId = "migration-id",
+            MigrationId = "Project-Base:2026-09-09-rename-title",
             Scope = "Project-Base",
             Kind = MigrationKind.RenameProperty,
             Status = MigrationStatus.Failed,

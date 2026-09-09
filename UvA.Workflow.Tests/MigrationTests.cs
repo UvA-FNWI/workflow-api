@@ -17,7 +17,7 @@ public class MigrationTests
         var restored = BsonSerializer.Deserialize<Migration>(migration.ToBson());
 
         Assert.Equal(BsonType.ObjectId, document["_id"].BsonType);
-        Assert.Equal("migration-id", document["MigrationId"].AsString);
+        Assert.Equal("Project:2026-09-08-rename-title", document["MigrationId"].AsString);
         Assert.Equal("Project", document["Scope"].AsString);
         Assert.Equal("Project", restored.Scope);
         Assert.Equal(BsonType.Array, document["WorkflowDefinitions"].BsonType);
@@ -158,13 +158,15 @@ public class MigrationTests
             Times.Never);
     }
 
-    [Fact]
-    public void ModelParser_ReadsMigrationsFromWorkflowFolder()
+    [Theory]
+    [InlineData("2026-09-09-rename-title")]
+    [InlineData("rename-title")]
+    public void ModelParser_ReadsMigrationsFromWorkflowFolder(string name)
     {
-        var parser = CreateConfiguredParser();
+        var parser = CreateConfiguredParser(name);
 
         var migration = Assert.Single(parser.Migrations);
-        Assert.Equal("Project:rename-title", migration.MigrationId);
+        Assert.Equal($"Project:{name}", migration.MigrationId);
         Assert.Equal("Project", migration.Scope);
         Assert.Equal(MigrationKind.RenameProperty, migration.Kind);
         Assert.Equal("Title", migration.OldProperty);
@@ -189,7 +191,7 @@ public class MigrationTests
 
         var migration = await service.RunConfigured(configured);
 
-        Assert.Equal($"{scope}:rename-title", migration.MigrationId);
+        Assert.Equal($"{scope}:2026-09-09-rename-title", migration.MigrationId);
         Assert.Equal(expectedTargets, migration.WorkflowDefinitions);
         Assert.Single(parser.WorkflowDefinitions[scope].Migrations);
         Assert.Empty(parser.WorkflowDefinitions["Project-Sibling"].Migrations);
@@ -217,7 +219,7 @@ public class MigrationTests
 
         Assert.Same(migration, repeated);
         Assert.Equal("Project-Base", migration.Scope);
-        Assert.Equal("Project-Base:rename-title", migration.MigrationId);
+        Assert.Equal("Project-Base:2026-09-09-rename-title", migration.MigrationId);
         Assert.Equal(["Project-Base", "Project-Child", "Project-Leaf", "Project-Sibling"],
             migration.WorkflowDefinitions);
         Assert.Equal(MigrationStatus.Finished, migration.Status);
@@ -301,7 +303,7 @@ public class MigrationTests
     {
         var parser = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
         {
-            ["Common/Migrations/rename-title.yaml"] =
+            ["Common/Migrations/2026-09-09-rename-title.yaml"] =
                 "kind: renameProperty\noldProperty: Title\nnewProperty: ProjectTitle"
         }));
 
@@ -313,7 +315,7 @@ public class MigrationTests
     {
         var repository = new Mock<IMigrationRepository>();
         Migration? stored = null;
-        var migrationId = "Project:rename-title";
+        var migrationId = "Project:2026-09-09-rename-title";
         repository.Setup(value => value.GetByMigrationId(migrationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => stored);
         repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>()))
@@ -349,7 +351,7 @@ public class MigrationTests
         configured.NewProperty = "";
         parser.WorkflowDefinitions.Clear();
         var existing = ReadyMigration();
-        existing.MigrationId = "Project:rename-title";
+        existing.MigrationId = "Project:2026-09-09-rename-title";
         var repository = new Mock<IMigrationRepository>();
         repository.Setup(value => value.GetByMigrationId(existing.MigrationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existing);
@@ -372,7 +374,7 @@ public class MigrationTests
     private static ConfiguredMigration CreateConfiguredMigration(string scope) => new()
     {
         Scope = scope,
-        Name = "rename-title",
+        Name = "2026-09-09-rename-title",
         Kind = MigrationKind.RenameProperty,
         OldProperty = "Title",
         NewProperty = "ProjectTitle"
@@ -380,7 +382,7 @@ public class MigrationTests
 
     private static Migration ReadyMigration() => new()
     {
-        MigrationId = "migration-id",
+        MigrationId = "Project:2026-09-08-rename-title",
         Scope = "Project",
         Kind = MigrationKind.RenameProperty,
         Status = MigrationStatus.Failed,
@@ -416,7 +418,7 @@ public class MigrationTests
         }));
     }
 
-    private static ModelParser CreateConfiguredParser()
+    private static ModelParser CreateConfiguredParser(string migrationName = "2026-09-09-rename-title")
     {
         var files = new Dictionary<string, string>
         {
@@ -427,11 +429,11 @@ public class MigrationTests
                                                  - name: ProjectTitle
                                                    type: String
                                                """,
-            ["Projects/Project/Migrations/rename-title.yaml"] = """
-                                                                kind: renameProperty
-                                                                oldProperty: Title
-                                                                newProperty: ProjectTitle
-                                                                """
+            [$"Projects/Project/Migrations/{migrationName}.yaml"] = """
+                                                                    kind: renameProperty
+                                                                    oldProperty: Title
+                                                                    newProperty: ProjectTitle
+                                                                    """
         };
         files["Courses/Course/Entity.yaml"] = """
                                               name: Course
@@ -467,7 +469,7 @@ public class MigrationTests
                                              """
         };
         foreach (var scope in new[] { "Project-Base", "Project-Child", "Project-Leaf" })
-            files[$"Projects/{scope}/Migrations/rename-title.yaml"] =
+            files[$"Projects/{scope}/Migrations/2026-09-09-rename-title.yaml"] =
                 "kind: renameProperty\noldProperty: Title\nnewProperty: ProjectTitle";
         return new ModelParser(new DictionaryProvider(files));
     }

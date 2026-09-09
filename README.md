@@ -118,40 +118,25 @@ Workflow definitions are YAML-based and are organized under `Examples`. Schemas 
 
 ### Configuration migrations
 
-Property renames are declared in a workflow's `Migrations` folder. The workflow name and filename form a stable
-identifier, so never rename or reuse a migration file after it has run. For example,
-`Projects/Project/Migrations/rename-title.yaml` can contain:
+Migrations rename stored properties when the baseline configuration is loaded. Add a YAML file to the workflow's
+`Migrations` folder, for example `Projects/Project-Base/Migrations/2026-09-09-rename-title.yaml`:
 
 ```yaml
-kind: renameProperty
+kind: RenameProperty
 oldProperty: Title
 newProperty: ProjectTitle
 ```
 
-The parser assigns `Scope` from the declaring workflow's name. When a migration first runs, the migration service
-resolves its targets from the loaded model and stores them in `Migration.WorkflowDefinitions`.
-A migration declared by `Project-Base` targets `Project-Base` and every workflow inheriting from it, directly or
-indirectly. Ancestors, siblings, and unrelated workflows are excluded. Global migrations are not supported;
-changes across unrelated workflow families require a declaration in each root workflow.
+Filename convention: `yyyy-MM-dd-{description}.yaml`.
 
-Each declaration runs once under its source identity, such as `Project-Base:rename-title`; it is not duplicated
-for each descendant. Migrations with the same filename in different sources have independent identities.
-Every target must declare the new property and no longer declare the old property. Targets are not filtered by
-property presence: old-only, both-property, and neither-property definitions fail validation before any data is changed.
+`kind` is optional and defaults to `RenameProperty`. Only top-level property renames are supported.
 
-Recorded migrations are skipped on subsequent loads, including when new descendants or workflow definitions are added.
-Their saved targets remain unchanged; configured declarations do not store a target array.
-The migration API and admin page expose migration history only; migrations cannot be added manually. API responses
-include the declaring `scope` and the resolved `workflowDefinitions` array.
+The migration applies to the declaring workflow and all workflows inheriting from it, directly or indirectly.
+Update the workflow definitions alongside the migration: they must contain the new property and no longer contain
+the old one. Existing instance values and journal paths are renamed automatically.
 
-The workflow configuration must declare `ProjectTitle` and no longer declare `Title`. When the baseline
-configuration is loaded, the API checks the migrations collection in its MongoDB database. A migration that is not
-recorded there is applied immediately and marked as finished. Instance fields are renamed from the old name to
-the new name, removing the old field and replacing any existing value at the new name. Matching journal paths
-are updated without replacing the journal or its other fields.
-Already-finished migrations are skipped. Preview branches and uploaded preview versions never run migrations.
-Configured migrations are also disabled by the PR deployment chart, so PR builds cannot modify shared migration
-state or instance data.
+Recorded migrations are skipped on later loads, so keep their filenames and declaring workflow names stable.
+Preview configurations do not run migrations. You can view migration results on the migrations page.
 
 ## Development Notes
 
