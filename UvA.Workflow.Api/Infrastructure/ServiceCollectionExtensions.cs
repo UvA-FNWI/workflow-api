@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using UvA.Workflow.Api.Assessments.Dtos;
+using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
@@ -27,6 +28,7 @@ public static class ServiceCollectionExtensions
         }));
 
         services.AddSingleton<WorkflowConfigLoader>();
+        services.AddSingleton<IConfiguredMigrationRunner, ConfiguredMigrationRunner>();
         services.AddHttpClient(nameof(WorkflowConfigLoader), (sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<WorkflowSourceOptions>>().Value;

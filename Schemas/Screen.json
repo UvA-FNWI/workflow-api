@@ -457,7 +457,10 @@
           "type": "array",
           "description": "Array of step names that belong to this group",
           "items": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       }

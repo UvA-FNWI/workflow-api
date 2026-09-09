@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Authentication.CanvasLti;
 using UvA.Workflow.Api.Authentication.SurfConext;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.ImportExport;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Notifications.Graph;
@@ -45,6 +46,8 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 builder.Services.Configure<WorkflowSourceOptions>(builder.Configuration.GetSection("WorkflowSource"));
+builder.Services.Configure<ConfiguredMigrationOptions>(
+    builder.Configuration.GetSection(ConfiguredMigrationOptions.SectionName));
 
 builder.Services.AddWorkflowAuthenticationSelector(builder.Environment, builder.Configuration);
 builder.Services.AddWorkflowMongoPersistence(builder.Configuration);

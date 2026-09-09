@@ -14,9 +14,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.Api.Versions;
 using UvA.Workflow.Notifications;
-using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
@@ -33,12 +33,17 @@ public class WorkflowConfigLoaderTests
         => new(accessor ?? new Mock<IHttpContextAccessor>().Object);
 
     private static WorkflowConfigLoader CreateLoader(ModelServiceResolver resolver, WorkflowSourceOptions opts,
-        HttpMessageHandler? handler = null)
+        HttpMessageHandler? handler = null, IConfiguredMigrationRunner? migrationRunner = null,
+        bool migrationsEnabled = true)
     {
         var factory = new Mock<IHttpClientFactory>();
         if (handler is not null)
             factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient(handler));
-        return new WorkflowConfigLoader(factory.Object, resolver, Options.Create(opts),
+
+        migrationRunner ??= Mock.Of<IConfiguredMigrationRunner>(runner =>
+            runner.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()) == Task.CompletedTask);
+        return new WorkflowConfigLoader(factory.Object, resolver, migrationRunner,
+            Options.Create(new ConfiguredMigrationOptions { Enabled = migrationsEnabled }), Options.Create(opts),
             NullLogger<WorkflowConfigLoader>.Instance);
     }
 
@@ -57,6 +62,49 @@ public class WorkflowConfigLoaderTests
         Assert.Contains(resolver.GetVersions(), v => v.Name == "");
         Assert.Equal(File.ReadAllText(Path.Combine(FixturesRoot, "Layouts", "default.html")),
             config.DefaultMailLayout);
+    }
+
+    [Fact]
+    public async Task LoadBaseline_RunsConfiguredMigrationsBeforeInstallingModel()
+    {
+        var runner = new Mock<IConfiguredMigrationRunner>();
+        runner.Setup(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var resolver = CreateResolver();
+
+        await CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot },
+            migrationRunner: runner.Object).LoadBaselineAsync();
+
+        runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.True(resolver.Contains(""));
+    }
+
+    [Fact]
+    public async Task LoadBranch_DoesNotRunConfiguredMigrations()
+    {
+        var runner = new Mock<IConfiguredMigrationRunner>();
+        var resolver = CreateResolver();
+
+        await CreateLoader(resolver, RepoOptions(), new FakeGitHub("sha-1").Handler(), runner.Object)
+            .LoadBranchAsync("feature/x");
+
+        runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task LoadBaseline_WhenConfiguredMigrationsAreDisabled_DoesNotRunThem()
+    {
+        var runner = new Mock<IConfiguredMigrationRunner>();
+        var resolver = CreateResolver();
+
+        await CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot },
+            migrationRunner: runner.Object, migrationsEnabled: false).LoadBaselineAsync();
+
+        runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.True(resolver.Contains(""));
     }
 
     [Fact]
@@ -191,6 +239,27 @@ public class WorkflowConfigLoaderTests
         Assert.True(await loader.ReloadBaselineIfChangedAsync());
 
         Assert.Equal("sha-2", Assert.Single(resolver.GetVersions()).Commit);
+    }
+
+    [Fact]
+    public async Task ChangedBaseline_WithRenamedProperty_IsInstalledNormally()
+    {
+        var github = new FakeGitHub("sha-1")
+        {
+            Archive = () => CreatePropertyArchive("Title")
+        };
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(), github.Handler());
+        await loader.LoadBaselineAsync();
+
+        github.Sha = "sha-2";
+        github.Archive = () => CreatePropertyArchive("ProjectTitle");
+
+        Assert.True(await loader.ReloadBaselineIfChangedAsync());
+
+        Assert.Equal("sha-2", Assert.Single(resolver.GetVersions()).Commit);
+        Assert.Contains(resolver.Resolve().ModelService.WorkflowDefinitions["Project"].Properties,
+            property => property.Name == "ProjectTitle");
     }
 
     [Fact]
@@ -565,6 +634,34 @@ public class WorkflowConfigLoaderTests
             using var result = new MemoryStream();
             using (var gzip = new GZipStream(result, CompressionMode.Compress, leaveOpen: true))
                 TarFile.CreateFromDirectory(Path.Combine(root, "archive"), gzip, includeBaseDirectory: true);
+            return result.ToArray();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static byte[] CreatePropertyArchive(string propertyName)
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var archive = Path.Combine(root, "archive");
+        var project = Path.Combine(archive, "Projects", "Project");
+        Directory.CreateDirectory(project);
+        Directory.CreateDirectory(Path.Combine(archive, "Layouts"));
+        File.WriteAllText(Path.Combine(project, "Entity.yaml"), $$"""
+                                                                  name: Project
+                                                                  titlePlural: Projects
+                                                                  properties:
+                                                                    - name: {{propertyName}}
+                                                                      type: String
+                                                                  """);
+        File.WriteAllText(Path.Combine(archive, "Layouts", "default.html"), "<html></html>");
+        try
+        {
+            using var result = new MemoryStream();
+            using (var gzip = new GZipStream(result, CompressionMode.Compress, leaveOpen: true))
+                TarFile.CreateFromDirectory(archive, gzip, includeBaseDirectory: true);
             return result.ToArray();
         }
         finally

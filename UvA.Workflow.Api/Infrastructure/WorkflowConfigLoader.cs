@@ -3,6 +3,7 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
+using UvA.Workflow.Api.Migrations;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -29,6 +30,8 @@ public sealed class WorkflowVersionLoadException(string @ref, bool missing, Exce
 public class WorkflowConfigLoader(
     IHttpClientFactory httpClientFactory,
     ModelServiceResolver resolver,
+    IConfiguredMigrationRunner migrationRunner,
+    IOptions<ConfiguredMigrationOptions> migrationOptions,
     IOptions<WorkflowSourceOptions> options,
     ILogger<WorkflowConfigLoader> logger)
 {
@@ -110,6 +113,14 @@ public class WorkflowConfigLoader(
             return false;
 
         var (parser, layout, sha) = model.Value;
+        if (kind == VersionKind.Baseline)
+        {
+            if (migrationOptions.Value.Enabled)
+                await migrationRunner.Run(parser);
+            else
+                logger.LogInformation("Skipping configured migrations because they are disabled");
+        }
+
         resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
         if (sha is not null)
             _shas[versionKey] = sha;
