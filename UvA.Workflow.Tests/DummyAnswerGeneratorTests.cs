@@ -175,6 +175,32 @@ public class DummyAnswerGeneratorTests
         Assert.True(result.Value.GetString()!.Length <= 10);
     }
 
+    [Fact]
+    public void Generate_String_WithMinLengthValidation_GeneratesStringOfMinLength()
+    {
+        var validation = new Condition
+        {
+            Value = new Value { Property = "TestProp", MinLength = 250 }
+        };
+
+        var result = new DummyAnswerGenerator().Generate(Question("String", validation), DefaultStatus);
+
+        Assert.NotNull(result);
+        Assert.True(result.Value.GetString()!.Length >= 250);
+    }
+
+    [Fact]
+    public void Generate_String_WithMaxLengthSmallerThanMinLength_Throws()
+    {
+        var validation = new Condition
+        {
+            Value = new Value { Property = "TestProp", MinLength = 20, MaxLength = 10 }
+        };
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new DummyAnswerGenerator().Generate(Question("String", validation), DefaultStatus));
+    }
+
     // ── Currency ─────────────────────────────────────────────────────────────
 
     [Fact]

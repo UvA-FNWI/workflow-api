@@ -11,10 +11,11 @@ public record Expression
         return this switch
         {
             Boolean(var b) => b,
-            Number(var n) => n,
+            Int(var n) => n,
+            Double(var d) => d,
             Text(var s) => s,
             Identifier(var k) => context.Get(k),
-            Index(var exp, Number(var n)) => (exp.Execute(context) as IList)?[n],
+            Index(var exp, Int(var n)) => (exp.Execute(context) as IList)?[n],
             Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) => Functions[exp.Text]
                 .Call(args.Select(a => a.Execute(context)).ToArray()),
             Call(Identifier(var text), var args) => context.Get(new ComplexLookup(text, args)),
@@ -85,7 +86,9 @@ public record Operator(OperatorType Type, Expression Left, Expression Right) : E
 
 public record Identifier(string Text) : Expression;
 
-public record Number(int Value) : Expression;
+public record Int(int Value) : Expression;
+
+public record Double(double Value) : Expression;
 
 public record Boolean(bool Value) : Expression;
 

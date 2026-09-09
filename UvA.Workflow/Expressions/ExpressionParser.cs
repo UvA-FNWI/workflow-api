@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace UvA.Workflow.Expressions;
 
@@ -54,7 +55,9 @@ public class ExpressionParser
         if (bool.TryParse(token, out var b))
             return new Boolean(b);
         if (int.TryParse(token, out var x))
-            return new Number(x);
+            return new Int(x);
+        if (double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+            return new Double(d);
         return new Identifier(token);
     }
 

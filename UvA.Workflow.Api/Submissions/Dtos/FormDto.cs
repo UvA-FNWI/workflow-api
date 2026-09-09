@@ -1,4 +1,5 @@
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -92,6 +93,7 @@ public record QuestionDto(
     decimal? Weight,
     decimal? Percentage,
     int? MaxLength,
+    int? MinLength,
     bool? AllowsExternalUsers,
     List<RubricEntryDto>? Rubric,
     ValueSetSorting? Sorting,
@@ -125,6 +127,8 @@ public record QuestionDto(
             .Select(entry => RubricEntryDto.Create(entry, propertyDefinition.Values))
             .ToList();
 
+        var validationValues = propertyDefinition.Validation.GetAllValues().ToArray();
+
         return new QuestionDto(
             Id: $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
             Name: propertyDefinition.Name,
@@ -141,7 +145,8 @@ public record QuestionDto(
             HideInResults: propertyDefinition.HideInResults,
             Weight: weight,
             Percentage: percentage,
-            MaxLength: propertyDefinition.Validation?.Value?.MaxLength,
+            MaxLength: validationValues.Select(v => v.MaxLength).FirstOrDefault(v => v != null),
+            MinLength: validationValues.Select(v => v.MinLength).FirstOrDefault(v => v != null),
             AllowsExternalUsers: propertyDefinition.AllowsExternalUsers,
             Rubric: rubric,
             Sorting: propertyDefinition.Sorting,
