@@ -327,7 +327,8 @@ public class StepHeaderStatusTests
             repository.Object,
             Mock.Of<IInstanceJournalService>(),
             Mock.Of<IInstanceEventRepository>(),
-            userService.Object
+            userService.Object,
+            Mock.Of<IUserRepository>()
         );
 
         return new WorkflowInstanceDtoFactory(

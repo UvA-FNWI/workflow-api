@@ -127,12 +127,17 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
         .SelectMany(progress => progress.Lookups)
         .Distinct();
 
-    private static IEnumerable<Step> GetSteps(Step s) =>
-        s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
-            ? s.Children.SelectMany(GetSteps)
-            : [s];
+    private static IEnumerable<Step> GetWalkSteps(Step s) =>
+        s.IsAlongside
+            ? [s]
+            : s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
+                ? s.Children.SelectMany(GetWalkSteps)
+                : [s];
 
-    public IEnumerable<Step> FlattenedSteps => Steps.SelectMany(GetSteps);
+    /// <summary>
+    /// Flattened walk: sequential children replace their parent, except an alongside parent stays one position.
+    /// </summary>
+    public IEnumerable<Step> WalkSteps => Steps.SelectMany(GetWalkSteps);
 
     public DataType GetDataType(string property)
     {
@@ -173,7 +178,7 @@ public class EventDefinition : INamed
     public EventDefinition Clone() => new()
     {
         Name = Name,
-        Suppresses = Suppresses == null ? null : [..Suppresses],
+        Suppresses = Suppresses == null ? null : [.. Suppresses],
         ResetParentStep = ResetParentStep
     };
 }

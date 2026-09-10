@@ -21,10 +21,10 @@ public class InfoCard : INamed
     [YamlIgnore]
     public IEnumerable<Lookup> Properties =>
     [
-        ..(User == null ? Enumerable.Empty<Lookup>() : [(Lookup)new PropertyLookup(User)]),
-        ..Fields.SelectMany(configuredField => configuredField.Properties),
-        ..Groups.SelectMany(group => group.Users).Select(user => (Lookup)new PropertyLookup(user.Property)),
-        ..Items.SelectMany(item => item.UrlTemplate?.Properties ?? [])
+        .. (User == null ? Enumerable.Empty<Lookup>() : [(Lookup)new PropertyLookup(User)]),
+        .. Fields.SelectMany(configuredField => configuredField.Properties),
+        .. Groups.SelectMany(group => group.Users).Select(user => (Lookup)new PropertyLookup(user.Property)),
+        .. Items.SelectMany(item => item.UrlTemplate?.Properties ?? [])
     ];
 }
 

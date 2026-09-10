@@ -1,4 +1,5 @@
 using UvA.Workflow.WorkflowModel.Conditions;
+using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -12,7 +13,8 @@ public enum ChoiceLayoutType
 {
     Dropdown,
     RadioList,
-    Rubric
+    Rubric,
+    ComboBox
 }
 
 public enum TableLayout
@@ -105,6 +107,32 @@ public class PropertyDefinition : INamed
     /// a required value.
     /// </summary>
     public string Type { get; set; } = null!;
+
+    /// <summary>
+    /// Expression used to initialize this property when an instance is created without a value.
+    /// </summary>
+    public string? Default { get; set; }
+
+    public Expression? DefaultExpression => ExpressionParser.Parse(Default);
+
+    /// <summary>
+    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Defaults to pdf when omitted.
+    /// </summary>
+    public string[]? AllowedFileTypes { get; set; }
+
+    [YamlIgnore]
+    public IReadOnlyList<string>? EffectiveAllowedFileTypes =>
+        AllowedFileTypes ?? (DataType == DataType.File ? ["pdf"] : null);
+
+    /// <summary>
+    /// Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.
+    /// </summary>
+    public int? AllowedFileSize { get; set; }
+
+    [YamlIgnore]
+    public int? EffectiveAllowedFileSize =>
+        AllowedFileSize ?? (DataType == DataType.File ? 10_000_000 : null);
 
     /// <summary>
     /// Values for a choice propertyDefinition.

@@ -70,7 +70,7 @@ public class ImportServiceTests
             .WithWorkflowDefinition("TestDef")
             .WithCurrentStep("Start")
             .WithProperties(
-                [("StudentNumber", b => b.Value(studentNumber)), ..extraProperties])
+                [("StudentNumber", b => b.Value(studentNumber)), .. extraProperties])
             .Build();
 
     /// Configures the repository mock to return <paramref name="instances"/> for any

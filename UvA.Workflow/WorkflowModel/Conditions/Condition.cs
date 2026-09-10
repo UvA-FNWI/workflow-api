@@ -246,11 +246,11 @@ public class Value : ConditionPart
     public override Lookup[] Dependants =>
     [
         Property,
-        ..EqualExpression?.Properties ?? [],
-        ..LessThanExpression?.Properties ?? [],
-        ..GreaterThanExpression?.Properties ?? [],
-        ..GreaterThanOrEqualExpression?.Properties ?? [],
-        ..InExpression?.Properties ?? []
+        .. EqualExpression?.Properties ?? [],
+        .. LessThanExpression?.Properties ?? [],
+        .. GreaterThanExpression?.Properties ?? [],
+        .. GreaterThanOrEqualExpression?.Properties ?? [],
+        .. InExpression?.Properties ?? []
     ];
 
     public override IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
