@@ -50,7 +50,7 @@ public record StepDto(
     Icon? Icon,
     string? Event,
     DateTime? DateCompleted,
-    DateTime? Deadline,
+    DateTimeOffset? Deadline,
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,

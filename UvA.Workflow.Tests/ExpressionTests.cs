@@ -1,6 +1,7 @@
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
 
@@ -136,5 +137,47 @@ public class ExpressionTests
         var res = exp.Execute(context);
 
         Assert.Null(res);
+    }
+
+    [Theory]
+    [InlineData("2026-03-16T12:34:56+01:00")]
+    [InlineData("2026-03-16T11:34:56Z")]
+    [InlineData("2026-03-16T07:34:56-04:00")]
+    public void TestDeadline_EvaluateDatetimeStringWithTimezone(string value)
+    {
+        var deadline = new Deadline { ExpressionText = "TestDate" };
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["TestDate"] = value });
+
+        var res = deadline.Evaluate(context);
+
+        Assert.NotNull(res);
+        Assert.Equal(new DateTimeOffset(2026, 3, 16, 11, 34, 56, TimeSpan.Zero), res.Value.ToUniversalTime());
+    }
+
+    [Fact]
+    public void TestDeadline_EvaluateDateTimeOffsetWithTimezone()
+    {
+        var date = new DateTimeOffset(2026, 3, 16, 12, 34, 56, TimeSpan.FromHours(1));
+        var deadline = new Deadline { ExpressionText = "TestDate" };
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["TestDate"] = date });
+
+        var res = deadline.Evaluate(context);
+
+        Assert.Equal(date, res);
+        Assert.Equal(TimeSpan.FromHours(1), res.Value.Offset);
+    }
+
+    [Fact]
+    public void TestDeadline_EvaluateDateTimeUsesLocalTimezone()
+    {
+        var date = new DateTime(2026, 3, 16, 12, 34, 56);
+        var deadline = new Deadline { ExpressionText = "TestDate" };
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["TestDate"] = date });
+
+        var res = deadline.Evaluate(context);
+
+        Assert.NotNull(res);
+        Assert.Equal(date, res.Value.DateTime);
+        Assert.Equal(TimeZoneInfo.Local.GetUtcOffset(date), res.Value.Offset);
     }
 }
