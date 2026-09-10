@@ -77,6 +77,37 @@ public class ExternalUserEmailUpdateServiceTests
     };
 
     [Fact]
+    public async Task PrepareAnswerReferenceUpdate_RejectsExpiredFormBeforeCheckingRoles()
+    {
+        var userId = ObjectId.GenerateNewId().ToString();
+        var property = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var form = new Form
+        {
+            Name = "Proposal", Step = "Start",
+            Pages = [new Page { Name = "Details", Fields = [property] }]
+        };
+        var definition = CreateWorkflowDefinition([property], [form]);
+        form.WorkflowDefinition = definition;
+        definition.AllSteps =
+        [
+            new Step
+            {
+                Name = "Start",
+                Deadline = new Deadline { Date = "=2000-01-01", Type = DeadlineType.Hard }
+            }
+        ];
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition(definition.Name).WithCurrentStep("Start")
+            .WithProperties(("Supervisor", b => b.Person(objectId: userId))).Build();
+
+        var result = await CreateService(definition).PrepareAnswerReferenceUpdate(
+            instance, CreateUser(userId), CancellationToken.None);
+
+        Assert.Equal(ExternalUserEmailAnswerUpdateResult.Forbidden, result.Result);
+        Assert.Empty(result.EditableContexts);
+    }
+
+    [Fact]
     public async Task GetMatchingInstanceOnlyProperties_NonUserProperty_ReturnsUserNotInAnswer()
     {
         var userId = ObjectId.GenerateNewId().ToString();

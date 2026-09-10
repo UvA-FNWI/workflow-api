@@ -159,22 +159,39 @@ public class WorkflowInstanceDtoFactory(
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        // The newest version is the step's live state, already rendered as the current submission.
+        // A completed step's latest version is already shown as its live submission.
+        // For an expired, unfinished step, retain every historical version.
         var versions = stepVersionsMap.GetValueOrDefault(step.Name)
             ?.OrderByDescending(version => version.SubmittedAt)
             .Skip(step.HasEnded(context) ? 1 : 0);
+        var versionDtos = versions != null
+            ? await Task.WhenAll(
+                versions.Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
+            : null;
+
+        if (step.HasPassedHardDeadline(context))
+        {
+            return new StepDto(
+                step.Name, step.DisplayTitle, step.Icon, step.EndEvent,
+                step.GetEndDate(instance, workflowDef), step.GetDeadline(instance, modelService),
+                !step.HasEnded(context),
+                activeSteps.Contains(step.Name) && !step.HasEnded(context)
+                    ? step.Deadline?.GetExpiredMessage(context)
+                    : null,
+                Children: null,
+                HeaderStatus: stepHeaderStatusResolver.Resolve(step, instance),
+                ResultsType: StepResultsType.Normal,
+                ExpectsSubmission: false,
+                HasSubmission: false,
+                HierarchyMode: step.HierarchyMode,
+                Versions: versionDtos?.ToList());
+        }
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
             : null;
-        var versionDtos = versions != null
-            ? await Task.WhenAll(versions
-                .OrderByDescending(version => version.SubmittedAt)
-                .Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
-            : null;
-
         var submissionForms = step.Actions
             .Where(action => action.Type == RoleAction.Submit)
             .SelectMany(action => action.AllForms)
@@ -203,9 +220,14 @@ public class WorkflowInstanceDtoFactory(
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
             step.GetDeadline(instance, modelService),
+            !step.HasEnded(context) && (step.Deadline?.HasPassed(context) == true ||
+                                        children?.Any(child => child.DeadlinePassed) == true),
+            null,
             children,
             stepHeaderStatusResolver.Resolve(step, instance),
-            step.ResultsType,
+            step.Children.Length > 0 && step.Children.All(child => child.HasPassedHardDeadline(context))
+                ? StepResultsType.Normal
+                : step.ResultsType,
             expectsSubmission,
             hasSubmission,
             step.HierarchyMode,

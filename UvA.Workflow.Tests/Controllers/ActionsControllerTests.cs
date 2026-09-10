@@ -79,6 +79,23 @@ public class ActionsControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Actions_ExecuteAction_RejectsExpiredStepDespiteRolePermission()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
+        var action = (await _instanceService.GetAllowedActions(instance, _ct))
+            .First(a => a.Action.Type == RoleAction.Execute).Action;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].AllSteps
+                .Single(step => step.Name == "ApprovalCoordinator").Deadline =
+            new Deadline { Date = "=2000-01-01", Type = DeadlineType.Hard };
+
+        var result = await controller.ExecuteAction(
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, action.Name), _ct);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+        Assert.DoesNotContain(action.Name!, instance.Events.Keys);
+    }
+
+    [Fact]
     public async Task Actions_ExecuteAction_DeleteInstance_ReturnsForbidden_WhenUserLacksDeleteRights()
     {
         var (controller, instance) = BuildControllerWithRoles(["Student"], "ApprovalCoordinator");

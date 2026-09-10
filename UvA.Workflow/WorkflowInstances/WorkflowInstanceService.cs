@@ -161,6 +161,9 @@ public class WorkflowInstanceService(
         if (form == null)
             throw new EntityNotFoundException("Form", $"instanceId:{instanceId},submission:{submissionId}");
 
+        if (version is null && form.HasPassedHardDeadline(modelService.CreateContext(instance)))
+            throw new ForbiddenWorkflowActionException(instanceId, RoleAction.View, submissionId);
+
         var submissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
 
         return new SubmissionContext(instance, submissionState, form, submissionId);

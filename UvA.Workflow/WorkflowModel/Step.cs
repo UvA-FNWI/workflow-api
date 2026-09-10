@@ -76,6 +76,56 @@ public enum StepResultsType
     AssessmentFinalOverview
 }
 
+public enum DeadlineType
+{
+    Soft,
+    Hard
+}
+
+public class Deadline
+{
+    /// <summary>
+    /// Expression that resolves to the deadline date.
+    /// </summary>
+    public string Date { get; set; } = null!;
+
+    /// <summary>
+    /// Soft deadlines keep step permissions valid after they pass. Hard deadlines revoke them.
+    /// </summary>
+    public DeadlineType Type { get; set; } = DeadlineType.Soft;
+
+    /// <summary>
+    /// Message shown instead of the step content after a hard deadline passes. Supports bilingual text and templates.
+    /// </summary>
+    public BilingualString? ExpiredMessage { get; set; }
+
+    [YamlIgnore] public BilingualTemplate? ExpiredMessageTemplate => BilingualTemplate.Create(ExpiredMessage);
+
+    private Expression Expression => ExpressionParser.Parse(Date);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Properties =>
+        [.. Expression.Properties, .. ExpiredMessageTemplate?.Properties ?? []];
+
+    public BilingualString GetExpiredMessage(ObjectContext context)
+        => ExpiredMessageTemplate?.Apply(context) ?? new BilingualString(
+            "You did not submit before the deadline. You can no longer submit this step.",
+            "Je hebt niet op tijd ingeleverd. Je kunt deze stap niet meer indienen.");
+
+    public DateTime? Evaluate(ObjectContext context)
+        => Expression.Execute(context) switch
+        {
+            DateTime date => date,
+            string value => DateTime.Parse(value),
+            _ => null
+        };
+
+    public bool HasPassed(ObjectContext context)
+        => Evaluate(context) is { } deadline && deadline <= DateTime.Now;
+
+    public static implicit operator Deadline(string date) => new() { Date = date };
+}
+
 public class Step : INamed, IDeclaredKeys
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
@@ -137,6 +187,11 @@ public class Step : INamed, IDeclaredKeys
     public Condition? Condition { get; set; }
 
     /// <summary>
+    /// Deadline for completing this step. Defaults to a soft deadline.
+    /// </summary>
+    public Deadline? Deadline { get; set; }
+
+    /// <summary>
     /// Actions that are possible while this step is active
     /// </summary>
     public List<Action> Actions { get; set; } = [];
@@ -173,6 +228,7 @@ public class Step : INamed, IDeclaredKeys
     [
         .. Ends?.Properties ?? [],
         .. Condition?.Properties ?? [],
+        .. Deadline?.Properties ?? [],
         .. Children.SelectMany(c => c.Lookups)
     ];
 
@@ -221,24 +277,16 @@ public class Step : INamed, IDeclaredKeys
 
     public DateTime? GetDeadline(WorkflowInstance instance, ModelService modelService)
     {
-        if (Condition == null) return null;
-        var deadlineCondition = FindDeadlineCondition(Condition);
-        if (deadlineCondition is null) return null;
+        if (Deadline == null) return null;
         var context = ObjectContext.Create(instance, modelService);
-        return deadlineCondition.Evaluate(context);
-
-        // Recursively find deadline condition
-        Deadline? FindDeadlineCondition(Condition condition)
-        {
-            if (condition.Deadline != null) return condition.Deadline;
-            if (condition.Logical is not null)
-            {
-                return condition.Logical.Children.Select(FindDeadlineCondition).FirstOrDefault(d => d != null);
-            }
-
-            return null;
-        }
+        return Deadline.Evaluate(context);
     }
+
+    public bool HasPassedHardDeadline(ObjectContext context)
+        // Completed submissions remain available to subsequent steps. If rejection reopens
+        // this step, HasEnded becomes false and its hard deadline applies again.
+        => (Deadline?.Type == DeadlineType.Hard && !HasEnded(context) && Deadline.HasPassed(context)) ||
+           ParentStep?.HasPassedHardDeadline(context) == true;
 
     public bool HasEnded(ObjectContext context)
     {

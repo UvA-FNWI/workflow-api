@@ -3,8 +3,8 @@ title:
   en: Assessment (examiner)
   nl: Beoordeling (examinator)
 
-condition:
-  deadline: "=2026-10-01"
+deadline:
+  date: "=2026-10-01"
 
 actions:
   - name: SubmitAssessmentExaminer

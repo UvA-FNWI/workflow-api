@@ -51,6 +51,8 @@ public record StepDto(
     string? Event,
     DateTime? DateCompleted,
     DateTime? Deadline,
+    bool DeadlinePassed,
+    BilingualString? DeadlineMessage,
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,

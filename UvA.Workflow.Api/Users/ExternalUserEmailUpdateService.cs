@@ -163,6 +163,7 @@ public class ExternalUserEmailUpdateService(
     }
 
     private async Task<bool> CanEdit(QuestionContext context) =>
+        !context.Form.HasPassedHardDeadline(modelService.CreateContext(context.Instance)) &&
         await rightsService.Can(context.Instance,
             [context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit],
             RightsEvaluationMode.RequestContext,

@@ -81,6 +81,17 @@
         }
       ]
     },
+    "deadline": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Deadline for completing this step. Defaults to a soft deadline.",
+          "$ref": "#/definitions/Deadline"
+        }
+      ]
+    },
     "actions": {
       "type": "array",
       "description": "Actions that are possible while this step is active",
@@ -262,13 +273,16 @@
           ]
         },
         "deadline": {
+          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Check if a deadline has passed",
-              "$ref": "#/definitions/Deadline"
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/DeadlineCondition"
             }
           ]
         },
@@ -409,8 +423,8 @@
         }
       }
     },
-    "Deadline": {
-      "title": "Deadline",
+    "DeadlineCondition": {
+      "title": "DeadlineCondition",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -503,6 +517,45 @@
         "Info",
         "Attention",
         "Success"
+      ]
+    },
+    "Deadline": {
+      "title": "Deadline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "date"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Expression that resolves to the deadline date."
+        },
+        "type": {
+          "description": "Soft deadlines keep step permissions valid after they pass. Hard deadlines revoke them.",
+          "$ref": "#/definitions/DeadlineType"
+        },
+        "expiredMessage": {
+          "description": "Message shown instead of the step content after a hard deadline passes. Supports bilingual text and templates.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "DeadlineType": {
+      "type": "string",
+      "enum": [
+        "Soft",
+        "Hard"
       ]
     },
     "Action": {

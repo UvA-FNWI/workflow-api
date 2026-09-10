@@ -242,8 +242,8 @@ public class StepVersionTests
         ];
         yield return
         [
-            new Condition { Deadline = new Deadline { ExpressionText = "Deadline" } },
-            nameof(Deadline)
+            new Condition { Deadline = new DeadlineCondition { ExpressionText = "Deadline" } },
+            nameof(DeadlineCondition)
         ];
         yield return
         [

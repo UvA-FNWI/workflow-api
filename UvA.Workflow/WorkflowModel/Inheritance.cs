@@ -139,6 +139,7 @@ public partial class ModelParser
         if (!target.Declared(s => s.Icon)) target.Icon = source.Icon;
         if (!target.Declared(s => s.HeaderStatus)) target.HeaderStatus = source.HeaderStatus;
         if (!target.Declared(s => s.Condition)) target.Condition = source.Condition;
+        if (!target.Declared(s => s.Deadline)) target.Deadline = source.Deadline;
         if (!target.Declared(s => s.Ends)) target.Ends = source.Ends;
         if (!target.Declared(s => s.Mode)) target.Mode = source.Mode;
         if (!target.Declared(s => s.Before)) target.Before = source.Before;

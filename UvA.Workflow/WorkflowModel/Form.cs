@@ -122,6 +122,11 @@ public class Form : INamed, IDeclaredKeys
 
     [YamlIgnore] public WorkflowDefinition WorkflowDefinition { get; set; } = null!;
 
+    public bool HasPassedHardDeadline(ObjectContext context)
+        => WorkflowDefinition.AllSteps.Any(step => step.HasPassedHardDeadline(context) &&
+                                                   (step.Name == Step || step.Actions.Any(action =>
+                                                       action.Type == RoleAction.Submit && action.MatchesForm(Name))));
+
     /// <summary>
     /// Effect to run when the form is submitted
     /// </summary>

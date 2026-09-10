@@ -286,13 +286,15 @@ public class StepHeaderStatusTests
         Assert.Equal("At least one approval", status.Label.En);
     }
 
-    private static WorkflowInstanceDtoFactory CreateWorkflowInstanceDtoFactory(
+    internal static WorkflowInstanceDtoFactory CreateWorkflowInstanceDtoFactory(
         ModelService modelService,
-        Mock<IWorkflowInstanceRepository> repository)
+        Mock<IWorkflowInstanceRepository> repository,
+        string[]? roles = null,
+        WorkflowInstanceHistory? history = null)
     {
         var userService = new Mock<IUserService>();
         userService.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+            .ReturnsAsync(roles ?? []);
         userService.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         var rightsService = new RightsService(modelService, userService.Object, repository.Object);
@@ -320,13 +322,20 @@ public class StepHeaderStatusTests
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService);
-        var stepVersionService = new Mock<IStepVersionService>();
+        var journalService = new Mock<IInstanceJournalService>();
+        journalService.Setup(service =>
+                service.GetInstanceJournal(It.IsAny<string>(), false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(history?.Journal);
+        var eventRepository = new Mock<IInstanceEventRepository>();
+        eventRepository.Setup(service =>
+                service.GetEventLogEntriesForInstance(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(history?.EventLogs ?? []);
 
         var workflowInstanceService = new WorkflowInstanceService(
             modelService,
             repository.Object,
-            Mock.Of<IInstanceJournalService>(),
-            Mock.Of<IInstanceEventRepository>(),
+            journalService.Object,
+            eventRepository.Object,
             userService.Object,
             Mock.Of<IUserRepository>()
         );
@@ -336,7 +345,7 @@ public class StepHeaderStatusTests
             modelService,
             submissionDtoFactory,
             rightsService,
-            stepVersionService.Object,
+            new StepVersionService(),
             new StepHeaderStatusResolver(modelService),
             workflowInstanceService,
             NullLogger<WorkflowInstanceDtoFactory>.Instance
