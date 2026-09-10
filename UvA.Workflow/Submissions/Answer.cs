@@ -77,7 +77,7 @@ public record Answer(
             return value?.Name == null ? null : JsonSerializer.SerializeToElement(value.Name);
         }
 
-        if (question.DataType == DataType.Boolean)
+        if (question.DataType == DataType.Check)
         {
             // Default to false, not to null
             var value = ObjectContext.GetValue(answer, question) as bool?;

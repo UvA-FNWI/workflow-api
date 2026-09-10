@@ -43,7 +43,7 @@ public class DummyAnswerGenerator
                 Random.Next((int)(constraints.Min ?? 1), (int)(constraints.Max ?? 10))),
             DataType.Double => JsonSerializer.SerializeToElement(
                 (constraints.Min ?? 0) + Random.NextDouble() * ((constraints.Max ?? 10) - (constraints.Min ?? 0))),
-            DataType.Boolean => JsonSerializer.SerializeToElement(Random.NextDouble() > 0.5),
+            DataType.Check => JsonSerializer.SerializeToElement(question.IsRequired || Random.NextDouble() > 0.5),
             DataType.Currency => JsonSerializer.SerializeToElement(new
                 { currency = "EUR", amount = Random.Next((int)(constraints.Min ?? 1), (int)(constraints.Max ?? 100)) }),
             DataType.Choice when status.Choices?.Length > 0

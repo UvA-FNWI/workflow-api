@@ -154,7 +154,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),
-            DataType.Boolean => BsonConversionTools.ConvertBasicBsonValue(answer),
+            DataType.Check => BsonConversionTools.ConvertBasicBsonValue(answer),
             _ => throw new NotImplementedException()
         };
     }
