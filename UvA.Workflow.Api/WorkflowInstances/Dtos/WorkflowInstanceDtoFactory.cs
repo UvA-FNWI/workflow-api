@@ -158,9 +158,9 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var headerStatus = HasPassedDeadline(step, context)
-            ? new StepHeaderStatusDto(StepHeaderPillType.Error,
-                new BilingualString("Deadline passed", "Deadline verstreken"))
+        var deadline = GetDeadline(step, context, activeSteps);
+        var headerStatus = HasPassedDeadline(step, context, activeSteps)
+            ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
             : stepHeaderStatusResolver.Resolve(step, instance);
 
         // A completed step's latest version is already shown as its live submission.
@@ -175,12 +175,10 @@ public class WorkflowInstanceDtoFactory(
 
         if (step.HasPassedHardDeadline(context))
         {
-            var isClosed = activeSteps.Contains(step.Name) && !step.HasEnded(context);
             return new StepDto(
                 step.Name, step.DisplayTitle, step.Icon, step.EndEvent,
                 step.GetEndDate(instance, workflowDef),
-                Deadline: new DeadlineDto(step.GetDeadline(instance, modelService), isClosed,
-                    isClosed ? step.Deadline?.TextTemplate?.Apply(context) : null),
+                Deadline: deadline,
                 Children: null,
                 HeaderStatus: headerStatus,
                 ResultsType: step.ResultsType,
@@ -222,7 +220,7 @@ public class WorkflowInstanceDtoFactory(
             step.Icon,
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
-            step.Deadline is null ? null : new DeadlineDto(step.GetDeadline(instance, modelService), false, null),
+            deadline,
             children,
             headerStatus,
             step.ResultsType,
@@ -233,10 +231,24 @@ public class WorkflowInstanceDtoFactory(
         );
     }
 
-    private static bool HasPassedDeadline(Step step, ObjectContext context)
-        => !step.HasEnded(context) && (step.Deadline?.HasPassed(context) == true ||
+    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+    {
+        var deadline = step.Deadline;
+        if (deadline == null)
+            return null;
+
+        var isPassed = activeSteps.Contains(step.Name) && !step.HasEnded(context) && deadline.HasPassed(context);
+        var message = isPassed && deadline.Type == DeadlineType.Hard
+            ? deadline.TextTemplate?.Apply(context)
+            : null;
+
+        return new DeadlineDto(step.Deadline?.Evaluate(context), deadline.Type, isPassed, message);
+    }
+
+    private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+        => !step.HasEnded(context) && ((activeSteps.Contains(step.Name) && step.Deadline?.HasPassed(context) == true) ||
                                        step.Children.Where(child => child.Condition.IsMet(context))
-                                           .Any(child => HasPassedDeadline(child, context)));
+                                           .Any(child => HasPassedDeadline(child, context, activeSteps)));
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version

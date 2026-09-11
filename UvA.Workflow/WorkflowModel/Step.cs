@@ -271,13 +271,6 @@ public class Step : INamed, IDeclaredKeys
         return null;
     }
 
-    public DateTime? GetDeadline(WorkflowInstance instance, ModelService modelService)
-    {
-        if (Deadline == null) return null;
-        var context = ObjectContext.Create(instance, modelService);
-        return Deadline.Evaluate(context);
-    }
-
     public bool HasPassedHardDeadline(ObjectContext context)
         // Completed submissions remain available to subsequent steps. If rejection reopens
         // this step, HasEnded becomes false and its hard deadline applies again.

@@ -71,7 +71,7 @@ public class DeadlineTests
         Assert.Single(soft.Actions);
         Assert.Empty(hard.Actions);
         Assert.Equal(["Step"], modelService.GetActiveSteps(Instance("Hard")));
-        Assert.True(Assert.Single(hard.Steps).Deadline!.IsClosed);
+        Assert.True(Assert.Single(hard.Steps).Deadline!.IsPassed);
     }
 
     [Theory]
@@ -129,12 +129,12 @@ public class DeadlineTests
     }
 
     [Theory]
-    [InlineData(DeadlineType.Hard, "=2000-01-01", false, true)]
-    [InlineData(DeadlineType.Soft, "=2000-01-01", false, false)]
-    [InlineData(DeadlineType.Hard, "=2999-01-01", false, false)]
-    [InlineData(DeadlineType.Hard, "=2000-01-01", true, false)]
+    [InlineData(DeadlineType.Hard, "=2000-01-01", false, true, true)]
+    [InlineData(DeadlineType.Soft, "=2000-01-01", false, false, true)]
+    [InlineData(DeadlineType.Hard, "=2999-01-01", false, false, false)]
+    [InlineData(DeadlineType.Hard, "=2000-01-01", true, false, false)]
     public async Task Factory_ReplacesOnlyUnfinishedExpiredHardDeadlineContent(
-        DeadlineType type, string date, bool completed, bool expectsMessage)
+        DeadlineType type, string date, bool completed, bool expectsMessage, bool expectsPassed)
     {
         var modelService = new ModelService(new ModelParser(Content));
         var instance = Instance("Hard");
@@ -155,7 +155,15 @@ public class DeadlineTests
         Assert.NotNull(stepDto.Deadline);
         Assert.Equal(DateTime.Parse(date[1..]), stepDto.Deadline.Date);
         Assert.Null(stepDto.Deadline.Message);
-        Assert.Equal(expectsMessage, stepDto.Deadline!.IsClosed);
+        Assert.Equal(type, stepDto.Deadline.Type);
+        Assert.Equal(expectsPassed, stepDto.Deadline.IsPassed);
+        if (expectsPassed)
+        {
+            Assert.NotNull(stepDto.HeaderStatus);
+            Assert.Equal(StepHeaderPillType.Error, stepDto.HeaderStatus.Type);
+            Assert.Null(stepDto.HeaderStatus.Label);
+        }
+
         Assert.Equal(step.ResultsType, stepDto.ResultsType);
         if (expectsMessage)
         {
@@ -206,7 +214,7 @@ public class DeadlineTests
 
         var step = Assert.Single((await factory.Create(Instance("Hard"), CancellationToken.None)).Steps);
 
-        Assert.True(step.Deadline!.IsClosed);
+        Assert.True(step.Deadline!.IsPassed);
         Assert.Equal("Contact staff about Hard-instance", step.Deadline!.Message!.En);
         Assert.Equal("Neem contact op over Hard-instance", step.Deadline!.Message.Nl);
     }
@@ -224,7 +232,8 @@ public class DeadlineTests
         var future = dto.Steps.Single(step => step.Id == "Open");
 
         Assert.Equal(StepResultsType.Normal, future.ResultsType);
-        Assert.False(future.Deadline!.IsClosed);
+        Assert.False(future.Deadline!.IsPassed);
+        Assert.Null(future.HeaderStatus);
         Assert.Null(future.Deadline!.Message);
     }
 
@@ -302,7 +311,7 @@ public class DeadlineTests
         Assert.Null(step.Versions);
         Assert.False(step.HasSubmission);
         Assert.False(step.ExpectsSubmission);
-        Assert.True(step.Deadline!.IsClosed);
+        Assert.True(step.Deadline!.IsPassed);
         Assert.Empty(dto.Submissions);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Closed");
     }
@@ -343,7 +352,7 @@ public class DeadlineTests
         if (rejected)
         {
             Assert.Null(startDto.Deadline!.Message);
-            Assert.True(startDto.Deadline!.IsClosed);
+            Assert.True(startDto.Deadline!.IsPassed);
             Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
             await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
                 service.GetSubmissionContext(instance.Id, "Start", null, CancellationToken.None));
@@ -351,7 +360,7 @@ public class DeadlineTests
         else
         {
             Assert.Null(startDto.Deadline!.Message);
-            Assert.False(startDto.Deadline!.IsClosed);
+            Assert.False(startDto.Deadline!.IsPassed);
             Assert.NotEqual(StepHeaderPillType.Error, subjectDto.HeaderStatus?.Type);
             Assert.True(startDto.HasSubmission);
             Assert.Equal(submittedAt, startDto.DateCompleted);
@@ -412,7 +421,7 @@ public class DeadlineTests
         var subject = dto.Steps.Single(step => step.Id == "Subject");
         var expired = deadlineStepName == "Subject" ? subject : subject.Children!.Single(step => step.Id == "Start");
         Assert.Null(expired.Deadline!.Message);
-        Assert.True(expired.Deadline!.IsClosed);
+        Assert.True(expired.Deadline!.IsPassed);
         Assert.False(expired.ExpectsSubmission);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Start");
         Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");

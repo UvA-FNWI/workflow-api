@@ -41,12 +41,13 @@ public record StepVersionDto
 
 public record StepHeaderStatusDto(
     StepHeaderPillType Type,
-    BilingualString Label
+    BilingualString? Label
 );
 
 public record DeadlineDto(
     DateTime? Date,
-    bool IsClosed,
+    DeadlineType Type,
+    bool IsPassed,
     BilingualString? Message);
 
 public record StepDto(
