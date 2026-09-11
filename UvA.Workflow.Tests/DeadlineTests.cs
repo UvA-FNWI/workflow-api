@@ -71,7 +71,7 @@ public class DeadlineTests
         Assert.Single(soft.Actions);
         Assert.Empty(hard.Actions);
         Assert.Equal(["Step"], modelService.GetActiveSteps(Instance("Hard")));
-        Assert.NotNull(Assert.Single(hard.Steps).DeadlineMessage);
+        Assert.True(Assert.Single(hard.Steps).Deadline!.IsClosed);
     }
 
     [Theory]
@@ -152,18 +152,21 @@ public class DeadlineTests
         var dto = await factory.Create(instance, CancellationToken.None);
         var stepDto = Assert.Single(dto.Steps);
 
-        Assert.Equal(expectsMessage, stepDto.DeadlineMessage != null);
+        Assert.NotNull(stepDto.Deadline);
+        Assert.Equal(DateTime.Parse(date[1..]), stepDto.Deadline.Date);
+        Assert.Null(stepDto.Deadline.Message);
+        Assert.Equal(expectsMessage, stepDto.Deadline!.IsClosed);
+        Assert.Equal(step.ResultsType, stepDto.ResultsType);
         if (expectsMessage)
         {
-            Assert.Contains("You did not submit", stepDto.DeadlineMessage!.En);
-            Assert.Contains("Je hebt niet op tijd", stepDto.DeadlineMessage.Nl);
+            Assert.Equal(StepHeaderPillType.Error, stepDto.HeaderStatus?.Type);
             Assert.False(stepDto.ExpectsSubmission);
             Assert.Empty(dto.Actions);
         }
     }
 
     [Fact]
-    public void ExpiredMessage_ParsesBilingualTemplates_AndTracksTheirProperties()
+    public void DeadlineText_ParsesBilingualTemplates_AndTracksTheirProperties()
     {
         var content = new DictionaryProvider(new Dictionary<string, string>
         {
@@ -173,7 +176,7 @@ public class DeadlineTests
                                        deadline:
                                          date: "=2000-01-01"
                                          type: Hard
-                                         expiredMessage:
+                                         text:
                                            en: "Closed on {{ formatDate(StartEvent, =dd-MM-yyyy) }}."
                                            nl: "Gesloten op {{ formatDate(StartEvent, =dd-MM-yyyy) }}."
                                        events:
@@ -185,11 +188,44 @@ public class DeadlineTests
         instance.Events.Add("Start", new() { Id = "Start", Date = new DateTime(2000, 1, 1) });
         var step = modelService.WorkflowDefinitions["Hard"].AllSteps.Single();
 
-        var message = step.Deadline!.GetExpiredMessage(modelService.CreateContext(instance));
+        var message = step.Deadline!.TextTemplate!.Apply(modelService.CreateContext(instance));
 
         Assert.Equal("Closed on 01-01-2000.", message.En);
         Assert.Equal("Gesloten op 01-01-2000.", message.Nl);
         Assert.Contains(step.Lookups, lookup => lookup.ToString() == "StartEvent");
+    }
+
+    [Fact]
+    public async Task Factory_ReturnsOnlyExplicitlyConfiguredText()
+    {
+        var modelService = new ModelService(new ModelParser(Content));
+        modelService.WorkflowDefinitions["Hard"].AllSteps.Single().Deadline!.Text =
+            new BilingualString("Contact staff about {{ Id }}", "Neem contact op over {{ Id }}");
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(modelService,
+            new Mock<IWorkflowInstanceRepository>());
+
+        var step = Assert.Single((await factory.Create(Instance("Hard"), CancellationToken.None)).Steps);
+
+        Assert.True(step.Deadline!.IsClosed);
+        Assert.Equal("Contact staff about Hard-instance", step.Deadline!.Message!.En);
+        Assert.Equal("Neem contact op over Hard-instance", step.Deadline!.Message.Nl);
+    }
+
+    [Fact]
+    public async Task Factory_DoesNotShowDeadlineMessageForInactiveFutureStep()
+    {
+        var modelService = CreateModelWithForms();
+        modelService.WorkflowDefinitions["Hard"].AllSteps.Single(step => step.Name == "Open").Deadline =
+            new Deadline { Date = "=2000-01-01", Type = DeadlineType.Hard };
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(modelService,
+            new Mock<IWorkflowInstanceRepository>());
+
+        var dto = await factory.Create(Instance("Hard"), CancellationToken.None);
+        var future = dto.Steps.Single(step => step.Id == "Open");
+
+        Assert.Equal(StepResultsType.Normal, future.ResultsType);
+        Assert.False(future.Deadline!.IsClosed);
+        Assert.Null(future.Deadline!.Message);
     }
 
     [Theory]
@@ -207,6 +243,7 @@ public class DeadlineTests
 
         var dto = await factory.Create(instance, CancellationToken.None);
 
+        Assert.Null(dto.Steps.Single(step => step.Id == "Open").Deadline);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Closed");
         Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Closed");
         if (submitted)
@@ -239,14 +276,17 @@ public class DeadlineTests
         journal.VerifyNoOtherCalls();
     }
 
-    [Fact]
-    public async Task HardDeadline_ResponseContainsOnlyStepShellAndMessage()
+    [Theory]
+    [InlineData(StepResultsType.Normal)]
+    [InlineData(StepResultsType.AssessmentPartOverview)]
+    [InlineData(StepResultsType.AssessmentFinalOverview)]
+    public async Task HardDeadline_ResponsePreservesResultsTypeWithoutCurrentForms(StepResultsType resultsType)
     {
         var modelService = CreateModelWithForms();
         var instance = Instance("Hard");
         instance.Events.Add("Closed", new() { Id = "Closed", Date = new DateTime(1999, 1, 1) });
         modelService.WorkflowDefinitions["Hard"].AllSteps.Single(step => step.Name == "Step").ResultsType =
-            StepResultsType.AssessmentFinalOverview;
+            resultsType;
         var repository = new Mock<IWorkflowInstanceRepository>();
         repository.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         repository.Setup(r => r.GetAllById(It.IsAny<string[]>(), It.IsAny<Dictionary<string, string>>(),
@@ -256,12 +296,13 @@ public class DeadlineTests
         var dto = await factory.Create(instance, CancellationToken.None);
         var step = dto.Steps.Single(s => s.Id == "Step");
 
-        Assert.NotNull(step.DeadlineMessage);
+        Assert.Null(step.Deadline!.Message);
+        Assert.Equal(resultsType, step.ResultsType);
         Assert.Null(step.Children);
         Assert.Null(step.Versions);
         Assert.False(step.HasSubmission);
         Assert.False(step.ExpectsSubmission);
-        Assert.Equal(StepResultsType.Normal, step.ResultsType);
+        Assert.True(step.Deadline!.IsClosed);
         Assert.Empty(dto.Submissions);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Closed");
     }
@@ -301,15 +342,17 @@ public class DeadlineTests
         var startDto = subjectDto.Children!.Single(step => step.Id == "Start");
         if (rejected)
         {
-            Assert.NotNull(startDto.DeadlineMessage);
+            Assert.Null(startDto.Deadline!.Message);
+            Assert.True(startDto.Deadline!.IsClosed);
             Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
             await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
                 service.GetSubmissionContext(instance.Id, "Start", null, CancellationToken.None));
         }
         else
         {
-            Assert.Null(startDto.DeadlineMessage);
-            Assert.False(subjectDto.DeadlinePassed);
+            Assert.Null(startDto.Deadline!.Message);
+            Assert.False(startDto.Deadline!.IsClosed);
+            Assert.NotEqual(StepHeaderPillType.Error, subjectDto.HeaderStatus?.Type);
             Assert.True(startDto.HasSubmission);
             Assert.Equal(submittedAt, startDto.DateCompleted);
             var submission = Assert.Single(dto.Submissions, submission => submission.FormName == "Start");
@@ -368,7 +411,8 @@ public class DeadlineTests
         var dto = await factory.Create(instance, CancellationToken.None);
         var subject = dto.Steps.Single(step => step.Id == "Subject");
         var expired = deadlineStepName == "Subject" ? subject : subject.Children!.Single(step => step.Id == "Start");
-        Assert.NotNull(expired.DeadlineMessage);
+        Assert.Null(expired.Deadline!.Message);
+        Assert.True(expired.Deadline!.IsClosed);
         Assert.False(expired.ExpectsSubmission);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Start");
         Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");

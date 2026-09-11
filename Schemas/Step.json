@@ -516,7 +516,8 @@
       "enum": [
         "Info",
         "Attention",
-        "Success"
+        "Success",
+        "Error"
       ]
     },
     "Deadline": {
@@ -535,7 +536,7 @@
           "description": "Soft deadlines keep step permissions valid after they pass. Hard deadlines revoke them.",
           "$ref": "#/definitions/DeadlineType"
         },
-        "expiredMessage": {
+        "text": {
           "description": "Message shown instead of the step content after a hard deadline passes. Supports bilingual text and templates.",
           "oneOf": [
             {

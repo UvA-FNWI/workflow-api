@@ -44,15 +44,18 @@ public record StepHeaderStatusDto(
     BilingualString Label
 );
 
+public record DeadlineDto(
+    DateTime? Date,
+    bool IsClosed,
+    BilingualString? Message);
+
 public record StepDto(
     string Id,
     BilingualString Title,
     Icon? Icon,
     string? Event,
     DateTime? DateCompleted,
-    DateTime? Deadline,
-    bool DeadlinePassed,
-    BilingualString? DeadlineMessage,
+    DeadlineDto? Deadline,
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,

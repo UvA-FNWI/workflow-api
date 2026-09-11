@@ -40,7 +40,8 @@ public enum StepHeaderPillType
 {
     Info,
     Attention,
-    Success
+    Success,
+    Error
 }
 
 public enum StatusColor
@@ -97,20 +98,15 @@ public class Deadline
     /// <summary>
     /// Message shown instead of the step content after a hard deadline passes. Supports bilingual text and templates.
     /// </summary>
-    public BilingualString? ExpiredMessage { get; set; }
+    public BilingualString? Text { get; set; }
 
-    [YamlIgnore] public BilingualTemplate? ExpiredMessageTemplate => BilingualTemplate.Create(ExpiredMessage);
+    [YamlIgnore] public BilingualTemplate? TextTemplate => BilingualTemplate.Create(Text);
 
     private Expression Expression => ExpressionParser.Parse(Date);
 
     [YamlIgnore]
     public IEnumerable<Lookup> Properties =>
-        [.. Expression.Properties, .. ExpiredMessageTemplate?.Properties ?? []];
-
-    public BilingualString GetExpiredMessage(ObjectContext context)
-        => ExpiredMessageTemplate?.Apply(context) ?? new BilingualString(
-            "You did not submit before the deadline. You can no longer submit this step.",
-            "Je hebt niet op tijd ingeleverd. Je kunt deze stap niet meer indienen.");
+        [.. Expression.Properties, .. TextTemplate?.Properties ?? []];
 
     public DateTime? Evaluate(ObjectContext context)
         => Expression.Execute(context) switch

@@ -158,6 +158,10 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var headerStatus = HasPassedDeadline(step, context)
+            ? new StepHeaderStatusDto(StepHeaderPillType.Error,
+                new BilingualString("Deadline passed", "Deadline verstreken"))
+            : stepHeaderStatusResolver.Resolve(step, instance);
 
         // A completed step's latest version is already shown as its live submission.
         // For an expired, unfinished step, retain every historical version.
@@ -171,16 +175,15 @@ public class WorkflowInstanceDtoFactory(
 
         if (step.HasPassedHardDeadline(context))
         {
+            var isClosed = activeSteps.Contains(step.Name) && !step.HasEnded(context);
             return new StepDto(
                 step.Name, step.DisplayTitle, step.Icon, step.EndEvent,
-                step.GetEndDate(instance, workflowDef), step.GetDeadline(instance, modelService),
-                !step.HasEnded(context),
-                activeSteps.Contains(step.Name) && !step.HasEnded(context)
-                    ? step.Deadline?.GetExpiredMessage(context)
-                    : null,
+                step.GetEndDate(instance, workflowDef),
+                Deadline: new DeadlineDto(step.GetDeadline(instance, modelService), isClosed,
+                    isClosed ? step.Deadline?.TextTemplate?.Apply(context) : null),
                 Children: null,
-                HeaderStatus: stepHeaderStatusResolver.Resolve(step, instance),
-                ResultsType: StepResultsType.Normal,
+                HeaderStatus: headerStatus,
+                ResultsType: step.ResultsType,
                 ExpectsSubmission: false,
                 HasSubmission: false,
                 HierarchyMode: step.HierarchyMode,
@@ -219,21 +222,21 @@ public class WorkflowInstanceDtoFactory(
             step.Icon,
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
-            step.GetDeadline(instance, modelService),
-            !step.HasEnded(context) && (step.Deadline?.HasPassed(context) == true ||
-                                        children?.Any(child => child.DeadlinePassed) == true),
-            null,
+            step.Deadline is null ? null : new DeadlineDto(step.GetDeadline(instance, modelService), false, null),
             children,
-            stepHeaderStatusResolver.Resolve(step, instance),
-            step.Children.Length > 0 && step.Children.All(child => child.HasPassedHardDeadline(context))
-                ? StepResultsType.Normal
-                : step.ResultsType,
+            headerStatus,
+            step.ResultsType,
             expectsSubmission,
             hasSubmission,
             step.HierarchyMode,
             versionDtos?.ToList()
         );
     }
+
+    private static bool HasPassedDeadline(Step step, ObjectContext context)
+        => !step.HasEnded(context) && (step.Deadline?.HasPassed(context) == true ||
+                                       step.Children.Where(child => child.Condition.IsMet(context))
+                                           .Any(child => HasPassedDeadline(child, context)));
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
