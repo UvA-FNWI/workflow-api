@@ -11,11 +11,7 @@ public static class EventHistory
             .OrderBy(log => log.Timestamp)
             .ThenBy(log => log.Id)
             .ToArray();
-        var undone = logs
-            .Where(log => log.Operation == EventLogOperation.Undo)
-            .Select(log => log.UndoMetadata?.TargetOperationId ?? log.OperationId)
-            .Where(id => id != null)
-            .ToHashSet();
+        var undone = UndoneOperationIds(logs);
 
         return logs
             .Where(log => log.Operation != EventLogOperation.Undo &&
@@ -26,11 +22,7 @@ public static class EventHistory
     public static IReadOnlyDictionary<string, OperationMetadata> LatestOperations(
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
-        var undone = eventLogs
-            .Where(log => log.Operation == EventLogOperation.Undo)
-            .Select(log => log.UndoMetadata?.TargetOperationId ?? log.OperationId)
-            .Where(id => id != null)
-            .ToHashSet();
+        var undone = UndoneOperationIds(eventLogs);
 
         return eventLogs
             .Where(log => log.OperationMetadata != null && !undone.Contains(log.OperationMetadata.Id))
@@ -38,7 +30,10 @@ public static class EventHistory
             .GroupBy(operation => operation.TopLevelStep)
             .ToDictionary(
                 group => group.Key,
-                group => group.OrderByDescending(operation => operation.Revision ?? 0).First());
+                group => group
+                    .OrderByDescending(operation => operation.OccurredAt)
+                    .ThenByDescending(operation => operation.Id, StringComparer.Ordinal)
+                    .First());
     }
 
     public static OperationMetadata? FindOperation(
@@ -48,6 +43,13 @@ public static class EventHistory
             .Where(log => log.OperationMetadata?.Id == operationId)
             .Select(log => log.OperationMetadata)
             .FirstOrDefault();
+
+    private static HashSet<string> UndoneOperationIds(IEnumerable<InstanceEventLogEntry> eventLogs)
+        => eventLogs
+            .Where(log => log.Operation == EventLogOperation.Undo)
+            .Select(log => log.UndoMetadata?.TargetOperationId)
+            .OfType<string>()
+            .ToHashSet();
 
     public static Dictionary<string, InstanceEvent> RebuildEvents(
         IEnumerable<InstanceEventLogEntry> eventLogs,

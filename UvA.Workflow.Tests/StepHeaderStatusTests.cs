@@ -7,6 +7,7 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.S3;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
@@ -339,7 +340,9 @@ public class StepHeaderStatusTests
             stepVersionService.Object,
             new StepHeaderStatusResolver(modelService),
             workflowInstanceService,
-            NullLogger<WorkflowInstanceDtoFactory>.Instance
+            NullLogger<WorkflowInstanceDtoFactory>.Instance,
+            new UndoService(Mock.Of<IInstanceEventRepository>(), Mock.Of<IJobRepository>(),
+                repository.Object, instanceService, rightsService)
         );
     }
 

@@ -37,7 +37,8 @@ public class ActionsControllerTests : ControllerTestsBase
                 new StepVersionService(),
                 new StepHeaderStatusResolver(_modelService),
                 _workflowInstanceService,
-                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
+                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
+                _undoService);
     }
 
     [Theory]
@@ -59,11 +60,11 @@ public class ActionsControllerTests : ControllerTestsBase
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == actionName),
             UnitTestsHelpers.AdminUser,
+            _ct,
             It.Is<OperationMetadata>(operation => operation.Type == OperationType.ExecuteAction &&
                                                   operation.Source == actionName &&
                                                   operation.Step == stepName &&
-                                                  operation.TopLevelStep == stepName),
-            _ct), Times.Once);
+                                                  operation.TopLevelStep == stepName)), Times.Once);
     }
 
     [Theory]
@@ -178,8 +179,8 @@ public class ActionsControllerTests : ControllerTestsBase
         _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
             It.Is<InstanceEvent>(e => e.Id == "CoordinatorApproved"),
             It.IsAny<User>(),
-            It.IsAny<OperationMetadata?>(),
-            _ct), Times.Once);
+            _ct,
+            It.IsAny<OperationMetadata?>()), Times.Once);
     }
 
     private (ActionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
@@ -228,9 +229,9 @@ public class ActionsControllerTests : ControllerTestsBase
         _eventRepoMock
             .Setup(r => r.AddOrUpdateEvent(
                 It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
-                It.IsAny<User>(), It.IsAny<OperationMetadata?>(), It.IsAny<CancellationToken>()))
-            .Callback<WorkflowInstance, InstanceEvent, User, OperationMetadata?,
-                CancellationToken>((_, _, user, _, _) =>
+                It.IsAny<User>(), It.IsAny<CancellationToken>(), It.IsAny<OperationMetadata?>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken,
+                OperationMetadata?>((_, _, user, _, _) =>
                 capturedEventUser = user)
             .Returns(Task.CompletedTask);
 

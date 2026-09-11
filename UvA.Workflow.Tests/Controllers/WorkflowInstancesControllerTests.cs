@@ -29,7 +29,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             _modelService,
             null!,
             null!,
-            undoService);
+            undoService!);
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)
         => _workflowInstanceRepoMock
@@ -60,6 +60,23 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Undo_StaleCandidateReturnsConflict()
+    {
+        var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
+        MockCurrentUser("Undoer");
+        MockInstance(instance);
+        _eventRepoMock.Setup(repository => repository.GetEventLogEntriesForInstance(instance.Id, _ct))
+            .ReturnsAsync([]);
+
+        var result = await CreateController(_undoService).Undo(
+            instance.Id, new UndoRequest("missing-operation", "because"), _ct);
+
+        var error = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(409, error.StatusCode);
+        Assert.Equal("UndoCandidateChanged", Assert.IsType<Error>(error.Value).ErrorCode);
+    }
+
+    [Fact]
     public async Task Undo_WithoutPermission_ReturnsForbidden()
     {
         var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
@@ -81,12 +98,13 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
                         Source = "Start",
                         Step = "Subject",
                         TopLevelStep = "Subject",
-                        Revision = 1
+                        OccurredAt = new DateTime(2026, 1, 1, 0, 1, 0, DateTimeKind.Utc)
                     }
                 }
             ]);
 
-        var undoService = new UndoService(_eventRepoMock.Object, _workflowInstanceRepoMock.Object,
+        var undoService = new UndoService(_eventRepoMock.Object, _jobRepositoryMock.Object,
+            _workflowInstanceRepoMock.Object,
             _instanceService, _rightsService);
         var result = await CreateController(undoService).Undo(
             instance.Id, new UndoRequest("operation", "because"), _ct);

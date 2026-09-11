@@ -1,10 +1,12 @@
 using Moq;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
+using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 using DomainAction = UvA.Workflow.WorkflowModel.Action;
@@ -13,6 +15,54 @@ namespace UvA.Workflow.Tests;
 
 public class UndoServiceTests : ControllerTestsBase
 {
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("undone")]
+    [InlineData("non-latest")]
+    public async Task Undo_StaleOperationThrowsCandidateChanged(string staleState)
+    {
+        var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
+        var target = new OperationMetadata
+        {
+            Id = "target",
+            Type = OperationType.FormSubmission,
+            Source = "Start",
+            Step = "Subject",
+            TopLevelStep = "Subject",
+            OccurredAt = At(1)
+        };
+        List<InstanceEventLogEntry> logs = staleState switch
+        {
+            "missing" => [],
+            "undone" =>
+            [
+                EventLog("Start", target.Id, target, At(1)),
+                new InstanceEventLogEntry
+                {
+                    Operation = EventLogOperation.Undo,
+                    UndoMetadata = new UndoMetadata { TargetOperationId = target.Id }
+                }
+            ],
+            "non-latest" =>
+            [
+                EventLog("Start", target.Id, target, At(1)),
+                EventLog("Start", "newer", target with { Id = "newer", OccurredAt = At(2) }, At(2))
+            ],
+            _ => throw new ArgumentOutOfRangeException(nameof(staleState))
+        };
+        _eventRepoMock.Setup(repository => repository.GetEventLogEntriesForInstance(instance.Id, _ct))
+            .ReturnsAsync(logs);
+        _modelParser.Roles.Add(new Role
+        {
+            Name = "Undoer",
+            Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Form = "Start" }]
+        });
+        MockCurrentUser("Undoer");
+
+        await Assert.ThrowsAsync<UndoCandidateChangedException>(() =>
+            _undoService.Undo(instance, target.Id, "because", UnitTestsHelpers.AdminUser, _ct));
+    }
+
     [Fact]
     public async Task Undo_ExecuteActionUsesLatestOccurrenceNameAuthorizationAndInvalidatesCorrelatedEvents()
     {
@@ -29,10 +79,9 @@ public class UndoServiceTests : ControllerTestsBase
             Step = "Subject",
             TopLevelStep = "Subject",
             OccurredAt = At(1),
-            Revision = 1,
             ExecutedBy = "user"
         };
-        var target = firstOccurrence with { Id = "latest-action", OccurredAt = At(3), Revision = 2 };
+        var target = firstOccurrence with { Id = "latest-action", OccurredAt = At(3) };
         var logs = new List<InstanceEventLogEntry>
         {
             EventLog("RunAction", firstOccurrence.Id, firstOccurrence, At(1)),
@@ -41,23 +90,7 @@ public class UndoServiceTests : ControllerTestsBase
         };
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(() => logs.ToList());
-        _eventRepoMock.Setup(r => r.AddUndoEntry(
-                instance.Id, "Subject", target.Id, 2, UnitTestsHelpers.AdminUser, "because", _ct))
-            .Callback(() => logs.Add(new InstanceEventLogEntry
-            {
-                Id = "undo-entry",
-                Timestamp = At(5),
-                Operation = EventLogOperation.Undo,
-                OperationId = target.Id,
-                UndoMetadata = new UndoMetadata
-                {
-                    TargetOperationId = target.Id,
-                    TopLevelStep = "Subject",
-                    Revision = 2,
-                    Reason = "because"
-                }
-            }))
-            .ReturnsAsync(true);
+        MockUndo(instance, target, logs);
         _modelParser.Roles.Add(new Role
         {
             Name = "WrongUndoer",
@@ -68,17 +101,14 @@ public class UndoServiceTests : ControllerTestsBase
             Name = "Undoer",
             Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Name = "RunAction" }]
         });
-        var service = new UndoService(_eventRepoMock.Object, _workflowInstanceRepoMock.Object,
-            _instanceService, _rightsService);
-
         MockCurrentUser("WrongUndoer");
-        Assert.Null(await service.GetCandidate(instance, "Subject", logs));
+        Assert.Null(await _undoService.GetCandidate(instance, "Subject", logs));
 
         MockCurrentUser("Undoer");
-        var candidate = await service.GetCandidate(instance, "Subject", logs);
+        var candidate = await _undoService.GetCandidate(instance, "Subject", logs);
         Assert.Equal(target, candidate);
 
-        await service.Undo(instance, target.Id, "because", UnitTestsHelpers.AdminUser, _ct);
+        await _undoService.Undo(instance, target.Id, "because", UnitTestsHelpers.AdminUser, _ct);
 
         Assert.Equal(At(1), instance.Events["RunAction"].Date);
         Assert.DoesNotContain("Consequence", instance.Events);
@@ -139,33 +169,15 @@ public class UndoServiceTests : ControllerTestsBase
             .Build();
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(() => logs.ToList());
-        _eventRepoMock.Setup(r => r.AddUndoEntry(
-                instance.Id, "First", target.Id, 2, UnitTestsHelpers.AdminUser, "because", _ct))
-            .Callback(() => logs.Add(new InstanceEventLogEntry
-            {
-                Id = "undo-entry",
-                Timestamp = At(5),
-                Operation = EventLogOperation.Undo,
-                OperationId = target.Id,
-                UndoMetadata = new UndoMetadata
-                {
-                    TargetOperationId = target.Id,
-                    TopLevelStep = "First",
-                    Revision = 2,
-                    Reason = "because"
-                }
-            }))
-            .ReturnsAsync(true);
+        MockUndo(instance, target, logs);
         _modelParser.Roles.Add(new Role
         {
             Name = "Undoer",
             Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["First"], Form = "FirstForm" }]
         });
         MockCurrentUser("Undoer");
-        var service = new UndoService(_eventRepoMock.Object, _workflowInstanceRepoMock.Object,
-            _instanceService, _rightsService);
 
-        await service.Undo(instance, target.Id, "because", UnitTestsHelpers.AdminUser, _ct);
+        await _undoService.Undo(instance, target.Id, "because", UnitTestsHelpers.AdminUser, _ct);
 
         Assert.Equal("First", instance.CurrentStep);
         Assert.Equal(At(1), instance.Events["Restored"].Date);
@@ -196,7 +208,7 @@ public class UndoServiceTests : ControllerTestsBase
             Source = "Start",
             Step = "Subject",
             TopLevelStep = "Subject",
-            Revision = 1,
+            OccurredAt = At(1),
             ExecutedBy = UnitTestsHelpers.AdminUser.Id
         };
         var logs = new List<InstanceEventLogEntry>
@@ -206,23 +218,7 @@ public class UndoServiceTests : ControllerTestsBase
         };
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(() => logs.ToList());
-        _eventRepoMock.Setup(r => r.AddUndoEntry(
-                instance.Id, "Subject", operationId, 1, UnitTestsHelpers.AdminUser, "because", _ct))
-            .Callback(() => logs.Add(new InstanceEventLogEntry
-            {
-                Id = "undo-entry",
-                WorkflowInstanceId = instance.Id,
-                Operation = EventLogOperation.Undo,
-                OperationId = operationId,
-                UndoMetadata = new UndoMetadata
-                {
-                    TargetOperationId = operationId,
-                    TopLevelStep = "Subject",
-                    Revision = 1,
-                    Reason = "because"
-                }
-            }))
-            .ReturnsAsync(true);
+        MockUndo(instance, operation, logs);
         _modelParser.Roles.Add(new Role
         {
             Name = "Undoer",
@@ -230,16 +226,34 @@ public class UndoServiceTests : ControllerTestsBase
         });
         MockCurrentUser("Undoer");
 
-        var service = new UndoService(_eventRepoMock.Object, _workflowInstanceRepoMock.Object,
-            _instanceService, _rightsService);
-
-        await service.Undo(instance, operationId, "  because  ", UnitTestsHelpers.AdminUser, _ct);
+        await _undoService.Undo(instance, operationId, "  because  ", UnitTestsHelpers.AdminUser, _ct);
 
         Assert.DoesNotContain("Start", instance.Events);
         Assert.DoesNotContain("ImmediateConsequence", instance.Events);
         _eventRepoMock.Verify(r => r.AddUndoEntry(
-            instance.Id, "Subject", operationId, 1, UnitTestsHelpers.AdminUser, "because", _ct), Times.Once);
+            instance.Id, operationId, UnitTestsHelpers.AdminUser, "because", _ct), Times.Once);
+        _jobRepositoryMock.Verify(r => r.CancelPendingForOperation(instance.Id, operationId, _ct), Times.Once);
         _workflowInstanceRepoMock.Verify(r => r.Update(instance, _ct), Times.Once);
+    }
+
+    private void MockUndo(WorkflowInstance instance, OperationMetadata operation,
+        List<InstanceEventLogEntry> logs)
+    {
+        _eventRepoMock.Setup(r => r.AddUndoEntry(
+                instance.Id, operation.Id, UnitTestsHelpers.AdminUser, "because", _ct))
+            .Callback(() => logs.Add(new InstanceEventLogEntry
+            {
+                Id = "undo-entry",
+                Timestamp = At(5),
+                WorkflowInstanceId = instance.Id,
+                Operation = EventLogOperation.Undo,
+                UndoMetadata = new UndoMetadata
+                {
+                    TargetOperationId = operation.Id,
+                    Reason = "because"
+                }
+            }))
+            .Returns(Task.CompletedTask);
     }
 
     private static InstanceEventLogEntry EventLog(
@@ -259,7 +273,7 @@ public class UndoServiceTests : ControllerTestsBase
             EventDate = at ?? DateTime.UtcNow
         };
 
-    private static OperationMetadata Operation(string id, string step, string topLevelStep, long revision)
+    private static OperationMetadata Operation(string id, string step, string topLevelStep, int minute)
         => new()
         {
             Id = id,
@@ -267,7 +281,7 @@ public class UndoServiceTests : ControllerTestsBase
             Source = "FirstForm",
             Step = step,
             TopLevelStep = topLevelStep,
-            Revision = revision,
+            OccurredAt = At(minute),
             ExecutedBy = "user"
         };
 

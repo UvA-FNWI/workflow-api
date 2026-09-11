@@ -5,6 +5,59 @@ namespace UvA.Workflow.Tests;
 public class UndoEventHistoryTests
 {
     [Fact]
+    public void LatestOperations_ChoosesNewestOccurrence()
+    {
+        var operations = EventHistory.LatestOperations([
+            Operation("older", "Subject", 1),
+            Operation("newer", "Subject", 2)
+        ]);
+
+        Assert.Equal("newer", operations["Subject"].Id);
+    }
+
+    [Fact]
+    public void LatestOperations_UsesIdToBreakTimestampTies()
+    {
+        var operations = EventHistory.LatestOperations([
+            Operation("first", "Subject", 1),
+            Operation("second", "Subject", 1)
+        ]);
+
+        Assert.Equal("second", operations["Subject"].Id);
+    }
+
+    [Fact]
+    public void LatestOperations_ExcludesUndoneOperations()
+    {
+        var logs = new[]
+        {
+            Operation("older", "Subject", 1),
+            Operation("newer", "Subject", 2),
+            new InstanceEventLogEntry
+            {
+                Operation = EventLogOperation.Undo,
+                UndoMetadata = new UndoMetadata { TargetOperationId = "newer" }
+            }
+        };
+
+        Assert.Equal("older", EventHistory.LatestOperations(logs)["Subject"].Id);
+    }
+
+    [Fact]
+    public void LatestOperations_KeepsTopLevelStepHistoriesIndependent()
+    {
+        var operations = EventHistory.LatestOperations([
+            Operation("first-older", "First", 1),
+            Operation("second-newer", "Second", 4),
+            Operation("first-newer", "First", 3),
+            Operation("second-older", "Second", 2)
+        ]);
+
+        Assert.Equal("first-newer", operations["First"].Id);
+        Assert.Equal("second-newer", operations["Second"].Id);
+    }
+
+    [Fact]
     public void Project_ExcludesUndoneOperationAtAndAfterUndoTime()
     {
         var firstOperation = "first-operation";
@@ -19,7 +72,7 @@ public class UndoEventHistoryTests
                 Id = "undo-entry",
                 Timestamp = At(4),
                 Operation = EventLogOperation.Undo,
-                OperationId = firstOperation
+                UndoMetadata = new UndoMetadata { TargetOperationId = firstOperation }
             },
             Event("after-undo", 5, secondOperation)
         };
@@ -39,6 +92,17 @@ public class UndoEventHistoryTests
             EventId = eventId,
             OperationId = operationId,
             Operation = EventLogOperation.Create
+        };
+
+    private static InstanceEventLogEntry Operation(string id, string topLevelStep, int minute)
+        => new()
+        {
+            OperationMetadata = new OperationMetadata
+            {
+                Id = id,
+                TopLevelStep = topLevelStep,
+                OccurredAt = At(minute)
+            }
         };
 
     private static DateTime At(int minute) => new(2026, 1, 1, 0, minute, 0, DateTimeKind.Utc);

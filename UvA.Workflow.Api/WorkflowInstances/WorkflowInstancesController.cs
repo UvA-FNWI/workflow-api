@@ -23,7 +23,7 @@ public class WorkflowInstancesController(
     ModelService modelService,
     RoleImpersonationService impersonationService,
     IEduIdUserService eduIdUserService,
-    UndoService? undoService = null
+    UndoService undoService
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -115,8 +115,7 @@ public class WorkflowInstancesController(
 
         try
         {
-            await (undoService ?? throw new InvalidOperationException("Undo service is not configured"))
-                .Undo(instance, input.OperationId, reason, realUser, ct);
+            await undoService.Undo(instance, input.OperationId, reason, realUser, ct);
         }
         catch (ForbiddenWorkflowActionException)
         {

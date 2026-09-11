@@ -50,7 +50,7 @@ public record UndoCandidateDto(
     OperationType Type,
     string Step,
     BilingualString StepTitle,
-    string Form,
+    string Source,
     BilingualString SourceTitle,
     DateTime OccurredAt,
     string OperationId

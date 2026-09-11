@@ -8,9 +8,6 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     private readonly IMongoCollection<WorkflowInstance> _instanceCollection =
         database.GetCollection<WorkflowInstance>("instances");
 
-    private readonly IMongoCollection<Job> _jobCollection =
-        database.GetCollection<Job>("jobs");
-
     /// <summary>
     /// Adds a new event to a workflow instance or updates an existing event if it already exists.
     /// Logs the operation specifying whether it was an addition or update.
@@ -21,11 +18,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     /// <param name="ct">The cancellation token used to observe the operation's cancellation.</param>
     /// <returns>An asynchronous operation representing the add or update process.</returns>
     public async Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
-        CancellationToken ct)
-        => await AddOrUpdateEvent(instance, newEvent, user, null, ct);
-
-    public async Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
-        OperationMetadata? operation, CancellationToken ct)
+        CancellationToken ct, OperationMetadata? operation = null)
     {
         // Add or update existing event in the instance
         var filter = Builders<WorkflowInstance>.Filter.Eq(i => i.Id, instance.Id);
@@ -49,7 +42,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
 
         // Also add the event to the event log collection
         await AddEventLogEntry(instance, newEvent, user,
-            wasUpdated ? EventLogOperation.Update : EventLogOperation.Create, operation, ct);
+            wasUpdated ? EventLogOperation.Update : EventLogOperation.Create, ct, operation);
     }
 
     /// <summary>
@@ -106,11 +99,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     /// Adds an event log entry to the event log collection
     /// </summary>
     public async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
-        EventLogOperation operation, CancellationToken ct)
-        => await AddEventLogEntry(instance, instanceEvent, user, operation, null, ct);
-
-    public async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
-        EventLogOperation operation, OperationMetadata? operationMetadata, CancellationToken ct)
+        EventLogOperation operation, CancellationToken ct, OperationMetadata? operationMetadata = null)
     {
         var logEntry = new InstanceEventLogEntry
         {
@@ -138,104 +127,27 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             return;
         }
 
-        while (true)
-        {
-            var historyEntries = await _eventLogCollection
-                .Find(entry => entry.WorkflowInstanceId == instance.Id &&
-                               (entry.OperationMetadata!.TopLevelStep == operationMetadata.TopLevelStep ||
-                                entry.UndoMetadata!.TopLevelStep == operationMetadata.TopLevelStep))
-                .ToListAsync(ct);
-            var latestRevision = LatestHistoryRevision(historyEntries);
-
-            logEntry.Id = operationMetadata.Id;
-            logEntry.OperationMetadata = operationMetadata with { Revision = latestRevision + 1 };
-            logEntry.HistoryTopLevelStep = operationMetadata.TopLevelStep;
-            logEntry.HistoryRevision = latestRevision + 1;
-
-            try
-            {
-                await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
-                return;
-            }
-            catch (MongoWriteException exception) when (exception.WriteError.Category ==
-                                                        ServerErrorCategory.DuplicateKey)
-            {
-                existingRoot = await _eventLogCollection
-                    .Find(entry => entry.Id == operationMetadata.Id)
-                    .FirstOrDefaultAsync(ct);
-                if (existingRoot != null)
-                {
-                    logEntry.Id = null!;
-                    logEntry.OperationMetadata = null;
-                    await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
-                    return;
-                }
-            }
-        }
+        logEntry.Id = operationMetadata.Id;
+        logEntry.OperationMetadata = operationMetadata;
+        await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
     }
 
-    public async Task<bool> AddUndoEntry(string instanceId, string topLevelStep, string targetOperationId,
-        long expectedRevision, User user, string reason, CancellationToken ct)
-    {
-        var roots = await _eventLogCollection
-            .Find(entry => entry.WorkflowInstanceId == instanceId &&
-                           entry.OperationMetadata!.TopLevelStep == topLevelStep)
-            .ToListAsync(ct);
-        var undone = await _eventLogCollection
-            .Find(entry => entry.WorkflowInstanceId == instanceId &&
-                           entry.Operation == EventLogOperation.Undo &&
-                           entry.UndoMetadata!.TopLevelStep == topLevelStep)
-            .ToListAsync(ct);
-        var candidate = EventHistory.LatestOperations(roots.Concat(undone))
-            .GetValueOrDefault(topLevelStep);
-
-        if (candidate?.Id != targetOperationId || candidate.Revision != expectedRevision)
-            return false;
-
-        try
+    public Task AddUndoEntry(string instanceId, string targetOperationId, User user, string reason,
+        CancellationToken ct)
+        => _eventLogCollection.InsertOneAsync(new InstanceEventLogEntry
         {
-            var nextHistoryRevision = LatestHistoryRevision(roots.Concat(undone)) + 1;
-            await _eventLogCollection.InsertOneAsync(new InstanceEventLogEntry
+            Id = ObjectId.GenerateNewId().ToString(),
+            Timestamp = DateTime.UtcNow,
+            WorkflowInstanceId = instanceId,
+            EventId = targetOperationId,
+            ExecutedBy = user.Id,
+            Operation = EventLogOperation.Undo,
+            UndoMetadata = new UndoMetadata
             {
-                Id = ObjectId.GenerateNewId().ToString(),
-                Timestamp = DateTime.UtcNow,
-                WorkflowInstanceId = instanceId,
-                EventId = targetOperationId,
-                ExecutedBy = user.Id,
-                Operation = EventLogOperation.Undo,
-                OperationId = targetOperationId,
-                HistoryTopLevelStep = topLevelStep,
-                HistoryRevision = nextHistoryRevision,
-                UndoMetadata = new UndoMetadata
-                {
-                    TargetOperationId = targetOperationId,
-                    TopLevelStep = topLevelStep,
-                    Revision = expectedRevision,
-                    Reason = reason
-                }
-            }, cancellationToken: ct);
-        }
-        catch (MongoWriteException exception) when (exception.WriteError.Category ==
-                                                    ServerErrorCategory.DuplicateKey)
-        {
-            return false;
-        }
-
-        await _jobCollection.UpdateManyAsync(
-            job => job.InstanceId == instanceId &&
-                   job.Operation!.Id == targetOperationId &&
-                   job.Status == JobStatus.Pending,
-            Builders<Job>.Update.Set(job => job.Status, JobStatus.Cancelled),
-            cancellationToken: ct);
-        return true;
-    }
-
-    private static long LatestHistoryRevision(IEnumerable<InstanceEventLogEntry> entries)
-        => entries
-            .Select(entry => entry.HistoryRevision ?? entry.OperationMetadata?.Revision ??
-                entry.UndoMetadata?.Revision ?? 0)
-            .DefaultIfEmpty()
-            .Max();
+                TargetOperationId = targetOperationId,
+                Reason = reason
+            }
+        }, cancellationToken: ct);
 
     /// <summary>
     /// Gets all event log entries for specific events in an instance

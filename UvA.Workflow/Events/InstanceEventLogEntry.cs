@@ -33,8 +33,6 @@ public record OperationMetadata
     [BsonRepresentation(BsonType.ObjectId)]
     public string ExecutedBy { get; init; } = null!;
 
-    public long? Revision { get; init; }
-
     public static OperationMetadata? CreateForSubmission(Form form, WorkflowDefinition workflowDefinition, User user)
         => Create(OperationType.FormSubmission, form.Name,
             workflowDefinition.AllSteps
@@ -76,14 +74,14 @@ public record OperationMetadata
     }
 }
 
+[BsonIgnoreExtraElements]
 public record UndoMetadata
 {
     public string TargetOperationId { get; init; } = null!;
-    public string TopLevelStep { get; init; } = null!;
-    public long Revision { get; init; }
     public string Reason { get; init; } = null!;
 }
 
+[BsonIgnoreExtraElements]
 public class InstanceEventLogEntry
 {
     [BsonId]
@@ -117,8 +115,4 @@ public class InstanceEventLogEntry
     [BsonIgnoreIfNull] public OperationMetadata? OperationMetadata { get; set; }
 
     [BsonIgnoreIfNull] public UndoMetadata? UndoMetadata { get; set; }
-
-    [BsonIgnoreIfNull] public string? HistoryTopLevelStep { get; set; }
-
-    [BsonIgnoreIfNull] public long? HistoryRevision { get; set; }
 }

@@ -117,7 +117,7 @@ public class EffectService(
         if (!instance.Events.TryGetValue(eventName, out var ev))
             return;
         ev.Date = null;
-        await eventService.UpdateEvent(instance, ev.Id, user, operation, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct, operation);
     }
 
     public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
@@ -126,7 +126,7 @@ public class EffectService(
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
         ev.Date = DateTime.Now;
-        await eventService.UpdateEvent(instance, ev.Id, user, operation, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct, operation);
     }
 
     private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,
