@@ -177,73 +177,57 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     public async Task<bool> AddUndoEntry(string instanceId, string topLevelStep, string targetOperationId,
         long expectedRevision, User user, string reason, CancellationToken ct)
     {
-        using var session = await database.Client.StartSessionAsync(cancellationToken: ct);
-        session.StartTransaction();
+        var roots = await _eventLogCollection
+            .Find(entry => entry.WorkflowInstanceId == instanceId &&
+                           entry.OperationMetadata!.TopLevelStep == topLevelStep)
+            .ToListAsync(ct);
+        var undone = await _eventLogCollection
+            .Find(entry => entry.WorkflowInstanceId == instanceId &&
+                           entry.Operation == EventLogOperation.Undo &&
+                           entry.UndoMetadata!.TopLevelStep == topLevelStep)
+            .ToListAsync(ct);
+        var candidate = EventHistory.LatestOperations(roots.Concat(undone))
+            .GetValueOrDefault(topLevelStep);
+
+        if (candidate?.Id != targetOperationId || candidate.Revision != expectedRevision)
+            return false;
+
         try
         {
-            var roots = await _eventLogCollection
-                .Find(session, entry => entry.WorkflowInstanceId == instanceId &&
-                                        entry.OperationMetadata!.TopLevelStep == topLevelStep)
-                .ToListAsync(ct);
-            var undone = await _eventLogCollection
-                .Find(session, entry => entry.WorkflowInstanceId == instanceId &&
-                                        entry.Operation == EventLogOperation.Undo &&
-                                        entry.UndoMetadata!.TopLevelStep == topLevelStep)
-                .ToListAsync(ct);
-            var candidate = EventHistory.LatestOperations(roots.Concat(undone))
-                .GetValueOrDefault(topLevelStep);
-
-            if (candidate?.Id != targetOperationId || candidate.Revision != expectedRevision)
+            var nextHistoryRevision = LatestHistoryRevision(roots.Concat(undone)) + 1;
+            await _eventLogCollection.InsertOneAsync(new InstanceEventLogEntry
             {
-                await session.AbortTransactionAsync(ct);
-                return false;
-            }
-
-            try
-            {
-                var nextHistoryRevision = LatestHistoryRevision(roots.Concat(undone)) + 1;
-                await _eventLogCollection.InsertOneAsync(session, new InstanceEventLogEntry
+                Id = ObjectId.GenerateNewId().ToString(),
+                Timestamp = DateTime.UtcNow,
+                WorkflowInstanceId = instanceId,
+                EventId = targetOperationId,
+                ExecutedBy = user.Id,
+                Operation = EventLogOperation.Undo,
+                OperationId = targetOperationId,
+                HistoryTopLevelStep = topLevelStep,
+                HistoryRevision = nextHistoryRevision,
+                UndoMetadata = new UndoMetadata
                 {
-                    Id = ObjectId.GenerateNewId().ToString(),
-                    Timestamp = DateTime.UtcNow,
-                    WorkflowInstanceId = instanceId,
-                    EventId = targetOperationId,
-                    ExecutedBy = user.Id,
-                    Operation = EventLogOperation.Undo,
-                    OperationId = targetOperationId,
-                    HistoryTopLevelStep = topLevelStep,
-                    HistoryRevision = nextHistoryRevision,
-                    UndoMetadata = new UndoMetadata
-                    {
-                        TargetOperationId = targetOperationId,
-                        TopLevelStep = topLevelStep,
-                        Revision = expectedRevision,
-                        Reason = reason
-                    }
-                }, cancellationToken: ct);
-                await _jobCollection.UpdateManyAsync(session,
-                    job => job.InstanceId == instanceId &&
-                           job.Operation!.Id == targetOperationId &&
-                           job.Status == JobStatus.Pending,
-                    Builders<Job>.Update.Set(job => job.Status, JobStatus.Cancelled),
-                    cancellationToken: ct);
-            }
-            catch (MongoWriteException exception) when (exception.WriteError.Category ==
-                                                        ServerErrorCategory.DuplicateKey)
-            {
-                await session.AbortTransactionAsync(ct);
-                return false;
-            }
-
-            await session.CommitTransactionAsync(ct);
-            return true;
+                    TargetOperationId = targetOperationId,
+                    TopLevelStep = topLevelStep,
+                    Revision = expectedRevision,
+                    Reason = reason
+                }
+            }, cancellationToken: ct);
         }
-        catch
+        catch (MongoWriteException exception) when (exception.WriteError.Category ==
+                                                    ServerErrorCategory.DuplicateKey)
         {
-            if (session.IsInTransaction)
-                await session.AbortTransactionAsync(ct);
-            throw;
+            return false;
         }
+
+        await _jobCollection.UpdateManyAsync(
+            job => job.InstanceId == instanceId &&
+                   job.Operation!.Id == targetOperationId &&
+                   job.Status == JobStatus.Pending,
+            Builders<Job>.Update.Set(job => job.Status, JobStatus.Cancelled),
+            cancellationToken: ct);
+        return true;
     }
 
     private static long LatestHistoryRevision(IEnumerable<InstanceEventLogEntry> entries)
