@@ -1,6 +1,9 @@
 using Moq;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using UvA.Workflow.Events;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Persistence.Mongo;
 using UvA.Workflow.Tests.Helpers;
 
@@ -9,15 +12,20 @@ namespace UvA.Workflow.Tests;
 public class UndoEventRepositoryTests
 {
     [Fact]
-    public async Task AddUndoEntry_AppendsOnlyWhenExpectedCandidateRevisionStillMatches()
+    public async Task AddUndoEntry_AppendsUndoAndCancelsPendingJobsInOneTransaction()
     {
         var database = new Mock<IMongoDatabase>();
         var client = new Mock<IMongoClient>();
         var session = new Mock<IClientSessionHandle>();
         var collection = new Mock<IMongoCollection<InstanceEventLogEntry>>();
+        var jobs = new Mock<IMongoCollection<Job>>();
+        var instanceId = ObjectId.GenerateNewId().ToString();
+        var operationId = ObjectId.GenerateNewId().ToString();
+        FilterDefinition<Job>? cancelledJobsFilter = null;
+        UpdateDefinition<Job>? cancelledJobsUpdate = null;
         var operation = new OperationMetadata
         {
-            Id = "operation",
+            Id = operationId,
             TopLevelStep = "Subject",
             Step = "Subject",
             Source = "Start",
@@ -29,6 +37,7 @@ public class UndoEventRepositoryTests
         database.SetupGet(value => value.Client).Returns(client.Object);
         database.Setup(value => value.GetCollection<InstanceEventLogEntry>("eventlog", null))
             .Returns(collection.Object);
+        database.Setup(value => value.GetCollection<Job>("jobs", null)).Returns(jobs.Object);
         client.Setup(value => value.StartSessionAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session.Object);
         session.Setup(value => value.IsInTransaction).Returns(true);
@@ -45,21 +54,43 @@ public class UndoEventRepositoryTests
                 It.IsAny<InsertOneOptions>(),
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        jobs.Setup(value => value.UpdateManyAsync(
+                session.Object,
+                It.IsAny<FilterDefinition<Job>>(),
+                It.IsAny<UpdateDefinition<Job>>(),
+                It.IsAny<UpdateOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IClientSessionHandle, FilterDefinition<Job>, UpdateDefinition<Job>, UpdateOptions,
+                CancellationToken>((_, filter, update, _, _) =>
+            {
+                cancelledJobsFilter = filter;
+                cancelledJobsUpdate = update;
+            })
+            .ReturnsAsync(Mock.Of<UpdateResult>());
 
         var repository = new InstanceEventRepository(database.Object);
         var result = await repository.AddUndoEntry(
-            "instance", "Subject", "operation", 2, UnitTestsHelpers.AdminUser, "because", default);
+            instanceId, "Subject", operationId, 2, UnitTestsHelpers.AdminUser, "because", default);
 
         Assert.True(result);
         collection.Verify(value => value.InsertOneAsync(
             session.Object,
             It.Is<InstanceEventLogEntry>(entry =>
                 entry.Operation == EventLogOperation.Undo &&
-                entry.OperationId == "operation" &&
+                entry.OperationId == operationId &&
                 entry.UndoMetadata!.Revision == 2 &&
                 entry.UndoMetadata.Reason == "because"),
             It.IsAny<InsertOneOptions>(),
             It.IsAny<CancellationToken>()), Times.Once);
+        var serializerRegistry = BsonSerializer.SerializerRegistry;
+        var serializer = serializerRegistry.GetSerializer<Job>();
+        var renderArgs = new RenderArgs<Job>(serializer, serializerRegistry);
+        var filter = cancelledJobsFilter!.Render(renderArgs);
+        var update = cancelledJobsUpdate!.Render(renderArgs);
+        Assert.Equal(new ObjectId(instanceId), filter["InstanceId"].AsObjectId);
+        Assert.Equal(new ObjectId(operationId), filter["Operation._id"].AsObjectId);
+        Assert.Equal(nameof(JobStatus.Pending), filter["Status"].AsString);
+        Assert.Equal(nameof(JobStatus.Cancelled), update["$set"]["Status"].AsString);
         session.Verify(value => value.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

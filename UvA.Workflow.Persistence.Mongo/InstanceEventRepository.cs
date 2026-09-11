@@ -8,6 +8,9 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     private readonly IMongoCollection<WorkflowInstance> _instanceCollection =
         database.GetCollection<WorkflowInstance>("instances");
 
+    private readonly IMongoCollection<Job> _jobCollection =
+        database.GetCollection<Job>("jobs");
+
     /// <summary>
     /// Adds a new event to a workflow instance or updates an existing event if it already exists.
     /// Logs the operation specifying whether it was an addition or update.
@@ -218,6 +221,12 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
                         Reason = reason
                     }
                 }, cancellationToken: ct);
+                await _jobCollection.UpdateManyAsync(session,
+                    job => job.InstanceId == instanceId &&
+                           job.Operation!.Id == targetOperationId &&
+                           job.Status == JobStatus.Pending,
+                    Builders<Job>.Update.Set(job => job.Status, JobStatus.Cancelled),
+                    cancellationToken: ct);
             }
             catch (MongoWriteException exception) when (exception.WriteError.Category ==
                                                         ServerErrorCategory.DuplicateKey)

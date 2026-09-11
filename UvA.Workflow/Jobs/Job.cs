@@ -8,7 +8,8 @@ public enum JobStatus
     Pending,
     Completed,
     Failed,
-    Running
+    Running,
+    Cancelled
 }
 
 public enum JobSource
