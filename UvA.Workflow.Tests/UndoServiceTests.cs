@@ -14,6 +14,77 @@ namespace UvA.Workflow.Tests;
 public class UndoServiceTests : ControllerTestsBase
 {
     [Fact]
+    public async Task Undo_ExecuteActionUsesLatestOccurrenceNameAuthorizationAndInvalidatesCorrelatedEvents()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With("Project", "Subject")
+            .WithEvent("RunAction", At(3))
+            .WithEvent("Consequence", At(4))
+            .Build();
+        var firstOccurrence = new OperationMetadata
+        {
+            Id = "first-action",
+            Type = OperationType.ExecuteAction,
+            Source = "RunAction",
+            Step = "Subject",
+            TopLevelStep = "Subject",
+            OccurredAt = At(1),
+            Revision = 1,
+            ExecutedBy = "user"
+        };
+        var target = firstOccurrence with { Id = "latest-action", OccurredAt = At(3), Revision = 2 };
+        var logs = new List<InstanceEventLogEntry>
+        {
+            EventLog("RunAction", firstOccurrence.Id, firstOccurrence, At(1)),
+            EventLog("RunAction", target.Id, target, At(3), EventLogOperation.Update),
+            EventLog("Consequence", target.Id, at: At(4))
+        };
+        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
+            .ReturnsAsync(() => logs.ToList());
+        _eventRepoMock.Setup(r => r.AddUndoEntry(
+                instance.Id, "Subject", target.Id, 2, UnitTestsHelpers.AdminUser, "because", _ct))
+            .Callback(() => logs.Add(new InstanceEventLogEntry
+            {
+                Id = "undo-entry",
+                Timestamp = At(5),
+                Operation = EventLogOperation.Undo,
+                OperationId = target.Id,
+                UndoMetadata = new UndoMetadata
+                {
+                    TargetOperationId = target.Id,
+                    TopLevelStep = "Subject",
+                    Revision = 2,
+                    Reason = "because"
+                }
+            }))
+            .ReturnsAsync(true);
+        _modelParser.Roles.Add(new Role
+        {
+            Name = "WrongUndoer",
+            Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Name = "OtherAction" }]
+        });
+        _modelParser.Roles.Add(new Role
+        {
+            Name = "Undoer",
+            Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Name = "RunAction" }]
+        });
+        var service = new UndoService(_eventRepoMock.Object, _workflowInstanceRepoMock.Object,
+            _instanceService, _rightsService);
+
+        MockCurrentUser("WrongUndoer");
+        Assert.Null(await service.GetCandidate(instance, "Subject", logs));
+
+        MockCurrentUser("Undoer");
+        var candidate = await service.GetCandidate(instance, "Subject", logs);
+        Assert.Equal(target, candidate);
+
+        await service.Undo(instance, target.Id, "because", UnitTestsHelpers.AdminUser, _ct);
+
+        Assert.Equal(At(1), instance.Events["RunAction"].Date);
+        Assert.DoesNotContain("Consequence", instance.Events);
+    }
+
+    [Fact]
     public async Task Undo_PreservesLaterStepStateAndReusesItAfterResubmission()
     {
         var firstStep = new Step

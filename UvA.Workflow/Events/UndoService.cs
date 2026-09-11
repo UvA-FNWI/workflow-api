@@ -63,16 +63,18 @@ public class UndoService(
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
         var candidate = EventHistory.LatestOperations(eventLogs).GetValueOrDefault(topLevelStep);
-        if (candidate is not { Type: OperationType.FormSubmission })
-            return null;
-
-        return await IsAuthorized(instance, candidate) ? candidate : null;
+        return candidate != null && await IsAuthorized(instance, candidate) ? candidate : null;
     }
 
     private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation)
     {
         var allowed = await rightsService.GetAllowedActionsForStep(
             instance, operation.Step, RightsEvaluationMode.RequestContext, RoleAction.Undo);
-        return allowed.Any(action => action.AllForms.Length == 0 || action.MatchesForm(operation.Source));
+        return allowed.Any(action => operation.Type switch
+        {
+            OperationType.FormSubmission => action.AllForms.Length == 0 || action.MatchesForm(operation.Source),
+            OperationType.ExecuteAction => action.Name == null || action.Name == operation.Source,
+            _ => false
+        });
     }
 }
