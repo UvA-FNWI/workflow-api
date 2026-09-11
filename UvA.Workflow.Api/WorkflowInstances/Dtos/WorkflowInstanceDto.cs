@@ -49,7 +49,9 @@ public record StepHeaderStatusDto(
 public record UndoCandidateDto(
     OperationType Type,
     string Step,
+    BilingualString StepTitle,
     string Form,
+    BilingualString SourceTitle,
     DateTime OccurredAt,
     string OperationId
 );

@@ -218,9 +218,25 @@ public class WorkflowInstanceDtoFactory(
             .Distinct()
             .Select(formName => modelService.GetForm(instance, formName))
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
-        var undoCandidate = step.ParentStep == null && undoCandidates.GetValueOrDefault(step.Name) is { } candidate
-            ? new UndoCandidateDto(candidate.Type, candidate.Step, candidate.Source, candidate.OccurredAt, candidate.Id)
-            : null;
+        UndoCandidateDto? undoCandidate = null;
+        if (step.ParentStep == null && undoCandidates.GetValueOrDefault(step.Name) is { } candidate)
+        {
+            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == candidate.Step);
+            var form = candidate.Type == OperationType.FormSubmission
+                ? modelService.TryGetForm(instance, candidate.Source)
+                : null;
+            var sourceTitle = candidate.Type switch
+            {
+                OperationType.FormSubmission =>
+                    form?.Title ?? form?.ActualForm.Title ?? form?.ActualForm.Name ?? candidate.Source,
+                OperationType.ExecuteAction => candidateStep?.Actions.FirstOrDefault(action =>
+                    action.Type == RoleAction.Execute && action.Name == candidate.Source)?.Label ?? candidate.Source,
+                _ => candidate.Source
+            };
+            undoCandidate = new UndoCandidateDto(candidate.Type, candidate.Step,
+                candidateStep?.DisplayTitle ?? candidate.Step, candidate.Source, sourceTitle,
+                candidate.OccurredAt, candidate.Id);
+        }
 
         return new StepDto(
             step.Name,
