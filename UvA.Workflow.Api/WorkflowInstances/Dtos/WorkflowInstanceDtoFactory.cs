@@ -158,23 +158,41 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var deadline = GetDeadline(step, context, activeSteps);
+        var headerStatus = HasPassedDeadline(step, context, activeSteps)
+            ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
+            : stepHeaderStatusResolver.Resolve(step, instance);
 
-        // The newest version is the step's live state, already rendered as the current submission.
+        // A completed step's latest version is already shown as its live submission.
+        // For an expired, unfinished step, retain every historical version.
         var versions = stepVersionsMap.GetValueOrDefault(step.Name)
             ?.OrderByDescending(version => version.SubmittedAt)
             .Skip(step.HasEnded(context) ? 1 : 0);
+        var versionDtos = versions != null
+            ? await Task.WhenAll(
+                versions.Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
+            : null;
+
+        if (step.HasPassedHardDeadline(context))
+        {
+            return new StepDto(
+                step.Name, step.DisplayTitle, step.Icon, step.EndEvent,
+                step.GetEndDate(instance, workflowDef),
+                Deadline: deadline,
+                Children: null,
+                HeaderStatus: headerStatus,
+                ResultsType: step.ResultsType,
+                ExpectsSubmission: false,
+                HasSubmission: false,
+                HierarchyMode: step.HierarchyMode,
+                Versions: versionDtos?.ToList());
+        }
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
             : null;
-        var versionDtos = versions != null
-            ? await Task.WhenAll(versions
-                .OrderByDescending(version => version.SubmittedAt)
-                .Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
-            : null;
-
         var submissionForms = step.Actions
             .Where(action => action.Type == RoleAction.Submit)
             .SelectMany(action => action.AllForms)
@@ -202,9 +220,9 @@ public class WorkflowInstanceDtoFactory(
             step.Icon,
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
-            step.GetDeadline(instance, modelService),
+            deadline,
             children,
-            stepHeaderStatusResolver.Resolve(step, instance),
+            headerStatus,
             step.ResultsType,
             expectsSubmission,
             hasSubmission,
@@ -212,6 +230,25 @@ public class WorkflowInstanceDtoFactory(
             versionDtos?.ToList()
         );
     }
+
+    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+    {
+        var deadline = step.Deadline;
+        if (deadline == null)
+            return null;
+
+        var isPassed = activeSteps.Contains(step.Name) && !step.HasEnded(context) && deadline.HasPassed(context);
+        var message = isPassed && deadline.Type == DeadlineType.Hard
+            ? deadline.TextTemplate?.Apply(context)
+            : null;
+
+        return new DeadlineDto(step.Deadline?.Evaluate(context), deadline.Type, isPassed, message);
+    }
+
+    private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+        => !step.HasEnded(context) && ((activeSteps.Contains(step.Name) && step.Deadline?.HasPassed(context) == true) ||
+                                       step.Children.Where(child => child.Condition.IsMet(context))
+                                           .Any(child => HasPassedDeadline(child, context, activeSteps)));
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version

@@ -41,8 +41,14 @@ public record StepVersionDto
 
 public record StepHeaderStatusDto(
     StepHeaderPillType Type,
-    BilingualString Label
+    BilingualString? Label
 );
+
+public record DeadlineDto(
+    DateTime? Date,
+    DeadlineType Type,
+    bool IsPassed,
+    BilingualString? Message);
 
 public record StepDto(
     string Id,
@@ -50,7 +56,7 @@ public record StepDto(
     Icon? Icon,
     string? Event,
     DateTime? DateCompleted,
-    DateTime? Deadline,
+    DeadlineDto? Deadline,
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,

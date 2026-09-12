@@ -168,13 +168,16 @@
           ]
         },
         "deadline": {
+          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Check if a deadline has passed",
-              "$ref": "#/definitions/Deadline"
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/DeadlineCondition"
             }
           ]
         },
@@ -315,8 +318,8 @@
         }
       }
     },
-    "Deadline": {
-      "title": "Deadline",
+    "DeadlineCondition": {
+      "title": "DeadlineCondition",
       "type": "object",
       "additionalProperties": false,
       "required": [
