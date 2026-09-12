@@ -16,6 +16,7 @@ using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -151,9 +152,74 @@ public class SubmissionsControllerTests : ControllerTestsBase
         Assert.Equal(StatusCodes.Status422UnprocessableEntity, unprocessableResult.StatusCode);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(false)]
+    public async Task Submissions_SubmitSubmission_RejectsUncheckedRequiredCheck(bool? value)
+    {
+        IncludeCheckInStartForm();
+        const string submissionId = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
+            RequiredStartProperties());
+        instance.Properties["CanBePublished"] = value.HasValue ? new BsonBoolean(value.Value) : BsonNull.Value;
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        var response = Assert.IsType<UnprocessableEntityObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status422UnprocessableEntity, response.StatusCode);
+        var payload = Assert.IsType<SubmitSubmissionResult>(response.Value);
+        Assert.False(payload.Success);
+        var error = Assert.Single(payload.ValidationErrors!);
+        Assert.Equal("CanBePublished", error.QuestionName);
+        Assert.Equal("Required field", error.ValidationMessage.En);
+        Assert.Null(payload.Submission.DateSubmitted);
+        _instanceJournalServiceMock.Verify(service => service.IncrementVersion(instance.Id, _ct), Times.Never);
+    }
+
+    [Fact]
+    public async Task Submissions_SubmitSubmission_RejectsMissingRequiredCheck()
+    {
+        IncludeCheckInStartForm();
+        const string submissionId = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
+            RequiredStartProperties());
+        instance.Properties.Remove("CanBePublished");
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        var response = Assert.IsType<UnprocessableEntityObjectResult>(result.Result);
+        var payload = Assert.IsType<SubmitSubmissionResult>(response.Value);
+        Assert.Equal("CanBePublished", Assert.Single(payload.ValidationErrors!).QuestionName);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Submissions_SubmitSubmission_AllowsUncheckedOptionalOrHiddenCheck(bool hidden)
+    {
+        IncludeCheckInStartForm();
+        const string submissionId = "Start";
+        var question = _modelService.WorkflowDefinitions["Project"].Properties
+            .Single(q => q.Name == "CanBePublished");
+        if (hidden)
+            question.Condition = new Condition { Event = new EventCondition { Id = "Start" } };
+        else
+            question.Type = "Check";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
+            RequiredStartProperties());
+        instance.Properties["CanBePublished"] = false;
+
+        var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
+
+        var response = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.True(Assert.IsType<SubmitSubmissionResult>(response.Value).Success);
+        Assert.False(instance.Properties["CanBePublished"].AsBoolean);
+    }
+
     [Fact]
     public async Task Submissions_SubmitSubmission_AllowedWithValidForm()
     {
+        IncludeCheckInStartForm();
         // Arrange
         const string submissionId = "Start";
 
@@ -172,6 +238,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
             ("StartDate", _ => new DateTime(2056, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
             ("EndDate", _ => new DateTime(2057, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
             ("Deadline", _ => new DateTime(2058, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+            ("CanBePublished", _ => true),
             ("EC", _ => 1)
         );
 
@@ -366,6 +433,13 @@ public class SubmissionsControllerTests : ControllerTestsBase
         return (controller, instance);
     }
 
+    private void IncludeCheckInStartForm()
+    {
+        var workflow = _modelService.WorkflowDefinitions["Project"];
+        var page = workflow.Forms.Single(form => form.Name == "Start").Pages[0];
+        page.Fields = [.. page.Fields, workflow.Properties.Single(q => q.Name == "CanBePublished")];
+    }
+
     private void ConfigureAlternateSubmissionMarker(string formName, string markerEventId,
         string? suppressingEventId = null, bool emitOnSubmit = true)
     {
@@ -448,6 +522,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         ("StartDate", _ => new DateTime(2056, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
         ("EndDate", _ => new DateTime(2057, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
         ("Deadline", _ => new DateTime(2058, 01, 01, 9, 0, 0, DateTimeKind.Utc)),
+        ("CanBePublished", _ => true),
         ("EC", _ => 1)
     ];
 }

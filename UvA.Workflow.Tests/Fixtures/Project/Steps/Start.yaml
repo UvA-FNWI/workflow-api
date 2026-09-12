@@ -50,7 +50,7 @@ properties:
       nl: Belangrijke deadline
       
   - name: CanBePublished
-    type: Boolean!
+    type: Check!
     text:
       en: "Thesis can be published"
       nl: "Scriptie mag gepubliceerd worden"
