@@ -12,6 +12,40 @@ public class ProgressInformationTests
     private readonly ModelService _modelService = new(UnitTestsHelpers.CreateModelParser());
 
     [Fact]
+    public void Resolve_CompletedIncludesLastEventDate()
+    {
+        var progress = ProgressInformationDto.Resolve(_modelService.WorkflowDefinitions["Project"], null,
+            CreateContext(("Publish", new DateTime(2026, 9, 7))));
+
+        Assert.Equal("Completed (07/09)", progress.Text.En);
+        Assert.Equal("Afgerond (07/09)", progress.Text.Nl);
+        Assert.Equal(StatusColor.Green, progress.Color);
+    }
+
+    [Fact]
+    public void Resolve_CompletedWithoutEventsUsesCreationDate()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project").WithCurrentStep("Start").Build();
+        instance.CreatedOn = new DateTime(2026, 9, 1);
+        var progress = ProgressInformationDto.Resolve(_modelService.WorkflowDefinitions["Project"], null,
+            _modelService.CreateContext(instance));
+
+        Assert.Equal("Completed (01/09)", progress.Text.En);
+        Assert.Equal("Afgerond (01/09)", progress.Text.Nl);
+    }
+
+    [Fact]
+    public void Resolve_CompletedWithoutAnyDateRendersPlainText()
+    {
+        var progress = ProgressInformationDto.Resolve(_modelService.WorkflowDefinitions["Project"], null,
+            new ObjectContext([]));
+
+        Assert.Equal("Completed", progress.Text.En);
+        Assert.Equal("Afgerond", progress.Text.Nl);
+    }
+
+    [Fact]
     public void Resolve_UsesFallbackProgressWhenNoConditionMatches()
     {
         var context = CreateContext();

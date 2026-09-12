@@ -9,6 +9,8 @@ namespace UvA.Workflow.WorkflowModel;
 
 public partial class ModelParser
 {
+    private static readonly string[] ReservedEventNames = ["Last"];
+
     private readonly IContentProvider _contentProvider;
 
     /// The source the model was parsed from. Exposed so the API can serve the raw files back for editing.
@@ -338,8 +340,26 @@ public partial class ModelParser
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
         ExpandResetParentSteps(workflowDefinition);
+        ValidateReservedEventNames(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private static void ValidateReservedEventNames(WorkflowDefinition definition)
+    {
+        var effects = definition.AllActions.SelectMany(action => action.OnAction)
+            .Concat(definition.Forms.SelectMany(form => form.OnSubmit.Concat(form.OnSave)));
+        var eventNames = definition.Events.Select(ev => ev.Name)
+            .Concat(definition.AllSteps.SelectMany(step => step.Events).Select(ev => ev.Name))
+            .Concat(definition.Forms.Select(form => form.Name))
+            .Concat(effects.SelectMany(effect => new[] { effect.Event, effect.UndoEvent }));
+
+        foreach (var reservedName in ReservedEventNames)
+        {
+            if (eventNames.Contains(reservedName))
+                throw new Exception(
+                    $"Event name '{reservedName}' is reserved in workflow '{definition.Name}'.");
+        }
     }
 
     private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)

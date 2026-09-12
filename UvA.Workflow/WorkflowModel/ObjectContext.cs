@@ -47,7 +47,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             t =>
             {
                 var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
-                return GetValue(t.Value, prop?.DataType ?? DataType.String, prop);
+                return GetValue(t.Value, prop?.DataType ?? workflowDefinition.GetDataType(t.Key), prop);
             });
 
         // Normalize projected event data in the same way as a fully loaded workflow instance.
@@ -72,6 +72,10 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             };
 
             AddEventInformation(dict, instance, workflowDefinition);
+        }
+        else if (dict.GetValueOrDefault("LastEvent") == null)
+        {
+            dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
 
         return new ObjectContext(dict);
@@ -105,6 +109,9 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         WorkflowInstance instance,
         WorkflowDefinition workflowDefinition)
     {
+        dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()
+                            ?? dict.GetValueOrDefault("CreateDate");
+
         foreach (var ev in instance.Events.Values)
         {
             var eventKey = ev.Id + "Event";

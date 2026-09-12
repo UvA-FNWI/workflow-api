@@ -85,6 +85,10 @@ public class ScreenDataService(
         {
             case PropertyLookup propertyLookup:
                 var propertyName = propertyLookup.Property.Split('.')[0];
+                // ObjectContext computes LastEvent from Events, which LoadData always projects.
+                if (propertyName == "LastEvent")
+                    break;
+
                 var mongoPath = entity.GetKey(propertyName);
                 projection.TryAdd(propertyName, mongoPath);
                 break;
@@ -145,6 +149,7 @@ public class ScreenDataService(
         var projection = BuildProjection(screen.Columns, workflowDefinition, progressLookups);
         projection.TryAdd("CurrentStep", "$CurrentStep");
         projection.TryAdd("Events", "$Events");
+        projection.TryAdd("CreateDate", "$CreatedOn");
 
         // Build authorization filter to restrict instances to those the user can view
         var authorizationFilter =
