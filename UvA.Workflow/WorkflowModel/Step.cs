@@ -91,7 +91,8 @@ public class Deadline
     public string Date { get; set; } = null!;
 
     /// <summary>
-    /// Soft deadlines keep step permissions valid after they pass. Hard deadlines revoke them.
+    /// Hard deadlines revoke permissions granted by this step. Separate global/form grants still apply.
+    /// Soft deadlines do not change permissions.
     /// </summary>
     public DeadlineType Type { get; set; } = DeadlineType.Soft;
 

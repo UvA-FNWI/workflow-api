@@ -280,8 +280,12 @@ public class DeadlineTests
         var service = new WorkflowInstanceService(modelService, repository.Object, journal.Object,
             Mock.Of<IInstanceEventRepository>(), Mock.Of<IUserService>(), Mock.Of<IUserRepository>());
 
+        var context = await service.GetSubmissionContext(instance.Id, "Closed", null, CancellationToken.None);
+        var user = new Mock<IUserService>();
+        user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var rights = new RightsService(modelService, user.Object, repository.Object);
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
-            service.GetSubmissionContext(instance.Id, "Closed", null, CancellationToken.None));
+            rights.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name));
         journal.VerifyNoOtherCalls();
     }
 
@@ -354,8 +358,9 @@ public class DeadlineTests
             Assert.Null(startDto.Deadline!.Message);
             Assert.True(startDto.Deadline!.IsPassed);
             Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
-            await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
-                service.GetSubmissionContext(instance.Id, "Start", null, CancellationToken.None));
+            var rights = new RightsService(modelService, user.Object, repository.Object);
+            Assert.True(await rights.Can(instance, RoleAction.View, "Start"));
+            Assert.False(await rights.Can(instance, RoleAction.Submit, "Start"));
         }
         else
         {
@@ -439,6 +444,94 @@ public class DeadlineTests
         }
     }
 
+    [Theory]
+    [InlineData(RightsEvaluationMode.RequestContext)]
+    [InlineData(RightsEvaluationMode.RealUser)]
+    public async Task Rights_ExpiredStepPreservesSeparateGlobalFormGrants(RightsEvaluationMode mode)
+    {
+        var model = CreateModelWithForms();
+        var role = model.Roles["Registered"];
+        role.Actions =
+        [
+            new() { Type = RoleAction.View, Form = WorkflowModel.Action.All },
+            new() { Type = RoleAction.Edit, Forms = ["Closed", "Available"] },
+            new() { Type = RoleAction.Submit, Form = "Closed" }
+        ];
+        var user = new Mock<IUserService>();
+        user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var instance = Instance("Hard");
+
+        var actions =
+            await rights.GetAllowedActions(instance, mode, RoleAction.View, RoleAction.Edit, RoleAction.Submit);
+
+        Assert.Equal(role.Actions, actions);
+        foreach (var action in actions)
+            Assert.True(await rights.Can(instance, [action.Type], mode, "Closed"));
+    }
+
+    [Fact]
+    public async Task Rights_RestrictExpiredSteps_WhileKeepingOtherActiveStepsAndUnscopedActions()
+    {
+        var model = CreateModelWithForms();
+        var instance = Instance("Hard");
+        instance.CurrentStep = "Open";
+        var active = model.GetActiveSteps(instance);
+        Assert.Contains("Open", active);
+        model.Roles["Registered"].Actions =
+        [
+            new() { Type = RoleAction.Execute, Name = "ClosedOnly", Steps = ["Child"] },
+            new() { Type = RoleAction.Execute, Name = "Shared", Steps = ["Child", "Open"] },
+            new() { Type = RoleAction.Execute, Name = "Unscoped" },
+            new() { Type = RoleAction.View }
+        ];
+        var user = new Mock<IUserService>();
+        user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>());
+
+        var actions = await rights.GetAllowedActions(instance, RoleAction.Execute, RoleAction.View);
+
+        Assert.DoesNotContain(actions, a => a.Name == "ClosedOnly");
+        Assert.Same(model.Roles["Registered"].Actions[1], Assert.Single(actions, a => a.Name == "Shared"));
+        Assert.Contains(actions, a => a.Name == "Unscoped");
+        Assert.True(await rights.Can(instance, RoleAction.View));
+        Assert.Equal(active, model.GetActiveSteps(instance));
+        Assert.Equal(["Child", "Open"], model.Roles["Registered"].Actions[1].Steps);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Rights_HistoricalViewsHonorImpersonationAndConditions_ButIgnoreHardDeadlines(bool permitted)
+    {
+        var model = CreateModelWithForms();
+        var role = model.Roles["Registered"];
+        role.Name = "HistoricalReader";
+        role.Actions =
+        [
+            new()
+            {
+                Type = RoleAction.View, Form = "Closed", Steps = ["Child"],
+                Condition = new Condition { Deadline = permitted ? "=2999-01-01" : "=2000-01-01" }
+            },
+            new() { Type = RoleAction.Edit, Form = "Closed" }
+        ];
+        var user = new Mock<IUserService>();
+        user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var impersonation = new Mock<IImpersonationContextService>();
+        impersonation.Setup(i => i.GetImpersonatedRole(It.IsAny<WorkflowInstance>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("HistoricalReader");
+        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            impersonation.Object);
+        var instance = Instance("Hard");
+
+        var actions = await rights.GetAllowedHistoricalViewActions(instance);
+
+        Assert.Equal(permitted ? 1 : 0, actions.Length);
+        Assert.All(actions, action => Assert.Equal(RoleAction.View, action.Type));
+        Assert.False(await rights.Can(instance, RoleAction.View, "Closed"));
+    }
+
     private static ModelService CreateModelWithForms() => new(new ModelParser(new DictionaryProvider(
         new Dictionary<string, string>
         {
@@ -446,11 +539,11 @@ public class DeadlineTests
                                                name: Registered
                                                actions:
                                                  - type: View
-                                                   form: <All>
+                                                   form: Available
                                                  - type: Edit
-                                                   form: <All>
+                                                   form: Available
                                                  - type: Submit
-                                                   forms: [Closed, Available]
+                                                   form: Available
                                                """,
             ["Hard/Entity.yaml"] = "name: Hard\ntitlePlural: Hard steps\nsteps: [Step, Open]",
             ["Hard/Steps/Step.yaml"] = """
@@ -460,7 +553,19 @@ public class DeadlineTests
                                          type: Hard
                                        children: [Child]
                                        """,
-            ["Hard/Steps/Child.yaml"] = "name: Child",
+            ["Hard/Steps/Child.yaml"] = """
+                                        name: Child
+                                        actions:
+                                          - type: View
+                                            form: Closed
+                                            roles: [Registered]
+                                          - type: Edit
+                                            form: Closed
+                                            roles: [Registered]
+                                          - type: Submit
+                                            form: Closed
+                                            roles: [Registered]
+                                        """,
             ["Hard/Steps/Open.yaml"] = "name: Open",
             ["Hard/Forms/Closed.yaml"] = "name: Closed\nstep: Child\npages: []",
             ["Hard/Forms/Available.yaml"] = "name: Available\nstep: Open\npages: []"

@@ -77,7 +77,7 @@ public class ExternalUserEmailUpdateServiceTests
     };
 
     [Fact]
-    public async Task PrepareAnswerReferenceUpdate_RejectsExpiredFormBeforeCheckingRoles()
+    public async Task PrepareAnswerReferenceUpdate_RejectsExpiredStepPermission()
     {
         var userId = ObjectId.GenerateNewId().ToString();
         var property = new PropertyDefinition { Name = "Supervisor", Type = "User" };
@@ -100,11 +100,30 @@ public class ExternalUserEmailUpdateServiceTests
             .WithWorkflowDefinition(definition.Name).WithCurrentStep("Start")
             .WithProperties(("Supervisor", b => b.Person(objectId: userId))).Build();
 
-        var result = await CreateService(definition).PrepareAnswerReferenceUpdate(
-            instance, CreateUser(userId), CancellationToken.None);
+        var parser = new ModelParser(new TestContentProvider());
+        parser.Roles.Clear();
+        parser.Roles.Add(new Role
+        {
+            Name = "Registered",
+            Actions = [new() { Type = RoleAction.Submit, Form = "Proposal", Steps = ["Start"] }]
+        });
+        var model = new ModelService(parser);
+        model.WorkflowDefinitions[definition.Name] = definition;
+        var currentUser = new Mock<IUserService>();
+        currentUser.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var rights = new RightsService(model, currentUser.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var service = new ExternalUserEmailUpdateService(rights, null!, model, null!);
+
+        var result = await service.PrepareAnswerReferenceUpdate(instance, CreateUser(userId), CancellationToken.None);
 
         Assert.Equal(ExternalUserEmailAnswerUpdateResult.Forbidden, result.Result);
         Assert.Empty(result.EditableContexts);
+
+        definition.AllSteps[0].Deadline!.Type = DeadlineType.Soft;
+        var softResult =
+            await service.PrepareAnswerReferenceUpdate(instance, CreateUser(userId), CancellationToken.None);
+        Assert.Equal(ExternalUserEmailAnswerUpdateResult.Updated, softResult.Result);
+        Assert.Single(softResult.EditableContexts);
     }
 
     [Fact]

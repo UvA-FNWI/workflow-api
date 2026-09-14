@@ -47,9 +47,8 @@ public class ActionsController(
                 if (input.Name == null)
                     return BadRequest("ActionNameRequired", "Action name is required");
 
-                var actions = await instanceService.GetAllowedActions(instance, ct);
-                var action = actions.FirstOrDefault(a =>
-                    a.Action.Type == RoleAction.Execute && a.Action.Name == input.Name)?.Action;
+                var actions = await rightsService.GetAllowedActions(instance, RoleAction.Execute);
+                var action = actions.FirstOrDefault(a => a.Name == input.Name);
                 if (action == null)
                     return Forbidden();
 

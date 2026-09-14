@@ -103,6 +103,43 @@ public class SubmissionsControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Submissions_ExpiredHardDeadline_RejectsLiveReadAndSubmitBeforeLoadingHistory()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        _modelService.WorkflowDefinitions["Project"].AllSteps.Single(s => s.Name == "Start").Deadline =
+            new Deadline { Type = DeadlineType.Hard, Date = "=2000-01-01" };
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            controller.GetSubmission(instance.Id, "Start", null, _ct));
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            controller.SubmitSubmission(instance.Id, "Start", _ct));
+        _instanceJournalServiceMock.Verify(j => j.GetInstanceJournal(instance.Id, false, _ct), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("Coordinator", true)]
+    [InlineData("Unknown", false)]
+    public async Task Submissions_ExpiredHardDeadline_HistoricalAccessRequiresViewRightsAndReturnsNoPermissions(
+        string role, bool permitted)
+    {
+        var (controller, instance) = BuildControllerWithRoles([role], "Start");
+        _modelService.WorkflowDefinitions["Project"].AllSteps.Single(s => s.Name == "Start").Deadline =
+            new Deadline { Type = DeadlineType.Hard, Date = "=2000-01-01" };
+
+        if (!permitted)
+        {
+            await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+                controller.GetSubmission(instance.Id, "Start", 1, _ct));
+            return;
+        }
+
+        var result = await controller.GetSubmission(instance.Id, "Start", 1, _ct);
+
+        var payload = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Empty(payload.Permissions);
+    }
+
+    [Fact]
     public async Task Submissions_GetSubmission_LiveRequestIncludesGroupedAnswerHistory()
     {
         const string submissionId = "Start";

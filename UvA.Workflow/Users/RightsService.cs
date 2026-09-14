@@ -57,8 +57,8 @@ public class RightsService(
             .ToArray();
     }
 
-    // Only roles that can actually view this instance are useful to impersonate; if a role can't
-    // see anything there's no point loading the page as it.
+    // Keep roles that can view the instance or its history eligible for impersonation,
+    // even when their step permissions have expired.
     public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
     {
         var roles = modelService.Roles;
@@ -80,9 +80,12 @@ public class RightsService(
         var activeSteps = modelService.GetActiveSteps(instance);
 
         return GetImpersonationTargetRoles(instance)
-            .Select(r => new RoleAllowedActions(r,
-                GetAllowedActions(instance, context, activeSteps,
-                    [roles.GetValueOrDefault(r.Name)], actions)))
+            .Select(r =>
+            {
+                var roleActions = GetAllowedActions(instance, context, activeSteps,
+                    [roles.GetValueOrDefault(r.Name)], actions);
+                return new RoleAllowedActions(r, GetAllowedActions(instance, context, roleActions));
+            })
             .ToArray();
     }
 
@@ -235,11 +238,30 @@ public class RightsService(
         WorkflowInstance instance,
         RightsEvaluationMode evaluationMode,
         params RoleAction[] actions)
-        => evaluationMode switch
+    {
+        var roleActions = evaluationMode switch
         {
             RightsEvaluationMode.RealUser => await GetAllowedActionsForRealUser(instance, actions),
             _ => await GetAllowedActionsForRequestContext(instance, actions)
         };
+        return GetAllowedActions(instance, modelService.CreateContext(instance), roleActions);
+    }
+
+    /// <summary>
+    /// Authorizes viewing a historical snapshot using the request's roles and conditions.
+    /// Current deadlines do not revoke historical access; no write permissions are returned.
+    /// </summary>
+    public Task<Domain_Action[]> GetAllowedHistoricalViewActions(WorkflowInstance instanceAtVersion)
+        => GetAllowedActionsForRequestContext(instanceAtVersion, RoleAction.View);
+
+    private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
+        Domain_Action[] actions)
+    {
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var activeSteps = modelService.GetActiveSteps(instance)
+            .Where(name => !definition.AllSteps.Get(name).HasPassedHardDeadline(context)).ToArray();
+        return actions.Where(a => a.Steps.Length == 0 || a.Steps.Intersect(activeSteps).Any()).ToArray();
+    }
 
     public async Task<bool> CanAny(string? workflowDefinition, params RoleAction[] actions)
         => (await GetAllowedActions(workflowDefinition, actions)).Any();

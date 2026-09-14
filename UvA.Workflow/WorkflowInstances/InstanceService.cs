@@ -367,13 +367,9 @@ public class InstanceService(
     {
         var actions = new List<AllowedAction>();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
-        var activeSteps = modelService.GetActiveSteps(instance)
-            .Where(name => !workflowDef.AllSteps.Get(name).HasPassedHardDeadline(context)).ToArray();
-        var allowed = (await rightsService.GetAllowedActions(instance,
-                RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute))
-            .Where(action => action.Steps.Length == 0 || action.Steps.Intersect(activeSteps).Any())
-            .ToArray();
+        var activeSteps = modelService.GetActiveSteps(instance);
+        var allowed = await rightsService.GetAllowedActions(instance,
+            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
 
         // Submittable forms
         actions.AddRange(allowed
@@ -381,8 +377,7 @@ public class InstanceService(
             .SelectMany(a => a.AllForms
                 .SelectMany(name => name == Domain_Action.All ? workflowDef.Forms.Select(f => f.Name) : [name])
                 .Select(name => new { Action = a, Form = modelService.GetForm(instance, name) }))
-            .Where(f => !f.Form.HasPassedHardDeadline(context) &&
-                        !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
+            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
             .Distinct()
             .Select(f => new AllowedAction(f.Action, f.Form, DisplaySteps: GetDisplaySteps(f.Action, f.Form)))
         );
@@ -456,12 +451,10 @@ public class InstanceService(
         var hiddenForms = allowedHidden.SelectMany(a => a.AllForms).Distinct().ToList();
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
 
         return forms
             .Values
             .Distinct()
-            .Where(form => !form.HasPassedHardDeadline(context))
             .Select(form => new
             {
                 Form = form,
