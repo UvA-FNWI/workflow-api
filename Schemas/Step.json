@@ -533,7 +533,7 @@
           "description": "Expression that resolves to the deadline date."
         },
         "type": {
-          "description": "Soft deadlines keep step permissions valid after they pass. Hard deadlines revoke them.",
+          "description": "Hard deadlines revoke permissions granted by this step. Separate global/form grants still apply.\n            Soft deadlines do not change permissions.",
           "$ref": "#/definitions/DeadlineType"
         },
         "text": {
