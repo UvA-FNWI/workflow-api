@@ -56,7 +56,7 @@ public class ExpressionTests
 
         Assert.Equal(OperatorType.Equal, op.Type);
         Assert.Equivalent(new Identifier("Beep"), op.Left);
-        Assert.Equivalent(new Number(3), op.Right);
+        Assert.Equivalent(new Int(3), op.Right);
 
         Assert.Single(exp.Properties, p => p is ComplexLookup);
     }

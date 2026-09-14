@@ -228,6 +228,13 @@
           ],
           "description": "Value the property should be less than"
         },
+        "lessThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than or equal to"
+        },
         "greaterThan": {
           "type": [
             "null",
@@ -262,6 +269,13 @@
             "null"
           ],
           "description": "Maximum length of a string"
+        },
+        "minLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Minimum length of a string"
         }
       }
     },
