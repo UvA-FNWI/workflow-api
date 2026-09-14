@@ -33,8 +33,8 @@ public class UndoEventRepositoryTests
         });
 
         Assert.Equal(operationId, entry.OperationMetadata!.Id);
-        Assert.Equal(operationId, entry.UndoMetadata!.TargetOperationId);
-        Assert.Equal("because", entry.UndoMetadata!.Reason);
+        Assert.Null(entry.TargetOperationId);
+        Assert.Null(entry.Reason);
     }
 
     [Fact]
@@ -62,12 +62,12 @@ public class UndoEventRepositoryTests
 
         Assert.NotNull(inserted);
         Assert.Equal(EventLogOperation.Undo, inserted.Operation);
-        Assert.Equal(operationId, inserted.EventId);
+        Assert.Null(inserted.EventId);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, inserted.ExecutedBy);
         Assert.InRange(inserted.Timestamp, before, DateTime.UtcNow);
         Assert.Null(inserted.OperationId);
-        Assert.Equal(operationId, inserted.UndoMetadata!.TargetOperationId);
-        Assert.Equal("because", inserted.UndoMetadata.Reason);
+        Assert.Equal(operationId, inserted.TargetOperationId);
+        Assert.Equal("because", inserted.Reason);
         collection.Verify(value => value.InsertOneAsync(
                 It.IsAny<InstanceEventLogEntry>(), It.IsAny<InsertOneOptions>(), It.IsAny<CancellationToken>()),
             Times.Once);

@@ -13,6 +13,7 @@ public class UndoEventHistoryTests
         ]);
 
         Assert.Equal("newer", operations["Subject"].Id);
+        Assert.Equal(At(2), operations["Subject"].Timestamp);
     }
 
     [Fact]
@@ -36,7 +37,7 @@ public class UndoEventHistoryTests
             new InstanceEventLogEntry
             {
                 Operation = EventLogOperation.Undo,
-                UndoMetadata = new UndoMetadata { TargetOperationId = "newer" }
+                TargetOperationId = "newer"
             }
         };
 
@@ -72,7 +73,7 @@ public class UndoEventHistoryTests
                 Id = "undo-entry",
                 Timestamp = At(4),
                 Operation = EventLogOperation.Undo,
-                UndoMetadata = new UndoMetadata { TargetOperationId = firstOperation }
+                TargetOperationId = firstOperation
             },
             Event("after-undo", 5, secondOperation)
         };
@@ -97,11 +98,12 @@ public class UndoEventHistoryTests
     private static InstanceEventLogEntry Operation(string id, string topLevelStep, int minute)
         => new()
         {
+            Id = id,
+            Timestamp = At(minute),
             OperationMetadata = new OperationMetadata
             {
                 Id = id,
-                TopLevelStep = topLevelStep,
-                OccurredAt = At(minute)
+                TopLevelStep = topLevelStep
             }
         };
 

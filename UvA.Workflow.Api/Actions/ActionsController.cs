@@ -55,7 +55,7 @@ public class ActionsController(
                     return Forbidden();
 
                 var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-                var operation = OperationMetadata.CreateForAction(action, definition, realUser);
+                var operation = OperationMetadata.CreateForAction(action, definition);
 
                 // Always log execute events implicitly
                 await effectService.AddEvent(instance, input.Name, realUser, ct, operation);

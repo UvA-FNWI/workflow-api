@@ -150,7 +150,7 @@ public class WorkflowInstanceDtoFactory(
         return stepVersionsMap;
     }
 
-    private async Task<Dictionary<string, OperationMetadata>> GetUndoCandidates(
+    private async Task<Dictionary<string, InstanceEventLogEntry>> GetUndoCandidates(
         WorkflowInstance instance,
         IEnumerable<Step> topLevelSteps,
         IEnumerable<InstanceEventLogEntry> eventLogs)
@@ -173,7 +173,7 @@ public class WorkflowInstanceDtoFactory(
         ObjectContext context,
         HashSet<string> activeSteps,
         IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
-        IReadOnlyDictionary<string, OperationMetadata> undoCandidates,
+        IReadOnlyDictionary<string, InstanceEventLogEntry> undoCandidates,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -216,23 +216,24 @@ public class WorkflowInstanceDtoFactory(
             .Select(formName => modelService.GetForm(instance, formName))
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
         UndoCandidateDto? undoCandidate = null;
-        if (step.ParentStep == null && undoCandidates.GetValueOrDefault(step.Name) is { } candidate)
+        if (step.ParentStep == null &&
+            undoCandidates.GetValueOrDefault(step.Name) is { OperationMetadata: { } operation } root)
         {
-            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == candidate.Step);
-            var form = candidate.Type == OperationType.FormSubmission
-                ? modelService.TryGetForm(instance, candidate.Source)
+            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == operation.Step);
+            var form = operation.Type == OperationType.FormSubmission
+                ? modelService.TryGetForm(instance, operation.Source)
                 : null;
-            var sourceTitle = candidate.Type switch
+            var sourceTitle = operation.Type switch
             {
                 OperationType.FormSubmission =>
-                    form?.Title ?? form?.ActualForm.Title ?? form?.ActualForm.Name ?? candidate.Source,
+                    form?.Title ?? form?.ActualForm.Title ?? form?.ActualForm.Name ?? operation.Source,
                 OperationType.ExecuteAction => candidateStep?.Actions.FirstOrDefault(action =>
-                    action.Type == RoleAction.Execute && action.Name == candidate.Source)?.Label ?? candidate.Source,
-                _ => candidate.Source
+                    action.Type == RoleAction.Execute && action.Name == operation.Source)?.Label ?? operation.Source,
+                _ => operation.Source
             };
-            undoCandidate = new UndoCandidateDto(candidate.Type, candidate.Step,
-                candidateStep?.DisplayTitle ?? candidate.Step, candidate.Source, sourceTitle,
-                candidate.OccurredAt, candidate.Id);
+            undoCandidate = new UndoCandidateDto(operation.Type, operation.Step,
+                candidateStep?.DisplayTitle ?? operation.Step, operation.Source, sourceTitle,
+                root.Timestamp, operation.Id);
         }
 
         return new StepDto(

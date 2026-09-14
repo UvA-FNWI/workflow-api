@@ -23,12 +23,11 @@ public class OperationCorrelationTests : ControllerTestsBase
         var global = new Action { Name = "Global", Steps = ["Subject"] };
         definition.GlobalActions.Add(global);
 
-        Assert.Null(OperationMetadata.CreateForAction(global, definition, UnitTestsHelpers.AdminUser));
+        Assert.Null(OperationMetadata.CreateForAction(global, definition));
         Assert.Null(OperationMetadata.CreateForAction(
-            new Action { Name = "SeveralSteps", Steps = ["Subject", "Upload"] }, definition,
-            UnitTestsHelpers.AdminUser));
+            new Action { Name = "SeveralSteps", Steps = ["Subject", "Upload"] }, definition));
         Assert.Null(OperationMetadata.CreateForAction(
-            new Action { Steps = ["Subject"] }, definition, UnitTestsHelpers.AdminUser));
+            new Action { Steps = ["Subject"] }, definition));
     }
 
     [Fact]
@@ -95,7 +94,7 @@ public class OperationCorrelationTests : ControllerTestsBase
         Assert.Equal("Start", root.Source);
         Assert.Equal("Start", root.Step);
         Assert.Equal("Subject", root.TopLevelStep);
-        Assert.Equal(UnitTestsHelpers.AdminUser.Id, root.ExecutedBy);
+        Assert.Equal(UnitTestsHelpers.AdminUser.Id, rootEntry.ExecutedBy);
         Assert.Equal(root.Id, consequence.OperationId);
         Assert.Null(consequence.OperationMetadata);
         Assert.Equal(root.Id, Assert.Single(jobs).Operation?.Id);

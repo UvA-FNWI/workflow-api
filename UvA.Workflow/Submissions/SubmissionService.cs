@@ -66,7 +66,7 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors, submissionState);
         }
 
-        var operation = OperationMetadata.CreateForSubmission(form, workflowDef, user);
+        var operation = OperationMetadata.CreateForSubmission(form, workflowDef);
 
         if (form.EmitFormSubmitEvent)
             await effectService.AddEvent(instance, submissionId, user, ct, operation);

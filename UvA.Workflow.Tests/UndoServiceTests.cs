@@ -28,8 +28,7 @@ public class UndoServiceTests : ControllerTestsBase
             Type = OperationType.FormSubmission,
             Source = "Start",
             Step = "Subject",
-            TopLevelStep = "Subject",
-            OccurredAt = At(1)
+            TopLevelStep = "Subject"
         };
         List<InstanceEventLogEntry> logs = staleState switch
         {
@@ -40,13 +39,13 @@ public class UndoServiceTests : ControllerTestsBase
                 new InstanceEventLogEntry
                 {
                     Operation = EventLogOperation.Undo,
-                    UndoMetadata = new UndoMetadata { TargetOperationId = target.Id }
+                    TargetOperationId = target.Id
                 }
             ],
             "non-latest" =>
             [
                 EventLog("Start", target.Id, target, At(1)),
-                EventLog("Start", "newer", target with { Id = "newer", OccurredAt = At(2) }, At(2))
+                EventLog("Start", "newer", target with { Id = "newer" }, At(2))
             ],
             _ => throw new ArgumentOutOfRangeException(nameof(staleState))
         };
@@ -77,11 +76,9 @@ public class UndoServiceTests : ControllerTestsBase
             Type = OperationType.ExecuteAction,
             Source = "RunAction",
             Step = "Subject",
-            TopLevelStep = "Subject",
-            OccurredAt = At(1),
-            ExecutedBy = "user"
+            TopLevelStep = "Subject"
         };
-        var target = firstOccurrence with { Id = "latest-action", OccurredAt = At(3) };
+        var target = firstOccurrence with { Id = "latest-action" };
         var logs = new List<InstanceEventLogEntry>
         {
             EventLog("RunAction", firstOccurrence.Id, firstOccurrence, At(1)),
@@ -106,7 +103,7 @@ public class UndoServiceTests : ControllerTestsBase
 
         MockCurrentUser("Undoer");
         var candidate = await _undoService.GetCandidate(instance, "Subject", logs);
-        Assert.Equal(target, candidate);
+        Assert.Equal(target, candidate?.OperationMetadata);
 
         await _undoService.Undo(instance, target.Id, "because", UnitTestsHelpers.AdminUser, _ct);
 
@@ -207,9 +204,7 @@ public class UndoServiceTests : ControllerTestsBase
             Type = OperationType.FormSubmission,
             Source = "Start",
             Step = "Subject",
-            TopLevelStep = "Subject",
-            OccurredAt = At(1),
-            ExecutedBy = UnitTestsHelpers.AdminUser.Id
+            TopLevelStep = "Subject"
         };
         var logs = new List<InstanceEventLogEntry>
         {
@@ -247,11 +242,8 @@ public class UndoServiceTests : ControllerTestsBase
                 Timestamp = At(5),
                 WorkflowInstanceId = instance.Id,
                 Operation = EventLogOperation.Undo,
-                UndoMetadata = new UndoMetadata
-                {
-                    TargetOperationId = operation.Id,
-                    Reason = "because"
-                }
+                TargetOperationId = operation.Id,
+                Reason = "because"
             }))
             .Returns(Task.CompletedTask);
     }
@@ -280,9 +272,7 @@ public class UndoServiceTests : ControllerTestsBase
             Type = OperationType.FormSubmission,
             Source = "FirstForm",
             Step = step,
-            TopLevelStep = topLevelStep,
-            OccurredAt = At(minute),
-            ExecutedBy = "user"
+            TopLevelStep = topLevelStep
         };
 
     private static DateTime At(int minute) => new(2026, 1, 1, 0, minute, 0, DateTimeKind.Utc);

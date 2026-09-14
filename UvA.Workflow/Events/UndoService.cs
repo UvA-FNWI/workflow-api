@@ -11,7 +11,7 @@ public class UndoService(
     InstanceService instanceService,
     RightsService rightsService)
 {
-    public Task<OperationMetadata?> GetCandidate(
+    public Task<InstanceEventLogEntry?> GetCandidate(
         WorkflowInstance instance,
         string topLevelStep,
         IEnumerable<InstanceEventLogEntry> eventLogs)
@@ -29,19 +29,19 @@ public class UndoService(
             throw new ArgumentException("Undo reason must contain between 1 and 1,000 characters.", nameof(reason));
 
         var eventLogs = await eventRepository.GetEventLogEntriesForInstance(instance.Id, ct);
-        var operation = EventHistory.FindOperation(eventLogs, operationId);
+        var operation = EventHistory.FindOperation(eventLogs, operationId)?.OperationMetadata;
         if (operation == null)
             throw new UndoCandidateChangedException();
         if (!await IsAuthorized(instance, operation))
             throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Undo, operation.Source);
 
         var candidate = await ResolveCandidate(instance, operation.TopLevelStep, eventLogs);
-        if (candidate?.Id != operationId)
+        if (candidate?.OperationMetadata?.Id != operationId)
             throw new UndoCandidateChangedException();
 
-        await eventRepository.AddUndoEntry(instance.Id, candidate.Id, realUser, trimmedReason, ct);
+        await eventRepository.AddUndoEntry(instance.Id, candidate.OperationMetadata.Id, realUser, trimmedReason, ct);
 
-        await jobRepository.CancelPendingForOperation(instance.Id, candidate.Id, ct);
+        await jobRepository.CancelPendingForOperation(instance.Id, candidate.OperationMetadata.Id, ct);
 
         var updatedLogs = await eventRepository.GetEventLogEntriesForInstance(instance.Id, ct);
         instance.Events = EventHistory.RebuildEvents(updatedLogs);
@@ -50,13 +50,15 @@ public class UndoService(
         return instance;
     }
 
-    private async Task<OperationMetadata?> ResolveCandidate(
+    private async Task<InstanceEventLogEntry?> ResolveCandidate(
         WorkflowInstance instance,
         string topLevelStep,
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
         var candidate = EventHistory.LatestOperations(eventLogs).GetValueOrDefault(topLevelStep);
-        return candidate != null && await IsAuthorized(instance, candidate) ? candidate : null;
+        return candidate?.OperationMetadata != null && await IsAuthorized(instance, candidate.OperationMetadata)
+            ? candidate
+            : null;
     }
 
     private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation)

@@ -139,14 +139,10 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             Id = ObjectId.GenerateNewId().ToString(),
             Timestamp = DateTime.UtcNow,
             WorkflowInstanceId = instanceId,
-            EventId = targetOperationId,
             ExecutedBy = user.Id,
             Operation = EventLogOperation.Undo,
-            UndoMetadata = new UndoMetadata
-            {
-                TargetOperationId = targetOperationId,
-                Reason = reason
-            }
+            TargetOperationId = targetOperationId,
+            Reason = reason
         }, cancellationToken: ct);
 
     /// <summary>

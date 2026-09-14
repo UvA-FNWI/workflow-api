@@ -97,8 +97,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
                         Type = OperationType.FormSubmission,
                         Source = "Start",
                         Step = "Subject",
-                        TopLevelStep = "Subject",
-                        OccurredAt = new DateTime(2026, 1, 1, 0, 1, 0, DateTimeKind.Utc)
+                        TopLevelStep = "Subject"
                     }
                 }
             ]);
