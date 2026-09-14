@@ -11,11 +11,16 @@ public class UndoService(
     InstanceService instanceService,
     RightsService rightsService)
 {
-    public Task<InstanceEventLogEntry?> GetCandidate(
+    public async Task<InstanceEventLogEntry?> GetCandidate(
         WorkflowInstance instance,
         string topLevelStep,
         IEnumerable<InstanceEventLogEntry> eventLogs)
-        => ResolveCandidate(instance, topLevelStep, eventLogs);
+    {
+        var candidate = EventHistory.LatestOperations(eventLogs).GetValueOrDefault(topLevelStep);
+        return candidate?.OperationMetadata != null && await IsAuthorized(instance, candidate.OperationMetadata)
+            ? candidate
+            : null;
+    }
 
     public async Task<WorkflowInstance> Undo(
         WorkflowInstance instance,
@@ -29,13 +34,13 @@ public class UndoService(
             throw new ArgumentException("Undo reason must contain between 1 and 1,000 characters.", nameof(reason));
 
         var eventLogs = await eventRepository.GetEventLogEntriesForInstance(instance.Id, ct);
-        var operation = EventHistory.FindOperation(eventLogs, operationId)?.OperationMetadata;
+        var operation = eventLogs.FirstOrDefault(log => log.OperationMetadata?.Id == operationId)?.OperationMetadata;
         if (operation == null)
             throw new UndoCandidateChangedException();
         if (!await IsAuthorized(instance, operation))
             throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Undo, operation.Source);
 
-        var candidate = await ResolveCandidate(instance, operation.TopLevelStep, eventLogs);
+        var candidate = EventHistory.LatestOperations(eventLogs).GetValueOrDefault(operation.TopLevelStep);
         if (candidate?.OperationMetadata?.Id != operationId)
             throw new UndoCandidateChangedException();
 
@@ -50,21 +55,10 @@ public class UndoService(
         return instance;
     }
 
-    private async Task<InstanceEventLogEntry?> ResolveCandidate(
-        WorkflowInstance instance,
-        string topLevelStep,
-        IEnumerable<InstanceEventLogEntry> eventLogs)
-    {
-        var candidate = EventHistory.LatestOperations(eventLogs).GetValueOrDefault(topLevelStep);
-        return candidate?.OperationMetadata != null && await IsAuthorized(instance, candidate.OperationMetadata)
-            ? candidate
-            : null;
-    }
-
     private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation)
     {
         var allowed = await rightsService.GetAllowedActionsForStep(
-            instance, operation.Step, RightsEvaluationMode.RequestContext, RoleAction.Undo);
+            instance, operation.Step, RoleAction.Undo);
         return allowed.Any(action => operation.Type switch
         {
             OperationType.FormSubmission => action.AllForms.Length == 0 || action.MatchesForm(operation.Source),

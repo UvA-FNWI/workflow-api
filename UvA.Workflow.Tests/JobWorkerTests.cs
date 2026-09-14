@@ -34,35 +34,6 @@ public class JobWorkerTests
     }
 
     [Fact]
-    public async Task TryClaimJob_ExcludesCancelledJobs()
-    {
-        var collection = new Mock<IMongoCollection<Job>>();
-        var database = new Mock<IMongoDatabase>();
-        FilterDefinition<Job>? capturedFilter = null;
-        collection.Setup(value => value.FindOneAndUpdateAsync(
-                It.IsAny<FilterDefinition<Job>>(),
-                It.IsAny<UpdateDefinition<Job>>(),
-                It.IsAny<FindOneAndUpdateOptions<Job, Job>>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<FilterDefinition<Job>, UpdateDefinition<Job>, FindOneAndUpdateOptions<Job, Job>,
-                CancellationToken>((filter, _, _, _) => capturedFilter = filter)
-            .ReturnsAsync((Job)null!);
-        database.Setup(value => value.GetCollection<Job>("jobs", null)).Returns(collection.Object);
-        var repository = new JobRepository(database.Object,
-            Options.Create(new WorkerOptions { WorkerGroup = "test" }));
-
-        var result = await repository.TryClaimJob(CancellationToken.None);
-
-        Assert.Null(result);
-        var serializerRegistry = BsonSerializer.SerializerRegistry;
-        var serializer = serializerRegistry.GetSerializer<Job>();
-        var filter = capturedFilter!.Render(new RenderArgs<Job>(serializer, serializerRegistry)).ToString();
-        Assert.Contains(nameof(JobStatus.Pending), filter);
-        Assert.Contains(nameof(JobStatus.Running), filter);
-        Assert.DoesNotContain(nameof(JobStatus.Cancelled), filter);
-    }
-
-    [Fact]
     public async Task CancelPendingForOperation_OnlyCancelsMatchingPendingJobs()
     {
         var collection = new Mock<IMongoCollection<Job>>();

@@ -54,7 +54,7 @@ public static class AnswerChangeHistory
         {
             var edit = edits[i];
             var submittedAt = FormSubmissionState.Resolve(
-                new WorkflowInstance { Events = EventsAt(logs, edit.Timestamp) },
+                new WorkflowInstance { Events = EventHistory.RebuildEvents(logs, edit.Timestamp) },
                 submitIds,
                 workflowDefinition).DateSubmitted;
             var submitIndex = submittedAt == null ? -1 : Array.IndexOf(submits, submittedAt.Value);
@@ -93,10 +93,5 @@ public static class AnswerChangeHistory
                 return edit.OldValue;
 
         return currentValue;
-    }
-
-    private static Dictionary<string, InstanceEvent> EventsAt(InstanceEventLogEntry[] logs, DateTime at)
-    {
-        return EventHistory.RebuildEvents(logs, at);
     }
 }

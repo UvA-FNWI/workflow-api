@@ -229,13 +229,10 @@ public class RightsService(
     public async Task<Domain_Action[]> GetAllowedActionsForStep(
         WorkflowInstance instance,
         string stepName,
-        RightsEvaluationMode evaluationMode,
         params RoleAction[] actions)
     {
         var context = modelService.CreateContext(instance);
-        var roles = evaluationMode == RightsEvaluationMode.RealUser
-            ? await GetRealUserRoles(instance)
-            : await GetRequestContextRoles(instance);
+        var roles = await GetRequestContextRoles(instance);
         return GetAllowedActions(instance, context, [stepName], roles, actions);
     }
 

@@ -21,24 +21,12 @@ public static class EventHistory
 
     public static IReadOnlyDictionary<string, InstanceEventLogEntry> LatestOperations(
         IEnumerable<InstanceEventLogEntry> eventLogs)
-    {
-        var undone = UndoneOperationIds(eventLogs);
-
-        return eventLogs
-            .Where(log => log.OperationMetadata != null && !undone.Contains(log.OperationMetadata.Id))
+        => Project(eventLogs)
+            .Where(log => log.OperationMetadata != null)
             .GroupBy(log => log.OperationMetadata!.TopLevelStep)
             .ToDictionary(
                 group => group.Key,
-                group => group
-                    .OrderByDescending(log => log.Timestamp)
-                    .ThenByDescending(log => log.OperationMetadata!.Id, StringComparer.Ordinal)
-                    .First());
-    }
-
-    public static InstanceEventLogEntry? FindOperation(
-        IEnumerable<InstanceEventLogEntry> eventLogs,
-        string operationId)
-        => eventLogs.FirstOrDefault(log => log.OperationMetadata?.Id == operationId);
+                group => group.Last());
 
     private static HashSet<string> UndoneOperationIds(IEnumerable<InstanceEventLogEntry> eventLogs)
         => eventLogs

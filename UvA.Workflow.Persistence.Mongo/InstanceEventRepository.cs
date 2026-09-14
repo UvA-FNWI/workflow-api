@@ -112,23 +112,14 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             OperationId = operationMetadata?.Id
         };
 
-        if (operationMetadata == null)
+        if (operationMetadata != null && await _eventLogCollection
+                .Find(entry => entry.Id == operationMetadata.Id)
+                .FirstOrDefaultAsync(ct) == null)
         {
-            await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
-            return;
+            logEntry.Id = operationMetadata.Id;
+            logEntry.OperationMetadata = operationMetadata;
         }
 
-        var existingRoot = await _eventLogCollection
-            .Find(entry => entry.Id == operationMetadata.Id)
-            .FirstOrDefaultAsync(ct);
-        if (existingRoot != null)
-        {
-            await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
-            return;
-        }
-
-        logEntry.Id = operationMetadata.Id;
-        logEntry.OperationMetadata = operationMetadata;
         await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
     }
 
@@ -136,8 +127,6 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
         CancellationToken ct)
         => _eventLogCollection.InsertOneAsync(new InstanceEventLogEntry
         {
-            Id = ObjectId.GenerateNewId().ToString(),
-            Timestamp = DateTime.UtcNow,
             WorkflowInstanceId = instanceId,
             ExecutedBy = user.Id,
             Operation = EventLogOperation.Undo,

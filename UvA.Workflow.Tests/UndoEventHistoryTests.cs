@@ -100,6 +100,7 @@ public class UndoEventHistoryTests
         {
             Id = id,
             Timestamp = At(minute),
+            OperationId = id,
             OperationMetadata = new OperationMetadata
             {
                 Id = id,

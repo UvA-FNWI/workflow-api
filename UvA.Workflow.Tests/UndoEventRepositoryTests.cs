@@ -1,5 +1,4 @@
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Events;
@@ -10,33 +9,6 @@ namespace UvA.Workflow.Tests;
 
 public class UndoEventRepositoryTests
 {
-    [Fact]
-    public void EventLogEntry_IgnoresRemovedStoredFields()
-    {
-        var operationId = ObjectId.GenerateNewId().ToString();
-        var entry = BsonSerializer.Deserialize<InstanceEventLogEntry>(new BsonDocument
-        {
-            ["HistoryTopLevelStep"] = "Subject",
-            ["HistoryRevision"] = 3,
-            ["OperationMetadata"] = new BsonDocument
-            {
-                ["_id"] = operationId,
-                ["Revision"] = 2
-            },
-            ["UndoMetadata"] = new BsonDocument
-            {
-                ["TargetOperationId"] = operationId,
-                ["TopLevelStep"] = "Subject",
-                ["Revision"] = 2,
-                ["Reason"] = "because"
-            }
-        });
-
-        Assert.Equal(operationId, entry.OperationMetadata!.Id);
-        Assert.Null(entry.TargetOperationId);
-        Assert.Null(entry.Reason);
-    }
-
     [Fact]
     public async Task AddUndoEntry_AppendsUndo()
     {

@@ -55,13 +55,11 @@ public class WorkflowInstanceDtoFactory(
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
         var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
-        var undoCandidates = await GetUndoCandidates(instance, workflowDefinition.Steps,
-            instanceHistory.EventLogs);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
             .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
-                effectiveEventLogs, undoCandidates, ct)));
+                effectiveEventLogs, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -150,18 +148,6 @@ public class WorkflowInstanceDtoFactory(
         return stepVersionsMap;
     }
 
-    private async Task<Dictionary<string, InstanceEventLogEntry>> GetUndoCandidates(
-        WorkflowInstance instance,
-        IEnumerable<Step> topLevelSteps,
-        IEnumerable<InstanceEventLogEntry> eventLogs)
-    {
-        var candidates = await Task.WhenAll(topLevelSteps.Select(async step =>
-            (step.Name, Candidate: await undoService.GetCandidate(instance, step.Name, eventLogs))));
-        return candidates
-            .Where(candidate => candidate.Candidate != null)
-            .ToDictionary(candidate => candidate.Name, candidate => candidate.Candidate!);
-    }
-
     /// <summary>
     /// Creates a StepDto with versions from the map, recursively handling child steps
     /// </summary>
@@ -173,7 +159,6 @@ public class WorkflowInstanceDtoFactory(
         ObjectContext context,
         HashSet<string> activeSteps,
         IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
-        IReadOnlyDictionary<string, InstanceEventLogEntry> undoCandidates,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -187,7 +172,7 @@ public class WorkflowInstanceDtoFactory(
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
-                    effectiveEventLogs, undoCandidates, ct)))
+                    effectiveEventLogs, ct)))
             : null;
         var versionDtos = versions != null
             ? await Task.WhenAll(versions
@@ -217,7 +202,8 @@ public class WorkflowInstanceDtoFactory(
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
         UndoCandidateDto? undoCandidate = null;
         if (step.ParentStep == null &&
-            undoCandidates.GetValueOrDefault(step.Name) is { OperationMetadata: { } operation } root)
+            await undoService.GetCandidate(instance, step.Name, instanceHistory.EventLogs)
+                is { OperationMetadata: { } operation } root)
         {
             var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == operation.Step);
             var form = operation.Type == OperationType.FormSubmission
