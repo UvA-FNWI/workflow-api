@@ -24,7 +24,7 @@ public class RightsService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IImpersonationContextService? impersonationContextService = null)
 {
-    private readonly IImpersonationContextService impersonationContextService =
+    private readonly IImpersonationContextService _impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
     public async Task<IEnumerable<string>> GetGlobalRoles() =>
@@ -104,7 +104,7 @@ public class RightsService(
 
     public async Task<string[]> GetViewerRoles(WorkflowInstance instance, CancellationToken ct = default)
     {
-        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance, ct);
+        var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance, ct);
         if (!string.IsNullOrWhiteSpace(impersonatedRoleName))
         {
             var normalized = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
@@ -212,7 +212,7 @@ public class RightsService(
         WorkflowInstance instance,
         params RoleAction[] actions)
     {
-        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance);
+        var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance);
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetAllowedActionsForRealUser(instance, actions);
 
@@ -323,18 +323,6 @@ public class RightsService(
     {
         if (!await Can(action))
             throw new UnauthorizedAccessException();
-    }
-
-    public Task<bool> CanViewCollection(WorkflowInstance instance, string collection)
-        => CanViewCollection(instance, collection, RightsEvaluationMode.RequestContext);
-
-    public async Task<bool> CanViewCollection(
-        WorkflowInstance instance,
-        string collection,
-        RightsEvaluationMode evaluationMode)
-    {
-        var actions = await GetAllowedActions(instance, evaluationMode, RoleAction.View);
-        return actions.Any(f => f.MatchesCollection(collection));
     }
 
     public async Task<bool> CanEditProperty(WorkflowInstance instance, string propertyName)
