@@ -52,7 +52,7 @@ public class MigrationTests
         Assert.Equal(2, migration.JournalEntriesUpdated);
         Assert.NotNull(migration.FinishedAt);
         repository.Verify(value => value.Create(migration, It.IsAny<CancellationToken>()), Times.Once);
-        repository.Verify(value => value.Update(migration, It.IsAny<CancellationToken>()), Times.Once);
+        repository.Verify(value => value.Update(migration, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -343,7 +343,7 @@ public class MigrationTests
     }
 
     [Fact]
-    public async Task RunConfigured_SkipsAnExistingMigrationIdWithoutResolvingTargets()
+    public async Task RunConfigured_SkipsAFinishedMigrationWithoutResolvingTargets()
     {
         var parser = CreateConfiguredParser();
         var configured = Assert.Single(parser.Migrations);
@@ -352,6 +352,7 @@ public class MigrationTests
         parser.WorkflowDefinitions.Clear();
         var existing = ReadyMigration();
         existing.MigrationId = "Project:2026-09-09-rename-title";
+        existing.Status = MigrationStatus.Finished;
         var repository = new Mock<IMigrationRepository>();
         repository.Setup(value => value.GetByMigrationId(existing.MigrationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existing);
@@ -365,6 +366,124 @@ public class MigrationTests
         repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Never);
         repository.Verify(value => value.RenamePropertyValues(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        repository.Verify(value => value.RenameJournalPaths(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        repository.Verify(value => value.Update(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(MigrationStatus.Failed)]
+    [InlineData(MigrationStatus.Applying)]
+    public async Task RunConfigured_RetriesUnfinishedMigrationUsingSavedOperation(MigrationStatus status)
+    {
+        var configured = CreateConfiguredMigration("Project");
+        var existing = ReadyMigration();
+        existing.MigrationId = configured.MigrationId;
+        existing.Status = status;
+        existing.Error = "Previous attempt failed";
+        existing.RequestedAt = existing.UpdatedAt = DateTime.UtcNow.AddDays(-1);
+        existing.ItemsMatched = existing.ItemsUpdated = 3;
+        existing.JournalEntriesUpdated = 1;
+        var requestedAt = existing.RequestedAt;
+        var repository = new Mock<IMigrationRepository>();
+        repository.Setup(value => value.GetByMigrationId(configured.MigrationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+        var saved = new List<Migration>();
+        repository.Setup(value => value.Update(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .Callback<Migration, CancellationToken>((migration, _) =>
+                saved.Add(BsonSerializer.Deserialize<Migration>(migration.ToBson())))
+            .Returns(Task.CompletedTask);
+        repository.Setup(value => value.RenamePropertyValues(existing, It.IsAny<CancellationToken>()))
+            .Callback(() =>
+            {
+                var applying = Assert.Single(saved);
+                Assert.Equal(MigrationStatus.Applying, applying.Status);
+                Assert.Null(applying.Error);
+                Assert.Null(applying.FinishedAt);
+                Assert.True(applying.UpdatedAt > requestedAt);
+            })
+            .ReturnsAsync(new PropertyRenameResult(0, 0));
+        repository.Setup(value => value.RenameJournalPaths(existing, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(2);
+        // A retry must not reinterpret an operation that already changed data.
+        configured.OldProperty = "DifferentSource";
+        configured.NewProperty = "DifferentDestination";
+        var parser = CreateParser();
+        parser.WorkflowDefinitions.Clear();
+
+        var result = await CreateService(repository, parser).RunConfigured(configured);
+
+        Assert.Same(existing, result);
+        Assert.Equal(MigrationStatus.Finished, saved.Last().Status);
+        Assert.Equal(requestedAt, result.RequestedAt);
+        Assert.Equal(["Project"], result.WorkflowDefinitions);
+        Assert.Equal("Title", result.OldProperty);
+        Assert.Equal("ProjectTitle", result.NewProperty);
+        Assert.Equal(3, result.ItemsMatched);
+        Assert.Equal(3, result.ItemsUpdated);
+        Assert.Equal(3, result.JournalEntriesUpdated);
+        Assert.NotNull(result.FinishedAt);
+        Assert.Null(result.Error);
+        repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Never);
+        repository.Verify(value => value.RenamePropertyValues(existing, It.IsAny<CancellationToken>()), Times.Once);
+        repository.Verify(value => value.RenameJournalPaths(existing, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RunConfigured_JournalFailureRetriesOnNextStartupUntilBothOperationsFinish()
+    {
+        var configured = CreateConfiguredMigration("Project");
+        var repository = new Mock<IMigrationRepository>();
+        byte[]? stored = null;
+        repository.Setup(value => value.GetAll(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Migration>());
+        repository.Setup(value => value.GetByMigrationId(configured.MigrationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => stored == null ? null : BsonSerializer.Deserialize<Migration>(stored));
+        repository.Setup(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .Callback<Migration, CancellationToken>((migration, _) => stored = migration.ToBson())
+            .Returns(Task.CompletedTask);
+        repository.Setup(value => value.Update(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .Callback<Migration, CancellationToken>((migration, _) => stored = migration.ToBson())
+            .Returns(Task.CompletedTask);
+        repository.SetupSequence(value =>
+                value.RenamePropertyValues(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyRenameResult(3, 3))
+            .ReturnsAsync(new PropertyRenameResult(0, 0))
+            .ReturnsAsync(new PropertyRenameResult(0, 0));
+        repository
+            .SetupSequence(value => value.RenameJournalPaths(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Journal write failed"))
+            .ThrowsAsync(new InvalidOperationException("Journal retry failed"))
+            .ReturnsAsync(2);
+
+        foreach (var message in new[] { "Journal write failed", "Journal retry failed" })
+        {
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                CreateService(repository).RunConfigured(configured));
+            Assert.Equal(message, error.Message);
+            var failed = BsonSerializer.Deserialize<Migration>(stored!);
+            Assert.Equal(MigrationStatus.Failed, failed.Status);
+            Assert.Equal(message, failed.Error);
+            Assert.Null(failed.FinishedAt);
+            Assert.Equal(3, failed.ItemsUpdated);
+        }
+
+        var beforeRetry = BsonSerializer.Deserialize<Migration>(stored!);
+        var finished = await CreateService(repository).RunConfigured(configured);
+        var skipped = await CreateService(repository).RunConfigured(configured);
+
+        Assert.Equal(beforeRetry.Id, finished.Id);
+        Assert.Equal(beforeRetry.RequestedAt, finished.RequestedAt);
+        Assert.Equal(MigrationStatus.Finished, skipped.Status);
+        Assert.Null(skipped.Error);
+        Assert.NotNull(skipped.FinishedAt);
+        Assert.Equal(3, skipped.ItemsMatched);
+        Assert.Equal(3, skipped.ItemsUpdated);
+        Assert.Equal(2, skipped.JournalEntriesUpdated);
+        repository.Verify(value => value.Create(It.IsAny<Migration>(), It.IsAny<CancellationToken>()), Times.Once);
+        repository.Verify(value => value.RenamePropertyValues(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(3));
+        repository.Verify(value => value.RenameJournalPaths(It.IsAny<Migration>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(3));
     }
 
     private static MigrationService CreateService(Mock<IMigrationRepository> repository,

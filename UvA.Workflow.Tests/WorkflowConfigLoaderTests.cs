@@ -16,6 +16,7 @@ using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.Api.Versions;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -78,6 +79,34 @@ public class WorkflowConfigLoaderTests
         runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()),
             Times.Once);
         Assert.True(resolver.Contains(""));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MigrationFailure_PreservesPreviousBaselineAndKeepsRevisionEligibleForRetry(bool exhausted)
+    {
+        Exception error = exhausted
+            ? new MigrationRetryLimitException("Project:rename-title", 3, 3)
+            : new TimeoutException("Migration timed out");
+        var runner = new Mock<IConfiguredMigrationRunner>();
+        runner.SetupSequence(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask).ThrowsAsync(error).ThrowsAsync(error);
+        var github = new FakeGitHub("sha-1");
+        var resolver = CreateResolver();
+        var loader = CreateLoader(resolver, RepoOptions(), github.Handler(), runner.Object);
+        await loader.LoadBaselineAsync();
+        var previous = resolver.Resolve();
+        github.Sha = "sha-2";
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            Assert.Same(error, await Assert.ThrowsAnyAsync<Exception>(() => loader.ReloadBaselineIfChangedAsync()));
+            Assert.Equal("sha-1", Assert.Single(resolver.GetVersions()).Commit);
+            Assert.Same(previous.ModelService.WorkflowDefinitions, resolver.Resolve().ModelService.WorkflowDefinitions);
+        }
+
+        runner.Verify(value => value.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     [Fact]

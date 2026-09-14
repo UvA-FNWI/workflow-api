@@ -6,14 +6,48 @@ public class MigrationService(
     ModelService modelService,
     IMigrationRepository migrationRepository)
 {
+    private const int MaxAttempts = 3;
+    private static readonly TimeSpan AttemptTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan FailureSaveTimeout = TimeSpan.FromSeconds(10);
+
     public Task<IReadOnlyList<Migration>> GetAll(CancellationToken ct = default)
         => migrationRepository.GetAll(ct);
 
     public async Task<Migration> RunConfigured(ConfiguredMigration configured, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+        using var timeout = new CancellationTokenSource(AttemptTimeout);
+        using var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+        try
+        {
+            return await RunConfiguredAttempt(configured, attempt.Token, ct);
+        }
+        catch (OperationCanceledException exception) when (timeout.IsCancellationRequested &&
+                                                           !ct.IsCancellationRequested)
+        {
+            throw Timeout(configured.MigrationId, exception);
+        }
+    }
+
+    internal async Task<Migration> RunConfiguredAttempt(ConfiguredMigration configured, CancellationToken ct,
+        CancellationToken callerToken)
+    {
         var existing = await migrationRepository.GetByMigrationId(configured.MigrationId, ct);
-        if (existing != null)
+        ct.ThrowIfCancellationRequested();
+        if (existing?.Status == MigrationStatus.Finished)
             return existing;
+
+        if (existing != null && existing.AttemptCount >= MaxAttempts)
+        {
+            var error = new MigrationRetryLimitException(existing.MigrationId, existing.AttemptCount, MaxAttempts);
+            if (existing.Status == MigrationStatus.Applying)
+                await SaveFailure(existing, error);
+            throw error;
+        }
+
+        // Resume the saved operation, including its original targets, after a failure or interrupted startup.
+        if (existing != null)
+            return await Execute(existing, ct, callerToken);
 
         var migration = new Migration
         {
@@ -26,7 +60,7 @@ public class MigrationService(
         };
         await Prepare(migration, ct);
         await migrationRepository.Create(migration, ct);
-        return await Execute(migration, ct);
+        return await Execute(migration, ct, callerToken);
     }
 
     private async Task Prepare(
@@ -78,18 +112,27 @@ public class MigrationService(
         migration.UpdatedAt = now;
     }
 
-    private async Task<Migration> Execute(Migration migration, CancellationToken ct)
+    private async Task<Migration> Execute(Migration migration, CancellationToken ct, CancellationToken callerToken)
     {
+        ct.ThrowIfCancellationRequested();
         migration.Status = MigrationStatus.Applying;
+        migration.AttemptCount++;
         migration.Error = null;
+        migration.FinishedAt = null;
         migration.UpdatedAt = DateTime.UtcNow;
 
         try
         {
+            // Persist the attempt before changing data so process restarts cannot reset the budget.
+            await migrationRepository.Update(migration, ct);
+            ct.ThrowIfCancellationRequested();
+            // Both operations only match the old name, so completed writes are no-ops on retry.
             var result = await migrationRepository.RenamePropertyValues(migration, ct);
-            migration.ItemsMatched = result.InstancesMatched;
-            migration.ItemsUpdated = result.InstancesUpdated;
-            migration.JournalEntriesUpdated = await migrationRepository.RenameJournalPaths(migration, ct);
+            migration.ItemsMatched += result.InstancesMatched;
+            migration.ItemsUpdated += result.InstancesUpdated;
+            ct.ThrowIfCancellationRequested();
+            migration.JournalEntriesUpdated += await migrationRepository.RenameJournalPaths(migration, ct);
+            ct.ThrowIfCancellationRequested();
 
             migration.Status = MigrationStatus.Finished;
             migration.FinishedAt = migration.UpdatedAt = DateTime.UtcNow;
@@ -98,18 +141,40 @@ public class MigrationService(
         }
         catch (Exception exception)
         {
-            await SaveFailure(migration, exception, ct);
+            var failure = exception is OperationCanceledException && ct.IsCancellationRequested &&
+                          !callerToken.IsCancellationRequested
+                ? Timeout(migration.MigrationId, exception)
+                : exception;
+            try
+            {
+                await SaveFailure(migration, failure);
+            }
+            catch (Exception saveException)
+            {
+                throw new AggregateException(
+                    $"Migration '{migration.MigrationId}' failed and its failure could not be saved",
+                    failure, saveException);
+            }
+
+            if (failure != exception)
+                throw failure;
             throw;
         }
     }
 
-    private async Task SaveFailure(Migration migration, Exception exception, CancellationToken ct)
+    private async Task SaveFailure(Migration migration, Exception exception)
     {
         migration.Status = MigrationStatus.Failed;
+        migration.FinishedAt = null;
         migration.Error = exception.Message;
         migration.UpdatedAt = DateTime.UtcNow;
-        await migrationRepository.Update(migration, ct);
+        // The attempt (or caller) may already be canceled. Bound cleanup independently.
+        using var cleanup = new CancellationTokenSource(FailureSaveTimeout);
+        await migrationRepository.Update(migration, cleanup.Token);
     }
+
+    private static TimeoutException Timeout(string migrationId, Exception exception)
+        => new($"Migration '{migrationId}' exceeded its attempt timeout of {AttemptTimeout}", exception);
 
     private string[] ResolveWorkflowDefinitions(string scope)
     {

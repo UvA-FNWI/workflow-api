@@ -20,8 +20,9 @@ public class ConfiguredMigrationRunner(
         foreach (var migration in parser.Migrations.OrderBy(value => value.MigrationId, StringComparer.Ordinal))
         {
             var result = await service.RunConfigured(migration, ct);
-            logger.LogInformation("Configured migration {MigrationId} has status {Status}",
-                result.MigrationId, result.Status);
+            logger.LogInformation(
+                "Configured migration {MigrationId} has status {Status} after {AttemptCount} attempts",
+                result.MigrationId, result.Status, result.AttemptCount);
         }
     }
 }

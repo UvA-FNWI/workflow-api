@@ -16,7 +16,8 @@ public record MigrationDto(
     long ItemsMatched,
     long ItemsUpdated,
     long JournalEntriesUpdated,
-    string? Error)
+    string? Error,
+    int AttemptCount)
 {
     public static MigrationDto Create(Migration migration) => new(
         migration.MigrationId,
@@ -32,5 +33,6 @@ public record MigrationDto(
         migration.ItemsMatched,
         migration.ItemsUpdated,
         migration.JournalEntriesUpdated,
-        migration.Error);
+        migration.Error,
+        migration.AttemptCount);
 }

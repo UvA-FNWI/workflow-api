@@ -48,6 +48,8 @@ public class Migration
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? FinishedAt { get; set; }
 
+    public int AttemptCount { get; set; }
+
     public long ItemsMatched { get; set; }
     public long ItemsUpdated { get; set; }
     public long JournalEntriesUpdated { get; set; }

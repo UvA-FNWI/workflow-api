@@ -111,6 +111,49 @@ public class MigrationRepositoryTests
     }
 
     [Fact]
+    public async Task RenameJournalPaths_RetryAfterPartialBulkWriteOnlyRenamesRemainingPaths()
+    {
+        var first = Journal("Title.DisplayName");
+        var second = Journal("Title");
+        var journals = new[] { first, second };
+        var fixture = new RepositoryFixture([first.InstanceId, second.InstanceId], journals);
+        var attempts = 0;
+        fixture.Journals.Setup(value => value.BulkWriteAsync(It.IsAny<IEnumerable<WriteModel<InstanceJournalEntry>>>(),
+                It.IsAny<BulkWriteOptions>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<WriteModel<InstanceJournalEntry>>, BulkWriteOptions,
+                CancellationToken>((writes, _, _) =>
+            {
+                var updates = writes.Cast<UpdateOneModel<InstanceJournalEntry>>().ToArray();
+                if (attempts++ == 0)
+                {
+                    Assert.Equal(2, updates.Length);
+                    var document = first.ToBsonDocument();
+                    document["PropertyChanges"][0]["Path"] =
+                        RenderUpdate(updates[0].Update)["$set"]["PropertyChanges.0.Path"];
+                    journals[0] = BsonSerializer.Deserialize<InstanceJournalEntry>(document);
+                    throw new InvalidOperationException("Interrupted after the first journal write");
+                }
+
+                var remaining = Assert.Single(updates);
+                Assert.Equal(new BsonDocument("_id", new ObjectId(second.InstanceId)), RenderFilter(remaining.Filter));
+                var secondDocument = second.ToBsonDocument();
+                secondDocument["PropertyChanges"][0]["Path"] =
+                    RenderUpdate(remaining.Update)["$set"]["PropertyChanges.0.Path"];
+                journals[1] = BsonSerializer.Deserialize<InstanceJournalEntry>(secondDocument);
+            })
+            .ReturnsAsync(new BulkWriteResult<InstanceJournalEntry>.Acknowledged(0, 0, 0, 0, 0, [], []));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Repository.RenameJournalPaths(RenameMigration()));
+        Assert.Equal(1, await fixture.Repository.RenameJournalPaths(RenameMigration()));
+        Assert.Equal(0, await fixture.Repository.RenameJournalPaths(RenameMigration()));
+
+        Assert.Equal("ProjectTitle.DisplayName", journals[0].PropertyChanges[0].Path);
+        Assert.Equal("ProjectTitle", journals[1].PropertyChanges[0].Path);
+        Assert.Equal(2, attempts);
+    }
+
+    [Fact]
     public async Task RenameJournalPaths_WithoutTargetInstancesDoesNotReadOrWriteJournals()
     {
         var fixture = new RepositoryFixture();
@@ -176,14 +219,14 @@ public class MigrationRepositoryTests
                     It.IsAny<FindOptions<WorkflowInstance, string>>(), It.IsAny<CancellationToken>()))
                 .Callback<FilterDefinition<WorkflowInstance>, FindOptions<WorkflowInstance, string>,
                     CancellationToken>((filter, _, _) => InstanceFilter = filter)
-                .ReturnsAsync(Cursor(instanceIds ?? []));
+                .ReturnsAsync(() => Cursor(instanceIds ?? []));
             Journals.Setup(value => value.FindAsync(It.IsAny<FilterDefinition<InstanceJournalEntry>>(),
                     It.IsAny<FindOptions<InstanceJournalEntry, InstanceJournalEntry>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback<FilterDefinition<InstanceJournalEntry>,
                     FindOptions<InstanceJournalEntry, InstanceJournalEntry>, CancellationToken>((filter, _, _) =>
                     JournalFilter = filter)
-                .ReturnsAsync(Cursor(journals ?? []));
+                .ReturnsAsync(() => Cursor(journals ?? []));
             Journals.Setup(value => value.BulkWriteAsync(It.IsAny<IEnumerable<WriteModel<InstanceJournalEntry>>>(),
                     It.IsAny<BulkWriteOptions>(), It.IsAny<CancellationToken>()))
                 .Callback<IEnumerable<WriteModel<InstanceJournalEntry>>, BulkWriteOptions, CancellationToken>((writes,

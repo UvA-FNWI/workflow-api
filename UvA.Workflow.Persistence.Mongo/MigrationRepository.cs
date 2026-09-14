@@ -62,9 +62,11 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
         long renamed = 0;
         foreach (var journal in journals)
         {
+            ct.ThrowIfCancellationRequested();
             var updates = new List<UpdateDefinition<InstanceJournalEntry>>();
             for (var index = 0; index < journal.PropertyChanges.Length; index++)
             {
+                ct.ThrowIfCancellationRequested();
                 var propertyChange = journal.PropertyChanges[index];
                 if (propertyChange.Path != migration.OldProperty &&
                     !propertyChange.Path.StartsWith(migration.OldProperty + '.', StringComparison.Ordinal))

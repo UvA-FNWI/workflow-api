@@ -20,6 +20,7 @@ public class MigrationsControllerTests
             Scope = "Project-Base",
             Kind = MigrationKind.RenameProperty,
             Status = MigrationStatus.Failed,
+            AttemptCount = 3,
             WorkflowDefinitions = ["Project"],
             OldProperty = "Title",
             NewProperty = "ProjectTitle",
@@ -44,6 +45,7 @@ public class MigrationsControllerTests
         var migrations = Assert.IsAssignableFrom<IReadOnlyList<MigrationDto>>(
             Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal(MigrationStatus.Failed, Assert.Single(migrations).Status);
+        Assert.Equal(3, Assert.Single(migrations).AttemptCount);
         Assert.Equal("Project-Base", Assert.Single(migrations).Scope);
         Assert.Equal(["Project"], Assert.Single(migrations).WorkflowDefinitions);
     }
