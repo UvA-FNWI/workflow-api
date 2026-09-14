@@ -160,7 +160,7 @@ public class ImportServiceTests
                                             - name: Attachment
                                               type: File!
                                             - name: IsPublic
-                                              type: Boolean!
+                                              type: Check!
                                           """,
             ["TestDef/Actions.yaml"] = "globalActions:\n  - roles: [Admin]\n    type: Edit"
         });

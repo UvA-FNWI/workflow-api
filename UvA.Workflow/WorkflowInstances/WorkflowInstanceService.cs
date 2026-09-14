@@ -131,7 +131,7 @@ public class WorkflowInstanceService(
             DataType.Choice when value is string choice && property.Values?.Any(v => v.Name == choice) == true =>
                 choice,
             DataType.Int when value is int number => number,
-            DataType.Boolean when value is bool boolean => boolean,
+            DataType.Check when value is bool boolean => boolean,
             DataType.Double when value is double number => number,
             DataType.Double when value is int number => (double)number,
             DataType.Date or DataType.DateTime when value is DateTime date => date,
