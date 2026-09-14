@@ -354,6 +354,13 @@
             "null"
           ],
           "description": "Maximum length of a string"
+        },
+        "minLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Minimum length of a string"
         }
       }
     },
