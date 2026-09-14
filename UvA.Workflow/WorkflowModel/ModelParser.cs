@@ -114,7 +114,20 @@ public partial class ModelParser
             }
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
+            {
+                if (entry.Name != null && NamedConditions.Contains(entry.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares condition '{entry.Name}', which already exists in Common.");
                 NamedConditions.Add(entry);
+            }
+
+            foreach (var role in Read<Role>(definition.SourceFolder))
+            {
+                if (Roles.Contains(role.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares role '{role.Name}', which already exists in Common.");
+                Roles.Add(role);
+            }
 
             if (definition.InheritsFrom != null)
                 ApplyInheritance(definition, WorkflowDefinitions[definition.InheritsFrom]);
