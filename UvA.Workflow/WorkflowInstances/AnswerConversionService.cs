@@ -56,7 +56,7 @@ public class AnswerConversionService(
                     ? dt
                     : BsonNull.Value,
 
-            DataType.Boolean =>
+            DataType.Check =>
                 value.ValueKind is JsonValueKind.True or JsonValueKind.False
                     ? value.GetBoolean()
                     : BsonNull.Value,
