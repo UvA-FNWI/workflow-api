@@ -14,7 +14,8 @@ public class MigrationRepository(IMongoDatabase database) : IMigrationRepository
         database.GetCollection<InstanceJournalEntry>("instance_journal");
 
     public async Task<IReadOnlyList<Migration>> GetAll(CancellationToken ct = default)
-        => await _collection.Find(Builders<Migration>.Filter.Empty)
+        => await _collection.Find(Builders<Migration>.Filter.In(migration => migration.Status,
+                Enum.GetValues<MigrationStatus>()))
             .SortByDescending(migration => migration.RequestedAt)
             .ToListAsync(ct);
 

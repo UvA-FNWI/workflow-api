@@ -27,6 +27,40 @@ public class MigrationRepositoryTests
             It.IsAny<MongoCollectionSettings>()), Times.Once);
     }
 
+    [Fact]
+    public async Task GetAll_FiltersUnsupportedStatusesInMongoBeforeDeserialization()
+    {
+        var fixture = new RepositoryFixture();
+        using var cancellation = new CancellationTokenSource();
+        var migrations = new[] { MigrationStatus.Applying, MigrationStatus.Finished, MigrationStatus.Failed }
+            .Select(status => new Migration { Status = status }).ToArray();
+        var cursor = new Mock<IAsyncCursor<Migration>>();
+        cursor.SetupGet(value => value.Current).Returns(migrations);
+        cursor.SetupSequence(value => value.MoveNextAsync(cancellation.Token))
+            .ReturnsAsync(true).ReturnsAsync(false);
+        FilterDefinition<Migration>? capturedFilter = null;
+        SortDefinition<Migration>? capturedSort = null;
+        fixture.Migrations.Setup(value => value.FindAsync(It.IsAny<FilterDefinition<Migration>>(),
+                It.IsAny<FindOptions<Migration, Migration>>(), cancellation.Token))
+            .Callback<FilterDefinition<Migration>, FindOptions<Migration, Migration>, CancellationToken>((filter,
+                options, _) =>
+            {
+                capturedFilter = filter;
+                capturedSort = options.Sort;
+            })
+            .ReturnsAsync(cursor.Object);
+
+        var result = await fixture.Repository.GetAll(cancellation.Token);
+
+        Assert.Equal(migrations, result);
+        Assert.Equal(new BsonDocument("Status",
+                new BsonDocument("$in", new BsonArray { "Applying", "Finished", "Failed" })),
+            RenderFilter(capturedFilter!));
+        Assert.Equal(new BsonDocument("RequestedAt", -1), capturedSort!.Render(
+            new RenderArgs<Migration>(BsonSerializer.LookupSerializer<Migration>(),
+                BsonSerializer.SerializerRegistry)));
+    }
+
     [Theory]
     [InlineData(7, 4)]
     [InlineData(0, 0)]
@@ -206,6 +240,7 @@ public class MigrationRepositoryTests
 
     private sealed class RepositoryFixture
     {
+        public Mock<IMongoCollection<Migration>> Migrations { get; } = new();
         public Mock<IMongoCollection<WorkflowInstance>> Instances { get; } = new();
         public Mock<IMongoCollection<InstanceJournalEntry>> Journals { get; } = new();
         public MigrationRepository Repository { get; }
@@ -235,7 +270,7 @@ public class MigrationRepositoryTests
 
             var database = new Mock<IMongoDatabase>();
             database.Setup(value => value.GetCollection<Migration>("migrations", It.IsAny<MongoCollectionSettings>()))
-                .Returns(Mock.Of<IMongoCollection<Migration>>());
+                .Returns(Migrations.Object);
             database.Setup(value => value.GetCollection<WorkflowInstance>("instances",
                     It.IsAny<MongoCollectionSettings>()))
                 .Returns(Instances.Object);
