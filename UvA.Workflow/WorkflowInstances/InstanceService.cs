@@ -365,25 +365,21 @@ public class InstanceService(
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
     {
-        var allowed = await rightsService.GetAllowedActions(instance,
-            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
-
         var actions = new List<AllowedAction>();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var activeSteps = modelService.GetActiveSteps(instance);
+        var allowed = await rightsService.GetAllowedActions(instance,
+            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
 
         // Submittable forms
         actions.AddRange(allowed
             .Where(a => a.Type == RoleAction.Submit)
-            .SelectMany(a => a.AllForms.Select(f => new { Action = a, Form = f }))
-            .Where(f => !FormSubmissionState.Resolve(instance, modelService.GetForm(instance, f.Form), workflowDef)
-                .IsSubmitted)
+            .SelectMany(a => a.AllForms
+                .SelectMany(name => name == Domain_Action.All ? workflowDef.Forms.Select(f => f.Name) : [name])
+                .Select(name => new { Action = a, Form = modelService.GetForm(instance, name) }))
+            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
             .Distinct()
-            .Select(f =>
-            {
-                var form = modelService.GetForm(instance, f.Form);
-                return new AllowedAction(f.Action, form, DisplaySteps: GetDisplaySteps(f.Action, form));
-            })
+            .Select(f => new AllowedAction(f.Action, f.Form, DisplaySteps: GetDisplaySteps(f.Action, f.Form)))
         );
 
         // Create related entities

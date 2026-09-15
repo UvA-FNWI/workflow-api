@@ -24,7 +24,7 @@ public class RightsService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IImpersonationContextService? impersonationContextService = null)
 {
-    private readonly IImpersonationContextService impersonationContextService =
+    private readonly IImpersonationContextService _impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
     public async Task<IEnumerable<string>> GetGlobalRoles() =>
@@ -57,8 +57,7 @@ public class RightsService(
             .ToArray();
     }
 
-    // Only roles that can actually view this instance are useful to impersonate; if a role can't
-    // see anything there's no point loading the page as it.
+    // View rights keep a role eligible for impersonation even after a hard deadline.
     public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
     {
         var roles = modelService.Roles;
@@ -80,9 +79,12 @@ public class RightsService(
         var activeSteps = modelService.GetActiveSteps(instance);
 
         return GetImpersonationTargetRoles(instance)
-            .Select(r => new RoleAllowedActions(r,
-                GetAllowedActions(instance, context, activeSteps,
-                    [roles.GetValueOrDefault(r.Name)], actions)))
+            .Select(r =>
+            {
+                var roleActions = GetAllowedActions(instance, context, activeSteps,
+                    [roles.GetValueOrDefault(r.Name)], actions);
+                return new RoleAllowedActions(r, GetAllowedActions(instance, context, roleActions));
+            })
             .ToArray();
     }
 
@@ -101,7 +103,7 @@ public class RightsService(
 
     public async Task<string[]> GetViewerRoles(WorkflowInstance instance, CancellationToken ct = default)
     {
-        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance, ct);
+        var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance, ct);
         if (!string.IsNullOrWhiteSpace(impersonatedRoleName))
         {
             var normalized = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
@@ -209,7 +211,7 @@ public class RightsService(
         WorkflowInstance instance,
         params RoleAction[] actions)
     {
-        var impersonatedRoleName = await impersonationContextService.GetImpersonatedRole(instance);
+        var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance);
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetAllowedActionsForRealUser(instance, actions);
 
@@ -235,11 +237,24 @@ public class RightsService(
         WorkflowInstance instance,
         RightsEvaluationMode evaluationMode,
         params RoleAction[] actions)
-        => evaluationMode switch
+    {
+        var roleActions = evaluationMode switch
         {
             RightsEvaluationMode.RealUser => await GetAllowedActionsForRealUser(instance, actions),
             _ => await GetAllowedActionsForRequestContext(instance, actions)
         };
+        return GetAllowedActions(instance, modelService.CreateContext(instance), roleActions);
+    }
+
+    private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
+        Domain_Action[] actions)
+    {
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var activeSteps = modelService.GetActiveSteps(instance)
+            .Where(name => !definition.AllSteps.Get(name).HasPassedHardDeadline(context)).ToArray();
+        return actions.Where(a => a.Type == RoleAction.View || a.Steps.Length == 0 ||
+                                  a.Steps.Intersect(activeSteps).Any()).ToArray();
+    }
 
     public async Task<bool> CanAny(string? workflowDefinition, params RoleAction[] actions)
         => (await GetAllowedActions(workflowDefinition, actions)).Any();
@@ -301,18 +316,6 @@ public class RightsService(
     {
         if (!await Can(action))
             throw new UnauthorizedAccessException();
-    }
-
-    public Task<bool> CanViewCollection(WorkflowInstance instance, string collection)
-        => CanViewCollection(instance, collection, RightsEvaluationMode.RequestContext);
-
-    public async Task<bool> CanViewCollection(
-        WorkflowInstance instance,
-        string collection,
-        RightsEvaluationMode evaluationMode)
-    {
-        var actions = await GetAllowedActions(instance, evaluationMode, RoleAction.View);
-        return actions.Any(f => f.MatchesCollection(collection));
     }
 
     public async Task<bool> CanEditProperty(WorkflowInstance instance, string propertyName)
