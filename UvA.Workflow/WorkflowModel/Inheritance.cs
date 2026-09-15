@@ -68,18 +68,27 @@ public partial class ModelParser
         if (!Cleared(target, d => d.GlobalActions))
             target.GlobalActions = MergeActions(target.GlobalActions, source.GlobalActions);
 
-        // Global and overridden-step actions are registered from the merged definition.
         var sourceGlobals = source.GlobalActions.ToHashSet();
-        foreach (var role in Roles)
-        foreach (var action in role.Actions
-                     .Where(a => a.WorkflowDefinition == source.Name
-                                 && !sourceGlobals.Contains(a)
-                                 && !a.Steps.Any(declaredStepNames.Contains))
-                     .ToArray())
+        foreach (var sourceRole in source.Roles)
         {
-            var newAction = action.Clone();
-            newAction.WorkflowDefinition = target.Name;
-            role.Actions.Add(newAction);
+            var targetRole = target.Roles.GetOrDefault(sourceRole.Name);
+            if (targetRole == null)
+            {
+                targetRole = sourceRole.Clone();
+                targetRole.Actions = [];
+                target.Roles.Add(targetRole);
+            }
+            else
+                ApplyInheritance(targetRole, sourceRole);
+
+            var inherited = sourceRole.Actions.Where(a => a.WorkflowDefinition == null ||
+                                                          (a.WorkflowDefinition == source.Name &&
+                                                           !sourceGlobals.Contains(a) &&
+                                                           !a.Steps.Any(declaredStepNames.Contains)));
+
+            targetRole.Actions = MergeActions(targetRole.Actions, inherited.ToList());
+            foreach (var action in targetRole.Actions.Where(a => a.WorkflowDefinition == source.Name))
+                action.WorkflowDefinition = target.Name;
         }
 
         if (!target.Declared(d => d.StepNames)) target.StepNames = source.StepNames;
@@ -157,5 +166,12 @@ public partial class ModelParser
 
     private void ApplyInheritance(SendMessage target, SendMessage source)
     {
+    }
+
+    private void ApplyInheritance(Role target, Role source)
+    {
+        if (!target.Declared(r => r.Title)) target.Title = source.Title;
+        if (!target.Declared(r => r.Order)) target.Order = source.Order;
+        if (!target.Declared(r => r.InheritFrom)) target.InheritFrom = source.InheritFrom;
     }
 }

@@ -92,7 +92,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         });
         var factory = CreateFactory(stepVersionService.Object);
 
-        _modelParser.Roles.Add(new Role
+        _modelParser.GlobalRoles.Add(new Role
         {
             Name = "WildcardViewer",
             Actions =

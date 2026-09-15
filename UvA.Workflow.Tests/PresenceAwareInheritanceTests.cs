@@ -121,7 +121,7 @@ public class PresenceAwareInheritanceTests
             ["Clear/Steps/Approval.yaml"] = "name: Approval\nactions: []"
         }));
 
-        var reviewer = parser.Roles.Single(r => r.Name == "Reviewer");
+        var reviewer = parser.GlobalRoles.Single(r => r.Name == "Reviewer");
 
         Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Approve");
         Assert.Equal(1, reviewer.Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Approve"));
@@ -150,7 +150,7 @@ public class PresenceAwareInheritanceTests
             ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base\nglobalActions: []"
         }));
 
-        var registered = parser.Roles.Single(r => r.Name == "Registered");
+        var registered = parser.GlobalRoles.Single(r => r.Name == "Registered");
 
         Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Make");
         Assert.Equal(1, registered.Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Make"));
