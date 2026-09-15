@@ -46,7 +46,8 @@ public class AnswersControllerTests : ControllerTestsBase
                 new StepVersionService(),
                 new StepHeaderStatusResolver(_modelService),
                 _workflowInstanceService,
-                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
+                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
+                _undoService);
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,

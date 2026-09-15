@@ -44,7 +44,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 new StepVersionService(),
                 new StepHeaderStatusResolver(_modelService),
                 _workflowInstanceService,
-                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
+                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
+                _undoService);
         _answerService = new AnswerService(
             _modelService,
             _instanceService,
@@ -494,8 +495,10 @@ public class SubmissionsControllerTests : ControllerTestsBase
         _eventRepoMock
             .Setup(r => r.AddOrUpdateEvent(
                 It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
-                It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken>((_, _, user, _) =>
+                It.IsAny<User>(), It.IsAny<CancellationToken>(), It.IsAny<string?>(),
+                It.IsAny<OperationMetadata?>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken, string?,
+                OperationMetadata?>((_, _, user, _, _, _) =>
                 capturedEventUser = user)
             .Returns(Task.CompletedTask);
 

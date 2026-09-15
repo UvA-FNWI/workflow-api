@@ -18,7 +18,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     /// <param name="ct">The cancellation token used to observe the operation's cancellation.</param>
     /// <returns>An asynchronous operation representing the add or update process.</returns>
     public async Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
-        CancellationToken ct)
+        CancellationToken ct, string? operationId = null, OperationMetadata? operationMetadata = null)
     {
         // Add or update existing event in the instance
         var filter = Builders<WorkflowInstance>.Filter.Eq(i => i.Id, instance.Id);
@@ -36,13 +36,13 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
         var originalDoc =
             await _instanceCollection.FindOneAndUpdateAsync(filter, update, options, cancellationToken: ct);
 
-        // Determine operation type by checking if the key existed previously
+        // Determine the event-log entry type by checking if the key existed previously
         var wasUpdated = originalDoc != null &&
                          originalDoc.Events.ContainsKey(newEvent.Id);
 
         // Also add the event to the event log collection
         await AddEventLogEntry(instance, newEvent, user,
-            wasUpdated ? EventLogOperation.Update : EventLogOperation.Create, ct);
+            wasUpdated ? EventLogOperation.Update : EventLogOperation.Create, ct, operationId, operationMetadata);
     }
 
     /// <summary>
@@ -99,7 +99,8 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     /// Adds an event log entry to the event log collection
     /// </summary>
     public async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
-        EventLogOperation operation, CancellationToken ct)
+        EventLogOperation type, CancellationToken ct, string? operationId = null,
+        OperationMetadata? operationMetadata = null)
     {
         var logEntry = new InstanceEventLogEntry
         {
@@ -107,11 +108,56 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             WorkflowInstanceId = instance.Id,
             EventId = instanceEvent.Id,
             EventDate = instanceEvent.Date,
-            Operation = operation,
-            ExecutedBy = user.Id
+            Operation = type,
+            ExecutedBy = user.Id,
+            OperationId = operationMetadata?.Id ?? operationId
         };
+
+        if (operationMetadata != null && await _eventLogCollection
+                .Find(entry => entry.Id == operationMetadata.Id)
+                .FirstOrDefaultAsync(ct) == null)
+        {
+            logEntry.Id = operationMetadata.Id;
+            logEntry.OperationMetadata = operationMetadata;
+        }
+
         await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
+
+        if (logEntry.OperationId == null || await _eventLogCollection.CountDocumentsAsync(
+                entry => entry.Operation == EventLogOperation.Undo && entry.OperationId == logEntry.OperationId,
+                new CountOptions { Limit = 1 }, ct) == 0)
+            return;
+
+        var effectiveEvent = EventHistory.RebuildEvents(
+            await GetEventLogEntriesForInstance(instance.Id, ct)).GetValueOrDefault(logEntry.EventId);
+        UpdateDefinition<WorkflowInstance> repair;
+        if (effectiveEvent == null)
+        {
+            instance.Events.Remove(logEntry.EventId);
+            repair = Builders<WorkflowInstance>.Update.Unset(entry => entry.Events[logEntry.EventId]);
+        }
+        else
+        {
+            instance.Events[logEntry.EventId] = effectiveEvent;
+            repair = Builders<WorkflowInstance>.Update.Set(entry => entry.Events[logEntry.EventId], effectiveEvent);
+        }
+
+        await _instanceCollection.UpdateOneAsync(
+            entry => entry.Id == instance.Id,
+            repair,
+            cancellationToken: ct);
     }
+
+    public Task AddUndoEntry(string instanceId, string operationId, User user, string reason,
+        CancellationToken ct)
+        => _eventLogCollection.InsertOneAsync(new InstanceEventLogEntry
+        {
+            WorkflowInstanceId = instanceId,
+            ExecutedBy = user.Id,
+            Operation = EventLogOperation.Undo,
+            OperationId = operationId,
+            Reason = reason
+        }, cancellationToken: ct);
 
     /// <summary>
     /// Gets all event log entries for specific events in an instance
