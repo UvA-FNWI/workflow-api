@@ -107,7 +107,7 @@ public class ActionsControllerTests : ControllerTestsBase
                 {
                     Id = id!,
                     EventId = actionName,
-                    Type = EventLogOperation.Create,
+                    Operation = EventLogOperation.Create,
                     Timestamp = occurredAt,
                     OperationId = id,
                     OperationMetadata = metadata

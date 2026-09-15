@@ -230,6 +230,6 @@ public class AnswerChangeHistoryTests
             EventId = eventId,
             Timestamp = timestamp,
             EventDate = timestamp,
-            Type = type
+            Operation = type
         };
 }

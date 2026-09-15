@@ -33,7 +33,7 @@ public class UndoEventRepositoryTests
             instanceId, operationId, UnitTestsHelpers.AdminUser, "because", default);
 
         Assert.NotNull(inserted);
-        Assert.Equal(EventLogOperation.Undo, inserted.Type);
+        Assert.Equal(EventLogOperation.Undo, inserted.Operation);
         Assert.Null(inserted.EventId);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, inserted.ExecutedBy);
         Assert.InRange(inserted.Timestamp, before, DateTime.UtcNow);

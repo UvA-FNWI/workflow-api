@@ -193,7 +193,7 @@ public class WorkflowInstanceDtoFactory(
                                 FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted) ||
                             effectiveEventLogs.Any(log =>
                                 submissionEventIds.Contains(log.EventId) &&
-                                log.Type is EventLogOperation.Create or EventLogOperation.Update);
+                                log.Operation is EventLogOperation.Create or EventLogOperation.Update);
         var expectsSubmission = activeSteps.Contains(step.Name) && step.Actions
             .Where(action => action.Type == RoleAction.Submit && action.Condition.IsMet(context))
             .SelectMany(action => action.AllForms)

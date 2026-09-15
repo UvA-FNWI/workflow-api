@@ -38,7 +38,7 @@ public class UndoServiceTests : ControllerTestsBase
                 EventLog("Start", target.Id, target, At(1)),
                 new InstanceEventLogEntry
                 {
-                    Type = EventLogOperation.Undo,
+                    Operation = EventLogOperation.Undo,
                     OperationId = target.Id
                 }
             ],
@@ -242,7 +242,7 @@ public class UndoServiceTests : ControllerTestsBase
                 Id = "undo-entry",
                 Timestamp = At(5),
                 WorkflowInstanceId = instance.Id,
-                Type = EventLogOperation.Undo,
+                Operation = EventLogOperation.Undo,
                 OperationId = operation.Id,
                 Reason = "because"
             }))
@@ -261,7 +261,7 @@ public class UndoServiceTests : ControllerTestsBase
             EventId = eventId,
             OperationId = operationId,
             OperationMetadata = operation,
-            Type = eventLogOperation,
+            Operation = eventLogOperation,
             Timestamp = at ?? DateTime.UtcNow,
             EventDate = at ?? DateTime.UtcNow
         };

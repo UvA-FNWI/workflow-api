@@ -114,7 +114,7 @@ public class OperationCorrelationTests : ControllerTestsBase
         inserted.Add(new InstanceEventLogEntry
         {
             Id = ObjectId.GenerateNewId().ToString(),
-            Type = EventLogOperation.Undo,
+            Operation = EventLogOperation.Undo,
             OperationId = root.Id
         });
         instance.Events = EventHistory.RebuildEvents(inserted);

@@ -303,7 +303,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
             WorkflowInstanceId = instance.Id,
             EventId = eventId,
             EventDate = timestamp,
-            Type = EventLogOperation.Create,
+            Operation = EventLogOperation.Create,
             Timestamp = timestamp
         };
 

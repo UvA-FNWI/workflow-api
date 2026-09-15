@@ -108,7 +108,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             WorkflowInstanceId = instance.Id,
             EventId = instanceEvent.Id,
             EventDate = instanceEvent.Date,
-            Type = type,
+            Operation = type,
             ExecutedBy = user.Id,
             OperationId = operationMetadata?.Id ?? operationId
         };
@@ -124,7 +124,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
         await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
 
         if (logEntry.OperationId == null || await _eventLogCollection.CountDocumentsAsync(
-                entry => entry.Type == EventLogOperation.Undo && entry.OperationId == logEntry.OperationId,
+                entry => entry.Operation == EventLogOperation.Undo && entry.OperationId == logEntry.OperationId,
                 new CountOptions { Limit = 1 }, ct) == 0)
             return;
 
@@ -154,7 +154,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
         {
             WorkflowInstanceId = instanceId,
             ExecutedBy = user.Id,
-            Type = EventLogOperation.Undo,
+            Operation = EventLogOperation.Undo,
             OperationId = operationId,
             Reason = reason
         }, cancellationToken: ct);

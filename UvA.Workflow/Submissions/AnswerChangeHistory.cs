@@ -41,7 +41,7 @@ public static class AnswerChangeHistory
         var submitIds = submissionEventIds.ToHashSet();
         var submits = effectiveLogs
             .Where(log => submitIds.Contains(log.EventId) &&
-                          log.Type is EventLogOperation.Create or EventLogOperation.Update)
+                          log.Operation is EventLogOperation.Create or EventLogOperation.Update)
             .Select(log => log.EventDate ?? log.Timestamp)
             .ToArray();
 

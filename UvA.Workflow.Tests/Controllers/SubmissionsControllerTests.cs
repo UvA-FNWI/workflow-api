@@ -124,7 +124,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
                     EventId = submissionId,
                     Timestamp = submittedAt,
                     EventDate = submittedAt,
-                    Type = EventLogOperation.Create
+                    Operation = EventLogOperation.Create
                 }
             ]);
 

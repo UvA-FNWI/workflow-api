@@ -99,7 +99,7 @@ public class InstanceEventLogEntry
 
     [BsonRepresentation(BsonType.String)]
     [BsonElement("Operation")]
-    public EventLogOperation Type { get; set; }
+    public EventLogOperation Operation { get; set; }
 
     /// <summary>
     /// The operation this event change belongs to, or the operation
