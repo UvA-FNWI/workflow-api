@@ -173,21 +173,6 @@ public class WorkflowInstanceDtoFactory(
                 versions.Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
             : null;
 
-        if (step.HasPassedHardDeadline(context))
-        {
-            return new StepDto(
-                step.Name, step.DisplayTitle, step.Icon, step.EndEvent,
-                step.GetEndDate(instance, workflowDef),
-                Deadline: deadline,
-                Children: null,
-                HeaderStatus: headerStatus,
-                ResultsType: step.ResultsType,
-                ExpectsSubmission: false,
-                HasSubmission: false,
-                HierarchyMode: step.HierarchyMode,
-                Versions: versionDtos?.ToList());
-        }
-
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
@@ -207,7 +192,8 @@ public class WorkflowInstanceDtoFactory(
                             instanceHistory.EventLogs.Any(log =>
                                 submissionEventIds.Contains(log.EventId) &&
                                 log.Operation is EventLogOperation.Create or EventLogOperation.Update);
-        var expectsSubmission = activeSteps.Contains(step.Name) && step.Actions
+        // Hard deadlines end the submission expectation, including inherited deadlines.
+        var expectsSubmission = activeSteps.Contains(step.Name) && !step.HasPassedHardDeadline(context) && step.Actions
             .Where(action => action.Type == RoleAction.Submit && action.Condition.IsMet(context))
             .SelectMany(action => action.AllForms)
             .Distinct()

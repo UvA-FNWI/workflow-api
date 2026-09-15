@@ -135,7 +135,7 @@ public class DeadlineTests
     [InlineData(DeadlineType.Soft, "=2000-01-01", false, false, true)]
     [InlineData(DeadlineType.Hard, "=2999-01-01", false, false, false)]
     [InlineData(DeadlineType.Hard, "=2000-01-01", true, false, false)]
-    public async Task Factory_ReplacesOnlyUnfinishedExpiredHardDeadlineContent(
+    public async Task Factory_ReportsDeadlineStatusForUnfinishedSteps(
         DeadlineType type, string date, bool completed, bool expectsMessage, bool expectsPassed)
     {
         var modelService = new ModelService(new ModelParser(Content));
@@ -298,6 +298,31 @@ public class DeadlineTests
     }
 
     [Theory]
+    [InlineData("Step", DeadlineType.Hard, "=2000-01-01", false)]
+    [InlineData("Child", DeadlineType.Hard, "=2000-01-01", false)]
+    [InlineData("Step", DeadlineType.Soft, "=2000-01-01", true)]
+    [InlineData("Child", DeadlineType.Soft, "=2000-01-01", true)]
+    [InlineData("Step", DeadlineType.Hard, "=2999-01-01", true)]
+    [InlineData("Child", DeadlineType.Hard, "=2999-01-01", true)]
+    public async Task Factory_ExpectsSubmissionUntilOwnOrParentHardDeadlinePasses(
+        string deadlineStepName, DeadlineType type, string date, bool expected)
+    {
+        var model = CreateModelWithForms();
+        var definition = model.WorkflowDefinitions["Hard"];
+        definition.AllSteps.Single(step => step.Name == "Step").Deadline = null;
+        definition.AllSteps.Single(step => step.Name == deadlineStepName).Deadline =
+            new Deadline { Date = date, Type = type };
+        var repository = new Mock<IWorkflowInstanceRepository>();
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, repository);
+
+        var dto = await factory.Create(Instance("Hard"), CancellationToken.None);
+        var child = Assert.Single(dto.Steps.Single(step => step.Id == "Step").Children!);
+
+        Assert.Equal(expected, child.ExpectsSubmission);
+        Assert.False(child.HasSubmission);
+    }
+
+    [Theory]
     [InlineData(StepResultsType.Normal)]
     [InlineData(StepResultsType.AssessmentPartOverview)]
     [InlineData(StepResultsType.AssessmentFinalOverview)]
@@ -319,7 +344,10 @@ public class DeadlineTests
 
         Assert.Null(step.Deadline!.Message);
         Assert.Equal(resultsType, step.ResultsType);
-        Assert.Null(step.Children);
+        var child = Assert.Single(step.Children!);
+        Assert.Equal("Child", child.Id);
+        Assert.True(child.HasSubmission);
+        Assert.False(child.ExpectsSubmission);
         Assert.Null(step.Versions);
         Assert.False(step.HasSubmission);
         Assert.False(step.ExpectsSubmission);
@@ -437,7 +465,7 @@ public class DeadlineTests
         var expired = deadlineStepName == "Subject" ? subject : subject.Children!.Single(step => step.Id == "Start");
         Assert.Null(expired.Deadline!.Message);
         Assert.True(expired.Deadline!.IsPassed);
-        Assert.False(expired.ExpectsSubmission);
+        Assert.False(subject.Children!.Single(step => step.Id == "Start").ExpectsSubmission);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Start");
         Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
         var version = Assert.Single(expired.Versions!);
