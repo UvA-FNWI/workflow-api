@@ -58,7 +58,7 @@ public class ActionsController(
                 var operation = OperationMetadata.CreateForAction(action, definition);
 
                 // Always log execute events implicitly
-                await effectService.AddEvent(instance, input.Name, realUser, ct, operation);
+                await effectService.AddEvent(instance, input.Name, realUser, ct, operation?.Id, operation);
 
                 result = await jobService.CreateAndRunJob(instance, action, realUser, input.JobInput, ct, operation);
                 await instanceService.UpdateCurrentStep(instance, ct);

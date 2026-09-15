@@ -193,7 +193,7 @@ public class WorkflowInstanceDtoFactory(
                                 FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted) ||
                             effectiveEventLogs.Any(log =>
                                 submissionEventIds.Contains(log.EventId) &&
-                                log.Operation is EventLogOperation.Create or EventLogOperation.Update);
+                                log.Type is EventLogOperation.Create or EventLogOperation.Update);
         var expectsSubmission = activeSteps.Contains(step.Name) && step.Actions
             .Where(action => action.Type == RoleAction.Submit && action.Condition.IsMet(context))
             .SelectMany(action => action.AllForms)
@@ -217,9 +217,11 @@ public class WorkflowInstanceDtoFactory(
                     action.Type == RoleAction.Execute && action.Name == operation.Source)?.Label ?? operation.Source,
                 _ => operation.Source
             };
-            undoCandidate = new UndoCandidateDto(operation.Type, operation.Step,
-                candidateStep?.DisplayTitle ?? operation.Step, operation.Source, sourceTitle,
-                root.Timestamp, operation.Id);
+            undoCandidate = new UndoCandidateDto(operation.Type,
+                candidateStep?.DisplayTitle ?? operation.Step,
+                sourceTitle,
+                root.Timestamp,
+                operation.Id);
         }
 
         return new StepDto(

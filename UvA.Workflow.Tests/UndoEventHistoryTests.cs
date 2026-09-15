@@ -36,8 +36,8 @@ public class UndoEventHistoryTests
             Operation("newer", "Subject", 2),
             new InstanceEventLogEntry
             {
-                Operation = EventLogOperation.Undo,
-                TargetOperationId = "newer"
+                Type = EventLogOperation.Undo,
+                OperationId = "newer"
             }
         };
 
@@ -72,8 +72,8 @@ public class UndoEventHistoryTests
             {
                 Id = "undo-entry",
                 Timestamp = At(4),
-                Operation = EventLogOperation.Undo,
-                TargetOperationId = firstOperation
+                Type = EventLogOperation.Undo,
+                OperationId = firstOperation
             },
             Event("after-undo", 5, secondOperation)
         };
@@ -92,7 +92,7 @@ public class UndoEventHistoryTests
             Timestamp = At(minute),
             EventId = eventId,
             OperationId = operationId,
-            Operation = EventLogOperation.Create
+            Type = EventLogOperation.Create
         };
 
     private static InstanceEventLogEntry Operation(string id, string topLevelStep, int minute)

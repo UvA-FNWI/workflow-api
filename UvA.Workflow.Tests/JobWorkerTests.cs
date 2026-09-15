@@ -66,7 +66,7 @@ public class JobWorkerTests
         var filter = capturedFilter!.Render(renderArgs);
         var update = capturedUpdate!.Render(renderArgs);
         Assert.Equal(new ObjectId(instanceId), filter["InstanceId"].AsObjectId);
-        Assert.Equal(new ObjectId(operationId), filter["Operation._id"].AsObjectId);
+        Assert.Equal(new ObjectId(operationId), filter["OperationId"].AsObjectId);
         Assert.Equal(nameof(JobStatus.Pending), filter["Status"].AsString);
         Assert.Equal(nameof(JobStatus.Cancelled), update["$set"]["Status"].AsString);
     }

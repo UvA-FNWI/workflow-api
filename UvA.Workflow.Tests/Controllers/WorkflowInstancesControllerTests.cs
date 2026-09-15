@@ -89,7 +89,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
                     Id = "operation",
                     WorkflowInstanceId = instance.Id,
                     EventId = "Start",
-                    Operation = EventLogOperation.Create,
+                    Type = EventLogOperation.Create,
                     OperationId = "operation",
                     OperationMetadata = new OperationMetadata
                     {

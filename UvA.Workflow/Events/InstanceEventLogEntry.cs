@@ -10,7 +10,7 @@ public enum EventLogOperation
     Update,
     Delete,
 
-    /// <summary>Invalidates one undoable operation. The target is TargetOperationId, not OperationId.</summary>
+    /// <summary>Invalidates the operation identified by OperationId.</summary>
     Undo
 }
 
@@ -99,31 +99,21 @@ public class InstanceEventLogEntry
 
     [BsonRepresentation(BsonType.String)]
     [BsonElement("Operation")]
-    public EventLogOperation Operation { get; set; }
+    public EventLogOperation Type { get; set; }
 
     /// <summary>
-    /// The undoable operation this event mutation belongs to. Set on the root and on
-    /// every later consequence (including delayed ones). Projection drops these rows
-    /// when an undo targets that same id.
+    /// The operation this event change belongs to, or the operation
+    /// invalidated by an undo entry.
     /// </summary>
     [BsonIgnoreIfNull]
     [BsonRepresentation(BsonType.ObjectId)]
     public string? OperationId { get; set; }
 
     /// <summary>
-    /// Present only on the first event of an undoable operation. Identifies the
-    /// submission or action and which step owns it.
+    /// Present only on the first event change of an undoable operation.
     /// </summary>
     [BsonIgnoreIfNull]
     public OperationMetadata? OperationMetadata { get; set; }
-
-    /// <summary>
-    /// Undo rows only: which operation to drop, for example <c>op-1</c> after a later
-    /// submit <c>op-2</c> should stay. This is not <see cref="OperationId"/> — an undo
-    /// is not a consequence of the operation it invalidates.
-    /// </summary>
-    [BsonIgnoreIfNull]
-    public string? TargetOperationId { get; set; }
 
     /// <summary>Undo rows only: why the operation was undone.</summary>
     [BsonIgnoreIfNull]

@@ -58,7 +58,7 @@ public class JobRepository(IMongoDatabase database, IOptions<WorkerOptions> work
     public Task CancelPendingForOperation(string instanceId, string operationId, CancellationToken ct)
         => _jobCollection.UpdateManyAsync(
             job => job.InstanceId == instanceId &&
-                   job.Operation!.Id == operationId &&
+                   job.OperationId == operationId &&
                    job.Status == JobStatus.Pending,
             Builders<Job>.Update.Set(job => job.Status, JobStatus.Cancelled),
             cancellationToken: ct);

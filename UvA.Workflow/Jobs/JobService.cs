@@ -43,10 +43,10 @@ public class JobService(
             IsSynchronous = true,
             WorkerGroup = workerOptions.Value.WorkerGroup,
             Steps = steps.Keys.ToList(),
-            Operation = operation
+            OperationId = operation?.Id
         };
 
-        var result = await RunJob(job, instance, effects, user, ct);
+        var result = await RunJob(job, instance, effects, user, ct, operation);
         var jobStepsBeforeFiltering = job.Steps;
         job.Steps = job.Steps.Where(s => steps[s].IsLogged).ToList();
         if (job.Steps.Count > 0)
@@ -112,7 +112,7 @@ public class JobService(
                 IsSynchronous = false,
                 WorkerGroup = workerOptions.Value.WorkerGroup,
                 Steps = delayGroup.Select(e => new JobStep { Identifier = e.Identifier }).ToList(),
-                Operation = operation
+                OperationId = operation?.Id
             }, ct);
 
         return result;
@@ -149,7 +149,7 @@ public class JobService(
     }
 
     private async Task<EffectResult> RunJob(Job job, WorkflowInstance instance, Effect[] effects, User user,
-        CancellationToken ct)
+        CancellationToken ct, OperationMetadata? operation = null)
     {
         var context = modelService.CreateContext(instance);
         EffectResult result = new();
@@ -174,7 +174,7 @@ public class JobService(
 
             try
             {
-                result += await effectService.RunEffect(job, instance, effect, user, context, ct);
+                result += await effectService.RunEffect(job, instance, effect, user, context, ct, operation);
             }
             catch (Exception ex)
             {

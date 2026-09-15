@@ -49,11 +49,13 @@ public class EffectService(
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
     public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
-        ObjectContext context, CancellationToken ct)
+        ObjectContext context, CancellationToken ct, OperationMetadata? operationMetadata = null)
     {
         var input = job.Input;
-        if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct, job.Operation);
-        if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct, job.Operation);
+        if (effect.Event != null)
+            await AddEvent(instance, effect.Event, user, ct, job.OperationId, operationMetadata);
+        if (effect.UndoEvent != null)
+            await UndoEvent(instance, effect.UndoEvent, user, ct, job.OperationId, operationMetadata);
         if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(instance, context, effect, ct);
@@ -112,21 +114,21 @@ public class EffectService(
     }
 
     private async Task UndoEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
-        OperationMetadata? operation = null)
+        string? operationId = null, OperationMetadata? operationMetadata = null)
     {
         if (!instance.Events.TryGetValue(eventName, out var ev))
             return;
         ev.Date = null;
-        await eventService.UpdateEvent(instance, ev.Id, user, ct, operation);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct, operationId, operationMetadata);
     }
 
     public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
-        OperationMetadata? operation = null)
+        string? operationId = null, OperationMetadata? operationMetadata = null)
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
         ev.Date = DateTime.Now;
-        await eventService.UpdateEvent(instance, ev.Id, user, ct, operation);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct, operationId, operationMetadata);
     }
 
     private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,

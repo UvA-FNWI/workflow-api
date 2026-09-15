@@ -14,7 +14,7 @@ public static class EventHistory
         var undone = UndoneOperationIds(logs);
 
         return logs
-            .Where(log => log.Operation != EventLogOperation.Undo &&
+            .Where(log => log.Type != EventLogOperation.Undo &&
                           (log.OperationId == null || !undone.Contains(log.OperationId)))
             .ToArray();
     }
@@ -30,8 +30,8 @@ public static class EventHistory
 
     private static HashSet<string> UndoneOperationIds(IEnumerable<InstanceEventLogEntry> eventLogs)
         => eventLogs
-            .Where(log => log.Operation == EventLogOperation.Undo)
-            .Select(log => log.TargetOperationId)
+            .Where(log => log.Type == EventLogOperation.Undo)
+            .Select(log => log.OperationId)
             .OfType<string>()
             .ToHashSet();
 
@@ -42,7 +42,7 @@ public static class EventHistory
         var events = new Dictionary<string, InstanceEvent>();
         foreach (var log in Project(eventLogs, at))
         {
-            if (log.Operation == EventLogOperation.Delete)
+            if (log.Type == EventLogOperation.Delete)
                 events.Remove(log.EventId);
             else
                 events[log.EventId] = new InstanceEvent { Id = log.EventId, Date = log.EventDate };

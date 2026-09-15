@@ -33,12 +33,11 @@ public class UndoEventRepositoryTests
             instanceId, operationId, UnitTestsHelpers.AdminUser, "because", default);
 
         Assert.NotNull(inserted);
-        Assert.Equal(EventLogOperation.Undo, inserted.Operation);
+        Assert.Equal(EventLogOperation.Undo, inserted.Type);
         Assert.Null(inserted.EventId);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, inserted.ExecutedBy);
         Assert.InRange(inserted.Timestamp, before, DateTime.UtcNow);
-        Assert.Null(inserted.OperationId);
-        Assert.Equal(operationId, inserted.TargetOperationId);
+        Assert.Equal(operationId, inserted.OperationId);
         Assert.Equal("because", inserted.Reason);
         collection.Verify(value => value.InsertOneAsync(
                 It.IsAny<InstanceEventLogEntry>(), It.IsAny<InsertOneOptions>(), It.IsAny<CancellationToken>()),

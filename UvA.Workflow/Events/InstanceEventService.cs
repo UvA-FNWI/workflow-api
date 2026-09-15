@@ -7,7 +7,7 @@ namespace UvA.Workflow.Events;
 public interface IInstanceEventService
 {
     Task UpdateEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct,
-        OperationMetadata? operation = null);
+        string? operationId = null, OperationMetadata? operationMetadata = null);
 
     /// <summary>
     /// Deletes a specific event from the provided workflow instance based on the given event ID.
@@ -38,10 +38,10 @@ public class InstanceEventService(
     InstanceService instanceService) : IInstanceEventService
 {
     public async Task UpdateEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct,
-        OperationMetadata? operation = null)
+        string? operationId = null, OperationMetadata? operationMetadata = null)
     {
         var newEvent = instance.RecordEvent(eventId);
-        await eventRepository.AddOrUpdateEvent(instance, newEvent, user, ct, operation);
+        await eventRepository.AddOrUpdateEvent(instance, newEvent, user, ct, operationId, operationMetadata);
     }
 
     /// <summary>

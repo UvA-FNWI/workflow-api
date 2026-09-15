@@ -1,6 +1,8 @@
 using Moq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
@@ -25,13 +27,15 @@ public class OperationCorrelationTests : ControllerTestsBase
 
         Assert.Null(OperationMetadata.CreateForAction(global, definition));
         Assert.Null(OperationMetadata.CreateForAction(
+            new Action { Name = "NoSteps", Steps = [] }, definition));
+        Assert.Null(OperationMetadata.CreateForAction(
             new Action { Name = "SeveralSteps", Steps = ["Subject", "Upload"] }, definition));
         Assert.Null(OperationMetadata.CreateForAction(
             new Action { Steps = ["Subject"] }, definition));
     }
 
     [Fact]
-    public async Task Submission_CorrelatesRootEventConsequenceAndDelayedJob()
+    public async Task Submission_CorrelatesConsequencesAndKeepsLateEventsIneffectiveAfterUndo()
     {
         var instance = new WorkflowInstanceBuilder()
             .With("Project", "Subject")
@@ -49,10 +53,17 @@ public class OperationCorrelationTests : ControllerTestsBase
         var instances = new Mock<IMongoCollection<WorkflowInstance>>();
         database.Setup(db => db.GetCollection<InstanceEventLogEntry>("eventlog", null)).Returns(eventLogs.Object);
         database.Setup(db => db.GetCollection<WorkflowInstance>("instances", null)).Returns(instances.Object);
+        UpdateDefinition<WorkflowInstance>? repairedEvent = null;
         instances.Setup(collection => collection.FindOneAndUpdateAsync(
                 It.IsAny<FilterDefinition<WorkflowInstance>>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<FindOneAndUpdateOptions<WorkflowInstance, WorkflowInstance>>(), _ct))
             .ReturnsAsync((WorkflowInstance)null!);
+        instances.Setup(collection => collection.UpdateOneAsync(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                It.IsAny<UpdateOptions>(), _ct))
+            .Callback<FilterDefinition<WorkflowInstance>, UpdateDefinition<WorkflowInstance>, UpdateOptions,
+                CancellationToken>((_, update, _, _) => repairedEvent = update)
+            .ReturnsAsync(Mock.Of<UpdateResult>());
 
         var inserted = new List<InstanceEventLogEntry>();
         eventLogs.Setup(collection => collection.FindAsync(
@@ -97,7 +108,39 @@ public class OperationCorrelationTests : ControllerTestsBase
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, rootEntry.ExecutedBy);
         Assert.Equal(root.Id, consequence.OperationId);
         Assert.Null(consequence.OperationMetadata);
-        Assert.Equal(root.Id, Assert.Single(jobs).Operation?.Id);
+        var delayedJob = Assert.Single(jobs);
+        Assert.Equal(root.Id, delayedJob.OperationId);
+
+        inserted.Add(new InstanceEventLogEntry
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            Type = EventLogOperation.Undo,
+            OperationId = root.Id
+        });
+        instance.Events = EventHistory.RebuildEvents(inserted);
+        eventLogs.Setup(collection => collection.CountDocumentsAsync(
+                It.IsAny<FilterDefinition<InstanceEventLogEntry>>(),
+                It.IsAny<CountOptions>(), _ct))
+            .ReturnsAsync(1);
+        eventLogs.Setup(collection => collection.FindAsync(
+                It.IsAny<FilterDefinition<InstanceEventLogEntry>>(),
+                It.IsAny<FindOptions<InstanceEventLogEntry, InstanceEventLogEntry>>(), _ct))
+            .ReturnsAsync(() => Cursor(inserted));
+        _workflowInstanceRepoMock.Setup(repository => repository.GetById(instance.Id, _ct))
+            .ReturnsAsync(instance);
+        _userRepoMock.Setup(repository => repository.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        _jobRepositoryMock.Setup(repository => repository.Update(delayedJob, _ct))
+            .Returns(Task.CompletedTask);
+
+        await jobService.RunJob(delayedJob, _ct);
+
+        Assert.Empty(instance.Events);
+        var registry = BsonSerializer.SerializerRegistry;
+        var update = repairedEvent!.Render(new RenderArgs<WorkflowInstance>(
+            registry.GetSerializer<WorkflowInstance>(), registry));
+        Assert.True(update["$unset"].AsBsonDocument.Contains("Events.DelayedConsequence"));
+        Assert.False(update["$unset"].AsBsonDocument.Contains("Events"));
     }
 
     private static IAsyncCursor<InstanceEventLogEntry> Cursor(IEnumerable<InstanceEventLogEntry> entries)

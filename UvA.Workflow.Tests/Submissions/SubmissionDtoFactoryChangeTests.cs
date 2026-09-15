@@ -42,7 +42,7 @@ public class SubmissionDtoFactoryChangeTests
                 EventId = "Start",
                 Timestamp = submitted,
                 EventDate = submitted,
-                Operation = EventLogOperation.Create
+                Type = EventLogOperation.Create
             }
         ]);
 
@@ -94,7 +94,7 @@ public class SubmissionDtoFactoryChangeTests
                 EventId = "Start",
                 Timestamp = submitted,
                 EventDate = submitted,
-                Operation = EventLogOperation.Create
+                Type = EventLogOperation.Create
             }
         ]);
         var dto = await factory.CreateAsync(instance, form, state,
@@ -223,12 +223,12 @@ public class SubmissionDtoFactoryChangeTests
         });
 
     private static InstanceEventLogEntry EventLog(string eventId, DateTime timestamp,
-        EventLogOperation operation)
+        EventLogOperation type)
         => new()
         {
             EventId = eventId,
             Timestamp = timestamp,
             EventDate = timestamp,
-            Operation = operation
+            Type = type
         };
 }

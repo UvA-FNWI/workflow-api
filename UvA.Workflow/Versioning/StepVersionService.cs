@@ -33,7 +33,7 @@ public class StepVersionService : IStepVersionService
         // Get submission events (create/update only), ordered chronologically
         var submissionEvents = effectiveEventLogs
             .Where(log => allChildEventSet.Contains(log.EventId))
-            .Where(log => log.Operation is EventLogOperation.Create or EventLogOperation.Update)
+            .Where(log => log.Type is EventLogOperation.Create or EventLogOperation.Update)
             .OrderBy(log => log.Timestamp)
             .ToList();
 

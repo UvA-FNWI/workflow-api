@@ -124,7 +124,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
                     EventId = submissionId,
                     Timestamp = submittedAt,
                     EventDate = submittedAt,
-                    Operation = EventLogOperation.Create
+                    Type = EventLogOperation.Create
                 }
             ]);
 
@@ -421,9 +421,10 @@ public class SubmissionsControllerTests : ControllerTestsBase
         _eventRepoMock
             .Setup(r => r.AddOrUpdateEvent(
                 It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
-                It.IsAny<User>(), It.IsAny<CancellationToken>(), It.IsAny<OperationMetadata?>()))
-            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken,
-                OperationMetadata?>((_, _, user, _, _) =>
+                It.IsAny<User>(), It.IsAny<CancellationToken>(), It.IsAny<string?>(),
+                It.IsAny<OperationMetadata?>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken, string?,
+                OperationMetadata?>((_, _, user, _, _, _) =>
                 capturedEventUser = user)
             .Returns(Task.CompletedTask);
 

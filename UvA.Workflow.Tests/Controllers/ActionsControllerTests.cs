@@ -17,6 +17,7 @@ using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
+using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -42,12 +43,77 @@ public class ActionsControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData("Coordinator", "CoordinatorApproved", "ApprovalCoordinator")]
+    [InlineData("Coordinator", "UndoableAction", "Subject")]
     public async Task Actions_ExecuteAction_AllowedForUser(string role, string actionName, string stepName)
     {
         // Arrange
         var (controller, instance) = BuildControllerWithRoles([role], stepName);
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].AllSteps
+            .Single(step => step.Name == stepName).Actions.Add(new DomainAction
+            {
+                Type = RoleAction.Execute,
+                Roles = [role],
+                Name = actionName,
+                Label = "Undoable action",
+                Steps = [stepName]
+            });
         var input = new ExecuteActionInputDto(ActionType.Execute, instance.Id, actionName);
+        string? operationId = null;
+        OperationMetadata? operation = null;
+        var occurredAt = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var eventLogs = new List<InstanceEventLogEntry>();
+        string? consequenceOperationId = null;
+        OperationMetadata? consequenceOperation = null;
+        Job? delayedJob = null;
+        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
+            .ReturnsAsync(eventLogs);
+        _modelParser.Roles.Single(candidate => candidate.Name == role).Actions.AddRange([
+            new DomainAction
+            {
+                Type = RoleAction.Execute,
+                Name = actionName,
+                Steps = [stepName],
+                OnAction =
+                [
+                    new Effect { Event = "ImmediateConsequence" },
+                    new Effect { Event = "DelayedConsequence", Delay = "1m" }
+                ]
+            },
+            new DomainAction { Type = RoleAction.Undo, Name = actionName, Steps = [stepName] }
+        ]);
+        _eventRepoMock.Setup(r => r.AddOrUpdateEvent(instance,
+                It.Is<InstanceEvent>(e => e.Id == "ImmediateConsequence"),
+                UnitTestsHelpers.AdminUser,
+                _ct,
+                It.IsAny<string?>(),
+                It.IsAny<OperationMetadata?>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken, string?, OperationMetadata
+                ?>((_, _, _, _, id, metadata) => (consequenceOperationId, consequenceOperation) = (id, metadata))
+            .Returns(Task.CompletedTask);
+        _jobRepositoryMock.Setup(repository => repository.Add(It.IsAny<Job>(), _ct))
+            .Callback<Job, CancellationToken>((job, _) => delayedJob = job)
+            .Returns(Task.CompletedTask);
+        _eventRepoMock.Setup(r => r.AddOrUpdateEvent(instance,
+                It.Is<InstanceEvent>(e => e.Id == actionName),
+                UnitTestsHelpers.AdminUser,
+                _ct,
+                It.IsAny<string?>(),
+                It.IsAny<OperationMetadata?>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken, string?, OperationMetadata?>((_, _, _,
+                _, id, metadata) =>
+            {
+                (operationId, operation) = (id, metadata);
+                eventLogs.Add(new InstanceEventLogEntry
+                {
+                    Id = id!,
+                    EventId = actionName,
+                    Type = EventLogOperation.Create,
+                    Timestamp = occurredAt,
+                    OperationId = id,
+                    OperationMetadata = metadata
+                });
+            })
+            .Returns(Task.CompletedTask);
 
         // Act
         var result = await controller.ExecuteAction(input, _ct);
@@ -57,14 +123,22 @@ public class ActionsControllerTests : ControllerTestsBase
         var payload = Assert.IsType<ExecuteActionPayloadDto>(okResult.Value);
         Assert.Equal(ActionType.Execute, payload.Type);
         Assert.NotNull(payload.Instance);
-        _eventRepoMock.Verify(r => r.AddOrUpdateEvent(instance,
-            It.Is<InstanceEvent>(e => e.Id == actionName),
-            UnitTestsHelpers.AdminUser,
-            _ct,
-            It.Is<OperationMetadata>(operation => operation.Type == OperationType.ExecuteAction &&
-                                                  operation.Source == actionName &&
-                                                  operation.Step == stepName &&
-                                                  operation.TopLevelStep == stepName)), Times.Once);
+        Assert.NotNull(operation);
+        Assert.Equal(OperationType.ExecuteAction, operation.Type);
+        Assert.Equal(actionName, operation.Source);
+        Assert.Equal(stepName, operation.Step);
+        Assert.Equal(stepName, operation.TopLevelStep);
+        Assert.Equal(operation.Id, operationId);
+        Assert.Equal(operation.Id, consequenceOperationId);
+        Assert.Equal(operation, consequenceOperation);
+        Assert.Equal(operation.Id, delayedJob?.OperationId);
+        var candidate = Assert.Single(payload.Instance.Steps, step => step.Id == stepName).UndoCandidate;
+        Assert.NotNull(candidate);
+        Assert.Equal(OperationType.ExecuteAction, candidate.Type);
+        Assert.Equal("Subject", candidate.StepTitle.En);
+        Assert.Equal("Undoable action", candidate.SourceTitle.En);
+        Assert.Equal(occurredAt, candidate.OccurredAt);
+        Assert.Equal(operation.Id, candidate.OperationId);
     }
 
     [Theory]
@@ -180,6 +254,7 @@ public class ActionsControllerTests : ControllerTestsBase
             It.Is<InstanceEvent>(e => e.Id == "CoordinatorApproved"),
             It.IsAny<User>(),
             _ct,
+            It.IsAny<string?>(),
             It.IsAny<OperationMetadata?>()), Times.Once);
     }
 
@@ -229,9 +304,10 @@ public class ActionsControllerTests : ControllerTestsBase
         _eventRepoMock
             .Setup(r => r.AddOrUpdateEvent(
                 It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
-                It.IsAny<User>(), It.IsAny<CancellationToken>(), It.IsAny<OperationMetadata?>()))
-            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken,
-                OperationMetadata?>((_, _, user, _, _) =>
+                It.IsAny<User>(), It.IsAny<CancellationToken>(), It.IsAny<string?>(),
+                It.IsAny<OperationMetadata?>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken, string?,
+                OperationMetadata?>((_, _, user, _, _, _) =>
                 capturedEventUser = user)
             .Returns(Task.CompletedTask);
 

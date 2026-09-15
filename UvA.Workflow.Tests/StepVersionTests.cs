@@ -556,7 +556,7 @@ public class StepVersionTests
             WorkflowInstanceId = instance.Id,
             EventId = eventId,
             EventDate = timestamp,
-            Operation = EventLogOperation.Create,
+            Type = EventLogOperation.Create,
             Timestamp = timestamp
         };
 

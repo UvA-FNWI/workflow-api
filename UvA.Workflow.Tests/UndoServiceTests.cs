@@ -38,8 +38,8 @@ public class UndoServiceTests : ControllerTestsBase
                 EventLog("Start", target.Id, target, At(1)),
                 new InstanceEventLogEntry
                 {
-                    Operation = EventLogOperation.Undo,
-                    TargetOperationId = target.Id
+                    Type = EventLogOperation.Undo,
+                    OperationId = target.Id
                 }
             ],
             "non-latest" =>
@@ -109,6 +109,7 @@ public class UndoServiceTests : ControllerTestsBase
 
         Assert.Equal(At(1), instance.Events["RunAction"].Date);
         Assert.DoesNotContain("Consequence", instance.Events);
+        _jobRepositoryMock.Verify(r => r.CancelPendingForOperation(instance.Id, target.Id, _ct), Times.Once);
     }
 
     [Fact]
@@ -241,8 +242,8 @@ public class UndoServiceTests : ControllerTestsBase
                 Id = "undo-entry",
                 Timestamp = At(5),
                 WorkflowInstanceId = instance.Id,
-                Operation = EventLogOperation.Undo,
-                TargetOperationId = operation.Id,
+                Type = EventLogOperation.Undo,
+                OperationId = operation.Id,
                 Reason = "because"
             }))
             .Returns(Task.CompletedTask);
@@ -260,7 +261,7 @@ public class UndoServiceTests : ControllerTestsBase
             EventId = eventId,
             OperationId = operationId,
             OperationMetadata = operation,
-            Operation = eventLogOperation,
+            Type = eventLogOperation,
             Timestamp = at ?? DateTime.UtcNow,
             EventDate = at ?? DateTime.UtcNow
         };
