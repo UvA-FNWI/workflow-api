@@ -21,7 +21,7 @@ public partial class ModelParser
         .Build();
 
     public List<Service> Services { get; }
-    public List<Role> Roles { get; }
+    public List<Role> GlobalRoles { get; }
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
@@ -29,7 +29,7 @@ public partial class ModelParser
     public ModelParser(IContentProvider contentProvider)
     {
         _contentProvider = contentProvider;
-        Roles = Read<Role>();
+        GlobalRoles = Read<Role>();
         Services = Read<Service>();
         ValidateServices(Services);
         ValueSets = Read<ValueSet>();
@@ -114,17 +114,27 @@ public partial class ModelParser
             }
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
+            {
+                if (entry.Name != null && NamedConditions.Contains(entry.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares condition '{entry.Name}', which already exists in Common.");
                 NamedConditions.Add(entry);
+            }
+
+            definition.Roles = GlobalRoles.Select(r => r.Clone()).ToList();
+            foreach (var role in Read<Role>(definition.SourceFolder))
+            {
+                if (GlobalRoles.Contains(role.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares role '{role.Name}', which already exists in Common.");
+                definition.Roles.Add(role);
+            }
 
             if (definition.InheritsFrom != null)
                 ApplyInheritance(definition, WorkflowDefinitions[definition.InheritsFrom]);
 
             definition.Steps = definition.StepNames.Select(n => definition.AllSteps.Get(n)).ToList();
             WorkflowDefinitions[definition.Name] = definition;
-
-            foreach (var prop in definition.Properties.Where(p => p.UnderlyingType == "User"))
-                if (!Roles.Contains(prop.Name))
-                    Roles.Add(new Role { Name = prop.Name });
 
             foreach (var val in definition.Events)
                 val.Name = val.Name;
@@ -133,7 +143,7 @@ public partial class ModelParser
             {
                 action.WorkflowDefinition = definition.Name;
                 foreach (var role in action.Roles)
-                    Roles.Get(role).Actions.Add(action);
+                    definition.Roles.Get(role).Actions.Add(action);
             }
 
             // Inherited parents must resolve child references against this definition's steps.
@@ -148,7 +158,7 @@ public partial class ModelParser
                     action.Steps = [step.Name];
                     foreach (var role in action.Roles)
                     {
-                        var roleObject = Roles.GetOrDefault(role);
+                        var roleObject = definition.Roles.GetOrDefault(role);
                         if (roleObject == null)
                             throw new Exception($"Role {role} is used in action {action.Name} but does not exist");
                         roleObject.Actions.Add(action);
@@ -171,7 +181,11 @@ public partial class ModelParser
             }
         }
 
-        Roles.ForEach(PreProcess);
+        GlobalRoles.ForEach(r => PreProcess(r));
+        foreach (var wd in WorkflowDefinitions.Values)
+        foreach (var role in wd.Roles)
+            PreProcess(role, wd);
+
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
     }
@@ -195,9 +209,13 @@ public partial class ModelParser
         }
     }
 
-    private void PreProcess(Role role)
+    private void PreProcess(Role role, WorkflowDefinition? owner = null)
     {
-        role.Actions = role.Actions.Union(role.InheritFrom.SelectMany(r => Roles.Get(r).Actions)).ToList();
+        Role ResolveInherited(string name) => owner?.Roles.GetOrDefault(name) ?? GlobalRoles.GetOrDefault(name)
+            ?? throw new Exception($"Role '{name}' referenced in inheritFrom of role '{role.Name}' does not exist");
+
+        role.Actions = role.Actions
+            .Union(role.InheritFrom.Select(ResolveInherited).SelectMany(r => r.Actions)).ToList();
         foreach (var act in role.Actions)
         {
             PreProcess(act.OnAction);
