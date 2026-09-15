@@ -92,7 +92,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         });
         var factory = CreateFactory(stepVersionService.Object);
 
-        _modelParser.GlobalRoles.Add(new Role
+        var wildcardViewer = new Role
         {
             Name = "WildcardViewer",
             Actions =
@@ -103,7 +103,9 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
                     Form = DomainAction.All
                 }
             ]
-        });
+        };
+        _modelService.WorkflowDefinitions["Project"].Roles.Add(wildcardViewer);
+
         MockCurrentUser("WildcardViewer");
         MockInstance(instance);
         MockEmptyRelatedInstanceLookups();

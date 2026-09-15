@@ -206,7 +206,9 @@ public class RightsService(
         params RoleAction[] actions)
     {
         var globalUserRoles = await GetGlobalUserRoles();
-        var globalRoles = globalUserRoles.Select(gur => modelService.Roles.GetValueOrDefault(gur))
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var globalRoles = globalUserRoles
+            .Select(gur => definition.Roles.GetOrDefault(gur))
             .Where(r => r != null)
             .ToArray();
         var instanceRoles = await GetInstanceRoles(instance);
