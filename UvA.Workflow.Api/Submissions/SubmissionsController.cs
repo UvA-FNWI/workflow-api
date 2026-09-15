@@ -29,11 +29,8 @@ public class SubmissionsController(
 
         if (version is not null)
         {
-            // Historical snapshots require view rights, but ignore current deadlines.
-            // They are read-only and omit the live form's answer-change history.
-            var allowed = await rightsService.GetAllowedHistoricalViewActions(instance);
-            if (!allowed.Any(a => a.MatchesForm(form.Name)))
-                throw new ForbiddenWorkflowActionException(instanceId, RoleAction.View, submissionId);
+            // Historical snapshots use normal view rights, are read-only and omit live answer-change history.
+            await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
 
             return Ok(submissionDtoFactory.Create(instance, form, submissionState,
                 modelService.GetQuestionStatus(instance, form, true), permissions: []));

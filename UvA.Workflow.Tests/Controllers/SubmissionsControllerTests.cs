@@ -103,7 +103,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Submissions_ExpiredHardDeadline_RejectsLiveReadAndSubmitBeforeLoadingHistory()
+    public async Task Submissions_ExpiredHardDeadline_RejectsDraftReadAndSubmitBeforeLoadingHistory()
     {
         var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
         _modelService.WorkflowDefinitions["Project"].AllSteps.Single(s => s.Name == "Start").Deadline =
@@ -114,6 +114,32 @@ public class SubmissionsControllerTests : ControllerTestsBase
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
             controller.SubmitSubmission(instance.Id, "Start", _ct));
         _instanceJournalServiceMock.Verify(j => j.GetInstanceJournal(instance.Id, false, _ct), Times.Never);
+    }
+
+    [Fact]
+    public async Task Submissions_ExpiredHardDeadline_AllowsSubmittedReadWithStepViewRights()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"],
+            b => b.WithId("Start").AsCompleted(new DateTime(1999, 1, 1)));
+        var step = _modelService.WorkflowDefinitions["Project"].AllSteps.Single(s => s.Name == "Start");
+        step.Deadline = new Deadline { Type = DeadlineType.Hard, Date = "=2000-01-01" };
+        // The form was submitted, but the step still awaits another event.
+        step.Ends = new Condition { Event = "NeverCompleted" };
+        _modelService.Roles["Student"].Actions =
+        [
+            new() { Type = RoleAction.View, Form = "Start", Steps = ["Start"] },
+            new() { Type = RoleAction.Edit, Form = "Start", Steps = ["Start"] },
+            new() { Type = RoleAction.Submit, Form = "Start", Steps = ["Start"] }
+        ];
+        Assert.True(step.HasPassedHardDeadline(_modelService.CreateContext(instance)));
+
+        var result = await controller.GetSubmission(instance.Id, "Start", null, _ct);
+
+        var payload = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal("Start", payload.FormName);
+        Assert.Empty(payload.Permissions);
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            controller.SubmitSubmission(instance.Id, "Start", _ct));
     }
 
     [Theory]

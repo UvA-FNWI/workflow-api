@@ -266,7 +266,7 @@ public class WorkflowInstanceDtoFactory(
             // Get the instance at the version timestamp
             var instanceAtVersion = workflowInstanceService
                 .GetAsOfTimestamp(instance, stepVersion.SubmittedAt, instanceHistory);
-            var allowedViewActions = await rightsService.GetAllowedHistoricalViewActions(instanceAtVersion);
+            var allowedViewActions = await rightsService.GetAllowedActions(instanceAtVersion, RoleAction.View);
 
             // Create a submission for each event in the version
             foreach (var eventId in stepVersion.EventIds)

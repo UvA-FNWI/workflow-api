@@ -1,3 +1,4 @@
+using System.Globalization;
 using UvA.Workflow.Events;
 using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel;
@@ -91,7 +92,7 @@ public class Deadline
     public string Date { get; set; } = null!;
 
     /// <summary>
-    /// Hard deadlines revoke permissions granted by this step. Separate global/form grants still apply.
+    /// Hard deadlines revoke this step's permissions except View. Separate global/form grants still apply.
     /// Soft deadlines do not change permissions.
     /// </summary>
     public DeadlineType Type { get; set; } = DeadlineType.Soft;

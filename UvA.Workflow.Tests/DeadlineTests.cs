@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using Moq;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
@@ -153,7 +155,7 @@ public class DeadlineTests
         var stepDto = Assert.Single(dto.Steps);
 
         Assert.NotNull(stepDto.Deadline);
-        Assert.Equal(DateTime.Parse(date[1..]), stepDto.Deadline.Date);
+        Assert.Equal(DateTimeOffset.Parse(date[1..], CultureInfo.InvariantCulture), stepDto.Deadline.Date);
         Assert.Null(stepDto.Deadline.Message);
         Assert.Equal(type, stepDto.Deadline.Type);
         Assert.Equal(expectsPassed, stepDto.Deadline.IsPassed);
@@ -240,7 +242,7 @@ public class DeadlineTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task HardDeadline_HidesChildForms_WithoutRemovingAvailableSiblingForms(bool submitted)
+    public async Task HardDeadline_BlocksChildDrafts_ButKeepsSubmittedAndSiblingForms(bool submitted)
     {
         var modelService = CreateModelWithForms();
         var instance = Instance("Hard");
@@ -254,11 +256,16 @@ public class DeadlineTests
 
         Assert.Null(dto.Steps.Single(step => step.Id == "Open").Deadline);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Closed");
-        Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Closed");
         if (submitted)
+        {
+            Assert.Contains(dto.Submissions, submission => submission.FormName == "Closed");
             Assert.Contains(dto.Submissions, submission => submission.FormName == "Available");
+        }
         else
+        {
+            Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Closed");
             Assert.Contains(dto.Actions, action => action.Form == "Available");
+        }
 
         modelService.WorkflowDefinitions["Hard"].AllSteps.Single(step => step.Name == "Step").Deadline!.Type =
             DeadlineType.Soft;
@@ -270,7 +277,7 @@ public class DeadlineTests
     }
 
     [Fact]
-    public async Task HardDeadline_RejectsLiveFormAccessBeforeLoadingHistory()
+    public async Task HardDeadline_AllowsViewButRejectsSubmitBeforeLoadingHistory()
     {
         var modelService = CreateModelWithForms();
         var instance = Instance("Hard");
@@ -284,8 +291,9 @@ public class DeadlineTests
         var user = new Mock<IUserService>();
         user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
         var rights = new RightsService(modelService, user.Object, repository.Object);
+        await rights.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
-            rights.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name));
+            rights.EnsureAuthorizedForAction(context.Instance, RoleAction.Submit, context.Form.Name));
         journal.VerifyNoOtherCalls();
     }
 
@@ -293,7 +301,7 @@ public class DeadlineTests
     [InlineData(StepResultsType.Normal)]
     [InlineData(StepResultsType.AssessmentPartOverview)]
     [InlineData(StepResultsType.AssessmentFinalOverview)]
-    public async Task HardDeadline_ResponsePreservesResultsTypeWithoutCurrentForms(StepResultsType resultsType)
+    public async Task HardDeadline_ResponsePreservesResultsTypeAndReadOnlySubmission(StepResultsType resultsType)
     {
         var modelService = CreateModelWithForms();
         var instance = Instance("Hard");
@@ -316,7 +324,9 @@ public class DeadlineTests
         Assert.False(step.HasSubmission);
         Assert.False(step.ExpectsSubmission);
         Assert.True(step.Deadline!.IsPassed);
-        Assert.Empty(dto.Submissions);
+        var submission = Assert.Single(dto.Submissions);
+        Assert.Equal("Closed", submission.FormName);
+        Assert.Empty(submission.Permissions);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Closed");
     }
 
@@ -500,9 +510,44 @@ public class DeadlineTests
     }
 
     [Theory]
+    [InlineData(RightsEvaluationMode.RequestContext, true)]
+    [InlineData(RightsEvaluationMode.RealUser, true)]
+    [InlineData(RightsEvaluationMode.RequestContext, false)]
+    [InlineData(RightsEvaluationMode.RealUser, false)]
+    public async Task Rights_HardDeadlinePreservesOnlyView_AndStillRequiresAnActiveStep(
+        RightsEvaluationMode mode, bool active)
+    {
+        var model = CreateModelWithForms();
+        var instance = Instance("Hard");
+        var step = active ? "Child" : "Open";
+        RoleAction[] requested = [RoleAction.View, RoleAction.Edit, RoleAction.Submit, RoleAction.Execute];
+        model.Roles["Registered"].Actions = requested.Select(type => new WorkflowModel.Action
+        {
+            Type = type, Form = "Closed", Steps = [step]
+        }).ToList();
+        var user = new Mock<IUserService>();
+        user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>());
+
+        var actions = await rights.GetAllowedActions(instance, mode, requested);
+        var perRole = rights.GetAllowedActionsPerTargetRole(instance, requested).SelectMany(r => r.Actions);
+
+        if (active)
+        {
+            Assert.Equal(RoleAction.View, Assert.Single(actions).Type);
+            Assert.Equal(RoleAction.View, Assert.Single(perRole).Type);
+        }
+        else
+        {
+            Assert.Empty(actions);
+            Assert.Empty(perRole);
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Rights_HistoricalViewsHonorImpersonationAndConditions_ButIgnoreHardDeadlines(bool permitted)
+    public async Task Rights_ViewsHonorImpersonationAndConditions_ButIgnoreHardDeadlines(bool permitted)
     {
         var model = CreateModelWithForms();
         var role = model.Roles["Registered"];
@@ -525,11 +570,74 @@ public class DeadlineTests
             impersonation.Object);
         var instance = Instance("Hard");
 
-        var actions = await rights.GetAllowedHistoricalViewActions(instance);
+        var actions = await rights.GetAllowedActions(instance, RoleAction.View);
 
         Assert.Equal(permitted ? 1 : 0, actions.Length);
         Assert.All(actions, action => Assert.Equal(RoleAction.View, action.Type));
-        Assert.False(await rights.Can(instance, RoleAction.View, "Closed"));
+        Assert.Equal(permitted, await rights.Can(instance, RoleAction.View, "Closed"));
+    }
+
+    [Theory]
+    [InlineData(-1, 14)]
+    [InlineData(1, -12)]
+    [InlineData(-1, -12)]
+    [InlineData(1, 14)]
+    public void Deadline_ComparesInstantsAcrossOffsets(int hoursFromNow, int offsetHours)
+    {
+        var date = DateTimeOffset.UtcNow.AddHours(hoursFromNow).ToOffset(TimeSpan.FromHours(offsetHours));
+        var expression = "=" + date.ToString("O", CultureInfo.InvariantCulture);
+        var context = new ObjectContext(new());
+
+        Assert.Equal(hoursFromNow < 0, new Deadline { Date = expression }.HasPassed(context));
+        Assert.Equal(hoursFromNow > 0, new DeadlineCondition { ExpressionText = expression }.IsMet(context));
+    }
+
+    [Fact]
+    public void Deadline_EvaluatesCalculatedUtcDate_AndLeavesMissingDatesUnset()
+    {
+        var submittedAt = new DateTime(2026, 3, 16, 12, 0, 0, DateTimeKind.Utc);
+        var context = new ObjectContext(new() { ["StartEvent"] = submittedAt });
+        var calculated = new Deadline { Date = "addWeeks(StartEvent, 2)" }.Evaluate(context);
+
+        Assert.Equal(new DateTimeOffset(submittedAt.AddDays(14)), calculated);
+        Assert.Equal(TimeSpan.Zero, calculated!.Value.Offset);
+        var missing = new Deadline { Date = "addWeeks(MissingEvent, 2)" };
+        Assert.Null(missing.Evaluate(context));
+        Assert.False(missing.HasPassed(context));
+    }
+
+    [Theory]
+    [InlineData(DeadlineType.Soft, "2000-03-16T12:34:56+05:45", true)]
+    [InlineData(DeadlineType.Hard, "2000-03-16T12:34:56+05:45", true)]
+    [InlineData(DeadlineType.Soft, "2999-03-16T12:34:56-04:00", false)]
+    [InlineData(DeadlineType.Hard, "2999-03-16T12:34:56-04:00", false)]
+    public async Task Deadline_PreservesOffsetInResponse_AndAppliesSoftHardPermissions(
+        DeadlineType type, string date, bool passed)
+    {
+        var model = CreateModelWithForms();
+        var instance = Instance("Hard");
+        model.WorkflowDefinitions["Hard"].AllSteps.Single(s => s.Name == "Step").Deadline =
+            new Deadline { Date = "=" + date, Type = type };
+        var repository = new Mock<IWorkflowInstanceRepository>();
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, repository);
+        var user = new Mock<IUserService>();
+        user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var rights = new RightsService(model, user.Object, repository.Object);
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+        var deadline = dto.Steps.Single(s => s.Id == "Step").Deadline!;
+        var expected = DateTimeOffset.Parse(date, CultureInfo.InvariantCulture);
+        Assert.Equal(expected, deadline.Date);
+        Assert.Equal(expected.Offset, deadline.Date!.Value.Offset);
+        Assert.Equal(type, deadline.Type);
+        Assert.Equal(passed, deadline.IsPassed);
+        using var json = JsonDocument.Parse(
+            JsonSerializer.Serialize(deadline, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var serializedDate = json.RootElement.GetProperty("date").GetDateTimeOffset();
+        Assert.Equal(expected, serializedDate);
+        Assert.Equal(expected.Offset, serializedDate.Offset);
+        Assert.True(await rights.Can(instance, RoleAction.View, "Closed"));
+        Assert.Equal(type == DeadlineType.Soft || !passed, await rights.Can(instance, RoleAction.Submit, "Closed"));
     }
 
     private static ModelService CreateModelWithForms() => new(new ModelParser(new DictionaryProvider(
