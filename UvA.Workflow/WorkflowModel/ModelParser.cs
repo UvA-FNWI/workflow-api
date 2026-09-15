@@ -247,17 +247,28 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
-                FieldNames = workflowDefinition.Properties.Select(v => v.Name).ToArray()
+                PageElements = workflowDefinition.Properties.Select(v => new PageElement { Question = v.Name })
+                    .ToArray()
             });
 
         foreach (var ent in form.Pages)
         {
-            var missingFields = ent.FieldNames.Where(f => workflowDefinition.Properties.GetOrDefault(f) == null)
+            foreach (var element in ent.PageElements)
+            {
+                ValidatePageElement(element, form.Name);
+
+                if (element.Question == null)
+                    continue;
+
+                element.QuestionDefinition = workflowDefinition.Properties.GetOrDefault(element.Question!)
+                                             ?? throw new Exception(
+                                                 $"Form {form.Name} references unknown property {element.Question}");
+            }
+
+            ent.Fields = ent.PageElements
+                .Where(pe => pe.QuestionDefinition != null)
+                .Select(pe => pe.QuestionDefinition!)
                 .ToArray();
-            if (missingFields.Any())
-                throw new Exception(
-                    $"Form {form.Name} references unknown property {missingFields.ToSeparatedString()}");
-            ent.Fields = ent.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
@@ -270,6 +281,23 @@ public partial class ModelParser
 
         PreProcess(form.OnSubmit);
         PreProcess(form.OnSave);
+    }
+
+    private static void ValidatePageElement(PageElement element, string formName)
+    {
+        var setKinds = new List<string>();
+        if (element.Question != null) setKinds.Add("question");
+        if (element.Callout != null) setKinds.Add("callout");
+        if (element.Text != null) setKinds.Add("text");
+
+        if (setKinds.Count == 0)
+            throw new Exception(
+                $"Form {formName} has a page element that is missing a type: set one of 'question', 'callout' or 'text'.");
+
+        if (setKinds.Count > 1)
+            throw new Exception(
+                $"Form {formName} has a page element that mixes types ({string.Join(", ", setKinds)}). " +
+                "A page element must be exactly one of 'question', 'callout' or 'text'.");
     }
 
     private void PreProcess(Effect[] effects)

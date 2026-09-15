@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -49,6 +50,8 @@ public class Page : INamed
     public string[] FieldNames { get; set; } = [];
 
     [YamlIgnore] public PropertyDefinition[] Fields { get; set; } = [];
+
+    [YamlMember(Alias = "elements")] public PageElement[] PageElements { get; set; } = [];
 
     /// <summary>
     /// If set, this page is included only when editing a matching property
@@ -153,4 +156,44 @@ public class Form : INamed, IDeclaredKeys
         clone.Pages = Pages.Select(p => p.Clone()).ToList();
         return clone;
     }
+}
+
+public enum CalloutVariant
+{
+    Info,
+    Warning,
+    Error,
+    Success
+}
+
+public class Callout
+{
+    public CalloutVariant Variant { get; set; } = CalloutVariant.Info;
+    public BilingualString? Title { get; set; }
+    public BilingualString? Text { get; set; }
+    [YamlIgnore] public BilingualTemplate? TextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    /// <summary>
+    /// Condition that determines if the callout is shown
+    /// </summary>
+    public Condition? Condition { get; set; }
+}
+
+public class PageElement
+{
+    /// <summary>
+    /// Localized text of the element
+    /// </summary>
+    public BilingualString? Text { get; set; }
+
+    [YamlIgnore] public BilingualTemplate? TextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    /// <summary>
+    /// Name of the property definition 
+    /// </summary>
+    public string? Question { get; set; }
+
+    [YamlIgnore] public PropertyDefinition? QuestionDefinition { get; set; }
+
+    public Callout? Callout { get; set; }
 }
