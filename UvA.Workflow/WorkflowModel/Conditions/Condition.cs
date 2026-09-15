@@ -114,7 +114,7 @@ public class DeadlineCondition : ConditionPart
     public override bool IsMet(ObjectContext context)
     {
         var deadline = Evaluate(context);
-        return deadline != null && deadline.Value > DateTime.Now;
+        return deadline != null && deadline.Value > DateTimeOffset.Now;
     }
 
     public static implicit operator DeadlineCondition(string s) => new() { ExpressionText = s };

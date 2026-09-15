@@ -109,16 +109,18 @@ public class Deadline
     public IEnumerable<Lookup> Properties =>
         [.. Expression.Properties, .. TextTemplate?.Properties ?? []];
 
-    public DateTime? Evaluate(ObjectContext context)
+    public DateTimeOffset? Evaluate(ObjectContext context)
         => Expression.Execute(context) switch
         {
-            DateTime date => date,
-            string value => DateTime.Parse(value),
+            DateTimeOffset date => date,
+            // DateTime's kind determines its offset; unspecified dates use the server's local timezone.
+            DateTime date => new DateTimeOffset(date),
+            string value => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
             _ => null
         };
 
     public bool HasPassed(ObjectContext context)
-        => Evaluate(context) is { } deadline && deadline <= DateTime.Now;
+        => Evaluate(context) is { } deadline && deadline <= DateTimeOffset.Now;
 
     public static implicit operator Deadline(string date) => new() { Date = date };
 }

@@ -45,7 +45,7 @@ public record StepHeaderStatusDto(
 );
 
 public record DeadlineDto(
-    DateTime? Date,
+    DateTimeOffset? Date,
     DeadlineType Type,
     bool IsPassed,
     BilingualString? Message);
