@@ -105,11 +105,11 @@ public class MigrationRetryTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Timeout_CancelsWorkAndSavesFailureWithAnIndependentToken(bool duringJournals)
+    public async Task CallerCancellation_CancelsWorkAndSavesFailureWithAnIndependentToken(bool duringJournals)
     {
         var fixture = new Fixture();
         var operationStopped = false;
-        using var timeout = new CancellationTokenSource();
+        using var caller = new CancellationTokenSource();
         CancellationToken operationToken = default;
 
         async Task Stall(CancellationToken ct)
@@ -119,8 +119,7 @@ public class MigrationRetryTests
             Assert.Equal(MigrationStatus.Applying, fixture.Stored.Status);
             try
             {
-                // Signal deadline expiry directly, without waiting for the fixed five-minute timer.
-                timeout.Cancel();
+                caller.Cancel();
                 await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             }
             finally
@@ -146,11 +145,11 @@ public class MigrationRetryTests
                     return new PropertyRenameResult(0, 0);
                 });
 
-        var error = await Assert.ThrowsAsync<TimeoutException>(() => fixture.Service()
-            .RunConfiguredAttempt(fixture.Configured, timeout.Token, CancellationToken.None)
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => fixture.Service()
+            .RunConfigured(fixture.Configured, caller.Token)
             .WaitAsync(TimeSpan.FromSeconds(10)));
 
-        Assert.Contains("attempt timeout", error.Message);
+        Assert.DoesNotContain("timeout", error.Message);
         Assert.True(operationStopped);
         Assert.True(operationToken.IsCancellationRequested);
         Assert.Equal(MigrationStatus.Failed, fixture.Stored.Status);
@@ -163,23 +162,20 @@ public class MigrationRetryTests
     }
 
     [Fact]
-    public async Task CallerCancellation_IsNotReportedAsTimeoutAndStillSavesFailure()
+    public async Task RepositoryTimeout_IsSavedAndPropagated()
     {
         var fixture = new Fixture();
-        using var caller = new CancellationTokenSource();
+        var timeout = new TimeoutException("Database operation timed out");
         fixture.Repository.Setup(value =>
                 value.RenamePropertyValues(It.IsAny<Migration>(), It.IsAny<CancellationToken>()))
-            .Returns((Migration _, CancellationToken ct) =>
-            {
-                caller.Cancel();
-                return Task.FromCanceled<PropertyRenameResult>(ct);
-            });
+            .ThrowsAsync(timeout);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            fixture.Service().RunConfigured(fixture.Configured, caller.Token));
+        var error = await Assert.ThrowsAsync<TimeoutException>(() =>
+            fixture.Service().RunConfigured(fixture.Configured));
 
+        Assert.Same(timeout, error);
         Assert.Equal(MigrationStatus.Failed, fixture.Stored.Status);
-        Assert.DoesNotContain("timeout", fixture.Stored.Error!);
+        Assert.Equal(timeout.Message, fixture.Stored.Error);
         Assert.Equal(1, fixture.Stored.AttemptCount);
     }
 

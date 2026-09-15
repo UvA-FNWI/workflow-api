@@ -18,19 +18,42 @@ public class MigrationService(
         ct.ThrowIfCancellationRequested();
         using var timeout = new CancellationTokenSource(AttemptTimeout);
         using var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+        Migration? migration = null;
         try
         {
-            return await RunConfiguredAttempt(configured, attempt.Token, ct);
+            migration = await GetOrCreateMigration(configured, attempt.Token);
+            if (migration.Status == MigrationStatus.Finished)
+                return migration;
+
+            return await Execute(migration, attempt.Token);
         }
-        catch (OperationCanceledException exception) when (timeout.IsCancellationRequested &&
-                                                           !ct.IsCancellationRequested)
+        catch (Exception exception)
         {
-            throw Timeout(configured.MigrationId, exception);
+            var failure = exception is OperationCanceledException && timeout.IsCancellationRequested &&
+                          !ct.IsCancellationRequested
+                ? Timeout(configured.MigrationId, exception)
+                : exception;
+            if (migration != null)
+            {
+                try
+                {
+                    await SaveFailure(migration, failure);
+                }
+                catch (Exception saveException)
+                {
+                    throw new AggregateException(
+                        $"Migration '{migration.MigrationId}' failed and its failure could not be saved",
+                        failure, saveException);
+                }
+            }
+
+            if (failure != exception)
+                throw failure;
+            throw;
         }
     }
 
-    internal async Task<Migration> RunConfiguredAttempt(ConfiguredMigration configured, CancellationToken ct,
-        CancellationToken callerToken)
+    private async Task<Migration> GetOrCreateMigration(ConfiguredMigration configured, CancellationToken ct)
     {
         var existing = await migrationRepository.GetByMigrationId(configured.MigrationId, ct);
         ct.ThrowIfCancellationRequested();
@@ -47,7 +70,7 @@ public class MigrationService(
 
         // Resume the saved operation, including its original targets, after a failure or interrupted startup.
         if (existing != null)
-            return await Execute(existing, ct, callerToken);
+            return existing;
 
         var migration = new Migration
         {
@@ -60,7 +83,7 @@ public class MigrationService(
         };
         await Prepare(migration, ct);
         await migrationRepository.Create(migration, ct);
-        return await Execute(migration, ct, callerToken);
+        return migration;
     }
 
     private async Task Prepare(
@@ -112,7 +135,7 @@ public class MigrationService(
         migration.UpdatedAt = now;
     }
 
-    private async Task<Migration> Execute(Migration migration, CancellationToken ct, CancellationToken callerToken)
+    private async Task<Migration> Execute(Migration migration, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         migration.Status = MigrationStatus.Applying;
@@ -121,45 +144,21 @@ public class MigrationService(
         migration.FinishedAt = null;
         migration.UpdatedAt = DateTime.UtcNow;
 
-        try
-        {
-            // Persist the attempt before changing data so process restarts cannot reset the budget.
-            await migrationRepository.Update(migration, ct);
-            ct.ThrowIfCancellationRequested();
-            // Both operations only match the old name, so completed writes are no-ops on retry.
-            var result = await migrationRepository.RenamePropertyValues(migration, ct);
-            migration.ItemsMatched += result.InstancesMatched;
-            migration.ItemsUpdated += result.InstancesUpdated;
-            ct.ThrowIfCancellationRequested();
-            migration.JournalEntriesUpdated += await migrationRepository.RenameJournalPaths(migration, ct);
-            ct.ThrowIfCancellationRequested();
+        // Persist the attempt before changing data so process restarts cannot reset the budget.
+        await migrationRepository.Update(migration, ct);
+        ct.ThrowIfCancellationRequested();
+        // Both operations only match the old name, so completed writes are no-ops on retry.
+        var result = await migrationRepository.RenamePropertyValues(migration, ct);
+        migration.ItemsMatched += result.InstancesMatched;
+        migration.ItemsUpdated += result.InstancesUpdated;
+        ct.ThrowIfCancellationRequested();
+        migration.JournalEntriesUpdated += await migrationRepository.RenameJournalPaths(migration, ct);
+        ct.ThrowIfCancellationRequested();
 
-            migration.Status = MigrationStatus.Finished;
-            migration.FinishedAt = migration.UpdatedAt = DateTime.UtcNow;
-            await migrationRepository.Update(migration, ct);
-            return migration;
-        }
-        catch (Exception exception)
-        {
-            var failure = exception is OperationCanceledException && ct.IsCancellationRequested &&
-                          !callerToken.IsCancellationRequested
-                ? Timeout(migration.MigrationId, exception)
-                : exception;
-            try
-            {
-                await SaveFailure(migration, failure);
-            }
-            catch (Exception saveException)
-            {
-                throw new AggregateException(
-                    $"Migration '{migration.MigrationId}' failed and its failure could not be saved",
-                    failure, saveException);
-            }
-
-            if (failure != exception)
-                throw failure;
-            throw;
-        }
+        migration.Status = MigrationStatus.Finished;
+        migration.FinishedAt = migration.UpdatedAt = DateTime.UtcNow;
+        await migrationRepository.Update(migration, ct);
+        return migration;
     }
 
     private async Task SaveFailure(Migration migration, Exception exception)
