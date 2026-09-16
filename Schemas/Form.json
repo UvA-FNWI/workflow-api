@@ -146,29 +146,15 @@
             }
           ]
         },
-        "introduction": {
-          "description": "Localized introduction text to show at the start of the page",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
         "layout": {
           "description": "Layout of the page. Condensed will show the questions in a table",
           "$ref": "#/definitions/PageLayout"
         },
-        "fields": {
+        "elements": {
           "type": "array",
-          "description": "PropertyDefinition names to include in the page",
+          "description": "List of page elements",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/PageElement"
           }
         },
         "sources": {
@@ -190,20 +176,80 @@
         "Condensed"
       ]
     },
-    "Effect": {
-      "title": "Effect",
+    "PageElement": {
+      "title": "PageElement",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "name": {
+        "text": {
+          "description": "Localized text of the element",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "question": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Optional effect name, used to refer to outputs of this effect"
+          "description": "Name of the property definition"
+        },
+        "callout": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Callout"
+            }
+          ]
+        }
+      }
+    },
+    "Callout": {
+      "title": "Callout",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variant": {
+          "$ref": "#/definitions/CalloutVariant"
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         },
         "condition": {
-          "description": "Condition that determines if this trigger is active",
+          "description": "Condition that determines if the callout is shown",
           "oneOf": [
             {
               "type": "null"
@@ -215,113 +261,18 @@
               "$ref": "#/definitions/Condition"
             }
           ]
-        },
-        "sendMail": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Send an email",
-              "$ref": "#/definitions/SendMessage"
-            }
-          ]
-        },
-        "showConfetti": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "Show confetti"
-        },
-        "toast": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Show a toast message",
-              "$ref": "#/definitions/Toast"
-            }
-          ]
-        },
-        "http": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Do an http call to an external service",
-              "$ref": "#/definitions/Http"
-            }
-          ]
-        },
-        "setProperty": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Set a property on the current instance",
-              "$ref": "#/definitions/SetProperty"
-            }
-          ]
-        },
-        "serviceCall": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Call an external service",
-              "$ref": "#/definitions/ServiceCall"
-            }
-          ]
-        },
-        "redirect": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Redirect the user to an url",
-              "$ref": "#/definitions/Redirect"
-            }
-          ]
-        },
-        "createExternalUserAccount": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Create external login access for the assigned user or users of a workflow role",
-              "$ref": "#/definitions/CreateExternalUserAccount"
-            }
-          ]
-        },
-        "event": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Complete an event"
-        },
-        "undoEvent": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Undo an event"
-        },
-        "delay": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Run the effect after this delay, e.g. 2d, 4h or 30m"
         }
       }
+    },
+    "CalloutVariant": {
+      "type": "string",
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Success",
+        "Note"
+      ]
     },
     "Condition": {
       "title": "Condition",
@@ -538,6 +489,139 @@
       "properties": {
         "expressionText": {
           "type": "string"
+        }
+      }
+    },
+    "Effect": {
+      "title": "Effect",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Optional effect name, used to refer to outputs of this effect"
+        },
+        "condition": {
+          "description": "Condition that determines if this trigger is active",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "sendMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Send an email",
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
+        "showConfetti": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Show confetti"
+        },
+        "toast": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Show a toast message",
+              "$ref": "#/definitions/Toast"
+            }
+          ]
+        },
+        "http": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Do an http call to an external service",
+              "$ref": "#/definitions/Http"
+            }
+          ]
+        },
+        "setProperty": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Set a property on the current instance",
+              "$ref": "#/definitions/SetProperty"
+            }
+          ]
+        },
+        "serviceCall": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Call an external service",
+              "$ref": "#/definitions/ServiceCall"
+            }
+          ]
+        },
+        "redirect": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Redirect the user to an url",
+              "$ref": "#/definitions/Redirect"
+            }
+          ]
+        },
+        "createExternalUserAccount": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Create external login access for the assigned user or users of a workflow role",
+              "$ref": "#/definitions/CreateExternalUserAccount"
+            }
+          ]
+        },
+        "event": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Complete an event"
+        },
+        "undoEvent": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Undo an event"
+        },
+        "delay": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Run the effect after this delay, e.g. 2d, 4h or 30m"
         }
       }
     },
