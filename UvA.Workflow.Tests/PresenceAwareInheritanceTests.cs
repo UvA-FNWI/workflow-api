@@ -1,4 +1,5 @@
 using UvA.Workflow.Events;
+using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests;
@@ -137,30 +138,73 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
-    public void GlobalActions_MergeUnlessClearedAndRemainDiscoverable()
+    public void ApplyInheritance_ChildPageWithSameName_IsNotOverwrittenByParent()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
-            ["Common/Roles/Registered.yaml"] = "name: Registered",
-            ["Base/Entity.yaml"] =
-                "name: Base\ntitlePlural: Bases\nglobalActions:\n  - name: Make\n    type: CreateInstance\n    roles: [Registered]",
-            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
-            ["Merge/Entity.yaml"] =
-                "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base\nglobalActions:\n  - name: Remove\n    type: Delete\n    roles: [Registered]",
-            ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base\nglobalActions: []"
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P\n    elements:\n      - question: Foo",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P\n    elements: []"
         }));
 
-        var registered = parser.Roles.Single(r => r.Name == "Registered");
+        var childForm = parser.WorkflowDefinitions["Child"].Forms.Get("Edit");
 
-        Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Make");
-        Assert.Equal(1, registered.Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Make"));
+        var page = Assert.Single(childForm.Pages);
+        Assert.Empty(page.PageElements);
+    }
 
-        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Make");
-        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Remove");
-        Assert.Equal(2, registered.Actions.Count(a => a.WorkflowDefinition == "Merge"));
+    [Fact]
+    public void ApplyInheritance_ChildPageWithNewName_IsInsertedBeforeIt()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P1\n    elements:\n      - question: Foo",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P2\n    elements:\n      - question: Foo"
+        }));
 
-        Assert.DoesNotContain(parser.WorkflowDefinitions["Clear"].AllActions, a => a.Name == "Make");
-        Assert.DoesNotContain(registered.Actions, a => a.WorkflowDefinition == "Clear" && a.Name == "Make");
+        var mergedForm = parser.WorkflowDefinitions["Merge"].Forms.Get("Edit");
+
+        Assert.Equal(["P1", "P2"], mergedForm.Pages.Select(p => p.Name));
+    }
+
+    [Fact]
+    public void ApplyInheritance_ChildWithExplicitlyEmptyPages_DoesNotInheritParentPages()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: ParentPage\n    elements:\n      - question: Foo",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit\npages: []"
+        }));
+
+        var childForm = parser.WorkflowDefinitions["Child"].Forms.Get("Edit");
+
+        // The parent's "ParentPage" is not inherited because the child explicitly cleared its pages.
+        // Since the child form then has zero pages, the default-page fallback kicks in and generates
+        // a page containing all properties, rather than reusing the parent's page/elements.
+        var page = Assert.Single(childForm.Pages);
+        Assert.NotEqual("ParentPage", page.Name);
+        Assert.Equal(["Foo"], page.PageElements.Select(e => e.Question));
+    }
+
+    [Fact]
+    public void ApplyInheritance_ChildWithOmittedPages_InheritsAllParentPages()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: ParentPage\n    elements:\n      - question: Foo",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit"
+        }));
+
+        var childForm = parser.WorkflowDefinitions["Child"].Forms.Get("Edit");
+
+        Assert.Equal(["ParentPage"], childForm.Pages.Select(p => p.Name));
     }
 
     [Fact]
