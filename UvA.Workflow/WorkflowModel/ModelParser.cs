@@ -264,11 +264,6 @@ public partial class ModelParser
                                              ?? throw new Exception(
                                                  $"Form {form.Name} references unknown property {element.Question}");
             }
-
-            ent.Fields = ent.PageElements
-                .Where(pe => pe.QuestionDefinition != null)
-                .Select(pe => pe.QuestionDefinition!)
-                .ToArray();
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });

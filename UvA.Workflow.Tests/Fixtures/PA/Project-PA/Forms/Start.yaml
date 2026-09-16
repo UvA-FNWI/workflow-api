@@ -6,41 +6,41 @@ pages:
     title:
       en: Proposal
       nl: Voorstel
-    fields:
-      - WorkingTitle
-      - EC
-      - Description
+    elements:
+      - question: WorkingTitle
+      - question: EC
+      - question: Description
   - name: Staff
     title:
       en: Staff
       nl: Begeleiding
-    fields:
-      - Examiner
-      - SecondReviewer
-      - DailySupervisor
+    elements:
+      - question: Examiner
+      - question: SecondReviewer
+      - question: DailySupervisor
   - name: Location
     title:
       en: Location
       nl: Locatie
-    fields:
-      - ProjectLocation
-      - InstituteDepartment
-      - City
-      - Country
-      - PartAbroad
+    elements:
+      - question: ProjectLocation
+      - question: InstituteDepartment
+      - question: City
+      - question: Country
+      - question: PartAbroad
   - name: Planning
     title:
       en: Planning
       nl: Planning
-    fields:
-      - StartDate
-      - PlannedEndDate
-      - Interruptions
-      - HoursPerWeek
-      - FrequencyExaminerReviewer
-      - FrequencyExaminerReviewerOther
-      - FrequencyDailySupervisor
-      - FrequencyDailySupervisorOther
+    elements:
+      - question: StartDate
+      - question: PlannedEndDate
+      - question: Interruptions
+      - question: HoursPerWeek
+      - question: FrequencyExaminerReviewer
+      - question: FrequencyExaminerReviewerOther
+      - question: FrequencyDailySupervisor
+      - question: FrequencyDailySupervisorOther
 
 onSubmit:
   - toast:

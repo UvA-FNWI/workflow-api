@@ -108,8 +108,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
         const string submissionId = "Start";
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"],
-            b => b.WithId(submissionId).AsCompleted(submittedAt),
-            props: [("EC", _ => 12)]);
+            b => b.WithId(submissionId).AsCompleted(submittedAt), "Start",
+            ("EC", _ => 12));
         var change = PropertyChangeEntry.Create("EC", 6, UnitTestsHelpers.AdminUser);
         _instanceJournalServiceMock
             .Setup(service => service.GetInstanceJournal(instance.Id, false, _ct))
@@ -437,7 +437,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
     {
         var workflow = _modelService.WorkflowDefinitions["Project"];
         var page = workflow.Forms.Single(form => form.Name == "Start").Pages[0];
-        page.Fields = [.. page.Fields, workflow.Properties.Single(q => q.Name == "CanBePublished")];
+        var prop = workflow.Properties.Single(q => q.Name == "CanBePublished");
+        page.PageElements = [.. page.PageElements, new PageElement { Question = prop.Name, QuestionDefinition = prop }];
     }
 
     private void ConfigureAlternateSubmissionMarker(string formName, string markerEventId,

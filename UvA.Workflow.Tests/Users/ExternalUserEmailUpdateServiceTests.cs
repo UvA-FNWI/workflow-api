@@ -106,7 +106,14 @@ public class ExternalUserEmailUpdateServiceTests
         {
             Name = "SupervisorForm",
             PropertyName = "SupervisorForm",
-            Pages = [new Page { Name = "Page1", Fields = [propDef] }]
+            Pages =
+            [
+                new Page
+                {
+                    Name = "Page1",
+                    PageElements = [new PageElement { Question = propDef.Name, QuestionDefinition = propDef }]
+                }
+            ]
         };
         var workflowDef = CreateWorkflowDefinition([propDef], [form]);
 

@@ -7,59 +7,59 @@ layout: Compact
 pages:
   - name: Content
     title: Content
-    fields:
-      - ProblemStatement
-      - ProblemStatementComments
-      - TheoreticalFramework
-      - TheoreticalFrameworkComments
-      - Methods
-      - MethodsComments
-      - AnalysisEvaluationResults
-      - AnalysisEvaluationResultsComments
-      - ArgumentationCreativity
-      - ArgumentationCreativityComments
-      - ConclusionDiscussion
-      - ConclusionDiscussionComments
+    elements:
+      - question: ProblemStatement
+      - question: ProblemStatementComments
+      - question: TheoreticalFramework
+      - question: TheoreticalFrameworkComments
+      - question: Methods
+      - question: MethodsComments
+      - question: AnalysisEvaluationResults
+      - question: AnalysisEvaluationResultsComments
+      - question: ArgumentationCreativity
+      - question: ArgumentationCreativityComments
+      - question: ConclusionDiscussion
+      - question: ConclusionDiscussionComments
     sources: [AssessmentSupervisor, AssessmentSecondReader]
 
   - name: Form
     title: Form
-    fields:
-      - Structure
-      - StructureComments
-      - LayoutLanguage
-      - LayoutLanguageComments
+    elements:
+      - question: Structure
+      - question: StructureComments
+      - question: LayoutLanguage
+      - question: LayoutLanguageComments
     sources: [AssessmentSupervisor, AssessmentSecondReader]
     
   - name: ContentComments
     title: Content
-    fields:
-      - ProblemStatementComments
-      - TheoreticalFrameworkComments
-      - MethodsComments
-      - AnalysisEvaluationResultsComments
-      - ArgumentationCreativityComments
-      - ConclusionDiscussionComments
+    elements:
+      - question: ProblemStatementComments
+      - question: TheoreticalFrameworkComments
+      - question: MethodsComments
+      - question: AnalysisEvaluationResultsComments
+      - question: ArgumentationCreativityComments
+      - question: ConclusionDiscussionComments
     sources: [AssessmentCombined]
 
   - name: FormComments
     title: Form
-    fields:
-      - StructureComments
-      - LayoutLanguageComments
+    elements:
+      - question: StructureComments
+      - question: LayoutLanguageComments
     sources: [AssessmentCombined]
     
   - name: FinalDetails
     title: Final details
-    fields:
-      - APA
-      - Process
-      - DoctrinalAnalysis
-      - Motivation
+    elements:
+      - question: APA
+      - question: Process
+      - question: DoctrinalAnalysis
+      - question: Motivation
     sources: [AssessmentSupervisor, AssessmentSecondReader]
     
   - name: FinalDetailsConfirmation
     title: Final details
-    fields:
-      - Motivation
+    elements:
+      - question: Motivation
     sources: [AssessmentCombined]

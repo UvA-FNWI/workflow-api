@@ -189,9 +189,9 @@ public class PresenceAwareInheritanceTests
         var parser = new ModelParser(new DictionaryProvider(new()
         {
             ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
-            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P1\n    fields: [Foo]",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P1\n    elements:\n      - question: Foo",
             ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
-            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P2\n    fields: [Foo]",
+            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P2\n    elements:\n      - question: Foo",
             ["Reject/Entity.yaml"] = "name: Reject\ntitlePlural: Rs\ninheritsFrom: Base",
             ["Reject/Forms/Edit.yaml"] = "name: Edit\npages: []"
         }));

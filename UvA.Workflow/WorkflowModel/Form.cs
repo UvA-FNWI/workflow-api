@@ -32,26 +32,15 @@ public class Page : INamed
     public BilingualString? Title { get; set; }
 
     /// <summary>
-    /// Localized introduction text to show at the start of the page
-    /// </summary>
-    public BilingualString? Introduction { get; set; }
-
-    public BilingualTemplate? IntroductionTemplate => field ??= BilingualTemplate.Create(Introduction);
-
-    /// <summary>
     /// Layout of the page. Condensed will show the questions in a table
     /// </summary>
     public PageLayout Layout { get; set; }
 
     /// <summary>
-    /// PropertyDefinition names to include in the page
+    /// List of page elements
     /// </summary>
-    [YamlMember(Alias = "fields")]
-    public string[] FieldNames { get; set; } = [];
-
-    [YamlIgnore] public PropertyDefinition[] Fields { get; set; } = [];
-
-    [YamlMember(Alias = "elements")] public PageElement[] PageElements { get; set; } = [];
+    [YamlMember(Alias = "elements")]
+    public PageElement[] PageElements { get; set; } = [];
 
     /// <summary>
     /// If set, this page is included only when editing a matching property
@@ -60,13 +49,11 @@ public class Page : INamed
 
     public BilingualString DisplayTitle => Title ?? Name;
 
-    public bool HasResults => Fields.Count(f => f.Calculation?.Weight != null) > 0;
+    public bool HasResults => PageElements.Any(e => e.QuestionDefinition?.Calculation?.Weight != null);
 
     public Page Clone()
     {
-        var clone = (Page)MemberwiseClone();
-        clone.Fields = [];
-        return clone;
+        return (Page)MemberwiseClone();
     }
 }
 
@@ -146,7 +133,11 @@ public class Form : INamed, IDeclaredKeys
     /// </summary>
     public Effect[] OnSave { get; set; } = [];
 
-    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields).Distinct();
+    public IEnumerable<PropertyDefinition> PropertyDefinitions =>
+        Pages.SelectMany(p => p.PageElements)
+            .Where(e => e.QuestionDefinition != null)
+            .Select(e => e.QuestionDefinition!)
+            .Distinct();
 
     public Form Clone()
     {
