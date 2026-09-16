@@ -163,7 +163,8 @@ public enum CalloutVariant
     Info,
     Warning,
     Error,
-    Success
+    Success,
+    Note
 }
 
 public class Callout
