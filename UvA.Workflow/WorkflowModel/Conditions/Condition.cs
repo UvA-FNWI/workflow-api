@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.WorkflowModel.Conditions;
@@ -90,13 +91,23 @@ public class Deadline : ConditionPart
 
     private Expression Expression => ExpressionParser.Parse(ExpressionText);
 
-    public DateTime? Evaluate(ObjectContext context)
+    public DateTimeOffset? Evaluate(ObjectContext context)
         => Expression.Execute(context) switch
         {
-            DateTime d => d,
-            string s => DateTime.Parse(s),
+            DateTimeOffset d => d,
+            DateTime d => ToDateTimeOffset(d),
+            string s => DateTimeOffset.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
             _ => null
         };
+
+    private static DateTimeOffset ToDateTimeOffset(DateTime date)
+    {
+        if (date.Kind is DateTimeKind.Utc or DateTimeKind.Local)
+            return new DateTimeOffset(date);
+
+        var serverTimezoneOffset = TimeZoneInfo.Local.GetUtcOffset(date);
+        return new DateTimeOffset(date, serverTimezoneOffset);
+    }
 
     public override IEnumerable<Lookup> Properties => Expression.Properties;
 
