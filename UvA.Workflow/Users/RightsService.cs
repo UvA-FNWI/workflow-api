@@ -27,7 +27,10 @@ public class RightsService(
     private readonly IImpersonationContextService impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
-    public async Task<IEnumerable<string>> GetGlobalRoles() =>
+    /// <summary>
+    /// Returns the roles of the current user, plus "Registered" which is the default role for all users.
+    /// </summary>
+    public async Task<IEnumerable<string>> GetGlobalUserRoles() =>
         (await userService.GetRolesOfCurrentUser()).ToList()
         .Append("Registered");
 
@@ -36,11 +39,10 @@ public class RightsService(
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
             return [];
 
-        var roles = modelService.Roles;
+        var roles = definition.Roles;
 
-        var actionRoles = roles.Values
-            .Where(r => r.Actions.Any(a => a.WorkflowDefinition == null || a.WorkflowDefinition == workflowDefinition))
-            .Select(r => r.Name);
+        var actionRoles = roles
+            .Where(r => r.Actions.Count > 0).Select(r => r.Name);
 
         var definitionRoles = definition.Properties
             .Where(p => p.DataType == DataType.User)
@@ -50,7 +52,7 @@ public class RightsService(
         return actionRoles
             .Concat(definitionRoles)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(r => roles.GetValueOrDefault(r))
+            .Select(r => roles.GetOrDefault(r))
             .Where(r => r != null)
             .Select(r => new WorkflowImpersonationRole(r!.Name, r.DisplayTitle))
             .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
@@ -61,9 +63,9 @@ public class RightsService(
     // see anything there's no point loading the page as it.
     public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
     {
-        var roles = modelService.Roles;
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         return GetImpersonationCandidateRoles(instance.WorkflowDefinition)
-            .Where(r => roles.GetValueOrDefault(r.Name) is { } role
+            .Where(r => definition.Roles.GetOrDefault(r.Name) is { } role
                         && GetAllowedActions(instance, [role], RoleAction.View).Any())
             .ToArray();
     }
@@ -75,29 +77,34 @@ public class RightsService(
     public RoleAllowedActions[] GetAllowedActionsPerTargetRole(WorkflowInstance instance,
         params RoleAction[] actions)
     {
-        var roles = modelService.Roles;
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
         var activeSteps = modelService.GetActiveSteps(instance);
 
         return GetImpersonationTargetRoles(instance)
             .Select(r => new RoleAllowedActions(r,
                 GetAllowedActions(instance, context, activeSteps,
-                    [roles.GetValueOrDefault(r.Name)], actions)))
+                    [definition.Roles.GetOrDefault(r.Name)], actions)))
             .ToArray();
     }
 
 
-    public async Task<Domain_Action[]> GetAllowedActions(string? workflowDefinition, params RoleAction[] actions)
-        => (await GetGlobalRoles())
-            .Select(r => modelService.Roles.GetValueOrDefault(r))
+    public async Task<Domain_Action[]> GetAllowedActions(string workflowDefinition, params RoleAction[] actions)
+    {
+        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
+            return [];
+
+        return (await GetGlobalUserRoles())
+            .Select(r => definition.Roles.GetOrDefault(r))
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(new ObjectContext(new())))
                             && actions.Contains(a.Type)
                             && (a.WorkflowDefinition == null ||
-                                a.WorkflowDefinition == workflowDefinition?.Split('/')[0])
+                                a.WorkflowDefinition == workflowDefinition.Split('/')[0])
                 ))
             .ToArray();
+    }
 
     public async Task<string[]> GetViewerRoles(WorkflowInstance instance, CancellationToken ct = default)
     {
@@ -108,10 +115,10 @@ public class RightsService(
             return normalized != null ? [normalized.Name] : [];
         }
 
-        var globalRoles = await GetGlobalRoles();
+        var globalUserRoles = await GetGlobalUserRoles();
         var instanceRoles = await GetInstanceRoles(instance, ct);
 
-        return globalRoles
+        return globalUserRoles
             .Concat(instanceRoles.Where(r => r != null).Select(r => r!.Name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -123,9 +130,9 @@ public class RightsService(
         if (user == null) return [];
 
         // Process inherited roles
-        var properties = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties;
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        var inheritedRoles = properties
+        var inheritedRoles = definition.Properties
             .Where(p => p.InheritedRoles.Any())
             .SelectMany(p => p.InheritedRoles.Select(r => new
             {
@@ -156,7 +163,7 @@ public class RightsService(
             Value = inheritedViaInstances.GetValueOrDefault(i!)?.GetValueOrDefault(r.Role)
         }));
 
-        return properties
+        return definition.Properties
             .Where(p => p.DataType == DataType.User)
             .Select(p => new { p.Name, Value = instance.Properties.GetValueOrDefault(p.Name) })
             .Concat(inheritedProperties)
@@ -168,7 +175,7 @@ public class RightsService(
                     v is BsonDocument d && BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id),
                 _ => false
             })
-            .Select(p => modelService.Roles.GetValueOrDefault(p.Name))
+            .Select(p => definition.Roles.GetOrDefault(p.Name))
             .Where(p => p != null)
             .ToArray();
     }
@@ -196,8 +203,10 @@ public class RightsService(
     private async Task<Domain_Action[]> GetAllowedActionsForRealUser(WorkflowInstance instance,
         params RoleAction[] actions)
     {
-        var globalUserRoles = await GetGlobalRoles();
-        var globalRoles = globalUserRoles.Select(gur => modelService.Roles.GetValueOrDefault(gur))
+        var globalUserRoles = await GetGlobalUserRoles();
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var globalRoles = globalUserRoles
+            .Select(gur => definition.Roles.GetOrDefault(gur))
             .Where(r => r != null)
             .ToArray();
         var instanceRoles = await GetInstanceRoles(instance);
@@ -216,7 +225,8 @@ public class RightsService(
         var normalizedRoleName = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
         if (normalizedRoleName == null) return [];
 
-        var role = modelService.Roles.GetValueOrDefault(normalizedRoleName.Name);
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var role = definition.Roles.GetOrDefault(normalizedRoleName.Name);
         if (role == null) return [];
         return GetAllowedActions(instance, [role], actions);
     }
@@ -241,7 +251,7 @@ public class RightsService(
             _ => await GetAllowedActionsForRequestContext(instance, actions)
         };
 
-    public async Task<bool> CanAny(string? workflowDefinition, params RoleAction[] actions)
+    public async Task<bool> CanAny(string workflowDefinition, params RoleAction[] actions)
         => (await GetAllowedActions(workflowDefinition, actions)).Any();
 
     public Task<Domain_Action[]> GetAllowedFormActions(
@@ -275,10 +285,10 @@ public class RightsService(
 
     private async Task<bool> Can(RoleAction action)
     {
-        var globalRoles = (await GetGlobalRoles())
+        var globalUserRoles = (await GetGlobalUserRoles())
             .Select(gur => modelService.Roles.GetValueOrDefault(gur))
             .ToArray();
-        return globalRoles.Any(r => r != null && r.Actions.Any(a => a.Type == action));
+        return globalUserRoles.Any(r => r != null && r.Actions.Any(a => a.Type == action));
     }
 
     public Task EnsureAuthorizedForAction(WorkflowInstance instance, RoleAction action, string? form = null)

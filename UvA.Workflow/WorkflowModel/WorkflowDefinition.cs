@@ -67,6 +67,12 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public IEnumerable<Action> AllActions => GlobalActions.Concat(AllSteps.SelectMany(s => s.Actions));
 
     /// <summary>
+    /// List of roles for this entity type. Loaded from the Roles folder of the entity type definition.
+    /// </summary>
+    [YamlIgnore]
+    public List<Role> Roles { get; set; } = [];
+
+    /// <summary>
     /// List of step names for this entity type
     /// </summary>
     [YamlMember(Alias = "steps")]

@@ -99,10 +99,10 @@ public class InstanceAuthorizationFilterService(
 
         var rolesWithViewAccess = new HashSet<string>();
 
-        var globalRoles = await rightsService.GetGlobalRoles();
+        var globalRoles = await rightsService.GetGlobalUserRoles();
         foreach (var globalRoleName in globalRoles)
         {
-            var role = modelService.Roles.GetValueOrDefault(globalRoleName);
+            var role = definition.Roles.GetOrDefault(globalRoleName);
             if (role != null && role.Actions.Any(a =>
                     a.Type == action &&
                     (a.WorkflowDefinition == null || a.WorkflowDefinition == workflowDefinition)))
