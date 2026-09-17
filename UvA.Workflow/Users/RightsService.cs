@@ -89,21 +89,19 @@ public class RightsService(
     }
 
 
-    public async Task<Domain_Action[]> GetAllowedActions(string? workflowDefinition, params RoleAction[] actions)
+    public async Task<Domain_Action[]> GetAllowedActions(string workflowDefinition, params RoleAction[] actions)
     {
-        // Fallback to global roles if no definition is present
-        var roles = workflowDefinition != null &&
-                    modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition)
-            ? definition.Roles
-            : modelService.Roles.Values.ToList();
+        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
+            return [];
+
         return (await GetGlobalUserRoles())
-            .Select(r => roles.GetOrDefault(r))
+            .Select(r => definition.Roles.GetOrDefault(r))
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(new ObjectContext(new())))
                             && actions.Contains(a.Type)
                             && (a.WorkflowDefinition == null ||
-                                a.WorkflowDefinition == workflowDefinition?.Split('/')[0])
+                                a.WorkflowDefinition == workflowDefinition.Split('/')[0])
                 ))
             .ToArray();
     }
@@ -253,7 +251,7 @@ public class RightsService(
             _ => await GetAllowedActionsForRequestContext(instance, actions)
         };
 
-    public async Task<bool> CanAny(string? workflowDefinition, params RoleAction[] actions)
+    public async Task<bool> CanAny(string workflowDefinition, params RoleAction[] actions)
         => (await GetAllowedActions(workflowDefinition, actions)).Any();
 
     public Task<Domain_Action[]> GetAllowedFormActions(

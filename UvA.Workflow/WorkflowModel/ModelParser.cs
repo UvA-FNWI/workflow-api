@@ -182,10 +182,6 @@ public partial class ModelParser
         }
 
         GlobalRoles.ForEach(r => PreProcess(r));
-        foreach (var wd in WorkflowDefinitions.Values)
-        foreach (var role in wd.Roles)
-            PreProcess(role, wd);
-
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
     }
@@ -335,6 +331,9 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        foreach (var role in workflowDefinition.Roles)
+            PreProcess(role, workflowDefinition);
+
         foreach (var ent in workflowDefinition.Properties)
         {
             ent.ParentType = workflowDefinition;
