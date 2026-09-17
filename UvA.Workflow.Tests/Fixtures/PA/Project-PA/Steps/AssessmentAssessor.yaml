@@ -3,8 +3,8 @@ title:
   en: Confirmation of assessment (assessor)
   nl: Bevestiging beoordeling (beoordelaar)
 
-condition:
-  deadline: "=2026-10-15"
+deadline:
+  date: "=2026-10-15"
 
 actions:
   - name: ConfirmAssessmentAssessor

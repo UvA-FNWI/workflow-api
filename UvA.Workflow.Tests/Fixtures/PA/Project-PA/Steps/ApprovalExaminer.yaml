@@ -3,8 +3,8 @@ title:
   en: Approval (examiner)
   nl: Goedkeuring (examinator)
 
-condition:
-  deadline: "=2026-04-01"
+deadline:
+  date: "=2026-04-01"
 
 actions:
   - name: ApproveExaminer
