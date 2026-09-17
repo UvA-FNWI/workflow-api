@@ -6,6 +6,7 @@ using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.Tools;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel.Conditions;
@@ -488,7 +489,7 @@ public class DeadlineTests
     public async Task Rights_ExpiredStepPreservesSeparateGlobalFormGrants(RightsEvaluationMode mode)
     {
         var model = CreateModelWithForms();
-        var role = model.Roles["Registered"];
+        var role = model.WorkflowDefinitions.First().Value.Roles.Get("Registered");
         role.Actions =
         [
             new() { Type = RoleAction.View, Form = WorkflowModel.Action.All },
@@ -514,9 +515,11 @@ public class DeadlineTests
         var model = CreateModelWithForms();
         var instance = Instance("Hard");
         instance.CurrentStep = "Open";
+        var definition = model.WorkflowDefinitions.Single().Value;
         var active = model.GetActiveSteps(instance);
         Assert.Contains("Open", active);
-        model.Roles["Registered"].Actions =
+        var role = definition.Roles.Get("Registered");
+        role.Actions =
         [
             new() { Type = RoleAction.Execute, Name = "ClosedOnly", Steps = ["Child"] },
             new() { Type = RoleAction.Execute, Name = "Shared", Steps = ["Child", "Open"] },
@@ -530,11 +533,11 @@ public class DeadlineTests
         var actions = await rights.GetAllowedActions(instance, RoleAction.Execute, RoleAction.View);
 
         Assert.DoesNotContain(actions, a => a.Name == "ClosedOnly");
-        Assert.Same(model.Roles["Registered"].Actions[1], Assert.Single(actions, a => a.Name == "Shared"));
+        Assert.Same(role.Actions[1], Assert.Single(actions, a => a.Name == "Shared"));
         Assert.Contains(actions, a => a.Name == "Unscoped");
         Assert.True(await rights.Can(instance, RoleAction.View));
         Assert.Equal(active, model.GetActiveSteps(instance));
-        Assert.Equal(["Child", "Open"], model.Roles["Registered"].Actions[1].Steps);
+        Assert.Equal(["Child", "Open"], role.Actions[1].Steps);
     }
 
     [Theory]
@@ -549,7 +552,8 @@ public class DeadlineTests
         var instance = Instance("Hard");
         var step = active ? "Child" : "Open";
         RoleAction[] requested = [RoleAction.View, RoleAction.Edit, RoleAction.Submit, RoleAction.Execute];
-        model.Roles["Registered"].Actions = requested.Select(type => new WorkflowModel.Action
+        var role = model.WorkflowDefinitions.First().Value.Roles.Get("Registered");
+        role.Actions = requested.Select(type => new WorkflowModel.Action
         {
             Type = type, Form = "Closed", Steps = [step]
         }).ToList();
@@ -578,7 +582,7 @@ public class DeadlineTests
     public async Task Rights_ViewsHonorImpersonationAndConditions_ButIgnoreHardDeadlines(bool permitted)
     {
         var model = CreateModelWithForms();
-        var role = model.Roles["Registered"];
+        var role = model.WorkflowDefinitions.First().Value.Roles.Get("Registered");
         role.Name = "HistoricalReader";
         role.Actions =
         [

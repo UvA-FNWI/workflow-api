@@ -101,8 +101,8 @@ public class ExternalUserEmailUpdateServiceTests
             .WithProperties(("Supervisor", b => b.Person(objectId: userId))).Build();
 
         var parser = new ModelParser(new TestContentProvider());
-        parser.Roles.Clear();
-        parser.Roles.Add(new Role
+        definition.Roles.Clear();
+        definition.Roles.Add(new Role
         {
             Name = "Registered",
             Actions = [new() { Type = RoleAction.Submit, Form = "Proposal", Steps = ["Start"] }]
