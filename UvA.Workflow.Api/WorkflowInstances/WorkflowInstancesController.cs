@@ -481,7 +481,12 @@ public class WorkflowInstancesController(
             var newValue = await answerConversionService.ConvertToValue(value, propertyDefinition, ct);
             var pathParts = property.Split('.');
             if (propertyDefinition.IsArray)
+            {
+                if (ContainsRelatedUser(instance.GetProperty(pathParts), RelatedUserId(newValue)))
+                    return BadRequest("UserAlreadyAssigned", "User is already assigned to this role");
+
                 await workflowInstanceService.AppendPropertyValue(instance, pathParts, newValue, ct);
+            }
             else
                 await answerService.SavePropertyValue(instance, pathParts, propertyDefinition, newValue,
                     shouldLog: true, ct);
@@ -582,5 +587,18 @@ public class WorkflowInstancesController(
                 .FirstOrDefault(relatedUser => relatedUser.Property == property)?.PropertyDefinition
             is { DataType: DataType.User } definition
             ? definition
+            : null;
+
+    private static bool ContainsRelatedUser(BsonValue? currentValue, string? userId)
+    {
+        if (userId == null || currentValue is not BsonArray users)
+            return false;
+
+        return users.Any(user => RelatedUserId(user) == userId);
+    }
+
+    private static string? RelatedUserId(BsonValue? value) =>
+        value is BsonDocument user
+            ? user.GetValue("_id", BsonNull.Value).ToString()
             : null;
 }
