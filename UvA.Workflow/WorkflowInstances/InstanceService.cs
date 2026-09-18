@@ -369,7 +369,7 @@ public class InstanceService(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var activeSteps = modelService.GetActiveSteps(instance);
         var allowed = await rightsService.GetAllowedActions(instance,
-            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
+            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute, RoleAction.PostponeDeadlines);
 
         // Submittable forms
         actions.AddRange(allowed
@@ -399,8 +399,10 @@ public class InstanceService(
                 }
             }
 
-        // Executable actions
-        foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
+        // Unnamed entries are permissions, not buttons that can be executed.
+        foreach (var a in allowed.Where(a =>
+                     a.Type is RoleAction.Execute or RoleAction.PostponeDeadlines &&
+                     !string.IsNullOrWhiteSpace(a.Name)))
         {
             // Build mail message for actions that send mail
             var sendMail = a.OnAction.FirstOrDefault(t =>
@@ -410,7 +412,8 @@ public class InstanceService(
             if (sendMail is not null)
                 mail = await BuildMail(instance, sendMail, ct);
 
-            actions.Add(new AllowedAction(a, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
+            var form = a.Form != null ? modelService.GetForm(instance, a.Form) : null;
+            actions.Add(new AllowedAction(a, Form: form, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
         }
 
         return actions

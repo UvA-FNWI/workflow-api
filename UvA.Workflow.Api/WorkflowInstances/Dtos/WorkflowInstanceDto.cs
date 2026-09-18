@@ -48,7 +48,10 @@ public record DeadlineDto(
     DateTimeOffset? Date,
     DeadlineType Type,
     bool IsPassed,
-    BilingualString? Message);
+    BilingualString? Message,
+    DateTimeOffset? PreviousDate = null,
+    string? ChangeReason = null,
+    string? Property = null);
 
 public record StepDto(
     string Id,
@@ -76,7 +79,8 @@ public record ActionDto(
     string[] Steps = null!,
     ActionIntent Intent = ActionIntent.Primary,
     FormLayout? FormLayout = null,
-    bool AutoOpenForm = false
+    bool AutoOpenForm = false,
+    FormDto? ModalForm = null
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
@@ -92,11 +96,13 @@ public record ActionDto(
                 action.Action.Label ?? Add(action.WorkflowDefinition?.DisplayTitle ?? "form"),
                 Form: action.Action.Property
             ),
-            RoleAction.Execute => new(
-                ActionType.Execute,
-                action.Action.Label ?? action.Action.Name ?? "Action",
+            RoleAction.Execute or RoleAction.PostponeDeadlines => new(
+                action.Action.Type == RoleAction.PostponeDeadlines ? ActionType.PostponeDeadlines : ActionType.Execute,
+                action.Action.Label ?? action.Form?.DisplayName ?? action.Action.Name ?? "Action",
+                Form: action.Form?.Name,
                 Name: action.Action.Name,
-                Mail: action.Mail
+                Mail: action.Mail,
+                FormLayout: action.Form?.Layout
             ),
             RoleAction.Submit => new(
                 ActionType.SubmitForm,

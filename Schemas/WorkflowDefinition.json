@@ -1295,7 +1295,7 @@
             "null",
             "string"
           ],
-          "description": "Target form for View / Submit / Edit actions"
+          "description": "Target form for View / Submit / Edit / PostponeDeadlines actions"
         },
         "forms": {
           "type": "array",
@@ -1344,7 +1344,7 @@
         },
         "onAction": {
           "type": "array",
-          "description": "List of effects to run for an Execute action",
+          "description": "List of effects to run for an Execute or PostponeDeadlines action",
           "items": {
             "$ref": "#/definitions/Effect"
           }
@@ -1410,7 +1410,8 @@
         "CreateInstance",
         "CreateRelatedInstance",
         "ImpersonateRoles",
-        "ViewResults"
+        "ViewResults",
+        "PostponeDeadlines"
       ]
     },
     "Field": {

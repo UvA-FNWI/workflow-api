@@ -37,6 +37,10 @@ public class ActionsController(
 
         switch (input.Type)
         {
+            case ActionType.PostponeDeadlines:
+                return BadRequest("DedicatedEndpointRequired",
+                    "Deadline postponements must use their dedicated endpoint");
+
             case ActionType.DeleteInstance:
                 if (!await rightsService.Can(instance, RoleAction.Delete))
                     return Forbidden();
@@ -51,6 +55,10 @@ public class ActionsController(
                 var action = actions.FirstOrDefault(a => a.Name == input.Name);
                 if (action == null)
                     return Forbidden();
+
+                if (action.Form != null)
+                    return BadRequest("DedicatedEndpointRequired",
+                        "Actions with a form must use their dedicated endpoint");
 
                 // Always log execute events implicitly
                 await effectService.AddEvent(instance, input.Name, realUser, ct);

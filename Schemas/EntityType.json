@@ -941,6 +941,7 @@
         "Undo",
         "ViewAdminTools",
         "Execute",
+        "PostponeDeadlines",
         "ViewHidden",
         "ViewUsers",
         "ViewStates",

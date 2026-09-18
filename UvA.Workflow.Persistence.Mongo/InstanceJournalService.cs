@@ -64,6 +64,7 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
 
             var updateExisting = Builders<InstanceJournalEntry>.Update
                 .Set("PropertyChanges.$.Timestamp", change.Timestamp)
+                .Set("PropertyChanges.$.Reason", change.Reason)
                 .Set("PropertyChanges.$.ModifiedBy", change.ModifiedBy);
 
             var updateResult = await _changeSetCollection.UpdateOneAsync(

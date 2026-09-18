@@ -74,7 +74,13 @@ public class WorkflowInstanceDtoFactory(
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
             instance.CurrentStep,
             instance.ParentId,
-            actions.Select(ActionDto.Create).ToArray(),
+            actions.Select(action =>
+            {
+                var dto = ActionDto.Create(action);
+                return action.Action.Type == RoleAction.PostponeDeadlines && action.Form != null
+                    ? dto with { ModalForm = FormDto.Create(action.Form, context) }
+                    : dto;
+            }).ToArray(),
             fields,
             steps,
             submissions
@@ -158,7 +164,7 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var deadline = GetDeadline(step, context, activeSteps);
+        var deadline = GetDeadline(step, context, activeSteps, instanceHistory, workflowDef);
         var headerStatus = HasPassedDeadline(step, context, activeSteps)
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
             : stepHeaderStatusResolver.Resolve(step, instance);
@@ -217,7 +223,8 @@ public class WorkflowInstanceDtoFactory(
         );
     }
 
-    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps,
+        WorkflowInstanceHistory instanceHistory, WorkflowDefinition definition)
     {
         var deadline = step.Deadline;
         if (deadline == null)
@@ -228,7 +235,21 @@ public class WorkflowInstanceDtoFactory(
             ? deadline.TextTemplate?.Apply(context)
             : null;
 
-        return new DeadlineDto(step.Deadline?.Evaluate(context), deadline.Type, isPassed, message);
+        var date = deadline.Evaluate(context);
+        // Only direct property deadlines have matching journal entries. Use the latest change,
+        // including manual edits, and never borrow a reason from another postponement.
+        var change = instanceHistory.Journal?.PropertyChanges
+            .Where(entry => entry.Path == deadline.Date.Trim())
+            .Reverse()
+            .OrderByDescending(entry => entry.Timestamp)
+            .FirstOrDefault();
+        DateTimeOffset? previousDate = change?.OldValue is BsonDateTime previous
+            ? new DateTimeOffset(previous.ToUniversalTime())
+            : null;
+        var hasChanged = date != null && previousDate != null && date != previousDate;
+        return new DeadlineDto(date, deadline.Type, isPassed, message,
+            hasChanged ? previousDate : null, hasChanged ? change?.Reason : null,
+            UvA.Workflow.Deadlines.PostponeDeadlineService.GetDeadlineProperty(step, definition)?.Name);
     }
 
     private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
