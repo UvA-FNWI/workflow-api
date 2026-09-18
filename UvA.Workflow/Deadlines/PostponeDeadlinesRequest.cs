@@ -8,7 +8,8 @@ public record PostponeDeadlinesRequest(DeadlineChange[] Changes, string Reason);
 
 public enum PostponementError
 {
-    InvalidChanges
+    InvalidChanges,
+    MaximumExtensionExceeded
 }
 
 public record PostponeDeadlinesResult(PostponementError[] Errors, EffectResult? Effects = null);

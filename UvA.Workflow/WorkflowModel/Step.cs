@@ -92,6 +92,12 @@ public class Deadline
     public string Date { get; set; } = null!;
 
     /// <summary>
+    /// Maximum total extension in calendar days from this deadline's first recorded value.
+    /// Omit for no limit; zero prevents postponement.
+    /// </summary>
+    public int? MaxPostponementDays { get; set; }
+
+    /// <summary>
     /// Hard deadlines revoke this step's permissions except View. Separate global/form grants still apply.
     /// Soft deadlines do not change permissions.
     /// </summary>

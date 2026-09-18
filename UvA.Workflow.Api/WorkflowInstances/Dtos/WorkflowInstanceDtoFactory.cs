@@ -74,13 +74,7 @@ public class WorkflowInstanceDtoFactory(
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
             instance.CurrentStep,
             instance.ParentId,
-            actions.Select(action =>
-            {
-                var dto = ActionDto.Create(action);
-                return action.Action.Type == RoleAction.PostponeDeadlines && action.Form != null
-                    ? dto with { ModalForm = FormDto.Create(action.Form, context) }
-                    : dto;
-            }).ToArray(),
+            actions.Select(ActionDto.Create).ToArray(),
             fields,
             steps,
             submissions
@@ -247,9 +241,16 @@ public class WorkflowInstanceDtoFactory(
             ? new DateTimeOffset(previous.ToUniversalTime())
             : null;
         var hasChanged = date != null && previousDate != null && date != previousDate;
+        var property = UvA.Workflow.Deadlines.PostponeDeadlineService.GetDeadlineProperty(step, definition);
+        var maxPostponementDays = property == null
+            ? null
+            : UvA.Workflow.Deadlines.PostponeDeadlineService.GetMaxPostponementDays(property.Name, definition);
         return new DeadlineDto(date, deadline.Type, isPassed, message,
             hasChanged ? previousDate : null, hasChanged ? change?.Reason : null,
-            UvA.Workflow.Deadlines.PostponeDeadlineService.GetDeadlineProperty(step, definition)?.Name);
+            property?.Name, property != null && date is { } currentDate
+                ? UvA.Workflow.Deadlines.PostponeDeadlineService.GetMaximumDate(
+                    property, maxPostponementDays, currentDate, instanceHistory.Journal)
+                : null);
     }
 
     private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)

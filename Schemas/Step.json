@@ -532,6 +532,11 @@
           "type": "string",
           "description": "Expression that resolves to the deadline date."
         },
+        "maxPostponementDays": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Maximum total extension in calendar days from this deadline's first recorded value; omitted means unlimited."
+        },
         "type": {
           "description": "Hard deadlines revoke this step's permissions except View. Separate global/form grants still apply.\n            Soft deadlines do not change permissions.",
           "$ref": "#/definitions/DeadlineType"

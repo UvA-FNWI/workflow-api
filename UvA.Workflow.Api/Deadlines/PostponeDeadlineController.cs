@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Deadlines;
 using UvA.Workflow.WorkflowModel;
@@ -12,8 +13,28 @@ public class PostponeDeadlineController(
     IUserService userService,
     RightsService rightsService,
     PostponeDeadlineService postponeDeadlineService,
-    WorkflowInstanceDtoFactory dtoFactory) : ApiControllerBase
+    WorkflowInstanceDtoFactory dtoFactory,
+    ModelService modelService,
+    InstanceService instanceService) : ApiControllerBase
 {
+    [HttpGet("{instanceId}/{actionName}")]
+    public async Task<ActionResult<FormDto>> GetForm(string instanceId, string actionName, CancellationToken ct)
+    {
+        if (await userService.GetCurrentUser(ct) == null) return Unauthorized();
+        var instance = await repository.GetById(instanceId, ct);
+        if (instance == null) return WorkflowInstanceNotFound;
+
+        var action = (await rightsService.GetAllowedActions(instance, RoleAction.PostponeDeadlines))
+            .FirstOrDefault(action => action.Name == actionName && action.Steps.Length == 0);
+        if (action?.Form == null) return Forbidden();
+
+        var form = modelService.GetForm(instance, action.Form);
+        var context = modelService.CreateContext(instance);
+        await instanceService.Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition], [context],
+            form.ActualForm.Pages.SelectMany(page => page.IntroductionTemplate?.Properties ?? []), ct);
+        return Ok(FormDto.Create(form, context));
+    }
+
     [HttpPost("{instanceId}/{actionName}")]
     public async Task<ActionResult<PostponeDeadlinesResponseDto>> Postpone(string instanceId, string actionName,
         [FromBody] PostponeDeadlinesRequest request, CancellationToken ct)

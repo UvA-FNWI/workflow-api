@@ -6,7 +6,7 @@ namespace UvA.Workflow.Tests;
 public class PostponementConfigurationTests
 {
     [Fact]
-    public void ExecuteActionReusesTypedFormAndSharedChoiceConfiguration()
+    public void PostponementActionReusesFormAndSharedChoiceConfiguration()
     {
         var model = new ModelService(new ModelParser(new DictionaryProvider(new()
         {
@@ -21,7 +21,7 @@ public class PostponementConfigurationTests
                                           type: String
                                       globalActions:
                                         - name: GrantExtension
-                                          type: Execute
+                                          type: PostponeDeadlines
                                           form: ExtensionDialog
                                           roles: [Coordinator]
                                           onAction:
@@ -31,7 +31,6 @@ public class PostponementConfigurationTests
             ["Project/Forms/ExtensionDialog.yaml"] = """
                                                      name: ExtensionDialog
                                                      title: Extend deadlines
-                                                     type: PostponeDeadline
                                                      layout: Modal
                                                      pages:
                                                        - name: Reason
@@ -42,11 +41,34 @@ public class PostponementConfigurationTests
         var action = Assert.Single(definition.GlobalActions);
         var instance = new WorkflowInstance { WorkflowDefinition = "Project", Properties = new(), Events = new() };
         var form = model.GetForm(instance, action.Form!);
-        var dto = FormDto.Create(form, model.CreateContext(instance), availableChoicesOnly: true);
-        Assert.Equal(FormType.PostponeDeadline, dto.Type);
+        var dto = FormDto.Create(form, model.CreateContext(instance));
+        Assert.Equal(RoleAction.PostponeDeadlines, action.Type);
         Assert.Equal(FormLayout.Modal, dto.Layout);
         Assert.Equal("Other", Assert.Single(dto.Pages[0].Questions[0].Choices!).Name);
         Assert.Equal("DeadlinesPostponed", Assert.Single(action.OnAction).SendMail!.TemplateKey);
         Assert.Empty(instance.Properties);
+    }
+
+    [Theory]
+    [InlineData("Date", 0, true)]
+    [InlineData("Date!", 28, true)]
+    [InlineData("DateTime", 14, true)]
+    [InlineData("Date", -1, false)]
+    [InlineData("[Date]", 14, false)]
+    [InlineData("String", 14, false)]
+    public void DeadlineMaximumRequiresANonNegativeDirectScalarDate(string type, int days, bool valid)
+    {
+        var provider = new DictionaryProvider(new()
+        {
+            ["Project/Entity.yaml"] =
+                $"name: Project\nsteps: [Start]\nproperties:\n  - name: Deadline\n    type: '{type}'",
+            ["Project/Steps/Start.yaml"] = $"name: Start\ndeadline:\n  date: Deadline\n  maxPostponementDays: {days}"
+        });
+        if (valid)
+            Assert.Equal(days, new ModelService(new ModelParser(provider)).WorkflowDefinitions["Project"]
+                .AllSteps.Single().Deadline!.MaxPostponementDays);
+        else
+            Assert.Contains("maxPostponementDays",
+                Assert.ThrowsAny<Exception>(() => new ModelService(new ModelParser(provider))).Message);
     }
 }

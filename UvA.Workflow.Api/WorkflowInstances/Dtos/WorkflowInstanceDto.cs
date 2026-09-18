@@ -51,7 +51,8 @@ public record DeadlineDto(
     BilingualString? Message,
     DateTimeOffset? PreviousDate = null,
     string? ChangeReason = null,
-    string? Property = null);
+    string? Property = null,
+    DateOnly? MaxDate = null);
 
 public record StepDto(
     string Id,
@@ -79,8 +80,7 @@ public record ActionDto(
     string[] Steps = null!,
     ActionIntent Intent = ActionIntent.Primary,
     FormLayout? FormLayout = null,
-    bool AutoOpenForm = false,
-    FormDto? ModalForm = null
+    bool AutoOpenForm = false
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";

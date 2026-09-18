@@ -412,6 +412,16 @@ public partial class ModelParser
         PreProcess(step.Condition);
         PreProcess(step.Ends);
 
+        if (step.Deadline?.MaxPostponementDays is { } maximum)
+        {
+            var date = step.Deadline.Date?.Trim();
+            var property = date == null ? null : workflowDefinition.Properties.GetOrDefault(date);
+            if (maximum < 0 || property == null || property.IsArray ||
+                property.DataType is not (DataType.Date or DataType.DateTime))
+                throw new Exception(
+                    $"maxPostponementDays on step {step.Name} requires its deadline date to directly reference a scalar Date or DateTime property and a non-negative value");
+        }
+
         if (step.Progress.Count(progress => progress.EffectiveCondition == null) > 1)
             throw new Exception($"Step {step.Name} has more than one fallback progress entry");
 

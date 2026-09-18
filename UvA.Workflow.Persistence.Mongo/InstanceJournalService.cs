@@ -51,36 +51,37 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
 
         foreach (var change in newChanges)
         {
-            var cutoff = change.Timestamp.Subtract(PropertyChangeMergeWindow);
-
-            var matchExistingFilter =
-                instanceIdFilter &
-                Builders<InstanceJournalEntry>.Filter.ElemMatch(
-                    x => x.PropertyChanges,
-                    pc => pc.Version == change.Version &&
-                          pc.Path == change.Path &&
-                          pc.Timestamp >= cutoff
-                );
-
-            var updateExisting = Builders<InstanceJournalEntry>.Update
-                .Set("PropertyChanges.$.Timestamp", change.Timestamp)
-                .Set("PropertyChanges.$.Reason", change.Reason)
-                .Set("PropertyChanges.$.ModifiedBy", change.ModifiedBy);
-
-            var updateResult = await _changeSetCollection.UpdateOneAsync(
-                matchExistingFilter,
-                updateExisting,
-                new UpdateOptions { IsUpsert = false },
-                ct);
-
-            if (updateResult.ModifiedCount == 0)
+            UpdateResult? updateResult = null;
+            // Dated old values are immutable: keep every date change and its original timestamp.
+            // Empty reinitialization entries must not merge into a dated entry either.
+            if (change.OldValue is not BsonDateTime)
             {
-                var pushChangeUpdate = Builders<InstanceJournalEntry>.Update.Push(x => x.PropertyChanges, change);
+                var cutoff = change.Timestamp.Subtract(PropertyChangeMergeWindow);
+                var matchChange = Builders<PropertyChangeEntry>.Filter.Where(pc =>
+                    pc.Version == change.Version && pc.Path == change.Path && pc.Timestamp >= cutoff);
+                matchChange &= Builders<PropertyChangeEntry>.Filter.Not(
+                    Builders<PropertyChangeEntry>.Filter.Type(pc => pc.OldValue, BsonType.DateTime));
+                var matchExistingFilter = instanceIdFilter &
+                                          Builders<InstanceJournalEntry>.Filter.ElemMatch(x => x.PropertyChanges,
+                                              matchChange);
+                var updateExisting = Builders<InstanceJournalEntry>.Update
+                    .Set("PropertyChanges.$.Timestamp", change.Timestamp)
+                    .Set("PropertyChanges.$.Reason", change.Reason)
+                    .Set("PropertyChanges.$.ModifiedBy", change.ModifiedBy);
+                updateResult = await _changeSetCollection.UpdateOneAsync(
+                    matchExistingFilter, updateExisting, new UpdateOptions { IsUpsert = false }, ct);
+            }
+
+            if (updateResult?.MatchedCount is not > 0)
+            {
+                var pushChangeUpdate = Builders<InstanceJournalEntry>.Update
+                    .Push(x => x.PropertyChanges, change)
+                    .SetOnInsert(x => x.CurrentVersion, change.Version);
 
                 await _changeSetCollection.UpdateOneAsync(
                     instanceIdFilter,
                     pushChangeUpdate,
-                    new UpdateOptions { IsUpsert = false },
+                    new UpdateOptions { IsUpsert = true },
                     ct);
             }
             else

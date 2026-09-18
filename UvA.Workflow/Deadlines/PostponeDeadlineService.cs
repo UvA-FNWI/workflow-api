@@ -26,6 +26,24 @@ public class PostponeDeadlineService(
         if (changes == null)
             return new([PostponementError.InvalidChanges]);
 
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var limits = changes.Keys
+            .Select(property => (Property: property, Days: GetMaxPostponementDays(property, definition)))
+            .Where(limit => limit.Days.HasValue)
+            .ToDictionary(limit => limit.Property, limit => limit.Days!.Value);
+        if (limits.Count > 0)
+        {
+            var journal = await journalService.GetInstanceJournal(instance.Id, ct: ct);
+            foreach (var change in request.Changes)
+            {
+                if (!limits.TryGetValue(change.Property, out var days)) continue;
+                var property = definition.Properties.Single(property => property.Name == change.Property);
+                if (GetMaximumDate(property, days, change.PreviousDate, journal) is { } maximum &&
+                    change.NewDate > maximum)
+                    return new([PostponementError.MaximumExtensionExceeded]);
+            }
+        }
+
         foreach (var (property, date) in changes)
         {
             var previous = instance.GetProperty(property);
@@ -75,6 +93,35 @@ public class PostponeDeadlineService(
         }
 
         return resolved;
+    }
+
+    public static int? GetMaxPostponementDays(string propertyName, WorkflowDefinition definition)
+    {
+        var limits = definition.AllSteps
+            .Where(step => GetDeadlineProperty(step, definition)?.Name == propertyName)
+            .Select(step => step.Deadline!.MaxPostponementDays)
+            .Where(days => days.HasValue)
+            .Select(days => days!.Value)
+            .ToArray();
+        return limits.Length == 0 ? null : limits.Min();
+    }
+
+    public static DateOnly? GetMaximumDate(PropertyDefinition property, int? maxPostponementDays,
+        DateTimeOffset currentDate,
+        InstanceJournalEntry? journal)
+    {
+        if (maxPostponementDays is not { } days) return null;
+        // Use this property's first recorded date, independent of the order returned by the journal.
+        var first = journal?.PropertyChanges
+            .Where(change => change.Path == property.Name && change.OldValue is BsonDateTime)
+            .OrderBy(change => change.Timestamp)
+            .FirstOrDefault();
+        var original = first?.OldValue is BsonDateTime date
+            ? new DateTimeOffset(date.ToUniversalTime())
+            : currentDate;
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
+        var originalDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(original, zone).DateTime);
+        return originalDate.AddDays(Math.Min(days, DateOnly.MaxValue.DayNumber - originalDate.DayNumber));
     }
 
     // Preserve the Amsterdam wall-clock time when extending across daylight-saving transitions.
