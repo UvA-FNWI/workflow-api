@@ -212,7 +212,14 @@
         },
         "type": {
           "type": "string",
-          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Check\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+        },
+        "default": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression used to initialize this property when an instance is created without a value."
         },
         "allowedFileTypes": {
           "type": [
@@ -565,13 +572,16 @@
           ]
         },
         "deadline": {
+          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Check if a deadline has passed",
-              "$ref": "#/definitions/Deadline"
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/DeadlineCondition"
             }
           ]
         },
@@ -712,8 +722,8 @@
         }
       }
     },
-    "Deadline": {
-      "title": "Deadline",
+    "DeadlineCondition": {
+      "title": "DeadlineCondition",
       "type": "object",
       "additionalProperties": false,
       "required": [

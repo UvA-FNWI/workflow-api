@@ -1,5 +1,6 @@
 using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel.Conditions;
+using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -102,11 +103,18 @@ public class PropertyDefinition : INamed
     public BilingualString? ShortText { get; set; }
 
     /// <summary>
-    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean
+    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Check
     /// or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate
     /// a required value.
     /// </summary>
     public string Type { get; set; } = null!;
+
+    /// <summary>
+    /// Expression used to initialize this property when an instance is created without a value.
+    /// </summary>
+    public string? Default { get; set; }
+
+    public Expression? DefaultExpression => ExpressionParser.Parse(Default);
 
     /// <summary>
     /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
@@ -168,7 +176,7 @@ public class PropertyDefinition : INamed
         "File" => DataType.File,
         "User" => DataType.User,
         "Currency" => DataType.Currency,
-        "Boolean" => DataType.Boolean,
+        "Check" => DataType.Check,
         _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
         _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,

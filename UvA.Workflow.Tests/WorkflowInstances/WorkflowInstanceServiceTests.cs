@@ -1,4 +1,5 @@
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Events;
@@ -12,6 +13,7 @@ namespace UvA.Workflow.Tests.WorkflowInstances;
 public class WorkflowInstanceServiceTests
 {
     private readonly Mock<IWorkflowInstanceRepository> _repository = new();
+    private readonly Mock<IUserRepository> _userRepository = new();
     private readonly Mock<IInstanceJournalService> _journal = new();
     private readonly WorkflowInstanceService _service;
     private readonly ModelService _modelService;
@@ -40,7 +42,91 @@ public class WorkflowInstanceServiceTests
         _modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
         _service = new WorkflowInstanceService(_modelService, _repository.Object, _journal.Object,
             Mock.Of<IInstanceEventRepository>(),
-            userService.Object);
+            userService.Object, _userRepository.Object);
+    }
+
+    [Fact]
+    public async Task Create_AppliesDefaultToMissingProperty()
+    {
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .Single(property => property.Name == "Title").Default = "=Shared title";
+
+        var created = await _service.Create("Project", new User(), _ct);
+
+        Assert.Equal("Shared title", created.Properties["Title"].AsString);
+    }
+
+    [Fact]
+    public async Task Create_DoesNotReplaceExplicitNullWithDefault()
+    {
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .Single(property => property.Name == "Title").Default = "=Shared title";
+
+        var created = await _service.Create("Project", new User(), _ct,
+            initialProperties: new Dictionary<string, BsonValue> { ["Title"] = BsonNull.Value });
+
+        Assert.True(created.Properties["Title"].IsBsonNull);
+    }
+
+    [Fact]
+    public async Task Create_AppliesDefaultFromReferencedProperty()
+    {
+        var contextDefinition = _modelService.WorkflowDefinitions["Context"];
+        contextDefinition.Properties.Add(new PropertyDefinition
+        {
+            Name = "EndDate",
+            Type = "Date",
+            ParentType = contextDefinition
+        });
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .Single(property => property.Name == "EndDate").Default = "Course.EndDate";
+        var courseId = ObjectId.GenerateNewId().ToString();
+        var endDate = new DateTime(2027, 1, 31);
+        _repository.Setup(repository => repository.GetById(courseId, _ct)).ReturnsAsync(new WorkflowInstance
+        {
+            Id = courseId,
+            WorkflowDefinition = "Context",
+            Properties = new Dictionary<string, BsonValue> { ["EndDate"] = endDate },
+            Events = []
+        });
+
+        var created = await _service.Create("Project", new User(), _ct,
+            initialProperties: new Dictionary<string, BsonValue> { ["Course"] = courseId });
+
+        Assert.Equal(endDate, created.Properties["EndDate"].ToLocalTime());
+    }
+
+    [Fact]
+    public async Task Create_ResolvesUserDefaultByEmail()
+    {
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .Single(property => property.Name == "Supervisor").Default = "=supervisor@example.org";
+        var user = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "supervisor",
+            DisplayName = "Supervisor",
+            Email = "supervisor@example.org"
+        };
+        _userRepository.Setup(repository => repository.GetByEmail("supervisor@example.org", _ct))
+            .ReturnsAsync(user);
+
+        var created = await _service.Create("Project", new User(), _ct);
+
+        var stored = BsonSerializer.Deserialize<InstanceUser>(created.Properties["Supervisor"].AsBsonDocument);
+        Assert.Equal(user.Id, stored.Id);
+    }
+
+    [Fact]
+    public async Task Create_DoesNotPersistWhenUserDefaultCannotBeResolved()
+    {
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .Single(property => property.Name == "Supervisor").Default = "=missing@example.org";
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.Create("Project", new User(), _ct));
+
+        _repository.Verify(repository => repository.Create(It.IsAny<WorkflowInstance>(), _ct), Times.Never);
     }
 
     [Fact]
@@ -110,7 +196,7 @@ public class WorkflowInstanceServiceTests
         userService.Setup(s => s.GetRealUser(_ct)).ReturnsAsync(UnitTestsHelpers.AdminUser);
 
         var service = new WorkflowInstanceService(_modelService, _repository.Object, _journal.Object,
-            Mock.Of<IInstanceEventRepository>(), userService.Object);
+            Mock.Of<IInstanceEventRepository>(), userService.Object, Mock.Of<IUserRepository>());
 
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Upload")

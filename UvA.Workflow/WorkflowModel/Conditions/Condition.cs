@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.WorkflowModel.Conditions;
@@ -34,9 +35,9 @@ public class Condition
     public Date? Date { get; set; }
 
     /// <summary>
-    /// Check if a deadline has passed
+    /// Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.
     /// </summary>
-    public Deadline? Deadline { get; set; }
+    public DeadlineCondition? Deadline { get; set; }
 
     /// <summary>
     /// Use a named reusable condition
@@ -84,29 +85,39 @@ public class Date : ConditionPart
     public static implicit operator Date(string s) => new Date { Source = s };
 }
 
-public class Deadline : ConditionPart
+public class DeadlineCondition : ConditionPart
 {
     public string ExpressionText { get; set; } = null!;
 
     private Expression Expression => ExpressionParser.Parse(ExpressionText);
 
-    public DateTime? Evaluate(ObjectContext context)
+    public DateTimeOffset? Evaluate(ObjectContext context)
         => Expression.Execute(context) switch
         {
-            DateTime d => d,
-            string s => DateTime.Parse(s),
+            DateTimeOffset d => d,
+            DateTime d => ToDateTimeOffset(d),
+            string s => DateTimeOffset.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
             _ => null
         };
+
+    private static DateTimeOffset ToDateTimeOffset(DateTime date)
+    {
+        if (date.Kind is DateTimeKind.Utc or DateTimeKind.Local)
+            return new DateTimeOffset(date);
+
+        var serverTimezoneOffset = TimeZoneInfo.Local.GetUtcOffset(date);
+        return new DateTimeOffset(date, serverTimezoneOffset);
+    }
 
     public override IEnumerable<Lookup> Properties => Expression.Properties;
 
     public override bool IsMet(ObjectContext context)
     {
         var deadline = Evaluate(context);
-        return deadline != null && deadline.Value > DateTime.Now;
+        return deadline != null && deadline.Value > DateTimeOffset.Now;
     }
 
-    public static implicit operator Deadline(string s) => new() { ExpressionText = s };
+    public static implicit operator DeadlineCondition(string s) => new() { ExpressionText = s };
 }
 
 public class EventCondition : ConditionPart

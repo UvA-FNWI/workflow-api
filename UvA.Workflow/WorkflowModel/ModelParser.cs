@@ -9,6 +9,8 @@ namespace UvA.Workflow.WorkflowModel;
 
 public partial class ModelParser
 {
+    private static readonly string[] ReservedEventNames = ["Last"];
+
     private readonly IContentProvider _contentProvider;
 
     /// The source the model was parsed from. Exposed so the API can serve the raw files back for editing.
@@ -19,7 +21,7 @@ public partial class ModelParser
         .Build();
 
     public List<Service> Services { get; }
-    public List<Role> Roles { get; }
+    public List<Role> GlobalRoles { get; }
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
@@ -27,7 +29,7 @@ public partial class ModelParser
     public ModelParser(IContentProvider contentProvider)
     {
         _contentProvider = contentProvider;
-        Roles = Read<Role>();
+        GlobalRoles = Read<Role>();
         Services = Read<Service>();
         ValidateServices(Services);
         ValueSets = Read<ValueSet>();
@@ -112,17 +114,27 @@ public partial class ModelParser
             }
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
+            {
+                if (entry.Name != null && NamedConditions.Contains(entry.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares condition '{entry.Name}', which already exists in Common.");
                 NamedConditions.Add(entry);
+            }
+
+            definition.Roles = GlobalRoles.Select(r => r.Clone()).ToList();
+            foreach (var role in Read<Role>(definition.SourceFolder))
+            {
+                if (GlobalRoles.Contains(role.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares role '{role.Name}', which already exists in Common.");
+                definition.Roles.Add(role);
+            }
 
             if (definition.InheritsFrom != null)
                 ApplyInheritance(definition, WorkflowDefinitions[definition.InheritsFrom]);
 
             definition.Steps = definition.StepNames.Select(n => definition.AllSteps.Get(n)).ToList();
             WorkflowDefinitions[definition.Name] = definition;
-
-            foreach (var prop in definition.Properties.Where(p => p.UnderlyingType == "User"))
-                if (!Roles.Contains(prop.Name))
-                    Roles.Add(new Role { Name = prop.Name });
 
             foreach (var val in definition.Events)
                 val.Name = val.Name;
@@ -131,7 +143,7 @@ public partial class ModelParser
             {
                 action.WorkflowDefinition = definition.Name;
                 foreach (var role in action.Roles)
-                    Roles.Get(role).Actions.Add(action);
+                    definition.Roles.Get(role).Actions.Add(action);
             }
 
             // Inherited parents must resolve child references against this definition's steps.
@@ -146,7 +158,7 @@ public partial class ModelParser
                     action.Steps = [step.Name];
                     foreach (var role in action.Roles)
                     {
-                        var roleObject = Roles.GetOrDefault(role);
+                        var roleObject = definition.Roles.GetOrDefault(role);
                         if (roleObject == null)
                             throw new Exception($"Role {role} is used in action {action.Name} but does not exist");
                         roleObject.Actions.Add(action);
@@ -169,7 +181,7 @@ public partial class ModelParser
             }
         }
 
-        Roles.ForEach(PreProcess);
+        GlobalRoles.ForEach(r => PreProcess(r));
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
     }
@@ -193,9 +205,13 @@ public partial class ModelParser
         }
     }
 
-    private void PreProcess(Role role)
+    private void PreProcess(Role role, WorkflowDefinition? owner = null)
     {
-        role.Actions = role.Actions.Union(role.InheritFrom.SelectMany(r => Roles.Get(r).Actions)).ToList();
+        Role ResolveInherited(string name) => owner?.Roles.GetOrDefault(name) ?? GlobalRoles.GetOrDefault(name)
+            ?? throw new Exception($"Role '{name}' referenced in inheritFrom of role '{role.Name}' does not exist");
+
+        role.Actions = role.Actions
+            .Union(role.InheritFrom.Select(ResolveInherited).SelectMany(r => r.Actions)).ToList();
         foreach (var act in role.Actions)
         {
             PreProcess(act.OnAction);
@@ -315,6 +331,9 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        foreach (var role in workflowDefinition.Roles)
+            PreProcess(role, workflowDefinition);
+
         foreach (var ent in workflowDefinition.Properties)
         {
             ent.ParentType = workflowDefinition;
@@ -338,8 +357,26 @@ public partial class ModelParser
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
         ExpandResetParentSteps(workflowDefinition);
+        ValidateReservedEventNames(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private static void ValidateReservedEventNames(WorkflowDefinition definition)
+    {
+        var effects = definition.AllActions.SelectMany(action => action.OnAction)
+            .Concat(definition.Forms.SelectMany(form => form.OnSubmit.Concat(form.OnSave)));
+        var eventNames = definition.Events.Select(ev => ev.Name)
+            .Concat(definition.AllSteps.SelectMany(step => step.Events).Select(ev => ev.Name))
+            .Concat(definition.Forms.Select(form => form.Name))
+            .Concat(effects.SelectMany(effect => new[] { effect.Event, effect.UndoEvent }));
+
+        foreach (var reservedName in ReservedEventNames)
+        {
+            if (eventNames.Contains(reservedName))
+                throw new Exception(
+                    $"Event name '{reservedName}' is reserved in workflow '{definition.Name}'.");
+        }
     }
 
     private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
@@ -391,8 +428,10 @@ public partial class ModelParser
                 throw new Exception($"Step {step.Name}: optional and before cannot both be set");
             if (step.Before != null && !workflowDefinition.AllSteps.Contains(step.Before))
                 throw new Exception($"Step {step.Name}: before '{step.Before}' does not exist");
-            if (workflowDefinition.LeafSteps.All(s => s.Name != step.Name))
-                throw new Exception($"Step {step.Name}: alongside is only valid on a step in the flattened walk");
+            if (workflowDefinition.WalkSteps.All(s => s.Name != step.Name))
+                throw new Exception(step.ParentStep != null
+                    ? $"Step {step.Name}: alongside is only valid on a listed step, not on a child of '{step.ParentStep.Name}'"
+                    : $"Step {step.Name}: alongside is only valid on a listed step");
         }
 
         foreach (var ev in step.Events)
@@ -527,6 +566,28 @@ public partial class ModelParser
         catch (Exception)
         {
             throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
+        }
+
+        if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
+        {
+            propertyDefinition.Default = null;
+        }
+        else
+        {
+            try
+            {
+                _ = propertyDefinition.DefaultExpression;
+            }
+            catch (Exception exception)
+            {
+                throw new Exception(
+                    $"Invalid default for property {propertyDefinition.Name}: {exception.Message}", exception);
+            }
+
+            if (propertyDefinition.IsArray || propertyDefinition.DataType is DataType.Object or DataType.Currency
+                    or DataType.File)
+                throw new Exception(
+                    $"Defaults are not supported for property {propertyDefinition.Name} of type {propertyDefinition.Type}");
         }
 
         NormalizeAllowedFileTypes(propertyDefinition);

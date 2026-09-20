@@ -67,6 +67,12 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public IEnumerable<Action> AllActions => GlobalActions.Concat(AllSteps.SelectMany(s => s.Actions));
 
     /// <summary>
+    /// List of roles for this entity type. Loaded from the Roles folder of the entity type definition.
+    /// </summary>
+    [YamlIgnore]
+    public List<Role> Roles { get; set; } = [];
+
+    /// <summary>
     /// List of step names for this entity type
     /// </summary>
     [YamlMember(Alias = "steps")]
@@ -127,18 +133,22 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
         .SelectMany(progress => progress.Lookups)
         .Distinct();
 
-    private static IEnumerable<Step> GetSteps(Step s) =>
-        s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
-            ? s.Children.SelectMany(GetSteps)
-            : [s];
+    private static IEnumerable<Step> GetWalkSteps(Step s) =>
+        s.IsAlongside
+            ? [s]
+            : s.Children.Any() && s.HierarchyMode == StepHierarchyMode.Sequential
+                ? s.Children.SelectMany(GetWalkSteps)
+                : [s];
 
     /// <summary>
-    /// Returns all leaf steps, i.e. that have no sequential children
+    /// Flattened walk: sequential children replace their parent, except an alongside parent stays one position.
     /// </summary>
-    public IEnumerable<Step> LeafSteps => Steps.SelectMany(s => GetSteps(s));
+    public IEnumerable<Step> WalkSteps => Steps.SelectMany(GetWalkSteps);
 
     public DataType GetDataType(string property)
     {
+        if (property is "LastEvent" or "CreateDate")
+            return DataType.DateTime;
         if (Properties.TryGetValue(property, out var prop))
             return prop.DataType;
         if (property.EndsWith("Event") && Events.Contains(property[..^5]))
@@ -148,6 +158,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     public string GetKey(string property)
     {
+        if (property == "CreateDate")
+            return "$CreatedOn";
         if (Properties.Contains(property))
             return $"$Properties.{property}";
         if (property.EndsWith("Event") && Events.Contains(property[..^5]))
