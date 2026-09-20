@@ -71,7 +71,7 @@ public class EffectServiceMailLoggingTests
         artifactService
             .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string artifactId, string name, byte[] _) =>
+            .ReturnsAsync((string artifactId, string name, byte[] _, string _, CancellationToken _) =>
                 new ArtifactInfo(artifactId, name));
 
         MailLogEntry? loggedEntry = null;

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -178,6 +179,52 @@ public class WorkflowTests
                 It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    static IFormFile CreateFile(string fileName, int? size = null)
+    {
+        var fileMock = new Mock<IFormFile>();
+        fileMock.Setup(f => f.FileName).Returns(fileName);
+        fileMock.Setup(f => f.OpenReadStream()).Returns(() => new MemoryStream());
+        fileMock.Setup(f => f.Length).Returns(size ?? 0);
+        return fileMock.Object;
+    }
+
+    [Fact]
+    public async Task SubmitForm_UploadArtifact_Success()
+    {
+        // Arrange
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted()
+            )
+            .Build();
+
+        const string fileName = "test.pdf";
+
+        var fileId = ObjectId.GenerateNewId();
+        var artifactId = S3ArtifactService.ToArtifactId(instance.Id, null, fileId);
+
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        _artifactServiceMock.Setup(a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ArtifactInfo(artifactId, fileName));
+
+        // Act
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        await _answerService.SaveArtifact(questionContext, CreateFile(fileName), _ct);
+
+        // Assert
+        Assert.Contains(instance.Properties, p => p.Key == "Report");
+        var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
+        Assert.Equal(fileName, report.Name);
+        _artifactServiceMock.Verify(
+            a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _instanceRepoMock.Verify(
+            r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact]
     public async Task UploadArtifact_RejectsFileTypeThatIsNotAllowed()
     {
@@ -187,14 +234,33 @@ public class WorkflowTests
             .Build();
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        using var contents = new MemoryStream();
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _answerService.SaveArtifact(questionContext, "report.docx", contents, _ct));
+            _answerService.SaveArtifact(questionContext, CreateFile("report.docx"), _ct));
 
         _artifactServiceMock.Verify(
-            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()),
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task UploadArtifact_AppliesPrefix()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        questionContext.PropertyDefinition.FileSettings = new() { Prefix = "prefix_" };
+
+        await _answerService.SaveArtifact(questionContext, CreateFile("report.pdf"), _ct);
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), "prefix_report.pdf", It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -206,16 +272,18 @@ public class WorkflowTests
             .Build();
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        Assert.Equal(["pdf", "zip"], questionContext.PropertyDefinition.AllowedFileTypes!);
+        Assert.Equal(["pdf", "zip"], questionContext.PropertyDefinition.FileSettings?.AllowedTypes!);
         _artifactServiceMock
-            .Setup(service => service.SaveArtifact(It.IsAny<string>(), "archive.ZIP", It.IsAny<Stream>()))
+            .Setup(service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ArtifactInfo("artifact-id", "archive.ZIP"));
         using var contents = new MemoryStream();
 
-        await _answerService.SaveArtifact(questionContext, "archive.ZIP", contents, _ct);
+        await _answerService.SaveArtifact(questionContext, CreateFile("archive.ZIP"), _ct);
 
         _artifactServiceMock.Verify(
-            service => service.SaveArtifact(It.IsAny<string>(), "archive.ZIP", It.IsAny<Stream>()),
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -228,14 +296,14 @@ public class WorkflowTests
             .Build();
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        questionContext.PropertyDefinition.AllowedFileSize = 1000;
-        using var contents = new MemoryStream(new byte[1001]);
+        questionContext.PropertyDefinition.FileSettings = new() { MaximumSize = 1000 };
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            _answerService.SaveArtifact(questionContext, "report.pdf", contents, _ct));
+            _answerService.SaveArtifact(questionContext, CreateFile("report.pdf", 1001), _ct));
 
         _artifactServiceMock.Verify(
-            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()),
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 

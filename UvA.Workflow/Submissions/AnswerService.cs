@@ -203,7 +203,15 @@ public class AnswerService(
         var (instance, _, _, propertyDefinition) = context;
         ValidateFile(propertyDefinition, formFile.FileName, formFile.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
-        var artifactInfo = await artifactService.SaveArtifact(artifactId, formFile.FileName, formFile.OpenReadStream(),
+
+        var fileName = formFile.FileName;
+        if (propertyDefinition.FileSettings?.PrefixTemplate != null)
+        {
+            var templateContext = modelService.CreateContext(instance);
+            fileName = $"{propertyDefinition.FileSettings.PrefixTemplate.Execute(templateContext)}{formFile.FileName}";
+        }
+
+        var artifactInfo = await artifactService.SaveArtifact(artifactId, fileName, formFile.OpenReadStream(),
             formFile.ContentType, ct);
 
         await SaveArtifact(context, artifactInfo, ct);
