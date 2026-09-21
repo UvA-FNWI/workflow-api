@@ -166,6 +166,7 @@ public class Callout
 {
     public CalloutVariant Variant { get; set; } = CalloutVariant.Info;
     public BilingualString? Title { get; set; }
+    [YamlIgnore] public BilingualTemplate? TitleTemplate => field ??= BilingualTemplate.Create(Title);
     public BilingualString? Text { get; set; }
     [YamlIgnore] public BilingualTemplate? TextTemplate => field ??= BilingualTemplate.Create(Text);
 

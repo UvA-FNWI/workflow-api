@@ -113,7 +113,7 @@ public record PageElementDto(
 public record CalloutDto(CalloutVariant Variant, BilingualString? Title, BilingualString? Text)
 {
     public static CalloutDto Create(Callout callout, ObjectContext context)
-        => new(callout.Variant, callout.Title, callout.TextTemplate?.Apply(context));
+        => new(callout.Variant, callout.TitleTemplate?.Apply(context), callout.TextTemplate?.Apply(context));
 }
 
 public record QuestionDto(
