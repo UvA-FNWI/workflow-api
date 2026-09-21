@@ -11,9 +11,6 @@ public class DataNoseLoginMethodClassifier : ILoginMethodClassifier
             return null;
 
         var uid = userName.Trim();
-        // 3 letters + 3 digits: VU VUnetID (abc123).
-        if (Regex.IsMatch(uid, @"^[A-Za-z]{3}\d{3}$"))
-            return LoginMethod.Vu;
         // 7 digits: UvA student number.
         if (Regex.IsMatch(uid, @"^\d{7}$"))
             return LoginMethod.Uva;
