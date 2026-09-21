@@ -41,10 +41,19 @@ public class PersonalInstanceService(
             .ThenByDescending(dto => dto.Id)
             .ToArray();
 
+        var roleLookup = instanceDtos
+            .SelectMany(dto => dto.Roles.Select(name => (dto.WorkflowDefinition, name)))
+            .GroupBy(x => x.name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => modelService.WorkflowDefinitions[x.WorkflowDefinition].Roles.GetOrDefault(x.name))
+                    .FirstOrDefault(r => r != null) ?? new Role { Name = g.Key },
+                StringComparer.OrdinalIgnoreCase);
+
         var roles = instanceDtos
             .SelectMany(instance => instance.Roles)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(name => modelService.Roles.GetValueOrDefault(name) ?? new Role { Name = name })
+            .Select(name => roleLookup[name])
             .OrderBy(role => role.Order)
             .ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase)
             .Select(role => new PersonalRoleDto(role.Name, role.DisplayTitle))
