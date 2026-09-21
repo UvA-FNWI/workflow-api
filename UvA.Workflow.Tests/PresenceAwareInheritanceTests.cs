@@ -203,18 +203,13 @@ public class PresenceAwareInheritanceTests
             ["Child/Forms/Edit.yaml"] = "name: Edit"
         }));
 
-        Role RegisteredOf(string definition) =>
-            parser.WorkflowDefinitions[definition].Roles.Single(r => r.Name == "Registered");
+        var childForm = parser.WorkflowDefinitions["Child"].Forms.Get("Edit");
 
-        Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Make");
-        Assert.Equal(1, RegisteredOf("Omit").Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Make"));
-
-        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Make");
-        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Remove");
-        Assert.Equal(2, RegisteredOf("Merge").Actions.Count(a => a.WorkflowDefinition == "Merge"));
-
-        Assert.DoesNotContain(parser.WorkflowDefinitions["Clear"].AllActions, a => a.Name == "Make");
-        Assert.DoesNotContain(RegisteredOf("Clear").Actions, a => a.WorkflowDefinition == "Clear" && a.Name == "Make");
+        // The child's Edit.yaml doesn't specify "pages" at all, so it should inherit
+        // the parent's page(s) as-is, rather than clearing them or generating a default page.
+        var page = Assert.Single(childForm.Pages);
+        Assert.Equal("ParentPage", page.Name);
+        Assert.Equal(["Foo"], page.PageElements.Select(e => e.Question));
     }
 
     [Fact]

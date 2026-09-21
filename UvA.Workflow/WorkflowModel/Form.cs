@@ -46,7 +46,8 @@ public class Page : INamed
     /// Calculated list of all questions on this page
     /// </summary>
     [YamlIgnore]
-    public PropertyDefinition[] Questions { get; set; } = [];
+    public IEnumerable<PropertyDefinition> Questions =>
+        PageElements.Where(e => e.QuestionDefinition != null).Select(e => e.QuestionDefinition!);
 
     /// <summary>
     /// If set, this page is included only when editing a matching property

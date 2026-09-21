@@ -84,7 +84,14 @@ public class ExternalUserEmailUpdateServiceTests
         var form = new Form
         {
             Name = "Proposal", Step = "Start",
-            Pages = [new Page { Name = "Details", Fields = [property] }]
+            Pages =
+            [
+                new Page
+                {
+                    Name = "Details",
+                    PageElements = [new PageElement { Question = property.Name, QuestionDefinition = property }]
+                }
+            ]
         };
         var definition = CreateWorkflowDefinition([property], [form]);
         form.WorkflowDefinition = definition;
@@ -161,7 +168,7 @@ public class ExternalUserEmailUpdateServiceTests
                 new Page
                 {
                     Name = "Page1",
-                    PageElements = [new PageElement { Question = propDef.Name, QuestionDefinition = propDef }]
+                    PageElements = [new PageElement { Question = propDef.Name, QuestionDefinition = propDef }],
                 }
             ]
         };
