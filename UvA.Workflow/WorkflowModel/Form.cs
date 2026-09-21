@@ -43,6 +43,12 @@ public class Page : INamed
     public PageElement[] PageElements { get; set; } = [];
 
     /// <summary>
+    /// Calculated list of all questions on this page
+    /// </summary>
+    [YamlIgnore]
+    public PropertyDefinition[] Questions { get; set; } = [];
+
+    /// <summary>
     /// If set, this page is included only when editing a matching property
     /// </summary>
     public string[]? Sources { get; set; }
@@ -134,9 +140,7 @@ public class Form : INamed, IDeclaredKeys
     public Effect[] OnSave { get; set; } = [];
 
     public IEnumerable<PropertyDefinition> PropertyDefinitions =>
-        Pages.SelectMany(p => p.PageElements)
-            .Where(e => e.QuestionDefinition != null)
-            .Select(e => e.QuestionDefinition!)
+        Pages.SelectMany(p => p.Questions)
             .Distinct();
 
     public Form Clone()

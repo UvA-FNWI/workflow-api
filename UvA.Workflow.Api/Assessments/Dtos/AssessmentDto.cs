@@ -142,9 +142,8 @@ public class AssessmentDtoFactory(
         var shownQuestionIds = modelService.GetQuestionStatus(instance, form, true);
         var questionNamesOnPage = form.ActualForm.Pages
             .Where(p => string.IsNullOrEmpty(pageName) || p.Name == pageName)
-            .SelectMany(p => p.PageElements)
-            .Where(e => e.QuestionDefinition != null)
-            .Select(f => f.QuestionDefinition!.Name);
+            .SelectMany(p => p.Questions)
+            .Select(q => q.Name);
 
         var answers = Answer.Create(instance, form, shownQuestionIds)
             .Where(a => questionNamesOnPage.Contains(a.QuestionName))

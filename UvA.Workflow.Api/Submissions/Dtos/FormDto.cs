@@ -14,9 +14,9 @@ public record FormDto(
     {
         var allPages = form.ActualForm.Pages.ToArray();
         var totalWeight = allPages
-            .SelectMany(p => p.PageElements)
-            .Where(e => e.QuestionDefinition?.Calculation?.Weight != null)
-            .Sum(e => e.QuestionDefinition!.Calculation!.Weight!.Value);
+            .SelectMany(p => p.Questions)
+            .Where(q => q.Calculation?.Weight != null)
+            .Sum(q => q.Calculation!.Weight!.Value);
 
         // For child forms, only pages matching Sources belong to the current form. For base forms, all pages are considered part of the current form.
         var currentFormPages = form.TargetForm == null
@@ -27,9 +27,7 @@ public record FormDto(
                 .ToArray();
 
         var questions = currentFormPages
-            .SelectMany(p => p.PageElements)
-            .Where(e => e.QuestionDefinition != null)
-            .Select(e => e.QuestionDefinition!)
+            .SelectMany(p => p.Questions)
             .Distinct()
             .ToDictionary(q => q, q => QuestionDto.Create(q, context, totalWeight));
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
