@@ -44,7 +44,8 @@ public class EffectService(
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IConfiguration configuration,
-    ILogger<EffectService> logger)
+    ILogger<EffectService> logger,
+    IEnumerable<ILoginMethodClassifier>? loginMethodClassifiers = null)
 {
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
@@ -54,11 +55,11 @@ public class EffectService(
         var input = job.Input;
         if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
         if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
-        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id);
+        if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id, context);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(instance, context, effect, ct);
         if (effect.CreateExternalUserAccount != null)
-            await EnsureExternalAccounts(instance, effect.CreateExternalUserAccount, ct);
+            await EnsureExternalAccounts(instance, effect, context, ct);
         var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
         var toast = effect.Toast == null
             ? null
@@ -68,12 +69,12 @@ public class EffectService(
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
-        MailMessage? mail = null, string? jobId = null)
+        MailMessage? mail = null, string? jobId = null, ObjectContext? context = null)
     {
         if (mail == null && !sendMail.SendAutomatically)
             throw new Exception("Mail message not provided");
 
-        mail ??= await instanceService.BuildMail(instance, sendMail, ct);
+        mail ??= await instanceService.BuildMail(instance, sendMail, ct, context);
         var dispatchResult = await mailService.Send(mail, ct);
 
         var attachments = new List<ArtifactInfo>();
@@ -141,19 +142,21 @@ public class EffectService(
 
     private async Task EnsureExternalAccounts(
         WorkflowInstance instance,
-        CreateExternalUserAccount effect,
+        Effect effect,
+        ObjectContext context,
         CancellationToken ct)
     {
+        var accountEffect = effect.CreateExternalUserAccount!;
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var property = workflowDefinition.Properties.GetOrDefault(effect.Role);
+        var property = workflowDefinition.Properties.GetOrDefault(accountEffect.Role);
         if (property == null)
             throw new InvalidOperationException(
-                $"External account effect role '{effect.Role}' does not match a property on workflow '{workflowDefinition.Name}'.");
+                $"External account effect role '{accountEffect.Role}' does not match a property on workflow '{workflowDefinition.Name}'.");
 
         if (property.DataType != DataType.User)
         {
             throw new InvalidOperationException(
-                $"External account effect role '{effect.Role}' must target a property of type User or [User].");
+                $"External account effect role '{accountEffect.Role}' must target a property of type User or [User].");
         }
 
         if (!instance.Properties.TryGetValue(property.Name, out var rawValue) || rawValue is BsonNull)
@@ -164,7 +167,7 @@ public class EffectService(
             InstanceUser single => [single],
             InstanceUser[] multiple => multiple,
             _ => throw new InvalidOperationException(
-                $"External account effect role '{effect.Role}' could not be resolved to workflow users.")
+                $"External account effect role '{accountEffect.Role}' could not be resolved to workflow users.")
         };
 
         var normalizedRecipients = recipients
@@ -172,6 +175,7 @@ public class EffectService(
             .DistinctBy(r => r.Email, StringComparer.OrdinalIgnoreCase);
 
         var updatedExternalUsers = new Dictionary<string, InstanceUser>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<Lookup, object>? output = null;
         foreach (var (recipient, email) in normalizedRecipients)
         {
             try
@@ -181,18 +185,36 @@ public class EffectService(
             catch (FormatException ex)
             {
                 throw new InvalidOperationException(
-                    $"External account effect role '{effect.Role}' contains an invalid email address '{email}'.",
+                    $"External account effect role '{accountEffect.Role}' contains an invalid email address '{email}'.",
                     ex);
             }
 
-            var result = await eduIdUserService.EnsureExternalAccount(
-                email,
-                recipient.DisplayName,
-                EduIdInviteDeliveryMode.SendEmail,
-                ct);
-            if (result.User != null)
-                updatedExternalUsers[email] = InstanceUser.FromUser(result.User);
+            var loginMethod = loginMethodClassifiers?
+                .Select(c => c.Classify(recipient.UserName))
+                .FirstOrDefault(m => m != null) ?? LoginMethod.EduId;
+            string? invitationUrl = null;
+
+            if (loginMethod == LoginMethod.EduId)
+            {
+                var result = await eduIdUserService.EnsureExternalAccount(
+                    email,
+                    recipient.DisplayName,
+                    EduIdInviteDeliveryMode.ReturnInvitationUrl,
+                    ct);
+                invitationUrl = result.InvitationUrl;
+                if (result.User != null)
+                    updatedExternalUsers[email] = InstanceUser.FromUser(result.User);
+            }
+
+            output = new Dictionary<Lookup, object>
+            {
+                ["InvitationUrl"] = invitationUrl ?? "",
+                ["LoginMethod"] = loginMethod.ToString()
+            };
         }
+
+        if (output != null)
+            context.Values[effect.Name ?? "Invitation"] = output;
 
         if (updatedExternalUsers.Count == 0)
             return;

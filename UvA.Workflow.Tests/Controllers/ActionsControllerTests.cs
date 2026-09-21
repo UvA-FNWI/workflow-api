@@ -154,7 +154,8 @@ public class ActionsControllerTests : ControllerTestsBase
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
         var supervisorId = ObjectId.GenerateNewId().ToString();
         instance.Properties["Supervisor"] =
-            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org", objectId: supervisorId);
+            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org",
+                "supervisor@external.org", objectId: supervisorId);
         var invitedSupervisor = new User
         {
             Id = supervisorId,
@@ -167,7 +168,7 @@ public class ActionsControllerTests : ControllerTestsBase
         _eduIdUserServiceMock.Setup(s => s.EnsureExternalAccount(
                 "supervisor@external.org",
                 "External Supervisor",
-                EduIdInviteDeliveryMode.SendEmail,
+                EduIdInviteDeliveryMode.ReturnInvitationUrl,
                 _ct))
             .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited, invitedSupervisor));
         _workflowInstanceRepoMock.Setup(r => r.UpdateFields(instance.Id,

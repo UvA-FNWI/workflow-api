@@ -14,6 +14,7 @@ public static class ServiceRegistations
         services.AddScoped<IDataNoseApiClient, DataNoseApiClient>();
         services.AddScoped<IUserDirectory, DataNoseUserDirectory>();
         services.AddScoped<IUserSearchSource, DataNoseUserSearchSource>();
+        services.AddSingleton<ILoginMethodClassifier, DataNoseLoginMethodClassifier>();
 
         var section = configuration.GetSection(DataNoseApiClientOptions.Section);
 
