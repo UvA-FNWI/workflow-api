@@ -4,7 +4,6 @@ public enum LoginMethod
 {
     Uva,
     Vu,
-    Amc,
     AmsterdamUmc,
     EduId
 }
