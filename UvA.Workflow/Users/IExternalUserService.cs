@@ -31,4 +31,11 @@ public interface IExternalUserService
         Organization? organization,
         string? userId,
         CancellationToken ct = default);
+
+    Task<ExternalUserAccessResult> PrepareAccess(
+        string email,
+        string displayName,
+        CancellationToken ct = default);
 }
+
+public record ExternalUserAccessResult(User? User, string? LoginSetupUrl, string LoginMethod);

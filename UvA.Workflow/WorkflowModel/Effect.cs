@@ -24,6 +24,11 @@ public class Effect
     public SendMessage? SendMail { get; set; }
 
     /// <summary>
+    /// Prepare login access and send one personalized email per recipient
+    /// </summary>
+    public SendMessage? SendAccessMail { get; set; }
+
+    /// <summary>
     /// Show confetti
     /// </summary>
     public bool? ShowConfetti { get; set; }
@@ -94,7 +99,12 @@ public class Effect
         .. Toast?.MessageTemplate.Properties ?? [],
         .. Http?.UrlTemplate.Properties ?? [],
         .. SetProperty?.ValueExpression.Properties ?? [],
-        .. SendMail?.RecipientLookups ?? []
+        .. SendMail?.RecipientLookups ?? [],
+        .. SendAccessMail?.SubjectTemplate?.Properties ?? [],
+        .. SendAccessMail?.BodyTemplate?.Properties ?? [],
+        .. SendAccessMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
+        .. SendAccessMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
+        .. SendAccessMail?.RecipientLookups ?? []
     ];
 
     public string Identifier => this switch
@@ -102,6 +112,7 @@ public class Effect
         { ServiceCall: not null } => $"{ServiceCall.Service}:{ServiceCall.Operation}",
         { SetProperty: not null } => $"Set:{SetProperty.Property}",
         { SendMail: not null } => $"Mail:{SendMail.TemplateKey}",
+        { SendAccessMail: not null } => $"AccessMail:{SendAccessMail.TemplateKey}",
         { Event: not null } => $"Event:{Event}",
         { UndoEvent: not null } => $"Undo:{UndoEvent}",
         { ShowConfetti: not null } => "ShowConfetti",
@@ -115,13 +126,14 @@ public class Effect
     /// Determines whether this event is logged in the job log.
     /// Trivial/client side effects do not need to be logged
     /// </summary>
-    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null ||
+    public bool IsLogged => ServiceCall != null || SetProperty != null || SendMail != null || SendAccessMail != null ||
                             CreateExternalUserAccount != null;
 
     /// <summary>
     /// Determines whether this effect makes an external call.
     /// </summary>
-    public bool IsExternal => ServiceCall != null || SendMail != null || CreateExternalUserAccount != null;
+    public bool IsExternal => ServiceCall != null || SendMail != null || SendAccessMail != null ||
+                              CreateExternalUserAccount != null;
 }
 
 public class CreateExternalUserAccount

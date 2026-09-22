@@ -40,7 +40,7 @@ public class EffectService(
     IInstanceEventService eventService,
     ModelService modelService,
     IMailService mailService,
-    IEduIdUserService eduIdUserService,
+    IExternalUserService externalUserService,
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IConfiguration configuration,
@@ -48,14 +48,17 @@ public class EffectService(
     IEnumerable<ILoginMethodClassifier>? loginMethodClassifiers = null)
 {
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
+    private const string CompletedRecipientsOutput = "CompletedRecipients";
 
     public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
-        ObjectContext context, CancellationToken ct)
+        ObjectContext context, CancellationToken ct, Func<Task>? checkpoint = null)
     {
         var input = job.Input;
         if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
         if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
         if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id, context);
+        if (effect.SendAccessMail != null)
+            await SendAccessMail(job, instance, effect, user, context, ct, checkpoint);
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(instance, context, effect, ct);
         if (effect.CreateExternalUserAccount != null)
@@ -66,6 +69,117 @@ public class EffectService(
             : new ToastResult(effect.Toast.Type, effect.Toast.MessageTemplate.Apply(context));
 
         return new EffectResult(redirectUrl, effect.ShowConfetti, toast);
+    }
+
+    private async Task SendAccessMail(Job job, WorkflowInstance instance, Effect effect, User user,
+        ObjectContext context, CancellationToken ct, Func<Task>? checkpoint)
+    {
+        var sendAccessMail = effect.SendAccessMail!;
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        await instanceService.Enrich(workflowDefinition, [context],
+            MailBuilder.ResolveRecipientLookups(workflowDefinition, sendAccessMail), ct, replaceStep: false);
+
+        var recipients = MailBuilder.ResolveUsers(sendAccessMail.To, context)
+            .DistinctBy(r => r.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (recipients.Length == 0)
+            throw new InvalidOperationException("Access mail requires at least one User recipient in 'to'.");
+
+        var step = job.Steps.SingleOrDefault(s => s.Identifier == effect.Identifier);
+        var sentRecipients = GetCompletedRecipients(step);
+        var failures = new List<Exception>();
+
+        foreach (var recipient in recipients.Where(r =>
+                     !sentRecipients.Contains(r.Email.Trim())))
+        {
+            try
+            {
+                var email = recipient.Email.Trim() ?? string.Empty;
+                _ = new System.Net.Mail.MailAddress(email);
+                var classifiedLoginMethod = loginMethodClassifiers?
+                    .Select(c => c.Classify(recipient.UserName))
+                    .FirstOrDefault(m => m != null);
+                var loginMethod = classifiedLoginMethod?.ToString();
+                var accessRecipient = recipient;
+                string? invitationUrl = null;
+
+                // No classifier recognized the username, so provision as external.
+                if (classifiedLoginMethod == null)
+                {
+                    var account = await externalUserService.PrepareAccess(email, recipient.DisplayName, ct);
+                    invitationUrl = account.LoginSetupUrl;
+                    loginMethod = account.LoginMethod;
+                    if (account.User != null)
+                    {
+                        accessRecipient = InstanceUser.FromUser(account.User);
+                        await UpdateInstanceUsers(instance, workflowDefinition, accessRecipient, ct);
+                    }
+                }
+
+                var recipientContext = new ObjectContext(context.Values.ToDictionary(v => v.Key, v => v.Value))
+                {
+                    Values =
+                    {
+                        ["AccessRecipient"] = accessRecipient,
+                        [effect.Name ?? "Access"] = new Dictionary<Lookup, object>
+                        {
+                            ["InvitationUrl"] = invitationUrl ?? "",
+                            ["LoginMethod"] = loginMethod ?? throw new InvalidOperationException("Login method missing")
+                        }
+                    }
+                };
+                var mail = await instanceService.BuildMail(instance, sendAccessMail, ct, recipientContext);
+                mail.To = [MailRecipient.FromUser(accessRecipient)!];
+                await SendMail(instance, sendAccessMail, user, ct, mail, job.Id);
+
+                sentRecipients.Add(email);
+                if (step != null)
+                {
+                    step.Outputs ??= new Dictionary<string, object>();
+                    step.Outputs[CompletedRecipientsOutput] = sentRecipients.ToArray();
+                }
+
+                if (checkpoint != null)
+                    await checkpoint();
+            }
+            catch (Exception ex)
+            {
+                failures.Add(new InvalidOperationException(
+                    $"Failed to send access mail to '{recipient.Email}'.", ex));
+            }
+        }
+
+        if (failures.Count > 0)
+            throw new AggregateException(failures);
+    }
+
+    private static HashSet<string> GetCompletedRecipients(JobStep? step)
+    {
+        if (step?.Outputs?.GetValueOrDefault(CompletedRecipientsOutput) is not System.Collections.IEnumerable values)
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        return values.Cast<object>()
+            .Select(value => value.ToString())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task UpdateInstanceUsers(WorkflowInstance instance, WorkflowDefinition workflowDefinition,
+        InstanceUser updatedUser, CancellationToken ct)
+    {
+        foreach (var property in workflowDefinition.Properties.Where(p => p.DataType == DataType.User))
+        {
+            if (!instance.Properties.TryGetValue(property.Name, out var rawValue) || rawValue is BsonNull)
+                continue;
+            if (!UpdateInstanceUserProperties(instance, property, rawValue,
+                    new Dictionary<string, InstanceUser>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [updatedUser.Email.Trim()] = updatedUser
+                    }))
+                continue;
+            await instanceService.SaveValue(instance, null, property.Name, ct);
+        }
     }
 
     private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
@@ -189,19 +303,18 @@ public class EffectService(
                     ex);
             }
 
-            var loginMethod = loginMethodClassifiers?
+            var classifiedLoginMethod = loginMethodClassifiers?
                 .Select(c => c.Classify(recipient.UserName))
-                .FirstOrDefault(m => m != null) ?? LoginMethod.EduId;
+                .FirstOrDefault(m => m != null);
+            var loginMethod = classifiedLoginMethod?.ToString();
             string? invitationUrl = null;
 
-            if (loginMethod == LoginMethod.EduId)
+            // Null: no classifier recognized the username, so provision as external (EduID).
+            if (classifiedLoginMethod == null)
             {
-                var result = await eduIdUserService.EnsureExternalAccount(
-                    email,
-                    recipient.DisplayName,
-                    EduIdInviteDeliveryMode.ReturnInvitationUrl,
-                    ct);
-                invitationUrl = result.InvitationUrl;
+                var result = await externalUserService.PrepareAccess(email, recipient.DisplayName, ct);
+                invitationUrl = result.LoginSetupUrl;
+                loginMethod = result.LoginMethod;
                 if (result.User != null)
                     updatedExternalUsers[email] = InstanceUser.FromUser(result.User);
             }
@@ -209,7 +322,7 @@ public class EffectService(
             output = new Dictionary<Lookup, object>
             {
                 ["InvitationUrl"] = invitationUrl ?? "",
-                ["LoginMethod"] = loginMethod.ToString()
+                ["LoginMethod"] = loginMethod ?? throw new InvalidOperationException("Login method missing")
             };
         }
 
@@ -219,11 +332,11 @@ public class EffectService(
         if (updatedExternalUsers.Count == 0)
             return;
 
-        UpdateInstanceUserProperties(instance, property, rawValue, updatedExternalUsers);
-        await instanceService.SaveValue(instance, null, property.Name, ct);
+        if (UpdateInstanceUserProperties(instance, property, rawValue, updatedExternalUsers))
+            await instanceService.SaveValue(instance, null, property.Name, ct);
     }
 
-    private static void UpdateInstanceUserProperties(
+    private static bool UpdateInstanceUserProperties(
         WorkflowInstance instance,
         PropertyDefinition property,
         BsonValue rawValue,
@@ -232,21 +345,26 @@ public class EffectService(
         if (property.IsArray)
         {
             var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
-            if (users == null) return;
+            if (users == null) return false;
 
+            var updated = false;
             instance.Properties[property.Name] = new BsonArray(users.Select(user =>
-                updatedRecipientsByEmail.TryGetValue(user.Email?.Trim() ?? string.Empty, out var updatedUser)
-                    ? updatedUser.ToBsonDocument()
-                    : user.ToBsonDocument()));
-            return;
+            {
+                if (!updatedRecipientsByEmail.TryGetValue(user.Email?.Trim() ?? string.Empty, out var replacement))
+                    return user.ToBsonDocument();
+                updated = true;
+                return replacement.ToBsonDocument();
+            }));
+            return updated;
         }
 
         var singleUser = ObjectContext.GetValue(rawValue, property) as InstanceUser;
         if (singleUser == null ||
             !updatedRecipientsByEmail.TryGetValue(singleUser.Email?.Trim() ?? string.Empty, out var updatedSingleUser))
-            return;
+            return false;
 
         instance.Properties[property.Name] = updatedSingleUser.ToBsonDocument();
+        return true;
     }
 
     private async Task ServiceCall(WorkflowInstance instance, ObjectContext context, Effect effect,

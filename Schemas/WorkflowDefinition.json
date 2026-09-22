@@ -772,6 +772,17 @@
             }
           ]
         },
+        "sendAccessMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Prepare login access and send one personalized email per recipient",
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
         "showConfetti": {
           "type": [
             "boolean",
