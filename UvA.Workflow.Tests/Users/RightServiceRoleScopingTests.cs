@@ -42,8 +42,10 @@ public class RightsServiceRoleScopingTests
         Events = new()
     };
 
-    [Fact]
-    public async Task GetAllowedActions_GrantsActionOnlyForDefinitionThatDeclaresIt()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetAllowedActions_GrantsActionOnlyForDefinitionThatDeclaresIt(bool specificStep)
     {
         // "Coordinator" exists both in A and B, but only A's Coordinator has a View action.
         var content = new Dictionary<string, string>
@@ -59,10 +61,14 @@ public class RightsServiceRoleScopingTests
 
         var rightsService = Build(content, ["Coordinator"]);
 
-        var actionsForA = await rightsService.GetAllowedActions(
-            CreateInstance("A"), RightsEvaluationMode.RealUser, RoleAction.View);
-        var actionsForB = await rightsService.GetAllowedActions(
-            CreateInstance("B"), RightsEvaluationMode.RealUser, RoleAction.View);
+        var actionsForA = specificStep
+            ? await rightsService.GetAllowedActionsForStep(CreateInstance("A"), "Approval", RoleAction.View)
+            : await rightsService.GetAllowedActions(CreateInstance("A"), RightsEvaluationMode.RealUser,
+                RoleAction.View);
+        var actionsForB = specificStep
+            ? await rightsService.GetAllowedActionsForStep(CreateInstance("B"), "Approval", RoleAction.View)
+            : await rightsService.GetAllowedActions(CreateInstance("B"), RightsEvaluationMode.RealUser,
+                RoleAction.View);
 
         Assert.NotEmpty(actionsForA);
         Assert.Empty(actionsForB);

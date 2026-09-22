@@ -12,6 +12,8 @@ public record WorkflowInstanceBasicDto(
     string? CurrentStep
 );
 
+public record UndoRequest(string OperationId, string Reason);
+
 public record WorkflowInstanceDto(
     string Id,
     string? Title,
@@ -44,6 +46,14 @@ public record StepHeaderStatusDto(
     BilingualString? Label
 );
 
+public record UndoCandidateDto(
+    OperationType Type,
+    BilingualString StepTitle,
+    BilingualString SourceTitle,
+    DateTime OccurredAt,
+    string OperationId
+);
+
 public record DeadlineDto(
     DateTimeOffset? Date,
     DeadlineType Type,
@@ -63,7 +73,8 @@ public record StepDto(
     bool ExpectsSubmission,
     bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
-    List<StepVersionDto>? Versions = null);
+    List<StepVersionDto>? Versions = null,
+    UndoCandidateDto? UndoCandidate = null);
 
 public record ActionDto(
     ActionType Type,

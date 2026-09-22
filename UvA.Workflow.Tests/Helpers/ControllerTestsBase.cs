@@ -46,6 +46,7 @@ public abstract class ControllerTestsBase
     protected readonly InstanceEventService _eventService;
     protected readonly EffectService _effectService;
     protected readonly JobService _jobService;
+    protected readonly UndoService _undoService;
     protected readonly AssessmentService _assessmentService;
     protected readonly AnswerService _answerService;
     protected readonly AnswerConversionService _answerConversionService;
@@ -78,6 +79,9 @@ public abstract class ControllerTestsBase
         _jobRepositoryMock = new Mock<IJobRepository>();
         _userRepoMock = new Mock<IUserRepository>();
         _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _jobRepositoryMock.Setup(r => r.CancelPendingForOperation(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         _configurationMock = new Mock<IConfiguration>();
@@ -131,6 +135,9 @@ public abstract class ControllerTestsBase
                 _workflowInstanceRepoMock.Object, userRepository: _userRepoMock.Object,
                 _loggerFactory.CreateLogger<JobService>(),
                 _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
+
+        _undoService = new UndoService(_eventRepoMock.Object, _jobRepositoryMock.Object,
+            _workflowInstanceRepoMock.Object, _instanceService, _rightsService, _modelService);
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,

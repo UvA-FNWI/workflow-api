@@ -17,7 +17,8 @@ public class WorkflowInstanceDtoFactory(
     IStepVersionService stepVersionService,
     StepHeaderStatusResolver stepHeaderStatusResolver,
     WorkflowInstanceService workflowInstanceService,
-    ILogger<WorkflowInstanceDtoFactory> logger)
+    ILogger<WorkflowInstanceDtoFactory> logger,
+    UndoService undoService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -53,10 +54,12 @@ public class WorkflowInstanceDtoFactory(
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
+        var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)));
+            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
+                effectiveEventLogs, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -155,6 +158,7 @@ public class WorkflowInstanceDtoFactory(
         WorkflowInstanceHistory instanceHistory,
         ObjectContext context,
         HashSet<string> activeSteps,
+        IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -176,7 +180,8 @@ public class WorkflowInstanceDtoFactory(
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
+                    effectiveEventLogs, ct)))
             : null;
         var submissionForms = step.Actions
             .Where(action => action.Type == RoleAction.Submit)
@@ -189,7 +194,7 @@ public class WorkflowInstanceDtoFactory(
             .ToHashSet();
         var hasSubmission = submissionForms.Any(form =>
                                 FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted) ||
-                            instanceHistory.EventLogs.Any(log =>
+                            effectiveEventLogs.Any(log =>
                                 submissionEventIds.Contains(log.EventId) &&
                                 log.Operation is EventLogOperation.Create or EventLogOperation.Update);
         // Hard deadlines end the submission expectation, including inherited deadlines.
@@ -199,6 +204,29 @@ public class WorkflowInstanceDtoFactory(
             .Distinct()
             .Select(formName => modelService.GetForm(instance, formName))
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
+        UndoCandidateDto? undoCandidate = null;
+        if (step.ParentStep == null &&
+            await undoService.GetCandidate(instance, step.Name, instanceHistory.EventLogs)
+                is { OperationMetadata: { } operation } root)
+        {
+            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == operation.Step);
+            var form = operation.Type == OperationType.FormSubmission
+                ? modelService.TryGetForm(instance, operation.Source)
+                : null;
+            var sourceTitle = operation.Type switch
+            {
+                OperationType.FormSubmission =>
+                    form?.Title ?? form?.ActualForm.Title ?? form?.ActualForm.Name ?? operation.Source,
+                OperationType.ExecuteAction => candidateStep?.Actions.FirstOrDefault(action =>
+                    action.Type == RoleAction.Execute && action.Name == operation.Source)?.Label ?? operation.Source,
+                _ => operation.Source
+            };
+            undoCandidate = new UndoCandidateDto(operation.Type,
+                candidateStep?.DisplayTitle ?? operation.Step,
+                sourceTitle,
+                root.Timestamp,
+                operation.Id);
+        }
 
         return new StepDto(
             step.Name,
@@ -213,7 +241,8 @@ public class WorkflowInstanceDtoFactory(
             expectsSubmission,
             hasSubmission,
             step.HierarchyMode,
-            versionDtos?.ToList()
+            versionDtos?.ToList(),
+            undoCandidate
         );
     }
 

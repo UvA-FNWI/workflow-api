@@ -223,12 +223,12 @@ public class SubmissionDtoFactoryChangeTests
         });
 
     private static InstanceEventLogEntry EventLog(string eventId, DateTime timestamp,
-        EventLogOperation operation)
+        EventLogOperation type)
         => new()
         {
             EventId = eventId,
             Timestamp = timestamp,
             EventDate = timestamp,
-            Operation = operation
+            Operation = type
         };
 }

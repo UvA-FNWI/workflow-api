@@ -6,5 +6,6 @@ public interface IJobRepository
     Task<Job?> GetById(string instanceId, string jobId, CancellationToken ct);
     Task<IReadOnlyList<Job>> GetList(string instanceId, CancellationToken ct);
     Task<Job?> TryClaimJob(CancellationToken ct);
+    Task CancelPendingForOperation(string instanceId, string operationId, CancellationToken ct);
     Task Update(Job job, CancellationToken ct);
 }

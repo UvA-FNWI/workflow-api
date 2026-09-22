@@ -211,7 +211,8 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
             stepVersionService,
             new StepHeaderStatusResolver(_modelService),
             _workflowInstanceService,
-            NullLogger<WorkflowInstanceDtoFactory>.Instance);
+            NullLogger<WorkflowInstanceDtoFactory>.Instance,
+            _undoService);
     }
 
     private static Mock<IStepVersionService> CreateStepVersionService(

@@ -18,3 +18,6 @@ public class ForbiddenWorkflowActionException(string workflowInstanceId, RoleAct
 
 public class InvalidWorkflowStateException(string workflowInstanceId, string code, string message)
     : WorkflowException(code, message, new { workflowInstanceId });
+
+public class UndoCandidateChangedException()
+    : WorkflowException("UndoCandidateChanged", "The undo candidate has changed.");
