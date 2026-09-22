@@ -1,3 +1,4 @@
+using System.Text.Json;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.WorkflowModel;
 
@@ -7,5 +8,6 @@ public record ExecuteActionInputDto(
     ActionType Type,
     string InstanceId,
     string? Name = null,
-    JobInput? JobInput = null
+    JobInput? JobInput = null,
+    JsonElement? Input = null
 );

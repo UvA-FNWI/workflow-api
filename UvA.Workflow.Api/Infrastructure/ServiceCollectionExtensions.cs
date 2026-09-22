@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using UvA.Workflow.Api.Actions;
 using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Screens;
@@ -37,6 +38,9 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<WorkflowConfigPoller>();
 
         services.AddScoped<ArtifactTokenService>();
+        services.AddScoped<FormDtoFactory>();
+        services.AddScoped<IActionHandler, ExecuteActionHandler>();
+        services.AddScoped<IActionHandler, PostponeDeadlinesActionHandler>();
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
         services.AddScoped<AssessmentDtoFactory>();

@@ -1,10 +1,10 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using Moq;
 using UvA.Workflow.Api.Actions;
 using UvA.Workflow.Api.Actions.Dtos;
-using UvA.Workflow.Api.Deadlines;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
 using UvA.Workflow.Infrastructure;
@@ -28,7 +28,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
     private readonly Action _action;
     private readonly Form _form;
     private readonly PostponeDeadlineService _service;
-    private readonly PostponeDeadlineController _controller;
+    private readonly ActionsController _controller;
     private readonly SubmissionsController _submissions;
     private readonly SubmissionDtoFactory _submissionDtoFactory;
     private static readonly DateTimeOffset Original = DateTimeOffset.Parse("2000-01-01T12:00:00+01:00");
@@ -102,7 +102,11 @@ public class PostponeDeadlineTests : ControllerTestsBase
             .ReturnsAsync(() => new InstanceJournalEntry { PropertyChanges = _changes.ToArray() });
         _service = new(_modelService, _instanceService, _instanceJournalServiceMock.Object, _jobService);
         _controller = new(_workflowInstanceRepoMock.Object, _userServiceMock.Object, _rightsService,
-            _service, Factory(), _modelService, _instanceService);
+            Factory(), new FormDtoFactory(_modelService, _instanceService),
+            [
+                new ExecuteActionHandler(_rightsService, _effectService, _jobService, _instanceService),
+                new PostponeDeadlinesActionHandler(_rightsService, _service)
+            ]);
         _submissionDtoFactory = new(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService);
         _submissions = new(_userServiceMock.Object, _modelService, _rightsService,
             new SubmissionService(_modelService, _instanceService, _instanceJournalServiceMock.Object, _jobService,
@@ -117,6 +121,16 @@ public class PostponeDeadlineTests : ControllerTestsBase
 
     private PostponeDeadlinesRequest Request(string reason = "Research delay") =>
         new([new("Deadline", Original, new DateOnly(2999, 1, 1))], reason);
+
+    private Task<ActionResult<ExecuteActionPayloadDto>> PostponeAction(
+        PostponeDeadlinesRequest request, CancellationToken ct = default) =>
+        _controller.ExecuteAction(
+            new ExecuteActionInputDto(
+                ActionType.PostponeDeadlines,
+                _instance.Id,
+                _action.Name,
+                Input: JsonSerializer.SerializeToElement(request)),
+            ct == default ? _ct : ct);
 
     private Task<PostponeDeadlinesResult> Postpone(PostponeDeadlinesRequest request) =>
         _service.Postpone(_instance, _action, request, UnitTestsHelpers.AdminUser, _ct);
@@ -148,7 +162,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
             Assert.Equal(403, Assert.IsType<ObjectResult>(loaded.Result).StatusCode);
         }
 
-        var response = await _controller.Postpone(_instance.Id, _action.Name!, Request(), _ct);
+        var response = await PostponeAction(Request(), _ct);
         if (allowed)
         {
             Assert.IsType<OkObjectResult>(response.Result);
@@ -173,26 +187,19 @@ public class PostponeDeadlineTests : ControllerTestsBase
         Assert.False(_instance.Properties.ContainsKey("Explanation"));
     }
 
-    [Theory]
-    [InlineData(ActionType.Execute, 403)]
-    [InlineData(ActionType.PostponeDeadlines, 400)]
-    public async Task PostponementIsNotAvailableThroughTheActionsRoute(ActionType type, int status)
+    [Fact]
+    public async Task ActionsRouteDispatchesPostponementThroughItsHandler()
     {
-        var controller = new ActionsController(_workflowInstanceRepoMock.Object, _userServiceMock.Object,
-            _rightsService, _effectService, _jobService, Factory(), _instanceService);
-        var response =
-            await controller.ExecuteAction(new ExecuteActionInputDto(type, _instance.Id, _action.Name),
-                _ct);
-        Assert.Equal(status, Assert.IsType<ObjectResult>(response.Result).StatusCode);
-        _mailServiceMock.VerifyNoOtherCalls();
-        Assert.Empty(_changes);
+        var response = await PostponeAction(Request(), _ct);
+        Assert.IsType<OkObjectResult>(response.Result);
+        Assert.Single(_changes);
     }
 
     [Fact]
     public async Task EndpointRejectsActionsWithoutAConfiguredForm()
     {
         _action.Form = null;
-        var response = await _controller.Postpone(_instance.Id, _action.Name!, Request(), _ct);
+        var response = await PostponeAction(Request(), _ct);
         Assert.Equal(403, Assert.IsType<ObjectResult>(response.Result).StatusCode);
         Assert.Empty(_changes);
         _mailServiceMock.VerifyNoOtherCalls();
@@ -206,7 +213,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
     [InlineData("Overig\nWachten op onderzoeksgegevens")]
     public async Task SavesTheReasonStringAsProvided(string reason)
     {
-        var response = await _controller.Postpone(_instance.Id, _action.Name!, Request(reason), _ct);
+        var response = await PostponeAction(Request(reason), _ct);
         Assert.IsType<OkObjectResult>(response.Result);
         Assert.Equal(reason, Assert.Single(_changes).Reason);
         Assert.False(_instance.Properties.ContainsKey("Reason"));
@@ -247,7 +254,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
     [Fact]
     public async Task InvalidRequestReturnsErrorCodesThroughTheApi()
     {
-        var response = await _controller.Postpone(_instance.Id, _action.Name!, Request() with { Changes = [] }, _ct);
+        var response = await PostponeAction(Request() with { Changes = [] }, _ct);
         var result = Assert.IsType<UnprocessableEntityObjectResult>(response.Result);
         Assert.Equal(PostponementError.InvalidChanges, Assert.Single(Assert.IsType<PostponementError[]>(result.Value)));
         Assert.Empty(_changes);
@@ -391,13 +398,13 @@ public class PostponeDeadlineTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData("unconfigured")]
-    [InlineData("differentAction")]
-    [InlineData("unnamed")]
-    [InlineData("step")]
-    [InlineData("condition")]
-    [InlineData("execute")]
-    public async Task FormReadRequiresAnAvailableMatchingGlobalAction(string scenario)
+    [InlineData("unconfigured", 403)]
+    [InlineData("differentAction", 403)]
+    [InlineData("unnamed", 403)]
+    [InlineData("step", 403)]
+    [InlineData("condition", 403)]
+    [InlineData("execute", 200)]
+    public async Task FormReadRequiresAnAvailableMatchingAction(string scenario, int status)
     {
         switch (scenario)
         {
@@ -410,7 +417,10 @@ public class PostponeDeadlineTests : ControllerTestsBase
         }
 
         var response = await _controller.GetForm(_instance.Id, "GrantExtension", _ct);
-        Assert.Equal(403, Assert.IsType<ObjectResult>(response.Result).StatusCode);
+        if (status == 200)
+            Assert.IsType<OkObjectResult>(response.Result);
+        else
+            Assert.Equal(status, Assert.IsType<ObjectResult>(response.Result).StatusCode);
     }
 
     private PropertyDefinition DeadlineProperty(string name = "Deadline") =>
@@ -452,7 +462,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
         var steps = dto.Steps.SelectMany(step => new[] { step }.Concat(step.Children ?? [])).ToArray();
         Assert.Equal(new DateOnly(2000, 1, 15), steps.Single(step => step.Id == "Start").Deadline!.MaxDate);
         Assert.Equal(new DateOnly(2000, 2, 1), steps.Single(step => step.Id == "Upload").Deadline!.MaxDate);
-        var response = await _controller.Postpone(_instance.Id, _action.Name!, Request() with
+        var response = await PostponeAction(Request() with
         {
             Changes =
             [
