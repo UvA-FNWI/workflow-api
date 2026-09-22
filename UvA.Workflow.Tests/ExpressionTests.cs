@@ -63,6 +63,19 @@ public class ExpressionTests
     }
 
     [Fact]
+    public void Equality_ExecutesAndReportsReferencedProperties()
+    {
+        var exp = ExpressionParser.Parse("SupervisorAccess.LoginMethod == =Uva");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["SupervisorAccess.LoginMethod"] = "Uva"
+        });
+
+        Assert.Equal(true, exp.Execute(context));
+        Assert.Equal([new PropertyLookup("SupervisorAccess.LoginMethod")], exp.Properties);
+    }
+
+    [Fact]
     public void TestDate_DaysAfter()
     {
         var exp = ExpressionParser.Parse("addDays(now, 5)");

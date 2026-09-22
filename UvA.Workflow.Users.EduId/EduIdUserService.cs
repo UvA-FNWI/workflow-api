@@ -29,10 +29,14 @@ public class EduIdUserService(
     public async Task<ExternalUserAccessResult> PrepareAccess(
         string email,
         string displayName,
+        ExternalUserAccessMode mode,
         CancellationToken ct = default)
     {
-        var result = await EnsureExternalAccount(email, displayName, EduIdInviteDeliveryMode.ReturnInvitationUrl, ct);
-        return new ExternalUserAccessResult(result.User, result.InvitationUrl, LoginMethod.EduId.ToString());
+        var deliveryMode = mode == ExternalUserAccessMode.SendInstructions
+            ? EduIdInviteDeliveryMode.SendEmail
+            : EduIdInviteDeliveryMode.ReturnInvitationUrl;
+        var result = await EnsureExternalAccount(email, displayName, deliveryMode, ct);
+        return new ExternalUserAccessResult(result.User, result.InvitationUrl, "EduId");
     }
 
     public async Task<UserSearchResult> CreateOrUpdateExternalUser(

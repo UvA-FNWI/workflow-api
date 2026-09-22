@@ -35,7 +35,14 @@ public interface IExternalUserService
     Task<ExternalUserAccessResult> PrepareAccess(
         string email,
         string displayName,
+        ExternalUserAccessMode mode,
         CancellationToken ct = default);
+}
+
+public enum ExternalUserAccessMode
+{
+    SendInstructions,
+    ReturnLoginSetupUrl
 }
 
 public record ExternalUserAccessResult(User? User, string? LoginSetupUrl, string LoginMethod);

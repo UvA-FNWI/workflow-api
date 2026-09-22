@@ -168,6 +168,7 @@ public class ActionsControllerTests : ControllerTestsBase
         _externalUserServiceMock.Setup(s => s.PrepareAccess(
                 "supervisor@external.org",
                 "External Supervisor",
+                ExternalUserAccessMode.SendInstructions,
                 _ct))
             .ReturnsAsync(new ExternalUserAccessResult(invitedSupervisor, null, "EduId"));
         _workflowInstanceRepoMock.Setup(r => r.UpdateFields(instance.Id,

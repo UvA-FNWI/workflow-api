@@ -25,9 +25,10 @@ public class SendAccessMailTests : ControllerTestsBase
             .Build();
         var sent = new List<MailMessage>();
 
-        _loginMethodClassifierMock.Setup(c => c.Classify("1234567")).Returns(LoginMethod.Uva);
+        _loginMethodClassifierMock.Setup(c => c.Classify("1234567")).Returns("Uva");
         _externalUserServiceMock
-            .Setup(s => s.PrepareAccess("external@example.org", "External user", _ct))
+            .Setup(s => s.PrepareAccess("external@example.org", "External user",
+                ExternalUserAccessMode.ReturnLoginSetupUrl, _ct))
             .ReturnsAsync(new ExternalUserAccessResult(
                 new User
                 {
@@ -88,8 +89,9 @@ public class SendAccessMailTests : ControllerTestsBase
             .Build();
         var attempts = new List<string>();
         var failSecond = true;
-        _externalUserServiceMock.Setup(s => s.PrepareAccess(It.IsAny<string>(), It.IsAny<string>(), _ct))
-            .ReturnsAsync((string email, string name, CancellationToken _) =>
+        _externalUserServiceMock.Setup(s => s.PrepareAccess(It.IsAny<string>(), It.IsAny<string>(),
+                ExternalUserAccessMode.ReturnLoginSetupUrl, _ct))
+            .ReturnsAsync((string email, string name, ExternalUserAccessMode _, CancellationToken _) =>
                 new ExternalUserAccessResult(
                     new User
                     {

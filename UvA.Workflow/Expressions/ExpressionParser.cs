@@ -79,7 +79,7 @@ public class ExpressionParser
         }
 
         if (start < exp.Length)
-            tokens.Add(exp.Substring(start));
+            tokens.Add(exp.Substring(start).Trim());
 
         return tokens;
     }

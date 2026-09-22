@@ -62,7 +62,7 @@ public class EffectService(
         if (effect.SetProperty != null) await SetProperty(instance, context, effect.SetProperty, ct);
         if (effect.ServiceCall != null) await ServiceCall(instance, context, effect, ct);
         if (effect.CreateExternalUserAccount != null)
-            await EnsureExternalAccounts(instance, effect, context, ct);
+            await EnsureExternalAccounts(instance, effect.CreateExternalUserAccount, ct);
         var redirectUrl = effect.Redirect?.UrlTemplate.Execute(context);
         var toast = effect.Toast == null
             ? null
@@ -99,14 +99,15 @@ public class EffectService(
                 var classifiedLoginMethod = loginMethodClassifiers?
                     .Select(c => c.Classify(recipient.UserName))
                     .FirstOrDefault(m => m != null);
-                var loginMethod = classifiedLoginMethod?.ToString();
+                var loginMethod = classifiedLoginMethod;
                 var accessRecipient = recipient;
                 string? invitationUrl = null;
 
                 // No classifier recognized the username, so provision as external.
                 if (classifiedLoginMethod == null)
                 {
-                    var account = await externalUserService.PrepareAccess(email, recipient.DisplayName, ct);
+                    var account = await externalUserService.PrepareAccess(email, recipient.DisplayName,
+                        ExternalUserAccessMode.ReturnLoginSetupUrl, ct);
                     invitationUrl = account.LoginSetupUrl;
                     loginMethod = account.LoginMethod;
                     if (account.User != null)
@@ -256,21 +257,19 @@ public class EffectService(
 
     private async Task EnsureExternalAccounts(
         WorkflowInstance instance,
-        Effect effect,
-        ObjectContext context,
+        CreateExternalUserAccount effect,
         CancellationToken ct)
     {
-        var accountEffect = effect.CreateExternalUserAccount!;
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var property = workflowDefinition.Properties.GetOrDefault(accountEffect.Role);
+        var property = workflowDefinition.Properties.GetOrDefault(effect.Role);
         if (property == null)
             throw new InvalidOperationException(
-                $"External account effect role '{accountEffect.Role}' does not match a property on workflow '{workflowDefinition.Name}'.");
+                $"External account effect role '{effect.Role}' does not match a property on workflow '{workflowDefinition.Name}'.");
 
         if (property.DataType != DataType.User)
         {
             throw new InvalidOperationException(
-                $"External account effect role '{accountEffect.Role}' must target a property of type User or [User].");
+                $"External account effect role '{effect.Role}' must target a property of type User or [User].");
         }
 
         if (!instance.Properties.TryGetValue(property.Name, out var rawValue) || rawValue is BsonNull)
@@ -281,7 +280,7 @@ public class EffectService(
             InstanceUser single => [single],
             InstanceUser[] multiple => multiple,
             _ => throw new InvalidOperationException(
-                $"External account effect role '{accountEffect.Role}' could not be resolved to workflow users.")
+                $"External account effect role '{effect.Role}' could not be resolved to workflow users.")
         };
 
         var normalizedRecipients = recipients
@@ -289,7 +288,6 @@ public class EffectService(
             .DistinctBy(r => r.Email, StringComparer.OrdinalIgnoreCase);
 
         var updatedExternalUsers = new Dictionary<string, InstanceUser>(StringComparer.OrdinalIgnoreCase);
-        Dictionary<Lookup, object>? output = null;
         foreach (var (recipient, email) in normalizedRecipients)
         {
             try
@@ -299,35 +297,15 @@ public class EffectService(
             catch (FormatException ex)
             {
                 throw new InvalidOperationException(
-                    $"External account effect role '{accountEffect.Role}' contains an invalid email address '{email}'.",
+                    $"External account effect role '{effect.Role}' contains an invalid email address '{email}'.",
                     ex);
             }
 
-            var classifiedLoginMethod = loginMethodClassifiers?
-                .Select(c => c.Classify(recipient.UserName))
-                .FirstOrDefault(m => m != null);
-            var loginMethod = classifiedLoginMethod?.ToString();
-            string? invitationUrl = null;
-
-            // Null: no classifier recognized the username, so provision as external (EduID).
-            if (classifiedLoginMethod == null)
-            {
-                var result = await externalUserService.PrepareAccess(email, recipient.DisplayName, ct);
-                invitationUrl = result.LoginSetupUrl;
-                loginMethod = result.LoginMethod;
-                if (result.User != null)
-                    updatedExternalUsers[email] = InstanceUser.FromUser(result.User);
-            }
-
-            output = new Dictionary<Lookup, object>
-            {
-                ["InvitationUrl"] = invitationUrl ?? "",
-                ["LoginMethod"] = loginMethod ?? throw new InvalidOperationException("Login method missing")
-            };
+            var result = await externalUserService.PrepareAccess(email, recipient.DisplayName,
+                ExternalUserAccessMode.SendInstructions, ct);
+            if (result.User != null)
+                updatedExternalUsers[email] = InstanceUser.FromUser(result.User);
         }
-
-        if (output != null)
-            context.Values[effect.Name ?? "Invitation"] = output;
 
         if (updatedExternalUsers.Count == 0)
             return;
