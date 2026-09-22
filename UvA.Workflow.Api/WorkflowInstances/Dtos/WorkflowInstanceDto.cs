@@ -43,7 +43,7 @@ public record StepVersionDto
 
 public record StepHeaderStatusDto(
     StepHeaderPillType Type,
-    BilingualString Label
+    BilingualString? Label
 );
 
 public record UndoCandidateDto(
@@ -54,13 +54,19 @@ public record UndoCandidateDto(
     string OperationId
 );
 
+public record DeadlineDto(
+    DateTimeOffset? Date,
+    DeadlineType Type,
+    bool IsPassed,
+    BilingualString? Message);
+
 public record StepDto(
     string Id,
     BilingualString Title,
     Icon? Icon,
     string? Event,
     DateTime? DateCompleted,
-    DateTime? Deadline,
+    DeadlineDto? Deadline,
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,

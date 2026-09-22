@@ -31,6 +31,8 @@ public record Expression
             from == null || to == null ? null : (int)Math.Ceiling((to.Value.Date - from.Value.Date).TotalDays)),
         ["formatDate"] = new Function<DateTime?, string, string?>((d, f)
             => d?.ToString(f, CultureInfo.InvariantCulture)),
+        ["dateLong"] = new Function<DateTime?, string?>(d => d?.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture)),
+        ["dateShort"] = new Function<DateTime?, string?>(d => d?.ToString("dd/MM", CultureInfo.InvariantCulture)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
@@ -50,6 +52,16 @@ public record Expression
 abstract class Function
 {
     public abstract object? Call(object?[] args);
+}
+
+class Function<T, TOut>(Func<T?, TOut> func) : Function
+{
+    public override object? Call(object?[] args)
+    {
+        if (args.Length != 1)
+            throw new Exception("Invalid number of arguments");
+        return func((T?)args[0]);
+    }
 }
 
 class Function<T1, T2, TOut>(Func<T1?, T2?, TOut> func) : Function

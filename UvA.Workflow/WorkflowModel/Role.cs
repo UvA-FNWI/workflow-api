@@ -2,7 +2,7 @@ using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
-public class Role : INamed
+public class Role : INamed, IDeclaredKeys
 {
     /// <summary>
     /// Internal name of this role
@@ -30,6 +30,15 @@ public class Role : INamed
     public List<Action> Actions { get; set; } = [];
 
     public BilingualString DisplayTitle => Title ?? Name;
+
+    [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
+
+    public Role Clone()
+    {
+        var clone = (Role)MemberwiseClone();
+        clone.Actions = new List<Action>(Actions);
+        return clone;
+    }
 }
 
 public enum NotificationType

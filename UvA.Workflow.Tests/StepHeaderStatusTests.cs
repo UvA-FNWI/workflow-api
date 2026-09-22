@@ -32,6 +32,7 @@ public class StepHeaderStatusTests
         var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Info, status!.Type);
         Assert.Equal($"Wait for approval before {deadlineDate:dd/MM}", status.Label.En);
         Assert.Equal($"Wacht op goedkeuring voor {deadlineDate:dd-MM}", status.Label.Nl);
@@ -50,6 +51,7 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(GetStep(modelService, "Subject"), instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Attention, status!.Type);
         Assert.Equal("Changes needed", status.Label.En);
         Assert.Equal("Aanpassingen nodig", status.Label.Nl);
@@ -74,6 +76,7 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(step, instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Success, status!.Type);
         Assert.Equal("Approved and assigned on 14-04-2026", status.Label.En);
         Assert.Equal("Goedgekeurd en toegewezen op 14-04-2026", status.Label.Nl);
@@ -94,6 +97,7 @@ public class StepHeaderStatusTests
         var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Info, status!.Type);
         Assert.Equal($"Wait for approval before {deadlineDate:dd/MM}", status.Label.En);
         Assert.Equal($"Wacht op goedkeuring voor {deadlineDate:dd-MM}", status.Label.Nl);
@@ -125,6 +129,7 @@ public class StepHeaderStatusTests
         var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Attention, status!.Type);
         Assert.Equal($"Wait for approval before {deadlineDate:dd/MM}", status.Label.En);
         Assert.Equal($"Wacht op goedkeuring voor {deadlineDate:dd-MM}", status.Label.Nl);
@@ -145,6 +150,7 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(step, instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Info, status!.Type);
         Assert.Equal("Submitted on 14-04-2026", status.Label.En);
         Assert.Equal("Ingediend op 14-04-2026", status.Label.Nl);
@@ -168,6 +174,7 @@ public class StepHeaderStatusTests
         var subject = dto.Steps.Single(s => s.Id == "Subject");
 
         Assert.NotNull(subject.HeaderStatus);
+        Assert.NotNull(subject.HeaderStatus.Label);
         Assert.Equal(StepHeaderPillType.Info, subject.HeaderStatus!.Type);
         Assert.Contains("Wait for approval", subject.HeaderStatus.Label.En);
         Assert.Null(subject.Versions);
@@ -186,6 +193,7 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Info, status!.Type);
         Assert.Equal("Waiting for approval", status.Label.En);
     }
@@ -204,6 +212,7 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Success, status!.Type);
         Assert.Equal("Approved on 14-04-2026", status.Label.En);
     }
@@ -222,6 +231,7 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Info, status!.Type);
         Assert.Equal("Waiting for approval", status.Label.En);
     }
@@ -241,6 +251,7 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Attention, status!.Type);
         Assert.Equal("Changes needed", status.Label.En);
     }
@@ -283,17 +294,20 @@ public class StepHeaderStatusTests
         var status = resolver.Resolve(step, instance);
 
         Assert.NotNull(status);
+        Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Success, status!.Type);
         Assert.Equal("At least one approval", status.Label.En);
     }
 
-    private static WorkflowInstanceDtoFactory CreateWorkflowInstanceDtoFactory(
+    internal static WorkflowInstanceDtoFactory CreateWorkflowInstanceDtoFactory(
         ModelService modelService,
-        Mock<IWorkflowInstanceRepository> repository)
+        Mock<IWorkflowInstanceRepository> repository,
+        string[]? roles = null,
+        WorkflowInstanceHistory? history = null)
     {
         var userService = new Mock<IUserService>();
         userService.Setup(s => s.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+            .ReturnsAsync(roles ?? []);
         userService.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         var rightsService = new RightsService(modelService, userService.Object, repository.Object);
@@ -321,13 +335,20 @@ public class StepHeaderStatusTests
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService);
-        var stepVersionService = new Mock<IStepVersionService>();
+        var journalService = new Mock<IInstanceJournalService>();
+        journalService.Setup(service =>
+                service.GetInstanceJournal(It.IsAny<string>(), false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(history?.Journal);
+        var eventRepository = new Mock<IInstanceEventRepository>();
+        eventRepository.Setup(service =>
+                service.GetEventLogEntriesForInstance(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(history?.EventLogs ?? []);
 
         var workflowInstanceService = new WorkflowInstanceService(
             modelService,
             repository.Object,
-            Mock.Of<IInstanceJournalService>(),
-            Mock.Of<IInstanceEventRepository>(),
+            journalService.Object,
+            eventRepository.Object,
             userService.Object,
             Mock.Of<IUserRepository>()
         );
@@ -337,7 +358,7 @@ public class StepHeaderStatusTests
             modelService,
             submissionDtoFactory,
             rightsService,
-            stepVersionService.Object,
+            new StepVersionService(),
             new StepHeaderStatusResolver(modelService),
             workflowInstanceService,
             NullLogger<WorkflowInstanceDtoFactory>.Instance,

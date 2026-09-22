@@ -51,11 +51,19 @@ public class DummyAnswerGeneratorTests
     }
 
     [Fact]
-    public void Generate_Boolean_ReturnsBool()
+    public void Generate_Check_ReturnsBool()
     {
-        var result = new DummyAnswerGenerator().Generate(Question("Boolean"), DefaultStatus);
+        var result = new DummyAnswerGenerator().Generate(Question("Check"), DefaultStatus);
         Assert.NotNull(result);
         Assert.True(result.Value.ValueKind is JsonValueKind.True or JsonValueKind.False);
+    }
+
+    [Fact]
+    public void Generate_RequiredCheck_ReturnsTrue()
+    {
+        var result = new DummyAnswerGenerator().Generate(Question("Check!"), DefaultStatus);
+        Assert.NotNull(result);
+        Assert.True(result.Value.GetBoolean());
     }
 
     [Fact]

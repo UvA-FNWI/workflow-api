@@ -67,20 +67,21 @@ public class ActionsControllerTests : ControllerTestsBase
         Job? delayedJob = null;
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(eventLogs);
-        _modelParser.Roles.Single(candidate => candidate.Name == role).Actions.AddRange([
-            new DomainAction
-            {
-                Type = RoleAction.Execute,
-                Name = actionName,
-                Steps = [stepName],
-                OnAction =
-                [
-                    new Effect { Event = "ImmediateConsequence" },
-                    new Effect { Event = "DelayedConsequence", Delay = "1m" }
-                ]
-            },
-            new DomainAction { Type = RoleAction.Undo, Name = actionName, Steps = [stepName] }
-        ]);
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Single(candidate => candidate.Name == role)
+            .Actions.AddRange([
+                new DomainAction
+                {
+                    Type = RoleAction.Execute,
+                    Name = actionName,
+                    Steps = [stepName],
+                    OnAction =
+                    [
+                        new Effect { Event = "ImmediateConsequence" },
+                        new Effect { Event = "DelayedConsequence", Delay = "1m" }
+                    ]
+                },
+                new DomainAction { Type = RoleAction.Undo, Name = actionName, Steps = [stepName] }
+            ]);
         _eventRepoMock.Setup(r => r.AddOrUpdateEvent(instance,
                 It.Is<InstanceEvent>(e => e.Id == "ImmediateConsequence"),
                 UnitTestsHelpers.AdminUser,
@@ -154,6 +155,23 @@ public class ActionsControllerTests : ControllerTestsBase
         //Assert
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(403, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task Actions_ExecuteAction_RejectsExpiredStepDespiteRolePermission()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
+        var action = (await _instanceService.GetAllowedActions(instance, _ct))
+            .First(a => a.Action.Type == RoleAction.Execute).Action;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].AllSteps
+                .Single(step => step.Name == "ApprovalCoordinator").Deadline =
+            new Deadline { Date = "=2000-01-01", Type = DeadlineType.Hard };
+
+        var result = await controller.ExecuteAction(
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, action.Name), _ct);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+        Assert.DoesNotContain(action.Name!, instance.Events.Keys);
     }
 
     [Fact]

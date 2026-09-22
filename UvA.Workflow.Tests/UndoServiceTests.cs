@@ -50,7 +50,7 @@ public class UndoServiceTests : ControllerTestsBase
         };
         _eventRepoMock.Setup(repository => repository.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(logs);
-        _modelParser.Roles.Add(new Role
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Add(new Role
         {
             Name = "Undoer",
             Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Form = "Start" }]
@@ -86,12 +86,12 @@ public class UndoServiceTests : ControllerTestsBase
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(() => logs.ToList());
         MockUndo(instance, target, logs);
-        _modelParser.Roles.Add(new Role
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Add(new Role
         {
             Name = "WrongUndoer",
             Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Name = "OtherAction" }]
         });
-        _modelParser.Roles.Add(new Role
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Add(new Role
         {
             Name = "Undoer",
             Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Name = "RunAction" }]
@@ -125,7 +125,7 @@ public class UndoServiceTests : ControllerTestsBase
             Step = "Subject"
         };
         var logs = new[] { EventLog(source, operation.Id, operation) };
-        _modelParser.Roles.Add(new Role
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Add(new Role
         {
             Name = "Undoer",
             Actions =
@@ -200,7 +200,7 @@ public class UndoServiceTests : ControllerTestsBase
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(() => logs.ToList());
         MockUndo(instance, target, logs);
-        _modelParser.Roles.Add(new Role
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Add(new Role
         {
             Name = "Undoer",
             Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["First"], Form = "FirstForm" }]
@@ -246,7 +246,7 @@ public class UndoServiceTests : ControllerTestsBase
         _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct))
             .ReturnsAsync(() => logs.ToList());
         MockUndo(instance, operation, logs);
-        _modelParser.Roles.Add(new Role
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Add(new Role
         {
             Name = "Undoer",
             Actions = [new DomainAction { Type = RoleAction.Undo, Steps = ["Subject"], Form = "Start" }]
