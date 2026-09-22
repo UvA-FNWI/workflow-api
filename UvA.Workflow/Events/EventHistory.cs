@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Events;
 
 public static class EventHistory
@@ -20,13 +22,28 @@ public static class EventHistory
     }
 
     public static IReadOnlyDictionary<string, InstanceEventLogEntry> LatestOperations(
-        IEnumerable<InstanceEventLogEntry> eventLogs)
+        IEnumerable<InstanceEventLogEntry> eventLogs,
+        WorkflowDefinition workflowDefinition)
         => Project(eventLogs)
             .Where(log => log.OperationMetadata != null)
-            .GroupBy(log => log.OperationMetadata!.TopLevelStep)
+            .Select(log => new
+            {
+                Log = log,
+                TopLevelStep = GetTopLevelStep(workflowDefinition, log.OperationMetadata!.Step)
+            })
+            .Where(item => item.TopLevelStep != null)
+            .GroupBy(item => item.TopLevelStep!.Name)
             .ToDictionary(
                 group => group.Key,
-                group => group.Last());
+                group => group.Last().Log);
+
+    private static Step? GetTopLevelStep(WorkflowDefinition workflowDefinition, string stepName)
+    {
+        var step = workflowDefinition.AllSteps.SingleOrDefault(candidate => candidate.Name == stepName);
+        while (step?.ParentStep != null)
+            step = step.ParentStep;
+        return step;
+    }
 
     private static HashSet<string> UndoneOperationIds(IEnumerable<InstanceEventLogEntry> eventLogs)
         => eventLogs

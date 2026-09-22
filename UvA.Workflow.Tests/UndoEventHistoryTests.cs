@@ -10,7 +10,7 @@ public class UndoEventHistoryTests
         var operations = EventHistory.LatestOperations([
             Operation("older", "Subject", 1),
             Operation("newer", "Subject", 2)
-        ]);
+        ], WorkflowDefinition);
 
         Assert.Equal("newer", operations["Subject"].Id);
         Assert.Equal(At(2), operations["Subject"].Timestamp);
@@ -22,7 +22,7 @@ public class UndoEventHistoryTests
         var operations = EventHistory.LatestOperations([
             Operation("first", "Subject", 1),
             Operation("second", "Subject", 1)
-        ]);
+        ], WorkflowDefinition);
 
         Assert.Equal("second", operations["Subject"].Id);
     }
@@ -41,21 +41,23 @@ public class UndoEventHistoryTests
             }
         };
 
-        Assert.Equal("older", EventHistory.LatestOperations(logs)["Subject"].Id);
+        Assert.Equal("older", EventHistory.LatestOperations(logs, WorkflowDefinition)["Subject"].Id);
     }
 
     [Fact]
     public void LatestOperations_KeepsTopLevelStepHistoriesIndependent()
     {
         var operations = EventHistory.LatestOperations([
-            Operation("first-older", "First", 1),
-            Operation("second-newer", "Second", 4),
-            Operation("first-newer", "First", 3),
-            Operation("second-older", "Second", 2)
-        ]);
+            Operation("first-older", "FirstChild", 1),
+            Operation("second-newer", "SecondChild", 4),
+            Operation("first-newer", "FirstChild", 3),
+            Operation("second-older", "SecondChild", 2),
+            Operation("removed", "Removed", 5)
+        ], WorkflowDefinition);
 
         Assert.Equal("first-newer", operations["First"].Id);
         Assert.Equal("second-newer", operations["Second"].Id);
+        Assert.Equal(2, operations.Count);
     }
 
     [Fact]
@@ -95,7 +97,7 @@ public class UndoEventHistoryTests
             Operation = EventLogOperation.Create
         };
 
-    private static InstanceEventLogEntry Operation(string id, string topLevelStep, int minute)
+    private static InstanceEventLogEntry Operation(string id, string step, int minute)
         => new()
         {
             Id = id,
@@ -104,9 +106,23 @@ public class UndoEventHistoryTests
             OperationMetadata = new OperationMetadata
             {
                 Id = id,
-                TopLevelStep = topLevelStep
+                Step = step
             }
         };
+
+    private static readonly WorkflowDefinition WorkflowDefinition = CreateWorkflowDefinition();
+
+    private static WorkflowDefinition CreateWorkflowDefinition()
+    {
+        var first = new Step { Name = "First" };
+        var second = new Step { Name = "Second" };
+        var firstChild = new Step { Name = "FirstChild", ParentStep = first };
+        var secondChild = new Step { Name = "SecondChild", ParentStep = second };
+        return new WorkflowDefinition
+        {
+            AllSteps = [new Step { Name = "Subject" }, first, firstChild, second, secondChild]
+        };
+    }
 
     private static DateTime At(int minute) => new(2026, 1, 1, 0, minute, 0, DateTimeKind.Utc);
 }

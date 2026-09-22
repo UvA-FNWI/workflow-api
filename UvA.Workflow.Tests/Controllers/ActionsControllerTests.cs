@@ -127,7 +127,6 @@ public class ActionsControllerTests : ControllerTestsBase
         Assert.Equal(OperationType.ExecuteAction, operation.Type);
         Assert.Equal(actionName, operation.Source);
         Assert.Equal(stepName, operation.Step);
-        Assert.Equal(stepName, operation.TopLevelStep);
         Assert.Equal(operation.Id, operationId);
         Assert.Equal(operation.Id, consequenceOperationId);
         Assert.Equal(operation, consequenceOperation);

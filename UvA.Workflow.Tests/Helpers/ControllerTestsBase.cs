@@ -137,7 +137,7 @@ public abstract class ControllerTestsBase
                 _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
 
         _undoService = new UndoService(_eventRepoMock.Object, _jobRepositoryMock.Object,
-            _workflowInstanceRepoMock.Object, _instanceService, _rightsService);
+            _workflowInstanceRepoMock.Object, _instanceService, _rightsService, _modelService);
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,

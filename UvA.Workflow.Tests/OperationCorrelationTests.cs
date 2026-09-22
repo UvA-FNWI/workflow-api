@@ -104,7 +104,6 @@ public class OperationCorrelationTests : ControllerTestsBase
         Assert.Equal(OperationType.FormSubmission, root.Type);
         Assert.Equal("Start", root.Source);
         Assert.Equal("Start", root.Step);
-        Assert.Equal("Subject", root.TopLevelStep);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, rootEntry.ExecutedBy);
         Assert.Equal(root.Id, consequence.OperationId);
         Assert.Null(consequence.OperationMetadata);

@@ -96,15 +96,14 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
                         Id = "operation",
                         Type = OperationType.FormSubmission,
                         Source = "Start",
-                        Step = "Subject",
-                        TopLevelStep = "Subject"
+                        Step = "Subject"
                     }
                 }
             ]);
 
         var undoService = new UndoService(_eventRepoMock.Object, _jobRepositoryMock.Object,
             _workflowInstanceRepoMock.Object,
-            _instanceService, _rightsService);
+            _instanceService, _rightsService, _modelService);
         var result = await CreateController(undoService).Undo(
             instance.Id, new UndoRequest("operation", "because"), _ct);
 

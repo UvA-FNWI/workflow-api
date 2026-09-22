@@ -342,7 +342,7 @@ public class StepHeaderStatusTests
             workflowInstanceService,
             NullLogger<WorkflowInstanceDtoFactory>.Instance,
             new UndoService(Mock.Of<IInstanceEventRepository>(), Mock.Of<IJobRepository>(),
-                repository.Object, instanceService, rightsService)
+                repository.Object, instanceService, rightsService, modelService)
         );
     }
 

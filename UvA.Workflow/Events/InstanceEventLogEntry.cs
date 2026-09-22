@@ -8,6 +8,8 @@ public enum EventLogOperation
 {
     Create,
     Update,
+
+    /// <summary>Removes one event as part of normal workflow execution.</summary>
     Delete,
 
     /// <summary>Invalidates the operation identified by OperationId.</summary>
@@ -30,7 +32,6 @@ public record OperationMetadata
     [BsonRepresentation(BsonType.String)] public OperationType Type { get; init; }
     public string Source { get; init; } = null!;
     public string Step { get; init; } = null!;
-    public string TopLevelStep { get; init; } = null!;
 
     public static OperationMetadata? CreateForSubmission(Form form, WorkflowDefinition workflowDefinition)
         => Create(OperationType.FormSubmission, form.Name,
@@ -58,16 +59,11 @@ public record OperationMetadata
         if (step == null)
             return null;
 
-        var topLevelStep = step;
-        while (topLevelStep.ParentStep != null)
-            topLevelStep = topLevelStep.ParentStep;
-
         return new OperationMetadata
         {
             Type = type,
             Source = source,
-            Step = step.Name,
-            TopLevelStep = topLevelStep.Name
+            Step = step.Name
         };
     }
 }

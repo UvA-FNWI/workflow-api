@@ -9,14 +9,16 @@ public class UndoService(
     IJobRepository jobRepository,
     IWorkflowInstanceRepository workflowInstanceRepository,
     InstanceService instanceService,
-    RightsService rightsService)
+    RightsService rightsService,
+    ModelService modelService)
 {
     public async Task<InstanceEventLogEntry?> GetCandidate(
         WorkflowInstance instance,
         string topLevelStep,
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
-        var candidate = EventHistory.LatestOperations(eventLogs).GetValueOrDefault(topLevelStep);
+        var candidate = EventHistory.LatestOperations(
+            eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition]).GetValueOrDefault(topLevelStep);
         return candidate?.OperationMetadata != null && await IsAuthorized(instance, candidate.OperationMetadata)
             ? candidate
             : null;
@@ -40,18 +42,43 @@ public class UndoService(
         if (!await IsAuthorized(instance, operation))
             throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Undo, operation.Source);
 
-        var candidate = EventHistory.LatestOperations(eventLogs).GetValueOrDefault(operation.TopLevelStep);
-        if (candidate?.OperationMetadata?.Id != operationId)
+        var isCandidate = EventHistory.LatestOperations(
+                eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
+            .Values
+            .Any(log => log.OperationMetadata?.Id == operationId);
+        if (!isCandidate)
             throw new UndoCandidateChangedException();
 
-        await eventRepository.AddUndoEntry(instance.Id, candidate.OperationMetadata.Id, realUser, trimmedReason, ct);
+        var affectedEventIds = eventLogs
+            .Where(log => log.OperationId == operationId && log.Operation != EventLogOperation.Undo)
+            .Select(log => log.EventId)
+            .Distinct()
+            .ToArray();
 
-        await jobRepository.CancelPendingForOperation(instance.Id, candidate.OperationMetadata.Id, ct);
+        await eventRepository.AddUndoEntry(instance.Id, operationId, realUser, trimmedReason, ct);
+
+        await jobRepository.CancelPendingForOperation(instance.Id, operationId, ct);
 
         var updatedLogs = await eventRepository.GetEventLogEntriesForInstance(instance.Id, ct);
-        instance.Events = EventHistory.RebuildEvents(updatedLogs);
+        var effectiveEvents = EventHistory.RebuildEvents(updatedLogs);
+        var updates = new List<UpdateDefinition<WorkflowInstance>>();
+        foreach (var eventId in affectedEventIds)
+        {
+            if (effectiveEvents.TryGetValue(eventId, out var effectiveEvent))
+            {
+                instance.Events[eventId] = effectiveEvent;
+                updates.Add(Builders<WorkflowInstance>.Update.Set(item => item.Events[eventId], effectiveEvent));
+            }
+            else
+            {
+                instance.Events.Remove(eventId);
+                updates.Add(Builders<WorkflowInstance>.Update.Unset(item => item.Events[eventId]));
+            }
+        }
+
         await instanceService.UpdateCurrentStep(instance, ct);
-        await workflowInstanceRepository.Update(instance, ct);
+        await workflowInstanceRepository.UpdateFields(
+            instance.Id, Builders<WorkflowInstance>.Update.Combine(updates), ct);
         return instance;
     }
 
@@ -61,8 +88,10 @@ public class UndoService(
             instance, operation.Step, RoleAction.Undo);
         return allowed.Any(action => operation.Type switch
         {
-            OperationType.FormSubmission => action.AllForms.Length == 0 || action.MatchesForm(operation.Source),
-            OperationType.ExecuteAction => action.Name == null || action.Name == operation.Source,
+            OperationType.FormSubmission =>
+                action.MatchesForm(operation.Source) || action.AllForms.Length == 0 && action.Name == null,
+            OperationType.ExecuteAction =>
+                action.Name == operation.Source || action.Name == null && action.AllForms.Length == 0,
             _ => false
         });
     }

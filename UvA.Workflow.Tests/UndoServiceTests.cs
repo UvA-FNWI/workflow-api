@@ -27,8 +27,7 @@ public class UndoServiceTests : ControllerTestsBase
             Id = "target",
             Type = OperationType.FormSubmission,
             Source = "Start",
-            Step = "Subject",
-            TopLevelStep = "Subject"
+            Step = "Subject"
         };
         List<InstanceEventLogEntry> logs = staleState switch
         {
@@ -75,8 +74,7 @@ public class UndoServiceTests : ControllerTestsBase
             Id = "first-action",
             Type = OperationType.ExecuteAction,
             Source = "RunAction",
-            Step = "Subject",
-            TopLevelStep = "Subject"
+            Step = "Subject"
         };
         var target = firstOccurrence with { Id = "latest-action" };
         var logs = new List<InstanceEventLogEntry>
@@ -110,6 +108,40 @@ public class UndoServiceTests : ControllerTestsBase
         Assert.Equal(At(1), instance.Events["RunAction"].Date);
         Assert.DoesNotContain("Consequence", instance.Events);
         _jobRepositoryMock.Verify(r => r.CancelPendingForOperation(instance.Id, target.Id, _ct), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(OperationType.FormSubmission, "Start", null, "RunAction")]
+    [InlineData(OperationType.ExecuteAction, "RunAction", "Start", null)]
+    public async Task GetCandidate_DoesNotApplyScopeForAnotherOperationType(
+        OperationType operationType, string source, string? form, string? name)
+    {
+        var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
+        var operation = new OperationMetadata
+        {
+            Id = "operation",
+            Type = operationType,
+            Source = source,
+            Step = "Subject"
+        };
+        var logs = new[] { EventLog(source, operation.Id, operation) };
+        _modelParser.Roles.Add(new Role
+        {
+            Name = "Undoer",
+            Actions =
+            [
+                new DomainAction
+                {
+                    Type = RoleAction.Undo,
+                    Steps = ["Subject"],
+                    Form = form,
+                    Name = name
+                }
+            ]
+        });
+        MockCurrentUser("Undoer");
+
+        Assert.Null(await _undoService.GetCandidate(instance, "Subject", logs));
     }
 
     [Fact]
@@ -149,9 +181,9 @@ public class UndoServiceTests : ControllerTestsBase
         };
         _modelParser.WorkflowDefinitions[definition.Name] = definition;
 
-        var firstOccurrence = Operation("first-occurrence", "First", "First", 1);
-        var target = Operation("target", "First", "First", 2);
-        var later = Operation("later", "Second", "Second", 1);
+        var firstOccurrence = Operation("first-occurrence", "First", 1);
+        var target = Operation("target", "First", 2);
+        var later = Operation("later", "Second", 1);
         var logs = new List<InstanceEventLogEntry>
         {
             EventLog("Restored", firstOccurrence.Id, firstOccurrence, At(1)),
@@ -204,8 +236,7 @@ public class UndoServiceTests : ControllerTestsBase
             Id = operationId,
             Type = OperationType.FormSubmission,
             Source = "Start",
-            Step = "Subject",
-            TopLevelStep = "Subject"
+            Step = "Subject"
         };
         var logs = new List<InstanceEventLogEntry>
         {
@@ -229,7 +260,11 @@ public class UndoServiceTests : ControllerTestsBase
         _eventRepoMock.Verify(r => r.AddUndoEntry(
             instance.Id, operationId, UnitTestsHelpers.AdminUser, "because", _ct), Times.Once);
         _jobRepositoryMock.Verify(r => r.CancelPendingForOperation(instance.Id, operationId, _ct), Times.Once);
-        _workflowInstanceRepoMock.Verify(r => r.Update(instance, _ct), Times.Once);
+        _workflowInstanceRepoMock.Verify(r => r.Update(instance, _ct), Times.Never);
+        _workflowInstanceRepoMock.Verify(r => r.UpdateFields(
+            instance.Id,
+            It.IsAny<MongoDB.Driver.UpdateDefinition<WorkflowInstance>>(),
+            _ct), Times.Once);
     }
 
     private void MockUndo(WorkflowInstance instance, OperationMetadata operation,
@@ -266,14 +301,13 @@ public class UndoServiceTests : ControllerTestsBase
             EventDate = at ?? DateTime.UtcNow
         };
 
-    private static OperationMetadata Operation(string id, string step, string topLevelStep, int minute)
+    private static OperationMetadata Operation(string id, string step, int minute)
         => new()
         {
             Id = id,
             Type = OperationType.FormSubmission,
             Source = "FirstForm",
-            Step = step,
-            TopLevelStep = topLevelStep
+            Step = step
         };
 
     private static DateTime At(int minute) => new(2026, 1, 1, 0, minute, 0, DateTimeKind.Utc);

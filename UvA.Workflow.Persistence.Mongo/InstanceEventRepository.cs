@@ -113,6 +113,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
             OperationId = operationMetadata?.Id ?? operationId
         };
 
+        // Store metadata once; later changes reference the same operation by ID.
         if (operationMetadata != null && await _eventLogCollection
                 .Find(entry => entry.Id == operationMetadata.Id)
                 .FirstOrDefaultAsync(ct) == null)
@@ -123,6 +124,7 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
 
         await _eventLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
 
+        // A late consequence of an undone operation must not become effective again.
         if (logEntry.OperationId == null || await _eventLogCollection.CountDocumentsAsync(
                 entry => entry.Operation == EventLogOperation.Undo && entry.OperationId == logEntry.OperationId,
                 new CountOptions { Limit = 1 }, ct) == 0)
