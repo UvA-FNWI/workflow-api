@@ -1,4 +1,5 @@
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -11,7 +12,9 @@ public record FormDto(
 {
     public static FormDto Create(Form form, ObjectContext context)
     {
-        var allPages = form.ActualForm.Pages.ToArray();
+        var allPages = form.ActualForm.Pages
+            .Where(p => p.Condition.IsMet(context))
+            .ToArray();
         var totalWeight = allPages
             .SelectMany(p => p.Fields)
             .Where(q => q.Calculation?.Weight != null)

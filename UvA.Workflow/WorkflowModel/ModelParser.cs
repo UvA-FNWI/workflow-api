@@ -272,6 +272,7 @@ public partial class ModelParser
                 throw new Exception(
                     $"Form {form.Name} references unknown property {missingFields.ToSeparatedString()}");
             ent.Fields = ent.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
+            PreProcess(ent.Condition);
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });

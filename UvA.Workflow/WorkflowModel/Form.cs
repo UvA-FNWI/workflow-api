@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -58,6 +59,11 @@ public class Page : INamed
     public BilingualString DisplayTitle => Title ?? Name;
 
     public bool HasResults => Fields.Count(f => f.Calculation?.Weight != null) > 0;
+
+    /// <summary>
+    /// Condition that determines if the page should be shown
+    /// </summary>
+    public Condition? Condition { get; set; }
 
     public Page Clone()
     {
