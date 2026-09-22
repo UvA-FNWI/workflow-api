@@ -42,7 +42,9 @@ public class WorkflowInstanceDtoFactory(
         var context = modelService.CreateContext(instance);
         var visibleCards = workflowDefinition.InfoCards
             .Where(card => card.Enabled && card.Type != null &&
-                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()))
+                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
+                           (card.ExcludedSources is not { Length: > 0 } ||
+                            !card.ExcludedSources.Intersect(viewerRoles).Any()))
             .ToArray();
         await instanceService.Enrich(workflowDefinition, [context],
             workflowDefinition.Steps.SelectMany(f => f.Lookups)
@@ -353,7 +355,12 @@ public class WorkflowInstanceDtoFactory(
             return items.Length == 0 ? null : new InfoCardDto(card.Name, card.Title!, type, Items: items);
         }
 
-        return new InfoCardDto(card.Name, card.Title!, type, Content: card.Content);
+        if (type == InfoCardType.Text)
+        {
+            return new InfoCardDto(card.Name, card.Title!, type, Content: card.Content);
+        }
+
+        return new InfoCardDto(card.Name, card.Title!, type);
     }
 
     private static InfoCardItemDto[] CreateInfoCardItems(InfoCard card, ObjectContext context) =>

@@ -9,7 +9,7 @@ public class InfoCard : INamed
     public BilingualString? Title { get; set; }
     public bool Enabled { get; set; } = true;
     public string[]? Sources { get; set; }
-
+    public string[]? ExcludedSources { get; set; }
     public string? User { get; set; }
     public InfoCardField[] Fields { get; set; } = [];
     public BilingualString? EmptyText { get; set; }
@@ -33,7 +33,8 @@ public enum InfoCardType
     User,
     RelatedUsers,
     Links,
-    Text
+    Text,
+    Progress
 }
 
 public class InfoCardField : Field
