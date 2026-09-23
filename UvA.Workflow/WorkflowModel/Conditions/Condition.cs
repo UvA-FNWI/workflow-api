@@ -213,6 +213,13 @@ public class Value : ConditionPart
     private Expression? LessThanExpression => ExpressionParser.Parse(LessThan);
 
     /// <summary>
+    /// Value the property should be less than or equal to
+    /// </summary>
+    public string? LessThanOrEqual { get; set; }
+
+    private Expression? LessThanOrEqualExpression => ExpressionParser.Parse(LessThanOrEqual);
+
+    /// <summary>
     /// Value the property should be greater than 
     /// </summary>
     public string? GreaterThan { get; set; }
@@ -248,14 +255,19 @@ public class Value : ConditionPart
         Property,
         .. EqualExpression?.Properties ?? [],
         .. LessThanExpression?.Properties ?? [],
+        .. LessThanOrEqualExpression?.Properties ?? [],
         .. GreaterThanExpression?.Properties ?? [],
         .. GreaterThanOrEqualExpression?.Properties ?? [],
         .. InExpression?.Properties ?? []
     ];
 
     public override IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
-        EqualExpression?.Properties, LessThanExpression?.Properties, GreaterThanExpression?.Properties,
+        EqualExpression?.Properties, LessThanExpression?.Properties, LessThanOrEqualExpression?.Properties,
+        GreaterThanExpression?.Properties,
         GreaterThanOrEqualExpression?.Properties, InExpression?.Properties);
+
+    private static int? Compare(object? value, object? bound) =>
+        value is double d && bound is int n ? d.CompareTo(n) : (value as IComparable)?.CompareTo(bound);
 
     public override bool IsMet(ObjectContext context)
     {
@@ -265,11 +277,13 @@ public class Value : ConditionPart
         if (EqualExpression != null)
             return Equals(EqualExpression.Execute(context), prop);
         if (LessThanExpression != null)
-            return (prop as IComparable)?.CompareTo(LessThanExpression.Execute(context)) < 0;
+            return Compare(prop, LessThanExpression.Execute(context)) < 0;
+        if (LessThanOrEqualExpression != null)
+            return Compare(prop, LessThanOrEqualExpression.Execute(context)) <= 0;
         if (GreaterThanExpression != null)
-            return (prop as IComparable)?.CompareTo(GreaterThanExpression.Execute(context)) > 0;
+            return Compare(prop, GreaterThanExpression.Execute(context)) > 0;
         if (GreaterThanOrEqualExpression != null)
-            return (prop as IComparable)?.CompareTo(GreaterThanOrEqualExpression.Execute(context)) >= 0;
+            return Compare(prop, GreaterThanOrEqualExpression.Execute(context)) >= 0;
         if (IsEmpty != null)
             return IsEmpty.Value ^ !string.IsNullOrWhiteSpace(prop?.ToString());
         if (InExpression != null)

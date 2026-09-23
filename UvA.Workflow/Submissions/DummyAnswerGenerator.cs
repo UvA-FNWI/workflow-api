@@ -76,9 +76,10 @@ public class DummyAnswerGenerator
         var greaterThan = TryGetLiteralNumber(v.GreaterThan);
         var greaterThanOrEqual = TryGetLiteralNumber(v.GreaterThanOrEqual);
         var lessThan = TryGetLiteralNumber(v.LessThan);
+        var lessThanOrEqual = TryGetLiteralNumber(v.LessThanOrEqual);
 
         double? min = greaterThan.HasValue ? greaterThan + 1 : greaterThanOrEqual;
-        double? max = lessThan;
+        double? max = lessThan ?? lessThanOrEqual;
 
         return new ValidationConstraints(min, max, v.MaxLength);
     }
