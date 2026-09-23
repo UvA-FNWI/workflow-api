@@ -4,6 +4,7 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 
@@ -20,7 +21,8 @@ public class WorkflowInstancesController(
     IAnswerService answerService,
     ModelService modelService,
     RoleImpersonationService impersonationService,
-    IEduIdUserService eduIdUserService
+    IEduIdUserService eduIdUserService,
+    IMailLogRepository mailLogRepository
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -455,6 +457,20 @@ public class WorkflowInstancesController(
 
         await answerService.SavePropertyValue(instance, pathParts, propertyDefinition, newValue, shouldLog: true, ct);
         return NoContent();
+    }
+
+    [HttpGet("{id}/Correspondence")]
+    public async Task<ActionResult<IReadOnlyList<CorrespondenceDto>>> GetCorrespondence(string id, CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, RoleAction.ViewCorrespondence))
+            return Forbidden();
+
+        var entries = await mailLogRepository.GetByInstance(id, ct);
+        return Ok(entries.Select(CorrespondenceDto.From).ToList());
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)
