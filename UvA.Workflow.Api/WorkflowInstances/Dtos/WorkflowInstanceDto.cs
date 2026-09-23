@@ -96,8 +96,16 @@ public record ActionDto(
                 action.Action.Label ?? Add(action.WorkflowDefinition?.DisplayTitle ?? "form"),
                 Form: action.Action.Property
             ),
-            RoleAction.Execute or RoleAction.PostponeDeadlines => new(
-                action.Action.Type == RoleAction.PostponeDeadlines ? ActionType.PostponeDeadlines : ActionType.Execute,
+            RoleAction.Execute => new(
+                ActionType.Execute,
+                action.Action.Label ?? action.Form?.DisplayName ?? action.Action.Name ?? "Action",
+                Form: action.Form?.Name,
+                Name: action.Action.Name,
+                Mail: action.Mail,
+                FormLayout: action.Form?.Layout
+            ),
+            RoleAction.PostponeDeadlines => new(
+                ActionType.PostponeDeadlines,
                 action.Action.Label ?? action.Form?.DisplayName ?? action.Action.Name ?? "Action",
                 Form: action.Form?.Name,
                 Name: action.Action.Name,

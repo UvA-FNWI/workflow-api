@@ -419,7 +419,7 @@ public partial class ModelParser
             if (maximum < 0 || property == null || property.IsArray ||
                 property.DataType is not (DataType.Date or DataType.DateTime))
                 throw new Exception(
-                    $"maxPostponementDays on step {step.Name} requires its deadline date to directly reference a scalar Date or DateTime property and a non-negative value");
+                    $"maxPostponementDays on step {step.Name} must be non-negative, and its deadline must name a Date or DateTime property that is not a list");
         }
 
         if (step.Progress.Count(progress => progress.EffectiveCondition == null) > 1)

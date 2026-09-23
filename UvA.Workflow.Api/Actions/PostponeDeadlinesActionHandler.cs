@@ -23,7 +23,7 @@ public class PostponeDeadlinesActionHandler(
                 "ActionNameRequired", "Action name is required"));
 
         var action = (await rightsService.GetAllowedActions(instance, RoleAction.PostponeDeadlines))
-            .FirstOrDefault(action => action.Name == input.Name && action.Steps.Length == 0);
+            .FirstOrDefault(action => action.Name == input.Name);
         if (action?.Form == null)
             return new(Error: new(ActionHandlerErrorType.Forbidden, "Forbidden", "Access forbidden"));
 

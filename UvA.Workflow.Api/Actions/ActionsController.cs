@@ -25,10 +25,8 @@ public class ActionsController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        var action = (await rightsService.GetAllowedActions(
-                instance, RoleAction.Execute, RoleAction.PostponeDeadlines))
-            .FirstOrDefault(action => action.Name == actionName && action.Form != null &&
-                                      (action.Type != RoleAction.PostponeDeadlines || action.Steps.Length == 0));
+        var action = (await rightsService.GetAllowedActions(instance, Enum.GetValues<RoleAction>()))
+            .FirstOrDefault(action => action.Name == actionName);
         if (action?.Form == null)
             return Forbidden();
 

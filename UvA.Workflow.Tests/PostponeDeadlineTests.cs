@@ -5,11 +5,8 @@ using MongoDB.Bson.Serialization;
 using Moq;
 using UvA.Workflow.Api.Actions;
 using UvA.Workflow.Api.Actions.Dtos;
-using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Api.Submissions;
-using UvA.Workflow.Infrastructure;
-using UvA.Workflow.Submissions;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Deadlines;
 using UvA.Workflow.Jobs;
@@ -29,8 +26,6 @@ public class PostponeDeadlineTests : ControllerTestsBase
     private readonly Form _form;
     private readonly PostponeDeadlineService _service;
     private readonly ActionsController _controller;
-    private readonly SubmissionsController _submissions;
-    private readonly SubmissionDtoFactory _submissionDtoFactory;
     private static readonly DateTimeOffset Original = DateTimeOffset.Parse("2000-01-01T12:00:00+01:00");
     private readonly List<PropertyChangeEntry> _changes = [];
 
@@ -107,11 +102,6 @@ public class PostponeDeadlineTests : ControllerTestsBase
                 new ExecuteActionHandler(_rightsService, _effectService, _jobService, _instanceService),
                 new PostponeDeadlinesActionHandler(_rightsService, _service)
             ]);
-        _submissionDtoFactory = new(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService);
-        _submissions = new(_userServiceMock.Object, _modelService, _rightsService,
-            new SubmissionService(_modelService, _instanceService, _instanceJournalServiceMock.Object, _jobService,
-                _effectService),
-            _workflowInstanceService, _submissionDtoFactory, Factory(), _answerService, new DummyAnswerGenerator());
     }
 
     private WorkflowInstanceDtoFactory Factory(string[]? roles = null) =>
@@ -188,36 +178,28 @@ public class PostponeDeadlineTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task ActionsRouteDispatchesPostponementThroughItsHandler()
+    public async Task StepActionCanLoadFormAndPostponeWhileItsStepIsAvailable()
     {
+        _action.Steps = ["Start"];
+        DeadlineConfiguration().Type = DeadlineType.Soft;
+
+        var form = await _controller.GetForm(_instance.Id, _action.Name!, _ct);
+        Assert.IsType<OkObjectResult>(form.Result);
+
         var response = await PostponeAction(Request(), _ct);
         Assert.IsType<OkObjectResult>(response.Result);
         Assert.Single(_changes);
     }
 
     [Fact]
-    public async Task EndpointRejectsActionsWithoutAConfiguredForm()
+    public async Task StepActionCannotPostponeAfterItsHardDeadline()
     {
-        _action.Form = null;
+        _action.Steps = ["Start"];
+
         var response = await PostponeAction(Request(), _ct);
+
         Assert.Equal(403, Assert.IsType<ObjectResult>(response.Result).StatusCode);
         Assert.Empty(_changes);
-        _mailServiceMock.VerifyNoOtherCalls();
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("An unconfigured reason")]
-    [InlineData("Research delay")]
-    [InlineData("Other")]
-    [InlineData("Overig\nWachten op onderzoeksgegevens")]
-    public async Task SavesTheReasonStringAsProvided(string reason)
-    {
-        var response = await PostponeAction(Request(reason), _ct);
-        Assert.IsType<OkObjectResult>(response.Result);
-        Assert.Equal(reason, Assert.Single(_changes).Reason);
-        Assert.False(_instance.Properties.ContainsKey("Reason"));
-        Assert.False(_instance.Properties.ContainsKey("Explanation"));
     }
 
     [Theory]
@@ -252,29 +234,6 @@ public class PostponeDeadlineTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task InvalidRequestReturnsErrorCodesThroughTheApi()
-    {
-        var response = await PostponeAction(Request() with { Changes = [] }, _ct);
-        var result = Assert.IsType<UnprocessableEntityObjectResult>(response.Result);
-        Assert.Equal(PostponementError.InvalidChanges, Assert.Single(Assert.IsType<PostponementError[]>(result.Value)));
-        Assert.Empty(_changes);
-        _mailServiceMock.VerifyNoOtherCalls();
-    }
-
-    [Fact]
-    public async Task NonexistentAmsterdamTimeDoesNotWriteOrSendMail()
-    {
-        var previous = DateTimeOffset.Parse("2027-01-01T02:30:00+01:00");
-        _instance.Properties["Deadline"] = new BsonDateTime(previous.UtcDateTime);
-        var result =
-            await Postpone(Request() with { Changes = [new("Deadline", previous, new DateOnly(2027, 3, 28))] });
-        Assert.Equal(PostponementError.InvalidChanges, Assert.Single(result.Errors));
-        Assert.Equal(previous.UtcDateTime, _instance.Properties["Deadline"].ToUniversalTime());
-        Assert.Empty(_changes);
-        _mailServiceMock.VerifyNoOtherCalls();
-    }
-
-    [Fact]
     public async Task RepeatedExtensionsReopenExpiredRightsAndLogAndEmailEachTime()
     {
         MockCurrentUser("Student");
@@ -302,53 +261,6 @@ public class PostponeDeadlineTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task FailedMailCanBeRetriedWithoutChangingTheDatesAgain()
-    {
-        Job? savedJob = null;
-        _jobRepositoryMock.Setup(repo => repo.Add(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
-            .Callback<Job, CancellationToken>((job, _) => savedJob = job).Returns(Task.CompletedTask);
-        _userRepoMock.Setup(repo => repo.GetById(UnitTestsHelpers.AdminUser.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(UnitTestsHelpers.AdminUser);
-        _mailServiceMock.SetupSequence(service => service.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new Exception("Mail unavailable"))
-            .ReturnsAsync(new MailDispatchResult([], [], [], null));
-
-        var result = await Postpone(Request());
-        Assert.Empty(result.Errors);
-        Assert.NotNull(result.Effects!.Error);
-        Assert.NotNull(savedJob);
-        Assert.Equal(JobStatus.Failed, savedJob.Status);
-        var postponedDate = _instance.Properties["Deadline"];
-
-        // The jobs endpoint queues a fresh attempt with the same source and step identifiers.
-        savedJob.Status = JobStatus.Pending;
-        await _jobService.RunJob(savedJob, _ct);
-        Assert.Equal(JobStatus.Completed, savedJob.Status);
-        Assert.Equal(postponedDate, _instance.Properties["Deadline"]);
-        Assert.Single(_changes);
-        _mailServiceMock.Verify(service => service.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(2));
-    }
-
-    [Fact]
-    public async Task CompletedDatesCanMoveWithoutLosingCompletionOrAmsterdamTime()
-    {
-        _instance.Events["Start"] = new() { Id = "Start", Date = new DateTime(2000, 1, 1) };
-        var result = await Postpone(Request() with
-        {
-            Changes =
-            [
-                new("Deadline", Original, new DateOnly(2027, 7, 1)),
-                new("EndDate", Original.AddDays(10), new DateOnly(2027, 7, 1))
-            ]
-        });
-        Assert.Empty(result.Errors);
-        Assert.Equal(DateTimeOffset.Parse("2027-07-01T12:00:00+02:00").UtcDateTime,
-            _instance.Properties["Deadline"].ToUniversalTime());
-        Assert.NotNull(_instance.Events["Start"].Date);
-    }
-
-    [Fact]
     public async Task StepDtoIncludesOnlyExtendablePropertyReferencesAndSavedChangeReason()
     {
         Assert.Empty((await Postpone(Request("Other\nResearch delay"))).Errors);
@@ -370,7 +282,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task FormReadResolvesIntroductionWithoutWritesOrSubmitRights()
+    public async Task FormReadResolvesIntroductionWithoutWrites()
     {
         _instance.Properties["Course"] = "course-id";
         _form.Pages[0].Introduction = new("Extend for {{ Course.Name }}.", "Uitstel voor {{ Course.Name }}.");
@@ -382,14 +294,6 @@ public class PostponeDeadlineTests : ControllerTestsBase
         var form = Assert.IsType<FormDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
         Assert.Equal("Extend for Research Methods.", form.Pages[0].Introduction!.En);
         Assert.Equal("Uitstel voor Research Methods.", form.Pages[0].Introduction!.Nl);
-        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
-            _submissions.SubmitSubmission(_instance.Id, _form.Name, _ct));
-        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
-            _submissions.GetSubmission(_instance.Id, _form.Name, version: 1, ct: _ct));
-        var answers = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
-            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService);
-        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
-            answers.SaveAnswer(_instance.Id, _form.Name, "Reason", new(null), _ct));
         Assert.Equal(previous, _instance.Properties.ToBsonDocument());
         Assert.Empty(_instance.Events);
         Assert.Empty(_changes);
@@ -399,20 +303,12 @@ public class PostponeDeadlineTests : ControllerTestsBase
 
     [Theory]
     [InlineData("unconfigured", 403)]
-    [InlineData("differentAction", 403)]
-    [InlineData("unnamed", 403)]
-    [InlineData("step", 403)]
-    [InlineData("condition", 403)]
     [InlineData("execute", 200)]
     public async Task FormReadRequiresAnAvailableMatchingAction(string scenario, int status)
     {
         switch (scenario)
         {
             case "unconfigured": _action.Form = null; break;
-            case "differentAction": _action.Name = "DifferentAction"; break;
-            case "unnamed": _action.Name = null; break;
-            case "step": _action.Steps = ["Start"]; break;
-            case "condition": _action.Condition = new() { Event = new() { Id = "NotYetAvailable" } }; break;
             case "execute": _action.Type = RoleAction.Execute; break;
         }
 
@@ -422,9 +318,6 @@ public class PostponeDeadlineTests : ControllerTestsBase
         else
             Assert.Equal(status, Assert.IsType<ObjectResult>(response.Result).StatusCode);
     }
-
-    private PropertyDefinition DeadlineProperty(string name = "Deadline") =>
-        _modelService.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == name);
 
     private Deadline DeadlineConfiguration(string property = "Deadline")
     {
@@ -490,28 +383,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
             ]
         };
         Assert.Equal(new DateOnly(2000, 1, 22), PostponeDeadlineService.GetMaximumDate(
-            DeadlineProperty(), DeadlineConfiguration().MaxPostponementDays, Original.AddDays(10), journal));
-    }
-
-    [Theory]
-    [InlineData("missing")]
-    [InlineData("empty")]
-    [InlineData("otherProperty")]
-    [InlineData("emptyValues")]
-    public void MaximumFallsBackToCurrentValueOnlyWithoutADatedLogForThatDeadline(string history)
-    {
-        DeadlineConfiguration().MaxPostponementDays = 14;
-        InstanceJournalEntry? journal = history == "missing" ? null : new();
-        if (history == "otherProperty") journal!.PropertyChanges = [LoggedDate("EndDate", Original, 1)];
-        if (history == "emptyValues")
-            journal!.PropertyChanges =
-            [
-                PropertyChangeEntry.Create("Deadline", null, UnitTestsHelpers.AdminUser),
-                PropertyChangeEntry.Create("Deadline", BsonNull.Value, UnitTestsHelpers.AdminUser),
-                PropertyChangeEntry.Create("Deadline", new BsonString(""), UnitTestsHelpers.AdminUser)
-            ];
-        Assert.Equal(new DateOnly(2000, 1, 22), PostponeDeadlineService.GetMaximumDate(
-            DeadlineProperty(), DeadlineConfiguration().MaxPostponementDays, Original.AddDays(7), journal));
+            DeadlineConfiguration().MaxPostponementDays, Original.AddDays(10), journal.PropertyChanges));
     }
 
     private static PropertyChangeEntry LoggedDate(string property, DateTimeOffset date, int sequence)

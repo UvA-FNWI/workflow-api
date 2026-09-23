@@ -47,62 +47,48 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
 
         var instanceIdFilter = Builders<InstanceJournalEntry>.Filter.Eq(x => x.InstanceId, instanceId);
 
-        var mergedPaths = new List<string>();
+        var overwritten = new List<string>();
 
         foreach (var change in newChanges)
         {
-            // Dated old values are immutable: keep every date change and its original timestamp.
-            if (change.OldValue is not BsonDateTime &&
-                await TryMergePropertyChange(instanceIdFilter, change, ct))
-            {
-                mergedPaths.Add(change.Path);
-                continue;
-            }
+            var cutoff = change.Timestamp.Subtract(PropertyChangeMergeWindow);
+            var matchExistingFilter =
+                instanceIdFilter &
+                Builders<InstanceJournalEntry>.Filter.ElemMatch(
+                    x => x.PropertyChanges,
+                    pc => pc.Version == change.Version &&
+                          pc.Path == change.Path &&
+                          pc.Timestamp >= cutoff
+                );
 
-            await AppendPropertyChange(instanceIdFilter, change, ct);
+            var updateExisting = Builders<InstanceJournalEntry>.Update
+                .Set("PropertyChanges.$.Timestamp", change.Timestamp)
+                .Set("PropertyChanges.$.Reason", change.Reason)
+                .Set("PropertyChanges.$.ModifiedBy", change.ModifiedBy);
+
+            var updateResult = await _changeSetCollection.UpdateOneAsync(
+                matchExistingFilter,
+                updateExisting,
+                new UpdateOptions { IsUpsert = false },
+                ct);
+
+            if (updateResult.MatchedCount == 0)
+            {
+                var pushChangeUpdate = Builders<InstanceJournalEntry>.Update
+                    .Push(x => x.PropertyChanges, change)
+                    .SetOnInsert(x => x.CurrentVersion, change.Version);
+
+                await _changeSetCollection.UpdateOneAsync(
+                    instanceIdFilter,
+                    pushChangeUpdate,
+                    new UpdateOptions { IsUpsert = true },
+                    ct);
+            }
+            else
+                overwritten.Add(change.Path);
         }
 
-        return mergedPaths;
-    }
-
-    private async Task<bool> TryMergePropertyChange(
-        FilterDefinition<InstanceJournalEntry> instanceIdFilter,
-        PropertyChangeEntry change,
-        CancellationToken ct)
-    {
-        var cutoff = change.Timestamp.Subtract(PropertyChangeMergeWindow);
-        var matchingChange = Builders<PropertyChangeEntry>.Filter.Where(existing =>
-            existing.Version == change.Version &&
-            existing.Path == change.Path &&
-            existing.Timestamp >= cutoff);
-        // Do not merge a reinitialization entry into a dated history entry.
-        matchingChange &= Builders<PropertyChangeEntry>.Filter.Not(
-            Builders<PropertyChangeEntry>.Filter.Type(existing => existing.OldValue, BsonType.DateTime));
-
-        var matchingJournal = instanceIdFilter &
-                              Builders<InstanceJournalEntry>.Filter.ElemMatch(
-                                  entry => entry.PropertyChanges, matchingChange);
-        var update = Builders<InstanceJournalEntry>.Update
-            .Set("PropertyChanges.$.Timestamp", change.Timestamp)
-            .Set("PropertyChanges.$.Reason", change.Reason)
-            .Set("PropertyChanges.$.ModifiedBy", change.ModifiedBy);
-
-        var result = await _changeSetCollection.UpdateOneAsync(
-            matchingJournal, update, new UpdateOptions { IsUpsert = false }, ct);
-        return result.MatchedCount > 0;
-    }
-
-    private async Task AppendPropertyChange(
-        FilterDefinition<InstanceJournalEntry> instanceIdFilter,
-        PropertyChangeEntry change,
-        CancellationToken ct)
-    {
-        var update = Builders<InstanceJournalEntry>.Update
-            .Push(entry => entry.PropertyChanges, change)
-            .SetOnInsert(entry => entry.CurrentVersion, change.Version);
-
-        await _changeSetCollection.UpdateOneAsync(
-            instanceIdFilter, update, new UpdateOptions { IsUpsert = true }, ct);
+        return overwritten;
     }
 
     public async Task<int> IncrementVersion(string instanceId, CancellationToken ct = default)

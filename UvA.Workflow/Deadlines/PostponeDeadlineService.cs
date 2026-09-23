@@ -11,7 +11,7 @@ public class PostponeDeadlineService(
     IInstanceJournalService journalService,
     JobService jobService)
 {
-    // Direct date properties opt in; literal dates and calculated expressions remain fixed.
+    // Only deadlines that name a Date or DateTime property can be extended.
     public static PropertyDefinition? GetDeadlineProperty(Step step, WorkflowDefinition definition)
         => step.Deadline == null
             ? null
@@ -37,13 +37,16 @@ public class PostponeDeadlineService(
             foreach (var change in request.Changes)
             {
                 if (!limits.TryGetValue(change.Property, out var days)) continue;
-                var property = definition.Properties.Single(property => property.Name == change.Property);
-                if (GetMaximumDate(property, days, change.PreviousDate, journal) is { } maximum &&
+                var history = journal?.PropertyChanges.Where(entry => entry.Path == change.Property);
+                if (GetMaximumDate(days, change.PreviousDate, history) is { } maximum &&
                     change.NewDate > maximum)
                     return new([PostponementError.MaximumExtensionExceeded]);
             }
         }
 
+        // Keep deadline changes in their own journal version so the normal merge
+        // window cannot replace the first recorded value.
+        await journalService.IncrementVersion(instance.Id, ct);
         foreach (var (property, date) in changes)
         {
             var previous = instance.GetProperty(property);
@@ -106,16 +109,12 @@ public class PostponeDeadlineService(
         return limits.Length == 0 ? null : limits.Min();
     }
 
-    public static DateOnly? GetMaximumDate(PropertyDefinition property, int? maxPostponementDays,
-        DateTimeOffset currentDate,
-        InstanceJournalEntry? journal)
+    public static DateOnly? GetMaximumDate(int? maxPostponementDays, DateTimeOffset currentDate,
+        IEnumerable<PropertyChangeEntry>? history)
     {
         if (maxPostponementDays is not { } days) return null;
-        // Use this property's first recorded date, independent of the order returned by the journal.
-        var first = journal?.PropertyChanges
-            .Where(change => change.Path == property.Name && change.OldValue is BsonDateTime)
-            .OrderBy(change => change.Timestamp)
-            .FirstOrDefault();
+        var first = history?.Where(change => change.OldValue is BsonDateTime)
+            .MinBy(change => change.Timestamp);
         var original = first?.OldValue is BsonDateTime date
             ? new DateTimeOffset(date.ToUniversalTime())
             : currentDate;

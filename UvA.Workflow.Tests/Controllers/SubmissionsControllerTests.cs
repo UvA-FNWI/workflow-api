@@ -172,7 +172,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"],
             b => b.WithId(submissionId).AsCompleted(submittedAt),
-            props: [("EC", _ => 12)]);
+            "Start",
+            ("EC", _ => 12));
         var change = PropertyChangeEntry.Create("EC", 6, UnitTestsHelpers.AdminUser);
         _instanceJournalServiceMock
             .Setup(service => service.GetInstanceJournal(instance.Id, false, _ct))

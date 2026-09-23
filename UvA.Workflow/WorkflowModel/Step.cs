@@ -92,8 +92,8 @@ public class Deadline
     public string Date { get; set; } = null!;
 
     /// <summary>
-    /// Maximum total extension in calendar days from this deadline's first recorded value.
-    /// Omit for no limit; zero prevents postponement.
+    /// Maximum days a deadline may move from its first recorded date.
+    /// Leave unset for no limit; zero prevents postponement.
     /// </summary>
     public int? MaxPostponementDays { get; set; }
 
