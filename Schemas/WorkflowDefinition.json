@@ -1435,7 +1435,8 @@
         "CreateInstance",
         "CreateRelatedInstance",
         "ImpersonateRoles",
-        "ViewResults"
+        "ViewResults",
+        "ViewCorrespondence"
       ]
     },
     "Field": {
