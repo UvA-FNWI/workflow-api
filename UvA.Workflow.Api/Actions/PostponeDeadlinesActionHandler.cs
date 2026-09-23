@@ -34,7 +34,7 @@ public class PostponeDeadlinesActionHandler(
         PostponeDeadlinesRequest? request;
         try
         {
-            request = inputElement.Deserialize<PostponeDeadlinesRequest>();
+            request = inputElement.Deserialize<PostponeDeadlinesRequest>(JsonSerializerOptions.Web);
         }
         catch (JsonException)
         {

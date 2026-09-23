@@ -98,7 +98,7 @@ public record ActionDto(
             ),
             RoleAction.Execute => new(
                 ActionType.Execute,
-                action.Action.Label ?? action.Form?.DisplayName ?? action.Action.Name ?? "Action",
+                action.Action.Label ?? action.Action.Name ?? "Action",
                 Form: action.Form?.Name,
                 Name: action.Action.Name,
                 Mail: action.Mail,
@@ -106,7 +106,7 @@ public record ActionDto(
             ),
             RoleAction.PostponeDeadlines => new(
                 ActionType.PostponeDeadlines,
-                action.Action.Label ?? action.Form?.DisplayName ?? action.Action.Name ?? "Action",
+                action.Action.Label ?? action.Action.Name ?? "Action",
                 Form: action.Form?.Name,
                 Name: action.Action.Name,
                 Mail: action.Mail,

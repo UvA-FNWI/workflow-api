@@ -119,7 +119,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
                 ActionType.PostponeDeadlines,
                 _instance.Id,
                 _action.Name,
-                Input: JsonSerializer.SerializeToElement(request)),
+                Input: JsonSerializer.SerializeToElement(request, JsonSerializerOptions.Web)),
             ct == default ? _ct : ct);
 
     private Task<PostponeDeadlinesResult> Postpone(PostponeDeadlinesRequest request) =>
@@ -137,7 +137,7 @@ public class PostponeDeadlineTests : ControllerTestsBase
         if (allowed)
         {
             var action = Assert.Single(dto.Actions, action => action.Name == _action.Name);
-            Assert.Equal(_form.Title, action.Title);
+            Assert.Equal(_action.Name, action.Title.En);
             Assert.Equal(_form.Name, action.Form);
             Assert.Equal(FormLayout.Modal, action.FormLayout);
             var loaded = await _controller.GetForm(_instance.Id, _action.Name!, _ct);
