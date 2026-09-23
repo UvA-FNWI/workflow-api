@@ -12,9 +12,7 @@ public record FormDto(
 {
     public static FormDto Create(Form form, ObjectContext context)
     {
-        var allPages = form.ActualForm.Pages
-            .Where(p => p.Condition.IsMet(context))
-            .ToArray();
+        var allPages = form.ActualForm.Pages.ToArray();
         var totalWeight = allPages
             .SelectMany(p => p.Fields)
             .Where(q => q.Calculation?.Weight != null)
@@ -28,7 +26,9 @@ public record FormDto(
                             (form.PropertyName != null && p.Sources.Contains(form.PropertyName)))
                 .ToArray();
 
-        var questions = currentFormPages
+        var activePages = currentFormPages.Where(p => p.Condition.IsMet(context)).ToArray();
+
+        var questions = activePages
             .SelectMany(p => p.Fields)
             .Distinct()
             .ToDictionary(q => q, q => QuestionDto.Create(q, context, totalWeight));
@@ -42,10 +42,11 @@ public record FormDto(
             allPages.Select((p, i) =>
             {
                 var isInCurrentForm = currentFormPages.Any(page => page.Name == p.Name);
-                var pageQuestions = isInCurrentForm
+                var isActive = activePages.Any(page => page.Name == p.Name);
+                var pageQuestions = isActive
                     ? p.Fields.Select(q => questions[q])
                     : Enumerable.Empty<QuestionDto>();
-                return PageDto.Create(i, p, pageQuestions, context, isInCurrentForm);
+                return PageDto.Create(i, p, pageQuestions, context, isInCurrentForm, isActive);
             }).ToArray(),
             form.Layout,
             originalForm.Step
@@ -61,11 +62,12 @@ public record PageDto(
     PageLayout Layout,
     QuestionDto[] Questions,
     bool HasResults,
-    bool IsInCurrentForm
+    bool IsInCurrentForm,
+    bool IsActive
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context,
-        bool isInCurrentForm)
+        bool isInCurrentForm, bool isActive)
         => new(
             index,
             page.Name,
@@ -74,7 +76,8 @@ public record PageDto(
             page.Layout,
             questions.ToArray(),
             page.HasResults,
-            isInCurrentForm
+            isInCurrentForm,
+            isActive
         );
 }
 
