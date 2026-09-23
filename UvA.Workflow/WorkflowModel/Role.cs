@@ -65,6 +65,7 @@ public enum RoleAction
     CreateRelatedInstance,
     ImpersonateRoles,
     ViewResults,
+    ViewCorrespondence,
     PostponeDeadlines
 }
 

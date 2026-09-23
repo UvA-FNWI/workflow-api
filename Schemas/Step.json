@@ -723,6 +723,7 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
+        "ViewCorrespondence",
         "PostponeDeadlines"
       ]
     },
