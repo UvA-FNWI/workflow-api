@@ -271,6 +271,9 @@ public partial class ModelParser
             {
                 ValidatePageElement(element, form.Name);
 
+                if (element.Callout?.Condition != null)
+                    PreProcess(element.Callout.Condition);
+
                 if (element.Question == null)
                     continue;
 
