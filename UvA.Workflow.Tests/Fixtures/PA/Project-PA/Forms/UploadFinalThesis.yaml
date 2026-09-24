@@ -8,13 +8,13 @@ pages:
     title:
       en: Final thesis
       nl: Eindversie scriptie
-    fields:
-      - Title
-      - Report
-      - Abstract
-      - Keywords
-      - Language
-      - Publish
+    elements:
+      - question: Title
+      - question: Report
+      - question: Abstract
+      - question: Keywords
+      - question: Language
+      - question: Publish
       
 onSubmit:
   - sendMail:
