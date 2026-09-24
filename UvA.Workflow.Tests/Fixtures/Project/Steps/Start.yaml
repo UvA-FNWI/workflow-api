@@ -15,8 +15,8 @@ progress:
       en: Writing proposal
       nl: Schrijft voorstel
 
-condition: 
-  deadline: addMonths(CreateDate, 2)
+deadline:
+  date: addMonths(CreateDate, 2)
     
 actions:
   - roles: [Student]

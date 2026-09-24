@@ -9,4 +9,12 @@ public class MailLogRepository(IMongoDatabase database) : IMailLogRepository
     {
         await _mailLogCollection.InsertOneAsync(logEntry, cancellationToken: ct);
     }
+
+    public async Task<IReadOnlyList<MailLogEntry>> GetByInstance(string workflowInstanceId,
+        CancellationToken ct = default)
+    {
+        return await _mailLogCollection
+            .Find(x => x.WorkflowInstanceId == workflowInstanceId)
+            .ToListAsync(ct);
+    }
 }

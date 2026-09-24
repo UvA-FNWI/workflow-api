@@ -2,6 +2,7 @@ using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
 
@@ -26,15 +27,21 @@ public class SubmissionsController(
         var (instance, submissionState, form, _) =
             await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, version, ct);
 
-        // If the form is not yet submitted, you can view it with submit permissions. After that, view permissions apply
+        if (version is not null)
+        {
+            // Historical snapshots use normal view rights, are read-only and omit live answer-change history.
+            await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
+
+            return Ok(submissionDtoFactory.Create(instance, form, submissionState,
+                modelService.GetQuestionStatus(instance, form, true), permissions: []));
+        }
+
+        // Live drafts require submit permissions; submitted forms require view permissions.
         await rightsService.EnsureAuthorizedForAction(instance,
             submissionState.DateSubmitted == null ? RoleAction.Submit : RoleAction.View, form.Name);
-
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
-        var history = version is null
-            ? await workflowInstanceService.GetInstanceHistory(instanceId, ct)
-            : null;
+        var history = await workflowInstanceService.GetInstanceHistory(instanceId, ct);
         var dto = await submissionDtoFactory.CreateAsync(instance, form, submissionState,
             modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray(),
             history, ct);
