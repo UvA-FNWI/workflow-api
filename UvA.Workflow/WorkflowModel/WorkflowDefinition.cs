@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Migrations;
 using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -67,6 +68,12 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public IEnumerable<Action> AllActions => GlobalActions.Concat(AllSteps.SelectMany(s => s.Actions));
 
     /// <summary>
+    /// List of roles for this entity type. Loaded from the Roles folder of the entity type definition.
+    /// </summary>
+    [YamlIgnore]
+    public List<Role> Roles { get; set; } = [];
+
+    /// <summary>
     /// List of step names for this entity type
     /// </summary>
     [YamlMember(Alias = "steps")]
@@ -119,6 +126,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
+    [YamlIgnore] public List<ConfiguredMigration> Migrations { get; set; } = [];
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
     [YamlIgnore]

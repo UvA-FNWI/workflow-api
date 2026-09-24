@@ -27,7 +27,8 @@ public class WorkflowInstanceDtoFactory(
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
+        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit,
+            RoleAction.ViewCorrespondence);
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
         // active impersonation); resolve them in a single pass over the instance's roles.
         var realUserActions = await rightsService.GetAllowedActions(
@@ -158,23 +159,26 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var deadline = GetDeadline(step, context, activeSteps);
+        var headerStatus = HasPassedDeadline(step, context, activeSteps)
+            ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
+            : stepHeaderStatusResolver.Resolve(step, instance);
 
-        // The newest version is the step's live state, already rendered as the current submission.
+        // A completed step's latest version is already shown as its live submission.
+        // For an expired, unfinished step, retain every historical version.
         var versions = stepVersionsMap.GetValueOrDefault(step.Name)
             ?.OrderByDescending(version => version.SubmittedAt)
             .Skip(step.HasEnded(context) ? 1 : 0);
+        var versionDtos = versions != null
+            ? await Task.WhenAll(
+                versions.Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
+            : null;
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
             : null;
-        var versionDtos = versions != null
-            ? await Task.WhenAll(versions
-                .OrderByDescending(version => version.SubmittedAt)
-                .Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
-            : null;
-
         var submissionForms = step.Actions
             .Where(action => action.Type == RoleAction.Submit)
             .SelectMany(action => action.AllForms)
@@ -189,7 +193,8 @@ public class WorkflowInstanceDtoFactory(
                             instanceHistory.EventLogs.Any(log =>
                                 submissionEventIds.Contains(log.EventId) &&
                                 log.Operation is EventLogOperation.Create or EventLogOperation.Update);
-        var expectsSubmission = activeSteps.Contains(step.Name) && step.Actions
+        // Hard deadlines end the submission expectation, including inherited deadlines.
+        var expectsSubmission = activeSteps.Contains(step.Name) && !step.HasPassedHardDeadline(context) && step.Actions
             .Where(action => action.Type == RoleAction.Submit && action.Condition.IsMet(context))
             .SelectMany(action => action.AllForms)
             .Distinct()
@@ -202,9 +207,9 @@ public class WorkflowInstanceDtoFactory(
             step.Icon,
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
-            step.GetDeadline(instance, modelService),
+            deadline,
             children,
-            stepHeaderStatusResolver.Resolve(step, instance),
+            headerStatus,
             step.ResultsType,
             expectsSubmission,
             hasSubmission,
@@ -212,6 +217,25 @@ public class WorkflowInstanceDtoFactory(
             versionDtos?.ToList()
         );
     }
+
+    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+    {
+        var deadline = step.Deadline;
+        if (deadline == null)
+            return null;
+
+        var isPassed = activeSteps.Contains(step.Name) && !step.HasEnded(context) && deadline.HasPassed(context);
+        var message = isPassed && deadline.Type == DeadlineType.Hard
+            ? deadline.TextTemplate?.Apply(context)
+            : null;
+
+        return new DeadlineDto(step.Deadline?.Evaluate(context), deadline.Type, isPassed, message);
+    }
+
+    private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+        => !step.HasEnded(context) && ((activeSteps.Contains(step.Name) && step.Deadline?.HasPassed(context) == true) ||
+                                       step.Children.Where(child => child.Condition.IsMet(context))
+                                           .Any(child => HasPassedDeadline(child, context, activeSteps)));
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
