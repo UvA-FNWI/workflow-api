@@ -8,55 +8,55 @@ pages:
     title:
       en: Declarations
       nl: Verklaringen
-    fields:
-      - PlagiarismReportUrl
-      - FraudChecked
+    elements:
+      - question: PlagiarismReportUrl
+      - question: FraudChecked
     sources: [AssessmentExaminer]
 
   - name: Product
     title:
       en: Product (40%)
       nl: Product (40%)
-    fields:
-      - ProductAbstract
-      - ProductIntroduction
-      - ProductMethods
-      - ProductResults
-      - ProductDiscussionConclusion
-      - ProductReadability
-      - ProductComments
+    elements:
+      - question: ProductAbstract
+      - question: ProductIntroduction
+      - question: ProductMethods
+      - question: ProductResults
+      - question: ProductDiscussionConclusion
+      - question: ProductReadability
+      - question: ProductComments
     sources: [AssessmentExaminer]
 
   - name: Process
     title:
       en: Process (30%)
       nl: Process (30%)
-    fields:
-      - ProcessPreparationMethodology
-      - ProcessExperimentalSkills
-      - ProcessReliabilityReproducibility
-      - ProcessInterpretingResults
-      - ProcessIndependenceInitiative
-      - ProcessCommunicationCollaboration
-      - ProcessPlanningTimeManagement
+    elements:
+      - question: ProcessPreparationMethodology
+      - question: ProcessExperimentalSkills
+      - question: ProcessReliabilityReproducibility
+      - question: ProcessInterpretingResults
+      - question: ProcessIndependenceInitiative
+      - question: ProcessCommunicationCollaboration
+      - question: ProcessPlanningTimeManagement
     sources: [AssessmentExaminer]
 
   - name: Presentation
     title:
       en: Presentation (30%)
       nl: Presentatie (30%)
-    fields:
-      - PresentationContextualizationDelivery
-      - PresentationClarityStyle
-      - PresentationHandlingQuestions
+    elements:
+      - question: PresentationContextualizationDelivery
+      - question: PresentationClarityStyle
+      - question: PresentationHandlingQuestions
     sources: [AssessmentExaminer]
 
   - name: Summary
     title:
       en: Summary
       nl: Samenvatting
-    fields:
-      - SummaryComments
-      - Laudatio
-      - ConsentExaminerName
+    elements:
+      - question: SummaryComments
+      - question: Laudatio
+      - question: ConsentExaminerName
     sources: [AssessmentExaminer]

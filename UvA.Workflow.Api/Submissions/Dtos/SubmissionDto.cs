@@ -17,6 +17,7 @@ public record SubmissionDto(
 public class SubmissionDtoFactory(
     ArtifactTokenService artifactTokenService,
     ModelService modelService,
+    InstanceService instanceService,
     IUserService? userService = null)
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
@@ -27,14 +28,20 @@ public class SubmissionDtoFactory(
         WorkflowInstanceHistory? history = null, CancellationToken ct = default)
     {
         var displayNames = await ResolveDisplayNames(history?.Journal, ct);
-        return Create(inst, form, submissionState, shownQuestionIds, permissions, history, displayNames);
+        var context = modelService.CreateContext(inst);
+        var workflowDefinition = modelService.WorkflowDefinitions[inst.WorkflowDefinition];
+        await instanceService.Enrich(workflowDefinition, [context], form.ActualForm.Lookups, ct, replaceStep: false);
+
+        return Create(inst, form, submissionState, shownQuestionIds, permissions, history, displayNames, context);
     }
 
     public SubmissionDto Create(WorkflowInstance inst, Form form, FormSubmissionState submissionState,
         Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null,
-        WorkflowInstanceHistory? history = null, IReadOnlyDictionary<string, string>? displayNames = null)
+        WorkflowInstanceHistory? history = null, IReadOnlyDictionary<string, string>? displayNames = null,
+        ObjectContext? context = null)
     {
-        var context = modelService.CreateContext(inst);
+        context ??= modelService.CreateContext(inst);
+
         var answers = shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds);
         return new(form.Name,
             form.Name,
