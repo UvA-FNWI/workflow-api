@@ -58,9 +58,13 @@ public class Page : INamed
 
     public bool HasResults => PageElements.Any(e => e.QuestionDefinition?.Calculation?.Weight != null);
 
+    [YamlIgnore] public IEnumerable<Lookup> Lookups => PageElements.SelectMany(e => e.Lookups);
+
     public Page Clone()
     {
-        return (Page)MemberwiseClone();
+        var clone = (Page)MemberwiseClone();
+        clone.PageElements = PageElements.Select(e => e.Clone()).ToArray();
+        return clone;
     }
 }
 
@@ -144,6 +148,8 @@ public class Form : INamed, IDeclaredKeys
         Pages.SelectMany(p => p.Questions)
             .Distinct();
 
+    [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
+
     public Form Clone()
     {
         var clone = (Form)MemberwiseClone();
@@ -175,6 +181,14 @@ public class Callout
     /// Condition that determines if the callout is shown
     /// </summary>
     public Condition? Condition { get; set; }
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. Condition?.Properties ?? [],
+        .. TitleTemplate?.Properties ?? [],
+        .. TextTemplate?.Properties ?? []
+    ];
 }
 
 public class PageElement
@@ -194,4 +208,13 @@ public class PageElement
     [YamlIgnore] public PropertyDefinition? QuestionDefinition { get; set; }
 
     public Callout? Callout { get; set; }
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. TextTemplate?.Properties ?? [],
+        .. Callout?.Lookups ?? []
+    ];
+
+    public PageElement Clone() => (PageElement)MemberwiseClone();
 }

@@ -17,7 +17,8 @@ public class SubmissionsController(
     SubmissionDtoFactory submissionDtoFactory,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
     IAnswerService answerService,
-    DummyAnswerGenerator dummyAnswerGenerator) : ApiControllerBase
+    DummyAnswerGenerator dummyAnswerGenerator,
+    InstanceService instanceService) : ApiControllerBase
 {
     [HttpGet("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> GetSubmission(string instanceId, string submissionId,
@@ -31,9 +32,11 @@ public class SubmissionsController(
         {
             // Historical snapshots use normal view rights, are read-only and omit live answer-change history.
             await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
-
+            var context = modelService.CreateContext(instance);
+            await instanceService.Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition],
+                [context], form.ActualForm.Lookups, ct, replaceStep: false);
             return Ok(submissionDtoFactory.Create(instance, form, submissionState,
-                modelService.GetQuestionStatus(instance, form, true), permissions: []));
+                modelService.GetQuestionStatus(instance, form, true), permissions: [], context: context));
         }
 
         // Live drafts require submit permissions; submitted forms require view permissions.

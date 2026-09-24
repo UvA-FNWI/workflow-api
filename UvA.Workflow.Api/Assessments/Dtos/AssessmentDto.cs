@@ -86,6 +86,8 @@ public class AssessmentDtoFactory(
                 })
                 .ToArray();
 
+            // Right now we are not enriching the FormDto with context values.
+            // If enriched text is necessary in the future, we should add it.
             parts.Add(new AssessmentPartDto(
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name

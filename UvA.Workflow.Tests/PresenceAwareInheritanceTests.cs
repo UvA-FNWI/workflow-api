@@ -332,4 +332,34 @@ public class PresenceAwareInheritanceTests
         Assert.Equal("BaseTitle", leafS.Title!.En);
         Assert.Equal(StepHierarchyMode.Sequential, leafS.HierarchyMode);
     }
+
+    [Fact]
+    public void FormPageElements_AreNotSharedBetweenSiblingDefinitions()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P\n    elements:\n      - question: Foo",
+
+            ["Child1/Entity.yaml"] =
+                "name: Child1\ntitlePlural: C1s\ninheritsFrom: Base\nproperties:\n  - name: Foo\n    type: String",
+            ["Child2/Entity.yaml"] =
+                "name: Child2\ntitlePlural: C2s\ninheritsFrom: Base\nproperties:\n  - name: Foo\n    type: String"
+        }));
+
+        PropertyDefinition QuestionDefinitionOf(string definition) =>
+            parser.WorkflowDefinitions[definition].Forms.Get("Edit").Pages.Single().PageElements.Single()
+                .QuestionDefinition!;
+
+        var baseDefinition = QuestionDefinitionOf("Base");
+        var child1Definition = QuestionDefinitionOf("Child1");
+        var child2Definition = QuestionDefinitionOf("Child2");
+
+        Assert.Same(parser.WorkflowDefinitions["Base"].Properties.Get("Foo"), baseDefinition);
+        Assert.Same(parser.WorkflowDefinitions["Child1"].Properties.Get("Foo"), child1Definition);
+        Assert.Same(parser.WorkflowDefinitions["Child2"].Properties.Get("Foo"), child2Definition);
+
+        Assert.NotSame(baseDefinition, child1Definition);
+        Assert.NotSame(child1Definition, child2Definition);
+    }
 }

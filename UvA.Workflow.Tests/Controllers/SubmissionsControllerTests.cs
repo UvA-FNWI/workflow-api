@@ -34,7 +34,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
             new SubmissionService(_modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _jobService, _effectService);
         _submissionDtoFactory =
-            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService);
+            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService,
+                _instanceService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,
@@ -491,7 +492,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
         var controller = new SubmissionsController(_userServiceMock.Object, _modelService, _rightsService,
             _submissionService, _workflowInstanceService, _submissionDtoFactory, _workflowInstanceDtoFactory,
-            _answerService, _dummyAnswerGenerator);
+            _answerService, _dummyAnswerGenerator, _instanceService);
 
         return (controller, instance);
     }
