@@ -154,7 +154,8 @@ public class ActionsControllerTests : ControllerTestsBase
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
         var supervisorId = ObjectId.GenerateNewId().ToString();
         instance.Properties["Supervisor"] =
-            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org", objectId: supervisorId);
+            new PropertyBuilder().Person("External Supervisor", "supervisor@external.org",
+                "supervisor@external.org", objectId: supervisorId);
         var invitedSupervisor = new User
         {
             Id = supervisorId,
@@ -164,12 +165,12 @@ public class ActionsControllerTests : ControllerTestsBase
             ProviderKey = "eduid",
             InvitationState = UserInvitationState.Pending
         };
-        _eduIdUserServiceMock.Setup(s => s.EnsureExternalAccount(
+        _externalUserServiceMock.Setup(s => s.PrepareAccess(
                 "supervisor@external.org",
                 "External Supervisor",
-                EduIdInviteDeliveryMode.SendEmail,
+                ExternalUserAccessMode.SendInstructions,
                 _ct))
-            .ReturnsAsync(new EduIdExternalAccountResult(EduIdExternalAccountStatus.Invited, invitedSupervisor));
+            .ReturnsAsync(new ExternalUserAccessResult(invitedSupervisor, null, "EduId"));
         _workflowInstanceRepoMock.Setup(r => r.UpdateFields(instance.Id,
                 It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 _ct))
@@ -184,7 +185,7 @@ public class ActionsControllerTests : ControllerTestsBase
         var supervisor = BsonSerializer.Deserialize<InstanceUser>(instance.Properties["Supervisor"].AsBsonDocument);
         Assert.Equal(UserInvitationState.Pending, supervisor.InvitationState);
         Assert.True(supervisor.IsExternal);
-        _eduIdUserServiceMock.VerifyAll();
+        _externalUserServiceMock.VerifyAll();
         _workflowInstanceRepoMock.Verify(r => r.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(),
             _ct), Times.Once);

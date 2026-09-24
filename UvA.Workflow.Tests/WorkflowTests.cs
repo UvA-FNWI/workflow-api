@@ -27,7 +27,6 @@ public class WorkflowTests
     readonly Mock<IInstanceEventRepository> _eventRepoMock;
     readonly Mock<IUserService> _userServiceMock;
     readonly Mock<IMailService> _mailServiceMock;
-    readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
     readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     readonly Mock<IArtifactService> _artifactServiceMock;
     readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
@@ -68,7 +67,6 @@ public class WorkflowTests
         _eventRepoMock = new Mock<IInstanceEventRepository>();
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
-        _eduIdUserServiceMock = new Mock<IEduIdUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
@@ -106,7 +104,7 @@ public class WorkflowTests
             _eventService,
             _modelService,
             _mailServiceMock.Object,
-            _eduIdUserServiceMock.Object,
+            _externalUserServiceMock.Object,
             _artifactServiceMock.Object,
             _mailLogRepositoryMock.Object,
             _configurationMock.Object,

@@ -72,7 +72,7 @@ public class MailBuilder(
             .Concat(ResolveAddresses(specs, context))
             .ToList();
 
-    private static IEnumerable<InstanceUser> ResolveUsers(Recipients? specs, ObjectContext context)
+    internal static IEnumerable<InstanceUser> ResolveUsers(Recipients? specs, ObjectContext context)
         => (specs ?? [])
             .Where(s => !Recipients.ResolvesToAddress(s))
             .SelectMany(s => context.Get(s) switch

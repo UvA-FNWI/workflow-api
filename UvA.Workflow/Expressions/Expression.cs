@@ -18,6 +18,11 @@ public record Expression
             Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) => Functions[exp.Text]
                 .Call(args.Select(a => a.Execute(context)).ToArray()),
             Call(Identifier(var text), var args) => context.Get(new ComplexLookup(text, args)),
+            Operator(var type, var left, var right) => type switch
+            {
+                OperatorType.Equal => Equals(left.Execute(context), right.Execute(context)),
+                _ => throw new NotImplementedException()
+            },
             _ => throw new NotImplementedException()
         };
     }
@@ -45,6 +50,7 @@ public record Expression
         Call(Identifier(var text), var args) when Functions.ContainsKey(text) => args.SelectMany(a => a.Properties),
         Call(Identifier(var text) expr, var args) => [new ComplexLookup(text, args)],
         Index(var exp, _) => exp.Properties,
+        Operator(_, var left, var right) => [.. left.Properties, .. right.Properties],
         _ => []
     };
 }
