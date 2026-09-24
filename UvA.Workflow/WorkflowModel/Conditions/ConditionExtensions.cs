@@ -39,5 +39,23 @@ public static class ConditionExtensions
                 _ => []
             };
         }
+
+        /// <summary>
+        /// Recursively extracts all Value parts from a condition tree
+        /// </summary>
+        public IEnumerable<Value> GetAllValues()
+        {
+            if (condition == null)
+                return [];
+
+            var part = condition.Part;
+
+            return part switch
+            {
+                Value value => [value],
+                Logical logical => logical.Children.SelectMany(c => c.GetAllValues()),
+                _ => []
+            };
+        }
     }
 }
