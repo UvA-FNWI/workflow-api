@@ -6,25 +6,25 @@ pages:
     title:
       en: Contents
       nl: Inhoud
-    fields:
-      - Title
-      - Subject
-      - Description
-      - TestDocument
+    elements:
+      - question: Title
+      - question: Subject
+      - question: Description
+      - question: TestDocument
   - name: Staff
     title:
       en: Staff
       nl: Medewerkers
-    fields:
-      - Examiner
-      - Reviewer
-      - Supervisor
+    elements:
+      - question: Examiner
+      - question: Reviewer
+      - question: Supervisor
   - name: Planning
-    fields:
-      - StartDate
-      - Deadline
-      - EndDate
-      - EC
+    elements:
+      - question: StartDate
+      - question: Deadline
+      - question: EndDate
+      - question: EC
 
 onSubmit:
   - toast:

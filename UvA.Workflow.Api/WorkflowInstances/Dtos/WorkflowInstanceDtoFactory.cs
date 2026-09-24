@@ -69,6 +69,15 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
+        var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
+        {
+            var submissionContext = modelService.CreateContext(instance);
+            await instanceService.Enrich(workflowDefinition, [submissionContext], s.Form.ActualForm.Lookups, ct,
+                replaceStep: false);
+            return submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
+                permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
+                instanceHistory, displayNames, submissionContext);
+        }));
         var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -78,11 +87,7 @@ public class WorkflowInstanceDtoFactory(
             actions.Select(ActionDto.Create).ToArray(),
             fields,
             steps,
-            submissions
-                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
-                    permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
-                    instanceHistory, displayNames))
-                .ToArray(),
+            submissionDtos,
             permissions.Where(a => a.AllForms.Length == 0 && a.PropertyDefinition == null).Select(a => a.Type)
                 .Distinct().ToArray(),
             canUseAdminTools,
@@ -274,10 +279,14 @@ public class WorkflowInstanceDtoFactory(
                 var workflowDef = modelService.WorkflowDefinitions[instanceAtVersion.WorkflowDefinition];
                 var submissionState = FormSubmissionState.Resolve(instanceAtVersion, form, workflowDef);
 
+                var versionContext = modelService.CreateContext(instanceAtVersion);
+                await instanceService.Enrich(workflowDef, [versionContext], form.ActualForm.Lookups, ct,
+                    replaceStep: false);
+
                 // Create the submission DTO with empty permissions (historical view)
                 var submissionDto =
                     submissionDtoFactory.Create(instanceAtVersion, form, submissionState, questionStatus,
-                        permissions: []);
+                        permissions: [], context: versionContext);
 
                 submissions.Add(submissionDto);
             }

@@ -116,18 +116,22 @@ public static class AssessmentHelpers
         var pages = form.ActualForm.Pages.ToArray();
 
         var totalWeight = pages
-            .SelectMany(page => page.Fields.Where(field => field.Calculation?.Weight != null))
-            .Sum(field => field.Calculation!.Weight!.Value);
+            .SelectMany(page => page.PageElements)
+            .Where(element => element.QuestionDefinition?.Calculation?.Weight != null)
+            .Sum(element => element.QuestionDefinition?.Calculation!.Weight!.Value);
 
         var pageResults = pages
-            .Where(page => page.Fields.Any(field => field.Calculation != null)) // Filter out pages without calculation
+            .Where(page =>
+                page.PageElements.Any(element =>
+                    element.QuestionDefinition?.Calculation != null)) // Filter out pages without calculation
             .Where(page => string.IsNullOrEmpty(pageName) || page.Name == pageName)
             .Select(page =>
             {
-                var questions = page.Fields
-                    .Where(field => field.Calculation != null)
-                    .Select(field =>
+                var questions = page.PageElements
+                    .Where(element => element.QuestionDefinition?.Calculation != null)
+                    .Select(element =>
                     {
+                        var field = element.QuestionDefinition!;
                         var answerKey = context.Get(
                             form.PropertyName != null ? $"{form.PropertyName}.{field.Name}" : field.Name);
                         var weight = field.Calculation?.Weight;

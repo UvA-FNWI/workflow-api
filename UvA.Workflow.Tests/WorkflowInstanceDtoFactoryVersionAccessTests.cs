@@ -201,7 +201,8 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
     private WorkflowInstanceDtoFactory CreateFactory(IStepVersionService stepVersionService)
     {
         var submissionDtoFactory =
-            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService);
+            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService,
+                _instanceService);
 
         return new WorkflowInstanceDtoFactory(
             _instanceService,

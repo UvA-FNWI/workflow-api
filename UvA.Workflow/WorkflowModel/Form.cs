@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -31,24 +32,22 @@ public class Page : INamed
     public BilingualString? Title { get; set; }
 
     /// <summary>
-    /// Localized introduction text to show at the start of the page
-    /// </summary>
-    public BilingualString? Introduction { get; set; }
-
-    public BilingualTemplate? IntroductionTemplate => field ??= BilingualTemplate.Create(Introduction);
-
-    /// <summary>
     /// Layout of the page. Condensed will show the questions in a table
     /// </summary>
     public PageLayout Layout { get; set; }
 
     /// <summary>
-    /// PropertyDefinition names to include in the page
+    /// List of page elements
     /// </summary>
-    [YamlMember(Alias = "fields")]
-    public string[] FieldNames { get; set; } = [];
+    [YamlMember(Alias = "elements")]
+    public PageElement[] PageElements { get; set; } = [];
 
-    [YamlIgnore] public PropertyDefinition[] Fields { get; set; } = [];
+    /// <summary>
+    /// Calculated list of all questions on this page
+    /// </summary>
+    [YamlIgnore]
+    public IEnumerable<PropertyDefinition> Questions =>
+        PageElements.Where(e => e.QuestionDefinition != null).Select(e => e.QuestionDefinition!);
 
     /// <summary>
     /// If set, this page is included only when editing a matching property
@@ -57,12 +56,14 @@ public class Page : INamed
 
     public BilingualString DisplayTitle => Title ?? Name;
 
-    public bool HasResults => Fields.Count(f => f.Calculation?.Weight != null) > 0;
+    public bool HasResults => PageElements.Any(e => e.QuestionDefinition?.Calculation?.Weight != null);
+
+    [YamlIgnore] public IEnumerable<Lookup> Lookups => PageElements.SelectMany(e => e.Lookups);
 
     public Page Clone()
     {
         var clone = (Page)MemberwiseClone();
-        clone.Fields = [];
+        clone.PageElements = PageElements.Select(e => e.Clone()).ToArray();
         return clone;
     }
 }
@@ -143,7 +144,11 @@ public class Form : INamed, IDeclaredKeys
     /// </summary>
     public Effect[] OnSave { get; set; } = [];
 
-    public IEnumerable<PropertyDefinition> PropertyDefinitions => Pages.SelectMany(p => p.Fields).Distinct();
+    public IEnumerable<PropertyDefinition> PropertyDefinitions =>
+        Pages.SelectMany(p => p.Questions)
+            .Distinct();
+
+    [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
 
     public Form Clone()
     {
@@ -153,4 +158,63 @@ public class Form : INamed, IDeclaredKeys
         clone.Pages = Pages.Select(p => p.Clone()).ToList();
         return clone;
     }
+}
+
+public enum CalloutVariant
+{
+    Info,
+    Warning,
+    Error,
+    Success,
+    Note
+}
+
+public class Callout
+{
+    public CalloutVariant Variant { get; set; } = CalloutVariant.Info;
+    public BilingualString? Title { get; set; }
+    [YamlIgnore] public BilingualTemplate? TitleTemplate => field ??= BilingualTemplate.Create(Title);
+    public BilingualString? Text { get; set; }
+    [YamlIgnore] public BilingualTemplate? TextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    /// <summary>
+    /// Condition that determines if the callout is shown
+    /// </summary>
+    public Condition? Condition { get; set; }
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. Condition?.Properties ?? [],
+        .. TitleTemplate?.Properties ?? [],
+        .. TextTemplate?.Properties ?? []
+    ];
+}
+
+public class PageElement
+{
+    /// <summary>
+    /// Localized text of the element
+    /// </summary>
+    public BilingualString? Text { get; set; }
+
+    [YamlIgnore] public BilingualTemplate? TextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    /// <summary>
+    /// Name of the property definition 
+    /// </summary>
+    public string? Question { get; set; }
+
+    [YamlIgnore] public PropertyDefinition? QuestionDefinition { get; set; }
+
+    public Callout? Callout { get; set; }
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. TextTemplate?.Properties ?? [],
+        .. Callout?.Lookups ?? []
+    ];
+
+    public PageElement Clone() => (PageElement)MemberwiseClone();
 }
