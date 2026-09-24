@@ -27,7 +27,8 @@ public class WorkflowInstanceDtoFactory(
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
+        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit,
+            RoleAction.ViewCorrespondence);
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
         // active impersonation); resolve them in a single pass over the instance's roles.
         var realUserActions = await rightsService.GetAllowedActions(
