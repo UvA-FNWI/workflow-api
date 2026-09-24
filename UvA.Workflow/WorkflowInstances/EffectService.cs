@@ -117,18 +117,13 @@ public class EffectService(
                     }
                 }
 
-                var recipientContext = new ObjectContext(context.Values.ToDictionary(v => v.Key, v => v.Value))
+                var recipientContext = new ObjectContext(context.Values.ToDictionary(v => v.Key, v => v.Value));
+                recipientContext.Values.Add("AccessRecipient", accessRecipient);
+                recipientContext.Values.Add(effect.Name ?? "Access", new Dictionary<Lookup, object>
                 {
-                    Values =
-                    {
-                        ["AccessRecipient"] = accessRecipient,
-                        [effect.Name ?? "Access"] = new Dictionary<Lookup, object>
-                        {
-                            ["InvitationUrl"] = invitationUrl ?? "",
-                            ["LoginMethod"] = loginMethod ?? throw new InvalidOperationException("Login method missing")
-                        }
-                    }
-                };
+                    ["InvitationUrl"] = invitationUrl ?? "",
+                    ["LoginMethod"] = loginMethod ?? throw new InvalidOperationException("Login method missing")
+                });
                 var mail = await instanceService.BuildMail(instance, sendAccessMail, ct, recipientContext);
                 mail.To = [MailRecipient.FromUser(accessRecipient)!];
                 await SendMail(instance, sendAccessMail, user, ct, mail, job.Id);

@@ -92,19 +92,11 @@ public class Effect
     public IEnumerable<Lookup?> Properties =>
     [
         .. Condition?.Properties ?? [],
-        .. SendMail?.SubjectTemplate?.Properties ?? [],
-        .. SendMail?.BodyTemplate?.Properties ?? [],
-        .. SendMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
-        .. SendMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
+        .. SendMail?.Properties ?? [],
         .. Toast?.MessageTemplate.Properties ?? [],
         .. Http?.UrlTemplate.Properties ?? [],
         .. SetProperty?.ValueExpression.Properties ?? [],
-        .. SendMail?.RecipientLookups ?? [],
-        .. SendAccessMail?.SubjectTemplate?.Properties ?? [],
-        .. SendAccessMail?.BodyTemplate?.Properties ?? [],
-        .. SendAccessMail?.Buttons.SelectMany(b => b.UrlTemplate.Properties) ?? [],
-        .. SendAccessMail?.Buttons.SelectMany(b => b.LabelTemplate.Properties) ?? [],
-        .. SendAccessMail?.RecipientLookups ?? []
+        .. SendAccessMail?.Properties ?? []
     ];
 
     public string Identifier => this switch
@@ -234,6 +226,15 @@ public class SendMessage
 
     public BilingualTemplate? SubjectTemplate => field ??= BilingualTemplate.Create(Subject);
     public BilingualTemplate? BodyTemplate => field ??= BilingualTemplate.Create(Body);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Properties =>
+        CollectionTools.Merge(
+            SubjectTemplate?.Properties,
+            BodyTemplate?.Properties,
+            Buttons.SelectMany(b => b.UrlTemplate.Properties),
+            Buttons.SelectMany(b => b.LabelTemplate.Properties),
+            RecipientLookups);
 
     /// The lookups referenced by To/Cc/Bcc entries, for context enrichment.
     [YamlIgnore]
