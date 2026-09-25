@@ -146,29 +146,15 @@
             }
           ]
         },
-        "introduction": {
-          "description": "Localized introduction text to show at the start of the page",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
         "layout": {
           "description": "Layout of the page. Condensed will show the questions in a table",
           "$ref": "#/definitions/PageLayout"
         },
-        "fields": {
+        "elements": {
           "type": "array",
-          "description": "PropertyDefinition names to include in the page",
+          "description": "List of page elements",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/PageElement"
           }
         },
         "sources": {
@@ -189,6 +175,339 @@
         "Normal",
         "Condensed"
       ]
+    },
+    "PageElement": {
+      "title": "PageElement",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "description": "Localized text of the element",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "question": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Name of the property definition"
+        },
+        "callout": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/Callout"
+            }
+          ]
+        }
+      }
+    },
+    "Callout": {
+      "title": "Callout",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variant": {
+          "$ref": "#/definitions/CalloutVariant"
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "condition": {
+          "description": "Condition that determines if the callout is shown",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        }
+      }
+    },
+    "CalloutVariant": {
+      "type": "string",
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Success",
+        "Note"
+      ]
+    },
+    "Condition": {
+      "title": "Condition",
+      "type": "object",
+      "description": "Represents a logical condition",
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "type": "boolean",
+          "description": "If true, this condition is inverted"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Compare property values",
+              "$ref": "#/definitions/Value"
+            }
+          ]
+        },
+        "logical": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "For and/or constructs",
+              "$ref": "#/definitions/Logical"
+            }
+          ]
+        },
+        "event": {
+          "description": "Check if an event has occurred",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EventCondition"
+            }
+          ]
+        },
+        "date": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Check if a date has passed",
+              "$ref": "#/definitions/Date"
+            }
+          ]
+        },
+        "deadline": {
+          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/DeadlineCondition"
+            }
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Use a named reusable condition"
+        },
+        "message": {
+          "description": "Message that is shown then the condition is not, for use in form validation",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "Value": {
+      "title": "Value",
+      "type": "object",
+      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix a string value with an equals sign to indicate a literal value)",
+      "additionalProperties": false,
+      "required": [
+        "property"
+      ],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "Target property"
+        },
+        "equal": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be equal to. If this is a literal string, it must be prefixed with an equals sign"
+        },
+        "lessThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than"
+        },
+        "lessThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than or equal to"
+        },
+        "greaterThan": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than"
+        },
+        "greaterThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be greater than or equal to"
+        },
+        "in": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Array the property should be in"
+        },
+        "isEmpty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If set, check whether the property is empty"
+        },
+        "maxLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum length of a string"
+        },
+        "minLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Minimum length of a string"
+        }
+      }
+    },
+    "Logical": {
+      "title": "Logical",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "$ref": "#/definitions/LogicalOperator"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          }
+        }
+      }
+    },
+    "LogicalOperator": {
+      "type": "string",
+      "enum": [
+        "And",
+        "Or"
+      ]
+    },
+    "EventCondition": {
+      "title": "EventCondition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Id of the event to check for"
+        }
+      }
+    },
+    "Date": {
+      "title": "Date",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "DeadlineCondition": {
+      "title": "DeadlineCondition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionText"
+      ],
+      "properties": {
+        "expressionText": {
+          "type": "string"
+        }
+      }
     },
     "Effect": {
       "title": "Effect",
@@ -320,227 +639,6 @@
             "string"
           ],
           "description": "Run the effect after this delay, e.g. 2d, 4h or 30m"
-        }
-      }
-    },
-    "Condition": {
-      "title": "Condition",
-      "type": "object",
-      "description": "Represents a logical condition",
-      "additionalProperties": false,
-      "properties": {
-        "not": {
-          "type": "boolean",
-          "description": "If true, this condition is inverted"
-        },
-        "value": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Compare property values",
-              "$ref": "#/definitions/Value"
-            }
-          ]
-        },
-        "logical": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "For and/or constructs",
-              "$ref": "#/definitions/Logical"
-            }
-          ]
-        },
-        "event": {
-          "description": "Check if an event has occurred",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EventCondition"
-            }
-          ]
-        },
-        "date": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Check if a date has passed",
-              "$ref": "#/definitions/Date"
-            }
-          ]
-        },
-        "deadline": {
-          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/DeadlineCondition"
-            }
-          ]
-        },
-        "name": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Use a named reusable condition"
-        },
-        "message": {
-          "description": "Message that is shown then the condition is not, for use in form validation",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        }
-      }
-    },
-    "Value": {
-      "title": "Value",
-      "type": "object",
-      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix a string value with an equals sign to indicate a literal value)",
-      "additionalProperties": false,
-      "required": [
-        "property"
-      ],
-      "properties": {
-        "property": {
-          "type": "string",
-          "description": "Target property"
-        },
-        "equal": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be equal to. If this is a literal string, it must be prefixed with an equals sign"
-        },
-        "lessThan": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be less than"
-        },
-        "greaterThan": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be greater than"
-        },
-        "greaterThanOrEqual": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be greater than or equal to"
-        },
-        "in": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Array the property should be in"
-        },
-        "isEmpty": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "If set, check whether the property is empty"
-        },
-        "maxLength": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "Maximum length of a string"
-        }
-      }
-    },
-    "Logical": {
-      "title": "Logical",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "operator": {
-          "$ref": "#/definitions/LogicalOperator"
-        },
-        "children": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Condition"
-          }
-        }
-      }
-    },
-    "LogicalOperator": {
-      "type": "string",
-      "enum": [
-        "And",
-        "Or"
-      ]
-    },
-    "EventCondition": {
-      "title": "EventCondition",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Id of the event to check for"
-        }
-      }
-    },
-    "Date": {
-      "title": "Date",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "source"
-      ],
-      "properties": {
-        "source": {
-          "type": "string"
-        }
-      }
-    },
-    "DeadlineCondition": {
-      "title": "DeadlineCondition",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "expressionText"
-      ],
-      "properties": {
-        "expressionText": {
-          "type": "string"
         }
       }
     },

@@ -1,4 +1,5 @@
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -13,7 +14,7 @@ public record FormDto(
     {
         var allPages = form.ActualForm.Pages.ToArray();
         var totalWeight = allPages
-            .SelectMany(p => p.Fields)
+            .SelectMany(p => p.Questions)
             .Where(q => q.Calculation?.Weight != null)
             .Sum(q => q.Calculation!.Weight!.Value);
 
@@ -26,7 +27,7 @@ public record FormDto(
                 .ToArray();
 
         var questions = currentFormPages
-            .SelectMany(p => p.Fields)
+            .SelectMany(p => p.Questions)
             .Distinct()
             .ToDictionary(q => q, q => QuestionDto.Create(q, context, totalWeight));
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
@@ -39,10 +40,11 @@ public record FormDto(
             allPages.Select((p, i) =>
             {
                 var isInCurrentForm = currentFormPages.Any(page => page.Name == p.Name);
-                var pageQuestions = isInCurrentForm
-                    ? p.Fields.Select(q => questions[q])
-                    : Enumerable.Empty<QuestionDto>();
-                return PageDto.Create(i, p, pageQuestions, context, isInCurrentForm);
+                var pageElements = isInCurrentForm
+                    ? p.PageElements.Select(e => PageElementDto.Create(e, questions, context))
+                        .OfType<PageElementDto>()
+                    : [];
+                return PageDto.Create(i, p, pageElements, context, isInCurrentForm);
             }).ToArray(),
             form.Layout,
             originalForm.Step
@@ -54,25 +56,64 @@ public record PageDto(
     int Index,
     string Name,
     BilingualString Title,
-    BilingualString? Introduction,
     PageLayout Layout,
-    QuestionDto[] Questions,
+    PageElementDto[] Elements,
     bool HasResults,
     bool IsInCurrentForm
 )
 {
-    public static PageDto Create(int index, Page page, IEnumerable<QuestionDto> questions, ObjectContext context,
+    public static PageDto Create(int index, Page page, IEnumerable<PageElementDto> elements, ObjectContext context,
         bool isInCurrentForm)
         => new(
             index,
             page.Name,
             page.DisplayTitle,
-            page.IntroductionTemplate?.Apply(context),
             page.Layout,
-            questions.ToArray(),
+            elements.ToArray(),
             page.HasResults,
             isInCurrentForm
         );
+}
+
+public enum PageElementKind
+{
+    Question,
+    Callout,
+    Text
+}
+
+public record PageElementDto(
+    PageElementKind Kind,
+    QuestionDto? Question,
+    CalloutDto? Callout,
+    BilingualString? Text)
+{
+    public static PageElementDto? Create(
+        PageElement element,
+        Dictionary<PropertyDefinition, QuestionDto> questions,
+        ObjectContext context)
+    {
+        if (element.Question != null)
+        {
+            var definition = element.QuestionDefinition
+                             ?? throw new InvalidOperationException(
+                                 $"PageElement question '{element.Question}' was not resolved by ModelParser");
+            return new PageElementDto(PageElementKind.Question, questions[definition], null, null);
+        }
+
+        if (element.Callout != null)
+            return element.Callout.Condition.IsMet(context)
+                ? new PageElementDto(PageElementKind.Callout, null, CalloutDto.Create(element.Callout, context), null)
+                : null;
+
+        return new PageElementDto(PageElementKind.Text, null, null, element.TextTemplate?.Apply(context));
+    }
+}
+
+public record CalloutDto(CalloutVariant Variant, BilingualString? Title, BilingualString? Text)
+{
+    public static CalloutDto Create(Callout callout, ObjectContext context)
+        => new(callout.Variant, callout.TitleTemplate?.Apply(context), callout.TextTemplate?.Apply(context));
 }
 
 public record QuestionDto(
@@ -92,6 +133,7 @@ public record QuestionDto(
     decimal? Weight,
     decimal? Percentage,
     int? MaxLength,
+    int? MinLength,
     bool? AllowsExternalUsers,
     List<RubricEntryDto>? Rubric,
     ValueSetSorting? Sorting,
@@ -125,6 +167,8 @@ public record QuestionDto(
             .Select(entry => RubricEntryDto.Create(entry, propertyDefinition.Values))
             .ToList();
 
+        var validationValues = propertyDefinition.Validation.GetAllValues().ToArray();
+
         return new QuestionDto(
             Id: $"{propertyDefinition.ParentType.Name}_{propertyDefinition.Name}",
             Name: propertyDefinition.Name,
@@ -141,7 +185,8 @@ public record QuestionDto(
             HideInResults: propertyDefinition.HideInResults,
             Weight: weight,
             Percentage: percentage,
-            MaxLength: propertyDefinition.Validation?.Value?.MaxLength,
+            MaxLength: validationValues.Select(v => v.MaxLength).FirstOrDefault(v => v != null),
+            MinLength: validationValues.Select(v => v.MinLength).FirstOrDefault(v => v != null),
             AllowsExternalUsers: propertyDefinition.AllowsExternalUsers,
             Rubric: rubric,
             Sorting: propertyDefinition.Sorting,

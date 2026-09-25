@@ -34,7 +34,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
             new SubmissionService(_modelService, _instanceService,
                 _instanceJournalServiceMock.Object, _jobService, _effectService);
         _submissionDtoFactory =
-            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService);
+            new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService,
+                _instanceService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,
@@ -171,8 +172,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         const string submissionId = "Start";
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"],
-            b => b.WithId(submissionId).AsCompleted(submittedAt),
-            "Start",
+            b => b.WithId(submissionId).AsCompleted(submittedAt), "Start",
             ("EC", _ => 12));
         var change = PropertyChangeEntry.Create("EC", 6, UnitTestsHelpers.AdminUser);
         _instanceJournalServiceMock
@@ -492,7 +492,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
         var controller = new SubmissionsController(_userServiceMock.Object, _modelService, _rightsService,
             _submissionService, _workflowInstanceService, _submissionDtoFactory, _workflowInstanceDtoFactory,
-            _answerService, _dummyAnswerGenerator);
+            _answerService, _dummyAnswerGenerator, _instanceService);
 
         return (controller, instance);
     }
@@ -501,7 +501,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
     {
         var workflow = _modelService.WorkflowDefinitions["Project"];
         var page = workflow.Forms.Single(form => form.Name == "Start").Pages[0];
-        page.Fields = [.. page.Fields, workflow.Properties.Single(q => q.Name == "CanBePublished")];
+        var prop = workflow.Properties.Single(q => q.Name == "CanBePublished");
+        page.PageElements = [.. page.PageElements, new PageElement { Question = prop.Name, QuestionDefinition = prop }];
     }
 
     private void ConfigureAlternateSubmissionMarker(string formName, string markerEventId,

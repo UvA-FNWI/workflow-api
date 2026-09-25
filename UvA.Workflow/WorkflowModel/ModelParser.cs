@@ -1,4 +1,5 @@
 using Serilog;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
@@ -22,7 +23,12 @@ public partial class ModelParser
 
     public List<Service> Services { get; }
     public List<Role> GlobalRoles { get; }
+
+    public IReadOnlyList<ConfiguredMigration> Migrations =>
+        WorkflowDefinitions.Values.SelectMany(definition => definition.Migrations).ToArray();
+
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
+
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
 
@@ -34,7 +40,6 @@ public partial class ModelParser
         ValidateServices(Services);
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
-
         var parsed = GetWorkflowDefinitionFolders()
             .Select(folder =>
             {
@@ -104,6 +109,10 @@ public partial class ModelParser
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
+            definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
+
+            foreach (var migration in definition.Migrations)
+                migration.Scope = definition.Name;
 
             foreach (var set in definition.ValueSets)
             {
@@ -261,17 +270,26 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
-                FieldNames = workflowDefinition.Properties.Select(v => v.Name).ToArray()
+                PageElements = workflowDefinition.Properties.Select(v => new PageElement { Question = v.Name })
+                    .ToArray()
             });
 
         foreach (var ent in form.Pages)
         {
-            var missingFields = ent.FieldNames.Where(f => workflowDefinition.Properties.GetOrDefault(f) == null)
-                .ToArray();
-            if (missingFields.Any())
-                throw new Exception(
-                    $"Form {form.Name} references unknown property {missingFields.ToSeparatedString()}");
-            ent.Fields = ent.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
+            foreach (var element in ent.PageElements)
+            {
+                ValidatePageElement(element, form.Name);
+
+                if (element.Callout?.Condition != null)
+                    PreProcess(element.Callout.Condition);
+
+                if (element.Question == null)
+                    continue;
+
+                element.QuestionDefinition = workflowDefinition.Properties.GetOrDefault(element.Question!)
+                                             ?? throw new Exception(
+                                                 $"Form {form.Name} references unknown property {element.Question}");
+            }
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
@@ -284,6 +302,23 @@ public partial class ModelParser
 
         PreProcess(form.OnSubmit);
         PreProcess(form.OnSave);
+    }
+
+    private static void ValidatePageElement(PageElement element, string formName)
+    {
+        var setKinds = new List<string>();
+        if (element.Question != null) setKinds.Add("question");
+        if (element.Callout != null) setKinds.Add("callout");
+        if (element.Text != null) setKinds.Add("text");
+
+        if (setKinds.Count == 0)
+            throw new Exception(
+                $"Form {formName} has a page element that is missing a type: set one of 'question', 'callout' or 'text'.");
+
+        if (setKinds.Count > 1)
+            throw new Exception(
+                $"Form {formName} has a page element that mixes types ({string.Join(", ", setKinds)}). " +
+                "A page element must be exactly one of 'question', 'callout' or 'text'.");
     }
 
     private void PreProcess(Effect[] effects)
@@ -731,15 +766,16 @@ public partial class ModelParser
         return keys;
     }
 
-    private List<T> Read<T>(string? root = null)
+    private List<T> Read<T>(string? root = null, string? folder = null)
     {
         Log.Debug("Reading {Type} from {Root}", typeof(T).Name, root);
         root ??= "Common";
 
         var typeName = typeof(T).Name;
-        var folder = typeName switch
+        folder ??= typeName switch
         {
             nameof(TemplateMessage) => "Emails",
+            nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };
