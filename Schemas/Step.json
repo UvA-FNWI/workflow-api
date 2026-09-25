@@ -51,6 +51,10 @@
       "description": "Determines how the child steps of this step are handled",
       "$ref": "#/definitions/StepHierarchyMode"
     },
+    "childrenLayout": {
+      "description": "Controls how child steps appear in the parent card. Defaults to Combined.",
+      "$ref": "#/definitions/StepChildrenLayout"
+    },
     "children": {
       "type": "array",
       "description": "Child steps of this step",
@@ -479,6 +483,23 @@
       "enum": [
         "Sequential",
         "Parallel"
+      ]
+    },
+    "StepChildrenLayout": {
+      "type": "string",
+      "oneOf": [
+        {
+          "description": "Shows child content together in the parent card.",
+          "enum": [
+            "Combined"
+          ]
+        },
+        {
+          "description": "Shows each direct child in its own expandable row.",
+          "enum": [
+            "CollapsibleRows"
+          ]
+        }
       ]
     },
     "StepHeaderStatusConfiguration": {
@@ -1146,10 +1167,25 @@
     },
     "StepMode": {
       "type": "string",
-      "enum": [
-        "Normal",
-        "Alongside",
-        "Optional"
+      "oneOf": [
+        {
+          "description": "Follows the ordered workflow progression. It becomes current when reached, unless its condition skips it,\n            and progression continues after it ends.",
+          "enum": [
+            "Normal"
+          ]
+        },
+        {
+          "description": "Becomes active after the nearest preceding normal step ends, or when the workflow starts if there is none.\n            Normal steps may continue while it remains active. It becomes current when its before target is reached or\n            when the workflow would otherwise finish, and blocks progression until it ends.",
+          "enum": [
+            "Alongside"
+          ]
+        },
+        {
+          "description": "Becomes active like an alongside step, but never blocks progression or becomes current. If still active when\n            the workflow finishes, it closes with the workflow.",
+          "enum": [
+            "Optional"
+          ]
+        }
       ]
     },
     "PropertyDefinition": {

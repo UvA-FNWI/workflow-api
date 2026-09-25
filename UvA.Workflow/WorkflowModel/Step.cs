@@ -12,6 +12,15 @@ public enum StepHierarchyMode
     Parallel
 }
 
+public enum StepChildrenLayout
+{
+    /// <summary>Shows child content together in the parent card.</summary>
+    Combined,
+
+    /// <summary>Shows each direct child in its own expandable row.</summary>
+    CollapsibleRows
+}
+
 /// <summary>
 /// Controls how a step participates in the flattened walk.
 /// </summary>
@@ -161,6 +170,9 @@ public class Step : INamed, IDeclaredKeys
     /// Determines how the child steps of this step are handled
     /// </summary>
     public StepHierarchyMode HierarchyMode { get; set; }
+
+    /// <summary>Controls how child steps appear in the parent card. Defaults to Combined.</summary>
+    public StepChildrenLayout ChildrenLayout { get; set; }
 
     /// <summary>
     /// Child steps of this step

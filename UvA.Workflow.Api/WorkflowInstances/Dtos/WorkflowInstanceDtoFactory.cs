@@ -219,6 +219,7 @@ public class WorkflowInstanceDtoFactory(
             expectsSubmission,
             hasSubmission,
             step.HierarchyMode,
+            step.ChildrenLayout,
             versionDtos?.ToList()
         );
     }
