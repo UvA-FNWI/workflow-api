@@ -12,6 +12,8 @@ public class PropertyChangeEntry
 
     public int Version { get; set; } = 1;
 
+    [BsonIgnoreIfNull] public string? Reason { get; set; }
+
     private PropertyChangeEntry()
     {
     }

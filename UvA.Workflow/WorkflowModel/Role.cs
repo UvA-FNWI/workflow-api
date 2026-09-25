@@ -65,7 +65,8 @@ public enum RoleAction
     CreateRelatedInstance,
     ImpersonateRoles,
     ViewResults,
-    ViewCorrespondence
+    ViewCorrespondence,
+    PostponeDeadlines
 }
 
 public class Action
@@ -90,7 +91,7 @@ public class Action
     public string[] Roles { get; set; } = [];
 
     /// <summary>
-    /// Target form for View / Submit / Edit actions
+    /// Target form for View / Submit / Edit / PostponeDeadlines actions
     /// </summary>
     public string? Form { get; set; }
 
@@ -124,7 +125,7 @@ public class Action
     public Condition? Condition { get; set; }
 
     /// <summary>
-    /// List of effects to run for an Execute action
+    /// List of effects to run for an Execute or PostponeDeadlines action
     /// </summary>
     public Effect[] OnAction { get; set; } = [];
 

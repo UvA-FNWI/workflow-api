@@ -52,7 +52,6 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
         foreach (var change in newChanges)
         {
             var cutoff = change.Timestamp.Subtract(PropertyChangeMergeWindow);
-
             var matchExistingFilter =
                 instanceIdFilter &
                 Builders<InstanceJournalEntry>.Filter.ElemMatch(
@@ -64,6 +63,7 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
 
             var updateExisting = Builders<InstanceJournalEntry>.Update
                 .Set("PropertyChanges.$.Timestamp", change.Timestamp)
+                .Set("PropertyChanges.$.Reason", change.Reason)
                 .Set("PropertyChanges.$.ModifiedBy", change.ModifiedBy);
 
             var updateResult = await _changeSetCollection.UpdateOneAsync(
@@ -72,14 +72,16 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
                 new UpdateOptions { IsUpsert = false },
                 ct);
 
-            if (updateResult.ModifiedCount == 0)
+            if (updateResult.MatchedCount == 0)
             {
-                var pushChangeUpdate = Builders<InstanceJournalEntry>.Update.Push(x => x.PropertyChanges, change);
+                var pushChangeUpdate = Builders<InstanceJournalEntry>.Update
+                    .Push(x => x.PropertyChanges, change)
+                    .SetOnInsert(x => x.CurrentVersion, change.Version);
 
                 await _changeSetCollection.UpdateOneAsync(
                     instanceIdFilter,
                     pushChangeUpdate,
-                    new UpdateOptions { IsUpsert = false },
+                    new UpdateOptions { IsUpsert = true },
                     ct);
             }
             else

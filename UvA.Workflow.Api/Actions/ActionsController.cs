@@ -1,8 +1,7 @@
 using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.Jobs;
-using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Actions;
@@ -11,15 +10,32 @@ public class ActionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IUserService userService,
     RightsService rightsService,
-    EffectService effectService,
-    JobService jobService,
     WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
-    InstanceService instanceService
+    FormDtoFactory formDtoFactory,
+    IEnumerable<IActionHandler> actionHandlers
 ) : ApiControllerBase
 {
+    [HttpGet("{instanceId}/{actionName}/Form")]
+    public async Task<ActionResult<FormDto>> GetForm(string instanceId, string actionName, CancellationToken ct)
+    {
+        if (await userService.GetCurrentUser(ct) == null)
+            return Unauthorized();
+
+        var instance = await workflowInstanceRepository.GetById(instanceId, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        var action = (await rightsService.GetAllowedActions(instance, Enum.GetValues<RoleAction>()))
+            .FirstOrDefault(action => action.Name == actionName);
+        if (action?.Form == null)
+            return Forbidden();
+
+        return Ok(await formDtoFactory.Create(instance, action.Form, ct));
+    }
+
     [HttpPost]
-    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input,
-        CancellationToken ct)
+    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction(
+        [FromBody] ExecuteActionInputDto input, CancellationToken ct)
     {
         var currentUser = await userService.GetCurrentUser(ct);
         if (currentUser == null)
@@ -33,37 +49,40 @@ public class ActionsController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        var result = new EffectResult();
-
-        switch (input.Type)
+        var handler = actionHandlers.FirstOrDefault(handler =>
+                          handler.Type == input.Type && handler.ActionName == input.Name)
+                      ?? actionHandlers.FirstOrDefault(handler =>
+                          handler.Type == input.Type && handler.ActionName == null);
+        if (handler != null)
         {
-            case ActionType.DeleteInstance:
-                if (!await rightsService.Can(instance, RoleAction.Delete))
-                    return Forbidden();
-                // TODO: delete it
-                break;
+            var result = await handler.Execute(instance, realUser, input, ct);
+            if (result.Error is { } error)
+                return MapError(error);
 
-            case ActionType.Execute:
-                if (input.Name == null)
-                    return BadRequest("ActionNameRequired", "Action name is required");
-
-                var actions = await rightsService.GetAllowedActions(instance, RoleAction.Execute);
-                var action = actions.FirstOrDefault(a => a.Name == input.Name);
-                if (action == null)
-                    return Forbidden();
-
-                // Always log execute events implicitly
-                await effectService.AddEvent(instance, input.Name, realUser, ct);
-
-                result = await jobService.CreateAndRunJob(instance, action, realUser, input.JobInput, ct);
-                await instanceService.UpdateCurrentStep(instance, ct);
-                break;
+            return Ok(new ExecuteActionPayloadDto(
+                input.Type,
+                await workflowInstanceDtoFactory.Create(instance, ct),
+                result.Effects ?? new EffectResult()));
         }
 
-        return Ok(new ExecuteActionPayloadDto(
-            input.Type,
-            input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct),
-            result
-        ));
+        if (input.Type == ActionType.DeleteInstance)
+        {
+            if (!await rightsService.Can(instance, RoleAction.Delete))
+                return Forbidden();
+            // TODO: delete it
+            return Ok(new ExecuteActionPayloadDto(input.Type, null, new EffectResult()));
+        }
+
+        return BadRequest("UnsupportedActionType", $"Action type '{input.Type}' is not supported");
     }
+
+    private ObjectResult MapError(ActionHandlerError error) => error.Type switch
+    {
+        ActionHandlerErrorType.BadRequest => BadRequest(error.Code, error.Message, error.Details),
+        ActionHandlerErrorType.Forbidden => Forbidden(error.Details),
+        ActionHandlerErrorType.UnprocessableEntity => error.Details == null
+            ? Unprocessable(error.Code, error.Message)
+            : UnprocessableEntity(error.Details),
+        _ => throw new ArgumentOutOfRangeException()
+    };
 }

@@ -546,6 +546,13 @@
           "type": "string",
           "description": "Expression that resolves to the deadline date."
         },
+        "maxPostponementDays": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum days a deadline may move from its first recorded date.\n            Leave unset for no limit; zero prevents postponement."
+        },
         "type": {
           "description": "Hard deadlines revoke this step's permissions except View. Separate global/form grants still apply.\n            Soft deadlines do not change permissions.",
           "$ref": "#/definitions/DeadlineType"
@@ -614,7 +621,7 @@
             "null",
             "string"
           ],
-          "description": "Target form for View / Submit / Edit actions"
+          "description": "Target form for View / Submit / Edit / PostponeDeadlines actions"
         },
         "forms": {
           "type": "array",
@@ -663,7 +670,7 @@
         },
         "onAction": {
           "type": "array",
-          "description": "List of effects to run for an Execute action",
+          "description": "List of effects to run for an Execute or PostponeDeadlines action",
           "items": {
             "$ref": "#/definitions/Effect"
           }
@@ -730,7 +737,8 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
-        "ViewCorrespondence"
+        "ViewCorrespondence",
+        "PostponeDeadlines"
       ]
     },
     "Effect": {
