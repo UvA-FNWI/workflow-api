@@ -271,6 +271,9 @@ public class Value : ConditionPart
         GreaterThanExpression?.Properties,
         GreaterThanOrEqualExpression?.Properties, InExpression?.Properties);
 
+    private static int? Compare(object? value, object? bound) =>
+        value is double d && bound is int n ? d.CompareTo(n) : (value as IComparable)?.CompareTo(bound);
+
     public override bool IsMet(ObjectContext context)
     {
         var prop = PropertyExpression.Execute(context);
