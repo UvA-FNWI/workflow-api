@@ -34,7 +34,16 @@ public class PostponementConfigurationTests
                                                      layout: Modal
                                                      pages:
                                                        - name: Reason
-                                                         fields: [Reason, Explanation]
+                                                         elements:
+                                                           - text:
+                                                               en: Choose deadlines to extend.
+                                                               nl: Kies deadlines om uit te stellen.
+                                                           - callout:
+                                                               variant: Info
+                                                               title: Contact the board
+                                                               text: The board can adjust the date.
+                                                           - question: Reason
+                                                           - question: Explanation
                                                      """
         })));
         var definition = model.WorkflowDefinitions["Project"];
@@ -44,7 +53,9 @@ public class PostponementConfigurationTests
         var dto = FormDto.Create(form, model.CreateContext(instance));
         Assert.Equal(RoleAction.PostponeDeadlines, action.Type);
         Assert.Equal(FormLayout.Modal, dto.Layout);
-        Assert.Equal("Other", Assert.Single(dto.Pages[0].Questions[0].Choices!).Name);
+        Assert.Equal("Choose deadlines to extend.", dto.Pages[0].Elements[0].Text!.En);
+        Assert.Equal("Contact the board", dto.Pages[0].Elements[1].Callout!.Title!.En);
+        Assert.Equal("Other", Assert.Single(dto.Pages[0].Elements[2].Question!.Choices!).Name);
         Assert.Equal("DeadlinesPostponed", Assert.Single(action.OnAction).SendMail!.TemplateKey);
         Assert.Empty(instance.Properties);
     }

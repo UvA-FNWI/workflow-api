@@ -1,7 +1,7 @@
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
 /// <summary>
-/// Creates form DTOs with the instance data required by their introduction templates.
+/// Creates form DTOs with the instance data required by their elements.
 /// </summary>
 public class FormDtoFactory(ModelService modelService, InstanceService instanceService)
 {
@@ -11,10 +11,7 @@ public class FormDtoFactory(ModelService modelService, InstanceService instanceS
     public async Task<FormDto> Create(WorkflowInstance instance, Form form, CancellationToken ct)
     {
         var context = modelService.CreateContext(instance);
-        var lookups = form.ActualForm.Pages
-            .SelectMany(page => page.IntroductionTemplate?.Properties ?? [])
-            .Distinct()
-            .ToArray();
+        var lookups = form.ActualForm.Lookups.Distinct().ToArray();
 
         if (lookups.Length > 0)
         {

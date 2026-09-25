@@ -57,7 +57,18 @@ public class PostponeDeadlineTests : ControllerTestsBase
         {
             Name = "ExtensionDialog", Layout = FormLayout.Modal,
             Title = new("Extend deadlines", "Uitstel verlenen"), WorkflowDefinition = definition,
-            Pages = [new Page { Name = "Reason", Fields = [reason, explanation] }]
+            Pages =
+            [
+                new Page
+                {
+                    Name = "Reason",
+                    PageElements =
+                    [
+                        new PageElement { Question = reason.Name, QuestionDefinition = reason },
+                        new PageElement { Question = explanation.Name, QuestionDefinition = explanation }
+                    ]
+                }
+            ]
         };
         definition.Forms.Add(_form);
         _action = new Action
@@ -142,8 +153,8 @@ public class PostponeDeadlineTests : ControllerTestsBase
             Assert.Equal(FormLayout.Modal, action.FormLayout);
             var loaded = await _controller.GetForm(_instance.Id, _action.Name!, _ct);
             Assert.Equal(2,
-                Assert.IsType<FormDto>(Assert.IsType<OkObjectResult>(loaded.Result).Value).Pages[0].Questions[0]
-                    .Choices!.Length);
+                Assert.IsType<FormDto>(Assert.IsType<OkObjectResult>(loaded.Result).Value).Pages[0].Elements[0]
+                    .Question!.Choices!.Length);
         }
 
         if (!allowed)
@@ -167,10 +178,11 @@ public class PostponeDeadlineTests : ControllerTestsBase
     [Fact]
     public async Task LoadedFormRetainsChoiceMetadataAndSavesOnlyTheReason()
     {
-        _form.Pages[0].Fields[0].Values![0].Condition = new() { Event = new() { Id = "AllowResearchReason" } };
+        _form.Pages[0].PageElements[0].QuestionDefinition!.Values![0].Condition =
+            new() { Event = new() { Id = "AllowResearchReason" } };
         var loaded = await _controller.GetForm(_instance.Id, _action.Name!, _ct);
         var form = Assert.IsType<FormDto>(Assert.IsType<OkObjectResult>(loaded.Result).Value);
-        Assert.Equal(2, form.Pages[0].Questions[0].Choices!.Length);
+        Assert.Equal(2, form.Pages[0].Elements[0].Question!.Choices!.Length);
         Assert.Empty((await Postpone(Request("Research"))).Errors);
         Assert.Equal("Research", Assert.Single(_changes).Reason);
         Assert.False(_instance.Properties.ContainsKey("Reason"));
@@ -282,18 +294,31 @@ public class PostponeDeadlineTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task FormReadResolvesIntroductionWithoutWrites()
+    public async Task FormReadResolvesTextAndCalloutWithoutWrites()
     {
         _instance.Properties["Course"] = "course-id";
-        _form.Pages[0].Introduction = new("Extend for {{ Course.Name }}.", "Uitstel voor {{ Course.Name }}.");
+        _form.Pages[0].PageElements =
+        [
+            new PageElement { Text = new("Extend for {{ Course.Name }}.", "Uitstel voor {{ Course.Name }}.") },
+            new PageElement
+            {
+                Callout = new Callout
+                {
+                    Title = new("Check {{ Course.Name }}", "Controleer {{ Course.Name }}"),
+                    Text = new("Contact the board.", "Neem contact op met de commissie.")
+                }
+            },
+            .. _form.Pages[0].PageElements
+        ];
         _workflowInstanceRepoMock.Setup(repo => repo.GetAllById(It.Is<string[]>(ids => ids.Contains("course-id")),
                 It.IsAny<Dictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new Dictionary<string, BsonValue> { ["_id"] = "course-id", ["Name"] = "Research Methods" }]);
         var previous = _instance.Properties.ToBsonDocument();
         var response = await _controller.GetForm(_instance.Id, _action.Name!, _ct);
         var form = Assert.IsType<FormDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
-        Assert.Equal("Extend for Research Methods.", form.Pages[0].Introduction!.En);
-        Assert.Equal("Uitstel voor Research Methods.", form.Pages[0].Introduction!.Nl);
+        Assert.Equal("Extend for Research Methods.", form.Pages[0].Elements[0].Text!.En);
+        Assert.Equal("Uitstel voor Research Methods.", form.Pages[0].Elements[0].Text!.Nl);
+        Assert.Equal("Check Research Methods", form.Pages[0].Elements[1].Callout!.Title!.En);
         Assert.Equal(previous, _instance.Properties.ToBsonDocument());
         Assert.Empty(_instance.Events);
         Assert.Empty(_changes);
