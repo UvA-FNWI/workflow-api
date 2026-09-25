@@ -52,8 +52,11 @@ public class FormDtoTests
             Name = "Archive",
             Type = "File",
             ParentType = definition,
-            AllowedFileTypes = ["zip", "tar.gz"],
-            AllowedFileSize = 25_000_000
+            FileSettings = new()
+            {
+                AllowedTypes = ["zip", "tar.gz"],
+                MaximumSize = 25_000_000
+            }
         };
         var defaulted = new PropertyDefinition
         {
