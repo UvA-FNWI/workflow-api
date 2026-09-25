@@ -361,6 +361,8 @@ public partial class ModelParser
                     throw new Exception(
                         $"Info card '{card.Name}' in '{workflowDefinition.Name}' has type 'Links' but contains no items.");
                 break;
+            case InfoCardType.Progress:
+                break;
         }
     }
 

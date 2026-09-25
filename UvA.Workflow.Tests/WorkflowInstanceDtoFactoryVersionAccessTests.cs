@@ -198,6 +198,63 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.Equal(1, historicalVersion.VersionNumber);
     }
 
+    [Fact]
+    public async Task Create_FiltersInfoCardsBySourcesAndExcludedSources()
+    {
+        var instance = CreateProjectInstance();
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.InfoCards = definition.InfoCards.Concat(new[]
+        {
+            new InfoCard
+            {
+                Name = "ExaminerOnly",
+                Type = InfoCardType.Text,
+                Title = "Examiner only",
+                Sources = ["Examiner"],
+                Content = "Visible only to examiners"
+            },
+            new InfoCard
+            {
+                Name = "AllExceptStudent",
+                Type = InfoCardType.Text,
+                Title = "All except student",
+                ExcludedSources = ["Student"],
+                Content = "Visible to everyone except students"
+            },
+            new InfoCard
+            {
+                Name = "StudentOnly",
+                Type = InfoCardType.Text,
+                Title = "Student only",
+                Sources = ["Student"],
+                Content = "Visible only to students"
+            }
+        }).ToArray();
+
+        var factory = CreateFactory(Mock.Of<IStepVersionService>());
+
+        MockCurrentUser("Student");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance);
+
+        var studentDto = await factory.Create(instance, CancellationToken.None);
+
+        var studentCardNames = studentDto.InfoCards.Select(card => card.Name).ToArray();
+        Assert.Contains("StudentOnly", studentCardNames);
+        Assert.DoesNotContain("ExaminerOnly", studentCardNames);
+        Assert.DoesNotContain("AllExceptStudent", studentCardNames);
+
+        MockCurrentUser("Examiner");
+
+        var examinerDto = await factory.Create(instance, CancellationToken.None);
+        var examinerCardNames = examinerDto.InfoCards.Select(card => card.Name).ToArray();
+        Assert.Contains("ExaminerOnly", examinerCardNames);
+        Assert.Contains("AllExceptStudent", examinerCardNames);
+        Assert.DoesNotContain("StudentOnly", examinerCardNames);
+    }
+
     private WorkflowInstanceDtoFactory CreateFactory(IStepVersionService stepVersionService)
     {
         var submissionDtoFactory =
