@@ -73,11 +73,15 @@ public class AssessmentHelpersTests
             Pages = pages.Select(p => new Page
             {
                 Name = p.pageName,
-                Fields = p.questions
-                    .Select(q => new PropertyDefinition
+                PageElements = p.questions
+                    .Select(q =>
                     {
-                        Name = q.fieldName,
-                        Calculation = new CalculationSettings { Weight = q.weight }
+                        var propDef = new PropertyDefinition
+                        {
+                            Name = q.fieldName,
+                            Calculation = new CalculationSettings { Weight = q.weight }
+                        };
+                        return new PageElement { Question = propDef.Name, QuestionDefinition = propDef };
                     })
                     .ToArray()
             }).ToList()

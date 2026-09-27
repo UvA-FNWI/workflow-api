@@ -3,12 +3,12 @@ inheritsFrom: Assessment
 
 pages:
   - name: Report
-    fields:
-      - Structure
-      - Polishing
-      - Nose
+    elements:
+      - question: Structure
+      - question: Polishing
+      - question: Nose
   - name: Presentation
-    fields:
-      - Loudness
-      - Style
-      - Contents
+    elements:
+      - question: Loudness
+      - question: Style
+      - question: Contents
