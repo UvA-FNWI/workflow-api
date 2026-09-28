@@ -17,16 +17,30 @@ public class FormDtoTests
             Name = "Review",
             Pages =
             [
-                new Page { Name = "Report", Fields = [quality, comments] },
-                new Page { Name = "Process", Fields = [depth] }
+                new Page
+                {
+                    Name = "Report",
+                    PageElements =
+                    [
+                        new PageElement { Question = quality.Name, QuestionDefinition = quality },
+                        new PageElement { Question = comments.Name, QuestionDefinition = comments },
+                    ]
+                },
+                new Page
+                {
+                    Name = "Process",
+                    PageElements = [new PageElement { Question = depth.Name, QuestionDefinition = depth }]
+                }
             ]
         };
 
         var result = FormDto.Create(form, new ObjectContext([]));
 
-        Assert.Equal(2m / 3m * 100m, result.Pages[0].Questions.Single(q => q.Name == "Quality").Percentage);
-        Assert.Equal(1m / 3m * 100m, result.Pages[1].Questions.Single(q => q.Name == "Depth").Percentage);
-        Assert.Null(result.Pages[0].Questions.Single(q => q.Name == "Comments").Percentage);
+        Assert.Equal(2m / 3m * 100m,
+            result.Pages[0].Elements.Single(q => q.Question!.Name == "Quality").Question!.Percentage);
+        Assert.Equal(1m / 3m * 100m,
+            result.Pages[1].Elements.Single(q => q.Question!.Name == "Depth").Question!.Percentage);
+        Assert.Null(result.Pages[0].Elements.Single(q => q.Question!.Name == "Comments").Question!.Percentage);
     }
 
     [Fact]

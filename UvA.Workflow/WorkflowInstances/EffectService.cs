@@ -267,7 +267,8 @@ public class EffectService(
                 $"External account effect role '{effect.Role}' must target a property of type User or [User].");
         }
 
-        if (!instance.Properties.TryGetValue(property.Name, out var rawValue) || rawValue is BsonNull)
+        var rawValue = instance.GetProperty(property.Name);
+        if (rawValue == null || rawValue is BsonNull)
             return;
 
         var recipients = ObjectContext.GetValue(rawValue, property) switch
@@ -321,13 +322,13 @@ public class EffectService(
             if (users == null) return false;
 
             var updated = false;
-            instance.Properties[property.Name] = new BsonArray(users.Select(user =>
+            instance.SetProperty(new BsonArray(users.Select(user =>
             {
                 if (!updatedRecipientsByEmail.TryGetValue(user.Email?.Trim() ?? string.Empty, out var replacement))
                     return user.ToBsonDocument();
                 updated = true;
                 return replacement.ToBsonDocument();
-            }));
+            })), property.Name);
             return updated;
         }
 
@@ -336,7 +337,7 @@ public class EffectService(
             !updatedRecipientsByEmail.TryGetValue(singleUser.Email?.Trim() ?? string.Empty, out var updatedSingleUser))
             return false;
 
-        instance.Properties[property.Name] = updatedSingleUser.ToBsonDocument();
+        instance.SetProperty(updatedSingleUser.ToBsonDocument(), property.Name);
         return true;
     }
 

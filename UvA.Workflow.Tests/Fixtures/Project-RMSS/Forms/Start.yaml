@@ -9,35 +9,35 @@ pages:
     title:
       en: Proposal
       nl: Voorstel
-    fields:
-      - Title
-      - EC
-      - Topic
-      - Description
+    elements:
+      - question: Title
+      - question: EC
+      - question: Topic
+      - question: Description
   - name: Staff
     title:
       en: Staff
       nl: Begeleiding
-    fields:
-      - Supervisor
+    elements:
+      - question: Supervisor
   - name: ResearchLocation
     title:
       en: Research location
       nl: Onderzoekslocatie
-    fields:
-      - PartAbroad
-      - Country
-      - City
-      - ContactPersonEmail
-      - ContactPersonDescription
-      - EmergencyPhoneNumber
+    elements:
+      - question: PartAbroad
+      - question: Country
+      - question: City
+      - question: ContactPersonEmail
+      - question: ContactPersonDescription
+      - question: EmergencyPhoneNumber
   - name: Planning
     title:
       en: Planning
       nl: Planning
-    fields:
-      - StartDate
-      - PlannedEndDate
+    elements:
+      - question: StartDate
+      - question: PlannedEndDate
 
 onSubmit:
   - serviceCall:

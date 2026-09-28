@@ -20,6 +20,7 @@ data:
 
   WorkflowSource__RepoUrl: "{{ .Values.workflowSource.repoUrl }}"
   WorkflowSource__Ref: "{{ .Values.workflowSource.ref }}"
+  ConfiguredMigrations__Enabled: "false"
 
   SurfConext__BaseUrl: "{{ .Values.surfConext.baseUrl }}"
   SurfConext__ClientId: "{{ .Values.surfConext.clientId }}"

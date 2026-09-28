@@ -8,6 +8,6 @@ pages:
     title:
       en: Final thesis
       nl: Eindversie scriptie
-    fields:
-      - Title
-      - Report
+    elements:
+      - question: Title
+      - question: Report

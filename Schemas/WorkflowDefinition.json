@@ -635,6 +635,13 @@
           ],
           "description": "Value the property should be less than"
         },
+        "lessThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than or equal to"
+        },
         "greaterThan": {
           "type": [
             "null",
@@ -669,6 +676,13 @@
             "null"
           ],
           "description": "Maximum length of a string"
+        },
+        "minLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Minimum length of a string"
         }
       }
     },
@@ -1421,7 +1435,8 @@
         "CreateInstance",
         "CreateRelatedInstance",
         "ImpersonateRoles",
-        "ViewResults"
+        "ViewResults",
+        "ViewCorrespondence"
       ]
     },
     "Field": {
@@ -1555,6 +1570,15 @@
             "type": "string"
           }
         },
+        "excludedSources": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "user": {
           "type": [
             "null",
@@ -1613,7 +1637,8 @@
         "User",
         "RelatedUsers",
         "Links",
-        "Text"
+        "Text",
+        "Progress"
       ]
     },
     "InfoCardField": {
