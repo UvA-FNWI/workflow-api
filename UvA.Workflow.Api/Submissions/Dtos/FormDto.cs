@@ -47,7 +47,7 @@ public record FormDto(
                     ? p.PageElements.Select(e => PageElementDto.Create(e, questions, context))
                         .OfType<PageElementDto>()
                     : [];
-                return PageDto.Create(i, p, pageElements, context, isInCurrentForm);
+                return PageDto.Create(i, p, pageElements, context, isInCurrentForm, isActive);
             }).ToArray(),
             form.Layout,
             originalForm.Step
