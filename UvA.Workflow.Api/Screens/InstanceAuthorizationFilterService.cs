@@ -67,6 +67,21 @@ public class InstanceAuthorizationFilterService(
     }
 
     /// <summary>
+    /// Distinguishes inherited/global overview access from direct instance membership for home navigation.
+    /// </summary>
+    public async Task<bool> HasOverviewAccess(string workflowDefinition, CancellationToken ct)
+    {
+        var user = await userService.GetCurrentUser(ct);
+        if (user == null)
+            return false;
+
+        if (await rightsService.CanAny(workflowDefinition, RoleAction.View))
+            return true;
+
+        return (await BuildInheritedRoleFilters(workflowDefinition, user, ct)).Count > 0;
+    }
+
+    /// <summary>
     /// Whether the current user can edit at least one instance of the given workflow definition
     /// (either unconditional edit access, or at least one instance they are authorized to edit).
     /// </summary>

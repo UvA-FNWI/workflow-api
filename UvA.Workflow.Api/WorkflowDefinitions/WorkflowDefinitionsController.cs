@@ -61,7 +61,10 @@ public class WorkflowDefinitionsController(
         foreach (var definition in definitions)
         {
             if (await authorizationFilterService.HasVisibleInstances(definition.Name, ct))
-                dtos.Add(WorkflowDefinitionDto.Create(definition));
+                dtos.Add(WorkflowDefinitionDto.Create(definition) with
+                {
+                    HasOverviewAccess = await authorizationFilterService.HasOverviewAccess(definition.Name, ct)
+                });
         }
 
         return Ok(dtos);

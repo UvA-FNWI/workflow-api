@@ -15,6 +15,10 @@ public record WorkflowDefinitionDto(
     bool IsPropertyOnly
 )
 {
+    /// <summary>Whether inherited or global roles provide access to the coordinator overview.
+    /// Populated by the Accessible endpoint; this is a navigation hint, not an authorization check.</summary>
+    public bool HasOverviewAccess { get; init; }
+
     public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition,
         bool canCreateInstance = false)
     {
