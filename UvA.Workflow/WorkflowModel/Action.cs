@@ -1,0 +1,126 @@
+using UvA.Workflow.WorkflowModel.Conditions;
+
+namespace UvA.Workflow.WorkflowModel;
+
+public enum RoleAction
+{
+    View,
+    Submit,
+    Edit,
+    Undo,
+    ViewAdminTools,
+    Execute,
+    ViewHidden,
+    ViewUsers,
+    ViewStates,
+    Delete,
+    AddInstanceMessage,
+    ViewAnswerMessages,
+    AssignMessages,
+    CreateInstance,
+    CreateRelatedInstance,
+    ImpersonateRoles,
+    ViewResults,
+    ViewCorrespondence
+}
+
+public class Action
+{
+    public const string All = "<All>";
+
+    /// <summary>
+    /// Internal name of the action. Required for actions of type execute
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Localized label of the action as shown in the user interface
+    /// </summary>
+    public BilingualString? Label { get; set; }
+
+    public ActionIntent Intent { get; set; } = ActionIntent.Primary;
+
+    /// <summary>
+    /// List of roles that can perform this action
+    /// </summary>
+    public string[] Roles { get; set; } = [];
+
+    /// <summary>
+    /// Target form for View / Submit / Edit actions
+    /// </summary>
+    public string? Form { get; set; }
+
+    /// <summary>
+    /// List of target forms for View / Submit / Edit actions  
+    /// </summary>
+    public string[] Forms { get; set; } = [];
+
+    public string[] AllForms => Form != null ? Forms.Append(Form).ToArray() : Forms;
+
+    /// <summary>
+    /// List of target collections for ??? (not yet implemented)
+    /// </summary>
+    public string[] Collections { get; set; } = [];
+
+    /// <summary>
+    /// Target propertyDefinition for the view hidden propertyDefinition action
+    /// </summary>
+    public string? PropertyDefinition { get; set; }
+
+    public string? WorkflowDefinition { get; set; }
+
+    /// <summary>
+    /// Type of action
+    /// </summary>
+    public RoleAction Type { get; set; }
+
+    /// <summary>
+    /// Condition that determines whether the action is permitted
+    /// </summary>
+    public Condition? Condition { get; set; }
+
+    /// <summary>
+    /// List of effects to run for an Execute action
+    /// </summary>
+    public Effect[] OnAction { get; set; } = [];
+
+    /// <summary>
+    /// List of steps during which this action is permitted 
+    /// </summary>
+    public string[] Steps { get; set; } = [];
+
+    /// <summary>
+    /// Keeps this action available on active and completed steps, including after step deadlines.
+    /// Roles and the action's condition still apply. Defaults to false.
+    /// </summary>
+    public bool Persistent { get; set; }
+
+    /// <summary>
+    /// When true, the submit form does not automatically even if it is the only submit action in the step
+    /// </summary>
+    public bool NoAutoOpenForm { get; set; }
+
+    /// <summary>
+    /// Target property for the CreateRelatedInstance action
+    /// </summary>
+    public string? Property { get; set; }
+
+    /// <summary>
+    /// Weird thing, maybe we should get rid of this?
+    /// </summary>
+    public string? UserProperty { get; set; }
+
+    /// <summary>
+    /// Weird thing, maybe we should get rid of this?
+    /// </summary>
+    public int? Limit { get; set; }
+
+
+    public bool MatchesForm(string form)
+        => Forms.Contains(form) || Form == form || Form == All;
+
+    public bool MatchesCollection(string property)
+        => Collections.Contains(property);
+
+    public Action Clone() => (Action)MemberwiseClone();
+}
