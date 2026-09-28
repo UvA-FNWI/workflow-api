@@ -1,4 +1,5 @@
 using UvA.Workflow.Events;
+using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests;
@@ -138,31 +139,77 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
-    public void GlobalActions_MergeUnlessClearedAndRemainDiscoverable()
+    public void ApplyInheritance_ChildPageWithSameName_IsNotOverwrittenByParent()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
-            ["Common/Roles/Registered.yaml"] = "name: Registered",
-            ["Base/Entity.yaml"] =
-                "name: Base\ntitlePlural: Bases\nglobalActions:\n  - name: Make\n    type: CreateInstance\n    roles: [Registered]",
-            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
-            ["Merge/Entity.yaml"] =
-                "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base\nglobalActions:\n  - name: Remove\n    type: Delete\n    roles: [Registered]",
-            ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base\nglobalActions: []"
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P\n    elements:\n      - question: Foo",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P\n    elements: []"
         }));
 
-        Role RegisteredOf(string definition) =>
-            parser.WorkflowDefinitions[definition].Roles.Single(r => r.Name == "Registered");
+        var childForm = parser.WorkflowDefinitions["Child"].Forms.Get("Edit");
 
-        Assert.Single(parser.WorkflowDefinitions["Omit"].AllActions, a => a.Name == "Make");
-        Assert.Equal(1, RegisteredOf("Omit").Actions.Count(a => a.WorkflowDefinition == "Omit" && a.Name == "Make"));
+        var page = Assert.Single(childForm.Pages);
+        Assert.Empty(page.PageElements);
+    }
 
-        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Make");
-        Assert.Single(parser.WorkflowDefinitions["Merge"].AllActions, a => a.Name == "Remove");
-        Assert.Equal(2, RegisteredOf("Merge").Actions.Count(a => a.WorkflowDefinition == "Merge"));
+    [Fact]
+    public void ApplyInheritance_ChildPageWithNewName_IsInsertedBeforeIt()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P1\n    elements:\n      - question: Foo",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P2\n    elements:\n      - question: Foo"
+        }));
 
-        Assert.DoesNotContain(parser.WorkflowDefinitions["Clear"].AllActions, a => a.Name == "Make");
-        Assert.DoesNotContain(RegisteredOf("Clear").Actions, a => a.WorkflowDefinition == "Clear" && a.Name == "Make");
+        var mergedForm = parser.WorkflowDefinitions["Merge"].Forms.Get("Edit");
+
+        Assert.Equal(["P1", "P2"], mergedForm.Pages.Select(p => p.Name));
+    }
+
+    [Fact]
+    public void ApplyInheritance_ChildWithExplicitlyEmptyPages_DoesNotInheritParentPages()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: ParentPage\n    elements:\n      - question: Foo",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit\npages: []"
+        }));
+
+        var childForm = parser.WorkflowDefinitions["Child"].Forms.Get("Edit");
+
+        // The parent's "ParentPage" is not inherited because the child explicitly cleared its pages.
+        // Since the child form then has zero pages, the default-page fallback kicks in and generates
+        // a page containing all properties, rather than reusing the parent's page/elements.
+        var page = Assert.Single(childForm.Pages);
+        Assert.NotEqual("ParentPage", page.Name);
+        Assert.Equal(["Foo"], page.PageElements.Select(e => e.Question));
+    }
+
+    [Fact]
+    public void ApplyInheritance_ChildWithOmittedPages_InheritsAllParentPages()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: ParentPage\n    elements:\n      - question: Foo",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit"
+        }));
+
+        var childForm = parser.WorkflowDefinitions["Child"].Forms.Get("Edit");
+
+        // The child's Edit.yaml doesn't specify "pages" at all, so it should inherit
+        // the parent's page(s) as-is, rather than clearing them or generating a default page.
+        var page = Assert.Single(childForm.Pages);
+        Assert.Equal("ParentPage", page.Name);
+        Assert.Equal(["Foo"], page.PageElements.Select(e => e.Question));
     }
 
     [Fact]
@@ -191,9 +238,9 @@ public class PresenceAwareInheritanceTests
         var parser = new ModelParser(new DictionaryProvider(new()
         {
             ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
-            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P1\n    fields: [Foo]",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P1\n    elements:\n      - question: Foo",
             ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
-            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P2\n    fields: [Foo]",
+            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P2\n    elements:\n      - question: Foo",
             ["Reject/Entity.yaml"] = "name: Reject\ntitlePlural: Rs\ninheritsFrom: Base",
             ["Reject/Forms/Edit.yaml"] = "name: Edit\npages: []"
         }));
@@ -284,5 +331,35 @@ public class PresenceAwareInheritanceTests
         var leafS = Step(parser.WorkflowDefinitions["Leaf"], "S");
         Assert.Equal("BaseTitle", leafS.Title!.En);
         Assert.Equal(StepHierarchyMode.Sequential, leafS.HierarchyMode);
+    }
+
+    [Fact]
+    public void FormPageElements_AreNotSharedBetweenSiblingDefinitions()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: P\n    elements:\n      - question: Foo",
+
+            ["Child1/Entity.yaml"] =
+                "name: Child1\ntitlePlural: C1s\ninheritsFrom: Base\nproperties:\n  - name: Foo\n    type: String",
+            ["Child2/Entity.yaml"] =
+                "name: Child2\ntitlePlural: C2s\ninheritsFrom: Base\nproperties:\n  - name: Foo\n    type: String"
+        }));
+
+        PropertyDefinition QuestionDefinitionOf(string definition) =>
+            parser.WorkflowDefinitions[definition].Forms.Get("Edit").Pages.Single().PageElements.Single()
+                .QuestionDefinition!;
+
+        var baseDefinition = QuestionDefinitionOf("Base");
+        var child1Definition = QuestionDefinitionOf("Child1");
+        var child2Definition = QuestionDefinitionOf("Child2");
+
+        Assert.Same(parser.WorkflowDefinitions["Base"].Properties.Get("Foo"), baseDefinition);
+        Assert.Same(parser.WorkflowDefinitions["Child1"].Properties.Get("Foo"), child1Definition);
+        Assert.Same(parser.WorkflowDefinitions["Child2"].Properties.Get("Foo"), child2Definition);
+
+        Assert.NotSame(baseDefinition, child1Definition);
+        Assert.NotSame(child1Definition, child2Definition);
     }
 }

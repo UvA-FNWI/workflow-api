@@ -156,7 +156,8 @@ public class EffectService(
                 $"External account effect role '{effect.Role}' must target a property of type User or [User].");
         }
 
-        if (!instance.Properties.TryGetValue(property.Name, out var rawValue) || rawValue is BsonNull)
+        var rawValue = instance.GetProperty(property.Name);
+        if (rawValue == null || rawValue is BsonNull)
             return;
 
         var recipients = ObjectContext.GetValue(rawValue, property) switch
@@ -212,10 +213,10 @@ public class EffectService(
             var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
             if (users == null) return;
 
-            instance.Properties[property.Name] = new BsonArray(users.Select(user =>
+            instance.SetProperty(new BsonArray(users.Select(user =>
                 updatedRecipientsByEmail.TryGetValue(user.Email?.Trim() ?? string.Empty, out var updatedUser)
                     ? updatedUser.ToBsonDocument()
-                    : user.ToBsonDocument()));
+                    : user.ToBsonDocument())), property.Name);
             return;
         }
 
@@ -224,7 +225,7 @@ public class EffectService(
             !updatedRecipientsByEmail.TryGetValue(singleUser.Email?.Trim() ?? string.Empty, out var updatedSingleUser))
             return;
 
-        instance.Properties[property.Name] = updatedSingleUser.ToBsonDocument();
+        instance.SetProperty(updatedSingleUser.ToBsonDocument(), property.Name);
     }
 
     private async Task ServiceCall(WorkflowInstance instance, ObjectContext context, Effect effect,

@@ -36,7 +36,7 @@ public class AnswersControllerTests : ControllerTestsBase
     {
         _artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         _submissionDtoFactory =
-            new SubmissionDtoFactory(_artifactTokenService, _modelService);
+            new SubmissionDtoFactory(_artifactTokenService, _modelService, _instanceService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,

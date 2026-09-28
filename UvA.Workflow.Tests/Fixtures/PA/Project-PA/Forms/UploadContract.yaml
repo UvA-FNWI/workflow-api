@@ -8,5 +8,5 @@ pages:
     title:
       en: Internship contract
       nl: Stage-overeenkomst
-    fields:
-      - InternshipContract
+    elements:
+      - question: InternshipContract

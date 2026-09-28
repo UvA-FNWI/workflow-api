@@ -333,7 +333,7 @@ public class StepHeaderStatusTests
         );
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
-        var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService);
+        var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService, instanceService);
         var journalService = new Mock<IInstanceJournalService>();
         journalService.Setup(service =>
                 service.GetInstanceJournal(It.IsAny<string>(), false, It.IsAny<CancellationToken>()))
