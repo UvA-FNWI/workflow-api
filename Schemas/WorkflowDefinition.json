@@ -1584,6 +1584,15 @@
             "type": "string"
           }
         },
+        "excludedSources": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "user": {
           "type": [
             "null",
@@ -1642,7 +1651,8 @@
         "User",
         "RelatedUsers",
         "Links",
-        "Text"
+        "Text",
+        "Progress"
       ]
     },
     "InfoCardField": {
