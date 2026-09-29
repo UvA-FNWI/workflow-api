@@ -287,7 +287,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public void ParentStepVersioning_CurrentCycleWithoutLastChildCompletionIsNotReturned()
+    public void ParentStepVersioning_CurrentCycleWithoutLastChildCompletion_IsReturnedAsUnfinishedVersion()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var instance = new WorkflowInstanceBuilder()
@@ -300,7 +300,10 @@ public class StepVersionTests
             EventLog(instance, "Start", submittedAt)
         ]);
 
-        Assert.Empty(versions);
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start"], version.EventIds);
+        Assert.Equal(submittedAt, version.SubmittedAt);
     }
 
     [Fact]
@@ -327,7 +330,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public void ParentStepVersioning_FeedbackStaysWithSubmissionAndResubmissionStartsNewVersion()
+    public void ParentStepVersioning_FeedbackStaysWithSubmission_AndRestartStartsNewVersion()
     {
         var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-15);
         var feedbackAt = DateTime.UtcNow.AddMinutes(-10);
@@ -345,10 +348,19 @@ public class StepVersionTests
             EventLog(instance, "Start", secondSubmittedAt)
         ]);
 
-        var version = Assert.Single(versions);
-        Assert.Equal(1, version.VersionNumber);
-        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
-        Assert.Equal(feedbackAt, version.SubmittedAt);
+        Assert.Collection(versions,
+            first =>
+            {
+                Assert.Equal(1, first.VersionNumber);
+                Assert.Equal(["Start", "RejectSubject"], first.EventIds);
+                Assert.Equal(feedbackAt, first.SubmittedAt);
+            },
+            second =>
+            {
+                Assert.Equal(2, second.VersionNumber);
+                Assert.Equal(["Start"], second.EventIds);
+                Assert.Equal(secondSubmittedAt, second.SubmittedAt);
+            });
     }
 
     [Fact]
@@ -462,10 +474,23 @@ public class StepVersionTests
             EventLog(instance, "RejectSubject", rejectedAt)
         ], ConfigureModel);
 
-        Assert.Empty(incompleteVersions);
-        var version = Assert.Single(completeVersions);
-        Assert.Equal(["Start", "ApproveSubject", "RejectSubject"], version.EventIds);
-        Assert.Equal(rejectedAt, version.SubmittedAt);
+        var incomplete = Assert.Single(incompleteVersions);
+        Assert.Equal(1, incomplete.VersionNumber);
+        Assert.Equal(["Start", "RejectSubject"], incomplete.EventIds);
+        Assert.Equal(rejectedAt, incomplete.SubmittedAt);
+    }
+
+    [Fact]
+    public void ParentStepVersioning_NoEvents_ProducesNoAttempts()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Start")
+            .Build();
+
+        var versions = GetStepVersions(instance, []);
+
+        Assert.Empty(versions);
     }
 
     [Fact]
@@ -489,7 +514,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public void RmssProposalVersioning_SingleApprovalDoesNotCompleteVersion()
+    public void RmssProposalVersioning_SingleApprovalCreatesUnfinishedAttempt()
     {
         var instance = CreateRmssInstance();
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
@@ -500,11 +525,14 @@ public class StepVersionTests
             EventLog(instance, "ProposalApprovedSupervisor", approvedAt)
         ]);
 
-        Assert.Empty(versions);
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "ProposalApprovedSupervisor"], version.EventIds);
+        Assert.Equal(approvedAt, version.SubmittedAt);
     }
 
     [Fact]
-    public void RmssProposalVersioning_SingleRejectionDoesNotCompleteVersion()
+    public void RmssProposalVersioning_SingleRejectionCreatesUnfinishedAttempt()
     {
         var instance = CreateRmssInstance();
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
@@ -515,7 +543,10 @@ public class StepVersionTests
             EventLog(instance, "ProposalRejectedSupervisor", rejectedAt)
         ]);
 
-        Assert.Empty(versions);
+        var version = Assert.Single(versions);
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "ProposalRejectedSupervisor"], version.EventIds);
+        Assert.Equal(rejectedAt, version.SubmittedAt);
     }
 
     private static Dictionary<string, BsonValue?> CloneProperties(Dictionary<string, BsonValue?> original)

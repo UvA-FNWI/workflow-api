@@ -31,11 +31,15 @@ public record WorkflowInstanceDto(
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
 
+public record StepVersionsDto(
+    StepVersionDto? Current,
+    StepVersionDto[] History
+);
+
 public record StepVersionDto
 {
     public int VersionNumber { get; init; }
-    public List<string> EventIds { get; init; } = [];
-    public DateTime SubmittedAt { get; init; }
+    public DateTime? CompletionTimestamp { get; init; }
     public List<SubmissionDto> Submissions { get; init; } = [];
 }
 
@@ -63,7 +67,7 @@ public record StepDto(
     bool ExpectsSubmission,
     bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
-    List<StepVersionDto>? Versions = null);
+    StepVersionsDto? Versions = null);
 
 public record ActionDto(
     ActionType Type,

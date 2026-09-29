@@ -108,6 +108,17 @@ public class StepVersionService : IStepVersionService
             currentVersionEventIds.Clear();
         }
 
+        if (currentVersionEvents.Count > 0)
+        {
+            versions.Add(
+                new StepVersion
+                {
+                    VersionNumber = versions.Count + 1,
+                    EventIds = currentVersionEvents.Select(log => log.EventId).ToList(),
+                    SubmittedAt = currentVersionEvents.Max(log => log.Timestamp)
+                });
+        }
+
         return versions;
     }
 

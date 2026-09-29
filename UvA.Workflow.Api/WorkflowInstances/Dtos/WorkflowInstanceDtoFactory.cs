@@ -171,15 +171,7 @@ public class WorkflowInstanceDtoFactory(
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
             : stepHeaderStatusResolver.Resolve(step, instance);
 
-        // A completed step's latest version is already shown as its live submission.
-        // For an expired, unfinished step, retain every historical version.
-        var versions = stepVersionsMap.GetValueOrDefault(step.Name)
-            ?.OrderByDescending(version => version.SubmittedAt)
-            .Skip(step.HasEnded(context) ? 1 : 0);
-        var versionDtos = versions != null
-            ? await Task.WhenAll(
-                versions.Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
-            : null;
+        var versionsDto = await BuildStepVersionsDtoAsync(step.Name, instance, instanceHistory, stepVersionsMap, ct);
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
@@ -221,7 +213,7 @@ public class WorkflowInstanceDtoFactory(
             expectsSubmission,
             hasSubmission,
             step.HierarchyMode,
-            versionDtos?.ToList()
+            versionsDto
         );
     }
 
@@ -243,6 +235,38 @@ public class WorkflowInstanceDtoFactory(
         => !step.HasEnded(context) && ((activeSteps.Contains(step.Name) && step.Deadline?.HasPassed(context) == true) ||
                                        step.Children.Where(child => child.Condition.IsMet(context))
                                            .Any(child => HasPassedDeadline(child, context, activeSteps)));
+
+    /// <summary>
+    /// Builds a StepVersionsDto for a step by ordering domain versions and
+    /// projecting them to DTOs, exposing the latest as Current and the rest as History.
+    /// </summary>
+    private async Task<StepVersionsDto?> BuildStepVersionsDtoAsync(
+        string stepName,
+        WorkflowInstance instance,
+        WorkflowInstanceHistory instanceHistory,
+        Dictionary<string, List<StepVersion>> stepVersionsMap,
+        CancellationToken ct)
+    {
+        if (!stepVersionsMap.TryGetValue(stepName, out var versions) || versions.Count == 0)
+            return null;
+
+        var versionDtos = await Task.WhenAll(
+            versions
+                .OrderBy(v => v.VersionNumber)
+                .ThenBy(v => v.SubmittedAt)
+                .Select(v => CreateStepVersionDto(v, instance, instanceHistory, ct)));
+
+        return versionDtos.Length switch
+        {
+            0 => null,
+            1 => new StepVersionsDto(
+                Current: versionDtos[0],
+                History: []),
+            _ => new StepVersionsDto(
+                Current: versionDtos[^1],
+                History: versionDtos[..^1])
+        };
+    }
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
@@ -296,8 +320,8 @@ public class WorkflowInstanceDtoFactory(
             return new StepVersionDto
             {
                 VersionNumber = stepVersion.VersionNumber,
-                EventIds = stepVersion.EventIds,
-                SubmittedAt = stepVersion.SubmittedAt,
+                //EventIds = stepVersion.EventIds,
+                CompletionTimestamp = stepVersion.SubmittedAt,
                 Submissions = submissions
             };
         }
