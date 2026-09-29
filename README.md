@@ -32,7 +32,10 @@ dotnet restore UvA.Workflow.slnx
 dotnet build UvA.Workflow.slnx
 ```
 
-Start a local MongoDB instance:
+Start a new local MongoDB instance (pinned to 8.2.9):
+
+**Existing local database?** Follow [the MongoDB upgrade instructions](docs/mongodb-upgrade.md)
+before running this command. MongoDB stores its data in `UvA.Workflow.Api/data/mongo`.
 
 ```bash
 docker compose -f UvA.Workflow.Api/docker-compose.yaml up -d
@@ -115,6 +118,28 @@ The API Docker build also runs the solution tests before publishing the applicat
 ## Workflow Authoring
 
 Workflow definitions are YAML-based and are organized under `Examples`. Schemas under `Schemas` describe the supported format and can be used by editors and tooling for validation and completion. We currently use this to power type checks in our [VS Code extension](https://github.com/uvA-FNWI/workflow-dev).
+
+### Configuration migrations
+
+Migrations rename stored properties when the baseline configuration is loaded. Add a YAML file to the workflow's
+`Migrations` folder, for example `Projects/Project-Base/Migrations/2026-09-09-rename-title.yaml`:
+
+```yaml
+kind: RenameProperty
+oldProperty: Title
+newProperty: ProjectTitle
+```
+
+Filename convention: `yyyy-MM-dd-{description}.yaml`.
+
+`kind` is optional and defaults to `RenameProperty`. Only top-level property renames are supported.
+
+The migration applies to the declaring workflow and all workflows inheriting from it, directly or indirectly.
+Update the workflow definitions alongside the migration: they must contain the new property and no longer contain
+the old one. Existing instance values and journal paths are renamed automatically.
+
+Recorded migrations are skipped on later loads, so keep their filenames and declaring workflow names stable.
+Preview configurations do not run migrations. You can view migration results on the migrations page.
 
 ## Development Notes
 

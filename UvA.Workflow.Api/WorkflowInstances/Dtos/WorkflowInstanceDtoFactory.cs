@@ -28,7 +28,8 @@ public class WorkflowInstanceDtoFactory(
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
+        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit,
+            RoleAction.ViewCorrespondence);
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
         // active impersonation); resolve them in a single pass over the instance's roles.
         var realUserActions = await rightsService.GetAllowedActions(
@@ -43,7 +44,9 @@ public class WorkflowInstanceDtoFactory(
         var context = modelService.CreateContext(instance);
         var visibleCards = workflowDefinition.InfoCards
             .Where(card => card.Enabled && card.Type != null &&
-                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()))
+                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
+                           (card.ExcludedSources is not { Length: > 0 } ||
+                            !card.ExcludedSources.Intersect(viewerRoles).Any()))
             .ToArray();
         await instanceService.Enrich(workflowDefinition, [context],
             workflowDefinition.Steps.SelectMany(f => f.Lookups)
@@ -71,6 +74,15 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
+        var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
+        {
+            var submissionContext = modelService.CreateContext(instance);
+            await instanceService.Enrich(workflowDefinition, [submissionContext], s.Form.ActualForm.Lookups, ct,
+                replaceStep: false);
+            return submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
+                permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
+                instanceHistory, displayNames, submissionContext);
+        }));
         var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -80,11 +92,7 @@ public class WorkflowInstanceDtoFactory(
             actions.Select(ActionDto.Create).ToArray(),
             fields,
             steps,
-            submissions
-                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
-                    permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
-                    instanceHistory, displayNames))
-                .ToArray(),
+            submissionDtos,
             permissions.Where(a => a.AllForms.Length == 0 && a.PropertyDefinition == null).Select(a => a.Type)
                 .Distinct().ToArray(),
             canUseAdminTools,
@@ -302,10 +310,14 @@ public class WorkflowInstanceDtoFactory(
                 var workflowDef = modelService.WorkflowDefinitions[instanceAtVersion.WorkflowDefinition];
                 var submissionState = FormSubmissionState.Resolve(instanceAtVersion, form, workflowDef);
 
+                var versionContext = modelService.CreateContext(instanceAtVersion);
+                await instanceService.Enrich(workflowDef, [versionContext], form.ActualForm.Lookups, ct,
+                    replaceStep: false);
+
                 // Create the submission DTO with empty permissions (historical view)
                 var submissionDto =
                     submissionDtoFactory.Create(instanceAtVersion, form, submissionState, questionStatus,
-                        permissions: []);
+                        permissions: [], context: versionContext);
 
                 submissions.Add(submissionDto);
             }
@@ -351,7 +363,7 @@ public class WorkflowInstanceDtoFactory(
             };
             return new InfoCardDto(
                 card.Name,
-                card.Title!,
+                card.TitleTemplate!.Apply(context),
                 type,
                 user == null ? null : new InfoCardUserDto(user.DisplayName, user.Picture),
                 card.Fields.Select(field => CreateInfoCardField(field, context)).OfType<InfoCardFieldDto>().ToArray(),
@@ -373,16 +385,23 @@ public class WorkflowInstanceDtoFactory(
             var items = CreateInfoCardItems(card, context);
             return groups.Length == 0 && items.Length == 0
                 ? null
-                : new InfoCardDto(card.Name, card.Title!, type, Groups: groups, Items: items);
+                : new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Groups: groups, Items: items);
         }
 
         if (type == InfoCardType.Links)
         {
             var items = CreateInfoCardItems(card, context);
-            return items.Length == 0 ? null : new InfoCardDto(card.Name, card.Title!, type, Items: items);
+            return items.Length == 0
+                ? null
+                : new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Items: items);
         }
 
-        return new InfoCardDto(card.Name, card.Title!, type, Content: card.Content);
+        if (type == InfoCardType.Text)
+        {
+            return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Content: card.Content);
+        }
+
+        return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type);
     }
 
     private static InfoCardItemDto[] CreateInfoCardItems(InfoCard card, ObjectContext context) =>

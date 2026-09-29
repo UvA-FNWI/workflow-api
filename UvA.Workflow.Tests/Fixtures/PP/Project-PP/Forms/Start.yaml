@@ -6,13 +6,13 @@ pages:
     title:
       en: Location
       nl: Locatie
-    fields:
-      - ProjectLocation
-      - InstituteDepartment
+    elements:
+      - question: ProjectLocation
+      - question: InstituteDepartment
   - name: Defense
     title:
       en: Defense
       nl: Verdediging
-    fields:
-      - PlannedDateDefense
-      - NumberOfDefenseGuests
+    elements:
+      - question: PlannedDateDefense
+      - question: NumberOfDefenseGuests
