@@ -342,18 +342,6 @@ public class RightsService(
             throw new UnauthorizedAccessException();
     }
 
-    public Task<bool> CanViewCollection(WorkflowInstance instance, string collection)
-        => CanViewCollection(instance, collection, RightsEvaluationMode.RequestContext);
-
-    public async Task<bool> CanViewCollection(
-        WorkflowInstance instance,
-        string collection,
-        RightsEvaluationMode evaluationMode)
-    {
-        var actions = await GetAllowedActions(instance, evaluationMode, RoleAction.View);
-        return actions.Any(f => f.MatchesCollection(collection));
-    }
-
     public async Task<bool> CanEditProperty(WorkflowInstance instance, string propertyName)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
