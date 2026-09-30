@@ -250,6 +250,11 @@ public class Value : ConditionPart
     /// </summary>
     public int? MaxLength { get; set; }
 
+    /// <summary>
+    /// Minimum length of a string
+    /// </summary>
+    public int? MinLength { get; set; }
+
     public override Lookup[] Dependants =>
     [
         Property,
@@ -290,6 +295,20 @@ public class Value : ConditionPart
             return InExpression.Execute(context) is IEnumerable p && p.Cast<object>().Contains(prop);
         if (MaxLength != null)
             return prop is string s && s.Length <= MaxLength;
+        if (MinLength != null)
+            return prop is string s && s.Length >= MinLength;
         throw new InvalidOperationException("Invalid condition");
     }
+
+    private static int? Compare(object? left, object? right)
+    {
+        if (IsNumber(left) && IsNumber(right))
+            return left is float or double || right is float or double
+                ? Convert.ToDouble(left).CompareTo(Convert.ToDouble(right))
+                : Convert.ToDecimal(left).CompareTo(Convert.ToDecimal(right));
+        return (left as IComparable)?.CompareTo(right);
+    }
+
+    private static bool IsNumber(object? value)
+        => value is int or long or float or double or decimal;
 }

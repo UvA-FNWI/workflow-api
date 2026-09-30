@@ -11,7 +11,7 @@ public abstract class UserServiceBase(IUserRepository userRepository, IMemoryCac
 {
     private IUserRepository UserRepository { get; } = userRepository;
     private static TimeSpan UserCacheExpiration => TimeSpan.FromMinutes(15);
-    private static string GetCacheKeyForUser(string userName) => $"user:{userName}";
+    public static string GetCacheKeyForUser(string userName) => $"user:{userName.ToLowerInvariant()}";
     public const string ApiUserName = "__apiuser";
 
     /// <summary>

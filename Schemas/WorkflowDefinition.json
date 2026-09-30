@@ -676,6 +676,13 @@
             "null"
           ],
           "description": "Maximum length of a string"
+        },
+        "minLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Minimum length of a string"
         }
       }
     },
@@ -1552,6 +1559,15 @@
             "type": "string"
           }
         },
+        "excludedSources": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "user": {
           "type": [
             "null",
@@ -1610,7 +1626,8 @@
         "User",
         "RelatedUsers",
         "Links",
-        "Text"
+        "Text",
+        "Progress"
       ]
     },
     "InfoCardField": {

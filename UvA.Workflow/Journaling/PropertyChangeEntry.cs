@@ -2,6 +2,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace UvA.Workflow.Journaling;
 
+[BsonIgnoreExtraElements]
 public class PropertyChangeEntry
 {
     public DateTime Timestamp { get; private set; }
