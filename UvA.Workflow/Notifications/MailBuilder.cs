@@ -53,6 +53,7 @@ public class MailBuilder(
                 b.LabelTemplate.Apply(context).ForLanguage(language),
                 b.UrlTemplate.Execute(context),
                 b.Intent))
+            .Where(b => !string.IsNullOrWhiteSpace(b.Url))
             .ToList();
 
         var layout = layoutResolver.Resolve(resolvedMail.Layout);
