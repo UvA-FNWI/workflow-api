@@ -293,6 +293,7 @@ public partial class ModelParser
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
+
         EnsureEffectEventsExist(form.OnSubmit, workflowDefinition);
         EnsureEffectEventsExist(form.OnSave, workflowDefinition);
 

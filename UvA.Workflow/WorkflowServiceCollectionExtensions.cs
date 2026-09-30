@@ -8,7 +8,6 @@ using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
-using UvA.Workflow.Deadlines;
 
 namespace UvA.Workflow;
 
@@ -41,7 +40,6 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<IAnswerService, AnswerService>();
         services.AddScoped<DummyAnswerGenerator>();
         services.AddScoped<SubmissionService>();
-        services.AddScoped<PostponeDeadlineService>();
         services.AddScoped<RightsService>();
         services.AddScoped<JobService>();
         services.AddScoped<EffectService>();

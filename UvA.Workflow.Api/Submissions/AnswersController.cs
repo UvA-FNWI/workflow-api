@@ -138,11 +138,11 @@ public class AnswersController(
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
         await EnsureAuthorizedForAction(context,
-            context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
+            context.Form.Step == null || !context.SubmissionState.IsSubmitted ? RoleAction.Submit : RoleAction.Edit);
 
     private async Task EnsureAuthorizedToEdit(SubmissionContext context) =>
         await rightsService.EnsureAuthorizedForAction(context.Instance,
-            [context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit],
+            [context.Form.Step == null || !context.SubmissionState.IsSubmitted ? RoleAction.Submit : RoleAction.Edit],
             RightsEvaluationMode.RequestContext, context.Form.Name);
 
     private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>

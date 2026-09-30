@@ -95,19 +95,10 @@ public class DeadlineCondition : ConditionPart
         => Expression.Execute(context) switch
         {
             DateTimeOffset d => d,
-            DateTime d => ToDateTimeOffset(d),
+            DateTime d => new DateTimeOffset(d),
             string s => DateTimeOffset.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
             _ => null
         };
-
-    private static DateTimeOffset ToDateTimeOffset(DateTime date)
-    {
-        if (date.Kind is DateTimeKind.Utc or DateTimeKind.Local)
-            return new DateTimeOffset(date);
-
-        var serverTimezoneOffset = TimeZoneInfo.Local.GetUtcOffset(date);
-        return new DateTimeOffset(date, serverTimezoneOffset);
-    }
 
     public override IEnumerable<Lookup> Properties => Expression.Properties;
 

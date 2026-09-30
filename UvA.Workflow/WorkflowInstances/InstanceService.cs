@@ -369,7 +369,7 @@ public class InstanceService(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var activeSteps = modelService.GetActiveSteps(instance);
         var allowed = await rightsService.GetAllowedActions(instance,
-            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute, RoleAction.PostponeDeadlines);
+            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
 
         // Submittable forms
         actions.AddRange(allowed
@@ -377,7 +377,8 @@ public class InstanceService(
             .SelectMany(a => a.AllForms
                 .SelectMany(name => name == Domain_Action.All ? workflowDef.Forms.Select(f => f.Name) : [name])
                 .Select(name => new { Action = a, Form = modelService.GetForm(instance, name) }))
-            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
+            // Forms attached to a step are one-time submissions. Global action forms can be reused.
+            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted || f.Form.Step == null)
             .Distinct()
             .Select(f => new AllowedAction(f.Action, f.Form, DisplaySteps: GetDisplaySteps(f.Action, f.Form)))
         );
@@ -401,7 +402,7 @@ public class InstanceService(
 
         // Unnamed entries are permissions, not buttons that can be executed.
         foreach (var a in allowed.Where(a =>
-                     a.Type is RoleAction.Execute or RoleAction.PostponeDeadlines &&
+                     a.Type is RoleAction.Execute &&
                      !string.IsNullOrWhiteSpace(a.Name)))
         {
             // Build mail message for actions that send mail

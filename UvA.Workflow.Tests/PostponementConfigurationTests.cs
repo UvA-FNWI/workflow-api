@@ -21,17 +21,17 @@ public class PostponementConfigurationTests
                                           type: String
                                       globalActions:
                                         - name: GrantExtension
-                                          type: PostponeDeadlines
+                                          type: Submit
                                           form: ExtensionDialog
                                           roles: [Coordinator]
-                                          onAction:
-                                            - sendMail:
-                                                template: DeadlinesPostponed
                                       """,
             ["Project/Forms/ExtensionDialog.yaml"] = """
                                                      name: ExtensionDialog
                                                      title: Extend deadlines
                                                      layout: Modal
+                                                     onSubmit:
+                                                       - sendMail:
+                                                           template: DeadlinesPostponed
                                                      pages:
                                                        - name: Reason
                                                          elements:
@@ -51,12 +51,13 @@ public class PostponementConfigurationTests
         var instance = new WorkflowInstance { WorkflowDefinition = "Project", Properties = new(), Events = new() };
         var form = model.GetForm(instance, action.Form!);
         var dto = FormDto.Create(form, model.CreateContext(instance));
-        Assert.Equal(RoleAction.PostponeDeadlines, action.Type);
+        Assert.Equal(RoleAction.Submit, action.Type);
+        Assert.Null(form.Step);
         Assert.Equal(FormLayout.Modal, dto.Layout);
         Assert.Equal("Choose deadlines to extend.", dto.Pages[0].Elements[0].Text!.En);
         Assert.Equal("Contact the board", dto.Pages[0].Elements[1].Callout!.Title!.En);
         Assert.Equal("Other", Assert.Single(dto.Pages[0].Elements[2].Question!.Choices!).Name);
-        Assert.Equal("DeadlinesPostponed", Assert.Single(action.OnAction).SendMail!.TemplateKey);
+        Assert.Equal("DeadlinesPostponed", Assert.Single(form.OnSubmit).SendMail!.TemplateKey);
         Assert.Empty(instance.Properties);
     }
 

@@ -50,9 +50,8 @@ public record DeadlineDto(
     bool IsPassed,
     BilingualString? Message,
     DateTimeOffset? PreviousDate = null,
-    string? ChangeReason = null,
-    string? Property = null,
-    DateOnly? MaxDate = null);
+    BilingualString? ChangeReason = null,
+    string? Property = null);
 
 public record StepDto(
     string Id,
@@ -98,14 +97,6 @@ public record ActionDto(
             ),
             RoleAction.Execute => new(
                 ActionType.Execute,
-                action.Action.Label ?? action.Action.Name ?? "Action",
-                Form: action.Form?.Name,
-                Name: action.Action.Name,
-                Mail: action.Mail,
-                FormLayout: action.Form?.Layout
-            ),
-            RoleAction.PostponeDeadlines => new(
-                ActionType.PostponeDeadlines,
                 action.Action.Label ?? action.Action.Name ?? "Action",
                 Form: action.Form?.Name,
                 Name: action.Action.Name,

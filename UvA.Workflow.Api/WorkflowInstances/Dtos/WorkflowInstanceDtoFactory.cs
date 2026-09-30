@@ -3,7 +3,6 @@ using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Deadlines;
 using UvA.Workflow.Events;
-using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowModel;
@@ -54,14 +53,12 @@ public class WorkflowInstanceDtoFactory(
 
         // Fetch versions for all steps
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
-        var propertyChanges = (instanceHistory.Journal?.PropertyChanges ?? [])
-            .ToLookup(change => change.Path);
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, propertyChanges, context,
+            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context,
                 activeSteps, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
@@ -164,13 +161,12 @@ public class WorkflowInstanceDtoFactory(
         WorkflowInstance instance,
         Dictionary<string, List<StepVersion>> stepVersionsMap,
         WorkflowInstanceHistory instanceHistory,
-        ILookup<string, PropertyChangeEntry> propertyChanges,
         ObjectContext context,
         HashSet<string> activeSteps,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var deadline = GetDeadline(step, context, activeSteps, propertyChanges, workflowDef);
+        var deadline = GetDeadline(step, context, activeSteps, instance, workflowDef, instanceHistory);
         var headerStatus = HasPassedDeadline(step, context, activeSteps)
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
             : stepHeaderStatusResolver.Resolve(step, instance);
@@ -188,7 +184,7 @@ public class WorkflowInstanceDtoFactory(
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, propertyChanges, context,
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context,
                     activeSteps, ct)))
             : null;
         var submissionForms = step.Actions
@@ -231,7 +227,7 @@ public class WorkflowInstanceDtoFactory(
     }
 
     private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps,
-        ILookup<string, PropertyChangeEntry> propertyChanges, WorkflowDefinition definition)
+        WorkflowInstance instance, WorkflowDefinition definition, WorkflowInstanceHistory history)
     {
         var deadline = step.Deadline;
         if (deadline == null)
@@ -243,24 +239,12 @@ public class WorkflowInstanceDtoFactory(
             : null;
 
         var date = deadline.Evaluate(context);
-        // Only direct property deadlines have matching journal entries. Use the latest change,
-        // including manual edits, and never borrow a reason from another postponement.
-        var property = PostponeDeadlineService.GetDeadlineProperty(step, definition);
-        IEnumerable<PropertyChangeEntry> history = property == null ? [] : propertyChanges[property.Name];
-        var change = history.MaxBy(entry => entry.Timestamp);
-        DateTimeOffset? previousDate = change?.OldValue is BsonDateTime previous
-            ? new DateTimeOffset(previous.ToUniversalTime())
-            : null;
-        var hasChanged = date != null && previousDate != null && date != previousDate;
-        var maxPostponementDays = property == null
-            ? null
-            : PostponeDeadlineService.GetMaxPostponementDays(property.Name, definition);
-        return new DeadlineDto(date, deadline.Type, isPassed, message,
-            hasChanged ? previousDate : null, hasChanged ? change?.Reason : null,
-            property?.Name, property != null && date is { } currentDate
-                ? PostponeDeadlineService.GetMaximumDate(
-                    maxPostponementDays, currentDate, history)
-                : null);
+        var property = DeadlineHistory.GetProperty(step, definition);
+        (DateTimeOffset? PreviousDate, BilingualString? Reason) change = property == null
+            ? (null, null)
+            : DeadlineHistory.GetChange(instance, definition, property.Name, history);
+        return new DeadlineDto(date, deadline.Type, isPassed, message, change.PreviousDate, change.Reason,
+            property?.Name);
     }
 
     private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)

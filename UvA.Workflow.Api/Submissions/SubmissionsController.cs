@@ -39,9 +39,10 @@ public class SubmissionsController(
                 modelService.GetQuestionStatus(instance, form, true), permissions: [], context: context));
         }
 
-        // Live drafts require submit permissions; submitted forms require view permissions.
+        // Step forms become read-only after submission; global action forms may be submitted again.
         await rightsService.EnsureAuthorizedForAction(instance,
-            submissionState.DateSubmitted == null ? RoleAction.Submit : RoleAction.View, form.Name);
+            submissionState.DateSubmitted == null || form.Step == null ? RoleAction.Submit : RoleAction.View,
+            form.Name);
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(instanceId, ct);

@@ -94,7 +94,6 @@ public class Form : INamed, IDeclaredKeys
     /// </summary>
     public FormLayout Layout { get; set; }
 
-
     /// <summary>
     /// Target reference property. Set this to use the form to update the properties of the referenced entity
     /// </summary>

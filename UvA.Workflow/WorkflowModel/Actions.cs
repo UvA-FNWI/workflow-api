@@ -8,8 +8,7 @@ public enum ActionType
     Execute,
     UndoState,
     CreateInstance,
-    DeleteInstance,
-    PostponeDeadlines
+    DeleteInstance
 }
 
 public enum ActionIntent
