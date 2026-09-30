@@ -117,6 +117,7 @@ public class PropertyDefinition : INamed
 
     /// <summary>
     /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Use * to allow any format.
     /// Defaults to pdf when omitted.
     /// </summary>
     public string[]? AllowedFileTypes { get; set; }

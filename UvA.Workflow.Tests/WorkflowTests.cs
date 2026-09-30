@@ -278,6 +278,53 @@ public class WorkflowTests
     }
 
     [Fact]
+    public async Task FileArray_UploadsRemovesAndEnforcesCombinedSize()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        context.PropertyDefinition.Type = "[File]";
+        context.PropertyDefinition.AllowedFileTypes = ["*"];
+        context.PropertyDefinition.AllowedFileSize = 10;
+        var index = 0;
+        _artifactServiceMock.Setup(service =>
+                service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>()))
+            .ReturnsAsync((string _, string name, Stream stream) =>
+                new ArtifactInfo($"file-{++index}", name, Length: stream.Length));
+
+        await _answerService.SaveArtifact(context, "first.txt", new MemoryStream(new byte[4]), _ct);
+        await _answerService.SaveArtifact(context, "second.csv", new MemoryStream(new byte[5]), _ct);
+        Assert.Equal(2, instance.Properties["Report"].AsBsonArray.Count);
+        Assert.Equal(["first.txt", "second.csv"],
+            Answer.GetValue(context.PropertyDefinition, instance.Properties["Report"])!.Value
+                .EnumerateArray().Select(name => name.GetString()));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _answerService.SaveArtifact(context, "too-large.zip", new MemoryStream(new byte[2]), _ct));
+
+        await _answerService.DeleteArtifact(context, "file-1", _ct);
+        Assert.Single(instance.Properties["Report"].AsBsonArray);
+        await _answerService.DeleteArtifact(context, "file-2", _ct);
+        Assert.True(instance.Properties["Report"].IsBsonNull);
+    }
+
+    [Fact]
+    public void FileArray_WildcardConfigurationParses()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Project/Entity.yaml"] =
+                "name: Project\ntitlePlural: Projects\nproperties:\n  - name: Attachments\n    type: '[File]'\n    allowedFileTypes: ['*']\n    allowedFileSize: 1000"
+        }));
+
+        var property = parser.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == "Attachments");
+        Assert.True(property.IsArray);
+        Assert.Equal(["*"], property.EffectiveAllowedFileTypes);
+    }
+
+    [Fact]
     public void GroupedWorkflowDefinitions_AreLoadedFromTheirSourceFolder()
     {
         var assessmentPb = _modelService.WorkflowDefinitions["Assessment-PB"];
