@@ -107,9 +107,10 @@ actions:
     persistent: true
 ```
 
-Roles and action conditions are still checked on every request. Persistent actions
-are not blocked by step deadlines. Use this for ongoing access such as viewing a
-report; marking a write action persistent deliberately extends its availability too.
+Roles and action conditions are still checked on every request. Persistence does not
+bypass hard deadlines on unfinished steps, including parent steps. Completed steps
+remain available under the existing deadline rules. The existing exemptions for
+`View` permissions and actions without linked steps still apply.
 For report actions, use a condition that checks the report identifier is present.
 An action without linked steps retains its existing global behavior. Completion is
 evaluated from the current workflow state, so resetting a step can revoke persistent

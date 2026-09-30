@@ -90,8 +90,8 @@ public class Action
     public string[] Steps { get; set; } = [];
 
     /// <summary>
-    /// Keeps this action available on active and completed steps, including after step deadlines.
-    /// Roles and the action's condition still apply. Defaults to false.
+    /// Keeps this action available on active and completed steps.
+    /// Roles, action conditions and applicable hard deadlines still apply. Defaults to false.
     /// </summary>
     public bool Persistent { get; set; }
 

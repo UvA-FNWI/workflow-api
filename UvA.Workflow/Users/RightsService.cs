@@ -195,9 +195,8 @@ public class RightsService(
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(context))
                             && actions.Contains(a.Type)
-                            && (a.Steps.Length == 0 || a.Steps.Intersect(activeSteps).Any() ||
-                                a.Persistent && modelService
-                                    .GetAvailableStepsForAction(instance, a, activeSteps, context).Length > 0)
+                            && (a.Steps.Length == 0 || modelService
+                                .GetAvailableStepsForAction(instance, a, activeSteps, context).Length > 0)
                             && (a.WorkflowDefinition == null || a.WorkflowDefinition == instance.WorkflowDefinition)
                 ))
             .Distinct()
@@ -262,10 +261,11 @@ public class RightsService(
         Domain_Action[] actions)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var activeSteps = modelService.GetActiveSteps(instance)
-            .Where(name => !definition.AllSteps.Get(name).HasPassedHardDeadline(context)).ToArray();
-        return actions.Where(a => a.Type == RoleAction.View || a.Persistent || a.Steps.Length == 0 ||
-                                  a.Steps.Intersect(activeSteps).Any()).ToArray();
+        var activeSteps = modelService.GetActiveSteps(instance);
+        // Check deadlines after resolving persistent steps so parent deadlines also apply to completed children.
+        return actions.Where(a => a.Type == RoleAction.View || a.Steps.Length == 0 || modelService
+            .GetAvailableStepsForAction(instance, a, activeSteps, context)
+            .Any(name => !definition.AllSteps.Get(name).HasPassedHardDeadline(context))).ToArray();
     }
 
     public async Task<bool> CanAny(string workflowDefinition, params RoleAction[] actions)

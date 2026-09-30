@@ -677,7 +677,7 @@
         },
         "persistent": {
           "type": "boolean",
-          "description": "Keeps this action available on active and completed steps, including after step deadlines.\n            Roles and the action's condition still apply. Defaults to false."
+          "description": "Keeps this action available on active and completed steps.\n            Roles, action conditions and applicable hard deadlines still apply. Defaults to false."
         },
         "noAutoOpenForm": {
           "type": "boolean",
