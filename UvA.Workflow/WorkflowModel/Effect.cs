@@ -234,6 +234,7 @@ public class SendMessage
             BodyTemplate?.Properties,
             Buttons.SelectMany(b => b.UrlTemplate.Properties),
             Buttons.SelectMany(b => b.LabelTemplate.Properties),
+            Buttons.SelectMany(b => b.IntentTemplate.Properties),
             RecipientLookups);
 
     /// The lookups referenced by To/Cc/Bcc entries, for context enrichment.
@@ -246,15 +247,17 @@ public class SendMessage
 
 public enum MailButtonIntent
 {
-    Primary
+    Primary,
+    Secondary
 }
 
 public class SendMessageButton
 {
     public string Url { get; set; } = null!;
     public BilingualString Label { get; set; } = "";
-    public MailButtonIntent Intent { get; set; } = MailButtonIntent.Primary;
+    public string Intent { get; set; } = nameof(MailButtonIntent.Primary);
 
+    public Template IntentTemplate => field ??= Template.Create(Intent);
     public Template UrlTemplate => field ??= Template.Create(Url);
     public BilingualTemplate LabelTemplate => field ??= BilingualTemplate.Create(Label)!;
 }

@@ -1014,7 +1014,8 @@
           ]
         },
         "intent": {
-          "$ref": "#/definitions/MailButtonIntent"
+          "type": "string",
+          "description": "Primary or Secondary, or a template resolving to either intent."
         }
       }
     },

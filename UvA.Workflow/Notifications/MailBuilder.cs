@@ -52,7 +52,7 @@ public class MailBuilder(
             .Select(b => new MailButton(
                 b.LabelTemplate.Apply(context).ForLanguage(language),
                 b.UrlTemplate.Execute(context),
-                b.Intent))
+                Enum.Parse<MailButtonIntent>(b.IntentTemplate.Execute(context), ignoreCase: true)))
             .Where(b => !string.IsNullOrWhiteSpace(b.Url))
             .ToList();
 
