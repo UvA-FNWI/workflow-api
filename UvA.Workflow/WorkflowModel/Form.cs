@@ -208,6 +208,11 @@ public class PageElement
 
     public Callout? Callout { get; set; }
 
+    /// <summary>
+    /// Expand property-backed step deadlines into date questions using the PostponementDate question template.
+    /// </summary>
+    public bool Deadlines { get; set; }
+
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>
     [

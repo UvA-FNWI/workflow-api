@@ -15,7 +15,7 @@ namespace UvA.Workflow.Deadlines;
 public static class DeadlineHistory
 {
     public static PropertyDefinition? GetProperty(Step step, WorkflowDefinition definition)
-        => definition.Properties.FirstOrDefault(p => p.Name == step.Deadline?.Date.Trim() && !p.IsArray &&
+        => definition.Properties.FirstOrDefault(p => p.Name == step.Deadline?.Date?.Trim() && !p.IsArray &&
                                                      p.DataType is DataType.Date or DataType.DateTime);
 
     public static (DateTimeOffset? PreviousDate, BilingualString? Reason) GetChange(

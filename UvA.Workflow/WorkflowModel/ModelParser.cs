@@ -311,15 +311,16 @@ public partial class ModelParser
         if (element.Question != null) setKinds.Add("question");
         if (element.Callout != null) setKinds.Add("callout");
         if (element.Text != null) setKinds.Add("text");
+        if (element.Deadlines) setKinds.Add("deadlines");
 
         if (setKinds.Count == 0)
             throw new Exception(
-                $"Form {formName} has a page element that is missing a type: set one of 'question', 'callout' or 'text'.");
+                $"Form {formName} has a page element that is missing a type: set one of 'question', 'callout', 'text' or 'deadlines'.");
 
         if (setKinds.Count > 1)
             throw new Exception(
                 $"Form {formName} has a page element that mixes types ({string.Join(", ", setKinds)}). " +
-                "A page element must be exactly one of 'question', 'callout' or 'text'.");
+                "A page element must be exactly one of 'question', 'callout', 'text' or 'deadlines'.");
     }
 
     private void PreProcess(Effect[] effects)
@@ -367,6 +368,8 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        PreProcessDeadlines(workflowDefinition);
+
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
 
@@ -448,15 +451,7 @@ public partial class ModelParser
         PreProcess(step.Condition);
         PreProcess(step.Ends);
 
-        if (step.Deadline?.MaxPostponementDays is { } maximum)
-        {
-            var date = step.Deadline.Date?.Trim();
-            var property = date == null ? null : workflowDefinition.Properties.GetOrDefault(date);
-            if (maximum < 0 || property == null || property.IsArray ||
-                property.DataType is not (DataType.Date or DataType.DateTime))
-                throw new Exception(
-                    $"maxPostponementDays on step {step.Name} must be non-negative, and its deadline must name a Date or DateTime property that is not a list");
-        }
+        PreProcessDeadline(step, workflowDefinition);
 
         if (step.Progress.Count(progress => progress.EffectiveCondition == null) > 1)
             throw new Exception($"Step {step.Name} has more than one fallback progress entry");
