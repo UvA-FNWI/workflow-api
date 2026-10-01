@@ -226,7 +226,7 @@
             "array",
             "null"
           ],
-          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Defaults to pdf when omitted.",
+          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Use * to allow any format.\n            Defaults to pdf when omitted.",
           "items": {
             "type": "string"
           }
