@@ -1,5 +1,5 @@
-using UvA.Workflow.WorkflowModel.Conditions;
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -89,6 +89,17 @@ public class PropertyDefinition : INamed
     public PropertyVisibility Visibility { get; set; }
 
     /// <summary>
+    /// Configure settings for file upload questions
+    /// </summary>
+    public FileSettings? FileSettings { get; set; }
+
+    public IReadOnlyList<string>? EffectiveAllowedFileTypes =>
+        FileSettings?.AllowedTypes ?? (DataType == DataType.File ? ["pdf"] : null);
+
+    public int? EffectiveAllowedFileSize =>
+        FileSettings?.MaximumSize ?? (DataType == DataType.File ? 10_000_000 : null);
+
+    /// <summary>
     /// Specific layout options for the data type
     /// </summary>
     /// <remarks>
@@ -114,25 +125,6 @@ public class PropertyDefinition : INamed
     public string? Default { get; set; }
 
     public Expression? DefaultExpression => ExpressionParser.Parse(Default);
-
-    /// <summary>
-    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
-    /// Defaults to pdf when omitted.
-    /// </summary>
-    public string[]? AllowedFileTypes { get; set; }
-
-    [YamlIgnore]
-    public IReadOnlyList<string>? EffectiveAllowedFileTypes =>
-        AllowedFileTypes ?? (DataType == DataType.File ? ["pdf"] : null);
-
-    /// <summary>
-    /// Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.
-    /// </summary>
-    public int? AllowedFileSize { get; set; }
-
-    [YamlIgnore]
-    public int? EffectiveAllowedFileSize =>
-        AllowedFileSize ?? (DataType == DataType.File ? 10_000_000 : null);
 
     /// <summary>
     /// Values for a choice propertyDefinition.
@@ -243,6 +235,27 @@ public class PropertyDefinition : INamed
     /// The name of another property this property is linked to.
     /// </summary>
     public string? LinkedTo { get; set; }
+}
+
+public class FileSettings
+{
+    /// <summary>
+    /// Prefix (template) to add to the file names when storing files 
+    /// </summary>
+    public string? Prefix { get; set; }
+
+    public Template? PrefixTemplate => Template.Create(Prefix);
+
+    /// <summary>
+    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Defaults to pdf when omitted.
+    /// </summary>
+    public string[]? AllowedTypes { get; set; }
+
+    /// <summary>
+    /// Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.
+    /// </summary>
+    public int? MaximumSize { get; set; }
 }
 
 public enum CalculationType

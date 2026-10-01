@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
@@ -12,11 +13,13 @@ public class EduIdUserServiceExternalUserTests
 {
     private static EduIdUserService CreateService(
         Mock<IUserRepository> userRepositoryMock,
-        EduIdOptions? options = null)
+        EduIdOptions? options = null,
+        IMemoryCache? cache = null)
         => new(userRepositoryMock.Object,
             Mock.Of<IEduIdInvitationClient>(),
             Options.Create(options ?? new EduIdOptions()),
-            Mock.Of<ILogger<EduIdUserService>>());
+            Mock.Of<ILogger<EduIdUserService>>(),
+            cache ?? new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
     public async Task CreateOrUpdateExternalUser_CreatesInactiveEduIdUser()
@@ -127,7 +130,9 @@ public class EduIdUserServiceExternalUserTests
             .ReturnsAsync(existingUser);
         userRepositoryMock.Setup(r => r.Update(existingUser, CancellationToken.None))
             .Returns(Task.CompletedTask);
-        var service = CreateService(userRepositoryMock);
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        cache.Set(UserServiceBase.GetCacheKeyForUser(existingUser.UserName), new User { DisplayName = "Old Name" });
+        var service = CreateService(userRepositoryMock, cache: cache);
 
         var result = await service.CreateOrUpdateExternalUser(
             "New Name",
@@ -143,6 +148,7 @@ public class EduIdUserServiceExternalUserTests
         Assert.Equal("New Name", result.DisplayName);
         Assert.True(result.IsExternal);
         userRepositoryMock.Verify(r => r.Update(existingUser, CancellationToken.None), Times.Once);
+        Assert.False(cache.TryGetValue(UserServiceBase.GetCacheKeyForUser(existingUser.UserName), out _));
     }
 
     [Fact]
@@ -209,15 +215,21 @@ public class EduIdUserServiceExternalUserTests
             .Setup(c => c.CreateInvitationAsync(It.IsAny<EduIdInvitationRequest>(), CancellationToken.None))
             .ReturnsAsync(new EduIdInvitationResponse(200, null));
 
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        cache.Set(UserServiceBase.GetCacheKeyForUser(existingUser.UserName), new User());
+        cache.Set(UserServiceBase.GetCacheKeyForUser("new@example.org"), new User());
         var service = new EduIdUserService(
             userRepositoryMock.Object,
             invitationClientMock.Object,
             Options.Create(new EduIdOptions()),
-            Mock.Of<ILogger<EduIdUserService>>());
+            Mock.Of<ILogger<EduIdUserService>>(),
+            cache);
 
         await service.CreateOrUpdateExternalUser("Name", "new@example.org", null, userId, CancellationToken.None);
 
         Assert.Equal("new@example.org", existingUser.Email);
+        Assert.False(cache.TryGetValue(UserServiceBase.GetCacheKeyForUser("old@example.org"), out _));
+        Assert.False(cache.TryGetValue(UserServiceBase.GetCacheKeyForUser("new@example.org"), out _));
         userRepositoryMock.Verify(r => r.Update(existingUser, CancellationToken.None), Times.Once);
         invitationClientMock.Verify(
             c => c.CreateInvitationAsync(

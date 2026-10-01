@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Minio;
 using Minio.DataModel.Args;
 using Serilog;
@@ -48,35 +47,23 @@ public class S3ArtifactService : IArtifactService
     }
 
     public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName,
-        byte[] contents)
-        => await SaveArtifact(artifactId, artifactName, new MemoryStream(contents));
+        byte[] contents, string contentType, CancellationToken ct)
+        => await SaveArtifact(artifactId, artifactName, new MemoryStream(contents), contentType, ct);
 
     public async Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName,
-        Stream stream)
+        Stream stream, string contentType, CancellationToken ct)
     {
         return await SaveArtifact(new SaveArtifactRequest
         {
             ArtifactId = artifactId,
             Stream = stream,
             FileName = artifactName,
-            ContentType = "application/pdf",
+            ContentType = contentType,
             FileSize = stream.Length
-        });
+        }, ct);
     }
 
-    public async Task<ArtifactInfo> SaveArtifact(string artifactId, IFormFile formFile)
-    {
-        return await SaveArtifact(new SaveArtifactRequest
-        {
-            ArtifactId = artifactId,
-            Stream = formFile.OpenReadStream(),
-            FileName = formFile.FileName,
-            ContentType = formFile.ContentType,
-            FileSize = formFile.Length
-        });
-    }
-
-    private async Task<ArtifactInfo> SaveArtifact(SaveArtifactRequest request)
+    private async Task<ArtifactInfo> SaveArtifact(SaveArtifactRequest request, CancellationToken ct)
     {
         await UploadFileAsync(
             Buckets.Milestones,
@@ -87,7 +74,8 @@ public class S3ArtifactService : IArtifactService
             {
                 ["filename"] = request.FileName,
                 ["type"] = request.ContentType
-            });
+            },
+            ct);
 
         return new ArtifactInfo(
             request.ArtifactId,
