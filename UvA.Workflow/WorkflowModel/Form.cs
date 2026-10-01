@@ -94,7 +94,6 @@ public class Form : INamed, IDeclaredKeys
     /// </summary>
     public FormLayout Layout { get; set; }
 
-
     /// <summary>
     /// Target reference property. Set this to use the form to update the properties of the referenced entity
     /// </summary>
@@ -208,6 +207,11 @@ public class PageElement
     [YamlIgnore] public PropertyDefinition? QuestionDefinition { get; set; }
 
     public Callout? Callout { get; set; }
+
+    /// <summary>
+    /// Expand property-backed step deadlines into date questions using the PostponementDate question template.
+    /// </summary>
+    public bool Deadlines { get; set; }
 
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>

@@ -1,4 +1,5 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+ENV TZ=Europe/Amsterdam
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
@@ -6,6 +7,7 @@ EXPOSE 8080
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 ENV HUSKY=0
+ENV TZ=Europe/Amsterdam
 WORKDIR /src
 COPY ["UvA.Workflow.slnx", "./"]
 COPY ["UvA.Workflow.Api/UvA.Workflow.Api.csproj", "UvA.Workflow.Api/"]

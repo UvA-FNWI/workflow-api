@@ -25,6 +25,8 @@ public record Expression
 
     private static readonly Dictionary<string, Function> Functions = new()
     {
+        ["withDate"] = new Function<DateTime?, DateTime?, DateTime?>((previous, date) =>
+            previous == null || date == null ? null : date.Value.Date + previous.Value.TimeOfDay),
         ["addDays"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(i)),
         ["addMonths"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddMonths(i)),
         ["addWeeks"] = new Function<DateTime?, int, DateTime?>((d, i) => d?.AddDays(7 * i)),
@@ -34,6 +36,7 @@ public record Expression
             => d?.ToString(f, CultureInfo.InvariantCulture)),
         ["dateLong"] = new Function<DateTime?, string?>(d => d?.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture)),
         ["dateShort"] = new Function<DateTime?, string?>(d => d?.ToString("dd/MM", CultureInfo.InvariantCulture)),
+        ["equal"] = new Function<object, object, bool>(Equals),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),

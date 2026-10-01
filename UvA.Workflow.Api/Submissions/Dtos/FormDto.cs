@@ -1,3 +1,4 @@
+using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -178,7 +179,7 @@ public record QuestionDto(
             IsArray: propertyDefinition.IsArray,
             Choices: choices,
             WorkflowDefinition: propertyDefinition.WorkflowDefinition?.Name,
-            Description: propertyDefinition.Description,
+            Description: BilingualTemplate.Create(propertyDefinition.Description)?.Apply(context),
             ShortText: propertyDefinition.ShortDisplayName,
             Layout: propertyDefinition.Layout,
             SubProperties: subProperties,

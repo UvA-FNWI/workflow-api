@@ -293,6 +293,7 @@ public partial class ModelParser
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
+
         EnsureEffectEventsExist(form.OnSubmit, workflowDefinition);
         EnsureEffectEventsExist(form.OnSave, workflowDefinition);
 
@@ -310,15 +311,16 @@ public partial class ModelParser
         if (element.Question != null) setKinds.Add("question");
         if (element.Callout != null) setKinds.Add("callout");
         if (element.Text != null) setKinds.Add("text");
+        if (element.Deadlines) setKinds.Add("deadlines");
 
         if (setKinds.Count == 0)
             throw new Exception(
-                $"Form {formName} has a page element that is missing a type: set one of 'question', 'callout' or 'text'.");
+                $"Form {formName} has a page element that is missing a type: set one of 'question', 'callout', 'text' or 'deadlines'.");
 
         if (setKinds.Count > 1)
             throw new Exception(
                 $"Form {formName} has a page element that mixes types ({string.Join(", ", setKinds)}). " +
-                "A page element must be exactly one of 'question', 'callout' or 'text'.");
+                "A page element must be exactly one of 'question', 'callout', 'text' or 'deadlines'.");
     }
 
     private void PreProcess(Effect[] effects)
@@ -368,6 +370,8 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        PreProcessDeadlines(workflowDefinition);
+
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
 
@@ -448,6 +452,8 @@ public partial class ModelParser
     {
         PreProcess(step.Condition);
         PreProcess(step.Ends);
+
+        PreProcessDeadline(step, workflowDefinition);
 
         if (step.Progress.Count(progress => progress.EffectiveCondition == null) > 1)
             throw new Exception($"Step {step.Name} has more than one fallback progress entry");

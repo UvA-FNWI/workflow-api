@@ -1,3 +1,4 @@
+using UvA.Workflow.Deadlines;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Jobs;
@@ -37,7 +38,7 @@ public class SubmissionService(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
         // Check if already submitted
-        if (submissionState.IsSubmitted)
+        if (submissionState.IsSubmitted && form.Step != null)
             throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
                 "Submission already submitted");
 
@@ -55,24 +56,46 @@ public class SubmissionService(
 
         // Validate field validation rules
         var invalid = form.PropertyDefinitions
-            .Where(q => instance.HasAnswer(q.Name) && !q.Validation.IsMet(objectContext))
+            .Where(q => q.Condition.IsMet(objectContext) && instance.HasAnswer(q.Name) &&
+                        !q.Validation.IsMet(objectContext))
             .Select(q => new InvalidQuestion(
                 q.Name,
                 q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde")
             ));
 
         var validationErrors = missing.Concat(invalid).ToArray();
+        if (validationErrors.Length == 0 && form.Step == null)
+        {
+            var journal = await instanceJournalService.GetInstanceJournal(instance.Id, false, ct);
+            validationErrors = DeadlineHistory.ValidateUpdates(instance, form, objectContext, journal).ToArray();
+        }
 
         if (validationErrors.Any())
         {
             return new SubmissionResult(false, validationErrors, submissionState);
         }
 
+        var previousValues = form.OnSubmit
+            .Where(effect => effect.SetProperty != null)
+            .Select(effect => effect.SetProperty!.Property)
+            .Distinct()
+            .ToDictionary(property => property,
+                property => (instance.GetProperty(property.Split('.')) ?? BsonNull.Value).DeepClone());
+
         if (form.EmitFormSubmitEvent)
             await effectService.AddEvent(instance, submissionId, user, ct);
 
         var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
             form.Name, form.OnSubmit, user, null, ct);
+
+        // Effects update the instance directly, so retain their previous values in the normal journal.
+        foreach (var (property, previousValue) in previousValues)
+        {
+            var currentValue = instance.GetProperty(property.Split('.')) ?? BsonNull.Value;
+            if (currentValue != previousValue)
+                await instanceJournalService.LogPropertyChange(instance.Id,
+                    PropertyChangeEntry.Create(property, previousValue, user), ct);
+        }
 
         var finalSubmissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
         if (!finalSubmissionState.IsSubmitted)
