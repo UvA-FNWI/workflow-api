@@ -195,7 +195,9 @@ public class RightsService(
             .SelectMany(r => r!.Actions
                 .Where(a => (a.Condition == null || a.Condition.IsMet(context))
                             && actions.Contains(a.Type)
-                            && (a.Steps.Length == 0 || a.Steps.Intersect(activeSteps).Any())
+                            && (a.Steps.Length == 0 || a.Steps.Intersect(activeSteps).Any() ||
+                                a.Persistent && modelService
+                                    .GetAvailableStepsForAction(instance, a, activeSteps, context).Length > 0)
                             && (a.WorkflowDefinition == null || a.WorkflowDefinition == instance.WorkflowDefinition)
                 ))
             .Distinct()
@@ -262,7 +264,7 @@ public class RightsService(
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var activeSteps = modelService.GetActiveSteps(instance)
             .Where(name => !definition.AllSteps.Get(name).HasPassedHardDeadline(context)).ToArray();
-        return actions.Where(a => a.Type == RoleAction.View || a.Steps.Length == 0 ||
+        return actions.Where(a => a.Type == RoleAction.View || a.Persistent || a.Steps.Length == 0 ||
                                   a.Steps.Intersect(activeSteps).Any()).ToArray();
     }
 

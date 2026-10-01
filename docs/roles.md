@@ -90,6 +90,33 @@ actions:
     steps: [Review]        # Only during the "Review" step
 ```
 
+### Persistent step actions
+
+Set `persistent: true` on an action to keep it available while a linked step is active
+and after that step completes. Buttons remain in the matching step cards. This works
+both in `globalActions` with an explicit `steps` list and in a step's `actions`, where
+the containing step is linked automatically. Each linked step is evaluated separately,
+so a future step does not gain a button merely because another linked step is complete.
+
+```yaml
+# In a step definition:
+actions:
+  - type: View
+    roles: [Reviewer]
+    form: Request
+    persistent: true
+```
+
+Roles and action conditions are still checked on every request. Persistent actions
+are not blocked by step deadlines. Use this for ongoing access such as viewing a
+report; marking a write action persistent deliberately extends its availability too.
+For report actions, use a condition that checks the report identifier is present.
+An action without linked steps retains its existing global behavior. Completion is
+evaluated from the current workflow state, so resetting a step can revoke persistent
+access if the step is no longer active or complete.
+
+The admin card lists persistent actions alongside ordinary actions under their linked steps.
+
 ## Well-known roles
 
 > ⚠️ **Important:** The following role names have special meaning in the frontend UI. If your workflow uses equivalent concepts, **use these exact names** to ensure correct UI behavior.
