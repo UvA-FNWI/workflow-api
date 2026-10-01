@@ -202,7 +202,14 @@ public class PropertyDefinition : INamed
         (Values?.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Append(Filter)
         .Where(c => c != null)!;
 
-    public List<PropertyDefinition> DependentQuestions { get; } = [];
+    [YamlIgnore] public List<PropertyDefinition> DependentQuestions { get; private set; } = [];
+
+    public PropertyDefinition Clone()
+    {
+        var clone = (PropertyDefinition)MemberwiseClone();
+        clone.DependentQuestions = [];
+        return clone;
+    }
 
     /// <summary>
     /// Effect that is run whenever a value is changed for this property
