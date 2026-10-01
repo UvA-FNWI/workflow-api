@@ -8,7 +8,8 @@ public record StepVersion
 {
     public int VersionNumber { get; init; }
     public List<string> EventIds { get; init; } = [];
-    public DateTime SubmittedAt { get; init; }
+    public DateTime StartedAt { get; init; }
+    public DateTime? SubmittedAt { get; init; }
 }
 
 public interface IStepVersionService

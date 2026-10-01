@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 using Moq;
+using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
@@ -48,6 +50,11 @@ public class DeadlineTests
                                        roles: [Registered]
                                    """
     });
+
+    static IEnumerable<SubmissionDto> GetSubmissionsFromStep(StepDto step) =>
+        (step.Versions?.Current?.Submissions ?? [])
+        .Concat(step.Versions?.History.SelectMany(version => version.Submissions) ?? [])
+        .Concat((step.Children ?? []).SelectMany(GetSubmissionsFromStep));
 
     [Fact]
     public void Deadline_IsStepMetadata_AndDefaultsToSoft()
@@ -255,24 +262,27 @@ public class DeadlineTests
 
         var dto = await factory.Create(instance, CancellationToken.None);
 
+        var submissions = dto.Steps.SelectMany(GetSubmissionsFromStep).ToList();
+
         Assert.Null(dto.Steps.Single(step => step.Id == "Open").Deadline);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Closed");
         if (submitted)
         {
-            Assert.Contains(dto.Submissions, submission => submission.FormName == "Closed");
-            Assert.Contains(dto.Submissions, submission => submission.FormName == "Available");
+            Assert.Contains(submissions, submission => submission.FormName == "Closed");
+            Assert.Contains(submissions, submission => submission.FormName == "Available");
         }
         else
         {
-            Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Closed");
+            Assert.DoesNotContain(submissions, submission => submission.FormName == "Closed");
             Assert.Contains(dto.Actions, action => action.Form == "Available");
         }
 
         modelService.WorkflowDefinitions["Hard"].AllSteps.Single(step => step.Name == "Step").Deadline!.Type =
             DeadlineType.Soft;
         var soft = await factory.Create(instance, CancellationToken.None);
+        var softSubmissions = soft.Steps.SelectMany(GetSubmissionsFromStep).ToList();
         if (submitted)
-            Assert.Contains(soft.Submissions, submission => submission.FormName == "Closed");
+            Assert.Contains(softSubmissions, submission => submission.FormName == "Closed");
         else
             Assert.Contains(soft.Actions, action => action.Form == "Closed");
     }
@@ -349,11 +359,13 @@ public class DeadlineTests
         Assert.Equal("Child", child.Id);
         Assert.True(child.HasSubmission);
         Assert.False(child.ExpectsSubmission);
-        Assert.Null(step.Versions);
+        Assert.NotNull(step.Versions);
+        Assert.Empty(step.Versions.History);
         Assert.False(step.HasSubmission);
         Assert.False(step.ExpectsSubmission);
         Assert.True(step.Deadline!.IsPassed);
-        var submission = Assert.Single(dto.Submissions);
+        Assert.NotNull(step.Versions.Current);
+        var submission = Assert.Single(step.Versions.Current.Submissions);
         Assert.Equal("Closed", submission.FormName);
         Assert.Empty(submission.Permissions);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Closed");
@@ -392,11 +404,12 @@ public class DeadlineTests
         var dto = await factory.Create(instance, CancellationToken.None);
         var subjectDto = dto.Steps.Single(step => step.Id == "Subject");
         var startDto = subjectDto.Children!.Single(step => step.Id == "Start");
+        var submissions = GetSubmissionsFromStep(startDto).ToList();
         if (rejected)
         {
             Assert.Null(startDto.Deadline!.Message);
             Assert.True(startDto.Deadline!.IsPassed);
-            Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
+            Assert.DoesNotContain(submissions, submission => submission.FormName == "Start");
             var rights = new RightsService(modelService, user.Object, repository.Object);
             Assert.True(await rights.Can(instance, RoleAction.View, "Start"));
             Assert.False(await rights.Can(instance, RoleAction.Submit, "Start"));
@@ -408,7 +421,7 @@ public class DeadlineTests
             Assert.NotEqual(StepHeaderPillType.Error, subjectDto.HeaderStatus?.Type);
             Assert.True(startDto.HasSubmission);
             Assert.Equal(submittedAt, startDto.DateCompleted);
-            var submission = Assert.Single(dto.Submissions, submission => submission.FormName == "Start");
+            var submission = Assert.Single(submissions, submission => submission.FormName == "Start");
             Assert.Equal("Proposal to review",
                 submission.Answers.Single(answer => answer.QuestionName == "Subject").Value!.Value.GetString());
             Assert.Contains(dto.Actions, action => action.Form == "ApproveSubject");
@@ -462,24 +475,28 @@ public class DeadlineTests
             canView ? ["Coordinator"] : [], history);
 
         var dto = await factory.Create(instance, CancellationToken.None);
+        var submissions = GetSubmissionsFromStep(dto.Steps.Single(step => step.Id == deadlineStepName)).ToList();
         var subject = dto.Steps.Single(step => step.Id == "Subject");
         var expired = deadlineStepName == "Subject" ? subject : subject.Children!.Single(step => step.Id == "Start");
         Assert.Null(expired.Deadline!.Message);
         Assert.True(expired.Deadline!.IsPassed);
         Assert.False(subject.Children!.Single(step => step.Id == "Start").ExpectsSubmission);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Start");
-        Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
-        var version = Assert.Single(expired.Versions!);
+        Assert.DoesNotContain(submissions, submission => submission.FormName == "Start");
+        Assert.NotNull(expired.Versions);
+        Assert.NotNull(expired.Versions.Current);
+        Assert.Empty(expired.Versions.History);
         if (canView)
         {
-            var submission = Assert.Single(version.Submissions, submission => submission.FormName == "Start");
+            var submission = Assert.Single(expired.Versions.Current.Submissions,
+                submission => submission.FormName == "Start");
             Assert.Empty(submission.Permissions);
             Assert.Equal("Original proposal",
                 submission.Answers.Single(answer => answer.QuestionName == "Subject").Value!.Value.GetString());
         }
         else
         {
-            Assert.Empty(version.Submissions);
+            Assert.Empty(expired.Versions.Current.Submissions);
         }
     }
 

@@ -20,6 +20,11 @@ namespace UvA.Workflow.Tests;
 
 public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 {
+    static IEnumerable<SubmissionDto> GetSubmissionsFromStep(StepDto step) =>
+        (step.Versions?.Current?.Submissions ?? [])
+        .Concat(step.Versions?.History.SelectMany(version => version.Submissions) ?? [])
+        .Concat((step.Children ?? []).SelectMany(GetSubmissionsFromStep));
+
     [Fact]
     public async Task Create_LiveSubmissionIncludesGroupedAnswerHistory()
     {
@@ -40,8 +45,9 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
 
         var dto = await factory.Create(instance, CancellationToken.None);
+        var submissions = dto.Steps.SelectMany(GetSubmissionsFromStep).ToList();
 
-        var start = dto.Submissions.Single(submission => submission.FormName == "Start");
+        var start = submissions.Single(submission => submission.FormName == "Start");
         var ec = start.Answers.Single(answer => answer.QuestionName == "EC");
         var group = Assert.Single(ec.Changes!);
         Assert.Equal(1, group.VersionNumber);
@@ -71,7 +77,11 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var startStep = FindStep(dto.Steps, "Start");
-        var version = Assert.Single(startStep.Versions!);
+        Assert.NotNull(startStep.Versions);
+        Assert.NotNull(startStep.Versions.Current);
+        Assert.Empty(startStep.Versions.History);
+        var version = startStep.Versions.Current;
+
         Assert.NotEmpty(version.Submissions);
         Assert.All(version.Submissions, submission => Assert.Equal("Start", submission.FormName));
         Assert.All(version.Submissions, submission => Assert.Equal(submittedAt, submission.DateSubmitted));
@@ -115,7 +125,11 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var startStep = FindStep(dto.Steps, "Start");
-        var version = Assert.Single(startStep.Versions!);
+        Assert.NotNull(startStep.Versions);
+        Assert.NotNull(startStep.Versions.Current);
+        Assert.Empty(startStep.Versions.History);
+        var version = startStep.Versions.Current;
+
         Assert.NotEmpty(version.Submissions);
         Assert.All(version.Submissions, submission => Assert.Equal("Start", submission.FormName));
         Assert.All(version.Submissions, submission => Assert.Equal(submittedAt, submission.DateSubmitted));
@@ -149,7 +163,11 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var supervisorStep = FindStep(dto.Steps, "ProposalAssessmentSupervisor");
-        var version = Assert.Single(supervisorStep.Versions!);
+        Assert.NotNull(supervisorStep.Versions);
+        Assert.NotNull(supervisorStep.Versions.Current);
+        Assert.Empty(supervisorStep.Versions.History);
+        var version = supervisorStep.Versions.Current;
+
         var submission = Assert.Single(version.Submissions);
         var proposalSufficient = submission.Answers.Single(answer => answer.QuestionName == "ProposalSufficient");
         Assert.Equal("Pass", proposalSufficient.Value?.GetString());
@@ -194,8 +212,17 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var startStep = FindStep(dto.Steps, "Start");
-        var historicalVersion = Assert.Single(startStep.Versions!);
+        Assert.NotNull(startStep.Versions);
+        Assert.NotNull(startStep.Versions.Current);
+        Assert.Single(startStep.Versions.History);
+        var currentVersion = startStep.Versions.Current;
+        var historicalVersion = startStep.Versions.History.Single();
+
+        Assert.Equal(2, currentVersion.VersionNumber);
+        Assert.Equal(currentSubmittedAt, currentVersion.CompletionTimestamp);
+
         Assert.Equal(1, historicalVersion.VersionNumber);
+        Assert.Equal(historicalSubmittedAt, historicalVersion.CompletionTimestamp);
     }
 
     [Fact]

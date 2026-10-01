@@ -21,7 +21,6 @@ public record WorkflowInstanceDto(
     ActionDto[] Actions,
     FieldDto[] Fields,
     StepDto[] Steps,
-    SubmissionDto[] Submissions,
     RoleAction[] Permissions,
     bool CanUseAdminTools,
     bool CanImpersonate,
@@ -66,8 +65,9 @@ public record StepDto(
     StepResultsType ResultsType,
     bool ExpectsSubmission,
     bool HasSubmission,
-    StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
-    StepVersionsDto? Versions = null);
+    StepVersionsDto? Versions,
+    StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential
+);
 
 public record ActionDto(
     ActionType Type,
