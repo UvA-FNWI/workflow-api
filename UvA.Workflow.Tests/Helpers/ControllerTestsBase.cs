@@ -27,6 +27,7 @@ public abstract class ControllerTestsBase
     protected readonly Mock<IUserService> _userServiceMock;
     protected readonly Mock<IMailService> _mailServiceMock;
     protected readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
+    protected readonly Mock<ILoginMethodClassifier> _loginMethodClassifierMock;
     protected readonly Mock<IExternalUserService> _externalUserServiceMock;
     protected readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     protected readonly Mock<IArtifactService> _artifactServiceMock;
@@ -70,6 +71,7 @@ public abstract class ControllerTestsBase
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
         _eduIdUserServiceMock = new Mock<IEduIdUserService>();
+        _loginMethodClassifierMock = new Mock<ILoginMethodClassifier>();
         _externalUserServiceMock = new Mock<IExternalUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
@@ -95,7 +97,10 @@ public abstract class ControllerTestsBase
 
 
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
-        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
+        var mailLayout = new Mock<IMailLayout>();
+        mailLayout.Setup(l => l.Render(It.IsAny<string>(), It.IsAny<IReadOnlyList<MailButton>>()))
+            .Returns((string body, IReadOnlyList<MailButton> _) => body);
+        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(mailLayout.Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
 
         _workflowInstanceService =
@@ -120,11 +125,12 @@ public abstract class ControllerTestsBase
                 _eventService,
                 _modelService,
                 _mailServiceMock.Object,
-                _eduIdUserServiceMock.Object,
+                _externalUserServiceMock.Object,
                 _artifactServiceMock.Object,
                 _mailLogRepositoryMock.Object,
                 _configurationMock.Object,
-                _loggerFactory.CreateLogger<EffectService>());
+                _loggerFactory.CreateLogger<EffectService>(),
+                [_loginMethodClassifierMock.Object]);
 
         _jobService =
             new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
