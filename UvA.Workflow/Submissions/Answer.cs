@@ -40,10 +40,16 @@ public record Answer(
 
         var question = form.ActualForm.WorkflowDefinition.Properties.Get(questionName);
         var value = GetValue(question, answer);
-        var file = ObjectContext.GetValue(answer, question) as ArtifactInfo;
+        var files = question.DataType == DataType.File
+            ? question.IsArray
+                ? ObjectContext.GetValue(answer, question) as ArtifactInfo[] ?? []
+                : ObjectContext.GetValue(answer, question) is ArtifactInfo file
+                    ? new[] { file }
+                    : []
+            : null;
 
         return new Answer($"{form.Name}_{questionName}", questionName, form.Name, workflowDefinition, isVisible,
-            validationError, value, question.DataType == DataType.File ? file != null ? [file] : [] : null);
+            validationError, value, files);
     }
 
     public static JsonElement? GetValue(PropertyDefinition question, BsonValue? answer)
@@ -73,8 +79,14 @@ public record Answer(
 
         if (question.DataType == DataType.File)
         {
-            var value = ObjectContext.GetValue(answer, question) as ArtifactInfo;
-            return value?.Name == null ? null : JsonSerializer.SerializeToElement(value.Name);
+            var value = ObjectContext.GetValue(answer, question);
+            if (question.IsArray)
+            {
+                var names = (value as ArtifactInfo[] ?? []).Select(file => file.Name).ToArray();
+                return names.Length == 0 ? null : JsonSerializer.SerializeToElement(names);
+            }
+
+            return value is ArtifactInfo file ? JsonSerializer.SerializeToElement(file.Name) : null;
         }
 
         if (question.DataType == DataType.Check)

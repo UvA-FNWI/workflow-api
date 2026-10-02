@@ -240,7 +240,7 @@ public class PropertyDefinition : INamed
 public class FileSettings
 {
     /// <summary>
-    /// Prefix (template) to add to the file names when storing files 
+    /// Prefix (template) to add to the file names when storing files
     /// </summary>
     public string? Prefix { get; set; }
 
@@ -248,6 +248,7 @@ public class FileSettings
 
     /// <summary>
     /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Use * to allow any format.
     /// Defaults to pdf when omitted.
     /// </summary>
     public string[]? AllowedTypes { get; set; }
