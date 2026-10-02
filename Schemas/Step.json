@@ -997,7 +997,8 @@
       "additionalProperties": false,
       "required": [
         "url",
-        "label"
+        "label",
+        "intent"
       ],
       "properties": {
         "url": {
@@ -1014,16 +1015,9 @@
           ]
         },
         "intent": {
-          "type": "string",
-          "description": "Primary or Secondary, or a template resolving to either intent."
+          "type": "string"
         }
       }
-    },
-    "MailButtonIntent": {
-      "type": "string",
-      "enum": [
-        "Primary"
-      ]
     },
     "Attachment": {
       "title": "Attachment",
