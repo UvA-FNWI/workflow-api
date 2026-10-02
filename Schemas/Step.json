@@ -770,6 +770,17 @@
             }
           ]
         },
+        "sendAccessMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Prepare login access and send one personalized email per recipient",
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
         "showConfetti": {
           "type": [
             "boolean",
@@ -986,7 +997,8 @@
       "additionalProperties": false,
       "required": [
         "url",
-        "label"
+        "label",
+        "intent"
       ],
       "properties": {
         "url": {
@@ -1003,15 +1015,9 @@
           ]
         },
         "intent": {
-          "$ref": "#/definitions/MailButtonIntent"
+          "type": "string"
         }
       }
-    },
-    "MailButtonIntent": {
-      "type": "string",
-      "enum": [
-        "Primary"
-      ]
     },
     "Attachment": {
       "title": "Attachment",

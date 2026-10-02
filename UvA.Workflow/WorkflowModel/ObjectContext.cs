@@ -60,7 +60,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
                     Id = element.Name,
                     Date = (element.Value as BsonDocument)?.GetValue("Date", BsonNull.Value)
                         is BsonDateTime date
-                            ? date.ToLocalTime()
+                            ? date.ToUniversalTime()
                             : null
                 });
             var instance = new WorkflowInstance
@@ -96,7 +96,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
         dict.Add("Id", instance.Id);
         dict.Add("CurrentStep", instance.CurrentStep);
-        dict.Add("CreateDate", instance.CreatedOn);
+        dict.Add("CreateDate", instance.CreatedOn.ToLocalTime());
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
@@ -109,7 +109,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         WorkflowInstance instance,
         WorkflowDefinition workflowDefinition)
     {
-        dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()
+        dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
                             ?? dict.GetValueOrDefault("CreateDate");
 
         foreach (var ev in instance.Events.Values)
@@ -123,7 +123,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             dict[activeKey] = isActive;
 
             if (ev.Date != null && isActive)
-                dict[eventKey] = ev.Date;
+                dict[eventKey] = ev.Date.Value.ToLocalTime();
         }
     }
 

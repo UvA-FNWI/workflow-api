@@ -28,6 +28,19 @@ public class EduIdUserService(
             domain.EndsWith($".{internalDomain}", StringComparison.OrdinalIgnoreCase));
     }
 
+    public async Task<ExternalUserAccessResult> PrepareAccess(
+        string email,
+        string displayName,
+        ExternalUserAccessMode mode,
+        CancellationToken ct = default)
+    {
+        var deliveryMode = mode == ExternalUserAccessMode.SendInstructions
+            ? EduIdInviteDeliveryMode.SendEmail
+            : EduIdInviteDeliveryMode.ReturnInvitationUrl;
+        var result = await EnsureExternalAccount(email, displayName, deliveryMode, ct);
+        return new ExternalUserAccessResult(result.User, result.InvitationUrl, "EduId");
+    }
+
     public async Task<UserSearchResult> CreateOrUpdateExternalUser(
         string displayName,
         string email,
@@ -116,13 +129,17 @@ public class EduIdUserService(
 
         if (changed)
         {
-            await userRepository.Update(existingUser, ct);
             cache.Remove(UserServiceBase.GetCacheKeyForUser(originalUserName));
             cache.Remove(UserServiceBase.GetCacheKeyForUser(existingUser.UserName));
         }
 
         if (wasPending && emailChanged)
+        {
             await SendInviteAfterEmailUpdate(existingUser, ct);
+            await userRepository.Update(existingUser, ct);
+        }
+        else if (changed)
+            await userRepository.Update(existingUser, ct);
 
         return CreateSearchResult(existingUser);
     }
@@ -169,6 +186,9 @@ public class EduIdUserService(
             return await CreateExternalAccount(trimmedEmail, resolvedDisplayName, deliveryMode, ct);
 
         if (existingUser.InvitationState == UserInvitationState.Required)
+            return await InviteExternalAccount(existingUser, deliveryMode, ct);
+
+        if (!existingUser.IsActive && deliveryMode == EduIdInviteDeliveryMode.ReturnInvitationUrl)
             return await InviteExternalAccount(existingUser, deliveryMode, ct);
 
         return existingUser.IsActive
@@ -290,7 +310,9 @@ public class EduIdUserService(
             IsActive = false
         };
 
-        var result = await InviteExternalAccount(user, deliveryMode, ct);
+        // User is not in the repository yet, so skip InviteExternalAccount's Update.
+        // Create only after the invite succeeds, so a failed SURF call leaves no orphan.
+        var result = await InviteExternalAccount(user, deliveryMode, ct, persistUser: false);
 
         if (result.Status == EduIdExternalAccountStatus.Invited)
             await userRepository.Create(user, ct);
@@ -301,7 +323,8 @@ public class EduIdUserService(
     private async Task<EduIdExternalAccountResult> InviteExternalAccount(
         User user,
         EduIdInviteDeliveryMode deliveryMode,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool persistUser = true)
     {
         var request = new EduIdInvitationRequest
         {
@@ -337,7 +360,8 @@ public class EduIdUserService(
         if (user.InvitationState != UserInvitationState.Pending)
         {
             user.InvitationState = UserInvitationState.Pending;
-            await userRepository.Update(user, ct);
+            if (persistUser)
+                await userRepository.Update(user, ct);
         }
 
         logger.LogInformation("Created pending EduID user for {Email}", user.Email);

@@ -58,7 +58,17 @@ public class Page : INamed
 
     public bool HasResults => PageElements.Any(e => e.QuestionDefinition?.Calculation?.Weight != null);
 
-    [YamlIgnore] public IEnumerable<Lookup> Lookups => PageElements.SelectMany(e => e.Lookups);
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. PageElements.SelectMany(e => e.Lookups),
+        .. Condition?.Properties ?? []
+    ];
+
+    /// <summary>
+    /// Condition that determines if the page should be shown
+    /// </summary>
+    public Condition? Condition { get; set; }
 
     public Page Clone()
     {

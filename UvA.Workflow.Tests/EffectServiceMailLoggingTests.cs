@@ -27,7 +27,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IEduIdUserService>();
+        var eduIdUserService = new Mock<IExternalUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
         var assessmentService = new Mock<IAssessmentService>();
@@ -128,7 +128,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IEduIdUserService>();
+        var eduIdUserService = new Mock<IExternalUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
         var assessmentService = new Mock<IAssessmentService>();
@@ -191,7 +191,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IEduIdUserService>();
+        var eduIdUserService = new Mock<IExternalUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
         var assessmentService = new Mock<IAssessmentService>();
