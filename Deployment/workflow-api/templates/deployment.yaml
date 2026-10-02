@@ -21,6 +21,8 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            - name: TZ
+              value: "Europe/Amsterdam"
             - name: WORKFLOW_API_VERSION
               value: "{{ .Chart.AppVersion }}"
           envFrom:
