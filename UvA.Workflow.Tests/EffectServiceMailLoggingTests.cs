@@ -27,7 +27,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IEduIdUserService>();
+        var eduIdUserService = new Mock<IExternalUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
         var assessmentService = new Mock<IAssessmentService>();
@@ -69,8 +69,9 @@ public class EffectServiceMailLoggingTests
             .ReturnsAsync(new MailDispatchResult(mail.To, mail.Cc!, mail.Bcc!, "testen-dn-fnwi@uva.nl"));
 
         artifactService
-            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>()))
-            .ReturnsAsync((string artifactId, string name, byte[] _) =>
+            .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string artifactId, string name, byte[] _, string _, CancellationToken _) =>
                 new ArtifactInfo(artifactId, name));
 
         MailLogEntry? loggedEntry = null;
@@ -127,7 +128,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IEduIdUserService>();
+        var eduIdUserService = new Mock<IExternalUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
         var assessmentService = new Mock<IAssessmentService>();
@@ -190,7 +191,7 @@ public class EffectServiceMailLoggingTests
         var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
         var eventService = new Mock<IInstanceEventService>();
         var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IEduIdUserService>();
+        var eduIdUserService = new Mock<IExternalUserService>();
         var artifactService = new Mock<IArtifactService>();
         var mailLogRepository = new Mock<IMailLogRepository>();
         var assessmentService = new Mock<IAssessmentService>();

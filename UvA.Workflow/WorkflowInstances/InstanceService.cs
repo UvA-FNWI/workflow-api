@@ -263,10 +263,11 @@ public class InstanceService(
         string[] ProjectedProperties);
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
-    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct)
+    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
+        ObjectContext? context = null)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
+        context ??= modelService.CreateContext(instance);
         var recipientLookups = MailBuilder.ResolveRecipientLookups(workflowDefinition, sendMail);
         await Enrich(workflowDefinition, [context], recipientLookups, ct, replaceStep: false);
         return mailBuilder.Build(instance, sendMail, modelService, context);

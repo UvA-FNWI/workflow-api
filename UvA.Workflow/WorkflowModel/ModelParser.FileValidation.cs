@@ -14,7 +14,7 @@ public partial class ModelParser
     /// </summary>
     private static void NormalizeAllowedFileTypes(PropertyDefinition propertyDefinition)
     {
-        if (propertyDefinition.AllowedFileTypes == null)
+        if (propertyDefinition.FileSettings?.AllowedTypes == null)
             return;
 
         if (propertyDefinition.DataType != DataType.File)
@@ -23,7 +23,7 @@ public partial class ModelParser
 
         // Store extensions without a leading dot; upload validation adds the separator when
         // comparing each configured extension with the end of the uploaded filename.
-        var normalized = propertyDefinition.AllowedFileTypes
+        var normalized = propertyDefinition.FileSettings.AllowedTypes
             .Select(fileType => fileType.Trim())
             .Select(fileType => fileType.TrimStart('.'))
             .Select(fileType => fileType.ToLowerInvariant())
@@ -38,7 +38,7 @@ public partial class ModelParser
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' contains invalid allowedFileTypes; use file extensions such as pdf or zip");
 
-        propertyDefinition.AllowedFileTypes = normalized;
+        propertyDefinition.FileSettings.AllowedTypes = normalized;
     }
 
     /// <summary>
@@ -47,14 +47,14 @@ public partial class ModelParser
     /// </summary>
     private static void ValidateAllowedFileSize(PropertyDefinition propertyDefinition)
     {
-        if (propertyDefinition.AllowedFileSize == null)
+        if (propertyDefinition.FileSettings?.MaximumSize == null)
             return;
 
         if (propertyDefinition.DataType != DataType.File)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' defines allowedFileSize but is not a File property");
 
-        if (propertyDefinition.AllowedFileSize <= 0)
+        if (propertyDefinition.FileSettings.MaximumSize <= 0)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' contains an invalid allowedFileSize; use a positive number of bytes");
     }

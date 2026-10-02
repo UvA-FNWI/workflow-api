@@ -94,7 +94,7 @@ public class WorkflowInstance
         var newEvent = new InstanceEvent
         {
             Id = eventId,
-            Date = date ?? NextEventDate()
+            Date = date?.ToUniversalTime() ?? NextEventDate()
         };
         Events[eventId] = newEvent;
         return newEvent;
