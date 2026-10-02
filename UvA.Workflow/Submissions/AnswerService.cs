@@ -208,22 +208,21 @@ public class AnswerService(
         return await artifactService.GetArtifact(artifactId, ct);
     }
 
-    public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents,
-        CancellationToken ct = default)
-    {
-        var (instance, _, _, propertyDefinition) = context;
-        ValidateFile(propertyDefinition, instance.GetProperty(context.PathParts), artifactName, contents.Length);
-        var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
-        var artifactInfo = await artifactService.SaveArtifact(artifactId, artifactName, contents);
-        await SaveArtifact(context, artifactInfo, ct);
-    }
-
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
         ValidateFile(propertyDefinition, instance.GetProperty(context.PathParts), formFile.FileName, formFile.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
-        var artifactInfo = await artifactService.SaveArtifact(artifactId, formFile);
+
+        var fileName = formFile.FileName;
+        if (propertyDefinition.FileSettings?.PrefixTemplate != null)
+        {
+            var templateContext = modelService.CreateContext(instance);
+            fileName = $"{propertyDefinition.FileSettings.PrefixTemplate.Execute(templateContext)}{formFile.FileName}";
+        }
+
+        var artifactInfo = await artifactService.SaveArtifact(artifactId, fileName, formFile.OpenReadStream(),
+            formFile.ContentType, ct);
 
         await SaveArtifact(context, artifactInfo, ct);
     }

@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
@@ -18,7 +19,8 @@ public class EduIdUserServiceTests
         => new(userRepositoryMock.Object,
             invitationClientMock.Object,
             Options.Create(options ?? new EduIdOptions()),
-            Mock.Of<ILogger<EduIdUserService>>());
+            Mock.Of<ILogger<EduIdUserService>>(),
+            new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
     public async Task EnsureExternalAccount_CreatesPendingUser_AndBuildsExpectedInvitation()

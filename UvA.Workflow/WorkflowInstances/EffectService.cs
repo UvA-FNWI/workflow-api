@@ -82,8 +82,11 @@ public class EffectService(
             foreach (var a in mailAttachments)
             {
                 var artifactId = S3ArtifactService.ToArtifactId(instance.Id, "mailAttachment");
+                var provider = new FileExtensionContentTypeProvider();
+                if (!provider.TryGetContentType(a.FileName, out var contentType))
+                    contentType = "application/octet-stream";
                 var artifact =
-                    await artifactService.SaveArtifact(artifactId, a.FileName, a.Content);
+                    await artifactService.SaveArtifact(artifactId, a.FileName, a.Content, contentType, ct);
                 attachments.Add(artifact);
             }
         }

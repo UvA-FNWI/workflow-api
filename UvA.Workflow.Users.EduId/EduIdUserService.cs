@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net;
+using Microsoft.Extensions.Caching.Memory;
 using UvA.Workflow.Organizations;
 
 namespace UvA.Workflow.Users.EduId;
@@ -8,7 +9,8 @@ public class EduIdUserService(
     IUserRepository userRepository,
     IEduIdInvitationClient invitationClient,
     IOptions<EduIdOptions> options,
-    ILogger<EduIdUserService> logger) : IEduIdUserService, IExternalUserService
+    ILogger<EduIdUserService> logger,
+    IMemoryCache cache) : IEduIdUserService, IExternalUserService
 {
     private static readonly EmailAddressAttribute EmailAddressAttribute = new();
     private readonly EduIdOptions _options = options.Value;
@@ -81,6 +83,7 @@ public class EduIdUserService(
                 ExternalUserCreationFailureReason.UserAlreadyExists,
                 "Email already exists");
 
+        var originalUserName = existingUser.UserName;
         var wasPending = existingUser.InvitationState == UserInvitationState.Pending;
         var changed = false;
         var emailChanged = false;
@@ -112,7 +115,11 @@ public class EduIdUserService(
 
 
         if (changed)
+        {
             await userRepository.Update(existingUser, ct);
+            cache.Remove(UserServiceBase.GetCacheKeyForUser(originalUserName));
+            cache.Remove(UserServiceBase.GetCacheKeyForUser(existingUser.UserName));
+        }
 
         if (wasPending && emailChanged)
             await SendInviteAfterEmailUpdate(existingUser, ct);
