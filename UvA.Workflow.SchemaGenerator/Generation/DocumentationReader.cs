@@ -61,6 +61,16 @@ public class DocumentationReader
             .Summary.Trim();
     }
 
+    public string? GetSummary(FieldInfo field)
+    {
+        if (_documentation == null)
+            throw new InvalidOperationException("Documentation not loaded");
+
+        return _documentation.Members.Member
+            .FirstOrDefault(x => x.Name == $"F:{field.DeclaringType?.FullName}.{field.Name}")?
+            .Summary.Trim();
+    }
+
     public string? GetSummary(Type type)
     {
         if (_documentation == null)

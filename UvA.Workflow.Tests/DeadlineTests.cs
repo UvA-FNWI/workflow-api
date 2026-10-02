@@ -406,9 +406,11 @@ public class DeadlineTests
             Assert.Null(startDto.Deadline!.Message);
             Assert.False(startDto.Deadline!.IsPassed);
             Assert.NotEqual(StepHeaderPillType.Error, subjectDto.HeaderStatus?.Type);
-            Assert.True(startDto.HasSubmission);
+            Assert.False(startDto.HasSubmission);
+            Assert.True(subjectDto.HasSubmission);
             Assert.Equal(submittedAt, startDto.DateCompleted);
             var submission = Assert.Single(dto.Submissions, submission => submission.FormName == "Start");
+            Assert.Equal(subjectDto.Id, submission.Form.Step);
             Assert.Equal("Proposal to review",
                 submission.Answers.Single(answer => answer.QuestionName == "Subject").Value!.Value.GetString());
             Assert.Contains(dto.Actions, action => action.Form == "ApproveSubject");
@@ -416,6 +418,73 @@ public class DeadlineTests
             var context = await service.GetSubmissionContext(instance.Id, "Start", null, CancellationToken.None);
             Assert.True(context.SubmissionState.IsSubmitted);
         }
+    }
+
+    [Theory]
+    [InlineData("Subject", true)]
+    [InlineData("SubjectFeedback", true)]
+    [InlineData("SubjectFeedback", false)]
+    public async Task Factory_ReportsSubmissionOnItsAssignedStep(string formStep, bool canView)
+    {
+        var model = new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
+        var instance = Instance("Project");
+        model.GetForm(instance, "RejectSubject").Step = formStep;
+        instance.Events.Add("RejectSubject", new() { Id = "RejectSubject", Date = new DateTime(2026, 10, 2) });
+        var repository = new Mock<IWorkflowInstanceRepository>();
+        repository.Setup(r => r.GetAllById(It.IsAny<string[]>(), It.IsAny<Dictionary<string, string>>(),
+            It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, repository,
+            canView ? ["Coordinator"] : []);
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+        var subject = dto.Steps.Single(step => step.Id == "Subject");
+        var feedback = subject.Children!.Single(step => step.Id == "SubjectFeedback");
+
+        Assert.Equal(formStep == "Subject", subject.HasSubmission);
+        Assert.Equal(formStep == "SubjectFeedback", feedback.HasSubmission);
+        Assert.False(feedback.ExpectsSubmission);
+        if (canView)
+            Assert.Equal(formStep, Assert.Single(dto.Submissions).Form.Step);
+        else
+            Assert.Empty(dto.Submissions);
+    }
+
+    [Theory]
+    [InlineData("Step")]
+    [InlineData(null)]
+    public async Task Factory_PreservesSubmitOnlyFormsWithOrWithoutAssignedStep(string? formStep)
+    {
+        var model = new ModelService(new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Common/Roles/Registered.yaml"] = "name: Registered",
+            ["SubmitOnly/Entity.yaml"] = "name: SubmitOnly\nsteps: [Step]",
+            ["SubmitOnly/Steps/Step.yaml"] = """
+                                             name: Step
+                                             ends: { event: Form }
+                                             actions:
+                                               - type: Submit
+                                                 form: Form
+                                                 roles: [Registered]
+                                             """,
+            ["SubmitOnly/Forms/Form.yaml"] = "name: Form\npages: [{name: Page, elements: [{text: Confirm}]}]"
+        })));
+        var instance = Instance("SubmitOnly");
+        model.GetForm(instance, "Form").Step = formStep;
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model,
+            new Mock<IWorkflowInstanceRepository>());
+
+        var before = await factory.Create(instance, CancellationToken.None);
+        Assert.Equal("Form", Assert.Single(before.Actions).Form);
+        Assert.Equal(["Step"], before.Actions[0].Steps);
+        Assert.True(Assert.Single(before.Steps).ExpectsSubmission);
+        Assert.False(before.Steps[0].HasSubmission);
+        Assert.Empty(before.Submissions);
+
+        instance.Events.Add("Form", new() { Id = "Form", Date = new DateTime(2026, 10, 2) });
+        var after = await factory.Create(instance, CancellationToken.None);
+        Assert.Empty(after.Actions);
+        Assert.Empty(after.Submissions);
+        Assert.True(Assert.Single(after.Steps).HasSubmission);
     }
 
     [Theory]

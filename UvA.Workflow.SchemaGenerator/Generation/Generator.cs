@@ -32,8 +32,19 @@ public class Generator(DocumentationReader documentationReader)
             {
                 Type = JsonObjectType.String,
             };
-            foreach (var entry in type.GetEnumNames())
-                schema.Enumeration.Add(entry);
+            var entries = type.GetFields(BindingFlags.Public | BindingFlags.Static);
+            var descriptions = entries.Select(documentationReader.GetSummary).ToArray();
+            var hasDescriptions = descriptions.Any(description => description != null);
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var option = new JsonSchema { Description = descriptions[i] };
+                option.Enumeration.Add(entries[i].Name);
+                if (hasDescriptions)
+                    schema.OneOf.Add(option);
+                else
+                    schema.Enumeration.Add(entries[i].Name);
+            }
+
             _schemas.Add(type, schema);
         }
         else
