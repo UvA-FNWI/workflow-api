@@ -290,6 +290,8 @@ public partial class ModelParser
                                              ?? throw new Exception(
                                                  $"Form {form.Name} references unknown property {element.Question}");
             }
+
+            PreProcess(ent.Condition);
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
