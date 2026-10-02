@@ -184,11 +184,12 @@ public class WorkflowInstanceDtoFactory(
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
             : null;
-        var submissionForms = step.Actions
-            .Where(action => action.Type == RoleAction.Submit)
-            .SelectMany(action => action.AllForms)
-            .Distinct()
-            .Select(formName => modelService.GetForm(instance, formName))
+        // Match the step where the UI displays the submission, which can differ from the action's step.
+        // For older forms without an assigned step, keep using the step's submit actions.
+        var submissionForms = workflowDef.Forms
+            .Where(form => form.Step == step.Name ||
+                           form.Step == null && step.Actions.Any(action =>
+                               action.Type == RoleAction.Submit && action.AllForms.Contains(form.Name)))
             .ToArray();
         var submissionEventIds = submissionForms
             .SelectMany(FormSubmissionState.GetSubmissionEventIds)
