@@ -33,10 +33,10 @@ public partial class ModelParser
         // Dots inside an extension support compound types such as "tar.gz". The remaining
         // punctuation covers commonly used extension names without allowing path characters.
         if (normalized.Length == 0 || normalized.Any(fileType =>
-                fileType.Length < 1 || fileType.Any(character =>
-                    !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_' and not '+')))
+                fileType.Length < 1 || (fileType != "*" && fileType.Any(character =>
+                    !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_' and not '+'))))
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' contains invalid allowedFileTypes; use file extensions such as pdf or zip");
+                $"Property '{propertyDefinition.Name}' contains invalid allowedFileTypes; use file extensions such as pdf or zip, or * for any format");
 
         propertyDefinition.FileSettings.AllowedTypes = normalized;
     }

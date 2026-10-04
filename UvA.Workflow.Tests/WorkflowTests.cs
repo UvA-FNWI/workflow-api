@@ -182,7 +182,7 @@ public class WorkflowTests
     {
         var fileMock = new Mock<IFormFile>();
         fileMock.Setup(f => f.FileName).Returns(fileName);
-        fileMock.Setup(f => f.OpenReadStream()).Returns(() => new MemoryStream());
+        fileMock.Setup(f => f.OpenReadStream()).Returns(() => new MemoryStream(new byte[size ?? 0]));
         fileMock.Setup(f => f.Length).Returns(size ?? 0);
         return fileMock.Object;
     }
@@ -304,6 +304,53 @@ public class WorkflowTests
             service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
                 It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task FileArray_UploadsRemovesAndEnforcesCombinedSize()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        context.PropertyDefinition.Type = "[File]";
+        context.PropertyDefinition.FileSettings = new() { AllowedTypes = ["*"], MaximumSize = 10 };
+        var index = 0;
+        _artifactServiceMock.Setup(service =>
+                service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string name, Stream stream, string contentType, CancellationToken ct) =>
+                new ArtifactInfo($"file-{++index}", name, Length: stream.Length));
+
+        await _answerService.SaveArtifact(context, CreateFile("first.txt", 4), _ct);
+        await _answerService.SaveArtifact(context, CreateFile("second.csv", 5), _ct);
+        Assert.Equal(2, instance.Properties["Report"].AsBsonArray.Count);
+        Assert.Equal(["first.txt", "second.csv"],
+            Answer.GetValue(context.PropertyDefinition, instance.Properties["Report"])!.Value
+                .EnumerateArray().Select(name => name.GetString()));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _answerService.SaveArtifact(context, CreateFile("too-large.zip", 2), _ct));
+
+        await _answerService.DeleteArtifact(context, "file-1", _ct);
+        Assert.Single(instance.Properties["Report"].AsBsonArray);
+        await _answerService.DeleteArtifact(context, "file-2", _ct);
+        Assert.True(instance.Properties["Report"].IsBsonNull);
+    }
+
+    [Fact]
+    public void FileArray_WildcardConfigurationParses()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Project/Entity.yaml"] =
+                "name: Project\ntitlePlural: Projects\nproperties:\n  - name: Attachments\n    type: '[File]'\n    fileSettings:\n      allowedTypes: ['*']\n      maximumSize: 1000"
+        }));
+
+        var property = parser.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == "Attachments");
+        Assert.True(property.IsArray);
+        Assert.Equal(["*"], property.EffectiveAllowedFileTypes);
     }
 
     [Fact]
