@@ -109,6 +109,7 @@ public class WorkflowTests
             _artifactServiceMock.Object,
             _mailLogRepositoryMock.Object,
             _configurationMock.Object,
+            _eventRepoMock.Object,
             factory.CreateLogger<EffectService>());
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),

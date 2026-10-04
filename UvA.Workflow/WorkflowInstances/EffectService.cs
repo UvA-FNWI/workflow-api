@@ -44,6 +44,7 @@ public class EffectService(
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IConfiguration configuration,
+    IInstanceEventRepository eventRepository,
     ILogger<EffectService> logger,
     IEnumerable<ILoginMethodClassifier>? loginMethodClassifiers = null)
 {
@@ -51,7 +52,8 @@ public class EffectService(
     private const string CompletedRecipientsOutput = "CompletedRecipients";
 
     public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
-        ObjectContext context, CancellationToken ct, OperationMetadata? operationMetadata = null, Func<Task>? checkpoint = null)
+        ObjectContext context, CancellationToken ct, OperationMetadata? operationMetadata = null,
+        Func<Task>? checkpoint = null)
     {
         var input = job.Input;
         if (effect.Event != null)
@@ -241,8 +243,8 @@ public class EffectService(
     {
         var ev = instance.Events.GetValueOrDefault(eventName);
         ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
-        ev.Date = DateTime.Now;
-        await eventService.UpdateEvent(instance, ev.Id, user, ct, operationId, operationMetadata);
+        ev.Date = instance.NextEventDate();
+        await eventRepository.AddOrUpdateEvent(instance, ev, user, ct, operationId, operationMetadata);
     }
 
     private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,

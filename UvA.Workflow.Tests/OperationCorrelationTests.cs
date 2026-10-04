@@ -84,8 +84,8 @@ public class OperationCorrelationTests : ControllerTestsBase
         var eventService = new InstanceEventService(eventRepository, _instanceJournalServiceMock.Object,
             _instanceService);
         var effectService = new EffectService(_instanceService, eventService, _modelService, _mailServiceMock.Object,
-            _eduIdUserServiceMock.Object, _artifactServiceMock.Object, _mailLogRepositoryMock.Object,
-            _configurationMock.Object, _loggerFactory.CreateLogger<EffectService>());
+            _externalUserServiceMock.Object, _artifactServiceMock.Object, _mailLogRepositoryMock.Object,
+            _configurationMock.Object, eventRepository, _loggerFactory.CreateLogger<EffectService>());
         var jobService = new JobService(effectService, _modelService, _jobRepositoryMock.Object,
             _workflowInstanceRepoMock.Object, _userRepoMock.Object, _loggerFactory.CreateLogger<JobService>(),
             _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));

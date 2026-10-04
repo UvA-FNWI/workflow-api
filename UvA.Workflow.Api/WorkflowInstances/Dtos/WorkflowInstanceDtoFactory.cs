@@ -251,7 +251,7 @@ public class WorkflowInstanceDtoFactory(
             hasSubmission,
             step.HierarchyMode,
             step.ChildrenLayout,
-            versionDtos?.ToList()
+            versionDtos?.ToList(),
             undoCandidate
         );
     }

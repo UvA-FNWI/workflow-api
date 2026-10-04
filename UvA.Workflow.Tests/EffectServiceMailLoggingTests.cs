@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Serilog;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
@@ -11,51 +9,67 @@ using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests;
 
 public class EffectServiceMailLoggingTests
 {
-    [Fact]
-    public async Task RunEffects_WithMailEffect_SendsMailAndLogsFullContent()
+    private readonly ModelService _modelService;
+    private readonly Mock<IMailService> _mailService = new();
+    private readonly Mock<IArtifactService> _artifactService = new();
+    private readonly Mock<IMailLogRepository> _mailLogRepository = new();
+    private readonly EffectService _effectService;
+
+    private MailLogEntry? _loggedEntry;
+
+    public EffectServiceMailLoggingTests()
     {
-        var modelService =
-            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
+        _modelService = new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
+
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
-        var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
-        var eventService = new Mock<IInstanceEventService>();
-        var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IExternalUserService>();
-        var artifactService = new Mock<IArtifactService>();
-        var mailLogRepository = new Mock<IMailLogRepository>();
+        var rightsService = new RightsService(_modelService, userService.Object, instanceRepository.Object);
         var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
-        var instanceService =
-            new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder, assessmentService.Object);
 
-        var effectService = new EffectService(
+        var instanceService = new InstanceService(instanceRepository.Object, _modelService, userService.Object,
+            rightsService, mailBuilder, assessmentService.Object);
+
+        _effectService = new EffectService(
             instanceService,
-            eventService.Object,
-            modelService,
-            mailService.Object,
-            eduIdUserService.Object,
-            artifactService.Object,
-            mailLogRepository.Object,
+            new Mock<IInstanceEventService>().Object,
+            _modelService,
+            _mailService.Object,
+            new Mock<IExternalUserService>().Object,
+            _artifactService.Object,
+            _mailLogRepository.Object,
             configuration.Object,
+            new Mock<IInstanceEventRepository>().Object,
             NullLogger<EffectService>.Instance
         );
 
-        var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "Start")
+        _mailLogRepository
+            .Setup(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()))
+            .Callback<MailLogEntry, CancellationToken>((entry, _) => _loggedEntry = entry)
+            .Returns(Task.CompletedTask);
+    }
+
+    private static User CreateUser() => new() { Id = "507f1f77bcf86cd799439011" };
+
+    private static WorkflowInstance CreateInstance(string currentStep) =>
+        new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: currentStep)
             .Build();
-        var user = new User { Id = "507f1f77bcf86cd799439011" };
+
+    [Fact]
+    public async Task RunEffects_WithMailEffect_SendsMailAndLogsFullContent()
+    {
+        var instance = CreateInstance("Start");
+        var user = CreateUser();
 
         byte[] attachmentBytes = [1, 2, 3, 4];
         var mail = new MailMessage("Subject", "Body", "attachment-template")
@@ -65,163 +79,79 @@ public class EffectServiceMailLoggingTests
             Bcc = [new MailRecipient("bcc@uva.nl", "Bcc User")],
             Attachments = [new MailAttachment("test.txt", attachmentBytes)]
         };
-        mailService.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+        _mailService.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MailDispatchResult(mail.To, mail.Cc!, mail.Bcc!, "testen-dn-fnwi@uva.nl"));
 
-        artifactService
+        _artifactService
             .Setup(a => a.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((string artifactId, string name, byte[] _, string _, CancellationToken _) =>
                 new ArtifactInfo(artifactId, name));
-
-        MailLogEntry? loggedEntry = null;
-        mailLogRepository
-            .Setup(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()))
-            .Callback<MailLogEntry, CancellationToken>((entry, _) => loggedEntry = entry)
-            .Returns(Task.CompletedTask);
 
         var effect = new Effect
         {
             SendMail = new SendMessage()
         };
 
-        await effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, user,
-            modelService.CreateContext(instance),
+        await _effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, user,
+            _modelService.CreateContext(instance),
             CancellationToken.None);
 
-        mailService.Verify(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Once);
-        mailLogRepository.Verify(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mailService.Verify(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mailLogRepository.Verify(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
 
-        Assert.NotNull(loggedEntry);
-        Assert.Equal(instance.Id, loggedEntry!.WorkflowInstanceId);
-        Assert.Equal("Project", loggedEntry.WorkflowDefinition);
-        Assert.Equal(user.Id, loggedEntry.ExecutedBy);
-        Assert.Equal("Subject", loggedEntry.Subject);
-        Assert.Equal("Body", loggedEntry.Body);
-        Assert.Equal("attachment-template", loggedEntry.AttachmentTemplate);
+        Assert.NotNull(_loggedEntry);
+        Assert.Equal(instance.Id, _loggedEntry!.WorkflowInstanceId);
+        Assert.Equal("Project", _loggedEntry.WorkflowDefinition);
+        Assert.Equal(user.Id, _loggedEntry.ExecutedBy);
+        Assert.Equal("Subject", _loggedEntry.Subject);
+        Assert.Equal("Body", _loggedEntry.Body);
+        Assert.Equal("attachment-template", _loggedEntry.AttachmentTemplate);
 
-        Assert.Single(loggedEntry.To);
-        Assert.Equal("to@uva.nl", loggedEntry.To[0].MailAddress);
-        Assert.Single(loggedEntry.Cc);
-        Assert.Equal("cc@uva.nl", loggedEntry.Cc[0].MailAddress);
-        Assert.Single(loggedEntry.Bcc);
-        Assert.Equal("bcc@uva.nl", loggedEntry.Bcc[0].MailAddress);
+        Assert.Single(_loggedEntry.To);
+        Assert.Equal("to@uva.nl", _loggedEntry.To[0].MailAddress);
+        Assert.Single(_loggedEntry.Cc);
+        Assert.Equal("cc@uva.nl", _loggedEntry.Cc[0].MailAddress);
+        Assert.Single(_loggedEntry.Bcc);
+        Assert.Equal("bcc@uva.nl", _loggedEntry.Bcc[0].MailAddress);
 
-        Assert.Single(loggedEntry.Attachments);
-        Assert.Equal("test.txt", loggedEntry.Attachments[0].Name);
+        Assert.Single(_loggedEntry.Attachments);
+        Assert.Equal("test.txt", _loggedEntry.Attachments[0].Name);
     }
 
     [Fact]
     public async Task RunEffects_WithMailEffectAndTriggerContext_LogsTriggerContext()
     {
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.Console()
-            .WriteTo.Debug()
-            .CreateLogger();
-        var factory = LoggerFactory.Create(builder => { builder.AddSerilog(Log.Logger, dispose: true); });
-
-        var modelService =
-            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
-        var instanceRepository = new Mock<IWorkflowInstanceRepository>();
-        var userService = new Mock<IUserService>();
-        var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
-        var eventService = new Mock<IInstanceEventService>();
-        var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IExternalUserService>();
-        var artifactService = new Mock<IArtifactService>();
-        var mailLogRepository = new Mock<IMailLogRepository>();
-        var assessmentService = new Mock<IAssessmentService>();
-
-        var configuration = new Mock<IConfiguration>();
-        var mailLayoutResolver = new Mock<IMailLayoutResolver>();
-        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
-        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
-        var instanceService =
-            new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder, assessmentService.Object);
-        var effectService = new EffectService(
-            instanceService,
-            eventService.Object,
-            modelService,
-            mailService.Object,
-            eduIdUserService.Object,
-            artifactService.Object,
-            mailLogRepository.Object,
-            configuration.Object,
-            NullLogger<EffectService>.Instance);
-
-        var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project", currentStep: "SendLetter")
-            .Build();
-        var user = new User { Id = "507f1f77bcf86cd799439011" };
+        var instance = CreateInstance("SendLetter");
 
         var mail = new MailMessage("Subject", "Body", null)
         {
             To = [new MailRecipient("to@uva.nl", "To User")]
         };
-        mailService.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+        _mailService.Setup(m => m.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MailDispatchResult(mail.To, [], [], null));
-
-        MailLogEntry? loggedEntry = null;
-        mailLogRepository
-            .Setup(r => r.Log(It.IsAny<MailLogEntry>(), It.IsAny<CancellationToken>()))
-            .Callback<MailLogEntry, CancellationToken>((entry, _) => loggedEntry = entry)
-            .Returns(Task.CompletedTask);
 
         var effect = new Effect
         {
             SendMail = new SendMessage { TemplateKey = "DecisionMail" }
         };
 
-        await effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, user,
-            modelService.CreateContext(instance),
+        await _effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, CreateUser(),
+            _modelService.CreateContext(instance),
             CancellationToken.None);
 
-        Assert.NotNull(loggedEntry);
+        Assert.NotNull(_loggedEntry);
     }
 
     [Fact]
     public async Task RunEffects_WithToastEffect_ReturnsResolvedToast()
     {
-        var modelService =
-            new ModelService(new ModelParser(new FileSystemProvider(UnitTestsHelpers.FixturesPath)));
-        var instanceRepository = new Mock<IWorkflowInstanceRepository>();
-        var userService = new Mock<IUserService>();
-        var rightsService = new RightsService(modelService, userService.Object, instanceRepository.Object);
-        var eventService = new Mock<IInstanceEventService>();
-        var mailService = new Mock<IMailService>();
-        var eduIdUserService = new Mock<IExternalUserService>();
-        var artifactService = new Mock<IArtifactService>();
-        var mailLogRepository = new Mock<IMailLogRepository>();
-        var assessmentService = new Mock<IAssessmentService>();
-
-        var configuration = new Mock<IConfiguration>();
-        var mailLayoutResolver = new Mock<IMailLayoutResolver>();
-        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
-        var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
-        var instanceService =
-            new InstanceService(instanceRepository.Object, modelService, userService.Object, rightsService,
-                mailBuilder, assessmentService.Object);
-
-        var effectService = new EffectService(
-            instanceService,
-            eventService.Object,
-            modelService,
-            mailService.Object,
-            eduIdUserService.Object,
-            artifactService.Object,
-            mailLogRepository.Object,
-            configuration.Object,
-            NullLogger<EffectService>.Instance
-        );
-
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Title", b => b.Value("My thesis")))
             .Build();
 
-        var result = await effectService.RunEffect(
+        var result = await _effectService.RunEffect(
             new Job(),
             instance,
             new Effect
@@ -233,7 +163,7 @@ public class EffectServiceMailLoggingTests
                 }
             },
             new User(),
-            modelService.CreateContext(instance),
+            _modelService.CreateContext(instance),
             CancellationToken.None
         );
 

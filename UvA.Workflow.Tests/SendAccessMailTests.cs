@@ -1,5 +1,6 @@
 using MongoDB.Bson;
 using Moq;
+using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Controllers.Helpers;
@@ -119,7 +120,7 @@ public class SendAccessMailTests : ControllerTestsBase
         var checkpoints = new List<string[]>();
 
         await Assert.ThrowsAsync<AggregateException>(() => _effectService.RunEffect(job, instance, effect,
-            UnitTestsHelpers.AdminUser, _modelService.CreateContext(instance), _ct,
+            UnitTestsHelpers.AdminUser, _modelService.CreateContext(instance), _ct, new OperationMetadata(),
             () =>
             {
                 checkpoints.Add(CompletedRecipients(job));

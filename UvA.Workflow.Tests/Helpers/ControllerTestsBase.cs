@@ -133,6 +133,7 @@ public abstract class ControllerTestsBase
                 _artifactServiceMock.Object,
                 _mailLogRepositoryMock.Object,
                 _configurationMock.Object,
+                _eventRepoMock.Object,
                 _loggerFactory.CreateLogger<EffectService>(),
                 [_loginMethodClassifierMock.Object]);
 

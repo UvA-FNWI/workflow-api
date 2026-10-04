@@ -73,8 +73,8 @@ public record StepDto(
     bool ExpectsSubmission,
     bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
-    List<StepVersionDto>? Versions = null,
     StepChildrenLayout ChildrenLayout = StepChildrenLayout.Combined,
+    List<StepVersionDto>? Versions = null,
     UndoCandidateDto? UndoCandidate = null);
 
 public record ActionDto(
