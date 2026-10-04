@@ -44,6 +44,7 @@ public class EffectService(
     IArtifactService artifactService,
     IMailLogRepository mailLogRepository,
     IConfiguration configuration,
+    IInstanceEventRepository eventRepository,
     ILogger<EffectService> logger,
     IEnumerable<ILoginMethodClassifier>? loginMethodClassifiers = null)
 {
@@ -51,11 +52,14 @@ public class EffectService(
     private const string CompletedRecipientsOutput = "CompletedRecipients";
 
     public async Task<EffectResult> RunEffect(Job job, WorkflowInstance instance, Effect effect, User user,
-        ObjectContext context, CancellationToken ct, Func<Task>? checkpoint = null)
+        ObjectContext context, CancellationToken ct, OperationMetadata? operationMetadata = null,
+        Func<Task>? checkpoint = null)
     {
         var input = job.Input;
-        if (effect.Event != null) await AddEvent(instance, effect.Event, user, ct);
-        if (effect.UndoEvent != null) await UndoEvent(instance, effect.UndoEvent, user, ct);
+        if (effect.Event != null)
+            await AddEvent(instance, effect.Event, user, ct, job.OperationId, operationMetadata);
+        if (effect.UndoEvent != null)
+            await UndoEvent(instance, effect.UndoEvent, user, ct, job.OperationId, operationMetadata);
         if (effect.SendMail != null) await SendMail(instance, effect.SendMail, user, ct, input?.Mail, job.Id, context);
         if (effect.SendAccessMail != null)
             await SendAccessMail(job, instance, effect, user, context, ct, checkpoint);
@@ -225,16 +229,23 @@ public class EffectService(
         }, ct);
     }
 
-    private async Task UndoEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
+    private async Task UndoEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
+        string? operationId = null, OperationMetadata? operationMetadata = null)
     {
         if (!instance.Events.TryGetValue(eventName, out var ev))
             return;
         ev.Date = null;
-        await eventService.UpdateEvent(instance, ev.Id, user, ct);
+        await eventService.UpdateEvent(instance, ev.Id, user, ct, operationId, operationMetadata);
     }
 
-    public Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct)
-        => eventService.UpdateEvent(instance, eventName, user, ct);
+    public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
+        string? operationId = null, OperationMetadata? operationMetadata = null)
+    {
+        var ev = instance.Events.GetValueOrDefault(eventName);
+        ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
+        ev.Date = instance.NextEventDate();
+        await eventRepository.AddOrUpdateEvent(instance, ev, user, ct, operationId, operationMetadata);
+    }
 
     private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,
         CancellationToken ct)

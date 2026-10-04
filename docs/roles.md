@@ -65,7 +65,7 @@ Each action in the `actions` list has a `type` and optional scope:
 | `View` | Can view form submissions |
 | `Submit` | Can submit forms |
 | `Edit` | Can edit existing submissions |
-| `Undo` | Can undo submissions |
+| `Undo` | Can undo eligible form submissions or executable actions. This reverses correlated workflow events and cancels pending jobs, but does not reverse completed external effects |
 | `Execute` | Can trigger executable actions |
 | `ViewAdminTools` | Can access admin tools in the UI |
 | `ViewHidden` | Can view hidden properties |
@@ -89,6 +89,8 @@ actions:
     form: Comment
     steps: [Review]        # Only during the "Review" step
 ```
+
+For `Undo`, use `form` to scope form submissions or `name` to scope executable actions; `steps` can limit either operation type.
 
 ## Well-known roles
 

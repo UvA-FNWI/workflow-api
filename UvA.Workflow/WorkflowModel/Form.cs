@@ -211,7 +211,7 @@ public class PageElement
     [YamlIgnore] public BilingualTemplate? TextTemplate => field ??= BilingualTemplate.Create(Text);
 
     /// <summary>
-    /// Name of the property definition 
+    /// Name of the property definition
     /// </summary>
     public string? Question { get; set; }
 
