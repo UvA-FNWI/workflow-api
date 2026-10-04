@@ -32,9 +32,6 @@ public class DummyAnswerGenerator
     {
         var constraints = ExtractConstraints(question.Validation);
         var startDate = lastUpdated ?? DateTime.Now;
-        var maxStringLength = constraints.MaxLength.HasValue && constraints.MaxLength.Value < DummyStringValue.Length
-            ? constraints.MaxLength.Value
-            : DummyStringValue.Length;
 
         return question.DataType switch
         {
@@ -42,7 +39,9 @@ public class DummyAnswerGenerator
             DataType.Int => JsonSerializer.SerializeToElement(
                 Random.Next((int)(constraints.Min ?? 1), (int)(constraints.Max ?? 10))),
             DataType.Double => JsonSerializer.SerializeToElement(
-                (constraints.Min ?? 0) + Random.NextDouble() * ((constraints.Max ?? 10) - (constraints.Min ?? 0))),
+                Math.Round(
+                    (constraints.Min ?? 0) + Random.NextDouble() * ((constraints.Max ?? 10) - (constraints.Min ?? 0)),
+                    1)),
             DataType.Check => JsonSerializer.SerializeToElement(question.IsRequired || Random.NextDouble() > 0.5),
             DataType.Currency => JsonSerializer.SerializeToElement(new
                 { currency = "EUR", amount = Random.Next((int)(constraints.Min ?? 1), (int)(constraints.Max ?? 100)) }),
@@ -92,9 +91,10 @@ public class DummyAnswerGenerator
         var greaterThan = TryGetLiteralNumber(v.GreaterThan);
         var greaterThanOrEqual = TryGetLiteralNumber(v.GreaterThanOrEqual);
         var lessThan = TryGetLiteralNumber(v.LessThan);
+        var lessThanOrEqual = TryGetLiteralNumber(v.LessThanOrEqual);
 
         double? min = greaterThan.HasValue ? greaterThan + 1 : greaterThanOrEqual;
-        double? max = lessThan;
+        double? max = lessThan ?? lessThanOrEqual;
 
         return new ValidationConstraints(min, max, v.MaxLength, v.MinLength);
     }

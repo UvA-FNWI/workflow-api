@@ -51,6 +51,10 @@
       "description": "Determines how the child steps of this step are handled",
       "$ref": "#/definitions/StepHierarchyMode"
     },
+    "childrenLayout": {
+      "description": "Controls how child steps appear in the parent card. Defaults to Combined.",
+      "$ref": "#/definitions/StepChildrenLayout"
+    },
     "children": {
       "type": "array",
       "description": "Child steps of this step",
@@ -481,6 +485,23 @@
         "Parallel"
       ]
     },
+    "StepChildrenLayout": {
+      "type": "string",
+      "oneOf": [
+        {
+          "description": "Shows child content together in the parent card.",
+          "enum": [
+            "Combined"
+          ]
+        },
+        {
+          "description": "Shows each direct child in its own expandable row.",
+          "enum": [
+            "CollapsibleRows"
+          ]
+        }
+      ]
+    },
     "StepHeaderStatusConfiguration": {
       "title": "StepHeaderStatusConfiguration",
       "type": "object",
@@ -770,6 +791,17 @@
             }
           ]
         },
+        "sendAccessMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Prepare login access and send one personalized email per recipient",
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
         "showConfetti": {
           "type": [
             "boolean",
@@ -986,7 +1018,8 @@
       "additionalProperties": false,
       "required": [
         "url",
-        "label"
+        "label",
+        "intent"
       ],
       "properties": {
         "url": {
@@ -1003,15 +1036,9 @@
           ]
         },
         "intent": {
-          "$ref": "#/definitions/MailButtonIntent"
+          "type": "string"
         }
       }
-    },
-    "MailButtonIntent": {
-      "type": "string",
-      "enum": [
-        "Primary"
-      ]
     },
     "Attachment": {
       "title": "Attachment",
@@ -1146,10 +1173,25 @@
     },
     "StepMode": {
       "type": "string",
-      "enum": [
-        "Normal",
-        "Alongside",
-        "Optional"
+      "oneOf": [
+        {
+          "description": "Follows the ordered workflow progression. It becomes current when reached, unless its condition skips it,\n            and progression continues after it ends.",
+          "enum": [
+            "Normal"
+          ]
+        },
+        {
+          "description": "Becomes active after the nearest preceding normal step ends, or when the workflow starts if there is none.\n            Normal steps may continue while it remains active. It becomes current when its before target is reached or\n            when the workflow would otherwise finish, and blocks progression until it ends.",
+          "enum": [
+            "Alongside"
+          ]
+        },
+        {
+          "description": "Becomes active like an alongside step, but never blocks progression or becomes current. If still active when\n            the workflow finishes, it closes with the workflow.",
+          "enum": [
+            "Optional"
+          ]
+        }
       ]
     },
     "PropertyDefinition": {
@@ -1183,6 +1225,17 @@
         "visibility": {
           "description": "Set if this propertyDefinition is hidden from users without extra permissions",
           "$ref": "#/definitions/PropertyVisibility"
+        },
+        "fileSettings": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Configure settings for file upload questions",
+              "$ref": "#/definitions/FileSettings"
+            }
+          ]
         },
         "layout": {
           "description": "Specific layout options for the data type",
@@ -1225,23 +1278,6 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
-        },
-        "allowedFileTypes": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Defaults to pdf when omitted.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "allowedFileSize": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted."
         },
         "values": {
           "type": [
@@ -1391,6 +1427,37 @@
         "Normal",
         "Hidden"
       ]
+    },
+    "FileSettings": {
+      "title": "FileSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Prefix (template) to add to the file names when storing files"
+        },
+        "allowedTypes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Defaults to pdf when omitted.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maximumSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted."
+        }
+      }
     },
     "ChoiceLayoutOptions": {
       "title": "ChoiceLayoutOptions",

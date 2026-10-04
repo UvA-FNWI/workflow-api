@@ -146,6 +146,25 @@ public class FileMailLayoutTests
     }
 
     [Fact]
+    public void Render_SecondaryButtonIsOutlinedRegardlessOfOtherButtons()
+    {
+        var (layout, temp) = CreateLayout("{{buttonHtml}}");
+        try
+        {
+            var project = new MailButton("View project", "https://example.com/project", MailButtonIntent.Secondary);
+            var result = layout.Render("",
+                [new MailButton("Activate access", "https://example.com/activate"), project]);
+            Assert.Contains("background-color:#FFFFFF;color:#000000;border:1px solid #000000;", result);
+            Assert.Contains("background-color:#FFFFFF;color:#000000;border:1px solid #000000;",
+                layout.Render("", [project]));
+        }
+        finally
+        {
+            File.Delete(temp);
+        }
+    }
+
+    [Fact]
     public void Render_CachesTemplate_FileIsOnlyReadOnce()
     {
         var (layout, temp) = CreateLayout("{{htmlBody}}{{buttonHtml}}");

@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
@@ -18,7 +19,8 @@ public class EduIdUserServiceTests
         => new(userRepositoryMock.Object,
             invitationClientMock.Object,
             Options.Create(options ?? new EduIdOptions()),
-            Mock.Of<ILogger<EduIdUserService>>());
+            Mock.Of<ILogger<EduIdUserService>>(),
+            new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
     public async Task EnsureExternalAccount_CreatesPendingUser_AndBuildsExpectedInvitation()
@@ -145,6 +147,35 @@ public class EduIdUserServiceTests
             CancellationToken.None);
 
         Assert.Equal(EduIdExternalAccountStatus.PendingInvitation, result.Status);
+    }
+
+    [Fact]
+    public async Task EnsureExternalAccount_PendingUser_ReturnsFreshInvitationUrl()
+    {
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var invitationClientMock = new Mock<IEduIdInvitationClient>();
+        var pendingUser = new User
+        {
+            UserName = "pending@external.org",
+            Email = "pending@external.org",
+            ProviderKey = EduIdDirectoryKeys.ProviderKey,
+            InvitationState = UserInvitationState.Pending,
+            IsActive = false
+        };
+        userRepositoryMock.Setup(r => r.GetByEmail(pendingUser.Email, CancellationToken.None))
+            .ReturnsAsync(pendingUser);
+        invitationClientMock.Setup(c => c.CreateInvitationAsync(It.IsAny<EduIdInvitationRequest>(),
+                CancellationToken.None))
+            .ReturnsAsync(new EduIdInvitationResponse((int)HttpStatusCode.Created,
+                [new EduIdRecipientInvitationUrl(pendingUser.Email, "https://invite.example/fresh")]));
+
+        var service = CreateService(userRepositoryMock, invitationClientMock);
+
+        var result = await service.EnsureExternalAccount(pendingUser.Email, "Pending User",
+            EduIdInviteDeliveryMode.ReturnInvitationUrl, CancellationToken.None);
+
+        Assert.Equal("https://invite.example/fresh", result.InvitationUrl);
+        userRepositoryMock.Verify(r => r.Update(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
