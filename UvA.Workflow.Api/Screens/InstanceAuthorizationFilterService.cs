@@ -153,6 +153,9 @@ public class InstanceAuthorizationFilterService(
         {
             foreach (var inheritedRole in property.InheritedRoles)
             {
+                if (definition.Roles.GetOrDefault(inheritedRole)?.Actions.Any(a => a.Type == RoleAction.View) != true)
+                    continue;
+
                 var referencedWorkflowDef = property.WorkflowDefinition?.Name;
                 if (referencedWorkflowDef == null)
                     continue;
