@@ -32,7 +32,10 @@ dotnet restore UvA.Workflow.slnx
 dotnet build UvA.Workflow.slnx
 ```
 
-Start a local MongoDB instance:
+Start a new local MongoDB instance (pinned to 8.2.9):
+
+**Existing local database?** Follow [the MongoDB upgrade instructions](docs/mongodb-upgrade.md)
+before running this command. MongoDB stores its data in `UvA.Workflow.Api/data/mongo`.
 
 ```bash
 docker compose -f UvA.Workflow.Api/docker-compose.yaml up -d

@@ -9,6 +9,21 @@ namespace UvA.Workflow.Tests;
 
 public class EffectServiceTests : ControllerTestsBase
 {
+    [Fact]
+    public async Task AddEvent_KeepsTimestampIncreasingWhenRecordingAnExistingEvent()
+    {
+        var previous = DateTime.UtcNow.AddHours(1);
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        instance.RecordEvent("Start", previous);
+
+        await _effectService.AddEvent(instance, "Start", UnitTestsHelpers.AdminUser, _ct);
+
+        Assert.Equal(previous.AddMilliseconds(1), instance.Events["Start"].Date);
+        Assert.Equal(DateTimeKind.Utc, instance.Events["Start"].Date!.Value.Kind);
+    }
+
     /// <summary>
     /// Verifies that MailLogEntry.ExecutedBy records whatever user the caller passes into
     /// EffectService.RunEffect — i.e. the real admin, not the impersonated target.

@@ -52,7 +52,8 @@ public class MailBuilder(
             .Select(b => new MailButton(
                 b.LabelTemplate.Apply(context).ForLanguage(language),
                 b.UrlTemplate.Execute(context),
-                b.Intent))
+                Enum.Parse<MailButtonIntent>(b.IntentTemplate.Execute(context), ignoreCase: true)))
+            .Where(b => !string.IsNullOrWhiteSpace(b.Url))
             .ToList();
 
         var layout = layoutResolver.Resolve(resolvedMail.Layout);
@@ -72,7 +73,7 @@ public class MailBuilder(
             .Concat(ResolveAddresses(specs, context))
             .ToList();
 
-    private static IEnumerable<InstanceUser> ResolveUsers(Recipients? specs, ObjectContext context)
+    internal static IEnumerable<InstanceUser> ResolveUsers(Recipients? specs, ObjectContext context)
         => (specs ?? [])
             .Where(s => !Recipients.ResolvesToAddress(s))
             .SelectMany(s => context.Get(s) switch

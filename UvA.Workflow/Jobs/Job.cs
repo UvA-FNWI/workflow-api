@@ -1,4 +1,5 @@
 using MongoDB.Bson.Serialization.Attributes;
+using UvA.Workflow.Events;
 
 namespace UvA.Workflow.Jobs;
 
@@ -7,7 +8,8 @@ public enum JobStatus
     Pending,
     Completed,
     Failed,
-    Running
+    Running,
+    Cancelled
 }
 
 public enum JobSource
@@ -51,6 +53,10 @@ public class Job
     public string WorkerGroup { get; set; } = null!;
 
     public DateTime? ClaimedUntil { get; set; }
+
+    [BsonIgnoreIfNull]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? OperationId { get; set; }
 }
 
 [BsonIgnoreExtraElements]

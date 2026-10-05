@@ -153,6 +153,7 @@ public partial class ModelParser
         if (!target.Declared(s => s.Mode)) target.Mode = source.Mode;
         if (!target.Declared(s => s.Before)) target.Before = source.Before;
         if (!target.Declared(s => s.HierarchyMode)) target.HierarchyMode = source.HierarchyMode;
+        if (!target.Declared(s => s.ChildrenLayout)) target.ChildrenLayout = source.ChildrenLayout;
         if (!target.Declared(s => s.ResultsType)) target.ResultsType = source.ResultsType;
         if (!target.Declared(s => s.ChildNames)) target.ChildNames = source.ChildNames;
 

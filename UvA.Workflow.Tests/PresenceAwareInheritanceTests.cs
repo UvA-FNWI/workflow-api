@@ -35,6 +35,23 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
+    public void ChildrenLayout_IsParsedAndInheritedWhenStepIsOverridden()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - S",
+            ["Base/Steps/S.yaml"] = "name: S\nchildrenLayout: CollapsibleRows\nchildren:\n  - A",
+            ["Base/Steps/A.yaml"] = "name: A",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Steps/S.yaml"] = "name: S\ntitle: New title"
+        }));
+
+        Assert.Equal(StepChildrenLayout.CollapsibleRows, Step(parser.WorkflowDefinitions["Base"], "S").ChildrenLayout);
+        Assert.Equal(StepChildrenLayout.CollapsibleRows, Step(parser.WorkflowDefinitions["Child"], "S").ChildrenLayout);
+        Assert.Equal(StepChildrenLayout.Combined, Step(parser.WorkflowDefinitions["Base"], "A").ChildrenLayout);
+    }
+
+    [Fact]
     public void ConditionallySkippedAlongsideStep_IsNeitherActiveNorABlocker()
     {
         var parser = new ModelParser(new DictionaryProvider(new()

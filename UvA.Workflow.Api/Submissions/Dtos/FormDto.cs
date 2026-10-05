@@ -27,7 +27,9 @@ public record FormDto(
                             (form.PropertyName != null && p.Sources.Contains(form.PropertyName)))
                 .ToArray();
 
-        var questions = currentFormPages
+        var activePages = currentFormPages.Where(p => p.Condition.IsMet(context)).ToArray();
+
+        var questions = activePages
             .SelectMany(p => p.Questions)
             .Distinct()
             .ToDictionary(q => q, q => QuestionDto.Create(q, context, totalWeight));
@@ -41,11 +43,12 @@ public record FormDto(
             allPages.Select((p, i) =>
             {
                 var isInCurrentForm = currentFormPages.Any(page => page.Name == p.Name);
-                var pageElements = isInCurrentForm
+                var isActive = activePages.Any(page => page.Name == p.Name);
+                var pageElements = isActive
                     ? p.PageElements.Select(e => PageElementDto.Create(e, questions, context))
                         .OfType<PageElementDto>()
                     : [];
-                return PageDto.Create(i, p, pageElements, context, isInCurrentForm);
+                return PageDto.Create(i, p, pageElements, context, isInCurrentForm, isActive);
             }).ToArray(),
             form.Layout,
             originalForm.Step
@@ -60,11 +63,12 @@ public record PageDto(
     PageLayout Layout,
     PageElementDto[] Elements,
     bool HasResults,
-    bool IsInCurrentForm
+    bool IsInCurrentForm,
+    bool IsActive
 )
 {
     public static PageDto Create(int index, Page page, IEnumerable<PageElementDto> elements, ObjectContext context,
-        bool isInCurrentForm)
+        bool isInCurrentForm, bool isActive)
         => new(
             index,
             page.Name,
@@ -72,7 +76,8 @@ public record PageDto(
             page.Layout,
             elements.ToArray(),
             page.HasResults,
-            isInCurrentForm
+            isInCurrentForm,
+            isActive
         );
 }
 

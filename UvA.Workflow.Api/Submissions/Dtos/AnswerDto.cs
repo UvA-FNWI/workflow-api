@@ -5,7 +5,7 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
-public record ArtifactReference(string Id, string Name, string AccessToken);
+public record ArtifactReference(string Id, string Name, string AccessToken, long Length);
 
 public record AnswerChangeDto(JsonElement? Value, DateTime ChangedAt, string? ChangedBy);
 
@@ -36,7 +36,7 @@ public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
                 .ToArray();
             files = validFiles
                 .Select(f => new ArtifactReference(f.ArtifactId, f.Name,
-                    WebUtility.UrlEncode(artifactTokenService.CreateAccessToken(f))))
+                    WebUtility.UrlEncode(artifactTokenService.CreateAccessToken(f)), f.Length))
                 .ToArray();
         }
 

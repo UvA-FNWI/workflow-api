@@ -14,7 +14,7 @@ public partial class ModelParser
     /// </summary>
     private static void NormalizeAllowedFileTypes(PropertyDefinition propertyDefinition)
     {
-        if (propertyDefinition.AllowedFileTypes == null)
+        if (propertyDefinition.FileSettings?.AllowedTypes == null)
             return;
 
         if (propertyDefinition.DataType != DataType.File)
@@ -23,7 +23,7 @@ public partial class ModelParser
 
         // Store extensions without a leading dot; upload validation adds the separator when
         // comparing each configured extension with the end of the uploaded filename.
-        var normalized = propertyDefinition.AllowedFileTypes
+        var normalized = propertyDefinition.FileSettings.AllowedTypes
             .Select(fileType => fileType.Trim())
             .Select(fileType => fileType.TrimStart('.'))
             .Select(fileType => fileType.ToLowerInvariant())
@@ -33,12 +33,12 @@ public partial class ModelParser
         // Dots inside an extension support compound types such as "tar.gz". The remaining
         // punctuation covers commonly used extension names without allowing path characters.
         if (normalized.Length == 0 || normalized.Any(fileType =>
-                fileType.Length < 1 || fileType.Any(character =>
-                    !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_' and not '+')))
+                fileType.Length < 1 || (fileType != "*" && fileType.Any(character =>
+                    !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_' and not '+'))))
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' contains invalid allowedFileTypes; use file extensions such as pdf or zip");
+                $"Property '{propertyDefinition.Name}' contains invalid allowedFileTypes; use file extensions such as pdf or zip, or * for any format");
 
-        propertyDefinition.AllowedFileTypes = normalized;
+        propertyDefinition.FileSettings.AllowedTypes = normalized;
     }
 
     /// <summary>
@@ -47,14 +47,14 @@ public partial class ModelParser
     /// </summary>
     private static void ValidateAllowedFileSize(PropertyDefinition propertyDefinition)
     {
-        if (propertyDefinition.AllowedFileSize == null)
+        if (propertyDefinition.FileSettings?.MaximumSize == null)
             return;
 
         if (propertyDefinition.DataType != DataType.File)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' defines allowedFileSize but is not a File property");
 
-        if (propertyDefinition.AllowedFileSize <= 0)
+        if (propertyDefinition.FileSettings.MaximumSize <= 0)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' contains an invalid allowedFileSize; use a positive number of bytes");
     }

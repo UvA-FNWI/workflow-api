@@ -75,6 +75,8 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors, submissionState);
         }
 
+        var operation = OperationMetadata.CreateForSubmission(form, workflowDef);
+
         var previousValues = form.OnSubmit
             .Where(effect => effect.SetProperty != null)
             .Select(effect => effect.SetProperty!.Property)
@@ -83,10 +85,10 @@ public class SubmissionService(
                 property => (instance.GetProperty(property.Split('.')) ?? BsonNull.Value).DeepClone());
 
         if (form.EmitFormSubmitEvent)
-            await effectService.AddEvent(instance, submissionId, user, ct);
+            await effectService.AddEvent(instance, submissionId, user, ct, operation?.Id, operation);
 
         var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
-            form.Name, form.OnSubmit, user, null, ct);
+            form.Name, form.OnSubmit, user, null, ct, operation);
 
         // Effects update the instance directly, so retain their previous values in the normal journal.
         foreach (var (property, previousValue) in previousValues)

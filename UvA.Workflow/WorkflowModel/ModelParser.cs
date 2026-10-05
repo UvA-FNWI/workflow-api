@@ -290,6 +290,8 @@ public partial class ModelParser
                                              ?? throw new Exception(
                                                  $"Form {form.Name} references unknown property {element.Question}");
             }
+
+            PreProcess(ent.Condition);
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
@@ -362,6 +364,8 @@ public partial class ModelParser
                 if (card.Items.Length == 0)
                     throw new Exception(
                         $"Info card '{card.Name}' in '{workflowDefinition.Name}' has type 'Links' but contains no items.");
+                break;
+            case InfoCardType.Progress:
                 break;
         }
     }

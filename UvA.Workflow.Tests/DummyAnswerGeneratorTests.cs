@@ -51,6 +51,23 @@ public class DummyAnswerGeneratorTests
     }
 
     [Fact]
+    public void Generate_Double_HasAtMostOneDecimal()
+    {
+        var question = Question("Double");
+
+        for (var i = 0; i < 100; i++)
+        {
+            var result = new DummyAnswerGenerator().Generate(question, DefaultStatus);
+
+            Assert.NotNull(result);
+
+            var value = result.Value.GetDouble();
+
+            Assert.Equal(Math.Round(value, 1), value);
+        }
+    }
+
+    [Fact]
     public void Generate_Check_ReturnsBool()
     {
         var result = new DummyAnswerGenerator().Generate(Question("Check"), DefaultStatus);
