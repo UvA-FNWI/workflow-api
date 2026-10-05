@@ -82,17 +82,18 @@ public class AnswerService(
 
         if (isReplaced && propertyDefinition.DataType == DataType.File)
         {
-            var oldArtifact = currentValue is BsonDocument ? ArtifactInfo.FromBson(currentValue) : null;
+            var oldArtifacts = currentValue is BsonDocument ? new[] { ArtifactInfo.FromBson(currentValue) } : [];
             if (currentValue is BsonArray array)
             {
                 var newArray = (newValue as BsonArray)?.Select(ArtifactInfo.FromBson) ?? [];
-                oldArtifact = array
+                oldArtifacts = array
                     .Select(ArtifactInfo.FromBson)
-                    .FirstOrDefault(a => newArray.All(b => b?.ArtifactId != a?.ArtifactId));
+                    .Where(a => newArray.All(b => b?.ArtifactId != a?.ArtifactId)).ToArray();
             }
 
-            if (oldArtifact != null)
-                await artifactService.TryDeleteArtifact(oldArtifact.ArtifactId, ct);
+            foreach (var oldArtifact in oldArtifacts)
+                if (oldArtifact != null)
+                    await artifactService.TryDeleteArtifact(oldArtifact.ArtifactId, ct);
         }
     }
 
@@ -175,13 +176,21 @@ public class AnswerService(
         var (instance, _, form, question) = context;
 
         var value = instance.GetProperty(form.PropertyName, question.Name);
-        if (value == null || value is BsonNull || ArtifactInfo.FromBson(value)?.ArtifactId != artifactId)
+
+        static bool ContainsArtifact(BsonValue? candidate, string id) => candidate switch
+        {
+            BsonArray array => array.Any(item => ArtifactInfo.FromBson(item)?.ArtifactId == id),
+            BsonDocument => ArtifactInfo.FromBson(candidate)?.ArtifactId == id,
+            _ => false
+        };
+
+        if (!ContainsArtifact(value, artifactId))
         {
             var journal = await instanceJournalService.GetInstanceJournal(context.Instance.Id, false, ct);
             // Legacy entries contain only the property name.
             value = journal?.PropertyChanges.FirstOrDefault(p =>
                 (p.Path == context.Path || p.Path == question.Name)
-                && ArtifactInfo.FromBson(p.OldValue)?.ArtifactId == artifactId)?.OldValue;
+                && ContainsArtifact(p.OldValue, artifactId))?.OldValue;
         }
 
         if (value == null) return null;
@@ -199,38 +208,42 @@ public class AnswerService(
         return await artifactService.GetArtifact(artifactId, ct);
     }
 
-    public async Task SaveArtifact(QuestionContext context, string artifactName, Stream contents,
-        CancellationToken ct = default)
-    {
-        var (instance, _, _, propertyDefinition) = context;
-        ValidateFile(propertyDefinition, artifactName, contents.Length);
-        var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
-        var artifactInfo = await artifactService.SaveArtifact(artifactId, artifactName, contents);
-        await SaveArtifact(context, artifactInfo, ct);
-    }
-
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
-        ValidateFile(propertyDefinition, formFile.FileName, formFile.Length);
+        ValidateFile(propertyDefinition, instance.GetProperty(context.PathParts), formFile.FileName, formFile.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
-        var artifactInfo = await artifactService.SaveArtifact(artifactId, formFile);
+
+        var fileName = formFile.FileName;
+        if (propertyDefinition.FileSettings?.PrefixTemplate != null)
+        {
+            var templateContext = modelService.CreateContext(instance);
+            fileName = $"{propertyDefinition.FileSettings.PrefixTemplate.Execute(templateContext)}{formFile.FileName}";
+        }
+
+        var artifactInfo = await artifactService.SaveArtifact(artifactId, fileName, formFile.OpenReadStream(),
+            formFile.ContentType, ct);
 
         await SaveArtifact(context, artifactInfo, ct);
     }
 
-    private static void ValidateFile(PropertyDefinition propertyDefinition, string fileName, long fileSize)
+    private static void ValidateFile(PropertyDefinition propertyDefinition, BsonValue? currentAnswer,
+        string fileName, long fileSize)
     {
         if (propertyDefinition.DataType != DataType.File)
             throw new ArgumentException($"Property '{propertyDefinition.Name}' does not accept file uploads");
 
         if (propertyDefinition.EffectiveAllowedFileTypes == null ||
-            propertyDefinition.EffectiveAllowedFileTypes.All(fileType =>
-                !fileName.EndsWith($".{fileType}", StringComparison.OrdinalIgnoreCase)))
+            propertyDefinition.EffectiveAllowedFileTypes.All(fileType => fileType != "*" &&
+                                                                         !fileName.EndsWith($".{fileType}",
+                                                                             StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException(
                 $"File '{fileName}' does not have an allowed file type for property '{propertyDefinition.Name}'");
 
-        if (fileSize > propertyDefinition.EffectiveAllowedFileSize)
+        var existingSize = propertyDefinition.IsArray && currentAnswer is BsonArray array
+            ? array.Sum(file => ArtifactInfo.FromBson(file)?.Length ?? 0)
+            : 0;
+        if (fileSize + existingSize > propertyDefinition.EffectiveAllowedFileSize)
             throw new ArgumentException(
                 $"File '{fileName}' exceeds the maximum file size for property '{propertyDefinition.Name}'");
     }
@@ -244,7 +257,7 @@ public class AnswerService(
 
         if (question.IsArray)
         {
-            var array = currentAnswer as BsonArray ?? [];
+            var array = currentAnswer is BsonArray existing ? new BsonArray(existing) : [];
             array.Add(artifactInfo.ToBsonDocument());
             newAnswer = array;
         }
@@ -267,7 +280,7 @@ public class AnswerService(
         // submitted version.
         if (question.IsArray)
         {
-            var array = currentAnswer as BsonArray ?? [];
+            var array = currentAnswer is BsonArray existing ? new BsonArray(existing) : [];
             var artifactRef = array.FirstOrDefault(a => ArtifactInfo.FromBson(a)?.ArtifactId == artifactId);
             if (artifactRef == null)
             {
@@ -276,7 +289,7 @@ public class AnswerService(
             }
 
             array.Remove(artifactRef);
-            newAnswer = array;
+            newAnswer = array.Count == 0 ? BsonNull.Value : array;
         }
         else
         {

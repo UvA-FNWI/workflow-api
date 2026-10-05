@@ -24,15 +24,15 @@ public class LastEventTests
 
         var context = _modelService.CreateContext(instance);
 
-        Assert.Equal(latest, context.Get("LastEvent"));
-        Assert.Equal(latest.ToString(), new Template("{{ LastEvent }}").Apply(context));
+        Assert.Equal(latest.ToLocalTime(), context.Get("LastEvent"));
+        Assert.Equal(latest.ToLocalTime().ToString(), new Template("{{ LastEvent }}").Apply(context));
         Assert.Equal("07-09-2026", new Template("{{ dateLong(LastEvent) }}").Apply(context));
 
         instance.Events.Remove("Start");
-        Assert.Equal(latest.AddDays(-1), _modelService.CreateContext(instance).Get("LastEvent"));
+        Assert.Equal(latest.AddDays(-1).ToLocalTime(), _modelService.CreateContext(instance).Get("LastEvent"));
 
         instance.Events.Remove("RejectSubject");
-        Assert.Equal(instance.CreatedOn, _modelService.CreateContext(instance).Get("LastEvent"));
+        Assert.Equal(instance.CreatedOn.ToLocalTime(), _modelService.CreateContext(instance).Get("LastEvent"));
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class LastEventTests
             })
             : _modelService.CreateContext(instance);
 
-        Assert.Equal(projected ? created.ToLocalTime() : created, context.Get("LastEvent"));
+        Assert.Equal(created.ToLocalTime(), context.Get("LastEvent"));
         Assert.Equal("01/09", new Template("{{ dateShort(LastEvent) }}").Apply(context));
         Assert.Equal("01/09", new Template("{{ dateShort(CreateDate) }}").Apply(context));
         if (!projected)

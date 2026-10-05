@@ -65,7 +65,7 @@ Each action in the `actions` list has a `type` and optional scope:
 | `View` | Can view form submissions |
 | `Submit` | Can submit forms |
 | `Edit` | Can edit existing submissions |
-| `Undo` | Can undo submissions |
+| `Undo` | Can undo eligible form submissions or executable actions. This reverses correlated workflow events and cancels pending jobs, but does not reverse completed external effects |
 | `Execute` | Can trigger executable actions |
 | `ViewAdminTools` | Can access admin tools in the UI |
 | `ViewHidden` | Can view hidden properties |
@@ -90,16 +90,15 @@ actions:
     steps: [Review]        # Only during the "Review" step
 ```
 
+For `Undo`, use `form` to scope form submissions or `name` to scope executable actions; `steps` can limit either operation type.
+
 ### Persistent step actions
 
-Set `persistent: true` on an action to keep it available while a linked step is active
-and after that step completes. Buttons remain in the matching step cards. This works
-both in `globalActions` with an explicit `steps` list and in a step's `actions`, where
-the containing step is linked automatically. Each linked step is evaluated separately,
-so a future step does not gain a button merely because another linked step is complete.
+Set `persistent: true` to keep an action available during and after its linked step.
+Buttons stay in the matching step cards. Define it in a step's `actions` (linked
+automatically) or in `globalActions` with a `steps` list:
 
 ```yaml
-# In a step definition:
 actions:
   - type: View
     roles: [Reviewer]
@@ -107,16 +106,9 @@ actions:
     persistent: true
 ```
 
-Roles and action conditions are still checked on every request. Persistence does not
-bypass hard deadlines on unfinished steps, including parent steps. Completed steps
-remain available under the existing deadline rules. The existing exemptions for
-`View` permissions and actions without linked steps still apply.
-For report actions, use a condition that checks the report identifier is present.
-An action without linked steps retains its existing global behavior. Completion is
-evaluated from the current workflow state, so resetting a step can revoke persistent
-access if the step is no longer active or complete.
-
-The admin card lists persistent actions alongside ordinary actions under their linked steps.
+Roles, conditions and applicable hard deadlines, including parent deadlines, still
+apply. Existing exemptions for `View` and actions without linked steps are unchanged.
+Future steps remain unavailable, and resetting a step may remove access.
 
 ## Well-known roles
 

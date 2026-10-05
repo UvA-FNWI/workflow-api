@@ -27,6 +27,7 @@ public abstract class ControllerTestsBase
     protected readonly Mock<IUserService> _userServiceMock;
     protected readonly Mock<IMailService> _mailServiceMock;
     protected readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
+    protected readonly Mock<ILoginMethodClassifier> _loginMethodClassifierMock;
     protected readonly Mock<IExternalUserService> _externalUserServiceMock;
     protected readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     protected readonly Mock<IArtifactService> _artifactServiceMock;
@@ -46,6 +47,7 @@ public abstract class ControllerTestsBase
     protected readonly InstanceEventService _eventService;
     protected readonly EffectService _effectService;
     protected readonly JobService _jobService;
+    protected readonly UndoService _undoService;
     protected readonly AssessmentService _assessmentService;
     protected readonly AnswerService _answerService;
     protected readonly AnswerConversionService _answerConversionService;
@@ -70,6 +72,7 @@ public abstract class ControllerTestsBase
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
         _eduIdUserServiceMock = new Mock<IEduIdUserService>();
+        _loginMethodClassifierMock = new Mock<ILoginMethodClassifier>();
         _externalUserServiceMock = new Mock<IExternalUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
@@ -78,6 +81,9 @@ public abstract class ControllerTestsBase
         _jobRepositoryMock = new Mock<IJobRepository>();
         _userRepoMock = new Mock<IUserRepository>();
         _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _jobRepositoryMock.Setup(r => r.CancelPendingForOperation(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         _configurationMock = new Mock<IConfiguration>();
@@ -95,7 +101,10 @@ public abstract class ControllerTestsBase
 
 
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
-        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
+        var mailLayout = new Mock<IMailLayout>();
+        mailLayout.Setup(l => l.Render(It.IsAny<string>(), It.IsAny<IReadOnlyList<MailButton>>()))
+            .Returns((string body, IReadOnlyList<MailButton> _) => body);
+        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(mailLayout.Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
 
         _workflowInstanceService =
@@ -120,17 +129,22 @@ public abstract class ControllerTestsBase
                 _eventService,
                 _modelService,
                 _mailServiceMock.Object,
-                _eduIdUserServiceMock.Object,
+                _externalUserServiceMock.Object,
                 _artifactServiceMock.Object,
                 _mailLogRepositoryMock.Object,
                 _configurationMock.Object,
-                _loggerFactory.CreateLogger<EffectService>());
+                _eventRepoMock.Object,
+                _loggerFactory.CreateLogger<EffectService>(),
+                [_loginMethodClassifierMock.Object]);
 
         _jobService =
             new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
                 _workflowInstanceRepoMock.Object, userRepository: _userRepoMock.Object,
                 _loggerFactory.CreateLogger<JobService>(),
                 _instanceService, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
+
+        _undoService = new UndoService(_eventRepoMock.Object, _jobRepositoryMock.Object,
+            _workflowInstanceRepoMock.Object, _instanceService, _rightsService, _modelService);
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
