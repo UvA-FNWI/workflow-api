@@ -225,6 +225,10 @@
               "$ref": "#/definitions/Callout"
             }
           ]
+        },
+        "deadlines": {
+          "type": "boolean",
+          "description": "Expand property-backed step deadlines into date questions using the PostponementDate question template."
         }
       }
     },

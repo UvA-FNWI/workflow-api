@@ -7,6 +7,7 @@ namespace UvA.Workflow.WorkflowInstances;
 /// Represents a workflow instance - the core domain entity.
 /// Contains business logic for managing workflow state, properties, and events.
 /// </summary>
+[BsonIgnoreExtraElements]
 public class WorkflowInstance
 {
     [BsonId]
@@ -21,7 +22,6 @@ public class WorkflowInstance
     // public List<LogEntry> LogEntries { get; set; } = [];
     public Dictionary<string, BsonValue> Properties { get; set; } = null!;
     public Dictionary<string, InstanceEvent> Events { get; set; } = null!;
-
 
     public string? ParentId { get; set; }
 

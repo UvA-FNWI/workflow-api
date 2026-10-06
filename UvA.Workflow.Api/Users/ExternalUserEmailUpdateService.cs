@@ -164,7 +164,7 @@ public class ExternalUserEmailUpdateService(
 
     private async Task<bool> CanEdit(QuestionContext context) =>
         await rightsService.Can(context.Instance,
-            [context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit],
+            [context.Form.Step == null || !context.SubmissionState.IsSubmitted ? RoleAction.Submit : RoleAction.Edit],
             RightsEvaluationMode.RequestContext,
             context.Form.Name);
 

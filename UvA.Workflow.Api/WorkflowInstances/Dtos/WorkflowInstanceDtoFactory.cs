@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.Deadlines;
 using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
@@ -170,7 +171,7 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var deadline = GetDeadline(step, context, activeSteps);
+        var deadline = GetDeadline(step, context, activeSteps, instance, workflowDef, instanceHistory);
         var headerStatus = HasPassedDeadline(step, context, activeSteps)
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
             : stepHeaderStatusResolver.Resolve(step, instance);
@@ -256,7 +257,8 @@ public class WorkflowInstanceDtoFactory(
         );
     }
 
-    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps,
+        WorkflowInstance instance, WorkflowDefinition definition, WorkflowInstanceHistory history)
     {
         var deadline = step.Deadline;
         if (deadline == null)
@@ -267,7 +269,13 @@ public class WorkflowInstanceDtoFactory(
             ? deadline.TextTemplate?.Apply(context)
             : null;
 
-        return new DeadlineDto(step.Deadline?.Evaluate(context), deadline.Type, isPassed, message);
+        var date = deadline.Evaluate(context);
+        var property = DeadlineHistory.GetProperty(step, definition);
+        (DateTimeOffset? PreviousDate, BilingualString? Reason) change = property == null
+            ? (null, null)
+            : DeadlineHistory.GetChange(instance, definition, property.Name, history);
+        return new DeadlineDto(date, deadline.Type, isPassed, message, change.PreviousDate, change.Reason,
+            property?.Name);
     }
 
     private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)

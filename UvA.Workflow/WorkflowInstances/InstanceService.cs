@@ -378,7 +378,8 @@ public class InstanceService(
             .SelectMany(a => a.AllForms
                 .SelectMany(name => name == Domain_Action.All ? workflowDef.Forms.Select(f => f.Name) : [name])
                 .Select(name => new { Action = a, Form = modelService.GetForm(instance, name) }))
-            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
+            // Forms attached to a step are one-time submissions. Global action forms can be reused.
+            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted || f.Form.Step == null)
             .Distinct()
             .Select(f => new AllowedAction(f.Action, f.Form, DisplaySteps: GetDisplaySteps(f.Action, f.Form)))
         );
@@ -400,8 +401,10 @@ public class InstanceService(
                 }
             }
 
-        // Executable actions
-        foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
+        // Unnamed entries are permissions, not buttons that can be executed.
+        foreach (var a in allowed.Where(a =>
+                     a.Type is RoleAction.Execute &&
+                     !string.IsNullOrWhiteSpace(a.Name)))
         {
             // Build mail message for actions that send mail
             var sendMail = a.OnAction.FirstOrDefault(t =>
@@ -411,7 +414,8 @@ public class InstanceService(
             if (sendMail is not null)
                 mail = await BuildMail(instance, sendMail, ct);
 
-            actions.Add(new AllowedAction(a, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
+            var form = a.Form != null ? modelService.GetForm(instance, a.Form) : null;
+            actions.Add(new AllowedAction(a, Form: form, Mail: mail, DisplaySteps: GetDisplaySteps(a)));
         }
 
         return actions

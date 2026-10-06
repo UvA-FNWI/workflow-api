@@ -3,7 +3,6 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
-using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Actions;
@@ -20,8 +19,8 @@ public class ActionsController(
 ) : ApiControllerBase
 {
     [HttpPost]
-    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction([FromBody] ExecuteActionInputDto input,
-        CancellationToken ct)
+    public async Task<ActionResult<ExecuteActionPayloadDto>> ExecuteAction(
+        [FromBody] ExecuteActionInputDto input, CancellationToken ct)
     {
         var currentUser = await userService.GetCurrentUser(ct);
         if (currentUser == null)
@@ -63,12 +62,14 @@ public class ActionsController(
                 result = await jobService.CreateAndRunJob(instance, action, realUser, input.JobInput, ct, operation);
                 await instanceService.UpdateCurrentStep(instance, ct);
                 break;
+
+            default:
+                return BadRequest("UnsupportedActionType", $"Action type '{input.Type}' is not supported");
         }
 
         return Ok(new ExecuteActionPayloadDto(
             input.Type,
             input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct),
-            result
-        ));
+            result));
     }
 }

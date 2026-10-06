@@ -101,6 +101,8 @@ public class AnswerService(
         CancellationToken ct)
     {
         var (instance, _, form, question) = context;
+        if (!form.ActualForm.PropertyDefinitions.Any(q => q.Name == question.Name))
+            throw new EntityNotFoundException("FormQuestion", question.Name);
         // Avoid the submission lookup when nothing changed.
         if (newAnswer == currentAnswer)
             return;
