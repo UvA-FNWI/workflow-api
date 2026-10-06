@@ -39,6 +39,25 @@ public class TemplateTests
         Assert.Equal("Invalid number of arguments", exception.Message);
     }
 
+    [Theory]
+    [InlineData("""{{ template("({{ Field }})") }}""", "(test)")]
+    [InlineData("""{{ template("bah: ({{ Field }}") }}""", "bah: (test")]
+    [InlineData("""{{ template("{{ Field }}")}}""", "test")]
+    [InlineData("""{{ template("{{ Field }}")}} {{ Field }}""", "test test")]
+    public void TestNested(string templateString, string expected)
+    {
+        var template = new Template(templateString);
+
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Field"] = "test"
+        });
+
+        var result = template.Apply(context);
+
+        Assert.Equal(expected, result);
+    }
+
     [Fact]
     public void TestProperties()
     {
