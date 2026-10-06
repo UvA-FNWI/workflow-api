@@ -1363,17 +1363,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
-        },
         "results": {
           "oneOf": [
             {
@@ -1442,31 +1431,6 @@
       "enum": [
         "Normal",
         "Hidden"
-      ]
-    },
-    "CalculationSettings": {
-      "title": "CalculationSettings",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "weight": {
-          "type": [
-            "null",
-            "number"
-          ],
-          "description": "The weight of this field"
-        },
-        "type": {
-          "description": "Determines how this field is used in the calculation. For Average, set a weight to use it in a weighted average.\n            For Sum, the weight is ignored.",
-          "$ref": "#/definitions/CalculationType"
-        }
-      }
-    },
-    "CalculationType": {
-      "type": "string",
-      "enum": [
-        "Average",
-        "Sum"
       ]
     },
     "ResultSettings": {
@@ -1609,17 +1573,6 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
-        },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
         },
         "results": {
           "oneOf": [
@@ -1767,17 +1720,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
-        },
         "results": {
           "oneOf": [
             {
@@ -1818,6 +1760,17 @@
         "type"
       ],
       "properties": {
+        "calculation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result calculation",
+              "$ref": "#/definitions/CalculationSettings"
+            }
+          ]
+        },
         "name": {
           "type": "string",
           "description": "Internal name of the propertyDefinition"
@@ -1924,17 +1877,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
-        },
         "results": {
           "oneOf": [
             {
@@ -1965,6 +1907,31 @@
         }
       }
     },
+    "CalculationSettings": {
+      "title": "CalculationSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "weight": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "The weight of this field"
+        },
+        "type": {
+          "description": "Determines how this field is used in the calculation. For Average, set a weight to use it in a weighted average.\n            For Sum, the weight is ignored.",
+          "$ref": "#/definitions/CalculationType"
+        }
+      }
+    },
+    "CalculationType": {
+      "type": "string",
+      "enum": [
+        "Average",
+        "Sum"
+      ]
+    },
     "DoublePropertyDefinition": {
       "title": "DoublePropertyDefinition",
       "type": "object",
@@ -1975,6 +1942,17 @@
         "type"
       ],
       "properties": {
+        "calculation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result calculation",
+              "$ref": "#/definitions/CalculationSettings"
+            }
+          ]
+        },
         "name": {
           "type": "string",
           "description": "Internal name of the propertyDefinition"
@@ -2080,17 +2058,6 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
-        },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
         },
         "results": {
           "oneOf": [
@@ -2238,17 +2205,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
-        },
         "results": {
           "oneOf": [
             {
@@ -2289,6 +2245,17 @@
         "type"
       ],
       "properties": {
+        "calculation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result calculation",
+              "$ref": "#/definitions/CalculationSettings"
+            }
+          ]
+        },
         "name": {
           "type": "string",
           "description": "Internal name of the propertyDefinition"
@@ -2394,17 +2361,6 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
-        },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
         },
         "results": {
           "oneOf": [
@@ -2562,17 +2518,6 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
-        },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
         },
         "results": {
           "oneOf": [
@@ -2758,17 +2703,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
-        },
         "results": {
           "oneOf": [
             {
@@ -2839,6 +2773,17 @@
           "items": {
             "$ref": "#/definitions/RubricEntry"
           }
+        },
+        "calculation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Settings for result calculation",
+              "$ref": "#/definitions/CalculationSettings"
+            }
+          ]
         },
         "name": {
           "type": "string",
@@ -2979,17 +2924,6 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
-        },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
         },
         "results": {
           "oneOf": [
@@ -3323,17 +3257,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
-        },
         "results": {
           "oneOf": [
             {
@@ -3524,17 +3447,6 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
-        },
-        "calculation": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Settings for result calculation",
-              "$ref": "#/definitions/CalculationSettings"
-            }
-          ]
         },
         "results": {
           "oneOf": [

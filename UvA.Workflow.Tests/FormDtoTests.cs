@@ -40,10 +40,14 @@ public class FormDtoTests
         var result = FormDto.Create(form, new ObjectContext([]));
 
         Assert.Equal(2m / 3m * 100m,
-            result.Pages[0].Elements.Single(q => q.Question!.Name == "Quality").Question!.Percentage);
+            Assert.IsType<DoubleQuestionDto>(result.Pages[0].Elements.Single(q => q.Question!.Name == "Quality")
+                .Question).Percentage);
         Assert.Equal(1m / 3m * 100m,
-            result.Pages[1].Elements.Single(q => q.Question!.Name == "Depth").Question!.Percentage);
-        Assert.Null(result.Pages[0].Elements.Single(q => q.Question!.Name == "Comments").Question!.Percentage);
+            Assert.IsType<DoubleQuestionDto>(result.Pages[1].Elements.Single(q => q.Question!.Name == "Depth").Question)
+                .Percentage);
+        Assert.Null(Assert
+            .IsType<DoubleQuestionDto>(result.Pages[0].Elements.Single(q => q.Question!.Name == "Comments").Question)
+            .Percentage);
     }
 
     [Fact]
@@ -68,8 +72,8 @@ public class FormDtoTests
             ParentType = definition
         };
 
-        var configuredDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(configured, new ObjectContext([]), 0));
-        var defaultedDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(defaulted, new ObjectContext([]), 0));
+        var configuredDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(configured, 0));
+        var defaultedDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(defaulted, 0));
 
         Assert.Equal(["zip", "tar.gz"], configuredDto.AllowedFileTypes);
         Assert.Equal(["pdf"], defaultedDto.AllowedFileTypes);
@@ -88,7 +92,7 @@ public class FormDtoTests
             ParentType = parent,
             Layout = new TextLayoutOptions { Multiline = true, Variant = StringVariant.Email }
         };
-        var question = QuestionDto.Create(property, new ObjectContext([]), 0);
+        var question = QuestionDto.Create(property, 0);
         var json = JsonSerializer.SerializeToElement(question, CreateJsonOptions());
 
         var layout = json.GetProperty("layout");
@@ -157,16 +161,16 @@ public class FormDtoTests
 
         var settings = new Dictionary<string, string[]>
         {
-            ["Date"] = ["isDeadline", "maxDate"],
+            ["Date"] = [],
             ["DateTime"] = [],
-            ["Int"] = [],
-            ["Double"] = [],
+            ["Int"] = ["weight", "percentage"],
+            ["Double"] = ["weight", "percentage"],
             ["Check"] = [],
-            ["Currency"] = [],
+            ["Currency"] = ["weight", "percentage"],
             ["File"] = ["allowedFileTypes", "allowedFileSize"],
             ["String"] = ["layout", "minLength", "maxLength"],
             ["User"] = ["allowsExternalUsers"],
-            ["Choice"] = ["layout", "choices", "rubric", "sorting"],
+            ["Choice"] = ["weight", "percentage", "layout", "choices", "rubric", "sorting"],
             ["Reference"] = ["layout", "workflowDefinition"],
             ["Object"] = ["layout", "workflowDefinition", "subProperties"]
         };
@@ -188,6 +192,8 @@ public class FormDtoTests
         Assert.Equal("String", child.GetProperty("type").GetString());
         Assert.True(child.TryGetProperty("maxLength", out _));
         Assert.False(child.TryGetProperty("allowedFileTypes", out _));
+        Assert.False(child.TryGetProperty("weight", out _));
+        Assert.False(child.TryGetProperty("percentage", out _));
     }
 
     private static JsonSerializerOptions CreateJsonOptions() => new(JsonSerializerDefaults.Web)

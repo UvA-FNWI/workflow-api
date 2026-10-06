@@ -130,9 +130,10 @@ public abstract class PropertyDefinition : INamed
     public Condition? Validation { get; set; }
 
     public virtual BilingualString? GetValidationError(ObjectContext context, WorkflowDefinition definition)
-        => Validation.IsMet(context) ? null :
-            Validation?.Message ?? new BilingualString("Invalid value", "Ongeldige waarde");
-    
+        => Validation.IsMet(context)
+            ? null
+            : Validation?.Message ?? new BilingualString("Invalid value", "Ongeldige waarde");
+
     [YamlIgnore]
     public virtual IEnumerable<Condition> Conditions => new[] { Condition, Validation }.OfType<Condition>();
 
@@ -149,11 +150,6 @@ public abstract class PropertyDefinition : INamed
     public bool HideInResults { get; set; }
 
     /// <summary>
-    /// Settings for result calculation
-    /// </summary>
-    public CalculationSettings? Calculation { get; set; }
-
-    /// <summary>
     /// Settings for result display
     /// </summary>
     public ResultSettings? Results { get; set; }
@@ -167,6 +163,15 @@ public abstract class PropertyDefinition : INamed
     /// The name of another property this property is linked to.
     /// </summary>
     public string? LinkedTo { get; set; }
+}
+
+/// <summary>Property with a numeric value that can contribute to assessment calculations.</summary>
+public abstract class WeightedPropertyDefinition : PropertyDefinition
+{
+    /// <summary>
+    /// Settings for result calculation
+    /// </summary>
+    public CalculationSettings? Calculation { get; set; }
 }
 
 /// <summary>Text value with optional input layout and length validation.</summary>
@@ -191,13 +196,13 @@ public class DateTimePropertyDefinition : PropertyDefinition
 }
 
 /// <summary>Whole number without a fractional part.</summary>
-public class IntPropertyDefinition : PropertyDefinition
+public class IntPropertyDefinition : WeightedPropertyDefinition
 {
     public override DataType DataType => DataType.Int;
 }
 
 /// <summary>Number that can include a fractional part.</summary>
-public class DoublePropertyDefinition : PropertyDefinition
+public class DoublePropertyDefinition : WeightedPropertyDefinition
 {
     public override DataType DataType => DataType.Double;
 }
@@ -209,7 +214,7 @@ public class CheckPropertyDefinition : PropertyDefinition
 }
 
 /// <summary>Monetary amount paired with a currency code.</summary>
-public class CurrencyPropertyDefinition : PropertyDefinition
+public class CurrencyPropertyDefinition : WeightedPropertyDefinition
 {
     public override DataType DataType => DataType.Currency;
 }
@@ -241,7 +246,7 @@ public class UserPropertyDefinition : PropertyDefinition
 }
 
 /// <summary>Selection from inline choices or a named value set, with optional layout and rubric settings.</summary>
-public class ChoicePropertyDefinition : PropertyDefinition
+public class ChoicePropertyDefinition : WeightedPropertyDefinition
 {
     public override DataType DataType => DataType.Choice;
 
@@ -249,7 +254,8 @@ public class ChoicePropertyDefinition : PropertyDefinition
     public List<Choice>? Values { get; set; }
 
     /// <summary>Sorting inherited from the referenced value set.</summary>
-    [YamlIgnore] public ValueSetSorting? Sorting { get; set; }
+    [YamlIgnore]
+    public ValueSetSorting? Sorting { get; set; }
 
     /// <summary>Layout options for choice input.</summary>
     public ChoiceLayoutOptions? Layout { get; set; }

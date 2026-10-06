@@ -56,7 +56,7 @@ public class Page : INamed
 
     public BilingualString DisplayTitle => Title ?? Name;
 
-    public bool HasResults => PageElements.Any(e => e.QuestionDefinition?.Calculation?.Weight != null);
+    public bool HasResults => Questions.OfType<WeightedPropertyDefinition>().Any(q => q.Calculation?.Weight != null);
 
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>

@@ -30,8 +30,27 @@ public class TypedPropertyDefinitionTests
     [InlineData("Date", "layout: { multiline: true }")]
     [InlineData("String", "layout: { type: RadioList }")]
     [InlineData("Country", "values: [{ name: NL }]\nfilter: Title")]
+    [InlineData("Date", "calculation: { weight: 1 }")]
+    [InlineData("String", "calculation: { weight: 1 }")]
+    [InlineData("File", "calculation: { weight: 1 }")]
+    [InlineData("Check", "calculation: { weight: 1 }")]
     public void Parser_RejectsSettingsBelongingToAnotherType(string type, string settings)
         => Assert.Throws<Exception>(() => ParseProperty($"name: Value\ntype: {type}\n{settings}"));
+
+    [Theory]
+    [InlineData("Int")]
+    [InlineData("Double")]
+    [InlineData("Currency")]
+    [InlineData("Grade")]
+    public void Parser_ReadsCalculationOnWeightedProperties(string type)
+    {
+        var choices = type == "Grade" ? "\nvalues: [{ name: Pass, value: 7 }]" : "";
+        var property = Assert.IsAssignableFrom<WeightedPropertyDefinition>(ParseProperty(
+            $"name: Score\ntype: {type}\ncalculation: {{ weight: 2, type: Sum }}{choices}"));
+
+        Assert.Equal(2m, property.Calculation!.Weight);
+        Assert.Equal(CalculationType.Sum, property.Calculation.Type);
+    }
 
     [Fact]
     public void Parser_StillResolvesNamedChoices()

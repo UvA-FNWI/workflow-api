@@ -17,6 +17,10 @@ public class PropertySchemaTests
     [InlineData("[Context]", ", \"inheritedRoles\": [\"Coordinator\"], \"layout\": {\"type\": \"RadioList\"}")]
     [InlineData("Assessment", ", \"layout\": {\"type\": \"Modal\"}")]
     [InlineData("Country", "")]
+    [InlineData("Int!", ", \"calculation\": {\"weight\": 2}")]
+    [InlineData("Double", ", \"calculation\": {\"weight\": 2}")]
+    [InlineData("Currency", ", \"calculation\": {\"type\": \"Sum\"}")]
+    [InlineData("Grade", ", \"calculation\": {\"weight\": 2}")]
     public async Task AcceptsExistingTypeSyntaxAndMatchingSettings(string type, string settings)
     {
         var schema = await Generate();
@@ -33,6 +37,10 @@ public class PropertySchemaTests
     [InlineData("Country", "\"fileSettings\": {}")]
     [InlineData("Country", "\"values\": [], \"filter\": \"Title\"")]
     [InlineData("Assessment", "\"layout\": {\"type\": \"Modal\"}, \"inheritedRoles\": []")]
+    [InlineData("Date", "\"calculation\": {\"weight\": 1}")]
+    [InlineData("String", "\"calculation\": {\"weight\": 1}")]
+    [InlineData("File", "\"calculation\": {\"weight\": 1}")]
+    [InlineData("Check", "\"calculation\": {\"weight\": 1}")]
     public async Task RejectsSettingsBelongingToAnotherType(string type, string settings)
     {
         var schema = await Generate();
