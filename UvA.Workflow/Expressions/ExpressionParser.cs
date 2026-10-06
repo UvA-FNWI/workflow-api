@@ -65,10 +65,23 @@ public class ExpressionParser
     {
         var chars = new List<char> { ',', '(', ')', '[', ']' };
         var operatorChars = new List<char> { '<', '>', '=' };
+        var quotes = new List<char> { '"', '\'' };
         var tokens = new List<string>();
         int start = 0;
+        char? quote = null;
         for (var i = 0; i < exp.Length; i++)
         {
+            if (quotes.Contains(exp[i]))
+            {
+                if (quote == exp[i])
+                    quote = null;
+                else if (quote == null)
+                    quote = exp[i];
+            }
+
+            if (quote != null)
+                continue;
+
             var isOperator = operatorChars.Contains(exp[i]) && operatorChars.Contains(exp[i + 1]);
             if (chars.Contains(exp[i]) || isOperator)
             {
