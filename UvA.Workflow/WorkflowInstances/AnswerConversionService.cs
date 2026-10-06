@@ -65,7 +65,7 @@ public class AnswerConversionService(
 
             DataType.User => await ConvertUser(value, ct),
 
-            DataType.Object => await ConvertObject(value, propertyDefinition, ct),
+            DataType.Object => await ConvertObject(value, (ObjectPropertyDefinition)propertyDefinition, ct),
 
             _ => throw new NotImplementedException(
                 $"Data type {propertyDefinition.DataType} is not supported for propertyDefinition '{propertyDefinition.DisplayName}'")
@@ -75,7 +75,7 @@ public class AnswerConversionService(
     /// <summary>
     /// Returns the first submitted choice not in the property's allowed values, or null if all are valid.
     /// </summary>
-    public static string? FindInvalidChoice(JsonElement value, PropertyDefinition property)
+    public static string? FindInvalidChoice(JsonElement value, ChoicePropertyDefinition property)
     {
         var allowed = property.Values?.Select(v => v.Name).ToHashSet() ?? [];
         IEnumerable<JsonElement> elements = value.ValueKind == JsonValueKind.Array
@@ -91,7 +91,7 @@ public class AnswerConversionService(
     /// <summary>
     /// Converts a Json object to a BsonValue for an embedded object question.
     /// </summary>
-    private async Task<BsonValue> ConvertObject(JsonElement value, PropertyDefinition propertyDefinition,
+    private async Task<BsonValue> ConvertObject(JsonElement value, ObjectPropertyDefinition propertyDefinition,
         CancellationToken ct)
     {
         if (propertyDefinition.WorkflowDefinition == null)

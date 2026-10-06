@@ -73,7 +73,7 @@ public class InstanceUserStorageTests
         userService.Setup(s => s.GetUser("jdoe", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
-        var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
+        var property = new UserPropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
                                          "userName": "jdoe",
@@ -112,7 +112,7 @@ public class InstanceUserStorageTests
         userRepository.Setup(r => r.GetByEmail("external@example.org", It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
-        var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
+        var property = new UserPropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
                                          "userName": "external@example.org",
@@ -157,7 +157,7 @@ public class InstanceUserStorageTests
         userRepository.Setup(r => r.GetByEmail("external@example.org", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
-        var property = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
+        var property = new UserPropertyDefinition { Name = "Supervisor", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
                                          "userName": "external@example.org",
@@ -211,7 +211,7 @@ public class InstanceUserStorageTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
-        var property = new PropertyDefinition { Name = "Student", Type = "User!" };
+        var property = new UserPropertyDefinition { Name = "Student", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
                                          "userName": "student-123",
@@ -262,7 +262,7 @@ public class InstanceUserStorageTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         var service = new AnswerConversionService(userService.Object, userRepository.Object);
-        var property = new PropertyDefinition { Name = "Student", Type = "User!" };
+        var property = new UserPropertyDefinition { Name = "Student", Type = "User!" };
         var value = JsonDocument.Parse("""
                                        {
                                          "userName": "student-456",
@@ -301,8 +301,8 @@ public class InstanceUserStorageTests
             { "DisplayName", "Jane Doe" },
             { "Email", "j.doe@uva.nl" }
         };
-        var singleProperty = new PropertyDefinition { Name = "Supervisor", Type = "User!" };
-        var arrayProperty = new PropertyDefinition { Name = "Student", Type = "[User]!" };
+        var singleProperty = new UserPropertyDefinition { Name = "Supervisor", Type = "User!" };
+        var arrayProperty = new UserPropertyDefinition { Name = "Student", Type = "[User]!" };
 
         var single = ObjectContext.GetValue(userDoc, singleProperty);
         var array = ObjectContext.GetValue(new BsonArray { userDoc }, arrayProperty);

@@ -38,14 +38,14 @@ public class ModelService(ModelParser parser)
             if (prop == null) return null;
 
             if (prop.DataType == DataType.User)
-                return new PropertyDefinition
+                return new StringPropertyDefinition
                 {
                     Name = parts[^1]!,
                     Text = new BilingualString(parts[^1]!, parts[^1]!),
                     Type = "String"
                 };
 
-            type = prop.WorkflowDefinition;
+            type = (prop as WorkflowPropertyDefinition)?.WorkflowDefinition;
             if (type == null) return null;
         }
 
@@ -67,10 +67,11 @@ public class ModelService(ModelParser parser)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden)
                                            && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
-                q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name)
+                !instance.Properties.ContainsKey(q.Name)
                     ? null
-                    : q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde"),
-                q.Values?.Where(v => v.Condition.IsMet(context)).Select(v => v.Name).ToArray()
+                    : q.GetValidationError(context, WorkflowDefinitions[instance.WorkflowDefinition]),
+                (q as ChoicePropertyDefinition)?.Values?.Where(v => v.Condition.IsMet(context))
+                .Select(v => v.Name).ToArray()
             ));
     }
 

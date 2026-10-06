@@ -23,14 +23,12 @@ public enum TableLayout
     Modal
 }
 
-public class LayoutOptions;
-
-public class ChoiceLayoutOptions : LayoutOptions
+public class ChoiceLayoutOptions
 {
     /// <summary>
     /// Set if the field should be shown as dropdown or radio list
     /// </summary>
-    public ChoiceLayoutType Type { get; set; }
+    public ChoiceLayoutType? Type { get; set; }
 }
 
 public enum StringVariant
@@ -39,7 +37,7 @@ public enum StringVariant
     Phone
 }
 
-public class TextLayoutOptions : LayoutOptions
+public class TextLayoutOptions
 {
     /// <summary>
     /// Set if the field should be a multiline text field
@@ -54,21 +52,21 @@ public class TextLayoutOptions : LayoutOptions
     /// <summary>
     /// Renders the string field as a specific input (e.g. email or phone) with matching validation
     /// </summary>
-    public StringVariant Variant { get; set; }
+    public StringVariant? Variant { get; set; }
 }
 
-public class TableLayoutOptions : LayoutOptions
+public class TableLayoutOptions
 {
     /// <summary>
     /// Sets if the table should allow inline editing or not
     /// </summary>
-    public TableLayout Type { get; set; }
+    public TableLayout? Type { get; set; }
 }
 
 /// <summary>
-/// Represents a property of an entity type (which can also be used as a propertyDefinition in a form)
+/// Defines a workflow property and the settings shared by all property types.
 /// </summary>
-public class PropertyDefinition : INamed
+public abstract class PropertyDefinition : INamed
 {
     /// <summary>
     /// Internal name of the propertyDefinition
@@ -87,25 +85,6 @@ public class PropertyDefinition : INamed
     /// Set if this propertyDefinition is hidden from users without extra permissions
     /// </summary>
     public PropertyVisibility Visibility { get; set; }
-
-    /// <summary>
-    /// Configure settings for file upload questions
-    /// </summary>
-    public FileSettings? FileSettings { get; set; }
-
-    public IReadOnlyList<string>? EffectiveAllowedFileTypes =>
-        FileSettings?.AllowedTypes ?? (DataType == DataType.File ? ["pdf"] : null);
-
-    public int? EffectiveAllowedFileSize =>
-        FileSettings?.MaximumSize ?? (DataType == DataType.File ? 10_000_000 : null);
-
-    /// <summary>
-    /// Specific layout options for the data type
-    /// </summary>
-    /// <remarks>
-    /// This is strongly typed in the yaml schema and in the frontend, but not in the backend since we don't use it
-    /// </remarks>
-    public Dictionary<string, object>? Layout { get; set; }
 
     /// <summary>
     /// Localized short propertyDefinition text to shown in results  
@@ -127,52 +106,18 @@ public class PropertyDefinition : INamed
     public Expression? DefaultExpression => ExpressionParser.Parse(Default);
 
     /// <summary>
-    /// Values for a choice propertyDefinition.
-    /// </summary>
-    public List<Choice>? Values { get; set; }
-
-    /// <summary>
-    /// Determines how the choices should be sorted when shown in a selector.
-    /// Inherited from the referenced value set; not authored on the property itself.
-    /// </summary>
-    [YamlIgnore]
-    public ValueSetSorting? Sorting { get; set; }
-
-    /// <summary>
     /// Localized extended description text for the propertyDefinition.
     /// </summary>
     public BilingualString? Description { get; set; }
 
-    /// <summary>
-    /// To be used for properties that refer to other entities. List of roles that is inherited from the target instance.
-    /// </summary>
-    public string[] InheritedRoles { get; set; } = [];
-
     [YamlIgnore] public WorkflowDefinition ParentType { get; set; } = null!;
-
-    [YamlIgnore] public WorkflowDefinition? WorkflowDefinition { get; set; }
 
     public string UnderlyingType => Type.TrimEnd('!', ']').TrimStart('[');
 
     public bool IsRequired => Type.EndsWith('!');
     public bool IsArray => Type.StartsWith('[');
 
-    public DataType DataType => UnderlyingType switch
-    {
-        "String" => DataType.String,
-        "DateTime" => DataType.DateTime,
-        "Date" => DataType.Date,
-        "Int" => DataType.Int,
-        "Double" => DataType.Double,
-        "File" => DataType.File,
-        "User" => DataType.User,
-        "Currency" => DataType.Currency,
-        "Check" => DataType.Check,
-        _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
-        _ when WorkflowDefinition != null => DataType.Reference,
-        _ when Values != null => DataType.Choice,
-        _ => throw new ArgumentException($"Invalid type {UnderlyingType}")
-    };
+    public abstract DataType DataType { get; }
 
     /// <summary>
     /// Condition that determines if the propertyDefinition should be shown
@@ -184,15 +129,12 @@ public class PropertyDefinition : INamed
     /// </summary>
     public Condition? Validation { get; set; }
 
-    /// <summary>
-    /// Condition used for filtering reference choices 
-    /// </summary>
-    public Condition? Filter { get; set; }
-
+    public virtual BilingualString? GetValidationError(ObjectContext context, WorkflowDefinition definition)
+        => Validation.IsMet(context) ? null :
+            Validation?.Message ?? new BilingualString("Invalid value", "Ongeldige waarde");
+    
     [YamlIgnore]
-    public IEnumerable<Condition> Conditions =>
-        (Values?.Select(v => v.Condition) ?? []).Append(Condition).Append(Validation).Append(Filter)
-        .Where(c => c != null)!;
+    public virtual IEnumerable<Condition> Conditions => new[] { Condition, Validation }.OfType<Condition>();
 
     public List<PropertyDefinition> DependentQuestions { get; } = [];
 
@@ -217,16 +159,6 @@ public class PropertyDefinition : INamed
     public ResultSettings? Results { get; set; }
 
     /// <summary>
-    /// Determines if the propertyDefinition allows external users
-    /// </summary>
-    public bool? AllowsExternalUsers { get; set; } = false;
-
-    /// <summary>
-    /// Rubric entries that describe grading criteria for this property
-    /// </summary>
-    public List<RubricEntry>? Rubric { get; set; }
-
-    /// <summary>
     /// If set, this question is included in a form only when editing a matching property
     /// </summary>
     public string[]? Sources { get; set; }
@@ -235,6 +167,131 @@ public class PropertyDefinition : INamed
     /// The name of another property this property is linked to.
     /// </summary>
     public string? LinkedTo { get; set; }
+}
+
+/// <summary>Text value with optional input layout and length validation.</summary>
+public class StringPropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.String;
+
+    /// <summary>Layout options for text input.</summary>
+    public TextLayoutOptions? Layout { get; set; }
+}
+
+/// <summary>Calendar date, also used for step deadlines and postponement limits.</summary>
+public class DatePropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.Date;
+}
+
+/// <summary>Date and time value.</summary>
+public class DateTimePropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.DateTime;
+}
+
+/// <summary>Whole number without a fractional part.</summary>
+public class IntPropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.Int;
+}
+
+/// <summary>Number that can include a fractional part.</summary>
+public class DoublePropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.Double;
+}
+
+/// <summary>Boolean value, such as a yes/no answer.</summary>
+public class CheckPropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.Check;
+}
+
+/// <summary>Monetary amount paired with a currency code.</summary>
+public class CurrencyPropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.Currency;
+}
+
+/// <summary>Uploaded file with configurable allowed file types and size limits.</summary>
+public class FilePropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.File;
+
+    /// <summary>
+    /// Configure settings for file upload questions
+    /// </summary>
+    public FileSettings? FileSettings { get; set; }
+
+    public IReadOnlyList<string> EffectiveAllowedFileTypes => FileSettings?.AllowedTypes ?? ["pdf"];
+
+    public int EffectiveAllowedFileSize => FileSettings?.MaximumSize ?? 10_000_000;
+}
+
+/// <summary>User account selection, optionally allowing external users.</summary>
+public class UserPropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.User;
+
+    /// <summary>
+    /// Determines if the propertyDefinition allows external users
+    /// </summary>
+    public bool? AllowsExternalUsers { get; set; } = false;
+}
+
+/// <summary>Selection from inline choices or a named value set, with optional layout and rubric settings.</summary>
+public class ChoicePropertyDefinition : PropertyDefinition
+{
+    public override DataType DataType => DataType.Choice;
+
+    /// <summary>Values for a choice property.</summary>
+    public List<Choice>? Values { get; set; }
+
+    /// <summary>Sorting inherited from the referenced value set.</summary>
+    [YamlIgnore] public ValueSetSorting? Sorting { get; set; }
+
+    /// <summary>Layout options for choice input.</summary>
+    public ChoiceLayoutOptions? Layout { get; set; }
+
+    /// <summary>Rubric entries that describe grading criteria for this property.</summary>
+    public List<RubricEntry>? Rubric { get; set; }
+
+    public override IEnumerable<Condition> Conditions => base.Conditions
+        .Concat((Values ?? []).Select(v => v.Condition).OfType<Condition>());
+}
+
+/// <summary>Property whose value follows another workflow definition.</summary>
+public abstract class WorkflowPropertyDefinition : PropertyDefinition
+{
+    [YamlIgnore] public WorkflowDefinition? WorkflowDefinition { get; set; }
+}
+
+/// <summary>Reference to an existing instance of a named workflow definition.</summary>
+public class ReferencePropertyDefinition : WorkflowPropertyDefinition
+{
+    public override DataType DataType => DataType.Reference;
+
+    /// <summary>Layout options for reference selection.</summary>
+    public ChoiceLayoutOptions? Layout { get; set; }
+
+    /// <summary>Roles inherited from the referenced instance.</summary>
+    public string[] InheritedRoles { get; set; } = [];
+
+    /// <summary>Condition used for filtering reference choices.</summary>
+    public Condition? Filter { get; set; }
+
+    public override IEnumerable<Condition> Conditions => base.Conditions
+        .Concat(new[] { Filter }.OfType<Condition>());
+}
+
+/// <summary>Nested property values defined by a named embedded workflow definition.</summary>
+public class ObjectPropertyDefinition : WorkflowPropertyDefinition
+{
+    public override DataType DataType => DataType.Object;
+
+    /// <summary>Layout options for embedded objects.</summary>
+    public TableLayoutOptions? Layout { get; set; }
 }
 
 public class FileSettings

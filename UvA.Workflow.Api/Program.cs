@@ -41,7 +41,11 @@ builder.Services.AddWorkflowCore(builder.Configuration);
 builder.Services.AddWorkflowApiCore();
 builder.Services
     .AddControllers(opts => opts.Filters.Add<WorkflowVersionFilter>())
-    .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        opts.JsonSerializerOptions.TypeInfoResolver = new QuestionJsonTypeInfoResolver();
+    });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));

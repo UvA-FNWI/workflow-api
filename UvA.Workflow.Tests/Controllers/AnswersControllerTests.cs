@@ -72,7 +72,7 @@ public class AnswersControllerTests : ControllerTestsBase
         // Arrange
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], submissionId, "SubjectFeedback");
         // Act
-        var result = await controller.GetChoices(instance.Id, submissionId, "AssessmentReviewer", _ct);
+        var result = await controller.GetChoices(instance.Id, submissionId, "Course", _ct);
         //Assert
         var okObjectResult = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status200OK, okObjectResult.StatusCode);
@@ -158,7 +158,7 @@ public class AnswersControllerTests : ControllerTestsBase
     [Fact]
     public async Task ValidateAndResolveValue_AppendsExternalUserToUserArray()
     {
-        var property = new PropertyDefinition
+        var property = new UserPropertyDefinition
         {
             Name = "PracticalSupervisor",
             Type = "[User]!",

@@ -12,14 +12,10 @@ public partial class ModelParser
     /// surrounding whitespace and leading dots are removed, values are lower-cased, and
     /// duplicates are discarded.
     /// </summary>
-    private static void NormalizeAllowedFileTypes(PropertyDefinition propertyDefinition)
+    private static void NormalizeAllowedFileTypes(FilePropertyDefinition propertyDefinition)
     {
         if (propertyDefinition.FileSettings?.AllowedTypes == null)
             return;
-
-        if (propertyDefinition.DataType != DataType.File)
-            throw new Exception(
-                $"Property '{propertyDefinition.Name}' defines allowedFileTypes but is not a File property");
 
         // Store extensions without a leading dot; upload validation adds the separator when
         // comparing each configured extension with the end of the uploaded filename.
@@ -45,14 +41,10 @@ public partial class ModelParser
     /// Validates an explicitly configured upload limit. The value is expressed in bytes and
     /// must be positive; the effective default for file properties is applied elsewhere.
     /// </summary>
-    private static void ValidateAllowedFileSize(PropertyDefinition propertyDefinition)
+    private static void ValidateAllowedFileSize(FilePropertyDefinition propertyDefinition)
     {
         if (propertyDefinition.FileSettings?.MaximumSize == null)
             return;
-
-        if (propertyDefinition.DataType != DataType.File)
-            throw new Exception(
-                $"Property '{propertyDefinition.Name}' defines allowedFileSize but is not a File property");
 
         if (propertyDefinition.FileSettings.MaximumSize <= 0)
             throw new Exception(

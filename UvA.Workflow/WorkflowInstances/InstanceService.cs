@@ -40,9 +40,9 @@ public class InstanceService(
             foreach (var property in properties)
             {
                 string[] parts = [.. prefix, property.Name];
-                if (property is { DataType: DataType.Object, IsArray: false, WorkflowDefinition: not null })
+                if (property is ObjectPropertyDefinition { IsArray: false, WorkflowDefinition: not null } embedded)
                 {
-                    Collect(property.WorkflowDefinition.Properties, parts);
+                    Collect(embedded.WorkflowDefinition.Properties, parts);
                     continue;
                 }
 
@@ -228,9 +228,8 @@ public class InstanceService(
 
         foreach (var referenceProperty in referenceProperties)
         {
-            var targetDefinition = workflowDefinition.Properties
-                .GetOrDefault(referenceProperty.Key)
-                ?.WorkflowDefinition;
+            var targetDefinition = (workflowDefinition.Properties
+                .GetOrDefault(referenceProperty.Key) as ReferencePropertyDefinition)?.WorkflowDefinition;
             if (targetDefinition == null)
                 continue;
 
@@ -392,10 +391,10 @@ public class InstanceService(
             if (await CheckLimit(instance, rel, ct))
             {
                 var propDef = modelService.GetProperty(instance, rel.Property!);
-                if (propDef is not null)
+                if (propDef is WorkflowPropertyDefinition workflowProperty)
                 {
                     actions.Add(new AllowedAction(rel,
-                        WorkflowDefinition: propDef.WorkflowDefinition,
+                        WorkflowDefinition: workflowProperty.WorkflowDefinition,
                         DisplaySteps: GetDisplaySteps(rel)));
                 }
             }
@@ -470,7 +469,7 @@ public class InstanceService(
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,
-        PropertyDefinition property,
+        ReferencePropertyDefinition property,
         CancellationToken ct)
     {
         if (property.WorkflowDefinition == null)

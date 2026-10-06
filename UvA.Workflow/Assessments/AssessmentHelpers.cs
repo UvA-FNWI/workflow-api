@@ -146,7 +146,8 @@ public static class AssessmentHelpers
                             Answer = answerKey switch
                             {
                                 double d => d,
-                                string s => field.Values?.FirstOrDefault(v => v.Name == s)?.Value ?? 0,
+                                string s => (field as ChoicePropertyDefinition)?.Values
+                                    ?.FirstOrDefault(v => v.Name == s)?.Value ?? 0,
                                 _ => 0
                             }
                         };

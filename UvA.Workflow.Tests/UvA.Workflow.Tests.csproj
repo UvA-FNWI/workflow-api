@@ -32,6 +32,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\UvA.Workflow\UvA.Workflow.csproj" />
+      <ProjectReference Include="..\UvA.Workflow.SchemaGenerator\UvA.Workflow.SchemaGenerator.csproj" />
       <ProjectReference Include="..\UvA.Workflow.Api\UvA.Workflow.Api.csproj" />
       <ProjectReference Include="..\UvA.Workflow.Api.Authentication\UvA.Workflow.Api.Authentication.csproj" />
       <ProjectReference Include="..\UvA.Workflow.Persistence.Mongo\UvA.Workflow.Persistence.Mongo.csproj" />

@@ -431,7 +431,7 @@ public class WorkflowInstanceDtoFactory(
             relatedUser.Property,
             relatedUser.DisplayTitle,
             users.Select(UserDto.CreateFromInstanceUser).ToArray(),
-            relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false,
+            (relatedUser.PropertyDefinition as UserPropertyDefinition)?.AllowsExternalUsers ?? false,
             !relatedUser.PropertyDefinition?.IsRequired ?? false,
             relatedUser.PropertyDefinition?.IsArray ?? false,
             allowEditing && canEditByProperty.GetValueOrDefault(relatedUser.Property));

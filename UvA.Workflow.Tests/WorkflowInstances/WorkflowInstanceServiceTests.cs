@@ -72,7 +72,7 @@ public class WorkflowInstanceServiceTests
     public async Task Create_AppliesDefaultFromReferencedProperty()
     {
         var contextDefinition = _modelService.WorkflowDefinitions["Context"];
-        contextDefinition.Properties.Add(new PropertyDefinition
+        contextDefinition.Properties.Add(new DatePropertyDefinition
         {
             Name = "EndDate",
             Type = "Date",

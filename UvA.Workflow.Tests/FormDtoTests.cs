@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 
 namespace UvA.Workflow.Tests;
@@ -47,7 +50,7 @@ public class FormDtoTests
     public void Create_IncludesConfiguredFileTypesAndDefaultsToPdf()
     {
         var definition = new WorkflowDefinition { Name = "Documents" };
-        var configured = new PropertyDefinition
+        var configured = new FilePropertyDefinition
         {
             Name = "Archive",
             Type = "File",
@@ -58,15 +61,15 @@ public class FormDtoTests
                 MaximumSize = 25_000_000
             }
         };
-        var defaulted = new PropertyDefinition
+        var defaulted = new FilePropertyDefinition
         {
             Name = "Report",
             Type = "File",
             ParentType = definition
         };
 
-        var configuredDto = QuestionDto.Create(configured, new ObjectContext([]), 0);
-        var defaultedDto = QuestionDto.Create(defaulted, new ObjectContext([]), 0);
+        var configuredDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(configured, new ObjectContext([]), 0));
+        var defaultedDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(defaulted, new ObjectContext([]), 0));
 
         Assert.Equal(["zip", "tar.gz"], configuredDto.AllowedFileTypes);
         Assert.Equal(["pdf"], defaultedDto.AllowedFileTypes);
@@ -74,7 +77,126 @@ public class FormDtoTests
         Assert.Equal(10_000_000, defaultedDto.AllowedFileSize);
     }
 
-    private static PropertyDefinition Question(string name, WorkflowDefinition parent, decimal? weight = null) =>
+    [Fact]
+    public void TypedLayout_SerializesExistingQuestionFields()
+    {
+        var parent = new WorkflowDefinition { Name = "Project" };
+        var property = new StringPropertyDefinition
+        {
+            Name = "Notes",
+            Type = "String",
+            ParentType = parent,
+            Layout = new TextLayoutOptions { Multiline = true, Variant = StringVariant.Email }
+        };
+        var question = QuestionDto.Create(property, new ObjectContext([]), 0);
+        var json = JsonSerializer.SerializeToElement(question, CreateJsonOptions());
+
+        var layout = json.GetProperty("layout");
+        Assert.True(layout.GetProperty("multiline").GetBoolean());
+        Assert.Equal("Email", layout.GetProperty("variant").GetString());
+        Assert.False(layout.TryGetProperty("$type", out _));
+    }
+
+    [Fact]
+    public void FormSerialization_IncludesOnlyTheSettingsForEachQuestionType()
+    {
+        var definition = new WorkflowDefinition { Name = "Project" };
+        var childDefinition = new WorkflowDefinition { Name = "Assessment", IsEmbedded = true };
+        childDefinition.Properties.Add(new StringPropertyDefinition
+        {
+            Name = "Comments", Type = "String", ParentType = childDefinition
+        });
+        PropertyDefinition[] properties =
+        [
+            new DatePropertyDefinition { Name = "Due", Type = "Date" },
+            new DateTimePropertyDefinition { Name = "Appointment", Type = "DateTime" },
+            new IntPropertyDefinition { Name = "Count", Type = "Int" },
+            new DoublePropertyDefinition { Name = "Score", Type = "Double" },
+            new CheckPropertyDefinition { Name = "Confirmed", Type = "Check" },
+            new CurrencyPropertyDefinition { Name = "Amount", Type = "Currency" },
+            new FilePropertyDefinition { Name = "Report", Type = "File" },
+            new StringPropertyDefinition { Name = "Title", Type = "String" },
+            new UserPropertyDefinition { Name = "Supervisor", Type = "User", AllowsExternalUsers = true },
+            new ChoicePropertyDefinition
+            {
+                Name = "Grade", Type = "Grade", Values = [new Choice { Name = "Pass" }],
+                Layout = new ChoiceLayoutOptions { Type = ChoiceLayoutType.RadioList }
+            },
+            new ReferencePropertyDefinition
+            {
+                Name = "Course", Type = "Context", WorkflowDefinition = new WorkflowDefinition { Name = "Context" },
+                Layout = new ChoiceLayoutOptions { Type = ChoiceLayoutType.ComboBox }
+            },
+            new ObjectPropertyDefinition
+            {
+                Name = "Assessment", Type = "Assessment", WorkflowDefinition = childDefinition,
+                Layout = new TableLayoutOptions { Type = TableLayout.Modal }
+            }
+        ];
+        foreach (var property in properties)
+            property.ParentType = definition;
+        var form = new Form
+        {
+            Name = "Edit",
+            WorkflowDefinition = definition,
+            Pages =
+            [
+                new Page
+                {
+                    PageElements = properties.Select(property => new PageElement
+                    {
+                        Question = property.Name, QuestionDefinition = property
+                    }).ToArray()
+                }
+            ]
+        };
+        var json = JsonSerializer.SerializeToElement(FormDto.Create(form, new ObjectContext([])), CreateJsonOptions());
+        var questions = json.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+            .Select(element => element.GetProperty("question"))
+            .ToDictionary(question => question.GetProperty("type").GetString()!);
+
+        var settings = new Dictionary<string, string[]>
+        {
+            ["Date"] = ["isDeadline", "maxDate"],
+            ["DateTime"] = [],
+            ["Int"] = [],
+            ["Double"] = [],
+            ["Check"] = [],
+            ["Currency"] = [],
+            ["File"] = ["allowedFileTypes", "allowedFileSize"],
+            ["String"] = ["layout", "minLength", "maxLength"],
+            ["User"] = ["allowsExternalUsers"],
+            ["Choice"] = ["layout", "choices", "rubric", "sorting"],
+            ["Reference"] = ["layout", "workflowDefinition"],
+            ["Object"] = ["layout", "workflowDefinition", "subProperties"]
+        };
+        Assert.Equal(properties.Length, questions.Count);
+        foreach (var (type, question) in questions)
+        {
+            Assert.False(question.TryGetProperty("$type", out _));
+            foreach (var setting in settings.Values.SelectMany(fields => fields).Distinct())
+                Assert.Equal(settings[type].Contains(setting), question.TryGetProperty(setting, out _));
+        }
+
+        Assert.Equal("pdf", questions["File"].GetProperty("allowedFileTypes")[0].GetString());
+        Assert.True(questions["User"].GetProperty("allowsExternalUsers").GetBoolean());
+        Assert.Equal("Pass", questions["Choice"].GetProperty("choices")[0].GetProperty("name").GetString());
+        Assert.Equal("RadioList", questions["Choice"].GetProperty("layout").GetProperty("type").GetString());
+        Assert.Equal("ComboBox", questions["Reference"].GetProperty("layout").GetProperty("type").GetString());
+        Assert.Equal("Modal", questions["Object"].GetProperty("layout").GetProperty("type").GetString());
+        var child = questions["Object"].GetProperty("subProperties")[0];
+        Assert.Equal("String", child.GetProperty("type").GetString());
+        Assert.True(child.TryGetProperty("maxLength", out _));
+        Assert.False(child.TryGetProperty("allowedFileTypes", out _));
+    }
+
+    private static JsonSerializerOptions CreateJsonOptions() => new(JsonSerializerDefaults.Web)
+    {
+        TypeInfoResolver = new QuestionJsonTypeInfoResolver(),
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private static DoublePropertyDefinition Question(string name, WorkflowDefinition parent, decimal? weight = null) =>
         new()
         {
             Name = name,

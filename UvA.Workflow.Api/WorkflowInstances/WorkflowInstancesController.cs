@@ -172,10 +172,10 @@ public class WorkflowInstancesController(
         if (property == null)
             return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
 
-        if (property.DataType != DataType.Reference || property.WorkflowDefinition == null)
+        if (property is not ReferencePropertyDefinition { WorkflowDefinition: not null } reference)
             return Ok(Array.Empty<ChoiceDto>());
-        var insts = await instanceService.GetPossibleChoices(instance, property, ct);
-        var definition = property.WorkflowDefinition;
+        var insts = await instanceService.GetPossibleChoices(instance, reference, ct);
+        var definition = reference.WorkflowDefinition;
         return Ok(insts.Select(i => new ChoiceDto(
             i.Id,
             definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",
