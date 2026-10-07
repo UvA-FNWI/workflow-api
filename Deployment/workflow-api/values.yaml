@@ -24,6 +24,10 @@ datanoseApi:
   baseAddress: https://api-v2-tst.datanose.nl/
   dn1Url: https://tst.datanose.nl/
 
+turnitin:
+  url: https://uva.turnitin.com/api/v1/
+  disabled: true
+
 graph:
   tenantId: tenantId
   clientId: clientId
