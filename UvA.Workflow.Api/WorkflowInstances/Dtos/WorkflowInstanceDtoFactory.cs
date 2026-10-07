@@ -427,10 +427,18 @@ public class WorkflowInstanceDtoFactory(
     {
         var value = context.Get(relatedUser.Property);
         var users = value is InstanceUser user ? [user] : value as InstanceUser[] ?? [];
+        var genericEmail = relatedUser.PropertyDefinition?.ParentType.Roles
+            .GetOrDefault(relatedUser.PropertyDefinition.Name)
+            ?.GenericEmail;
+        var usersDto = users.Select(instanceUser =>
+        {
+            var dto = UserDto.CreateFromInstanceUser(instanceUser);
+            return string.IsNullOrWhiteSpace(genericEmail) ? dto : dto with { Email = genericEmail };
+        }).ToArray();
         return new RelatedUserRolesDto(
             relatedUser.Property,
             relatedUser.DisplayTitle,
-            users.Select(UserDto.CreateFromInstanceUser).ToArray(),
+            usersDto,
             relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false,
             !relatedUser.PropertyDefinition?.IsRequired ?? false,
             relatedUser.PropertyDefinition?.IsArray ?? false,

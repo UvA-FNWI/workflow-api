@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Serilog;
 using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
@@ -216,6 +217,10 @@ public partial class ModelParser
 
     private void PreProcess(Role role, WorkflowDefinition? owner = null)
     {
+        if (role.GenericEmail != null && !new EmailAddressAttribute().IsValid(role.GenericEmail))
+            throw new Exception(
+                $"Role '{role.Name}' has invalid generic email '{role.GenericEmail}'. Generic email should be a valid email address.");
+
         Role ResolveInherited(string name) => owner?.Roles.GetOrDefault(name) ?? GlobalRoles.GetOrDefault(name)
             ?? throw new Exception($"Role '{name}' referenced in inheritFrom of role '{role.Name}' does not exist");
 

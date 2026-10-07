@@ -29,6 +29,11 @@ public class Role : INamed, IDeclaredKeys
     /// </summary>
     public List<Action> Actions { get; set; } = [];
 
+    /// <summary>
+    /// Email address used as a DTO override of all users with this role
+    /// </summary>
+    public string? GenericEmail { get; set; }
+
     public BilingualString DisplayTitle => Title ?? Name;
 
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
