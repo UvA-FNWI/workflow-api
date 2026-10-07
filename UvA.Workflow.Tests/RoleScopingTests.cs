@@ -209,4 +209,16 @@ public class RoleScopingTests
         Assert.Single(coordinatorB.Actions, a => a.Name == "ApproveB");
         Assert.DoesNotContain(coordinatorB.Actions, a => a.Name == "ApproveA");
     }
+
+    [Fact]
+    public void Role_WithInvalidGenericEmail_ThrowsDuringParsing()
+    {
+        var exception = Assert.Throws<Exception>(() => new ModelParser(new DictionaryProvider(new()
+        {
+            ["Common/Roles/Reviewer.yaml"] =
+                "name: Reviewer\ngenericEmail: not-an-email"
+        })));
+
+        Assert.Contains("invalid generic email 'not-an-email'", exception.Message);
+    }
 }
