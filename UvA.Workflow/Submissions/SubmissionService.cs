@@ -43,8 +43,14 @@ public class SubmissionService(
 
         var objectContext = modelService.CreateContext(instance);
 
+        var questionsToValidate = form.Pages
+            .Where(p => p.Condition.IsMet(objectContext))
+            .SelectMany(p => p.Questions)
+            .Distinct()
+            .ToArray();
+
         // Validate required fields
-        var missing = form.PropertyDefinitions
+        var missing = questionsToValidate
             .Where(q => q.IsRequired
                         && (q.DataType == DataType.Check
                             ? instance.GetProperty(q.Name) != BsonBoolean.True
@@ -54,7 +60,7 @@ public class SubmissionService(
             .ToArray();
 
         // Validate field validation rules
-        var invalid = form.PropertyDefinitions
+        var invalid = questionsToValidate
             .Where(q => instance.HasAnswer(q.Name) && !q.Validation.IsMet(objectContext))
             .Select(q => new InvalidQuestion(
                 q.Name,
