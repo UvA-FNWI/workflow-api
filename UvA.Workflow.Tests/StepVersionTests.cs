@@ -518,6 +518,64 @@ public class StepVersionTests
         Assert.Empty(versions);
     }
 
+    [Fact]
+    public void RmssProposalVersioning_ResetEventClosesVersionBeforeLastChildCompletes()
+    {
+        var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
+        var resetAt = DateTime.UtcNow.AddMinutes(-2);
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalApprovedSupervisor", approvedAt),
+            EventLog(instance, "ProposalReturnedForRevision", resetAt)
+        ]);
+
+        var version = Assert.Single(versions);
+        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalReturnedForRevision"], version.EventIds);
+        Assert.Equal(resetAt, version.SubmittedAt);
+    }
+
+    [Fact]
+    public void RmssProposalVersioning_ResetAfterCompletedVersionDoesNotCreateExtraVersion()
+    {
+        var instance = CreateRmssInstance();
+        var t = DateTime.UtcNow.AddMinutes(-10);
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", t),
+            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(1)),
+            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(2)),
+            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(3))
+        ]);
+
+        var version = Assert.Single(versions);
+        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalApprovedReviewer"], version.EventIds);
+    }
+
+    [Fact]
+    public void RmssProposalVersioning_ResubmissionAfterResetStartsNewVersion()
+    {
+        var instance = CreateRmssInstance();
+        var t = DateTime.UtcNow.AddMinutes(-20);
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", t),
+            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(1)),
+            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(2)),
+            EventLog(instance, "Start", t.AddMinutes(3)),
+            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(4)),
+            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(5))
+        ]);
+
+        Assert.Equal(2, versions.Count);
+        Assert.Equal(1, versions[0].VersionNumber);
+        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalReturnedForRevision"], versions[0].EventIds);
+        Assert.Equal(2, versions[1].VersionNumber);
+        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalApprovedReviewer"], versions[1].EventIds);
+    }
+
     private static Dictionary<string, BsonValue?> CloneProperties(Dictionary<string, BsonValue?> original)
         => original.ToDictionary(
             kvp => kvp.Key,

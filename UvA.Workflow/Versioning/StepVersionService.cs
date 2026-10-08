@@ -27,17 +27,22 @@ public class StepVersionService : IStepVersionService
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
         var (allChildEvents, completionCondition) = DetermineEventSets(step);
-        var allChildEventSet = allChildEvents.ToHashSet();
+        var resetParentEvents = step.Children
+            .SelectMany(c => c.Events)
+            .Where(e => e.ResetParentStep)
+            .Select(e => e.Name)
+            .ToList();
+        var relevantEventSet = allChildEvents.Concat(resetParentEvents).ToHashSet();
         var effectiveEventLogs = EventHistory.Project(eventLogs);
 
         // Get submission events (create/update only), ordered chronologically
         var submissionEvents = effectiveEventLogs
-            .Where(log => allChildEventSet.Contains(log.EventId))
+            .Where(log => relevantEventSet.Contains(log.EventId))
             .Where(log => log.Operation is EventLogOperation.Create or EventLogOperation.Update)
             .OrderBy(log => log.Timestamp)
             .ToList();
 
-        return BuildVersions(step, submissionEvents, completionCondition);
+        return BuildVersions(step, submissionEvents, resetParentEvents, completionCondition);
     }
 
     private static (List<string> AllEvents, Condition? CompletionCondition) DetermineEventSets(Step step)
@@ -62,10 +67,12 @@ public class StepVersionService : IStepVersionService
     private List<StepVersion> BuildVersions(
         Step step,
         List<InstanceEventLogEntry> submissionEvents,
-        Condition? completionCondition)
+        List<string> resetEvents,
+        Condition? completionCondition
+    )
     {
         if (step.Ends == null && step.Children.Any())
-            return BuildMultiEventVersions(submissionEvents, completionCondition);
+            return BuildMultiEventVersions(submissionEvents, resetEvents, completionCondition);
 
         return BuildSingleEventVersions(submissionEvents);
     }
@@ -85,7 +92,9 @@ public class StepVersionService : IStepVersionService
 
     private static List<StepVersion> BuildMultiEventVersions(
         List<InstanceEventLogEntry> submissionEvents,
-        Condition? completionCondition)
+        List<string> resetEvents,
+        Condition? completionCondition
+    )
     {
         var versions = new List<StepVersion>();
         var currentVersionEvents = new List<InstanceEventLogEntry>();
@@ -93,10 +102,15 @@ public class StepVersionService : IStepVersionService
 
         foreach (var logEntry in submissionEvents)
         {
+            var isReset = resetEvents.Contains(logEntry.EventId);
+
+            if (isReset && currentVersionEvents.Count == 0)
+                continue;
+
             currentVersionEvents.Add(logEntry);
             currentVersionEventIds.Add(logEntry.EventId);
 
-            if (!completionCondition.IsMet(currentVersionEventIds))
+            if (!isReset && !completionCondition.IsMet(currentVersionEventIds))
                 continue;
 
             versions.Add(new StepVersion
