@@ -518,6 +518,130 @@ public class StepVersionTests
         Assert.Empty(versions);
     }
 
+    [Theory]
+    [InlineData(EventLogOperation.Create)]
+    [InlineData(EventLogOperation.Update)]
+    public void ParentStepVersioning_ResetClosesIncompleteReviewRound(EventLogOperation operation)
+    {
+        var instance = CreateRmssInstance();
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var rejectedAt = submittedAt.AddMinutes(1);
+        var resetAt = rejectedAt.AddMinutes(1);
+        var reset = EventLog(instance, "ProposalReturnedForRevision", resetAt);
+        reset.Operation = operation;
+
+        var version = Assert.Single(GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", submittedAt),
+            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt),
+            reset
+        ]));
+
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(["Start", "ProposalRejectedSupervisor", "ProposalReturnedForRevision"], version.EventIds);
+        Assert.Equal(resetAt, version.SubmittedAt);
+    }
+
+    [Fact]
+    public void ParentStepVersioning_ResetRoundsKeepSubmissionsAndReviewsSeparate()
+    {
+        var instance = CreateRmssInstance();
+        var start = DateTime.UtcNow.AddMinutes(-10);
+        var versions = GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", start),
+            EventLog(instance, "ProposalRejectedSupervisor", start.AddMinutes(1)),
+            EventLog(instance, "ProposalReturnedForRevision", start.AddMinutes(2)),
+            EventLog(instance, "Start", start.AddMinutes(3)),
+            EventLog(instance, "ProposalRejectedReviewer", start.AddMinutes(4)),
+            EventLog(instance, "ProposalReturnedForRevision", start.AddMinutes(5)),
+            EventLog(instance, "Start", start.AddMinutes(6)),
+            EventLog(instance, "ProposalApprovedSupervisor", start.AddMinutes(7))
+        ]);
+
+        Assert.Collection(versions,
+            first =>
+            {
+                Assert.Equal(1, first.VersionNumber);
+                Assert.Equal(["Start", "ProposalRejectedSupervisor", "ProposalReturnedForRevision"], first.EventIds);
+                Assert.Equal(start.AddMinutes(2), first.SubmittedAt);
+            },
+            second =>
+            {
+                Assert.Equal(2, second.VersionNumber);
+                Assert.Equal(["Start", "ProposalRejectedReviewer", "ProposalReturnedForRevision"], second.EventIds);
+                Assert.Equal(start.AddMinutes(5), second.SubmittedAt);
+            });
+    }
+
+    [Fact]
+    public void ParentStepVersioning_ResetAfterCompletionStaysInSameRound()
+    {
+        var instance = CreateRmssInstance();
+        var start = DateTime.UtcNow.AddMinutes(-10);
+        var version = Assert.Single(GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", start),
+            EventLog(instance, "ProposalApprovedReviewer", start.AddMinutes(1)),
+            EventLog(instance, "ProposalRejectedSupervisor", start.AddMinutes(2)),
+            EventLog(instance, "ProposalReturnedForRevision", start.AddMinutes(3))
+        ]));
+
+        Assert.Equal(1, version.VersionNumber);
+        Assert.Equal(
+            ["Start", "ProposalApprovedReviewer", "ProposalRejectedSupervisor", "ProposalReturnedForRevision"],
+            version.EventIds);
+        Assert.Equal(start.AddMinutes(3), version.SubmittedAt);
+    }
+
+    [Fact]
+    public void ParentStepVersioning_NestedResetOnlyClosesItsTargetRound()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Reset")
+            .WithCurrentStep("Proposal")
+            .Build();
+        var start = DateTime.UtcNow.AddMinutes(-10);
+        var logs = new List<InstanceEventLogEntry>
+        {
+            EventLog(instance, "ProposalSubmitted", start),
+            EventLog(instance, "DraftSubmitted", start.AddMinutes(1)),
+            EventLog(instance, "RequestRevision", start.AddMinutes(2))
+        };
+
+        Assert.Empty(GetStepVersions(instance, logs, versionedStepName: "Thesis"));
+        var writingVersion = Assert.Single(GetStepVersions(instance, logs, versionedStepName: "Writing"));
+        Assert.Equal(["DraftSubmitted", "RequestRevision"], writingVersion.EventIds);
+
+        logs.Add(EventLog(instance, "RejectProposal", start.AddMinutes(3)));
+        var thesisVersion = Assert.Single(GetStepVersions(instance, logs, versionedStepName: "Thesis"));
+        Assert.Equal(["ProposalSubmitted", "DraftSubmitted", "RejectProposal"], thesisVersion.EventIds);
+    }
+
+    [Fact]
+    public void ParentStepVersioning_UndoneResetDoesNotCloseRound()
+    {
+        var instance = CreateRmssInstance();
+        var start = DateTime.UtcNow.AddMinutes(-10);
+        var reset = EventLog(instance, "ProposalReturnedForRevision", start.AddMinutes(2));
+        reset.OperationId = ObjectId.GenerateNewId().ToString();
+        var undo = new InstanceEventLogEntry
+        {
+            WorkflowInstanceId = instance.Id,
+            Operation = EventLogOperation.Undo,
+            OperationId = reset.OperationId,
+            Timestamp = start.AddMinutes(3)
+        };
+
+        Assert.Empty(GetStepVersions(instance,
+        [
+            EventLog(instance, "Start", start),
+            EventLog(instance, "ProposalRejectedSupervisor", start.AddMinutes(1)),
+            reset,
+            undo
+        ]));
+    }
+
     private static Dictionary<string, BsonValue?> CloneProperties(Dictionary<string, BsonValue?> original)
         => original.ToDictionary(
             kvp => kvp.Key,
@@ -533,12 +657,17 @@ public class StepVersionTests
     private static List<StepVersion> GetStepVersions(
         WorkflowInstance instance,
         List<InstanceEventLogEntry> eventLogs,
-        Action<ModelService>? configureModel = null)
+        Action<ModelService>? configureModel = null,
+        string? versionedStepName = null)
     {
         var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
         var modelService = new ModelService(new ModelParser(modelProvider));
         configureModel?.Invoke(modelService);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        if (versionedStepName != null)
+            return new StepVersionService().GetStepVersions(instance,
+                workflowDefinition.AllSteps.Single(step => step.Name == versionedStepName), eventLogs);
+
         var step = workflowDefinition.AllSteps.Single(step => step.Name == "Start");
         var parentStep = workflowDefinition.AllSteps.FirstOrDefault(parent =>
             parent.Children.Any(child => child.Name == step.Name));
