@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
@@ -9,6 +10,7 @@ using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
 
@@ -19,6 +21,8 @@ public class EffectServiceMailLoggingTests
     private readonly Mock<IArtifactService> _artifactService = new();
     private readonly Mock<IMailLogRepository> _mailLogRepository = new();
     private readonly EffectService _effectService;
+    private readonly InstanceService _instanceService;
+    private readonly Mock<IAssessmentService> _assessmentService = new();
 
     private MailLogEntry? _loggedEntry;
 
@@ -29,18 +33,20 @@ public class EffectServiceMailLoggingTests
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
         var rightsService = new RightsService(_modelService, userService.Object, instanceRepository.Object);
-        var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
-        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
+        var mailLayout = new Mock<IMailLayout>();
+        mailLayout.Setup(layout => layout.Render(It.IsAny<string>(), It.IsAny<IReadOnlyList<MailButton>>()))
+            .Returns((string html, IReadOnlyList<MailButton> _) => html);
+        mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(mailLayout.Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
 
-        var instanceService = new InstanceService(instanceRepository.Object, _modelService, userService.Object,
-            rightsService, mailBuilder, assessmentService.Object);
+        _instanceService = new InstanceService(instanceRepository.Object, _modelService, userService.Object,
+            rightsService, mailBuilder, _assessmentService.Object);
 
         _effectService = new EffectService(
-            instanceService,
+            _instanceService,
             new Mock<IInstanceEventService>().Object,
             _modelService,
             _mailService.Object,
@@ -64,6 +70,56 @@ public class EffectServiceMailLoggingTests
         new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: currentStep)
             .Build();
+
+    [Theory]
+    [InlineData(5.4f, "FAILURE!")]
+    [InlineData(5.5f, "SUCCESS!")]
+    [InlineData(6.0f, "SUCCESS!")]
+    public async Task RunJob_EnrichesFinalGradeBeforeSelectingResultEmail(float grade, string subject)
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.AssessmentConfiguration = new AssessmentConfiguration();
+        _assessmentService.Setup(service => service.GetAssessmentResult(definition,
+                It.IsAny<ObjectContext>(), It.IsAny<AssessmentConfiguration>(), null, null))
+            .Returns(new AssessmentResult { FinalGradeRounded = grade });
+        var effects = new[] { "SUCCESS!", "FAILURE!" }.Select(result =>
+        {
+            definition.Emails.Add(new TemplateMessage
+            {
+                Name = result,
+                Subject = result,
+                Body = "Final grade: {{ Assessment.FinalGrade }}"
+            });
+            return new Effect
+            {
+                Condition = new Condition
+                {
+                    Value = new Value
+                    {
+                        Property = "Assessment.FinalGrade",
+                        GreaterThanOrEqual = result == "SUCCESS!" ? "5.5" : null,
+                        LessThan = result == "FAILURE!" ? "5.5" : null
+                    }
+                },
+                SendMail = new SendMessage { TemplateKey = result, To = "student@example.com" }
+            };
+        }).ToArray();
+        _mailService.Setup(service => service.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MailDispatchResult([], [], [], null));
+        var jobService = new JobService(_effectService, _modelService, Mock.Of<IJobRepository>(),
+            Mock.Of<IWorkflowInstanceRepository>(), Mock.Of<IUserRepository>(), NullLogger<JobService>.Instance,
+            _instanceService, Options.Create(new WorkerOptions()));
+
+        await jobService.CreateAndRunJob(CreateInstance("Start"), JobSource.Action, "SubmitFinalAssessment",
+            effects, CreateUser(), null, CancellationToken.None);
+
+        _mailService.Verify(service => service.Send(It.Is<MailMessage>(mail =>
+            mail.Subject == subject && mail.Body.Contains("Final grade:") &&
+            mail.To.Single().MailAddress == "student@example.com"), It.IsAny<CancellationToken>()), Times.Once);
+        _mailService.Verify(service => service.Send(It.IsAny<MailMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.Equal(subject, _loggedEntry?.Subject);
+    }
 
     [Fact]
     public async Task RunEffects_WithMailEffect_SendsMailAndLogsFullContent()
