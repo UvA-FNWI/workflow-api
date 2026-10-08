@@ -94,6 +94,8 @@ azure:
       key: Services__DataNose__Token
     - name: dn2-api-key
       key: Authentication__ApiKey
+    - name: workflow-turnitin-token
+      key: Services__Turnitin__Token
     - name: workflow-graph-client-secret
       key: GraphMail__ClientSecret
     - name: workflow-config-repo-token
