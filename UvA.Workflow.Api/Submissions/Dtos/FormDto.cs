@@ -1,3 +1,4 @@
+using UvA.Workflow.Assessments;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -13,10 +14,12 @@ public record FormDto(
     public static FormDto Create(Form form, ObjectContext context)
     {
         var allPages = form.ActualForm.Pages.ToArray();
-        var totalWeight = allPages
-            .SelectMany(p => p.Questions)
-            .Where(q => q.Calculation?.Weight != null)
-            .Sum(q => q.Calculation!.Weight!.Value);
+        var results = AssessmentHelpers.CalculateSourceResult(form, context, null);
+        var questionResults = results.PageResults
+            .SelectMany(p => p.QuestionResults)
+            .DistinctBy(q => q.Name)
+            .ToDictionary(q => q.Name);
+        var totalWeight = results.PageResults.Sum(p => p.Weight) ?? 0;
 
         // For child forms, only pages matching Sources belong to the current form. For base forms, all pages are considered part of the current form.
         var currentFormPages = form.TargetForm == null
@@ -31,7 +34,10 @@ public record FormDto(
         var questions = activePages
             .SelectMany(p => p.Questions)
             .Distinct()
-            .ToDictionary(q => q, q => QuestionDto.Create(q, context, totalWeight));
+            .ToDictionary(q => q, q => QuestionDto.Create(q, context, totalWeight) with
+            {
+                Percentage = questionResults.GetValueOrDefault(q.Name)?.Percentage
+            });
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
         var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         var originalForm = form;

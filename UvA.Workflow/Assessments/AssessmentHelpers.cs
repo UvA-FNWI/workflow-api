@@ -90,17 +90,24 @@ public static class AssessmentHelpers
                         WeightedAverage = results.Values.Any(v => v.WeightedAverage != null)
                             ? partConfig.Sources.Sum(x => results[x.Name].WeightedAverage * x.Weight) / totalWeight
                             : null,
-                        Weight = results.Values.FirstOrDefault(v => v.Weight != null)?.Weight,
+                        Weight = results.Values.Any(v => v.Weight != null)
+                            ? partConfig.Sources.Sum(x => (results[x.Name].Weight ?? 0) * x.Weight) / totalWeight
+                            : null,
                         Sum = partConfig.Sources.Sum(x => results[x.Name].Sum * x.Weight) / totalWeight,
-                        QuestionResults = p.QuestionResults.Select(q => new QuestionResult
-                        {
-                            Name = q.Name,
-                            Answer = partConfig.Sources.Sum(x =>
-                                (results[x.Name].QuestionResults.FirstOrDefault(z => z.Name == q.Name)?.Answer ?? 0) *
-                                (double)x.Weight) / (double)totalWeight,
-                            Weight = q.Weight,
-                            Percentage = q.Percentage
-                        }).ToList()
+                        QuestionResults = partConfig.Sources
+                            .SelectMany(source => results[source.Name].QuestionResults
+                                .Select(question => (Question: question, SourceWeight: source.Weight)))
+                            .GroupBy(q => q.Question.Name)
+                            .Select(group => new QuestionResult
+                            {
+                                Name = group.Key,
+                                Answer = group.Sum(q => q.Question.Answer * (double)q.SourceWeight)
+                                         / (double)group.Sum(q => q.SourceWeight),
+                                Weight = group.First().Question.Weight,
+                                Percentage = group.Any(q => q.Question.Percentage != null)
+                                    ? group.Sum(q => q.Question.Percentage * q.SourceWeight) / totalWeight
+                                    : null
+                            }).ToList()
                     };
                 })
                 .Where(p => p != null)
@@ -115,10 +122,16 @@ public static class AssessmentHelpers
     {
         var pages = form.ActualForm.Pages.ToArray();
 
+        bool IncludeQuestion(PageElement element) =>
+            element.QuestionDefinition is { Calculation: not null } field
+            && (field.IsRequired || context.Get(form.PropertyName != null
+                ? $"{form.PropertyName}.{field.Name}"
+                : field.Name) is not (null or ""));
+
         var totalWeight = pages
             .SelectMany(page => page.PageElements)
-            .Where(element => element.QuestionDefinition?.Calculation?.Weight != null)
-            .Sum(element => element.QuestionDefinition?.Calculation!.Weight!.Value);
+            .Where(IncludeQuestion)
+            .Sum(element => element.QuestionDefinition!.Calculation!.Weight);
 
         var pageResults = pages
             .Where(page =>
@@ -128,7 +141,7 @@ public static class AssessmentHelpers
             .Select(page =>
             {
                 var questions = page.PageElements
-                    .Where(element => element.QuestionDefinition?.Calculation != null)
+                    .Where(IncludeQuestion)
                     .Select(element =>
                     {
                         var field = element.QuestionDefinition!;

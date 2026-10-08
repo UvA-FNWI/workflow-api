@@ -74,11 +74,54 @@ public class FormDtoTests
         Assert.Equal(10_000_000, defaultedDto.AllowedFileSize);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("10")]
+    public void Create_OptionalOralGrade_UsesOnlyActiveWeights(string? oralGrade)
+    {
+        var definition = new WorkflowDefinition { Name = "Assessment-MES" };
+        var independence = Question("Independence", definition, 1);
+        var oral = Question("OralTest", definition, 1);
+        oral.Type = "HalfGrade";
+        oral.Values = [new Choice { Name = "10", Value = 10 }];
+        var form = new Form
+        {
+            Name = "Review",
+            PropertyName = "supervisor",
+            Pages =
+            [
+                new Page
+                {
+                    Name = "IndependenceAndOralTest",
+                    PageElements =
+                    [
+                        new PageElement { Question = independence.Name, QuestionDefinition = independence },
+                        new PageElement { Question = oral.Name, QuestionDefinition = oral }
+                    ]
+                }
+            ]
+        };
+        var context = new ObjectContext(new()
+        {
+            ["supervisor.Independence"] = 7.0,
+            ["supervisor.OralTest"] = oralGrade
+        });
+
+        var result = FormDto.Create(form, context);
+
+        var questions = result.Pages[0].Elements.Select(e => e.Question!).ToArray();
+        Assert.Equal(oralGrade == "10" ? 50m : 100m, questions[0].Percentage);
+        Assert.Equal(oralGrade == "10" ? 50m : (decimal?)null, questions[1].Percentage);
+        Assert.Equal(1m, questions[1].Weight);
+        Assert.False(questions[1].IsRequired);
+    }
+
     private static PropertyDefinition Question(string name, WorkflowDefinition parent, decimal? weight = null) =>
         new()
         {
             Name = name,
-            Type = "Double",
+            Type = weight == null ? "Double" : "Double!",
             ParentType = parent,
             Calculation = weight == null ? null : new CalculationSettings { Weight = weight }
         };

@@ -79,6 +79,7 @@ public class AssessmentHelpersTests
                         var propDef = new PropertyDefinition
                         {
                             Name = q.fieldName,
+                            Type = "Double!",
                             Calculation = new CalculationSettings { Weight = q.weight }
                         };
                         return new PageElement { Question = propDef.Name, QuestionDefinition = propDef };
@@ -332,6 +333,146 @@ public class AssessmentHelpersTests
     }
 
     // ─── CalculateSourceResult ────────────────────────────────────────────────
+
+    private static (Form, ObjectContext) OralTestContext(string source, string? oralGrade)
+    {
+        var (form, context) = CreateContext(source, source,
+            ("Content", [
+                ("Setup", 1, 7), ("Execution", 1, 7), ("Organisation", 1, 7),
+                ("Language", 1, 7), ("Presentation", 1, 7)
+            ]),
+            ("Independence", [("Independence", 1, 7)]));
+        var oral = new PropertyDefinition
+        {
+            Name = "OralTest",
+            Type = "HalfGrade",
+            Calculation = new CalculationSettings { Weight = 1 },
+            Values =
+            [
+                new Choice { Name = "10", Value = 10 },
+                new Choice { Name = "8,5", Value = 8.5 }
+            ]
+        };
+        form.Pages[1].PageElements =
+            [.. form.Pages[1].PageElements, new PageElement { Question = oral.Name, QuestionDefinition = oral }];
+        if (oralGrade != null)
+            context.Values[new PropertyLookup($"{source}.OralTest")] = oralGrade;
+        return (form, context);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("10", 10.0)]
+    [InlineData("8,5", 8.5)]
+    public void CalculateSourceResult_OptionalOralTest_CountsOnlyWhenAnswered(string? oralGrade, double? score)
+    {
+        var (form, context) = OralTestContext("supervisor", oralGrade);
+
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
+
+        var weight = score == null ? 6m : 7m;
+        Assert.Equal((42m + (decimal)(score ?? 0)) / weight, result.WeightedAverage);
+        Assert.Equal(weight, result.PageResults.Sum(p => p.Weight));
+        var questions = result.PageResults.SelectMany(p => p.QuestionResults).ToList();
+        Assert.Equal(score == null ? 6 : 7, questions.Count);
+        Assert.All(questions, q => Assert.Equal(1m / weight * 100, q.Percentage));
+        if (score != null)
+            Assert.Equal(score.Value, questions.Single(q => q.Name == "OralTest").Answer);
+    }
+
+    [Fact]
+    public void CalculateSourceResult_OptionalOnlyPageLeftBlank_DoesNotLowerAverage()
+    {
+        var (form, context) = OralTestContext("supervisor", null);
+        var oral = form.Pages[1].PageElements[1];
+        form.Pages[1].PageElements = [form.Pages[1].PageElements[0]];
+        form.Pages.Add(new Page { Name = "Oral", PageElements = [oral] });
+
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
+
+        Assert.Equal(7m, result.WeightedAverage);
+        Assert.Null(result.PageResults.Single(p => p.Name == "Oral").Weight);
+        Assert.Null(result.PageResults.Single(p => p.Name == "Oral").WeightedAverage);
+    }
+
+    [Theory]
+    [InlineData(null, 7.0)]
+    [InlineData("", 7.0)]
+    [InlineData("10", 8.5)]
+    public void CalculateSourceResult_EmbeddedPageAverage_ExcludesClearedOralGrade(string? oralGrade, double expected)
+    {
+        var (form, _) = OralTestContext("supervisor", oralGrade);
+        var document = new BsonDocument
+        {
+            { "Independence", new BsonDouble(7) },
+            { "OralTest", oralGrade == null ? BsonNull.Value : new BsonString(oralGrade) }
+        };
+        var context = new ObjectContext(new()
+        {
+            [new PropertyLookup("supervisor")] = ObjectContext.GetValue(document, DataType.Object)
+        });
+
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, "Independence");
+
+        Assert.Equal((decimal)expected, Assert.Single(result.PageResults).WeightedAverage);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("10", null)]
+    [InlineData(null, "10")]
+    [InlineData("10", "8,5")]
+    public void CalculateCombined_OptionalOralTest_AveragesOnlyAnsweredGrades(string? firstGrade, string? secondGrade)
+    {
+        var (firstForm, firstContext) = OralTestContext("supervisor", firstGrade);
+        var (secondForm, secondContext) = OralTestContext("reader", secondGrade);
+        var sources = new[]
+        {
+            AssessmentHelpers.CalculateSourceResult(firstForm, firstContext, null),
+            AssessmentHelpers.CalculateSourceResult(secondForm, secondContext, null)
+        };
+        var config = PartConfig(("supervisor", 1), ("reader", 1));
+
+        var result = AssessmentHelpers.CalculateCombined(config, sources);
+
+        Assert.Equal(sources.Average(s => s.WeightedAverage), result.WeightedAverage);
+        var oral = result.PageResults.SelectMany(p => p.QuestionResults).SingleOrDefault(q => q.Name == "OralTest");
+        if (firstGrade == null && secondGrade == null)
+            Assert.Null(oral);
+        else
+        {
+            Assert.NotNull(oral);
+            Assert.Equal(firstGrade != null && secondGrade != null ? 9.25 : 10, oral.Answer);
+            Assert.Equal(firstGrade != null && secondGrade != null ? 1m / 7 * 100 : (1m / 7 * 100) / 2,
+                oral.Percentage);
+        }
+    }
+
+    [Fact]
+    public void CalculateSourceResult_MissingRequiredGrade_RetainsItsWeight()
+    {
+        var (form, context) = OralTestContext("supervisor", null);
+        context.Values.Remove(new PropertyLookup("supervisor.Setup"));
+
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
+
+        Assert.Equal(35m / 6, result.WeightedAverage);
+        Assert.Equal(6m, result.PageResults.Sum(p => p.Weight));
+    }
+
+    [Fact]
+    public void CalculateSourceResult_OptionalNumericZero_IsAnAnsweredGrade()
+    {
+        var (form, context) = CreateContext("supervisor", "supervisor",
+            ("Report", [("Required", 1, 8), ("Optional", 1, 0)]));
+        form.Pages[0].PageElements[1].QuestionDefinition!.Type = "Double";
+
+        var result = AssessmentHelpers.CalculateSourceResult(form, context, pageName: null);
+
+        Assert.Equal(4m, result.WeightedAverage);
+        Assert.Equal(2m, result.PageResults[0].Weight);
+    }
 
     [Fact]
     public void CalculateSourceResult_AllPagesFilled_ReturnsCorrectPageResultsAndName()
