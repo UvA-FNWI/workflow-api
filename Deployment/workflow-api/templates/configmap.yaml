@@ -51,3 +51,6 @@ data:
   WorkflowSource__RepoUrl: "{{ .Values.workflowSource.repoUrl }}"
   WorkflowSource__Ref: "{{ .Values.workflowSource.ref }}"
   WorkflowSource__PollIntervalSeconds: "{{ .Values.workflowSource.pollIntervalSeconds | default 0 }}"
+
+  Services__Turnitin__BaseUrl: "{{ .Values.turnitin.url }}"
+  Services__Turnitin__IsDisabled: "{{ .Values.turnitin.disabled }}"
