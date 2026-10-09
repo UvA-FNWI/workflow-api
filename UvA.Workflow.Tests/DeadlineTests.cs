@@ -450,14 +450,16 @@ public class DeadlineTests
     }
 
     [Theory]
-    [InlineData("Step")]
-    [InlineData(null)]
-    public async Task Factory_PreservesSubmitOnlyFormsWithOrWithoutAssignedStep(string? formStep)
+    [InlineData("Step", true)]
+    [InlineData(null, true)]
+    [InlineData("Step", false)]
+    [InlineData(null, false)]
+    public async Task Factory_PreservesSubmitOnlyFormsWithOrWithoutAssignedStep(string? formStep, bool hasQuestion)
     {
         var model = new ModelService(new ModelParser(new DictionaryProvider(new Dictionary<string, string>
         {
             ["Common/Roles/Registered.yaml"] = "name: Registered",
-            ["SubmitOnly/Entity.yaml"] = "name: SubmitOnly\nsteps: [Step]",
+            ["SubmitOnly/Entity.yaml"] = "name: SubmitOnly\nsteps: [Step]\nproperties: [{name: Remark, type: String}]",
             ["SubmitOnly/Steps/Step.yaml"] = """
                                              name: Step
                                              ends: { event: Form }
@@ -466,7 +468,9 @@ public class DeadlineTests
                                                  form: Form
                                                  roles: [Registered]
                                              """,
-            ["SubmitOnly/Forms/Form.yaml"] = "name: Form\npages: [{name: Page, elements: [{text: Confirm}]}]"
+            ["SubmitOnly/Forms/Form.yaml"] = hasQuestion
+                ? "name: Form\npages: [{name: Page, elements: [{question: Remark}]}]"
+                : "name: Form\npages: [{name: Page, elements: [{text: Confirm}]}]"
         })));
         var instance = Instance("SubmitOnly");
         model.GetForm(instance, "Form").Step = formStep;
@@ -484,7 +488,8 @@ public class DeadlineTests
         var after = await factory.Create(instance, CancellationToken.None);
         Assert.Empty(after.Actions);
         Assert.Empty(after.Submissions);
-        Assert.True(Assert.Single(after.Steps).HasSubmission);
+        // A confirmation-only form leaves nothing to show, so it should not prompt an unauthorized message.
+        Assert.Equal(hasQuestion, Assert.Single(after.Steps).HasSubmission);
     }
 
     [Theory]
@@ -754,7 +759,8 @@ public class DeadlineTests
                                                  - type: Submit
                                                    form: Available
                                                """,
-            ["Hard/Entity.yaml"] = "name: Hard\ntitlePlural: Hard steps\nsteps: [Step, Open]",
+            ["Hard/Entity.yaml"] =
+                "name: Hard\ntitlePlural: Hard steps\nsteps: [Step, Open]\nproperties: [{name: Remark, type: String}]",
             ["Hard/Steps/Step.yaml"] = """
                                        name: Step
                                        deadline:
@@ -776,7 +782,8 @@ public class DeadlineTests
                                             roles: [Registered]
                                         """,
             ["Hard/Steps/Open.yaml"] = "name: Open",
-            ["Hard/Forms/Closed.yaml"] = "name: Closed\nstep: Child\npages: []",
+            ["Hard/Forms/Closed.yaml"] =
+                "name: Closed\nstep: Child\npages: [{name: Page, elements: [{question: Remark}]}]",
             ["Hard/Forms/Available.yaml"] = "name: Available\nstep: Open\npages: []"
         })));
 
