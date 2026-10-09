@@ -193,10 +193,12 @@ public class WorkflowInstanceDtoFactory(
             : null;
         // Match the step where the UI displays the submission, which can differ from the action's step.
         // For older forms without an assigned step, keep using the step's submit actions.
+        // Forms without questions, such as confirmation dialogs, leave no submission content to show.
         var submissionForms = workflowDef.Forms
             .Where(form => form.Step == step.Name ||
                            form.Step == null && step.Actions.Any(action =>
                                action.Type == RoleAction.Submit && action.AllForms.Contains(form.Name)))
+            .Where(form => form.ActualForm.PropertyDefinitions.Any())
             .ToArray();
         var submissionEventIds = submissionForms
             .SelectMany(FormSubmissionState.GetSubmissionEventIds)
