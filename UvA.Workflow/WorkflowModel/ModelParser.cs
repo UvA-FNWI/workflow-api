@@ -134,10 +134,14 @@ public partial class ModelParser
             definition.Roles = GlobalRoles.Select(r => r.Clone()).ToList();
             foreach (var role in Read<Role>(definition.SourceFolder))
             {
-                if (GlobalRoles.Contains(role.Name))
-                    throw new Exception(
-                        $"Definition '{definition.Name}' declares role '{role.Name}', which already exists in Common.");
-                definition.Roles.Add(role);
+                var target = definition.Roles.GetOrDefault(role.Name);
+                if (target != null)
+                {
+                    ApplyInheritance(target, role);
+                    target.DeclaredKeys = [.. target.DeclaredKeys, .. role.DeclaredKeys];
+                }
+                else
+                    definition.Roles.Add(role);
             }
 
             if (definition.InheritsFrom != null)
