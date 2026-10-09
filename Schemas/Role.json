@@ -165,6 +165,10 @@
             "type": "string"
           }
         },
+        "persistent": {
+          "type": "boolean",
+          "description": "Keeps this action available on active and completed steps.\n            Roles, action conditions and applicable hard deadlines still apply. Defaults to false."
+        },
         "noAutoOpenForm": {
           "type": "boolean",
           "description": "When true, the submit form does not automatically even if it is the only submit action in the step"
