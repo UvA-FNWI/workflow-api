@@ -368,9 +368,10 @@ public class InstanceService(
     {
         var actions = new List<AllowedAction>();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var activeSteps = modelService.GetActiveSteps(instance);
         var allowed = await rightsService.GetAllowedActions(instance,
             RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
+        var activeSteps = modelService.GetActiveSteps(instance);
+        var context = modelService.CreateContext(instance);
 
         // Submittable forms
         actions.AddRange(allowed
@@ -420,7 +421,7 @@ public class InstanceService(
 
         string[] GetDisplaySteps(Domain_Action action, Form? form = null)
         {
-            var matchingActionSteps = action.Steps.Intersect(activeSteps).ToArray();
+            var matchingActionSteps = modelService.GetAvailableStepsForAction(instance, action, activeSteps, context);
             if (matchingActionSteps.Length != 0)
                 return matchingActionSteps;
 
