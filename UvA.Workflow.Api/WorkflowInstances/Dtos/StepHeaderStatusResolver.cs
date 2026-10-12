@@ -7,11 +7,12 @@ public class StepHeaderStatusResolver(ModelService modelService)
 {
     public StepHeaderStatusDto? Resolve(Step step, WorkflowInstance instance)
     {
-        if (step.HeaderStatus == null || step.HeaderStatus.Count == 0)
+        var headerEntries = step.Progress.Where(p => p.Header != null).ToList();
+        if (headerEntries.Count == 0)
             return null;
 
         var context = ObjectContext.Create(instance, modelService);
-        var matchedStatus = step.HeaderStatus
+        var matchedStatus = headerEntries
             .Select(configuration =>
             {
                 var condition = configuration.EffectiveCondition;
@@ -44,8 +45,8 @@ public class StepHeaderStatusResolver(ModelService modelService)
             return null;
 
         return new StepHeaderStatusDto(
-            matchedStatus.Configuration.Type,
-            matchedStatus.Configuration.LabelTemplate.Apply(context)
+            matchedStatus.Configuration.Header!.Type,
+            matchedStatus.Configuration.HeaderLabelTemplate?.Apply(context)
         );
     }
 }

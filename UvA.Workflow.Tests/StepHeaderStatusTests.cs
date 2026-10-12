@@ -62,10 +62,14 @@ public class StepHeaderStatusTests
     {
         var modelService = CreateExampleModelService();
         var step = GetStep(modelService, "Subject");
-        GetHeaderStatusConfiguration(step, "ApproveSubject").Label = new BilingualString(
-            "Approved and assigned on {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}",
-            "Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}"
-        );
+        SetHeader(step, "ApproveSubject", new ProgressHeader
+        {
+            Type = StepHeaderPillType.Success,
+            Label = new BilingualString(
+                "Approved and assigned on {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}",
+                "Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}")
+        });
+
         var resolver = new StepHeaderStatusResolver(modelService);
         var instance = CreateProjectInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
@@ -120,7 +124,11 @@ public class StepHeaderStatusTests
     {
         var modelService = CreateExampleModelService();
         var step = GetStep(modelService, "Subject");
-        GetHeaderStatusConfiguration(step, "Start").Type = StepHeaderPillType.Attention;
+        SetHeader(step, "Start", new ProgressHeader
+        {
+            Type = StepHeaderPillType.Attention,
+            Label = GetHeader(step, "Start").Label
+        });
         var resolver = new StepHeaderStatusResolver(modelService);
         var instance = CreateProjectInstance(("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)));
 
@@ -140,10 +148,13 @@ public class StepHeaderStatusTests
     {
         var modelService = CreateExampleModelService();
         var step = GetStep(modelService, "Subject");
-        GetHeaderStatusConfiguration(step, "Start").Label = new BilingualString(
-            "Submitted on {{ formatDate(StartEvent, =dd-MM-yyyy) }}",
-            "Ingediend op {{ formatDate(StartEvent, =dd-MM-yyyy) }}"
-        );
+        SetHeader(step, "Start", new ProgressHeader
+        {
+            Type = GetHeader(step, "Start").Type,
+            Label = new BilingualString(
+                "Submitted on {{ formatDate(StartEvent, =dd-MM-yyyy) }}",
+                "Ingediend op {{ formatDate(StartEvent, =dd-MM-yyyy) }}")
+        });
         var resolver = new StepHeaderStatusResolver(modelService);
         var instance = CreateProjectInstance(("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)));
 
@@ -264,9 +275,9 @@ public class StepHeaderStatusTests
 
         // Replace the header status with an arbitrary Or condition to prove the full
         // condition model (not just AND) is honoured: only one of the two events is active.
-        step.HeaderStatus =
+        step.Progress =
         [
-            new Step.StepHeaderStatusConfiguration
+            new ProgressInformation
             {
                 Condition = new Condition
                 {
@@ -280,8 +291,11 @@ public class StepHeaderStatusTests
                         ]
                     }
                 },
-                Type = StepHeaderPillType.Success,
-                Label = new BilingualString("At least one approval", "Minstens één goedkeuring")
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Success,
+                    Label = new BilingualString("At least one approval", "Minstens één goedkeuring")
+                }
             }
         ];
 
@@ -379,8 +393,14 @@ public class StepHeaderStatusTests
     private static WorkflowInstance CreateRmssInstance(params (string EventId, DateTime Date)[] events)
         => CreateInstance("Project-RMSS", "ProposalPhase", events);
 
-    private static Step.StepHeaderStatusConfiguration GetHeaderStatusConfiguration(Step step, string eventId)
-        => step.HeaderStatus!.Single(configuration => configuration.Event == eventId);
+    private static ProgressHeader GetHeader(Step step, string eventId)
+        => step.Progress.Single(configuration => configuration.Event == eventId).Header!;
+
+    private static void SetHeader(Step step, string eventId, ProgressHeader header)
+    {
+        var index = step.Progress.FindIndex(p => p.Header != null && p.Event == eventId);
+        step.Progress[index] = new ProgressInformation { Event = eventId, Header = header };
+    }
 
     private static WorkflowInstance CreateProjectInstance(params (string EventId, DateTime Date)[] events)
         => CreateInstance("Project", "Subject", events);
