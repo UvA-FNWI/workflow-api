@@ -126,7 +126,8 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? ProgressInformationDto.Resolve(definition, column.GetValue(context) as string ?? "", context)
+                    ? StepProgressResolver.ResolveProgress(definition, column.GetValue(context) as string ?? "",
+                        context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
