@@ -137,6 +137,49 @@ public class ProgressInformationTests
     }
 
     [Fact]
+    public void Resolve_FallsBackToParentDefaultProgressWhenStepHasNoEntries()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var child = definition.AllSteps.Single(candidate => candidate.Name == "Start");
+        var parent = definition.AllSteps.Single(candidate => candidate.Name == "Subject");
+        child.Progress = [];
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Color = StatusColor.Red,
+                Text = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+            }
+        ];
+
+        var progress = Resolve(CreateContext());
+
+        Assert.Equal("Parent default", progress.Text.En);
+        Assert.Equal("Standaard van bovenliggende stap", progress.Text.Nl);
+        Assert.Equal(StatusColor.Red, progress.Color);
+    }
+
+    [Fact]
+    public void Resolve_PrefersOwnFallbackOverParentDefaultProgress()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var parent = definition.AllSteps.Single(candidate => candidate.Name == "Subject");
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Color = StatusColor.Red,
+                Text = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+            }
+        ];
+
+        var progress = Resolve(CreateContext());
+
+        Assert.Equal("Writing proposal", progress.Text.En);
+        Assert.Equal(StatusColor.Green, progress.Color);
+    }
+
+    [Fact]
     public void ModelParser_RejectsFallbackBeforeConditionalEntry()
     {
         var exception = Assert.Throws<Exception>(() => ParseProgressStep("""

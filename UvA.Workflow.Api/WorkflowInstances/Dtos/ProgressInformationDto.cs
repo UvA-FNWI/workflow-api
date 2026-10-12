@@ -29,6 +29,11 @@ public record ProgressInformationDto(
         var progress = currentStep.Progress.FirstOrDefault(candidate =>
                            candidate.EffectiveCondition?.IsMet(context) == true)
                        ?? currentStep.Progress.FirstOrDefault(candidate => candidate.EffectiveCondition == null);
+
+        // If the current step has no progress entries, check parent steps for a default progress entry.
+        for (var parent = currentStep.ParentStep; progress == null && parent != null; parent = parent.ParentStep)
+            progress = parent.Progress.FirstOrDefault(candidate => candidate.EffectiveCondition == null);
+
         var displayText = progress?.ProgressTextTemplate?.Apply(context)
                           ?? currentStep.DisplayTitle;
         return new ProgressInformationDto(displayText, progress?.Color);

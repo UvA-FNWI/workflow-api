@@ -313,6 +313,79 @@ public class StepHeaderStatusTests
         Assert.Equal("At least one approval", status.Label.En);
     }
 
+    [Fact]
+    public void Resolver_FallsBackToParentDefaultHeaderWhenNoChildEntryMatches()
+    {
+        var modelService = CreateExampleModelService();
+        var parent = GetRmssStep(modelService, "ProposalPhase");
+        var child = GetRmssStep(modelService, "ProposalAssessmentSupervisor");
+        child.Progress = [];
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Info,
+                    Label = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+                }
+            }
+        ];
+
+        var resolver = new StepHeaderStatusResolver(modelService);
+        var instance = CreateRmssInstance(("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)));
+
+        var status = resolver.Resolve(child, instance);
+
+        Assert.NotNull(status);
+        Assert.NotNull(status.Label);
+        Assert.Equal(StepHeaderPillType.Info, status!.Type);
+        Assert.Equal("Parent default", status.Label.En);
+        Assert.Equal("Standaard van bovenliggende stap", status.Label.Nl);
+    }
+
+    [Fact]
+    public void Resolver_PrefersChildMatchOverParentDefaultHeader()
+    {
+        var modelService = CreateExampleModelService();
+        var parent = GetRmssStep(modelService, "ProposalPhase");
+        var child = GetRmssStep(modelService, "ProposalAssessmentSupervisor");
+        child.Progress =
+        [
+            new ProgressInformation
+            {
+                Event = "ProposalApprovedSupervisor",
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Success,
+                    Label = new BilingualString("Child match", "Match van onderliggende stap")
+                }
+            }
+        ];
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Info,
+                    Label = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+                }
+            }
+        ];
+
+        var resolver = new StepHeaderStatusResolver(modelService);
+        var instance = CreateRmssInstance(
+            ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)));
+
+        var status = resolver.Resolve(child, instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Success, status!.Type);
+        Assert.Equal("Child match", status.Label!.En);
+    }
+
     internal static WorkflowInstanceDtoFactory CreateWorkflowInstanceDtoFactory(
         ModelService modelService,
         Mock<IWorkflowInstanceRepository> repository,

@@ -8,8 +8,6 @@ public class StepHeaderStatusResolver(ModelService modelService)
     public StepHeaderStatusDto? Resolve(Step step, WorkflowInstance instance)
     {
         var headerEntries = step.Progress.Where(p => p.Header != null).ToList();
-        if (headerEntries.Count == 0)
-            return null;
 
         var context = ObjectContext.Create(instance, modelService);
         var matchedStatus = headerEntries
@@ -41,12 +39,21 @@ public class StepHeaderStatusResolver(ModelService modelService)
             .ThenByDescending(x => x.Specificity)
             .FirstOrDefault();
 
-        if (matchedStatus == null)
+        var configuration = matchedStatus?.Configuration;
+
+        // If no progress entry is matched, check parent steps for a default progress entry.
+        for (var candidate = step; configuration is null && candidate is not null; candidate = candidate.ParentStep)
+        {
+            configuration = candidate.Progress.FirstOrDefault(progress =>
+                progress.Header is not null && progress.EffectiveCondition is null);
+        }
+
+        if (configuration?.Header is not { } header)
             return null;
 
         return new StepHeaderStatusDto(
-            matchedStatus.Configuration.Header!.Type,
-            matchedStatus.Configuration.HeaderLabelTemplate?.Apply(context)
+            header.Type,
+            configuration.HeaderLabelTemplate?.Apply(context)
         );
     }
 }
