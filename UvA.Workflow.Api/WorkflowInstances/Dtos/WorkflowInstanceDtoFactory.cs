@@ -70,7 +70,7 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.EditableRelatedUsers.Select(r => r.Property),
             editActions);
         var infoCards = visibleCards
-            .Select(card => CreateInfoCard(card, context, canEditByProperty))
+            .Select(card => CreateInfoCard(workflowDefinition, card, context, canEditByProperty))
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
@@ -193,10 +193,12 @@ public class WorkflowInstanceDtoFactory(
             : null;
         // Match the step where the UI displays the submission, which can differ from the action's step.
         // For older forms without an assigned step, keep using the step's submit actions.
+        // Forms without questions, such as confirmation dialogs, leave no submission content to show.
         var submissionForms = workflowDef.Forms
             .Where(form => form.Step == step.Name ||
                            form.Step == null && step.Actions.Any(action =>
                                action.Type == RoleAction.Submit && action.AllForms.Contains(form.Name)))
+            .Where(form => form.ActualForm.PropertyDefinitions.Any())
             .ToArray();
         var submissionEventIds = submissionForms
             .SelectMany(FormSubmissionState.GetSubmissionEventIds)
@@ -351,7 +353,7 @@ public class WorkflowInstanceDtoFactory(
             FormSubmissionState.GetSubmissionEventIds(form).Contains(eventId));
     }
 
-    private InfoCardDto? CreateInfoCard(InfoCard card, ObjectContext context,
+    private InfoCardDto? CreateInfoCard(WorkflowDefinition workflowDefinition, InfoCard card, ObjectContext context,
         Dictionary<string, bool> canEditByProperty)
     {
         var type = card.Type!.Value;
@@ -379,7 +381,7 @@ public class WorkflowInstanceDtoFactory(
                     group.Name,
                     group.Title,
                     group.Users.Select(relatedUser => CreateRelatedUser(
-                            relatedUser, group.AllowEditing, context, canEditByProperty))
+                            workflowDefinition, relatedUser, group.AllowEditing, context, canEditByProperty))
                         .Where(role => role.Users.Length > 0 || role.AllowsAssignment)
                         .ToArray()))
                 .Where(group => group.UserRoles.Length > 0)
@@ -422,15 +424,24 @@ public class WorkflowInstanceDtoFactory(
             : new InfoCardFieldDto(field.DisplayTitle, value, field.GetHref(context), field.Icon);
     }
 
-    private static RelatedUserRolesDto CreateRelatedUser(RelatedUser relatedUser, bool allowEditing,
+    private static RelatedUserRolesDto CreateRelatedUser(WorkflowDefinition workflowDefinition,
+        RelatedUser relatedUser, bool allowEditing,
         ObjectContext context, Dictionary<string, bool> canEditByProperty)
     {
         var value = context.Get(relatedUser.Property);
         var users = value is InstanceUser user ? [user] : value as InstanceUser[] ?? [];
+        var genericEmail = workflowDefinition.Roles
+            .GetOrDefault(relatedUser.PropertyDefinition?.Name ?? "")
+            ?.GenericEmail;
+        var usersDto = users.Select(instanceUser =>
+        {
+            var dto = UserDto.CreateFromInstanceUser(instanceUser);
+            return string.IsNullOrWhiteSpace(genericEmail) ? dto : dto with { Email = genericEmail };
+        }).ToArray();
         return new RelatedUserRolesDto(
             relatedUser.Property,
             relatedUser.DisplayTitle,
-            users.Select(UserDto.CreateFromInstanceUser).ToArray(),
+            usersDto,
             (relatedUser.PropertyDefinition as UserPropertyDefinition)?.AllowsExternalUsers ?? false,
             !relatedUser.PropertyDefinition?.IsRequired ?? false,
             relatedUser.PropertyDefinition?.IsArray ?? false,
