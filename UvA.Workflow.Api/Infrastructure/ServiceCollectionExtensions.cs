@@ -42,7 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
         services.AddScoped<AssessmentDtoFactory>();
-        services.AddScoped<StepHeaderStatusResolver>();
+        services.AddScoped<StepProgressResolver>();
         services.AddScoped<WorkflowInstanceDtoFactory>();
 
         services.AddScoped<PersonalInstanceService>();

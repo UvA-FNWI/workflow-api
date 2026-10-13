@@ -46,6 +46,10 @@ public record StepHeaderStatusDto(
     BilingualString? Label
 );
 
+public record ProgressInformationDto(
+    BilingualString Text,
+    StatusColor? Color);
+
 public record UndoCandidateDto(
     OperationType Type,
     BilingualString StepTitle,
