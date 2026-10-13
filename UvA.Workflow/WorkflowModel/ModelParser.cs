@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Serilog;
 using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
@@ -133,10 +134,14 @@ public partial class ModelParser
             definition.Roles = GlobalRoles.Select(r => r.Clone()).ToList();
             foreach (var role in Read<Role>(definition.SourceFolder))
             {
-                if (GlobalRoles.Contains(role.Name))
-                    throw new Exception(
-                        $"Definition '{definition.Name}' declares role '{role.Name}', which already exists in Common.");
-                definition.Roles.Add(role);
+                var target = definition.Roles.GetOrDefault(role.Name);
+                if (target != null)
+                {
+                    ApplyInheritance(target, role);
+                    target.DeclaredKeys = [.. target.DeclaredKeys, .. role.DeclaredKeys];
+                }
+                else
+                    definition.Roles.Add(role);
             }
 
             if (definition.InheritsFrom != null)
@@ -216,6 +221,10 @@ public partial class ModelParser
 
     private void PreProcess(Role role, WorkflowDefinition? owner = null)
     {
+        if (role.GenericEmail != null && !new EmailAddressAttribute().IsValid(role.GenericEmail))
+            throw new Exception(
+                $"Role '{role.Name}' has invalid generic email '{role.GenericEmail}'. Generic email should be a valid email address.");
+
         Role ResolveInherited(string name) => owner?.Roles.GetOrDefault(name) ?? GlobalRoles.GetOrDefault(name)
             ?? throw new Exception($"Role '{name}' referenced in inheritFrom of role '{role.Name}' does not exist");
 

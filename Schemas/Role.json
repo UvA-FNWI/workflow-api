@@ -43,6 +43,13 @@
       "items": {
         "$ref": "#/definitions/Action"
       }
+    },
+    "genericEmail": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Email address used as a DTO override of all users with this role"
     }
   },
   "definitions": {
@@ -164,6 +171,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "persistent": {
+          "type": "boolean",
+          "description": "Keeps this action available on active and completed steps.\n            Roles, action conditions and applicable hard deadlines still apply. Defaults to false."
         },
         "noAutoOpenForm": {
           "type": "boolean",

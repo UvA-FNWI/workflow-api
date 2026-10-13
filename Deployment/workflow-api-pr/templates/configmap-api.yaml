@@ -47,3 +47,6 @@ data:
 
   Services__DataNose__BaseUrl: "{{ .Values.datanoseApi.baseAddress }}api"
   Services__DataNose__DN1BaseUrl: "{{ .Values.datanoseApi.dn1Url }}"
+
+  Services__Turnitin__BaseUrl: "{{ .Values.turnitin.url }}"
+  Services__Turnitin__IsDisabled: "{{ .Values.turnitin.disabled }}"
