@@ -67,8 +67,11 @@ public class ScreenDataService(
 
         foreach (var column in columns)
         {
-            if (column.CurrentStep)
+            if (column.Type == ColumnType.CurrentStep)
                 projection["CurrentStep"] = "$CurrentStep";
+            if (column.Type == ColumnType.RelatedUsers)
+                foreach (var relatedUser in GetDefaultRelatedUsers(entity))
+                    AddLookupToProjection(projection, new PropertyLookup(relatedUser.Property), entity);
             foreach (var prop in column.Properties)
                 AddLookupToProjection(projection, prop, entity);
         }
@@ -125,9 +128,15 @@ public class ScreenDataService(
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                var value = columns[i].IsCurrentStep
-                    ? ProgressInformationDto.Resolve(definition, column.GetValue(context) as string ?? "", context)
-                    : column.GetValue(context);
+                object? value = columns[i].ColumnType switch
+                {
+                    ColumnType.CurrentStep => ProgressInformationDto.Resolve(
+                        definition,
+                        context.Get("CurrentStep") as string ?? column.Default ?? "Draft",
+                        context),
+                    ColumnType.RelatedUsers => GetRelatedUsers(definition, context),
+                    _ => column.GetValue(context)
+                };
                 processedValues[columnId] = value;
             }
 
@@ -137,10 +146,41 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
+    private static ScreenRelatedUserDto[] GetRelatedUsers(WorkflowDefinition definition, ObjectContext context) =>
+        GetDefaultRelatedUsers(definition)
+            .SelectMany(relatedUser => GetUsersForRole(relatedUser, context))
+            .GroupBy(user => user.DisplayName)
+            .Select(group => new ScreenRelatedUserDto(
+                group.Key,
+                group.SelectMany(user => user.Roles).ToArray(),
+                group.First().Organisation))
+            .ToArray();
+
+    private static RelatedUser[] GetDefaultRelatedUsers(WorkflowDefinition definition) => definition.RelatedUserGroups
+        .Where(group => group.Name == "default")
+        .SelectMany(group => group.Users)
+        .ToArray();
+
+    private static IEnumerable<ScreenRelatedUserDto> GetUsersForRole(RelatedUser relatedUser, ObjectContext context)
+    {
+        var value = context.Get(relatedUser.Property);
+        var users = value switch
+        {
+            InstanceUser user => [user],
+            InstanceUser[] userArray => userArray.OfType<InstanceUser>(),
+            _ => []
+        };
+
+        return users.Select(user => new ScreenRelatedUserDto(
+            user.DisplayName,
+            [relatedUser.DisplayTitle],
+            user.Organization?.Name));
+    }
+
     private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
     {
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
-        var hasProgressColumn = screen.Columns.Any(column => column.CurrentStep);
+        var hasProgressColumn = screen.Columns.Any(column => column.Type == ColumnType.CurrentStep);
         var progressLookups = hasProgressColumn
             ? definition.ProgressLookups.ToArray()
             : [];
@@ -157,10 +197,14 @@ public class ScreenDataService(
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
         var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
+        var relatedUserLookups = screen.Columns.Any(c => c.Type == ColumnType.RelatedUsers)
+            ? GetDefaultRelatedUsers(definition).Select(u => (Lookup)new PropertyLookup(u.Property)).ToArray()
+            : [];
 
         // Add related properties as needed
         await instanceService.Enrich(definition,
-            contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups), ct, false);
+            contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups).Concat(relatedUserLookups),
+            ct, false);
 
         return contexts;
     }

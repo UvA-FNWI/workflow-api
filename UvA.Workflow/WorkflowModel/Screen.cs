@@ -78,8 +78,20 @@ public enum SortDirection
     Descending
 }
 
+public enum ColumnType
+{
+    Normal,
+    CurrentStep,
+    RelatedUsers
+}
+
 public class Column : Field
 {
+    /// <summary>
+    /// Type of the column
+    /// </summary>
+    public ColumnType Type { get; set; } = ColumnType.Normal;
+
     /// <summary>
     /// Determines whether this column can be used for filtering
     /// </summary>

@@ -54,6 +54,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "type": {
+          "description": "Type of the column",
+          "$ref": "#/definitions/ColumnType"
+        },
         "filterType": {
           "description": "Determines whether this column can be used for filtering",
           "$ref": "#/definitions/FilterType"
@@ -150,12 +154,16 @@
             "string"
           ],
           "description": "Target step the field should show the end date of"
-        },
-        "currentStep": {
-          "type": "boolean",
-          "description": "If true, display the current step in this field"
         }
       }
+    },
+    "ColumnType": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "CurrentStep",
+        "RelatedUsers"
+      ]
     },
     "FilterType": {
       "type": "string",
