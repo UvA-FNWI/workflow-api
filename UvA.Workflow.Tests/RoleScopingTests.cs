@@ -69,16 +69,20 @@ public class RoleScopingTests
     }
 
     [Fact]
-    public void Roles_DeclaredLocallyWithSameNameAsAGlobalRole_ThrowsDuringParsing()
+    public void Roles_GenericEmailAddedToGlobalRole_IsScopedToOwningDefinition()
     {
-        var ex = Assert.Throws<Exception>(() => new ModelParser(new DictionaryProvider(new()
+        var parser = new ModelParser(new DictionaryProvider(new()
         {
             ["Common/Roles/Reviewer.yaml"] = "name: Reviewer",
             ["A/Entity.yaml"] = "name: A\ntitlePlural: As",
-            ["A/Roles/Reviewer.yaml"] = "name: Reviewer"
-        })));
+            ["A/Roles/Reviewer.yaml"] = "name: Reviewer\ngenericEmail: reviewer-a@example.org",
+            ["B/Entity.yaml"] = "name: B\ntitlePlural: Bs"
+        }));
 
-        Assert.Contains("Reviewer", ex.Message);
+        Assert.Equal("reviewer-a@example.org",
+            parser.WorkflowDefinitions["A"].Roles.Single(r => r.Name == "Reviewer").GenericEmail);
+        Assert.Null(parser.WorkflowDefinitions["B"].Roles.Single(r => r.Name == "Reviewer").GenericEmail);
+        Assert.Null(parser.GlobalRoles.Single(r => r.Name == "Reviewer").GenericEmail);
     }
 
     [Fact]
@@ -208,5 +212,17 @@ public class RoleScopingTests
         Assert.DoesNotContain(coordinatorA.Actions, a => a.Name == "ApproveB");
         Assert.Single(coordinatorB.Actions, a => a.Name == "ApproveB");
         Assert.DoesNotContain(coordinatorB.Actions, a => a.Name == "ApproveA");
+    }
+
+    [Fact]
+    public void Role_WithInvalidGenericEmail_ThrowsDuringParsing()
+    {
+        var exception = Assert.Throws<Exception>(() => new ModelParser(new DictionaryProvider(new()
+        {
+            ["Common/Roles/Reviewer.yaml"] =
+                "name: Reviewer\ngenericEmail: not-an-email"
+        })));
+
+        Assert.Contains("invalid generic email 'not-an-email'", exception.Message);
     }
 }

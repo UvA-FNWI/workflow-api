@@ -76,6 +76,9 @@ public partial record Template : Expression
         return builder.ToString();
     }
 
-    [GeneratedRegex("{{[^}]+}}")]
+    /// <summary>
+    /// This incomprehensible thing ensures balanced curly braces
+    /// </summary>
+    [GeneratedRegex(@"\{\{(?:[^{}]|\{(?!\{)|\}(?!\})|(?<open>\{\{)|(?<-open>\}\}))*(?(open)(?!))\}\}")]
     private static partial Regex TemplateExpression();
 }

@@ -16,8 +16,8 @@ public record Expression
             Text(var s) => s,
             Identifier(var k) => context.Get(k),
             Index(var exp, Int(var n)) => (exp.Execute(context) as IList)?[n],
-            Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) => Functions[exp.Text]
-                .Call(args.Select(a => a.Execute(context)).ToArray()),
+            Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) =>
+                CallFunction(Functions[exp.Text], args.Select(a => a.Execute(context)).ToArray()),
             Call(Identifier(var text), var args) => context.Get(new ComplexLookup(text, args)),
             Operator(var type, var left, var right) => type switch
             {
@@ -26,6 +26,24 @@ public record Expression
             },
             _ => throw new NotImplementedException()
         };
+    }
+
+    private static object? CallFunction(Function function, params object?[] args)
+    {
+        var types = function.GetType().GetGenericArguments();
+        // TODO: this might need more structure, but just handling some basic cases for now
+        var convertedArguments = args.Select((arg, i) =>
+        {
+            var target = types[i];
+            if (target == typeof(bool) && arg is not bool)
+                return arg != null;
+            if (target == typeof(string))
+                return arg?.ToString();
+            if ((target == typeof(DateTime) || target == typeof(DateTime?)) && arg is string s)
+                return DateTime.TryParse(s, out var val) ? val : null;
+            return arg;
+        }).ToArray();
+        return function.Call(convertedArguments);
     }
 
     private static readonly Dictionary<string, Function> Functions = new()
@@ -42,6 +60,7 @@ public record Expression
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
+        ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
         ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
 

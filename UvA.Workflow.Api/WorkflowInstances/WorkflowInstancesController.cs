@@ -231,7 +231,7 @@ public class WorkflowInstancesController(
         return Ok(roles);
     }
 
-    /// <summary>Returns allowed actions for each impersonatable role, grouped by active step.</summary>
+    /// <summary>Returns allowed actions for each impersonatable role, grouped by linked step.</summary>
     [HttpGet("{id}/Impersonation/Actions")]
     public async Task<ActionResult<IEnumerable<ActiveStepDto>>> GetImpersonationActions(string id,
         CancellationToken ct)
@@ -246,13 +246,20 @@ public class WorkflowInstancesController(
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var perRole = rightsService.GetAllowedActionsPerTargetRole(instance,
             RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
-            RoleAction.Undo);
+            RoleAction.Undo, RoleAction.View);
 
         var currentStepName = modelService.GetCurrentStep(instance)?.Name;
+        var activeSteps = modelService.GetActiveSteps(instance);
+        var context = modelService.CreateContext(instance);
+        var actionSteps = perRole.SelectMany(r => r.Actions)
+            .Distinct()
+            .ToDictionary(a => a, a => modelService.GetAvailableStepsForAction(instance, a, activeSteps, context));
 
-        // Exclude step-independent actions: this endpoint answers who can act in each active step.
-        // Keep GetActiveSteps' child/self/parent order, except place the current step first.
-        var steps = modelService.GetActiveSteps(instance)
+        // Include completed steps with persistent actions, preserving the active-step order.
+        var steps = activeSteps
+            .Concat(perRole.SelectMany(r => r.Actions.Where(a => a.Persistent)
+                .SelectMany(a => actionSteps[a])))
+            .Distinct()
             .Select(definition.AllSteps.GetOrDefault)
             .OfType<Step>()
             .OrderByDescending(s => s.Name == currentStepName)
@@ -268,7 +275,8 @@ public class WorkflowInstancesController(
         ActiveStepRoleDto[] RolesFor(string stepName)
             => perRole
                 .Select(r => new ActiveStepRoleDto(r.Role.Name, r.Role.Title,
-                    r.Actions.Where(a => a.Steps.Contains(stepName))
+                    r.Actions.Where(a => (a.Type != RoleAction.View || a.Persistent) &&
+                                         actionSteps[a].Contains(stepName))
                         .Select(AllowedActionDto.Create).ToArray()))
                 .Where(r => r.Actions.Length > 0)
                 .ToArray();

@@ -92,6 +92,24 @@ actions:
 
 For `Undo`, use `form` to scope form submissions or `name` to scope executable actions; `steps` can limit either operation type.
 
+### Persistent step actions
+
+Set `persistent: true` to keep an action available during and after its linked step.
+Buttons stay in the matching step cards. Define it in a step's `actions` (linked
+automatically) or in `globalActions` with a `steps` list:
+
+```yaml
+actions:
+  - type: View
+    roles: [Reviewer]
+    form: Request
+    persistent: true
+```
+
+Roles, conditions and applicable hard deadlines, including parent deadlines, still
+apply. Existing exemptions for `View` and actions without linked steps are unchanged.
+Future steps remain unavailable, and resetting a step may remove access.
+
 ## Well-known roles
 
 > ⚠️ **Important:** The following role names have special meaning in the frontend UI. If your workflow uses equivalent concepts, **use these exact names** to ensure correct UI behavior.
