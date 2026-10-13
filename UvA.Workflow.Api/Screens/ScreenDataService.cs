@@ -134,7 +134,7 @@ public class ScreenDataService(
                         definition,
                         context.Get("CurrentStep") as string ?? column.Default ?? "Draft",
                         context),
-                    ColumnType.RelatedUsers => GetRelatedUsers(definition, context),
+                    ColumnType.RelatedUsers => GetRelatedUsersScreen(definition, context),
                     _ => column.GetValue(context)
                 };
                 processedValues[columnId] = value;
@@ -146,7 +146,7 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
-    private static ScreenRelatedUserDto[] GetRelatedUsers(WorkflowDefinition definition, ObjectContext context) =>
+    public static ScreenRelatedUserDto[] GetRelatedUsersScreen(WorkflowDefinition definition, ObjectContext context) =>
         GetDefaultRelatedUsers(definition)
             .SelectMany(relatedUser => GetUsersForRole(relatedUser, context))
             .GroupBy(user => user.DisplayName)
