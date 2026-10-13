@@ -174,5 +174,6 @@ public partial class ModelParser
         if (!target.Declared(r => r.Title)) target.Title = source.Title;
         if (!target.Declared(r => r.Order)) target.Order = source.Order;
         if (!target.Declared(r => r.InheritFrom)) target.InheritFrom = source.InheritFrom;
+        if (!target.Declared(r => r.GenericEmail)) target.GenericEmail = source.GenericEmail;
     }
 }
