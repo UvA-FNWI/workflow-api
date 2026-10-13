@@ -340,6 +340,43 @@ public class WorkflowTests
     }
 
     [Fact]
+    public async Task SaveArtifactInfo_AttachesFileWithoutUploading()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+
+        await _answerService.SaveArtifact(context, new ArtifactInfo("file-1", "dummy-file.pdf"), _ct);
+
+        var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
+        Assert.Equal("dummy-file.pdf", report.Name);
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveArtifactInfo_AppendsToFileArray()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        context.PropertyDefinition.Type = "[File]";
+
+        await _answerService.SaveArtifact(context, new ArtifactInfo("file-1", "first.pdf"), _ct);
+        await _answerService.SaveArtifact(context, new ArtifactInfo("file-2", "second.pdf"), _ct);
+
+        Assert.Equal(2, instance.Properties["Report"].AsBsonArray.Count);
+    }
+
+    [Fact]
     public void FileArray_WildcardConfigurationParses()
     {
         var parser = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
