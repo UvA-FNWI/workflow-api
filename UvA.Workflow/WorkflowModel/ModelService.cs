@@ -74,6 +74,22 @@ public class ModelService(ModelParser parser)
             ));
     }
 
+    /// <summary>
+    /// Returns the action's linked step names that are active, or completed for persistent actions.
+    /// Evaluates step availability only; roles, action conditions and deadline restrictions are checked by RightsService.
+    /// </summary>
+    public string[] GetAvailableStepsForAction(WorkflowInstance instance, Action action, string[] activeSteps,
+        ObjectContext context)
+    {
+        if (!action.Persistent)
+            return action.Steps.Intersect(activeSteps).ToArray();
+
+        var definition = WorkflowDefinitions[instance.WorkflowDefinition];
+        return action.Steps.Where(name => activeSteps.Contains(name) ||
+                                          definition.AllSteps.GetOrDefault(name) is { } step &&
+                                          step.Condition.IsMet(context) && step.HasEnded(context)).ToArray();
+    }
+
     public string[] GetActiveSteps(WorkflowInstance instance)
     {
         var (step, context) = ResolveCurrentStep(instance);
