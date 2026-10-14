@@ -6,6 +6,41 @@ namespace UvA.Workflow.Tests;
 public class PropertySchemaTests
 {
     [Theory]
+    [InlineData(typeof(WorkflowDefinition))]
+    [InlineData(typeof(Step))]
+    public async Task ReferencesSharedPropertySchema(Type type)
+    {
+        var documentation = new DocumentationReader();
+        await documentation.Load(CancellationToken.None);
+        var generator = new Generator(documentation, typeof(PropertyDefinition), typeof(TextLayoutOptions));
+        var layout = generator.Generate(typeof(TextLayoutOptions)).ToJson();
+        var shared = generator.Generate(typeof(PropertyDefinition)).ToJson();
+        var schema = generator.Generate(type);
+        Assert.DoesNotContain(schema.Definitions.Keys, name => name.EndsWith("PropertyDefinition"));
+        var json = schema.ToJson();
+        Assert.Contains("\"$ref\": \"PropertyDefinition.json\"", json);
+
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory.FullName, "PropertyDefinition.json"), shared);
+            await File.WriteAllTextAsync(Path.Combine(directory.FullName, "TextLayoutOptions.json"), layout);
+            var resolved = await JsonSchema.FromJsonAsync(json, Path.Combine(directory.FullName, $"{type.Name}.json"));
+            var property = resolved.Properties["properties"].Item;
+            Assert.NotNull(property);
+            Assert.Empty(property.Validate("{\"name\": \"Due\", \"type\": \"Date\"}"));
+            Assert.Empty(property.Validate("{\"name\": \"Notes\", \"type\": \"String\", \"layout\": null}"));
+            Assert.Empty(
+                property.Validate("{\"name\": \"Notes\", \"type\": \"String\", \"layout\": {\"multiline\": true}}"));
+            Assert.NotEmpty(property.Validate("{\"name\": \"Due\", \"type\": \"Date\", \"fileSettings\": {}}"));
+        }
+        finally
+        {
+            directory.Delete(true);
+        }
+    }
+
+    [Theory]
     [InlineData("Date", "")]
     [InlineData("Date!", "")]
     [InlineData("[Date]", "")]

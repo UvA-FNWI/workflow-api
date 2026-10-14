@@ -1,18 +1,21 @@
 using System.Reflection;
 using NJsonSchema;
+using NJsonSchema.References;
 using UvA.Workflow.WorkflowModel;
 using YamlDotNet.Serialization;
 
 namespace UvA.Workflow.SchemaGenerator.Generation;
 
-public class Generator(DocumentationReader documentationReader)
+public class Generator(DocumentationReader documentationReader, params Type[] sharedTypes)
 {
     private readonly Dictionary<Type, JsonSchema> _schemas = new();
     private readonly NullabilityInfoContext _nullabilityInfoContext = new();
+    private Type _rootType = null!;
 
     public JsonSchema Generate(Type type)
     {
         _schemas.Clear();
+        _rootType = type;
 
         var schema = Get(type);
         schema.Title = type.Name;
@@ -152,8 +155,18 @@ public class Generator(DocumentationReader documentationReader)
         if (TypeMapping.TryGetValue(type, out var jsonType))
             return new JsonSchema { Type = isNullable ? jsonType | JsonObjectType.Null : jsonType };
 
-        var reference = new JsonSchema { Reference = Get(type) };
+        var reference = CreateReference(type);
         return isNullable ? CreateOneOf(Null, reference) : reference;
+    }
+
+    private JsonSchemaProperty CreateReference(Type type)
+    {
+        var reference = new JsonSchemaProperty();
+        if (type != _rootType && sharedTypes.Contains(type))
+            ((IJsonReferenceBase)reference).ReferencePath = $"{type.Name}.json";
+        else
+            reference.Reference = Get(type);
+        return reference;
     }
 
     private JsonSchemaProperty CreateOneOf(params JsonSchema?[] schemas)
@@ -189,7 +202,7 @@ public class Generator(DocumentationReader documentationReader)
             { Name: "BilingualString" or "EventCondition" or "Condition" or "DeadlineCondition" } => CreateOneOf(
                 isNullable ? Null : null,
                 new JsonSchema { Type = JsonObjectType.String },
-                new JsonSchemaProperty { Reference = Get(targetType) }
+                CreateReference(targetType)
             ),
             // a single recipient string or a list of recipient strings
             { Name: "Recipients" } => CreateOneOf(
@@ -211,8 +224,7 @@ public class Generator(DocumentationReader documentationReader)
                 Type = JsonObjectType.Object,
                 AdditionalPropertiesSchema = GetReference(targetType.GenericTypeArguments[1])
             },
-            { IsClass: true, Name: not "String" } or { IsEnum: true } => new JsonSchemaProperty
-                { Reference = Get(targetType) },
+            { IsClass: true, Name: not "String" } or { IsEnum: true } => CreateReference(targetType),
             _ => new JsonSchemaProperty
             {
                 Type = TypeMapping.GetValueOrDefault(targetType, JsonObjectType.Object)
@@ -224,7 +236,7 @@ public class Generator(DocumentationReader documentationReader)
         if (!isNullable || basicProp.OneOf.Any())
             return basicProp;
 
-        if (basicProp.Reference == null)
+        if (basicProp.Reference == null && ((IJsonReferenceBase)basicProp).ReferencePath == null)
         {
             basicProp.Type |= JsonObjectType.Null;
             return basicProp;
