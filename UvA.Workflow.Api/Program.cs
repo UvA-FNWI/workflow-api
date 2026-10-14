@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.FileProviders;
 using Serilog;
 using UvA.Workflow;
 using UvA.Workflow.Api.Authentication;
@@ -87,6 +88,11 @@ var app = builder.Build();
 app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(AppContext.BaseDirectory, "Schemas")),
+    RequestPath = "/Schemas"
+});
 app.UseWorkflowAuthenticationSelector();
 app.UseWorkflowCanvasLti(app.Configuration);
 
