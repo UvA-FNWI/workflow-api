@@ -69,7 +69,7 @@ public class ModelService(ModelParser parser)
                                            && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
                 !instance.Properties.ContainsKey(q.Name)
                     ? null
-                    : q.GetValidationError(context, WorkflowDefinitions[instance.WorkflowDefinition]),
+                    : q.GetValidationError(context),
                 (q as ChoicePropertyDefinition)?.Values?.Where(v => v.Condition.IsMet(context))
                 .Select(v => v.Name).ToArray()
             ));

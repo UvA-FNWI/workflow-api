@@ -129,7 +129,7 @@ public abstract class PropertyDefinition : INamed
     /// </summary>
     public Condition? Validation { get; set; }
 
-    public virtual BilingualString? GetValidationError(ObjectContext context, WorkflowDefinition definition)
+    public virtual BilingualString? GetValidationError(ObjectContext context)
         => Validation.IsMet(context)
             ? null
             : Validation?.Message ?? new BilingualString("Invalid value", "Ongeldige waarde");
