@@ -142,7 +142,7 @@ public class InstanceAuthorizationFilterService(
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
             return filters;
 
-        var propertiesWithInheritedRoles = definition.Properties
+        var propertiesWithInheritedRoles = definition.Properties.OfType<ReferencePropertyDefinition>()
             .Where(p => p.InheritedRoles.Any())
             .ToList();
 

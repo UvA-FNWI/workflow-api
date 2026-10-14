@@ -10,11 +10,12 @@ public class Worker(IHostApplicationLifetime lifetime) : BackgroundService
     {
         var reader = new DocumentationReader();
         await reader.Load(stoppingToken);
-        var generator = new Generator(reader);
+        var generator = new Generator(reader, typeof(PropertyDefinition));
 
         Type[] types =
         [
             typeof(WorkflowDefinition),
+            typeof(PropertyDefinition),
             typeof(Form),
             typeof(Screen),
             typeof(Role),

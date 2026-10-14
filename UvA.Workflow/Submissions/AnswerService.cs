@@ -211,14 +211,16 @@ public class AnswerService(
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
-        ValidateFile(propertyDefinition, instance.GetProperty(context.PathParts), formFile.FileName, formFile.Length);
+        if (propertyDefinition is not FilePropertyDefinition file)
+            throw new ArgumentException($"Property '{propertyDefinition.Name}' does not accept file uploads");
+        ValidateFile(file, instance.GetProperty(context.PathParts), formFile.FileName, formFile.Length);
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
 
         var fileName = formFile.FileName;
-        if (propertyDefinition.FileSettings?.PrefixTemplate != null)
+        if (file.FileSettings?.PrefixTemplate != null)
         {
             var templateContext = modelService.CreateContext(instance);
-            fileName = $"{propertyDefinition.FileSettings.PrefixTemplate.Execute(templateContext)}{formFile.FileName}";
+            fileName = $"{file.FileSettings.PrefixTemplate.Execute(templateContext)}{formFile.FileName}";
         }
 
         var artifactInfo = await artifactService.SaveArtifact(artifactId, fileName, formFile.OpenReadStream(),
@@ -227,14 +229,10 @@ public class AnswerService(
         await SaveArtifact(context, artifactInfo, ct);
     }
 
-    private static void ValidateFile(PropertyDefinition propertyDefinition, BsonValue? currentAnswer,
+    private static void ValidateFile(FilePropertyDefinition propertyDefinition, BsonValue? currentAnswer,
         string fileName, long fileSize)
     {
-        if (propertyDefinition.DataType != DataType.File)
-            throw new ArgumentException($"Property '{propertyDefinition.Name}' does not accept file uploads");
-
-        if (propertyDefinition.EffectiveAllowedFileTypes == null ||
-            propertyDefinition.EffectiveAllowedFileTypes.All(fileType => fileType != "*" &&
+        if (propertyDefinition.EffectiveAllowedFileTypes.All(fileType => fileType != "*" &&
                                                                          !fileName.EndsWith($".{fileType}",
                                                                              StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException(
@@ -316,11 +314,11 @@ public class AnswerService(
 
         if (externalUser != null)
         {
-            if (propertyDefinition.DataType != DataType.User)
+            if (propertyDefinition is not UserPropertyDefinition user)
                 throw new ExternalUserCreationException(
                     ExternalUserCreationFailureReason.InvalidQuestionType, "InvalidQuestionType");
 
-            if (propertyDefinition.AllowsExternalUsers != true)
+            if (user.AllowsExternalUsers != true)
                 throw new ExternalUserCreationException(ExternalUserCreationFailureReason.ExternalUsersNotAllowed,
                     "ExternalUsersNotAllowed");
 
@@ -340,15 +338,14 @@ public class AnswerService(
             }
         }
 
-        if (propertyDefinition.DataType == DataType.User &&
-            propertyDefinition.AllowsExternalUsers != true &&
+        if (propertyDefinition is UserPropertyDefinition { AllowsExternalUsers: not true } &&
             value is JsonElement userValue &&
             await answerConversionService.ContainsExternalUserSelection(userValue, propertyDefinition.IsArray, ct))
             throw new ExternalUserCreationException(ExternalUserCreationFailureReason.ExternalUsersNotAllowed,
                 "ExternalUsersNotAllowed");
 
-        if (propertyDefinition.DataType == DataType.Choice && value is JsonElement choiceValue &&
-            AnswerConversionService.FindInvalidChoice(choiceValue, propertyDefinition) is { } invalidChoice)
+        if (propertyDefinition is ChoicePropertyDefinition choice && value is JsonElement choiceValue &&
+            AnswerConversionService.FindInvalidChoice(choiceValue, choice) is { } invalidChoice)
             throw new InvalidWorkflowStateException(propertyDefinition.Name, "InvalidChoiceValue",
                 $"'{invalidChoice}' is not a valid value");
 

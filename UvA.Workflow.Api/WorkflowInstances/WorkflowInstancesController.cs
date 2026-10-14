@@ -144,11 +144,10 @@ public class WorkflowInstancesController(
             return Forbidden();
 
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
 
         // The admin view ignores property conditions and visibility.
         var properties = definition.Properties
-            .Select(p => QuestionDto.Create(p, context, totalWeight: 0))
+            .Select(p => QuestionDto.Create(p, totalWeight: 0))
             .ToArray();
 
         return Ok(new InstancePropertiesDto(properties, instanceService.GetPropertyValues(instance)));
@@ -172,10 +171,10 @@ public class WorkflowInstancesController(
         if (property == null)
             return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
 
-        if (property.DataType != DataType.Reference || property.WorkflowDefinition == null)
+        if (property is not ReferencePropertyDefinition { WorkflowDefinition: not null } reference)
             return Ok(Array.Empty<ChoiceDto>());
-        var insts = await instanceService.GetPossibleChoices(instance, property, ct);
-        var definition = property.WorkflowDefinition;
+        var insts = await instanceService.GetPossibleChoices(instance, reference, ct);
+        var definition = reference.WorkflowDefinition;
         return Ok(insts.Select(i => new ChoiceDto(
             i.Id,
             definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",

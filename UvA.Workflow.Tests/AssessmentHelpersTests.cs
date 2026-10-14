@@ -76,7 +76,7 @@ public class AssessmentHelpersTests
                 PageElements = p.questions
                     .Select(q =>
                     {
-                        var propDef = new PropertyDefinition
+                        var propDef = new DoublePropertyDefinition
                         {
                             Name = q.fieldName,
                             Calculation = new CalculationSettings { Weight = q.weight }

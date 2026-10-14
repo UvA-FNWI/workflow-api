@@ -8,14 +8,26 @@ public class DummyAnswerGeneratorTests
 {
     private static readonly QuestionStatus DefaultStatus = new(true, null, null);
 
-    private static PropertyDefinition Question(string type, Condition? validation = null) => new()
+    private static PropertyDefinition Question(string type, Condition? validation = null)
     {
-        Name = "TestProp",
-        Type = type,
-        Validation = validation
-    };
+        PropertyDefinition property = type.TrimEnd('!', ']').TrimStart('[') switch
+        {
+            "String" => new StringPropertyDefinition(),
+            "Int" => new IntPropertyDefinition(),
+            "Double" => new DoublePropertyDefinition(),
+            "DateTime" => new DateTimePropertyDefinition(),
+            "Check" => new CheckPropertyDefinition(),
+            "Currency" => new CurrencyPropertyDefinition(),
+            "File" => new FilePropertyDefinition(),
+            _ => throw new ArgumentException($"Unsupported test type: {type}")
+        };
+        property.Name = "TestProp";
+        property.Type = type;
+        property.Validation = validation;
+        return property;
+    }
 
-    private static PropertyDefinition ChoiceQuestion(params string[] choices) => new()
+    private static ChoicePropertyDefinition ChoiceQuestion(params string[] choices) => new()
     {
         Name = "TestProp",
         Type = "MyChoice",
@@ -96,7 +108,7 @@ public class DummyAnswerGeneratorTests
     public void Generate_UnknownType_ReturnsNull()
     {
         // File and User types are not generated
-        var question = new PropertyDefinition
+        var question = new FilePropertyDefinition
         {
             Name = "TestProp",
             Type = "File"

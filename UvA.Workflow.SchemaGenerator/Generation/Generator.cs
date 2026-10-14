@@ -1,18 +1,21 @@
 using System.Reflection;
 using NJsonSchema;
+using NJsonSchema.References;
 using UvA.Workflow.WorkflowModel;
 using YamlDotNet.Serialization;
 
 namespace UvA.Workflow.SchemaGenerator.Generation;
 
-public class Generator(DocumentationReader documentationReader)
+public class Generator(DocumentationReader documentationReader, params Type[] sharedTypes)
 {
     private readonly Dictionary<Type, JsonSchema> _schemas = new();
     private readonly NullabilityInfoContext _nullabilityInfoContext = new();
+    private Type _rootType = null!;
 
     public JsonSchema Generate(Type type)
     {
         _schemas.Clear();
+        _rootType = type;
 
         var schema = Get(type);
         schema.Title = type.Name;
@@ -26,7 +29,20 @@ public class Generator(DocumentationReader documentationReader)
         if (_schemas.TryGetValue(type, out var schema))
             return schema;
 
-        if (type.IsEnum)
+        if (type == typeof(PropertyDefinition))
+        {
+            schema = new JsonSchema
+            {
+                Type = JsonObjectType.Object,
+                Description = documentationReader.GetSummary(type)
+            };
+            _schemas.Add(type, schema);
+            // Named choices, references and objects can share the same type name.
+            // anyOf allows that overlap while built-in variants match their exact type strings.
+            foreach (var propertyType in PropertyTypes)
+                schema.AnyOf.Add(new JsonSchema { Reference = Get(propertyType) });
+        }
+        else if (type.IsEnum)
         {
             schema = new JsonSchema
             {
@@ -64,6 +80,23 @@ public class Generator(DocumentationReader documentationReader)
                 if (IsRequired(property.Value))
                     schema.RequiredProperties.Add(property.Key);
             }
+
+            if (typeof(PropertyDefinition).IsAssignableFrom(type))
+            {
+                var dataType = ((PropertyDefinition)Activator.CreateInstance(type)!).DataType;
+                var typeProperty = schema.Properties["type"];
+                if (dataType is DataType.Choice or DataType.Reference or DataType.Object)
+                {
+                    typeProperty.Not = new JsonSchema();
+                    foreach (var primitive in PrimitiveTypeNames)
+                        typeProperty.Not.Enumeration.Add(primitive);
+                }
+                else
+                {
+                    foreach (var name in TypeNames(dataType.ToString()))
+                        typeProperty.Enumeration.Add(name);
+                }
+            }
         }
 
         return schema;
@@ -83,6 +116,16 @@ public class Generator(DocumentationReader documentationReader)
         var attribute = property.GetCustomAttribute<YamlMemberAttribute>();
         return attribute?.Alias ?? $"{property.Name[..1].ToLower()}{property.Name[1..]}";
     }
+
+    private static readonly Type[] PropertyTypes = typeof(PropertyDefinition).Assembly.GetTypes()
+        .Where(type => type.IsSubclassOf(typeof(PropertyDefinition)) && !type.IsAbstract).ToArray();
+
+    private static readonly string[] PrimitiveTypeNames = PropertyTypes
+        .Select(type => ((PropertyDefinition)Activator.CreateInstance(type)!).DataType)
+        .Where(type => type is not (DataType.Choice or DataType.Reference or DataType.Object))
+        .SelectMany(type => TypeNames(type.ToString())).ToArray();
+
+    private static string[] TypeNames(string name) => [name, $"{name}!", $"[{name}]", $"[{name}]!"];
 
     private Dictionary<string, PropertyInfo> GetProperties(Type type)
         => type.GetProperties()
@@ -112,8 +155,18 @@ public class Generator(DocumentationReader documentationReader)
         if (TypeMapping.TryGetValue(type, out var jsonType))
             return new JsonSchema { Type = isNullable ? jsonType | JsonObjectType.Null : jsonType };
 
-        var reference = new JsonSchema { Reference = Get(type) };
+        var reference = CreateReference(type);
         return isNullable ? CreateOneOf(Null, reference) : reference;
+    }
+
+    private JsonSchemaProperty CreateReference(Type type)
+    {
+        var reference = new JsonSchemaProperty();
+        if (type != _rootType && sharedTypes.Contains(type))
+            ((IJsonReferenceBase)reference).ReferencePath = $"{type.Name}.json";
+        else
+            reference.Reference = Get(type);
+        return reference;
     }
 
     private JsonSchemaProperty CreateOneOf(params JsonSchema?[] schemas)
@@ -149,7 +202,7 @@ public class Generator(DocumentationReader documentationReader)
             { Name: "BilingualString" or "EventCondition" or "Condition" or "DeadlineCondition" } => CreateOneOf(
                 isNullable ? Null : null,
                 new JsonSchema { Type = JsonObjectType.String },
-                new JsonSchemaProperty { Reference = Get(targetType) }
+                CreateReference(targetType)
             ),
             // a single recipient string or a list of recipient strings
             { Name: "Recipients" } => CreateOneOf(
@@ -166,20 +219,12 @@ public class Generator(DocumentationReader documentationReader)
                     ?.WriteState == NullabilityState.Nullable
                 )
             },
-            // Make LayoutOptions strongly typed in the schema even though it isn't in the backend
-            { Name: "Dictionary`2" } when property.Name == "Layout" => CreateOneOf(System.Reflection.Assembly
-                .GetAssembly(typeof(LayoutOptions))?.GetTypes()
-                .Where(type => type.IsSubclassOf(typeof(LayoutOptions)))
-                .Select(type => GetReference(type))
-                .Append(Null)
-                .ToArray() ?? [Null]),
             { Name: "Dictionary`2" } => new JsonSchemaProperty
             {
                 Type = JsonObjectType.Object,
                 AdditionalPropertiesSchema = GetReference(targetType.GenericTypeArguments[1])
             },
-            { IsClass: true, Name: not "String" } or { IsEnum: true } => new JsonSchemaProperty
-                { Reference = Get(targetType) },
+            { IsClass: true, Name: not "String" } or { IsEnum: true } => CreateReference(targetType),
             _ => new JsonSchemaProperty
             {
                 Type = TypeMapping.GetValueOrDefault(targetType, JsonObjectType.Object)
@@ -191,7 +236,7 @@ public class Generator(DocumentationReader documentationReader)
         if (!isNullable || basicProp.OneOf.Any())
             return basicProp;
 
-        if (basicProp.Reference == null)
+        if (basicProp.Reference == null && ((IJsonReferenceBase)basicProp).ReferencePath == null)
         {
             basicProp.Type |= JsonObjectType.Null;
             return basicProp;
