@@ -253,6 +253,7 @@ public class ScreenDataService(
 
         // Build the result with group metadata (always include all configured groups)
         return screen.Grouping!.Groups
+            .Where(group => group.Enabled != false)
             .Select(g => new ScreenGroupDto(
                 g.Name,
                 g.Title,

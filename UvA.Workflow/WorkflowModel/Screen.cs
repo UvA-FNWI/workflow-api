@@ -1,6 +1,6 @@
 namespace UvA.Workflow.WorkflowModel;
 
-public class Screen : INamed
+public class Screen : INamed, IDeclaredKeys
 {
     /// <summary>
     /// Internal name of the screen
@@ -10,12 +10,7 @@ public class Screen : INamed
     /// <summary>
     /// List of columns to display on this screen
     /// </summary>
-    public Column[] Columns { get; set; } = null!;
-
-    /// <summary>
-    /// Relation this screen is used for
-    /// </summary>
-    public string? Relation { get; set; }
+    public Column[] Columns { get; set; } = [];
 
     /// <summary>
     /// Optional grouping configuration for grouping screen data by steps
@@ -26,6 +21,8 @@ public class Screen : INamed
     /// Config for bulk editing for all instances in the screen
     /// </summary>
     public BulkEditConfig? BulkEdit { get; set; }
+
+    [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 }
 
 /// <summary>
@@ -58,6 +55,16 @@ public class StepGroup
     /// Array of step names that belong to this group
     /// </summary>
     public string?[] Steps { get; set; } = [];
+
+    /// <summary>
+    /// Optional placement of the group
+    /// </summary>
+    public int? Order { get; set; }
+
+    /// <summary>
+    /// Optional flag to enable or disable the group
+    /// </summary>
+    public bool? Enabled { get; set; }
 }
 
 public enum FilterType
@@ -88,6 +95,11 @@ public enum ColumnType
 public class Column : Field
 {
     /// <summary>
+    /// Internal name of the column, used for inheritance
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
     /// Type of the column
     /// </summary>
     public ColumnType Type { get; set; } = ColumnType.Normal;
@@ -111,17 +123,42 @@ public class Column : Field
     /// If true, this column becomes a link to the instance 
     /// </summary>
     public bool Link { get; set; }
+
+    public Column Clone()
+    {
+        var clone = (Column)MemberwiseClone();
+        clone.PropertyDefinition = null;
+        clone.Event = null;
+        return clone;
+    }
 }
 
-public class BulkEditConfig
+public class BulkEditConfig : IDeclaredKeys
 {
     public BulkEditProperty Identifier { get; set; } = null!;
     public BulkEditProperty[]? ReadOnlyProperties { get; set; } = [];
     public string[] EditableProperties { get; set; } = [];
+
+    [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
+
+    public BulkEditConfig Clone() => new()
+    {
+        Identifier = Identifier.Clone(),
+        ReadOnlyProperties = ReadOnlyProperties?
+            .Select(property => property.Clone()).ToArray(),
+        EditableProperties = [.. EditableProperties],
+        DeclaredKeys = [.. DeclaredKeys]
+    };
 }
 
 public class BulkEditProperty
 {
     public string Property { get; set; } = null!;
     public BilingualString? Title { get; set; }
+
+    public BulkEditProperty Clone() => new()
+    {
+        Property = Property,
+        Title = Title
+    };
 }
