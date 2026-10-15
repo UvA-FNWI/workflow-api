@@ -40,7 +40,9 @@ public class ActionsControllerTests : ControllerTestsBase
                 new StepHeaderStatusResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
-                _undoService);
+                _undoService,
+                new DeadlinePostponementService(_modelService, _rightsService,
+                    _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object));
     }
 
     [Theory]

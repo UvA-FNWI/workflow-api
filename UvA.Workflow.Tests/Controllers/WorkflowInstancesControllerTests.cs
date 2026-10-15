@@ -32,7 +32,9 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             null!,
             null!,
             undoService!,
-            _mailLogRepositoryMock.Object);
+            _mailLogRepositoryMock.Object,
+            new DeadlinePostponementService(_modelService, _rightsService,
+                _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object));
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)
         => _workflowInstanceRepoMock
@@ -44,6 +46,24 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         => _mailLogRepositoryMock
             .Setup(r => r.GetByInstance(instanceId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(entries.ToList());
+
+    [Fact]
+    public async Task PostponeDeadlines_WithoutExplicitPermission_ReturnsForbidden()
+    {
+        var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.Properties.Add(new PropertyDefinition { Name = "DueDate", Type = "Date" });
+        definition.AllSteps.Single(step => step.Name == "Subject").Deadline = new Deadline { Date = "DueDate" };
+        instance.Properties["DueDate"] = new BsonDateTime(new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Local));
+        MockCurrentUser("SystemAdmin");
+        MockInstance(instance);
+
+        var result = await CreateController().PostponeDeadlines(instance.Id,
+            new PostponeDeadlinesRequest([new("DueDate", new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 2))],
+                "because"), _ct);
+
+        Assert.Equal(403, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
 
     [Fact]
     public async Task Undo_InvalidReason_ReturnsBadRequest()

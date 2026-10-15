@@ -21,7 +21,8 @@ public enum RoleAction
     CreateRelatedInstance,
     ImpersonateRoles,
     ViewResults,
-    ViewCorrespondence
+    ViewCorrespondence,
+    PostponeDeadlines
 }
 
 public class Action
@@ -63,7 +64,7 @@ public class Action
     public string[] Collections { get; set; } = [];
 
     /// <summary>
-    /// Target propertyDefinition for the view hidden propertyDefinition action
+    /// Target property for ViewHidden, Edit or PostponeDeadlines actions.
     /// </summary>
     public string? PropertyDefinition { get; set; }
 

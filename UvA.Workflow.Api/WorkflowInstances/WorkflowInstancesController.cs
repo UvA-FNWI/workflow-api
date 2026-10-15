@@ -24,7 +24,8 @@ public class WorkflowInstancesController(
     RoleImpersonationService impersonationService,
     IEduIdUserService eduIdUserService,
     UndoService undoService,
-    IMailLogRepository mailLogRepository
+    IMailLogRepository mailLogRepository,
+    DeadlinePostponementService postponementService
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -128,6 +129,33 @@ public class WorkflowInstancesController(
         }
 
         return Ok(await workflowInstanceDtoFactory.Create(instance, ct));
+    }
+
+    [HttpPost("{id}/PostponeDeadlines")]
+    public async Task<ActionResult> PostponeDeadlines(
+        string id, [FromBody] PostponeDeadlinesRequest input, CancellationToken ct)
+    {
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null) return Unauthorized();
+        var instance = await repository.GetById(id, ct);
+        if (instance == null) return WorkflowInstanceNotFound;
+
+        try
+        {
+            await postponementService.Postpone(instance, input.Changes, input.Reason, realUser, ct);
+        }
+        catch (ForbiddenWorkflowActionException)
+        {
+            return Forbidden();
+        }
+        catch (InvalidWorkflowStateException exception)
+        {
+            return exception.Code == "DeadlineChanged"
+                ? Conflict(exception.Code, exception.Message)
+                : BadRequest(exception.Code, exception.Message);
+        }
+
+        return NoContent();
     }
 
     /// <summary>
@@ -246,7 +274,7 @@ public class WorkflowInstancesController(
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var perRole = rightsService.GetAllowedActionsPerTargetRole(instance,
             RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
-            RoleAction.Undo, RoleAction.View);
+            RoleAction.Undo, RoleAction.PostponeDeadlines, RoleAction.View);
 
         var currentStepName = modelService.GetCurrentStep(instance)?.Name;
         var activeSteps = modelService.GetActiveSteps(instance);

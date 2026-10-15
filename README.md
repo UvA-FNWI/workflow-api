@@ -17,6 +17,41 @@ Workflow API is a service for modelling real-world processes in a generic and re
 - `Deployment`: Helm charts and deployment configuration.
 - `docs`: deeper project documentation.
 
+## Postponing deadlines
+
+A step deadline that directly references a scalar `Date` property can be postponed:
+
+```yaml
+deadline:
+  date: SubmissionDeadline
+```
+
+No separate form or postponement flag is required. The modal lists populated date properties used by
+applicable, unfinished steps, subject to `PostponeDeadlines` action grants. A shared
+property appears once and changing it updates every step, label and email referencing that property.
+Calculated expressions and literal dates are excluded.
+
+Grant postponement through the existing action system, independently of general editing:
+
+```yaml
+globalActions:
+  - type: PostponeDeadlines
+    roles: [Coordinator]
+```
+
+Step actions and conditions can restrict the grant; `propertyDefinition` can target a single date property.
+Rights are checked both when listing dates and when saving changes, using the current role impersonation
+context. Expired hard deadlines can still be postponed by an authorized user.
+
+The instance response includes the available dates in `postponableDeadlines`.
+`POST /WorkflowInstances/{id}/PostponeDeadlines` accepts `changes` with `property`, `currentDate`, and `date`
+(calendar dates in `yyyy-MM-dd` format), plus a required `reason` of 1–1,000 characters.
+Each new date must be later than its current date and satisfy the property's validation rules.
+Stale dates return a conflict. Each change retains its previous value, reason, real user and
+timestamp as a separate entry in MongoDB's `instance_journal` collection. Following the existing
+journal convention, the value after a change is the next entry's previous value, or the current
+property value for the latest change.
+
 ## Prerequisites
 
 - .NET 10 SDK

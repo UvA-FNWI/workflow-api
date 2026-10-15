@@ -270,7 +270,9 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
             new StepHeaderStatusResolver(_modelService),
             _workflowInstanceService,
             NullLogger<WorkflowInstanceDtoFactory>.Instance,
-            _undoService);
+            _undoService,
+            new DeadlinePostponementService(_modelService, _rightsService,
+                _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object));
     }
 
     private static Mock<IStepVersionService> CreateStepVersionService(

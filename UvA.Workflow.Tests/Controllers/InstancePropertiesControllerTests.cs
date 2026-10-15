@@ -80,7 +80,9 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
             null!,
             _eduIdUserServiceMock.Object,
             _undoService,
-            null!);
+            null!,
+            new DeadlinePostponementService(_modelService, rightsService,
+                _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object));
 
         return (controller, instance);
     }
