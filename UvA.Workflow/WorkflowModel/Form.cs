@@ -104,7 +104,6 @@ public class Form : INamed, IDeclaredKeys
     /// </summary>
     public FormLayout Layout { get; set; }
 
-
     /// <summary>
     /// Target reference property. Set this to use the form to update the properties of the referenced entity
     /// </summary>
@@ -154,11 +153,21 @@ public class Form : INamed, IDeclaredKeys
     /// </summary>
     public Effect[] OnSave { get; set; } = [];
 
+    /// <summary>
+    /// Optional confirmation dialog to show when the form is submitted
+    /// </summary>
+    public FormConfirmation? Confirmation { get; set; }
+
     public IEnumerable<PropertyDefinition> PropertyDefinitions =>
         Pages.SelectMany(p => p.Questions)
             .Distinct();
 
-    [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. Pages.SelectMany(p => p.Lookups),
+        .. Confirmation?.Lookups ?? []
+    ];
 
     public Form Clone()
     {
@@ -227,4 +236,19 @@ public class PageElement
     ];
 
     public PageElement Clone() => (PageElement)MemberwiseClone();
+}
+
+public class FormConfirmation
+{
+    public required BilingualString Title { get; set; }
+    [YamlIgnore] public BilingualTemplate TitleTemplate => field ??= BilingualTemplate.Create(Title);
+    public required BilingualString Text { get; set; }
+    [YamlIgnore] public BilingualTemplate TextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. TitleTemplate.Properties,
+        .. TextTemplate.Properties
+    ];
 }

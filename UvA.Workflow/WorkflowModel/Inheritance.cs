@@ -135,6 +135,9 @@ public partial class ModelParser
     {
         if (!target.Declared(s => s.Step)) target.Step = source.Step;
 
+        if (!target.Declared(f => f.Confirmation))
+            target.Confirmation = source.Confirmation;
+
         if (Cleared(target, f => f.Pages))
             return;
         foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
