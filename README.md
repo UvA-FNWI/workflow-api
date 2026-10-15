@@ -52,6 +52,26 @@ timestamp as a separate entry in MongoDB's `instance_journal` collection. Follow
 journal convention, the value after a change is the next entry's previous value, or the current
 property value for the latest change.
 
+Postponement actions can use the existing `onAction` effects. Every action with effects requires a `name`,
+so its jobs can be logged, retried and resumed after a delay:
+
+```yaml
+globalActions:
+  - name: NotifyDeadlinePostponement
+    type: PostponeDeadlines
+    roles: [Coordinator]
+    onAction:
+      - sendMail:
+          template: DeadlinePostponed
+          to: Student
+      - showConfetti: true
+```
+
+Effects run after the complete batch is saved and journalled, using the updated dates. Each matching,
+authorized action runs once per request, even when it covers multiple deadlines or roles. Rejected
+or conflicting changes run no effects. The endpoint returns the usual `EffectResult`, including UI
+effects and background-task errors; an effect failure leaves the saved deadlines intact.
+
 ## Prerequisites
 
 - .NET 10 SDK

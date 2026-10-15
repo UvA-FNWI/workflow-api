@@ -82,7 +82,7 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
             _undoService,
             null!,
             new DeadlinePostponementService(_modelService, rightsService,
-                _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object));
+                _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService, _jobService));
 
         return (controller, instance);
     }

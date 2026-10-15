@@ -1,15 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
+using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowInstances;
+using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -34,7 +39,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             undoService!,
             _mailLogRepositoryMock.Object,
             new DeadlinePostponementService(_modelService, _rightsService,
-                _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object));
+                _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService, _jobService));
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)
         => _workflowInstanceRepoMock
@@ -63,6 +68,136 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
                 "because"), _ct);
 
         Assert.Equal(403, Assert.IsType<ObjectResult>(result).StatusCode);
+    }
+
+    [Fact]
+    public async Task PostponeDeadlines_RunsMatchingEffectsOnceAfterSavingAndReturnsConfetti()
+    {
+        var (instance, action) = ConfigurePostponement();
+        action.OnAction =
+        [
+            new()
+            {
+                SendMail = new SendMessage { To = ["student@example.org"], Body = "Deadline: {{ dateLong(DueDate) }}" }
+            },
+            new() { ShowConfetti = true },
+            new() { Delay = "1m", SetProperty = new SetProperty { Property = "Title", Value = "=Reminder sent" } }
+        ];
+        _modelService.WorkflowDefinitions["Project"].Roles.Get("Student").Actions.Add(action);
+        MockCurrentUser("Coordinator", "Student");
+        _modelService.WorkflowDefinitions["Project"].Roles.Get("Coordinator").Actions.Add(new DomainAction
+        {
+            Name = "UnchangedDeadline",
+            Type = RoleAction.PostponeDeadlines,
+            PropertyDefinition = "StartDate",
+            OnAction = [new() { SendMail = new SendMessage { To = ["unrelated@example.org"] } }]
+        });
+        _modelService.WorkflowDefinitions["Project"].AllSteps.Get("Assessment").Deadline =
+            new Deadline { Date = "DueDate" };
+        _mailServiceMock.Setup(service => service.Send(It.IsAny<MailMessage>(), _ct))
+            .Callback<MailMessage, CancellationToken>((mail, _) =>
+            {
+                Assert.Contains("03-11-2026", mail.Body);
+                Assert.Equal(new DateOnly(2026, 11, 3),
+                    DateOnly.FromDateTime(instance.GetProperty("DueDate")!.ToLocalTime()));
+            })
+            .ReturnsAsync(new MailDispatchResult([], [], [], null));
+        Job? delayed = null;
+        _jobRepositoryMock.Setup(repository => repository.Add(It.IsAny<Job>(), _ct))
+            .Callback<Job, CancellationToken>((job, _) =>
+            {
+                if (!job.IsSynchronous) delayed = job;
+            })
+            .Returns(Task.CompletedTask);
+
+        var response = await CreateController().PostponeDeadlines(instance.Id,
+            new PostponeDeadlinesRequest([
+                new("DueDate", new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 3)),
+                new("OtherDueDate", new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 4))
+            ], "because"), _ct);
+
+        var result = Assert.IsType<EffectResult>(Assert.IsType<OkObjectResult>(response).Value);
+        Assert.True(result.ShowConfetti);
+        Assert.Null(result.Error);
+        _mailServiceMock.Verify(service => service.Send(It.IsAny<MailMessage>(), _ct), Times.Once);
+        _mailLogRepositoryMock.Verify(repository => repository.Log(
+            It.Is<MailLogEntry>(entry => entry.ExecutedBy == UnitTestsHelpers.AdminUser.Id), _ct), Times.Once);
+        _jobRepositoryMock.Verify(repository => repository.Add(
+            It.Is<Job>(job => job.IsSynchronous && job.SourceName == action.Name), _ct), Times.Once);
+        Assert.NotNull(delayed);
+        Assert.Equal(action.Name, delayed.SourceName);
+        _userRepoMock.Setup(repository => repository.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        await _jobService.RunJob(delayed, _ct);
+        Assert.Equal("Reminder sent", instance.GetProperty("Title")!.AsString);
+    }
+
+    [Theory]
+    [InlineData("invalid", 400)]
+    [InlineData("stale", 409)]
+    [InlineData("concurrent", 409)]
+    [InlineData("forbidden", 403)]
+    public async Task PostponeDeadlines_DoesNotRunEffectsWhenDatesAreRejected(string failure, int status)
+    {
+        var (instance, action) = ConfigurePostponement();
+        action.OnAction = [new() { SendMail = new SendMessage { To = ["student@example.org"] } }];
+        if (failure == "forbidden") MockCurrentUser("Student");
+        if (failure == "concurrent")
+            _workflowInstanceRepoMock.Setup(repository => repository.TryUpdateFields(instance.Id,
+                    It.IsAny<FilterDefinition<WorkflowInstance>>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                    _ct))
+                .ReturnsAsync(false);
+
+        var response = await CreateController().PostponeDeadlines(instance.Id,
+            new PostponeDeadlinesRequest([
+                new("DueDate", new DateOnly(2026, 11, failure == "stale" ? 2 : 1),
+                    new DateOnly(2026, 11, failure == "invalid" ? 1 : 3))
+            ], "because"), _ct);
+
+        Assert.Equal(status, Assert.IsType<ObjectResult>(response).StatusCode);
+        _mailServiceMock.Verify(service => service.Send(It.IsAny<MailMessage>(), _ct), Times.Never);
+        _jobRepositoryMock.Verify(repository => repository.Add(It.IsAny<Job>(), _ct), Times.Never);
+    }
+
+    [Fact]
+    public async Task PostponeDeadlines_ReturnsEffectFailureWithoutRevertingSavedDates()
+    {
+        var (instance, action) = ConfigurePostponement();
+        action.OnAction = [new() { SendMail = new SendMessage { To = ["student@example.org"] } }];
+        _mailServiceMock.Setup(service => service.Send(It.IsAny<MailMessage>(), _ct))
+            .ThrowsAsync(new Exception("Mail unavailable"));
+
+        var response = await CreateController().PostponeDeadlines(instance.Id,
+            new PostponeDeadlinesRequest([
+                new("DueDate", new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 3))
+            ], "because"), _ct);
+
+        var result = Assert.IsType<EffectResult>(Assert.IsType<OkObjectResult>(response).Value);
+        Assert.True(result.Error!.IsExternal);
+        Assert.Equal(new DateOnly(2026, 11, 3), DateOnly.FromDateTime(instance.GetProperty("DueDate")!.ToLocalTime()));
+    }
+
+    private (WorkflowInstance Instance, DomainAction Action) ConfigurePostponement()
+    {
+        var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        foreach (var (property, step) in new[] { ("DueDate", "Subject"), ("OtherDueDate", "Upload") })
+        {
+            definition.Properties.Add(new PropertyDefinition { Name = property, Type = "Date" });
+            definition.AllSteps.Get(step).Deadline = new Deadline { Date = property };
+            instance.Properties[property] = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Local);
+        }
+
+        var action = new DomainAction { Name = "NotifyPostponement", Type = RoleAction.PostponeDeadlines };
+        definition.GlobalActions.Add(action);
+        definition.Roles.Get("Coordinator").Actions.Add(action);
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        _workflowInstanceRepoMock.Setup(repository => repository.TryUpdateFields(instance.Id,
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct))
+            .ReturnsAsync(true);
+        return (instance, action);
     }
 
     [Fact]

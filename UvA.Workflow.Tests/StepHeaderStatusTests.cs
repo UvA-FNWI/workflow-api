@@ -364,7 +364,8 @@ public class StepHeaderStatusTests
             NullLogger<WorkflowInstanceDtoFactory>.Instance,
             new UndoService(Mock.Of<IInstanceEventRepository>(), Mock.Of<IJobRepository>(),
                 repository.Object, instanceService, rightsService, modelService),
-            new DeadlinePostponementService(modelService, rightsService, repository.Object, journalService.Object)
+            new DeadlinePostponementService(modelService, rightsService, repository.Object, journalService.Object,
+                instanceService, null!)
         );
     }
 

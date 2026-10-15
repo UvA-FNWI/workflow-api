@@ -142,7 +142,8 @@ public class WorkflowInstancesController(
 
         try
         {
-            await postponementService.Postpone(instance, input.Changes, input.Reason, realUser, ct);
+            var result = await postponementService.Postpone(instance, input.Changes, input.Reason, realUser, ct);
+            return Ok(result);
         }
         catch (ForbiddenWorkflowActionException)
         {
@@ -154,8 +155,6 @@ public class WorkflowInstancesController(
                 ? Conflict(exception.Code, exception.Message)
                 : BadRequest(exception.Code, exception.Message);
         }
-
-        return NoContent();
     }
 
     /// <summary>

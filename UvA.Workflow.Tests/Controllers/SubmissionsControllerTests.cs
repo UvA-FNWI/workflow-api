@@ -48,7 +48,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
                 _undoService,
                 new DeadlinePostponementService(_modelService, _rightsService,
-                    _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object));
+                    _workflowInstanceRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService,
+                    _jobService));
         _answerService = new AnswerService(
             _modelService,
             _instanceService,

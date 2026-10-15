@@ -80,7 +80,50 @@ public class DeadlinePostponementTests
             .Callback<string, PropertyChangeEntry, CancellationToken>((_, entry, _) => _entries.Add(entry))
             .ReturnsAsync(false);
         _service = new DeadlinePostponementService(_model,
-            new RightsService(_model, _users.Object, _repository.Object), _repository.Object, _journal.Object);
+            new RightsService(_model, _users.Object, _repository.Object), _repository.Object, _journal.Object, null!,
+            null!);
+    }
+
+    [Theory]
+    [InlineData(RoleAction.Execute, null, false)]
+    [InlineData(RoleAction.Execute, null, true)]
+    [InlineData(RoleAction.Execute, "1m", true)]
+    [InlineData(RoleAction.PostponeDeadlines, null, false)]
+    [InlineData(RoleAction.PostponeDeadlines, null, true)]
+    [InlineData(RoleAction.PostponeDeadlines, "1m", true)]
+    [InlineData(RoleAction.Edit, null, true)]
+    public void ActionNames_RequiredOnlyForEffects(RoleAction actionType, string? delay, bool hasEffects)
+    {
+        var files = new Dictionary<string, string>
+        {
+            ["Common/Roles/Postponer.yaml"] = "name: Postponer",
+            ["Test/Entity.yaml"] = $"""
+                                    name: Test
+                                    titlePlural: Tests
+                                    steps: [First]
+                                    globalActions:
+                                      - type: {actionType}
+                                        roles: [Postponer]
+                                    """,
+            ["Test/Steps/First.yaml"] = "name: First"
+        };
+        if (hasEffects)
+            files["Test/Entity.yaml"] += "\n    onAction:\n      - showConfetti: true";
+        if (delay != null)
+            files["Test/Entity.yaml"] += $"\n        delay: {delay}";
+
+        if (hasEffects)
+        {
+            Assert.Contains("require a name", Assert.Throws<Exception>(() =>
+                new ModelParser(new DictionaryProvider(files))).Message);
+            files["Test/Entity.yaml"] = files["Test/Entity.yaml"].Replace("- type:", "- name: Notify\n    type:");
+        }
+
+        var parser = new ModelParser(new DictionaryProvider(files));
+        var action = Assert.Single(parser.WorkflowDefinitions["Test"].GlobalActions);
+        Assert.Equal(hasEffects ? "Notify" : null, action.Name);
+        if (hasEffects)
+            Assert.True(Assert.Single(action.OnAction).ShowConfetti);
     }
 
     [Fact]
@@ -168,7 +211,7 @@ public class DeadlinePostponementTests
             .ReturnsAsync(impersonatedRole);
         var service = new DeadlinePostponementService(_model,
             new RightsService(_model, _users.Object, _repository.Object, impersonation.Object),
-            _repository.Object, _journal.Object);
+            _repository.Object, _journal.Object, null!, null!);
 
         Assert.Equal(allowed ? 2 : 0, (await service.GetDeadlines(_instance)).Length);
     }

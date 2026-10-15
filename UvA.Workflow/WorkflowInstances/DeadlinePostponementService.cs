@@ -1,7 +1,9 @@
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Jobs;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
+using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
 
@@ -13,7 +15,9 @@ public class DeadlinePostponementService(
     ModelService modelService,
     RightsService rightsService,
     IWorkflowInstanceRepository repository,
-    IInstanceJournalService journalService)
+    IInstanceJournalService journalService,
+    InstanceService instanceService,
+    JobService jobService)
 {
     private record DeadlineCandidate(PostponableDeadline Deadline, Step[] Steps);
 
@@ -21,7 +25,7 @@ public class DeadlinePostponementService(
     {
         var deadlines = new List<PostponableDeadline>();
         foreach (var candidate in GetDeadlineCandidates(instance).Values)
-            if (await IsAuthorized(instance, candidate))
+            if ((await GetAllowedActions(instance, candidate)).Length > 0)
                 deadlines.Add(candidate.Deadline);
 
         return deadlines.ToArray();
@@ -52,21 +56,21 @@ public class DeadlinePostponementService(
         return candidates;
     }
 
-    private async Task<bool> IsAuthorized(WorkflowInstance instance, DeadlineCandidate candidate)
+    private async Task<DomainAction[]> GetAllowedActions(WorkflowInstance instance, DeadlineCandidate candidate)
     {
+        var actions = new List<DomainAction>();
         foreach (var step in candidate.Steps)
         {
             var allowed =
                 await rightsService.GetAllowedActionsForStep(instance, step.Name, RoleAction.PostponeDeadlines);
-            if (allowed.Any(action =>
-                    action.PropertyDefinition == null || action.PropertyDefinition == candidate.Deadline.Property))
-                return true;
+            actions.AddRange(allowed.Where(action =>
+                action.PropertyDefinition == null || action.PropertyDefinition == candidate.Deadline.Property));
         }
 
-        return false;
+        return actions.Distinct().ToArray();
     }
 
-    public async Task Postpone(WorkflowInstance instance, DeadlinePostponement[] changes, string reason,
+    public async Task<EffectResult> Postpone(WorkflowInstance instance, DeadlinePostponement[] changes, string reason,
         User realUser, CancellationToken ct)
     {
         var trimmedReason = reason?.Trim();
@@ -88,13 +92,16 @@ public class DeadlinePostponementService(
             Properties = new Dictionary<string, BsonValue>(instance.Properties)
         };
         var entries = new List<PropertyChangeEntry>();
+        var actions = new HashSet<DomainAction>();
         foreach (var change in changes)
         {
             if (string.IsNullOrWhiteSpace(change.Property) ||
                 !candidates.TryGetValue(change.Property, out var candidate))
                 throw Invalid("InvalidDeadlineProperty", "The selected property is not an available deadline.");
-            if (!await IsAuthorized(instance, candidate))
+            var allowed = await GetAllowedActions(instance, candidate);
+            if (allowed.Length == 0)
                 throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.PostponeDeadlines, change.Property);
+            actions.UnionWith(allowed);
 
             var deadline = candidate.Deadline;
             if (change.CurrentDate != deadline.Date)
@@ -130,6 +137,14 @@ public class DeadlinePostponementService(
             instance.SetProperty(proposed.GetProperty(entry.Path), entry.Path);
             await journalService.LogPropertyChange(instance.Id, entry, ct);
         }
+
+        var result = new EffectResult();
+        var actionsWithEffects = actions.Where(action => action.OnAction.Length > 0).ToArray();
+        foreach (var action in actionsWithEffects)
+            result += await jobService.CreateAndRunJob(instance, action, realUser, null, ct);
+        if (actionsWithEffects.Length > 0)
+            await instanceService.UpdateCurrentStep(instance, ct);
+        return result;
 
         InvalidWorkflowStateException Invalid(string code, string message) => new(instance.Id, code, message);
     }
