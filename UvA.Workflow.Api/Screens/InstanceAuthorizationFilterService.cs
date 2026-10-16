@@ -12,7 +12,7 @@ public class InstanceAuthorizationFilterService(
     /// Returns a MongoDB filter for instances the user can view, or null if user has global access.
     /// </summary>
     public async Task<BsonDocument?> BuildAuthorizationFilter(string workflowDefinition, RoleAction action,
-        CancellationToken ct)
+        CancellationToken ct, bool includeDirectRoles = true)
     {
         var user = await userService.GetCurrentUser(ct);
         if (user == null)
@@ -34,7 +34,8 @@ public class InstanceAuthorizationFilterService(
             return null;
 
         var filters = new List<BsonDocument>();
-        filters.AddRange(await BuildInstanceRoleFilters(workflowDefinition, user, action));
+        if (includeDirectRoles)
+            filters.AddRange(await BuildInstanceRoleFilters(workflowDefinition, user, action));
         filters.AddRange(await BuildInheritedRoleFilters(workflowDefinition, user, ct));
 
         return filters.Count switch
@@ -46,12 +47,13 @@ public class InstanceAuthorizationFilterService(
     }
 
     /// <summary>
-    /// Whether the current user can see at least one instance of the given workflow definition
-    /// (either unconditional view access, or at least one instance they are authorized to view).
+    /// Whether the current user can access the workflow overview through global or inherited roles.
+    /// Direct instance roles belong in the personal overview and do not qualify here.
     /// </summary>
-    public async Task<bool> HasVisibleInstances(string workflowDefinition, CancellationToken ct)
+    public async Task<bool> CanAccessWorkflowOverview(string workflowDefinition, CancellationToken ct)
     {
-        var authorizationFilter = await BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
+        var authorizationFilter = await BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct,
+            includeDirectRoles: false);
 
         // A null filter means the user has unconditional view access (sees all instances).
         if (authorizationFilter == null)

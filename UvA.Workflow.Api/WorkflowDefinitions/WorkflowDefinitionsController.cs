@@ -44,9 +44,8 @@ public class WorkflowDefinitionsController(
     }
 
     /// <summary>
-    /// Returns the workflow definitions that contain screens and that the current user can actually see data
-    /// for (i.e. has at least one visible instance, or unconditional view access). Used by the
-    /// frontend landing page to redirect a user to their course screen.
+    /// Returns workflow definitions with coordinator screens accessible through global or inherited roles.
+    /// Used by the frontend landing page; direct instance roles use the personal overview instead.
     /// </summary>
     [HttpGet("Accessible")]
     public async Task<ActionResult<IEnumerable<WorkflowDefinitionDto>>> GetAccessible(CancellationToken ct)
@@ -60,7 +59,7 @@ public class WorkflowDefinitionsController(
         var dtos = new List<WorkflowDefinitionDto>(definitions.Length);
         foreach (var definition in definitions)
         {
-            if (await authorizationFilterService.HasVisibleInstances(definition.Name, ct))
+            if (await authorizationFilterService.CanAccessWorkflowOverview(definition.Name, ct))
                 dtos.Add(WorkflowDefinitionDto.Create(definition));
         }
 
