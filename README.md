@@ -19,19 +19,15 @@ Workflow API is a service for modelling real-world processes in a generic and re
 
 ## Postponing deadlines
 
-A step deadline that directly references a scalar `Date` property can be postponed:
+A deadline can be postponed when it directly references a populated scalar `Date` property:
 
 ```yaml
 deadline:
   date: SubmissionDeadline
 ```
 
-No separate form or postponement flag is required. The modal lists populated date properties used by
-applicable, unfinished steps, subject to `PostponeDeadlines` action grants. A shared
-property appears once and changing it updates every step, label and email referencing that property.
-Calculated expressions and literal dates are excluded.
-
-Grant postponement through the existing action system, independently of general editing:
+Grant `PostponeDeadlines` through global or step actions. Use conditions or `propertyDefinition` to
+restrict access:
 
 ```yaml
 globalActions:
@@ -39,21 +35,7 @@ globalActions:
     roles: [Coordinator]
 ```
 
-Step actions and conditions can restrict the grant; `propertyDefinition` can target a single date property.
-Rights are checked both when listing dates and when saving changes, using the current role impersonation
-context. Expired hard deadlines can still be postponed by an authorized user.
-
-The instance response includes the available dates in `postponableDeadlines`.
-`POST /WorkflowInstances/{id}/PostponeDeadlines` accepts `changes` with `property`, `currentDate`, and `date`
-(calendar dates in `yyyy-MM-dd` format), plus a required `reason` of 1–1,000 characters.
-Each new date must be later than its current date and satisfy the property's validation rules.
-Stale dates return a conflict. Each change retains its previous value, reason, real user and
-timestamp as a separate entry in MongoDB's `instance_journal` collection. Following the existing
-journal convention, the value after a change is the next entry's previous value, or the current
-property value for the latest change.
-
-Postponement actions can use the existing `onAction` effects. Every action with effects requires a `name`,
-so its jobs can be logged, retried and resumed after a delay:
+Optional `onAction` effects require a named action:
 
 ```yaml
 globalActions:
@@ -67,10 +49,19 @@ globalActions:
       - showConfetti: true
 ```
 
-Effects run after the complete batch is saved and journalled, using the updated dates. Each matching,
-authorized action runs once per request, even when it covers multiple deadlines or roles. Rejected
-or conflicting changes run no effects. The endpoint returns the usual `EffectResult`, including UI
-effects and background-task errors; an effect failure leaves the saved deadlines intact.
+The modal lists permitted dates for applicable, unfinished steps, including expired hard deadlines.
+Shared properties appear once; changes apply everywhere they are referenced. Calculated and literal
+dates are excluded. Permission is checked when listing and saving, using the current impersonation context.
+
+The instance response exposes `postponableDeadlines`. Send changes to
+`POST /WorkflowInstances/{id}/PostponeDeadlines` with `property`, `currentDate`, and `date` in each
+`changes` entry (`yyyy-MM-dd`), plus a `reason` of 1–1,000 characters. New dates must be later and pass
+property validation; stale dates return a conflict. Each change journals its previous value, reason,
+real user and timestamp.
+
+After the batch is saved and journalled, each matching authorized action runs its effects once using
+the updated dates. Rejected changes run no effects. The endpoint returns `EffectResult`; effect
+failures leave saved dates intact.
 
 ## Prerequisites
 
