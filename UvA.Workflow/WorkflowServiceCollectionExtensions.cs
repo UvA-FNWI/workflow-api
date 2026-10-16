@@ -44,6 +44,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<JobService>();
         services.AddScoped<EffectService>();
         services.AddScoped<UndoService>();
+        services.AddScoped<DeadlinePostponementService>();
         services.AddScoped<AnswerConversionService>();
         services.AddScoped<InitializationService>();
         services.AddScoped<MigrationService>();

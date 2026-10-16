@@ -231,13 +231,18 @@ public partial class ModelParser
         role.Actions = role.Actions
             .Union(role.InheritFrom.Select(ResolveInherited).SelectMany(r => r.Actions)).ToList();
         foreach (var act in role.Actions)
-        {
-            PreProcess(act.OnAction);
+            PreProcess(act, role);
+    }
 
-            if (act.Form is not (null or Action.All) && act.WorkflowDefinition != null &&
-                !WorkflowDefinitions[act.WorkflowDefinition].Forms.Contains(act.Form))
-                throw new Exception($"{role.Name}: form {act.Form} not found for entity {act.WorkflowDefinition}");
-        }
+    private void PreProcess(Action action, Role role)
+    {
+        if (action.OnAction.Length > 0 && string.IsNullOrWhiteSpace(action.Name))
+            throw new Exception("Actions with onAction effects require a name");
+        PreProcess(action.OnAction);
+
+        if (action.Form is not (null or Action.All) && action.WorkflowDefinition != null &&
+            !WorkflowDefinitions[action.WorkflowDefinition].Forms.Contains(action.Form))
+            throw new Exception($"{role.Name}: form {action.Form} not found for entity {action.WorkflowDefinition}");
     }
 
     private void PreProcess(ValueSet set)

@@ -49,6 +49,10 @@ public interface IWorkflowInstanceRepository
 
     Task UpdateFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct);
 
+    /// <summary>Updates fields only while the supplied condition still matches.</summary>
+    Task<bool> TryUpdateFields(string instanceId, FilterDefinition<WorkflowInstance> condition,
+        UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct);
+
     Task UpdateArrayFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition,
         IEnumerable<ArrayFilterDefinition> arrayFilters, CancellationToken ct);
 }
