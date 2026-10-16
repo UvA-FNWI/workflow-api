@@ -1,0 +1,28 @@
+name: ExpressionConditions
+titlePlural: Expression condition tests
+
+properties:
+  - name: Selection
+    type: "[Options]"
+    values:
+      - name: None
+      - name: Alpha
+      - name: Beta
+      - name: Gamma
+
+  - name: Limit
+    type: Int
+
+  - name: WithinLimit
+    type: Check
+    condition:
+      value:
+        property: count(except(Selection, =None))
+        lessThanOrEqual: Limit
+
+  - name: EmptySelection
+    type: Check
+    condition:
+      value:
+        property: Selection
+        isEmpty: true
