@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text;
 using System.Text.Json;
 
@@ -13,6 +14,14 @@ public static class DataExtensions
 
     public static string Coalesce(this string? left, string right)
         => string.IsNullOrEmpty(left) ? right : left;
+
+    public static bool IsEffectivelyEmpty(this object? value) => value switch
+    {
+        null => true,
+        string text => string.IsNullOrWhiteSpace(text),
+        IEnumerable list => !list.Cast<object?>().Any(),
+        _ => false
+    };
 
     /// <summary>
     /// Converts a list of objects to a separated string

@@ -7,6 +7,63 @@ namespace UvA.Workflow.Tests;
 
 public class ExpressionTests
 {
+    [Theory]
+    [InlineData(null, 0)]
+    [InlineData("choices", 0)]
+    [InlineData(42, 0)]
+    [InlineData(new string[] { }, 0)]
+    [InlineData(new[] { "None", "First", "Second" }, 3)]
+    [InlineData(new[] { 1, 2 }, 2)]
+    public void Count_CountsCollectionsOnly(object? value, int expected)
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Choices"] = value });
+
+        Assert.Equal(expected, ExpressionParser.Parse("count(Choices)").Execute(context));
+    }
+
+    [Fact]
+    public void Except_RemovesAllExactMatchesWithoutChangingSource()
+    {
+        string[] choices = ["None", "First", "None", "none", "First"];
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Choices"] = choices });
+
+        var result = ExpressionParser.Parse("except(Choices, =None)").Execute(context);
+
+        Assert.Equal(new object[] { "First", "none", "First" }, Assert.IsType<object[]>(result));
+        Assert.Equal(["None", "First", "None", "none", "First"], choices);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("None")]
+    public void Except_NullOrString_ReturnsEmptyList(object? choices)
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Choices"] = choices });
+
+        Assert.Empty(Assert.IsType<object[]>(ExpressionParser.Parse("except(Choices, =None)").Execute(context)));
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, true)]
+    public void Or_ComposesWithAnd(bool first, bool second, bool expected)
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["First"] = first, ["Second"] = second });
+
+        Assert.Equal(expected, ExpressionParser.Parse("and(or(First, Second), true)").Execute(context));
+    }
+
+    [Fact]
+    public void Or_UsesTheSameBooleanConversionAsAnd()
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Present"] = "value" });
+
+        Assert.Equal(true, ExpressionParser.Parse("or(Missing, and(Present, true))").Execute(context));
+        Assert.Equal(false, ExpressionParser.Parse("or(Missing, and(Present, false))").Execute(context));
+    }
+
     [Fact]
     public void TestFunction()
     {

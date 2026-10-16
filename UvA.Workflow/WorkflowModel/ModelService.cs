@@ -53,10 +53,18 @@ public class ModelService(ModelParser parser)
     }
 
     public ObjectContext CreateContext(WorkflowInstance instance)
-        => ObjectContext.Create(instance, this);
+        => AddValueSets(ObjectContext.Create(instance, this), WorkflowDefinitions[instance.WorkflowDefinition]);
 
     public ObjectContext CreateContext(string workflowDefinition, Dictionary<string, BsonValue> rawData)
-        => ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData);
+        => AddValueSets(ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData),
+            WorkflowDefinitions[workflowDefinition]);
+
+    private ObjectContext AddValueSets(ObjectContext context, WorkflowDefinition definition)
+    {
+        foreach (var set in definition.ValueSets.Concat(parser.ValueSets))
+            context.Values.TryAdd(set.Name, set);
+        return context;
+    }
 
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,

@@ -30,7 +30,7 @@ public partial class ModelParser
 
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
 
-    private List<ValueSet> ValueSets { get; }
+    public List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
 
     public ModelParser(IContentProvider contentProvider)

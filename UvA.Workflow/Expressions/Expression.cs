@@ -59,10 +59,29 @@ public record Expression
         ["dateShort"] = new Function<DateTime?, string?>(d => d?.ToString("dd/MM", CultureInfo.InvariantCulture)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
+        ["count"] = new Function<object, int>(value =>
+            value is IEnumerable list and not string ? list.Cast<object?>().Count() : 0),
+        ["except"] = new Function<object, object, object?[]>(Except),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
         ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
         ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
+
+    private static object?[] Except(object? value, object? excluded)
+    {
+        if (value is not IEnumerable list || value is string)
+            return [];
+
+        var names = excluded switch
+        {
+            ValueSet set => set.Values.Select(choice => choice.Name).ToArray(),
+            string name => [name],
+            _ => Array.Empty<string>()
+        };
+        return list.Cast<object?>()
+            .Where(item => item is not string name || !names.Contains(name, StringComparer.Ordinal))
+            .ToArray();
+    }
 
     public virtual IEnumerable<Lookup> Properties => this switch
     {
