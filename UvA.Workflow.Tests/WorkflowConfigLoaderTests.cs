@@ -35,7 +35,7 @@ public class WorkflowConfigLoaderTests
 
     private static WorkflowConfigLoader CreateLoader(ModelServiceResolver resolver, WorkflowSourceOptions opts,
         HttpMessageHandler? handler = null, IConfiguredMigrationRunner? migrationRunner = null,
-        bool migrationsEnabled = true)
+        bool migrationsEnabled = true, ConfigChangeFeed? changeFeed = null)
     {
         var factory = new Mock<IHttpClientFactory>();
         if (handler is not null)
@@ -45,11 +45,104 @@ public class WorkflowConfigLoaderTests
             runner.Run(It.IsAny<ModelParser>(), It.IsAny<CancellationToken>()) == Task.CompletedTask);
         return new WorkflowConfigLoader(factory.Object, resolver, migrationRunner,
             Options.Create(new ConfiguredMigrationOptions { Enabled = migrationsEnabled }), Options.Create(opts),
+            changeFeed ?? new ConfigChangeFeed(),
             NullLogger<WorkflowConfigLoader>.Instance);
     }
 
     private static WorkflowSourceOptions RepoOptions()
         => new() { RepoUrl = "https://github.com/owner/repo", Ref = "main" };
+
+    [Fact]
+    public async Task LocalBaseline_NotifiesOnlyAfterSuccessfulInstallAndRecoversAfterInvalidYaml()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var project = Path.Combine(root, "Projects", "Project");
+        Directory.CreateDirectory(project);
+        Directory.CreateDirectory(Path.Combine(root, "Layouts"));
+        var entity = Path.Combine(project, "Entity.yaml");
+        const string validYaml = "name: Project\ntitlePlural: Projects\nproperties: []\n";
+        await File.WriteAllTextAsync(entity, validYaml);
+        await File.WriteAllTextAsync(Path.Combine(root, "Layouts", "default.html"), "<html></html>");
+        try
+        {
+            var feed = new ConfigChangeFeed();
+            var resolver = CreateResolver();
+            var loader = CreateLoader(resolver,
+                new WorkflowSourceOptions { LocalPath = root, WatchLocalChanges = true }, changeFeed: feed);
+            using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var browser = feed.Listen(ct.Token).GetAsyncEnumerator();
+            Assert.True(await browser.MoveNextAsync());
+            var initial = browser.Current;
+
+            await loader.LoadBaselineAsync();
+            Assert.True(await browser.MoveNextAsync());
+            Assert.NotEqual(initial, browser.Current);
+            Assert.True(resolver.Contains(""));
+            var previousModel = resolver.Resolve().ModelService.WorkflowDefinitions;
+            var previous = browser.Current;
+
+            var pending = browser.MoveNextAsync().AsTask();
+            await File.WriteAllTextAsync(entity, "invalid: [");
+            await Assert.ThrowsAnyAsync<Exception>(() => loader.LoadBaselineAsync());
+            Assert.False(pending.IsCompleted);
+            Assert.Same(previousModel, resolver.Resolve().ModelService.WorkflowDefinitions);
+
+            await File.WriteAllTextAsync(entity, validYaml);
+            await loader.LoadBaselineAsync();
+            Assert.True(await pending);
+            Assert.NotEqual(previous, browser.Current);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LocalBaseline_DoesNotNotifyWhenWatchingIsDisabled()
+    {
+        var feed = new ConfigChangeFeed();
+        using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var browser = feed.Listen(ct.Token).GetAsyncEnumerator();
+        Assert.True(await browser.MoveNextAsync());
+        var pending = browser.MoveNextAsync().AsTask();
+
+        await CreateLoader(CreateResolver(), new WorkflowSourceOptions { LocalPath = FixturesRoot },
+            changeFeed: feed).LoadBaselineAsync();
+
+        Assert.False(pending.IsCompleted);
+        ct.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+    }
+
+    [Theory]
+    [InlineData(false, "local-checkout")]
+    [InlineData(true, null)]
+    [InlineData(true, " ")]
+    public void Events_RequiresWatchingAndLocalCheckout(bool watching, string? localPath)
+    {
+        var controller = CreateVersionsController(CreateResolver(), new WorkflowSourceOptions
+        {
+            WatchLocalChanges = watching, LocalPath = localPath
+        });
+
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.NotFound>(controller.Events(CancellationToken.None));
+    }
+
+    [Fact]
+    public void Events_Enabled_ReturnsAnUnbufferedSseStream()
+    {
+        var controller = CreateVersionsController(CreateResolver(), new WorkflowSourceOptions
+        {
+            WatchLocalChanges = true, LocalPath = FixturesRoot
+        });
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+
+        Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ServerSentEventsResult<string>>(
+            controller.Events(CancellationToken.None));
+        Assert.Equal("no-cache", controller.Response.Headers.CacheControl);
+        Assert.Equal("no", controller.Response.Headers["X-Accel-Buffering"]);
+    }
 
     [Fact]
     public async Task LoadBaseline_FromLocalCheckout_LoadsProjectsAndLayout()
@@ -608,7 +701,8 @@ public class WorkflowConfigLoaderTests
         return context;
     }
 
-    private static VersionsController CreateVersionsController(ModelServiceResolver resolver)
+    private static VersionsController CreateVersionsController(ModelServiceResolver resolver,
+        WorkflowSourceOptions? options = null)
     {
         var userService = new Mock<IUserService>();
         userService.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
@@ -617,7 +711,8 @@ public class WorkflowConfigLoaderTests
             userService.Object, Mock.Of<IWorkflowInstanceRepository>());
         return new VersionsController(resolver,
             CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot }),
-            rightsService, NullLogger<VersionsController>.Instance);
+            rightsService, Options.Create(options ?? new WorkflowSourceOptions { LocalPath = FixturesRoot }),
+            new ConfigChangeFeed(), NullLogger<VersionsController>.Instance);
     }
 
     private static Dictionary<string, string> UploadFiles()
