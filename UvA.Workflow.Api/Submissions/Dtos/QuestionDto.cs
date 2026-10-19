@@ -3,6 +3,8 @@ using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
+// QuestionJsonTypeInfoResolver makes sure JSON includes the fields of each question type.
+// It finds new question types automatically, so they don't need JSON attributes here.
 public abstract record QuestionDto
 {
     protected QuestionDto(PropertyDefinition property)
