@@ -21,6 +21,7 @@ public class StepTemplateParameter : INamed
     public DataType DataType => UnderlyingType switch
     {
         "String" => DataType.String,
+        "LocalString" => DataType.LocalString,
         "DateTime" => DataType.DateTime,
         "Date" => DataType.Date,
         "Int" => DataType.Int,

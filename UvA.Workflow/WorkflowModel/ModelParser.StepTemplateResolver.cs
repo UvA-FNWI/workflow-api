@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using YamlDotNet.RepresentationModel;
+using YamlDotNet.Core;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -96,6 +98,11 @@ public partial class ModelParser
         IReadOnlyDictionary<string, object>? parentValues = null)
     {
         var values = ResolveTemplateValues(template, consumer, parentValues);
+        foreach (var parameter in template.Parameters.Where(p => p.UnderlyingType == "LocalString"))
+            if (values.TryGetValue(parameter.Name, out var value) && value is not BilingualString)
+                values[parameter.Name] = value is string text
+                    ? (BilingualString)text
+                    : deserializer.Deserialize<BilingualString>(new SerializerBuilder().Build().Serialize(value));
         var substituted = SubstituteTemplateValues(template.RootFile, template.Name, values);
 
         Step resolved;
@@ -170,13 +177,38 @@ public partial class ModelParser
             throw new ArgumentException(
                 $"Template '{templateName}' has no source YAML content. Ensure StepTemplate.RootFile is populated.");
 
-        return TokenPattern().Replace(rawYaml, match =>
+        var replacements = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, value) in values)
         {
-            var name = match.Groups[1].Value;
-            if (!values.TryGetValue(name, out var value))
-                throw new ArgumentException($"Missing template value '{name}' for template '{templateName}'");
-            return value.ToString() ?? "";
-        });
+            if (value is BilingualString localized)
+            {
+                replacements[$"{name}.en"] = localized.En;
+                replacements[$"{name}.nl"] = localized.ForLanguage("nl");
+            }
+            else
+                replacements[name] = value;
+        }
+
+        var yaml = new YamlStream();
+        yaml.Load(new StringReader(rawYaml));
+        foreach (var scalar in yaml.Documents[0].AllNodes.OfType<YamlScalarNode>())
+        {
+            if (scalar.Value is null || !TokenPattern().IsMatch(scalar.Value))
+                continue;
+
+            scalar.Value = TokenPattern().Replace(scalar.Value, match =>
+            {
+                var name = match.Groups[1].Value;
+                if (!replacements.TryGetValue(name, out var value))
+                    throw new ArgumentException($"Missing template value '{name}' for template '{templateName}'");
+                return value?.ToString() ?? "";
+            });
+            scalar.Style = ScalarStyle.DoubleQuoted;
+        }
+
+        using var writer = new StringWriter();
+        yaml.Save(writer, false);
+        return writer.ToString();
     }
 
 
