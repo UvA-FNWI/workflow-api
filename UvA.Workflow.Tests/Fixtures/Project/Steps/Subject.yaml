@@ -17,19 +17,22 @@ events:
     suppresses: [Start]
   - name: ApproveSubject
     
-headerStatus:
+progress:
   - event: Start
-    type: Info
-    label:
-      en: Wait for approval before {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd/MM), =the deadline) }}
-      nl: Wacht op goedkeuring voor {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd-MM), =the deadline) }}
+    header:
+      type: Info
+      label:
+        en: Wait for approval before {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd/MM), =the deadline) }}
+        nl: Wacht op goedkeuring voor {{ coalesce(formatDate(addWeeks(StartEvent, 2), =dd-MM), =the deadline) }}
   - event: RejectSubject
-    type: Attention
-    label:
-      en: Changes needed
-      nl: Aanpassingen nodig
+    header:
+      type: Attention
+      label:
+        en: Changes needed
+        nl: Aanpassingen nodig
   - event: ApproveSubject
-    type: Success
-    label:
-      en: Approved and assigned on {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}
-      nl: Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}
+    header:
+      type: Success
+      label:
+        en: Approved and assigned on {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}
+        nl: Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent,=dd-MM-yyyy) }}

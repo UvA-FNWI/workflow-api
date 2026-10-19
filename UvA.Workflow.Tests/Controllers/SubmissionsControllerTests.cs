@@ -10,6 +10,8 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
+using UvA.Workflow.Organizations;
+using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -43,7 +45,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 _submissionDtoFactory,
                 _rightsService,
                 new StepVersionService(),
-                new StepHeaderStatusResolver(_modelService),
+                new StepProgressResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
                 _undoService);
@@ -456,6 +458,26 @@ public class SubmissionsControllerTests : ControllerTestsBase
 
         Assert.IsType<UnauthorizedResult>(result.Result);
         _instanceJournalServiceMock.Verify(s => s.IncrementVersion(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateDummyData_FillsRequiredFileQuestionsOnly()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["SystemAdmin"], "Start");
+        _userServiceMock.Setup(s => s.AddOrUpdateUser(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+
+        await controller.GenerateDummyData(instance.Id, "Start", _ct);
+
+        var description = ArtifactInfo.FromBson(instance.Properties["Description"]);
+        Assert.NotNull(description);
+        Assert.Equal("dummy-file.pdf", description.Name);
+        Assert.False(instance.Properties.ContainsKey("TestDocument"));
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 

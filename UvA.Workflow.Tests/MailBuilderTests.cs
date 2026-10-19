@@ -114,6 +114,27 @@ public class MailBuilderTests
     }
 
     [Fact]
+    public void Build_DoesNotParseNameStartingWithLetterAndPeriodAsList()
+    {
+        var (builder, layout, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "student@uva.nl",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("A. Smith", "")
+        };
+
+        Build(builder, instance, sendMail);
+
+        Assert.NotNull(layout.CapturedBody);
+        Assert.Contains("<p>A. Smith</p>", layout.CapturedBody);
+        Assert.DoesNotContain("<ol", layout.CapturedBody);
+    }
+
+    [Fact]
     public void Build_WithToLiteralAddress_ResolvesRecipient()
     {
         var (builder, _, _) = CreateBuilder();
