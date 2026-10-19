@@ -94,7 +94,7 @@ public partial class ModelParser
     /// <summary>
     /// Resolves a step template into a step.
     /// </summary>
-    private static Step ResolveTemplateToStep(Step consumer, StepTemplate template, IDeserializer deserializer,
+    private Step ResolveTemplateToStep(Step consumer, StepTemplate template, IDeserializer deserializer,
         IReadOnlyDictionary<string, object>? parentValues = null)
     {
         var values = ResolveTemplateValues(template, consumer, parentValues);
@@ -116,16 +116,12 @@ public partial class ModelParser
                 $"Failed to resolve template '{template.Name}' for step '{consumer.Name}': {ex.Message}", ex);
         }
 
-        resolved.Name = consumer.Name;
-        resolved.Title = consumer.Title;
-        resolved.TemplateKey = consumer.TemplateKey;
-        resolved.TemplateValues = consumer.TemplateValues;
-        resolved.ResolvedTemplateValues = values;
-        resolved.DeclaredKeys = consumer.DeclaredKeys;
-        resolved.Properties = [.. resolved.Properties, .. consumer.Properties];
-        resolved.Events = [.. resolved.Events, .. consumer.Events];
+        ApplyInheritance(consumer, resolved);
+        consumer.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+        consumer.ResolvedTemplateValues = values;
+        consumer.Properties = [.. resolved.Properties, .. consumer.Properties];
 
-        return resolved;
+        return consumer;
     }
 
     /// <summary>
@@ -252,7 +248,7 @@ public partial class ModelParser
 
     /// <summary>
     /// Determines a step's child step names before the step is fully resolved. For a plain (non-templated)
-    /// step, its own <c>children:</c> list is already known directly. For a templated step, the child names
+    /// step or an explicit <c>children:</c> override, the list is known directly. Otherwise, the child names
     /// come from the template's <c>children:</c> list, which by convention only references
     /// <c>${prefix}</c> — never any other template parameter — since a step's own parent must not need to be
     /// resolved first just to find out which children it has.
@@ -260,7 +256,7 @@ public partial class ModelParser
     private static string[] GetChildStepNames(Step step, Dictionary<string, StepTemplate> stepTemplatesByName,
         string definitionName)
     {
-        if (string.IsNullOrWhiteSpace(step.TemplateKey))
+        if (string.IsNullOrWhiteSpace(step.TemplateKey) || step.Declared(s => s.ChildNames))
             return step.ChildNames;
 
         if (!stepTemplatesByName.TryGetValue(step.TemplateKey, out var template))

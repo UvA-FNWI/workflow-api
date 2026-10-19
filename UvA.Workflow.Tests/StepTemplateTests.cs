@@ -55,8 +55,10 @@ public class StepTemplateTests
         Assert.Contains("Failed to parse Project/Steps/Start.yaml", exception.Message);
     }
 
-    [Fact]
-    public void ModelParser_InheritsMappingValuesFromParentTemplate()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ModelParser_InheritsMappingValuesFromParentTemplate(bool overrideChildren)
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
@@ -79,8 +81,10 @@ public class StepTemplateTests
                                                    """,
             ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start]",
             ["Project/Steps/Start.yaml"] =
-                "name: Start\ntemplate: Parent\nvalues:\n  caption:\n    en: Proposal\n    nl: Voorstel",
-            ["Project/Steps/Submit.yaml"] = "name: Start_Submit\ntemplate: Submit"
+                "name: Start\ntemplate: Parent\nvalues:\n  caption:\n    en: Proposal\n    nl: Voorstel\n"
+                + (overrideChildren ? "children: [Start_Alternative]" : ""),
+            ["Project/Steps/Submit.yaml"] =
+                $"name: {(overrideChildren ? "Start_Alternative" : "Start_Submit")}\ntemplate: Submit"
         }));
 
         var child = parser.WorkflowDefinitions["Project"].Steps.Single().Children.Single();
@@ -121,6 +125,141 @@ public class StepTemplateTests
         Assert.Equal("Review " + en["Working on ".Length..], progress[0].Header!.Label!.En);
         Assert.Equal("Review " + nl["Werkt aan ".Length..], progress[0].Header!.Label!.Nl);
         Assert.Equal(DataType.LocalString, new StepTemplateParameter { Type = "LocalString!" }.DataType);
+    }
+
+    [Fact]
+    public void ModelParser_PreservesConsumerAlongsideRules()
+    {
+        var workflow = ParseTemplatedWorkflow("name: Product", "mode: Alongside\nbefore: FinalAssessment");
+        var step = workflow.AllSteps.Single(s => s.Name == "Start");
+
+        Assert.Equal(StepMode.Alongside, step.Mode);
+        Assert.Equal("FinalAssessment", step.Before);
+    }
+
+    [Fact]
+    public void ModelParser_MergesConsumerActionsAndOverridesCompletionCondition()
+    {
+        var workflow = ParseTemplatedWorkflow("""
+                                              name: Product
+                                              actions:
+                                                - roles: [Coordinator]
+                                                  type: Submit
+                                                  form: Approve
+                                                - roles: [Coordinator]
+                                                  type: Submit
+                                                  form: Revise
+                                              ends:
+                                                logical:
+                                                  operator: Or
+                                                  children:
+                                                    - event: Approve
+                                                    - event: Revise
+                                              """, """
+                                                   actions:
+                                                     - roles: [Coordinator]
+                                                       type: Submit
+                                                       form: Reject
+                                                   ends:
+                                                     logical:
+                                                       operator: Or
+                                                       children:
+                                                         - event: Approve
+                                                         - event: Revise
+                                                         - event: Reject
+                                                   """);
+        var step = workflow.AllSteps.Single(s => s.Name == "Start");
+
+        Assert.Equal(["Approve", "Revise", "Reject"], step.Actions.Select(a => a.Form));
+        Assert.Equal(["Approve", "Revise", "Reject"],
+            workflow.Roles.Single(r => r.Name == "Coordinator").Actions.Select(a => a.Form));
+        Assert.Equal(["Approve", "Revise", "Reject"], step.Ends!.Logical!.Children.Select(c => c.Event!.Id));
+    }
+
+    [Theory]
+    [InlineData("", "Assessment", "Beoordeling")]
+    [InlineData("title: Custom", "Custom", "Custom")]
+    [InlineData("title: null", null, null)]
+    public void ModelParser_UsesTemplateTitleUnlessConsumerDeclaresTitle(string consumer, string? en, string? nl)
+    {
+        var workflow = ParseTemplatedWorkflow("""
+                                              name: Product
+                                              title:
+                                                en: Assessment
+                                                nl: Beoordeling
+                                              """, consumer);
+        var step = workflow.AllSteps.Single(s => s.Name == "Start");
+
+        Assert.Equal(en, step.Title?.En);
+        Assert.Equal(nl, step.Title?.Nl);
+    }
+
+    [Theory]
+    [InlineData("actions: []", 0)]
+    [InlineData("actions:\n  - name: Approve\n    roles: [Coordinator]\n    type: Submit\n    form: Reject", 1)]
+    public void ModelParser_HonorsConsumerActionClearingAndNamedOverrides(string consumer, int count)
+    {
+        var workflow = ParseTemplatedWorkflow("""
+                                              name: Product
+                                              actions:
+                                                - name: Approve
+                                                  roles: [Coordinator]
+                                                  type: Submit
+                                                  form: Approve
+                                              """, consumer);
+        var step = workflow.AllSteps.Single(s => s.Name == "Start");
+
+        Assert.Equal(count, step.Actions.Count);
+        if (count > 0)
+            Assert.Equal("Reject", step.Actions.Single().Form);
+    }
+
+    [Fact]
+    public void ModelParser_PreservesTemplateAndConsumerDeclarationsDuringWorkflowInheritance()
+    {
+        var workflow = ParseTemplatedWorkflow("""
+                                              name: Product
+                                              title: Template title
+                                              mode: Normal
+                                              progress: []
+                                              """, "before: FinalAssessment", """
+                                                                              name: Start
+                                                                              title: Parent title
+                                                                              mode: Alongside
+                                                                              before: Start
+                                                                              progress:
+                                                                                - text: Parent progress
+                                                                              """);
+        var step = workflow.AllSteps.Single(s => s.Name == "Start");
+
+        Assert.Equal("Template title", step.Title!.En);
+        Assert.Equal(StepMode.Normal, step.Mode);
+        Assert.Equal("FinalAssessment", step.Before);
+        Assert.Empty(step.Progress);
+    }
+
+    private static WorkflowDefinition ParseTemplatedWorkflow(string template, string consumer,
+        string? inheritedStep = null)
+    {
+        var files = new Dictionary<string, string>
+        {
+            ["Common/StepTemplates/Product.yaml"] = template,
+            ["Common/Roles/Coordinator.yaml"] = "name: Coordinator",
+            ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start, FinalAssessment]",
+            ["Project/Steps/Start.yaml"] = "name: Start\ntemplate: Product\n" + consumer,
+            ["Project/Steps/FinalAssessment.yaml"] = "name: FinalAssessment",
+            ["Project/Forms/Approve.yaml"] = "name: Approve",
+            ["Project/Forms/Revise.yaml"] = "name: Revise",
+            ["Project/Forms/Reject.yaml"] = "name: Reject"
+        };
+        if (inheritedStep != null)
+        {
+            files["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps: [Start]";
+            files["Base/Steps/Start.yaml"] = inheritedStep;
+            files["Project/Entity.yaml"] += "\ninheritsFrom: Base";
+        }
+
+        return new ModelParser(new DictionaryProvider(files)).WorkflowDefinitions["Project"];
     }
 
     private static ModelParser Parse(string values)
