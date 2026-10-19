@@ -10,6 +10,7 @@ public abstract record QuestionDto
         Id = $"{property.ParentType.Name}_{property.Name}";
         Name = property.Name;
         Text = property.DisplayName;
+        Type = property.DataType;
         IsRequired = property.IsRequired;
         IsArray = property.IsArray;
         Description = property.Description;
@@ -21,7 +22,7 @@ public abstract record QuestionDto
     public string Id { get; init; }
     public string Name { get; init; }
     public BilingualString Text { get; init; }
-    public abstract DataType Type { get; }
+    public DataType Type { get; }
     public bool IsRequired { get; init; }
     public bool IsArray { get; init; }
     public BilingualString? Description { get; init; }
@@ -69,7 +70,6 @@ public record StringQuestionDto : QuestionDto
         MinLength = property.Validation.GetAllValues().Select(v => v.MinLength).FirstOrDefault(v => v != null);
     }
 
-    public override DataType Type => DataType.String;
     public TextLayoutOptions? Layout { get; init; }
     public int? MaxLength { get; init; }
     public int? MinLength { get; init; }
@@ -80,8 +80,6 @@ public record DateQuestionDto : QuestionDto
     public DateQuestionDto(DatePropertyDefinition property) : base(property)
     {
     }
-
-    public override DataType Type => DataType.Date;
 }
 
 public record DateTimeQuestionDto : QuestionDto
@@ -89,8 +87,6 @@ public record DateTimeQuestionDto : QuestionDto
     public DateTimeQuestionDto(DateTimePropertyDefinition property) : base(property)
     {
     }
-
-    public override DataType Type => DataType.DateTime;
 }
 
 public record IntQuestionDto : WeightedQuestionDto
@@ -98,8 +94,6 @@ public record IntQuestionDto : WeightedQuestionDto
     public IntQuestionDto(IntPropertyDefinition property, decimal totalWeight) : base(property, totalWeight)
     {
     }
-
-    public override DataType Type => DataType.Int;
 }
 
 public record DoubleQuestionDto : WeightedQuestionDto
@@ -107,8 +101,6 @@ public record DoubleQuestionDto : WeightedQuestionDto
     public DoubleQuestionDto(DoublePropertyDefinition property, decimal totalWeight) : base(property, totalWeight)
     {
     }
-
-    public override DataType Type => DataType.Double;
 }
 
 public record CheckQuestionDto : QuestionDto
@@ -116,8 +108,6 @@ public record CheckQuestionDto : QuestionDto
     public CheckQuestionDto(CheckPropertyDefinition property) : base(property)
     {
     }
-
-    public override DataType Type => DataType.Check;
 }
 
 public record CurrencyQuestionDto : WeightedQuestionDto
@@ -125,8 +115,6 @@ public record CurrencyQuestionDto : WeightedQuestionDto
     public CurrencyQuestionDto(CurrencyPropertyDefinition property, decimal totalWeight) : base(property, totalWeight)
     {
     }
-
-    public override DataType Type => DataType.Currency;
 }
 
 public record FileQuestionDto : QuestionDto
@@ -137,7 +125,6 @@ public record FileQuestionDto : QuestionDto
         AllowedFileSize = property.EffectiveAllowedFileSize;
     }
 
-    public override DataType Type => DataType.File;
     public IReadOnlyList<string> AllowedFileTypes { get; init; }
     public int AllowedFileSize { get; init; }
 }
@@ -149,7 +136,6 @@ public record UserQuestionDto : QuestionDto
         AllowsExternalUsers = property.AllowsExternalUsers == true;
     }
 
-    public override DataType Type => DataType.User;
     public bool AllowsExternalUsers { get; init; }
 }
 
@@ -164,7 +150,6 @@ public record ChoiceQuestionDto : WeightedQuestionDto
         Sorting = property.Sorting;
     }
 
-    public override DataType Type => DataType.Choice;
     public ChoiceDto[] Choices { get; init; }
     public ChoiceLayoutOptions? Layout { get; init; }
     public List<RubricEntryDto>? Rubric { get; init; }
@@ -179,7 +164,6 @@ public record ReferenceQuestionDto : QuestionDto
         Layout = property.Layout;
     }
 
-    public override DataType Type => DataType.Reference;
     public string? WorkflowDefinition { get; init; }
     public ChoiceLayoutOptions? Layout { get; init; }
 }
@@ -193,7 +177,6 @@ public record ObjectQuestionDto : QuestionDto
         SubProperties = property.WorkflowDefinition?.Properties.Select(child => Create(child, totalWeight)).ToArray();
     }
 
-    public override DataType Type => DataType.Object;
     public string? WorkflowDefinition { get; init; }
     public TableLayoutOptions? Layout { get; init; }
     public QuestionDto[]? SubProperties { get; init; }
