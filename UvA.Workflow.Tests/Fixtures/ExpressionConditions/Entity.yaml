@@ -26,3 +26,10 @@ properties:
       value:
         property: Selection
         isEmpty: true
+
+  - name: WithinSetLimit
+    type: Check
+    condition:
+      value:
+        property: count(except(except(Selection, ExcludedOptions), SharedExcludedOptions))
+        lessThanOrEqual: Limit

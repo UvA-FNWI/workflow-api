@@ -78,6 +78,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
 
+        AddValueSets(dict, workflowDefinition);
         return new ObjectContext(dict);
     }
 
@@ -100,8 +101,15 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
+        AddValueSets(dict, workflowDef);
 
         return new ObjectContext(dict);
+    }
+
+    private static void AddValueSets(Dictionary<Lookup, object?> values, WorkflowDefinition definition)
+    {
+        foreach (var set in (definition.ModelParser?.ValueSets ?? []).Concat(definition.ValueSets))
+            values.TryAdd(set.Name, set.Values.Select(choice => choice.Name).ToArray());
     }
 
     private static void AddEventInformation(

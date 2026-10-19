@@ -30,7 +30,7 @@ public partial class ModelParser
 
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
 
-    private List<ValueSet> ValueSets { get; }
+    internal List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
 
     public ModelParser(IContentProvider contentProvider)
@@ -406,8 +406,19 @@ public partial class ModelParser
 
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
+        ValidateValueSetNames(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private void ValidateValueSetNames(WorkflowDefinition workflowDefinition)
+    {
+        foreach (var set in ValueSets.Concat(workflowDefinition.ValueSets))
+            if (workflowDefinition.Properties.Contains(set.Name) ||
+                set.Name is "now" or "Id" or "CurrentStep" or "CreateDate" or "LastEvent" ||
+                workflowDefinition.Events.Any(e => set.Name == e.Name + "Event" || set.Name == e.Name + "EventActive"))
+                throw new Exception(
+                    $"Definition '{workflowDefinition.Name}': value set '{set.Name}' conflicts with a property or context name.");
     }
 
     private static void ValidateReservedEventNames(WorkflowDefinition definition)

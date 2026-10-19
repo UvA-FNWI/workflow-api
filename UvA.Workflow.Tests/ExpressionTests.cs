@@ -22,6 +22,21 @@ public class ExpressionTests
     }
 
     [Theory]
+    [InlineData("")]
+    [InlineData("Alpha")]
+    [InlineData(42)]
+    [InlineData(42.5)]
+    public void Count_RejectsStringsAndNumericScalars(object value)
+    {
+        var exp = ExpressionParser.Parse("count(Choices)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Choices"] = value });
+
+        var error = Assert.Throws<ArgumentException>(() => exp.Execute(context));
+
+        Assert.Equal("count expects a collection", error.Message);
+    }
+
+    [Theory]
     [InlineData("except(Choices, =ab)")]
     [InlineData("except(Choices, Excluded)")]
     public void Except_RemovesAnItemOrACollection(string expression)
