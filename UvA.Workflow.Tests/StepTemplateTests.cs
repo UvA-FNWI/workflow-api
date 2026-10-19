@@ -238,6 +238,62 @@ public class StepTemplateTests
         Assert.Empty(step.Progress);
     }
 
+    [Theory]
+    [InlineData(true, true, "Consumer feedback", "String!")]
+    [InlineData(false, true, "Template feedback", "String")]
+    [InlineData(false, false, "Parent feedback", "String")]
+    public void ModelParser_MergesPropertiesWithConsumerThenTemplateThenParentPrecedence(
+        bool consumerDefinesFeedback, bool templateDefinesFeedback, string expectedText, string expectedType)
+    {
+        var template = """
+                       name: Product
+                       properties:
+                         - name: TemplateOnly
+                           type: String
+                       """;
+        if (templateDefinesFeedback)
+            template += """
+
+                          - name: Feedback
+                            type: String
+                            text: Template feedback
+                            description: Template description
+                        """;
+        var consumer = """
+                       properties:
+                         - name: ConsumerOnly
+                           type: String
+                       """;
+        if (consumerDefinesFeedback)
+            consumer += """
+
+                          - name: Feedback
+                            type: String!
+                            text: Consumer feedback
+                        """;
+        var workflow = ParseTemplatedWorkflow(template, consumer, """
+                                                                  name: Start
+                                                                  properties:
+                                                                    - name: Feedback
+                                                                      type: String
+                                                                      text: Parent feedback
+                                                                    - name: ParentOnly
+                                                                      type: String
+                                                                  """);
+        var feedback = Assert.Single(workflow.Properties, p => p.Name == "Feedback");
+
+        Assert.Equal(expectedText, feedback.Text!.En);
+        Assert.Equal(expectedType, feedback.Type);
+        foreach (var name in new[] { "TemplateOnly", "ConsumerOnly", "ParentOnly" })
+            Assert.Single(workflow.Properties, p => p.Name == name);
+        if (consumerDefinesFeedback)
+        {
+            var step = workflow.AllSteps.Single(s => s.Name == "Start");
+            Assert.Same(feedback, Assert.Single(step.Properties, p => p.Name == "Feedback"));
+            Assert.Null(feedback.Description);
+        }
+    }
+
     private static WorkflowDefinition ParseTemplatedWorkflow(string template, string consumer,
         string? inheritedStep = null)
     {

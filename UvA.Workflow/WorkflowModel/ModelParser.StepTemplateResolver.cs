@@ -119,7 +119,13 @@ public partial class ModelParser
         ApplyInheritance(consumer, resolved);
         consumer.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
         consumer.ResolvedTemplateValues = values;
-        consumer.Properties = [.. resolved.Properties, .. consumer.Properties];
+        // Consumer properties replace template properties with the same name.
+        var consumerPropertyNames = consumer.Properties.Select(p => p.Name).ToHashSet();
+        consumer.Properties =
+        [
+            .. resolved.Properties.Where(p => !consumerPropertyNames.Contains(p.Name)),
+            .. consumer.Properties
+        ];
 
         return consumer;
     }
