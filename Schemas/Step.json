@@ -546,7 +546,7 @@
       "properties": {
         "date": {
           "type": "string",
-          "description": "Expression that resolves to the deadline date."
+          "description": "Expression that resolves to the deadline date.\n            A direct Date-property reference can be postponed by users with PostponeDeadlines permission for this step."
         },
         "type": {
           "description": "Hard deadlines revoke this step's permissions except View. Separate global/form grants still apply.\n            Soft deadlines do not change permissions.",
@@ -585,7 +585,7 @@
             "null",
             "string"
           ],
-          "description": "Internal name of the action. Required for actions of type execute"
+          "description": "Internal name of the action. Required for any action with onAction effects."
         },
         "label": {
           "description": "Localized label of the action as shown in the user interface",
@@ -637,7 +637,7 @@
             "null",
             "string"
           ],
-          "description": "Target propertyDefinition for the view hidden propertyDefinition action"
+          "description": "Target property for ViewHidden, Edit or PostponeDeadlines actions."
         },
         "workflowDefinition": {
           "type": [
@@ -665,7 +665,7 @@
         },
         "onAction": {
           "type": "array",
-          "description": "List of effects to run for an Execute action",
+          "description": "List of effects to run for Execute or PostponeDeadlines actions.",
           "items": {
             "$ref": "#/definitions/Effect"
           }
@@ -736,7 +736,8 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
-        "ViewCorrespondence"
+        "ViewCorrespondence",
+        "PostponeDeadlines"
       ]
     },
     "Effect": {

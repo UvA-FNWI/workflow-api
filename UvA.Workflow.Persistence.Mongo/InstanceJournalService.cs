@@ -51,14 +51,32 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
 
         foreach (var change in newChanges)
         {
+            // Changes with a reason must remain separate, including repeated changes in the merge window.
+            if (change.Reason != null)
+            {
+                await _changeSetCollection.UpdateOneAsync(instanceIdFilter,
+                    Builders<InstanceJournalEntry>.Update
+                        .SetOnInsert(x => x.CurrentVersion, change.Version)
+                        .Push(x => x.PropertyChanges, change),
+                    new UpdateOptions { IsUpsert = true }, ct);
+                continue;
+            }
+
             var cutoff = change.Timestamp.Subtract(PropertyChangeMergeWindow);
+            var lastChangeWithReason = changeSet!.PropertyChanges
+                .Where(entry => entry.Path == change.Path && entry.Reason != null)
+                .Select(entry => entry.Timestamp)
+                .DefaultIfEmpty(DateTime.MinValue)
+                .Max();
 
             var matchExistingFilter =
                 instanceIdFilter &
                 Builders<InstanceJournalEntry>.Filter.ElemMatch(
                     x => x.PropertyChanges,
                     pc => pc.Version == change.Version &&
+                          pc.Reason == null &&
                           pc.Path == change.Path &&
+                          pc.Timestamp > lastChangeWithReason &&
                           pc.Timestamp >= cutoff
                 );
 

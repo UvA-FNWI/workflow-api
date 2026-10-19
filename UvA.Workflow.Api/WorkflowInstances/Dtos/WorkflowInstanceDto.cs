@@ -14,6 +14,8 @@ public record WorkflowInstanceBasicDto(
 
 public record UndoRequest(string OperationId, string Reason);
 
+public record PostponeDeadlinesRequest(DeadlinePostponement[] Changes, string Reason);
+
 public record WorkflowInstanceDto(
     string Id,
     string? Title,
@@ -28,7 +30,8 @@ public record WorkflowInstanceDto(
     bool CanUseAdminTools,
     bool CanImpersonate,
     string[] ViewerRoles,
-    InfoCardDto[] InfoCards
+    InfoCardDto[] InfoCards,
+    PostponableDeadline[] PostponableDeadlines
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);

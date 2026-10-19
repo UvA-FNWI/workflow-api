@@ -18,7 +18,8 @@ public class WorkflowInstanceDtoFactory(
     StepProgressResolver stepProgressResolver,
     WorkflowInstanceService workflowInstanceService,
     ILogger<WorkflowInstanceDtoFactory> logger,
-    UndoService undoService)
+    UndoService undoService,
+    DeadlinePostponementService postponementService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -98,7 +99,8 @@ public class WorkflowInstanceDtoFactory(
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            infoCards
+            infoCards,
+            await postponementService.GetDeadlines(instance)
         );
         return x;
     }

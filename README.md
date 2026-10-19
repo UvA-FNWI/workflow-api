@@ -17,6 +17,52 @@ Workflow API is a service for modelling real-world processes in a generic and re
 - `Deployment`: Helm charts and deployment configuration.
 - `docs`: deeper project documentation.
 
+## Postponing deadlines
+
+A deadline can be postponed when it directly references a populated scalar `Date` property:
+
+```yaml
+deadline:
+  date: SubmissionDeadline
+```
+
+Grant `PostponeDeadlines` through global or step actions. Use conditions or `propertyDefinition` to
+restrict access:
+
+```yaml
+globalActions:
+  - type: PostponeDeadlines
+    roles: [Coordinator]
+```
+
+Optional `onAction` effects require a named action:
+
+```yaml
+globalActions:
+  - name: NotifyDeadlinePostponement
+    type: PostponeDeadlines
+    roles: [Coordinator]
+    onAction:
+      - sendMail:
+          template: DeadlinePostponed
+          to: Student
+      - showConfetti: true
+```
+
+The modal lists permitted dates for applicable, unfinished steps, including expired hard deadlines.
+Shared properties appear once; changes apply everywhere they are referenced. Calculated and literal
+dates are excluded. Permission is checked when listing and saving, using the current impersonation context.
+
+The instance response exposes `postponableDeadlines`. Send changes to
+`POST /WorkflowInstances/{id}/PostponeDeadlines` with `property`, `currentDate`, and `date` in each
+`changes` entry (`yyyy-MM-dd`), plus a `reason` of 1–1,000 characters. New dates must be later and pass
+property validation; stale dates return a conflict. Each change journals its previous value, reason,
+real user and timestamp.
+
+After the batch is saved and journalled, each matching authorized action runs its effects once using
+the updated dates. Rejected changes run no effects. The endpoint returns `EffectResult`; effect
+failures leave saved dates intact.
+
 ## Prerequisites
 
 - .NET 10 SDK
