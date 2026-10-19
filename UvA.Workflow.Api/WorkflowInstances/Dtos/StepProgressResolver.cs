@@ -18,8 +18,10 @@ public class StepProgressResolver(ModelService modelService)
         "Completed ({{ dateShort(LastEvent) }})", "Afgerond ({{ dateShort(LastEvent) }})"))!;
 
     public StepHeaderStatusDto? ResolveHeader(Step step, WorkflowInstance instance)
+        => ResolveHeader(step, ObjectContext.Create(instance, modelService));
+
+    public StepHeaderStatusDto? ResolveHeader(Step step, ObjectContext context)
     {
-        var context = ObjectContext.Create(instance, modelService);
         var configuration = ResolveMatchedProgress(step, context, p => p.Header != null)
                             ?? ResolveDefault(step, p => p.Header != null);
 

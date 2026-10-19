@@ -56,13 +56,11 @@
     },
     "values": {
       "type": [
-        "array",
-        "null"
+        "null",
+        "object"
       ],
       "description": "Parameter values passed to the resolved template",
-      "items": {
-        "$ref": "#/definitions/TemplateValue"
-      }
+      "additionalProperties": {}
     },
     "hierarchyMode": {
       "description": "Determines how the child steps of this step are handled",
@@ -528,28 +526,6 @@
           "$ref": "#/definitions/StatusColor"
         }
       }
-    },
-    "TemplateValue": {
-      "title": "TemplateValue",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "value"
-      ],
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "value": {
-          "$ref": "#/definitions/Object"
-        }
-      }
-    },
-    "Object": {
-      "title": "Object",
-      "type": "object",
-      "additionalProperties": false
     },
     "StepHierarchyMode": {
       "type": "string",

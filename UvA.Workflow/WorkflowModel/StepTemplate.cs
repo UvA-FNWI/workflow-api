@@ -32,9 +32,3 @@ public class StepTemplateParameter : INamed
         _ => throw new ArgumentException($"Invalid type {UnderlyingType}")
     };
 }
-
-public class TemplateValue : INamed
-{
-    public string Name { get; set; } = null!;
-    public object Value { get; set; } = null!;
-}

@@ -115,8 +115,8 @@ public partial class ModelParser
         resolved.TemplateValues = consumer.TemplateValues;
         resolved.ResolvedTemplateValues = values;
         resolved.DeclaredKeys = consumer.DeclaredKeys;
-        resolved.Properties = [..resolved.Properties, ..consumer.Properties];
-        resolved.Events = [..resolved.Events, ..consumer.Events];
+        resolved.Properties = [.. resolved.Properties, .. consumer.Properties];
+        resolved.Events = [.. resolved.Events, .. consumer.Events];
 
         return resolved;
     }
@@ -127,19 +127,8 @@ public partial class ModelParser
     private static Dictionary<string, object> ResolveTemplateValues(StepTemplate template, Step step,
         IReadOnlyDictionary<string, object>? parentValues)
     {
-        var values = step.TemplateValues ?? [];
-
-        var duplicates = values
-            .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToArray();
-
-        if (duplicates.Length > 0)
-            throw new ArgumentException(
-                $"Duplicate template parameters '{string.Join(", ", duplicates)}' for step '{step.Name}'");
-
-        var providedValues = values.ToDictionary(v => v.Name, v => v.Value, StringComparer.OrdinalIgnoreCase);
+        var providedValues =
+            new Dictionary<string, object>(step.TemplateValues ?? [], StringComparer.OrdinalIgnoreCase);
         providedValues.TryAdd("prefix", GetPrefix(step.Name));
 
         var resolvedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

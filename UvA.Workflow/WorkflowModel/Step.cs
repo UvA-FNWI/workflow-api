@@ -193,7 +193,7 @@ public class Step : INamed, IDeclaredKeys
     /// Parameter values passed to the resolved template
     /// </summary>
     [YamlMember(Alias = "values")]
-    public List<TemplateValue>? TemplateValues { get; set; }
+    public Dictionary<string, object>? TemplateValues { get; set; }
 
     /// <summary>
     /// The fully resolved template parameter values (including inherited/default values) after template
@@ -275,6 +275,7 @@ public class Step : INamed, IDeclaredKeys
         .. Ends?.Properties ?? [],
         .. Condition?.Properties ?? [],
         .. Deadline?.Properties ?? [],
+        .. Progress.SelectMany(progress => progress.Lookups),
         .. Children.SelectMany(c => c.Lookups)
     ];
 
