@@ -62,15 +62,6 @@
         "type": "string"
       }
     },
-    "headerStatus": {
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/StepHeaderStatusConfiguration"
-      }
-    },
     "condition": {
       "description": "Condition requires for this step to start",
       "oneOf": [
@@ -189,6 +180,16 @@
             }
           ]
         },
+        "header": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/ProgressHeader"
+            }
+          ]
+        },
         "event": {
           "type": [
             "null",
@@ -217,6 +218,39 @@
       "enum": [
         "Red",
         "Green"
+      ]
+    },
+    "ProgressHeader": {
+      "title": "ProgressHeader",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/StepHeaderPillType"
+        },
+        "label": {
+          "description": "Optional pill label. Defaults to the progress text of the enclosing entry.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "StepHeaderPillType": {
+      "type": "string",
+      "enum": [
+        "Info",
+        "Attention",
+        "Success",
+        "Error"
       ]
     },
     "Condition": {
@@ -500,59 +534,6 @@
             "CollapsibleRows"
           ]
         }
-      ]
-    },
-    "StepHeaderStatusConfiguration": {
-      "title": "StepHeaderStatusConfiguration",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "label"
-      ],
-      "properties": {
-        "type": {
-          "$ref": "#/definitions/StepHeaderPillType"
-        },
-        "label": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "event": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Shorthand for a condition that applies when a single event is active.\n            For arbitrary logic use <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Condition\"/> instead."
-        },
-        "condition": {
-          "description": "Condition that determines whether this configuration applies. Takes precedence over\n            <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Event\"/> when set. Omit both properties for an unconditional configuration.",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        }
-      }
-    },
-    "StepHeaderPillType": {
-      "type": "string",
-      "enum": [
-        "Info",
-        "Attention",
-        "Success",
-        "Error"
       ]
     },
     "Deadline": {

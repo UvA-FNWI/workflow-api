@@ -91,6 +91,29 @@ Then use the link in `UvA.Workflow.Api/appsettings.local.json`:
 ```
 
 The `milestones-config` link and `appsettings.local.json` are ignored by Git.
+With `WorkflowSource:LocalPath` set, the API loads that checkout at startup. Automatic reloads are disabled by default.
+To enable them for your own development session, add `WatchLocalChanges` to your ignored
+`UvA.Workflow.Api/appsettings.local.json` file:
+
+```json
+{
+  "WorkflowSource": {
+    "LocalPath": "../milestones-config",
+    "WatchLocalChanges": true
+  }
+}
+```
+
+Restart the API after changing this setting. While enabled, local file changes reload workflow config;
+refresh the browser to see the updated config. Set `WatchLocalChanges` to `false` (or remove it) and restart
+the API to disable automatic reloads. The watcher requires `LocalPath` to be set.
+
+To also refresh connected browsers after a successful reload, set `VITE_AUTO_REFRESH_CONFIG=true`
+in workflow-ui's ignored `.env.local` and restart its development server. The UI subscribes to the
+authenticated `/Versions/Events` stream, which is available only with local watching enabled.
+On each update, it invalidates API cache tags and refetches active data without reloading the page.
+Named preview pages are unaffected by baseline changes. See the workflow-ui README for details.
+
 ## Configuration
 
 Application settings live under `UvA.Workflow.Api`. The API reads the normal ASP.NET Core configuration sources and also optionally loads `appsettings.local.json` for local overrides.
