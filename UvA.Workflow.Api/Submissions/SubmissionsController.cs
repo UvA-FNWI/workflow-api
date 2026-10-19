@@ -138,6 +138,18 @@ public class SubmissionsController(
                     continue;
                 }
 
+                if (question.DataType == DataType.File)
+                {
+                    if (!question.IsRequired) continue;
+
+                    var dummyFile = dummyAnswerGenerator.GenerateFile(question, instance.Id);
+                    await answerService.SaveArtifact(
+                        new QuestionContext(instance, submissionState, form, question), dummyFile, ct);
+                    filledQuestionIds.Add(questionName);
+                    anyNewVisibleQuestions = true;
+                    continue;
+                }
+
                 var dummyAnswer = dummyAnswerGenerator.Generate(question, status, lastGeneratedDate);
 
                 if (dummyAnswer == null) continue;
