@@ -4,8 +4,7 @@ properties:
     text:
       en: Fieldwork EC
       nl: Veldwerk EC
-    layout:
-      type: RadioList
+    layout: RadioList
     values:
       - name: "12"
         text:

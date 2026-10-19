@@ -27,8 +27,7 @@ properties:
     text:
       en: I have checked the work for fraud and plagiarism
       nl: Ik heb het werk gecontroleerd op fraude en plagiaat
-    layout:
-      type: RadioList
+    layout: RadioList
     values:
       - name: Checked
         text:
@@ -41,8 +40,7 @@ properties:
     text:
       en: Abstract
       nl: Abstract
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -51,8 +49,7 @@ properties:
     text:
       en: Introduction
       nl: Inleiding
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -61,8 +58,7 @@ properties:
     text:
       en: Methods
       nl: Methods
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 10
 
@@ -71,8 +67,7 @@ properties:
     text:
       en: Results
       nl: Resultaten
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 10  
 
@@ -81,8 +76,7 @@ properties:
     text:
       en: Discussion and conclusion
       nl: Discussie en conclusie
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -91,8 +85,7 @@ properties:
     text:
       en: Readability
       nl: Leesbaarheid
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -101,8 +94,7 @@ properties:
     text:
       en: Comments
       nl: Toelichting
-    layout:
-      multiline: true
+    multiline: true
 
   # Process
   - name: ProcessPreparationMethodology
@@ -110,8 +102,7 @@ properties:
     text:
       en: Preparation & methodology
       nl: Voorbereiding & methodologie
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -120,8 +111,7 @@ properties:
     text:
       en: Experimental / analytical / programming skills
       nl: Experimentele / analytische / programmeervaardigheden
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -130,8 +120,7 @@ properties:
     text:
       en: Reliability and reproducibility
       nl: Betrouwbaarheid en reproduceerbaarheid
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -140,8 +129,7 @@ properties:
     text:
       en: Interpreting results
       nl: Interpreteren van resultaten
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -150,8 +138,7 @@ properties:
     text:
       en: Independence and initiative
       nl: Zelfstandigheid en initiatief
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -160,8 +147,7 @@ properties:
     text:
       en: Communication and collaboration
       nl: Communicatie en samenwerking
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -170,8 +156,7 @@ properties:
     text:
       en: Planning and time management
       nl: Planning en tijdmanagement
-    layout:
-      type: Dropdown
+    layout: Dropdown
     calculation: 
       weight: 5
 
@@ -206,24 +191,21 @@ properties:
     text:
       en: Comments
       nl: Toelichting
-    layout:
-      multiline: true
+    multiline: true
 
   - name: Laudatio
     type: String!
     text:
       en: Laudatio
       nl: Laudatio
-    layout:
-      multiline: true
+    multiline: true
 
   - name: ConsentExaminerName
     type: ConsentExaminerNameType!
     text:
       en: May your name appear in the database at scripties.uva.nl if the thesis is published?
       nl: Mag jouw naam in de database van scripties.uva.nl komen als de scriptie wordt gepubliceerd?
-    layout:
-      type: RadioList
+    layout: RadioList
     values:
       - name: Yes
         text:

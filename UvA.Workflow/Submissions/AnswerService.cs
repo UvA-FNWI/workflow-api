@@ -217,10 +217,10 @@ public class AnswerService(
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, propertyDefinition.Name);
 
         var fileName = formFile.FileName;
-        if (file.FileSettings?.PrefixTemplate != null)
+        if (file.PrefixTemplate != null)
         {
             var templateContext = modelService.CreateContext(instance);
-            fileName = $"{file.FileSettings.PrefixTemplate.Execute(templateContext)}{formFile.FileName}";
+            fileName = $"{file.PrefixTemplate.Execute(templateContext)}{formFile.FileName}";
         }
 
         var artifactInfo = await artifactService.SaveArtifact(artifactId, fileName, formFile.OpenReadStream(),
@@ -232,16 +232,16 @@ public class AnswerService(
     private static void ValidateFile(FilePropertyDefinition propertyDefinition, BsonValue? currentAnswer,
         string fileName, long fileSize)
     {
-        if (propertyDefinition.EffectiveAllowedFileTypes.All(fileType => fileType != "*" &&
-                                                                         !fileName.EndsWith($".{fileType}",
-                                                                             StringComparison.OrdinalIgnoreCase)))
+        if (propertyDefinition.AllowedTypes.All(fileType => fileType != "*" &&
+                                                            !fileName.EndsWith($".{fileType}",
+                                                                StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException(
                 $"File '{fileName}' does not have an allowed file type for property '{propertyDefinition.Name}'");
 
         var existingSize = propertyDefinition.IsArray && currentAnswer is BsonArray array
             ? array.Sum(file => ArtifactInfo.FromBson(file)?.Length ?? 0)
             : 0;
-        if (fileSize + existingSize > propertyDefinition.EffectiveAllowedFileSize)
+        if (fileSize + existingSize > propertyDefinition.MaximumSize)
             throw new ArgumentException(
                 $"File '{fileName}' exceeds the maximum file size for property '{propertyDefinition.Name}'");
     }

@@ -65,12 +65,16 @@ public record StringQuestionDto : QuestionDto
 {
     public StringQuestionDto(StringPropertyDefinition property) : base(property)
     {
-        Layout = property.Layout;
+        Multiline = property.Multiline;
+        AllowAttachments = property.AllowAttachments;
+        Variant = property.Variant;
         MaxLength = property.Validation.GetAllValues().Select(v => v.MaxLength).FirstOrDefault(v => v != null);
         MinLength = property.Validation.GetAllValues().Select(v => v.MinLength).FirstOrDefault(v => v != null);
     }
 
-    public TextLayoutOptions? Layout { get; init; }
+    public bool Multiline { get; init; }
+    public bool AllowAttachments { get; init; }
+    public StringVariant? Variant { get; init; }
     public int? MaxLength { get; init; }
     public int? MinLength { get; init; }
 }
@@ -121,8 +125,8 @@ public record FileQuestionDto : QuestionDto
 {
     public FileQuestionDto(FilePropertyDefinition property) : base(property)
     {
-        AllowedFileTypes = property.EffectiveAllowedFileTypes;
-        AllowedFileSize = property.EffectiveAllowedFileSize;
+        AllowedFileTypes = property.AllowedTypes;
+        AllowedFileSize = property.MaximumSize;
     }
 
     public IReadOnlyList<string> AllowedFileTypes { get; init; }
@@ -151,7 +155,7 @@ public record ChoiceQuestionDto : WeightedQuestionDto
     }
 
     public ChoiceDto[] Choices { get; init; }
-    public ChoiceLayoutOptions? Layout { get; init; }
+    public ChoiceLayoutType? Layout { get; init; }
     public List<RubricEntryDto>? Rubric { get; init; }
     public ValueSetSorting? Sorting { get; init; }
 }
@@ -165,7 +169,7 @@ public record ReferenceQuestionDto : QuestionDto
     }
 
     public string? WorkflowDefinition { get; init; }
-    public ChoiceLayoutOptions? Layout { get; init; }
+    public ChoiceLayoutType? Layout { get; init; }
 }
 
 public record ObjectQuestionDto : QuestionDto
@@ -178,7 +182,7 @@ public record ObjectQuestionDto : QuestionDto
     }
 
     public string? WorkflowDefinition { get; init; }
-    public TableLayoutOptions? Layout { get; init; }
+    public TableLayout? Layout { get; init; }
     public QuestionDto[]? SubProperties { get; init; }
 }
 

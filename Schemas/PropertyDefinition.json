@@ -14,14 +14,22 @@
         "type"
       ],
       "properties": {
-        "layout": {
+        "multiline": {
+          "type": "boolean",
+          "description": "Show a multiline text field."
+        },
+        "allowAttachments": {
+          "type": "boolean",
+          "description": "Allow attachments in the text field."
+        },
+        "variant": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Layout options for text input.",
-              "$ref": "#/definitions/TextLayoutOptions"
+              "description": "Render an email or phone input with matching validation; omitted for ordinary text.",
+              "$ref": "#/definitions/StringVariant"
             }
           ]
         },
@@ -158,32 +166,6 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
-        }
-      }
-    },
-    "TextLayoutOptions": {
-      "title": "TextLayoutOptions",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "multiline": {
-          "type": "boolean",
-          "description": "Set if the field should be a multiline text field"
-        },
-        "allowAttachments": {
-          "type": "boolean",
-          "description": "Set if the text field should allow attachments"
-        },
-        "variant": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Renders the string field as a specific input (e.g. email or phone) with matching validation",
-              "$ref": "#/definitions/StringVariant"
-            }
-          ]
         }
       }
     },
@@ -1839,16 +1821,24 @@
         "type"
       ],
       "properties": {
-        "fileSettings": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Configure settings for file upload questions",
-              "$ref": "#/definitions/FileSettings"
-            }
-          ]
+        "prefix": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Prefix (template) to add to the file names when storing files"
+        },
+        "allowedTypes": {
+          "type": "array",
+          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Use * to allow any format.\n            Defaults to pdf when omitted.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maximumSize": {
+          "type": "integer",
+          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.",
+          "default": 10000000
         },
         "name": {
           "type": "string",
@@ -1983,37 +1973,6 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
-        }
-      }
-    },
-    "FileSettings": {
-      "title": "FileSettings",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "prefix": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Prefix (template) to add to the file names when storing files"
-        },
-        "allowedTypes": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Use * to allow any format.\n            Defaults to pdf when omitted.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "maximumSize": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted."
         }
       }
     },
@@ -2196,8 +2155,8 @@
               "type": "null"
             },
             {
-              "description": "Layout options for choice input.",
-              "$ref": "#/definitions/ChoiceLayoutOptions"
+              "description": "Layout for choice input; omitted to use the default control.",
+              "$ref": "#/definitions/ChoiceLayoutType"
             }
           ]
         },
@@ -2455,24 +2414,6 @@
         }
       }
     },
-    "ChoiceLayoutOptions": {
-      "title": "ChoiceLayoutOptions",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Set if the field should be shown as dropdown or radio list",
-              "$ref": "#/definitions/ChoiceLayoutType"
-            }
-          ]
-        }
-      }
-    },
     "ChoiceLayoutType": {
       "type": "string",
       "enum": [
@@ -2528,8 +2469,8 @@
               "type": "null"
             },
             {
-              "description": "Layout options for reference selection.",
-              "$ref": "#/definitions/ChoiceLayoutOptions"
+              "description": "Layout for reference selection; omitted to use the default control.",
+              "$ref": "#/definitions/ChoiceLayoutType"
             }
           ]
         },
@@ -2740,8 +2681,8 @@
               "type": "null"
             },
             {
-              "description": "Layout options for embedded objects.",
-              "$ref": "#/definitions/TableLayoutOptions"
+              "description": "Layout for embedded objects; omitted to use the default control.",
+              "$ref": "#/definitions/TableLayout"
             }
           ]
         },
@@ -2912,24 +2853,6 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
-        }
-      }
-    },
-    "TableLayoutOptions": {
-      "title": "TableLayoutOptions",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Sets if the table should allow inline editing or not",
-              "$ref": "#/definitions/TableLayout"
-            }
-          ]
         }
       }
     },

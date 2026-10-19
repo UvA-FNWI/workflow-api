@@ -36,7 +36,7 @@ public class DummyAnswerGenerator
     /// </summary>
     public ArtifactInfo GenerateFile(FilePropertyDefinition question, string instanceId)
     {
-        var extension = question.EffectiveAllowedFileTypes?.FirstOrDefault(type => type != "*") ?? "pdf";
+        var extension = question.AllowedTypes.FirstOrDefault(type => type != "*") ?? "pdf";
         var fileName = $"dummy-file.{extension}";
         if (!ContentTypeProvider.TryGetContentType(fileName, out var contentType))
             contentType = "application/octet-stream";

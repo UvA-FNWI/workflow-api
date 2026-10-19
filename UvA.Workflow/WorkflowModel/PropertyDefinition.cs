@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -23,44 +24,10 @@ public enum TableLayout
     Modal
 }
 
-public class ChoiceLayoutOptions
-{
-    /// <summary>
-    /// Set if the field should be shown as dropdown or radio list
-    /// </summary>
-    public ChoiceLayoutType? Type { get; set; }
-}
-
 public enum StringVariant
 {
     Email,
     Phone
-}
-
-public class TextLayoutOptions
-{
-    /// <summary>
-    /// Set if the field should be a multiline text field
-    /// </summary>
-    public bool Multiline { get; set; }
-
-    /// <summary>
-    /// Set if the text field should allow attachments
-    /// </summary>
-    public bool AllowAttachments { get; set; }
-
-    /// <summary>
-    /// Renders the string field as a specific input (e.g. email or phone) with matching validation
-    /// </summary>
-    public StringVariant? Variant { get; set; }
-}
-
-public class TableLayoutOptions
-{
-    /// <summary>
-    /// Sets if the table should allow inline editing or not
-    /// </summary>
-    public TableLayout? Type { get; set; }
 }
 
 /// <summary>
@@ -179,8 +146,14 @@ public class StringPropertyDefinition : PropertyDefinition
 {
     public override DataType DataType => DataType.String;
 
-    /// <summary>Layout options for text input.</summary>
-    public TextLayoutOptions? Layout { get; set; }
+    /// <summary>Show a multiline text field.</summary>
+    public bool Multiline { get; set; }
+
+    /// <summary>Allow attachments in the text field.</summary>
+    public bool AllowAttachments { get; set; }
+
+    /// <summary>Render an email or phone input with matching validation; omitted for ordinary text.</summary>
+    public StringVariant? Variant { get; set; }
 }
 
 /// <summary>Calendar date, also used for step deadlines and postponement limits.</summary>
@@ -222,16 +195,29 @@ public class CurrencyPropertyDefinition : WeightedPropertyDefinition
 /// <summary>Uploaded file with configurable allowed file types and size limits.</summary>
 public class FilePropertyDefinition : PropertyDefinition
 {
+    private const int DefaultMaximumSize = 10_000_000;
+
     public override DataType DataType => DataType.File;
 
     /// <summary>
-    /// Configure settings for file upload questions
+    /// Prefix (template) to add to the file names when storing files
     /// </summary>
-    public FileSettings? FileSettings { get; set; }
+    public string? Prefix { get; set; }
 
-    public IReadOnlyList<string> EffectiveAllowedFileTypes => FileSettings?.AllowedTypes ?? ["pdf"];
+    public Template? PrefixTemplate => Template.Create(Prefix);
 
-    public int EffectiveAllowedFileSize => FileSettings?.MaximumSize ?? 10_000_000;
+    /// <summary>
+    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Use * to allow any format.
+    /// Defaults to pdf when omitted.
+    /// </summary>
+    public string[] AllowedTypes { get; set; } = ["pdf"];
+
+    /// <summary>
+    /// Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.
+    /// </summary>
+    [DefaultValue(DefaultMaximumSize)]
+    public int MaximumSize { get; set; } = DefaultMaximumSize;
 }
 
 /// <summary>User account selection, optionally allowing external users.</summary>
@@ -257,8 +243,8 @@ public class ChoicePropertyDefinition : WeightedPropertyDefinition
     [YamlIgnore]
     public ValueSetSorting? Sorting { get; set; }
 
-    /// <summary>Layout options for choice input.</summary>
-    public ChoiceLayoutOptions? Layout { get; set; }
+    /// <summary>Layout for choice input; omitted to use the default control.</summary>
+    public ChoiceLayoutType? Layout { get; set; }
 
     /// <summary>Rubric entries that describe grading criteria for this property.</summary>
     public List<RubricEntry>? Rubric { get; set; }
@@ -278,8 +264,8 @@ public class ReferencePropertyDefinition : WorkflowPropertyDefinition
 {
     public override DataType DataType => DataType.Reference;
 
-    /// <summary>Layout options for reference selection.</summary>
-    public ChoiceLayoutOptions? Layout { get; set; }
+    /// <summary>Layout for reference selection; omitted to use the default control.</summary>
+    public ChoiceLayoutType? Layout { get; set; }
 
     /// <summary>Roles inherited from the referenced instance.</summary>
     public string[] InheritedRoles { get; set; } = [];
@@ -296,30 +282,8 @@ public class ObjectPropertyDefinition : WorkflowPropertyDefinition
 {
     public override DataType DataType => DataType.Object;
 
-    /// <summary>Layout options for embedded objects.</summary>
-    public TableLayoutOptions? Layout { get; set; }
-}
-
-public class FileSettings
-{
-    /// <summary>
-    /// Prefix (template) to add to the file names when storing files
-    /// </summary>
-    public string? Prefix { get; set; }
-
-    public Template? PrefixTemplate => Template.Create(Prefix);
-
-    /// <summary>
-    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
-    /// Use * to allow any format.
-    /// Defaults to pdf when omitted.
-    /// </summary>
-    public string[]? AllowedTypes { get; set; }
-
-    /// <summary>
-    /// Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.
-    /// </summary>
-    public int? MaximumSize { get; set; }
+    /// <summary>Layout for embedded objects; omitted to use the default control.</summary>
+    public TableLayout? Layout { get; set; }
 }
 
 public enum CalculationType

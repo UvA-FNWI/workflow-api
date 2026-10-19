@@ -14,12 +14,13 @@ public partial class ModelParser
     /// </summary>
     private static void NormalizeAllowedFileTypes(FilePropertyDefinition propertyDefinition)
     {
-        if (propertyDefinition.FileSettings?.AllowedTypes == null)
-            return;
+        if (propertyDefinition.AllowedTypes == null)
+            throw new Exception(
+                $"Property '{propertyDefinition.Name}' contains invalid allowedTypes; null is not allowed");
 
         // Store extensions without a leading dot; upload validation adds the separator when
         // comparing each configured extension with the end of the uploaded filename.
-        var normalized = propertyDefinition.FileSettings.AllowedTypes
+        var normalized = propertyDefinition.AllowedTypes
             .Select(fileType => fileType.Trim())
             .Select(fileType => fileType.TrimStart('.'))
             .Select(fileType => fileType.ToLowerInvariant())
@@ -32,22 +33,19 @@ public partial class ModelParser
                 fileType.Length < 1 || (fileType != "*" && fileType.Any(character =>
                     !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_' and not '+'))))
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' contains invalid allowedFileTypes; use file extensions such as pdf or zip, or * for any format");
+                $"Property '{propertyDefinition.Name}' contains invalid allowedTypes; use file extensions such as pdf or zip, or * for any format");
 
-        propertyDefinition.FileSettings.AllowedTypes = normalized;
+        propertyDefinition.AllowedTypes = normalized;
     }
 
     /// <summary>
-    /// Validates an explicitly configured upload limit. The value is expressed in bytes and
-    /// must be positive; the effective default for file properties is applied elsewhere.
+    /// Validates the upload limit, including its default. The value is expressed in bytes
+    /// and must be positive.
     /// </summary>
     private static void ValidateAllowedFileSize(FilePropertyDefinition propertyDefinition)
     {
-        if (propertyDefinition.FileSettings?.MaximumSize == null)
-            return;
-
-        if (propertyDefinition.FileSettings.MaximumSize <= 0)
+        if (propertyDefinition.MaximumSize <= 0)
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' contains an invalid allowedFileSize; use a positive number of bytes");
+                $"Property '{propertyDefinition.Name}' contains an invalid maximumSize; use a positive number of bytes");
     }
 }

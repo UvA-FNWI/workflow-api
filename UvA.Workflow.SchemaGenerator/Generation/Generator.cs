@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using NJsonSchema;
 using NJsonSchema.References;
@@ -105,7 +106,8 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
     private bool IsRequired(PropertyInfo property)
     {
         var isNullable = _nullabilityInfoContext.Create(property).WriteState == NullabilityState.Nullable;
-        return !isNullable && property.PropertyType is { IsEnum: false, IsArray: false }
+        return !isNullable && property.GetCustomAttribute<DefaultValueAttribute>() == null
+                           && property.PropertyType is { IsEnum: false, IsArray: false }
                            && property.PropertyType != typeof(bool)
                            && property.PropertyType.Name != "List`1"
                            && property.PropertyType.Name != "Dictionary`2";
@@ -232,6 +234,7 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
         };
 
         basicProp.Description = documentationReader.GetSummary(property);
+        basicProp.Default = property.GetCustomAttribute<DefaultValueAttribute>()?.Value;
 
         if (!isNullable || basicProp.OneOf.Any())
             return basicProp;

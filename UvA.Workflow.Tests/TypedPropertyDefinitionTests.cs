@@ -25,10 +25,13 @@ public class TypedPropertyDefinitionTests
     }
 
     [Theory]
-    [InlineData("Date", "fileSettings: { allowedTypes: [pdf] }")]
+    [InlineData("Date", "allowedTypes: [pdf]")]
+    [InlineData("String", "maximumSize: 1000")]
+    [InlineData("Date", "prefix: report_")]
     [InlineData("File", "allowsExternalUsers: true")]
-    [InlineData("Date", "layout: { multiline: true }")]
-    [InlineData("String", "layout: { type: RadioList }")]
+    [InlineData("Date", "multiline: true")]
+    [InlineData("String", "layout: RadioList")]
+    [InlineData("Country", "values: [{ name: NL }]\nvariant: Email")]
     [InlineData("Country", "values: [{ name: NL }]\nfilter: Title")]
     [InlineData("Date", "calculation: { weight: 1 }")]
     [InlineData("String", "calculation: { weight: 1 }")]
@@ -72,10 +75,10 @@ public class TypedPropertyDefinitionTests
                                         - name: Course
                                           type: '[Context]!'
                                           inheritedRoles: [Coordinator]
-                                          layout: { type: RadioList }
+                                          layout: RadioList
                                         - name: Assessment
                                           type: '[Assessment]'
-                                          layout: { type: Modal }
+                                          layout: Modal
                                       """,
             ["Context/Entity.yaml"] = "name: Context",
             ["Assessment/Entity.yaml"] = "name: Assessment\ninheritsFrom: BaseAssessment",
@@ -89,30 +92,80 @@ public class TypedPropertyDefinitionTests
         Assert.True(reference.IsRequired);
         Assert.Same(parser.WorkflowDefinitions["Context"], reference.WorkflowDefinition);
         Assert.Equal("Coordinator", Assert.Single(reference.InheritedRoles));
-        Assert.Equal(ChoiceLayoutType.RadioList, reference.Layout!.Type);
+        Assert.Equal(ChoiceLayoutType.RadioList, reference.Layout);
 
         var embedded = Assert.IsType<ObjectPropertyDefinition>(properties.Get("Assessment"));
         Assert.Equal(DataType.Object, embedded.DataType);
         Assert.Same(parser.WorkflowDefinitions["Assessment"], embedded.WorkflowDefinition);
-        Assert.Equal(TableLayout.Modal, embedded.Layout!.Type);
+        Assert.Equal(TableLayout.Modal, embedded.Layout);
     }
 
     [Fact]
-    public void Parser_ReadsTextAndChoiceLayoutsAsTypedSettings()
+    public void Parser_ReadsFlattenedTextSettingsAndChoiceLayout()
     {
         var text = Assert.IsType<StringPropertyDefinition>(ParseProperty(
-            "name: Notes\ntype: String\nlayout: { multiline: true, allowAttachments: true }"));
-        Assert.True(text.Layout!.Multiline);
-        Assert.True(text.Layout.AllowAttachments);
-        Assert.Null(text.Layout.Variant);
+            "name: Notes\ntype: String\nmultiline: true\nallowAttachments: true"));
+        Assert.True(text.Multiline);
+        Assert.True(text.AllowAttachments);
+        Assert.Null(text.Variant);
 
         var choice = Assert.IsType<ChoicePropertyDefinition>(ParseProperty(
-            "name: Country\ntype: Country\nvalues: [{ name: NL }]\nlayout: { type: RadioList }"));
-        Assert.Equal(ChoiceLayoutType.RadioList, choice.Layout!.Type);
+            "name: Country\ntype: Country\nvalues: [{ name: NL }]\nlayout: RadioList"));
+        Assert.Equal(ChoiceLayoutType.RadioList, choice.Layout);
 
         var defaultLayout = Assert.IsType<ChoicePropertyDefinition>(ParseProperty(
-            "name: Country\ntype: Country\nvalues: [{ name: NL }]\nlayout: {}"));
-        Assert.Null(defaultLayout.Layout!.Type);
+            "name: Country\ntype: Country\nvalues: [{ name: NL }]"));
+        Assert.Null(defaultLayout.Layout);
+    }
+
+    [Fact]
+    public void Parser_UsesFileDefaultsWhenLimitsAreOmitted()
+    {
+        var file = Assert.IsType<FilePropertyDefinition>(ParseProperty("name: Report\ntype: File"));
+
+        Assert.Equal(["pdf"], file.AllowedTypes);
+        Assert.Equal(10_000_000, file.MaximumSize);
+    }
+
+    [Theory]
+    [InlineData("allowedTypes: null")]
+    [InlineData("allowedTypes: []")]
+    [InlineData("maximumSize: null")]
+    [InlineData("maximumSize: 0")]
+    [InlineData("maximumSize: -1")]
+    public void Parser_RejectsInvalidFileLimits(string settings)
+        => Assert.Throws<Exception>(() => ParseProperty($"name: Report\ntype: File\n{settings}"));
+
+    [Fact]
+    public void Parser_ReadsFlattenedFileConstraintsAndPrefix()
+    {
+        var file = Assert.IsType<FilePropertyDefinition>(ParseProperty(
+            "name: Report\ntype: File\nallowedTypes: [' .PDF ', pdf, '.ZIP']\nmaximumSize: 1000\nprefix: report_"));
+
+        Assert.Equal(["pdf", "zip"], file.AllowedTypes);
+        Assert.Equal(1000, file.MaximumSize);
+        Assert.Equal("report_", file.Prefix);
+        Assert.NotNull(file.PrefixTemplate);
+    }
+
+    [Theory]
+    [InlineData("String", "layout: { multiline: true }")]
+    [InlineData("Country", "values: [{ name: NL }]\nlayout: { type: RadioList }")]
+    [InlineData("File", "fileSettings: { allowedTypes: [pdf] }")]
+    public void Parser_RejectsNestedPropertySettings(string type, string settings)
+        => Assert.Throws<Exception>(() => ParseProperty($"name: Value\ntype: {type}\n{settings}"));
+
+    [Theory]
+    [InlineData("Email", StringVariant.Email)]
+    [InlineData("Phone", StringVariant.Phone)]
+    public void Parser_ReadsTextVariant(string variant, StringVariant expected)
+    {
+        var property = Assert.IsType<StringPropertyDefinition>(ParseProperty(
+            $"name: Contact\ntype: String\nvariant: {variant}"));
+
+        Assert.Equal(expected, property.Variant);
+        Assert.False(property.Multiline);
+        Assert.False(property.AllowAttachments);
     }
 
     private static PropertyDefinition ParseProperty(string yaml)

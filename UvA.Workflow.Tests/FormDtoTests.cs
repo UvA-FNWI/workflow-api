@@ -59,11 +59,8 @@ public class FormDtoTests
             Name = "Archive",
             Type = "File",
             ParentType = definition,
-            FileSettings = new()
-            {
-                AllowedTypes = ["zip", "tar.gz"],
-                MaximumSize = 25_000_000
-            }
+            AllowedTypes = ["zip", "tar.gz"],
+            MaximumSize = 25_000_000
         };
         var defaulted = new FilePropertyDefinition
         {
@@ -82,7 +79,7 @@ public class FormDtoTests
     }
 
     [Fact]
-    public void TypedLayout_SerializesExistingQuestionFields()
+    public void TextSettings_SerializeDirectlyOnQuestion()
     {
         var parent = new WorkflowDefinition { Name = "Project" };
         var property = new StringPropertyDefinition
@@ -90,15 +87,15 @@ public class FormDtoTests
             Name = "Notes",
             Type = "String",
             ParentType = parent,
-            Layout = new TextLayoutOptions { Multiline = true, Variant = StringVariant.Email }
+            Multiline = true, AllowAttachments = true, Variant = StringVariant.Email
         };
         var question = QuestionDto.Create(property, 0);
         var json = JsonSerializer.SerializeToElement(question, CreateJsonOptions());
 
-        var layout = json.GetProperty("layout");
-        Assert.True(layout.GetProperty("multiline").GetBoolean());
-        Assert.Equal("Email", layout.GetProperty("variant").GetString());
-        Assert.False(layout.TryGetProperty("$type", out _));
+        Assert.True(json.GetProperty("multiline").GetBoolean());
+        Assert.True(json.GetProperty("allowAttachments").GetBoolean());
+        Assert.Equal("Email", json.GetProperty("variant").GetString());
+        Assert.False(json.TryGetProperty("layout", out _));
     }
 
     [Fact]
@@ -124,17 +121,17 @@ public class FormDtoTests
             new ChoicePropertyDefinition
             {
                 Name = "Grade", Type = "Grade", Values = [new Choice { Name = "Pass" }],
-                Layout = new ChoiceLayoutOptions { Type = ChoiceLayoutType.RadioList }
+                Layout = ChoiceLayoutType.RadioList
             },
             new ReferencePropertyDefinition
             {
                 Name = "Course", Type = "Context", WorkflowDefinition = new WorkflowDefinition { Name = "Context" },
-                Layout = new ChoiceLayoutOptions { Type = ChoiceLayoutType.ComboBox }
+                Layout = ChoiceLayoutType.ComboBox
             },
             new ObjectPropertyDefinition
             {
                 Name = "Assessment", Type = "Assessment", WorkflowDefinition = childDefinition,
-                Layout = new TableLayoutOptions { Type = TableLayout.Modal }
+                Layout = TableLayout.Modal
             }
         ];
         foreach (var property in properties)
@@ -168,7 +165,7 @@ public class FormDtoTests
             ["Check"] = [],
             ["Currency"] = ["weight", "percentage"],
             ["File"] = ["allowedFileTypes", "allowedFileSize"],
-            ["String"] = ["layout", "minLength", "maxLength"],
+            ["String"] = ["multiline", "allowAttachments", "variant", "minLength", "maxLength"],
             ["User"] = ["allowsExternalUsers"],
             ["Choice"] = ["weight", "percentage", "layout", "choices", "rubric", "sorting"],
             ["Reference"] = ["layout", "workflowDefinition"],
@@ -185,12 +182,16 @@ public class FormDtoTests
         Assert.Equal("pdf", questions["File"].GetProperty("allowedFileTypes")[0].GetString());
         Assert.True(questions["User"].GetProperty("allowsExternalUsers").GetBoolean());
         Assert.Equal("Pass", questions["Choice"].GetProperty("choices")[0].GetProperty("name").GetString());
-        Assert.Equal("RadioList", questions["Choice"].GetProperty("layout").GetProperty("type").GetString());
-        Assert.Equal("ComboBox", questions["Reference"].GetProperty("layout").GetProperty("type").GetString());
-        Assert.Equal("Modal", questions["Object"].GetProperty("layout").GetProperty("type").GetString());
+        Assert.Equal("RadioList", questions["Choice"].GetProperty("layout").GetString());
+        Assert.Equal("ComboBox", questions["Reference"].GetProperty("layout").GetString());
+        Assert.Equal("Modal", questions["Object"].GetProperty("layout").GetString());
         var child = questions["Object"].GetProperty("subProperties")[0];
         Assert.Equal("String", child.GetProperty("type").GetString());
         Assert.True(child.TryGetProperty("maxLength", out _));
+        Assert.False(child.GetProperty("multiline").GetBoolean());
+        Assert.False(child.GetProperty("allowAttachments").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, child.GetProperty("variant").ValueKind);
+        Assert.False(child.TryGetProperty("layout", out _));
         Assert.False(child.TryGetProperty("allowedFileTypes", out _));
         Assert.False(child.TryGetProperty("weight", out _));
         Assert.False(child.TryGetProperty("percentage", out _));

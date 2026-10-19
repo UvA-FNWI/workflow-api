@@ -24,15 +24,13 @@ properties:
     text:
       en: Topic
       nl: Onderwerp
-    layout:
-      multiline: true
+    multiline: true
   - name: PartAbroad
     type: PartAbroadType!
     text:
       en: Will part of the project take place abroad?
       nl: Zal een deel van het project in het buitenland plaatsvinden?
-    layout:
-      type: RadioList
+    layout: RadioList
     values:
       - name: Yes
         text:
@@ -48,8 +46,7 @@ properties:
     text:
       en: Country
       nl: Land
-    layout:
-      type: Dropdown
+    layout: Dropdown
     condition:
       value:
         property: PartAbroad
@@ -70,16 +67,14 @@ properties:
     text:
       en: Description of contact person
       nl: Omschrijving van contactpersoon
-    layout:
-      multiline: true
+    multiline: true
 
   - name: ContactPersonEmail
     type: String
     text:
       en: Contact person email
       nl: E-mailadres contactpersoon
-    layout:
-      variant: Email
+    variant: Email
 
   - name: Description
     type: File!
@@ -95,8 +90,7 @@ properties:
     description:
       en: A phone number on which you can be reached in case of an emergency during your research.
       nl: Een telefoonnummer waarop je tijdens je onderzoek bij nood bereikbaar bent.
-    layout:
-      variant: Phone
+    variant: Phone
 
   - name: StartDate
     type: Date!

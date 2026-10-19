@@ -28,8 +28,7 @@ properties:
     text:
       en: Subject
       nl: Onderwerp
-    layout:
-      multiline: true
+    multiline: true
       
   - name: Description
     type: File!
