@@ -267,7 +267,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
             submissionDtoFactory,
             _rightsService,
             stepVersionService,
-            new StepHeaderStatusResolver(_modelService),
+            new StepProgressResolver(_modelService),
             _workflowInstanceService,
             NullLogger<WorkflowInstanceDtoFactory>.Instance,
             _undoService);
