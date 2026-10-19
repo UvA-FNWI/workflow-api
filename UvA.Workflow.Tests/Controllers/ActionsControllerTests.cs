@@ -37,7 +37,7 @@ public class ActionsControllerTests : ControllerTestsBase
                 submissionDtoFactory,
                 _rightsService,
                 new StepVersionService(),
-                new StepHeaderStatusResolver(_modelService),
+                new StepProgressResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
                 _undoService,

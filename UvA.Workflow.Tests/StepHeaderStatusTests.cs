@@ -26,9 +26,9 @@ public class StepHeaderStatusTests
     public void Resolver_ReturnsPendingStatusWhenPendingEventIsActive()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateProjectInstance(("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)));
-        var status = resolver.Resolve(GetStep(modelService, "Subject"), instance);
+        var status = resolver.ResolveHeader(GetStep(modelService, "Subject"), instance);
         var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
 
         Assert.NotNull(status);
@@ -42,13 +42,13 @@ public class StepHeaderStatusTests
     public void Resolver_ReturnsRejectedStatusWhenRejectedEventIsActive()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateProjectInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("RejectSubject", new DateTime(2026, 04, 11, 9, 0, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(GetStep(modelService, "Subject"), instance);
+        var status = resolver.ResolveHeader(GetStep(modelService, "Subject"), instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
@@ -62,18 +62,22 @@ public class StepHeaderStatusTests
     {
         var modelService = CreateExampleModelService();
         var step = GetStep(modelService, "Subject");
-        GetHeaderStatusConfiguration(step, "ApproveSubject").Label = new BilingualString(
-            "Approved and assigned on {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}",
-            "Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}"
-        );
-        var resolver = new StepHeaderStatusResolver(modelService);
+        SetHeader(step, "ApproveSubject", new ProgressHeader
+        {
+            Type = StepHeaderPillType.Success,
+            Label = new BilingualString(
+                "Approved and assigned on {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}",
+                "Goedgekeurd en toegewezen op {{ formatDate(ApproveSubjectEvent, =dd-MM-yyyy) }}")
+        });
+
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateProjectInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("RejectSubject", new DateTime(2026, 04, 11, 9, 0, 0, DateTimeKind.Utc)),
             ("ApproveSubject", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(step, instance);
+        var status = resolver.ResolveHeader(step, instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
@@ -86,13 +90,13 @@ public class StepHeaderStatusTests
     public void Resolver_PrefersPendingWhenRejectedEventIsSuppressedByResubmission()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateProjectInstance(
             ("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)),
             ("RejectSubject", new DateTime(2026, 04, 13, 9, 0, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(GetStep(modelService, "Subject"), instance);
+        var status = resolver.ResolveHeader(GetStep(modelService, "Subject"), instance);
 
         var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
 
@@ -107,10 +111,10 @@ public class StepHeaderStatusTests
     public void Resolver_ReturnsNullWhenStepHasNoHeaderStatusConfiguration()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateProjectInstance(("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)));
 
-        var status = resolver.Resolve(GetStep(modelService, "Upload"), instance);
+        var status = resolver.ResolveHeader(GetStep(modelService, "Upload"), instance);
 
         Assert.Null(status);
     }
@@ -120,11 +124,15 @@ public class StepHeaderStatusTests
     {
         var modelService = CreateExampleModelService();
         var step = GetStep(modelService, "Subject");
-        GetHeaderStatusConfiguration(step, "Start").Type = StepHeaderPillType.Attention;
-        var resolver = new StepHeaderStatusResolver(modelService);
+        SetHeader(step, "Start", new ProgressHeader
+        {
+            Type = StepHeaderPillType.Attention,
+            Label = GetHeader(step, "Start").Label
+        });
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateProjectInstance(("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)));
 
-        var status = resolver.Resolve(step, instance);
+        var status = resolver.ResolveHeader(step, instance);
 
         var deadlineDate = instance.Events["Start"].Date!.Value.AddDays(14);
 
@@ -140,14 +148,17 @@ public class StepHeaderStatusTests
     {
         var modelService = CreateExampleModelService();
         var step = GetStep(modelService, "Subject");
-        GetHeaderStatusConfiguration(step, "Start").Label = new BilingualString(
-            "Submitted on {{ formatDate(StartEvent, =dd-MM-yyyy) }}",
-            "Ingediend op {{ formatDate(StartEvent, =dd-MM-yyyy) }}"
-        );
-        var resolver = new StepHeaderStatusResolver(modelService);
+        SetHeader(step, "Start", new ProgressHeader
+        {
+            Type = GetHeader(step, "Start").Type,
+            Label = new BilingualString(
+                "Submitted on {{ formatDate(StartEvent, =dd-MM-yyyy) }}",
+                "Ingediend op {{ formatDate(StartEvent, =dd-MM-yyyy) }}")
+        });
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateProjectInstance(("Start", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc)));
 
-        var status = resolver.Resolve(step, instance);
+        var status = resolver.ResolveHeader(step, instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
@@ -184,13 +195,13 @@ public class StepHeaderStatusTests
     public void Resolver_RmssProposal_StaysWaitingUntilBothApprovalsArePresent()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateRmssInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+        var status = resolver.ResolveHeader(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
@@ -202,14 +213,14 @@ public class StepHeaderStatusTests
     public void Resolver_RmssProposal_ApprovedOnlyWhenBothReviewersApprove()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateRmssInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalApprovedReviewer", new DateTime(2026, 04, 14, 9, 0, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+        var status = resolver.ResolveHeader(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
@@ -221,14 +232,14 @@ public class StepHeaderStatusTests
     public void Resolver_RmssProposal_WaitsForBothAssessmentsAfterASingleRejection()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateRmssInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalRejectedReviewer", new DateTime(2026, 04, 13, 9, 0, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+        var status = resolver.ResolveHeader(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
@@ -240,7 +251,7 @@ public class StepHeaderStatusTests
     public void Resolver_RmssProposal_ShowsChangesNeededWhenReturnedForRevision()
     {
         var modelService = CreateExampleModelService();
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateRmssInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)),
@@ -248,7 +259,7 @@ public class StepHeaderStatusTests
             ("ProposalReturnedForRevision", new DateTime(2026, 04, 13, 9, 1, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(GetRmssStep(modelService, "ProposalPhase"), instance);
+        var status = resolver.ResolveHeader(GetRmssStep(modelService, "ProposalPhase"), instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
@@ -264,9 +275,9 @@ public class StepHeaderStatusTests
 
         // Replace the header status with an arbitrary Or condition to prove the full
         // condition model (not just AND) is honoured: only one of the two events is active.
-        step.HeaderStatus =
+        step.Progress =
         [
-            new Step.StepHeaderStatusConfiguration
+            new ProgressInformation
             {
                 Condition = new Condition
                 {
@@ -280,23 +291,146 @@ public class StepHeaderStatusTests
                         ]
                     }
                 },
-                Type = StepHeaderPillType.Success,
-                Label = new BilingualString("At least one approval", "Minstens één goedkeuring")
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Success,
+                    Label = new BilingualString("At least one approval", "Minstens één goedkeuring")
+                }
             }
         ];
 
-        var resolver = new StepHeaderStatusResolver(modelService);
+        var resolver = new StepProgressResolver(modelService);
         var instance = CreateRmssInstance(
             ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
             ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc))
         );
 
-        var status = resolver.Resolve(step, instance);
+        var status = resolver.ResolveHeader(step, instance);
 
         Assert.NotNull(status);
         Assert.NotNull(status.Label);
         Assert.Equal(StepHeaderPillType.Success, status!.Type);
         Assert.Equal("At least one approval", status.Label.En);
+    }
+
+    [Fact]
+    public void Resolver_FallsBackToParentDefaultHeaderWhenNoChildEntryMatches()
+    {
+        var modelService = CreateExampleModelService();
+        var parent = GetRmssStep(modelService, "ProposalPhase");
+        var child = GetRmssStep(modelService, "ProposalAssessmentSupervisor");
+        child.Progress = [];
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Info,
+                    Label = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+                }
+            }
+        ];
+
+        var resolver = new StepProgressResolver(modelService);
+        var instance = CreateRmssInstance(("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)));
+
+        var status = resolver.ResolveHeader(child, instance);
+
+        Assert.NotNull(status);
+        Assert.NotNull(status.Label);
+        Assert.Equal(StepHeaderPillType.Info, status!.Type);
+        Assert.Equal("Parent default", status.Label.En);
+        Assert.Equal("Standaard van bovenliggende stap", status.Label.Nl);
+    }
+
+    [Fact]
+    public void Resolver_PrefersChildMatchOverParentDefaultHeader()
+    {
+        var modelService = CreateExampleModelService();
+        var parent = GetRmssStep(modelService, "ProposalPhase");
+        var child = GetRmssStep(modelService, "ProposalAssessmentSupervisor");
+        child.Progress =
+        [
+            new ProgressInformation
+            {
+                Event = "ProposalApprovedSupervisor",
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Success,
+                    Label = new BilingualString("Child match", "Match van onderliggende stap")
+                }
+            }
+        ];
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Info,
+                    Label = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+                }
+            }
+        ];
+
+        var resolver = new StepProgressResolver(modelService);
+        var instance = CreateRmssInstance(
+            ("Start", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedSupervisor", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)));
+
+        var status = resolver.ResolveHeader(child, instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Success, status!.Type);
+        Assert.Equal("Child match", status.Label!.En);
+    }
+
+    [Fact]
+    public void Resolver_UsesParentConditionalHeaderWhenItIsMostRecent()
+    {
+        var modelService = CreateExampleModelService();
+        var parent = GetRmssStep(modelService, "ProposalPhase");
+        var child = GetRmssStep(modelService, "ProposalAssessmentSupervisor");
+        child.Progress =
+        [
+            new ProgressInformation
+            {
+                Event = "ProposalRejectedSupervisor",
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Attention,
+                    Label = new BilingualString("Child rejected", "Afgekeurd door onderliggende stap")
+                }
+            }
+        ];
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Event = "ProposalApprovedReviewer",
+                Header = new ProgressHeader
+                {
+                    Type = StepHeaderPillType.Success,
+                    Label = new BilingualString("Parent approved", "Goedgekeurd door bovenliggende stap")
+                }
+            }
+        ];
+
+        var resolver = new StepProgressResolver(modelService);
+        // The child's condition matched first, but the parent's condition matched more recently,
+        // so the parent's entry should win even though it is defined on an ancestor step.
+        var instance = CreateRmssInstance(
+            ("ProposalRejectedSupervisor", new DateTime(2026, 04, 10, 9, 0, 0, DateTimeKind.Utc)),
+            ("ProposalApprovedReviewer", new DateTime(2026, 04, 12, 9, 0, 0, DateTimeKind.Utc)));
+
+        var status = resolver.ResolveHeader(child, instance);
+
+        Assert.NotNull(status);
+        Assert.NotNull(status.Label);
+        Assert.Equal(StepHeaderPillType.Success, status!.Type);
+        Assert.Equal("Parent approved", status.Label.En);
+        Assert.Equal("Goedgekeurd door bovenliggende stap", status.Label.Nl);
     }
 
     internal static WorkflowInstanceDtoFactory CreateWorkflowInstanceDtoFactory(
@@ -359,7 +493,7 @@ public class StepHeaderStatusTests
             submissionDtoFactory,
             rightsService,
             new StepVersionService(),
-            new StepHeaderStatusResolver(modelService),
+            new StepProgressResolver(modelService),
             workflowInstanceService,
             NullLogger<WorkflowInstanceDtoFactory>.Instance,
             new UndoService(Mock.Of<IInstanceEventRepository>(), Mock.Of<IJobRepository>(),
@@ -381,8 +515,14 @@ public class StepHeaderStatusTests
     private static WorkflowInstance CreateRmssInstance(params (string EventId, DateTime Date)[] events)
         => CreateInstance("Project-RMSS", "ProposalPhase", events);
 
-    private static Step.StepHeaderStatusConfiguration GetHeaderStatusConfiguration(Step step, string eventId)
-        => step.HeaderStatus!.Single(configuration => configuration.Event == eventId);
+    private static ProgressHeader GetHeader(Step step, string eventId)
+        => step.Progress.Single(configuration => configuration.Event == eventId).Header!;
+
+    private static void SetHeader(Step step, string eventId, ProgressHeader header)
+    {
+        var index = step.Progress.FindIndex(p => p.Header != null && p.Event == eventId);
+        step.Progress[index] = new ProgressInformation { Event = eventId, Header = header };
+    }
 
     private static WorkflowInstance CreateProjectInstance(params (string EventId, DateTime Date)[] events)
         => CreateInstance("Project", "Subject", events);

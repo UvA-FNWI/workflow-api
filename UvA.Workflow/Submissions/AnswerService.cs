@@ -248,7 +248,7 @@ public class AnswerService(
                 $"File '{fileName}' exceeds the maximum file size for property '{propertyDefinition.Name}'");
     }
 
-    private async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)
+    public async Task SaveArtifact(QuestionContext context, ArtifactInfo artifactInfo, CancellationToken ct = default)
     {
         var (instance, _, form, question) = context;
 

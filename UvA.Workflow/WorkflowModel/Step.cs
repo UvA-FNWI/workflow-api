@@ -72,12 +72,29 @@ public class ProgressInformation : ConditionalOption
     public BilingualString? Text { get; init; } = null!;
     [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(Text);
 
+    public ProgressHeader? Header { get; init; }
+
+    [YamlIgnore] public BilingualTemplate? HeaderLabelTemplate => Header?.LabelTemplate ?? ProgressTextTemplate;
+
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>
     [
         .. EffectiveCondition?.Properties ?? [],
-        .. ProgressTextTemplate?.Properties ?? []
+        .. ProgressTextTemplate?.Properties ?? [],
+        .. HeaderLabelTemplate?.Properties ?? []
     ];
+}
+
+public class ProgressHeader
+{
+    public StepHeaderPillType Type { get; init; }
+
+    /// <summary>
+    /// Optional pill label. Defaults to the progress text of the enclosing entry.
+    /// </summary>
+    public BilingualString? Label { get; init; }
+
+    [YamlIgnore] public BilingualTemplate? LabelTemplate => field ??= BilingualTemplate.Create(Label);
 }
 
 public enum StepResultsType
@@ -192,8 +209,6 @@ public class Step : INamed, IDeclaredKeys
     // Derived definitions relink Children, so inherited steps cannot be shared.
     public Step Clone() => (Step)MemberwiseClone();
 
-    public List<StepHeaderStatusConfiguration>? HeaderStatus { get; set; }
-
     /// <summary>
     /// Condition requires for this step to start
     /// </summary>
@@ -301,12 +316,5 @@ public class Step : INamed, IDeclaredKeys
         if (Children.Any())
             return Children.Where(c => c.Condition.IsMet(context)).All(c => c.HasEnded(context));
         return false;
-    }
-
-    public class StepHeaderStatusConfiguration : ConditionalOption
-    {
-        public StepHeaderPillType Type { get; set; }
-        public BilingualString Label { get; set; } = null!;
-        public BilingualTemplate LabelTemplate => field ??= BilingualTemplate.Create(Label)!;
     }
 }

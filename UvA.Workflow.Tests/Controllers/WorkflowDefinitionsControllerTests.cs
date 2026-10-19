@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.WorkflowDefinitions;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.Tests.Helpers;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -80,20 +81,72 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task GetAccessible_ReturnsOnlyDefinitionsTheUserHasVisibleInstancesFor()
+    public async Task GetAccessible_ReturnsOnlyDefinitionsWithInheritedAccess()
     {
-        // No global roles, so the user has no unconditional view access; access is decided purely
-        // by instance membership (the filter the screens use). The repository returns instances
-        // only for "Project-PP", so that should be the only course the user can access.
         var controller = BuildController();
         MockNoVisibleInstances();
-        MockVisibleInstancesFor("Project-PP");
+        var courseId = ObjectId.GenerateNewId();
+        MockVisibleInstancesFor("Context",
+            new BsonDocument("Properties.Coordinator._id", ObjectId.Parse(UnitTestsHelpers.AdminUser.Id)),
+            courseId);
+        MockVisibleInstancesFor("Project-PP",
+            new BsonDocument("Properties.Course", new BsonDocument("$in", new BsonArray { courseId.ToString() })),
+            ObjectId.GenerateNewId());
 
         var dtos = GetDtos(await controller.GetAccessible(_ct));
 
         Assert.All(dtos, d => Assert.NotEmpty(d.Screens));
         Assert.Contains(dtos, d => d.Name == "Project-PP");
         Assert.DoesNotContain(dtos, d => d.Name == "Project-RMSS");
+    }
+
+    [Theory]
+    [InlineData("Student")]
+    [InlineData("Supervisor")]
+    public async Task GetAccessible_ExcludesDirectRoles_WithoutRemovingInstanceAccess(string role)
+    {
+        var controller = BuildController();
+        MockNoVisibleInstances();
+        var directFilter = new BsonDocument($"Properties.{role}._id",
+            ObjectId.Parse(UnitTestsHelpers.AdminUser.Id));
+        _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
+                "Project",
+                It.IsAny<Dictionary<string, string>>(),
+                It.Is<BsonDocument?>(filter => filter != null && filter.ToJson().Contains($"Properties.{role}._id")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId() }]);
+
+        var dtos = GetDtos(await controller.GetAccessible(_ct));
+
+        Assert.Empty(dtos);
+        var authorization = new InstanceAuthorizationFilterService(
+            _rightsService, _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+        var instanceFilter = await authorization.BuildAuthorizationFilter("Project", RoleAction.View, _ct);
+        Assert.Contains(directFilter.ToJson(), instanceFilter!.ToJson());
+    }
+
+    [Theory]
+    [InlineData("Coordinator")]
+    [InlineData("SystemAdmin")]
+    public async Task GetAccessible_IncludesGlobalViewRoles_WithoutInstances(string role)
+    {
+        var controller = BuildController(role);
+        MockNoVisibleInstances();
+
+        var dtos = GetDtos(await controller.GetAccessible(_ct));
+
+        Assert.Contains(dtos, d => d.Name == "Project");
+    }
+
+    [Fact]
+    public async Task GetAccessible_ReturnsEmpty_WithoutGlobalOrInheritedAccess()
+    {
+        var controller = BuildController();
+        MockNoVisibleInstances();
+
+        var dtos = GetDtos(await controller.GetAccessible(_ct));
+
+        Assert.Empty(dtos);
     }
 
     [Fact]
@@ -117,11 +170,11 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-    private void MockVisibleInstancesFor(string workflowDefinition) =>
+    private void MockVisibleInstancesFor(string workflowDefinition, BsonDocument filter, ObjectId id) =>
         _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
                 workflowDefinition,
                 It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<BsonDocument?>(),
+                It.Is<BsonDocument?>(actual => actual != null && actual.Equals(filter)),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId() }]);
+            .ReturnsAsync([new Dictionary<string, BsonValue> { ["_id"] = id }]);
 }

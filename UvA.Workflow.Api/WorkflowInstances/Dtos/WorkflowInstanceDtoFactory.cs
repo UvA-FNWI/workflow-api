@@ -15,7 +15,7 @@ public class WorkflowInstanceDtoFactory(
     SubmissionDtoFactory submissionDtoFactory,
     RightsService rightsService,
     IStepVersionService stepVersionService,
-    StepHeaderStatusResolver stepHeaderStatusResolver,
+    StepProgressResolver stepProgressResolver,
     WorkflowInstanceService workflowInstanceService,
     ILogger<WorkflowInstanceDtoFactory> logger,
     UndoService undoService,
@@ -175,7 +175,7 @@ public class WorkflowInstanceDtoFactory(
         var deadline = GetDeadline(step, context, activeSteps);
         var headerStatus = HasPassedDeadline(step, context, activeSteps)
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
-            : stepHeaderStatusResolver.Resolve(step, instance);
+            : stepProgressResolver.ResolveHeader(step, instance);
 
         // A completed step's latest version is already shown as its live submission.
         // For an expired, unfinished step, retain every historical version.
