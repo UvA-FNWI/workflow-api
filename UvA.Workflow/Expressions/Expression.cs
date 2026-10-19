@@ -59,7 +59,12 @@ public record Expression
         ["dateShort"] = new Function<DateTime?, string?>(d => d?.ToString("dd/MM", CultureInfo.InvariantCulture)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
-        ["count"] = new Function<IEnumerable, int>(a => a?.Cast<object?>().Count() ?? 0),
+        ["count"] = new Function<object, int>(value => value switch
+        {
+            null => 0,
+            IEnumerable values when values is not string => values.Cast<object?>().Count(),
+            _ => throw new ArgumentException("count expects a collection")
+        }),
         ["except"] = new Function<IEnumerable, object, object?[]>((a, b) =>
             a?.Cast<object?>().Except(b is IEnumerable values && b is not string ? values.Cast<object?>() : [b])
                 .ToArray() ?? []),
