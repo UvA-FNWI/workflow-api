@@ -129,7 +129,7 @@ public class DummyAnswerGeneratorTests
     [Fact]
     public void GenerateFile_DefaultAllowedTypes_ReturnsPdfPlaceholder()
     {
-        var file = new DummyAnswerGenerator().GenerateFile(Question("File!"), "instance1");
+        var file = new DummyAnswerGenerator().GenerateFile((FilePropertyDefinition)Question("File!"), "instance1");
 
         Assert.Equal("dummy-file.pdf", file.Name);
         Assert.Equal("application/pdf", file.ContentType);
@@ -139,7 +139,7 @@ public class DummyAnswerGeneratorTests
     [Fact]
     public void GenerateFile_UsesFirstAllowedType()
     {
-        var question = Question("File!");
+        var question = (FilePropertyDefinition)Question("File!");
         question.FileSettings = new() { AllowedTypes = ["docx", "pdf"] };
 
         var file = new DummyAnswerGenerator().GenerateFile(question, "instance1");
@@ -150,7 +150,7 @@ public class DummyAnswerGeneratorTests
     [Fact]
     public void GenerateFile_WildcardOnly_FallsBackToPdf()
     {
-        var question = Question("File!");
+        var question = (FilePropertyDefinition)Question("File!");
         question.FileSettings = new() { AllowedTypes = ["*"] };
 
         var file = new DummyAnswerGenerator().GenerateFile(question, "instance1");
