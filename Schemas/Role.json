@@ -43,6 +43,13 @@
       "items": {
         "$ref": "#/definitions/Action"
       }
+    },
+    "genericEmail": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Email address used as a DTO override of all users with this role"
     }
   },
   "definitions": {
@@ -165,6 +172,10 @@
             "type": "string"
           }
         },
+        "persistent": {
+          "type": "boolean",
+          "description": "Keeps this action available on active and completed steps.\n            Roles, action conditions and applicable hard deadlines still apply. Defaults to false."
+        },
         "noAutoOpenForm": {
           "type": "boolean",
           "description": "When true, the submit form does not automatically even if it is the only submit action in the step"
@@ -219,7 +230,8 @@
         "CreateInstance",
         "CreateRelatedInstance",
         "ImpersonateRoles",
-        "ViewResults"
+        "ViewResults",
+        "ViewCorrespondence"
       ]
     },
     "Condition": {
@@ -280,13 +292,16 @@
           ]
         },
         "deadline": {
+          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Check if a deadline has passed",
-              "$ref": "#/definitions/Deadline"
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/DeadlineCondition"
             }
           ]
         },
@@ -340,6 +355,13 @@
           ],
           "description": "Value the property should be less than"
         },
+        "lessThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than or equal to"
+        },
         "greaterThan": {
           "type": [
             "null",
@@ -374,6 +396,13 @@
             "null"
           ],
           "description": "Maximum length of a string"
+        },
+        "minLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Minimum length of a string"
         }
       }
     },
@@ -427,8 +456,8 @@
         }
       }
     },
-    "Deadline": {
-      "title": "Deadline",
+    "DeadlineCondition": {
+      "title": "DeadlineCondition",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -473,6 +502,17 @@
             },
             {
               "description": "Send an email",
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
+        "sendAccessMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Prepare login access and send one personalized email per recipient",
               "$ref": "#/definitions/SendMessage"
             }
           ]
@@ -693,7 +733,8 @@
       "additionalProperties": false,
       "required": [
         "url",
-        "label"
+        "label",
+        "intent"
       ],
       "properties": {
         "url": {
@@ -710,15 +751,9 @@
           ]
         },
         "intent": {
-          "$ref": "#/definitions/MailButtonIntent"
+          "type": "string"
         }
       }
-    },
-    "MailButtonIntent": {
-      "type": "string",
-      "enum": [
-        "Primary"
-      ]
     },
     "Attachment": {
       "title": "Attachment",

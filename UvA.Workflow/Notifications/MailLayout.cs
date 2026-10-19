@@ -63,10 +63,12 @@ public abstract class MailLayoutBase(string key) : INamedMailLayout
 
         return string.Join("\n", buttons.Select(button =>
         {
-            var (background, textColor) = button.Intent switch
+            var (background, textColor, borderColor) = button.Intent switch
             {
-                MailButtonIntent.Primary => ("#E00031", "#FFFFFF"),
-                _ => ("#E00031", "#FFFFFF")
+                MailButtonIntent.Primary => ("#E00031", "#FFFFFF", "#E00031"),
+                MailButtonIntent.Secondary => ("#FFFFFF", "#000000", "#000000"),
+                _ => throw new ArgumentOutOfRangeException(nameof(button.Intent), button.Intent,
+                    "Unknown mail button intent")
             };
 
             // Inline styles are the most reliable across email clients.
@@ -76,11 +78,11 @@ public abstract class MailLayoutBase(string key) : INamedMailLayout
                 $"font-weight:bold;" +
                 $"font-size:14px;line-height:1.2;text-decoration:none;" +
                 $"border-radius:2px;background-color:{background};" +
-                $"color:{textColor};";
+                $"color:{textColor};border:1px solid {borderColor};";
 
             return $"""
                     <tr>
-                      <td align="center" style="padding: 0 0 24px 0;">
+                      <td align="center" style="padding: 0 0 12px 0;">
                         <a href="{button.Url}" style="{style}">
                           {button.Label}
                         </a>

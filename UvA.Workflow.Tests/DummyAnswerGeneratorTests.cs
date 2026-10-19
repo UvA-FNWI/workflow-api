@@ -51,11 +51,36 @@ public class DummyAnswerGeneratorTests
     }
 
     [Fact]
-    public void Generate_Boolean_ReturnsBool()
+    public void Generate_Double_HasAtMostOneDecimal()
     {
-        var result = new DummyAnswerGenerator().Generate(Question("Boolean"), DefaultStatus);
+        var question = Question("Double");
+
+        for (var i = 0; i < 100; i++)
+        {
+            var result = new DummyAnswerGenerator().Generate(question, DefaultStatus);
+
+            Assert.NotNull(result);
+
+            var value = result.Value.GetDouble();
+
+            Assert.Equal(Math.Round(value, 1), value);
+        }
+    }
+
+    [Fact]
+    public void Generate_Check_ReturnsBool()
+    {
+        var result = new DummyAnswerGenerator().Generate(Question("Check"), DefaultStatus);
         Assert.NotNull(result);
         Assert.True(result.Value.ValueKind is JsonValueKind.True or JsonValueKind.False);
+    }
+
+    [Fact]
+    public void Generate_RequiredCheck_ReturnsTrue()
+    {
+        var result = new DummyAnswerGenerator().Generate(Question("Check!"), DefaultStatus);
+        Assert.NotNull(result);
+        Assert.True(result.Value.GetBoolean());
     }
 
     [Fact]
@@ -87,6 +112,38 @@ public class DummyAnswerGeneratorTests
     {
         var result = new DummyAnswerGenerator().Generate(Question("[File]"), DefaultStatus);
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void GenerateFile_DefaultAllowedTypes_ReturnsPdfPlaceholder()
+    {
+        var file = new DummyAnswerGenerator().GenerateFile(Question("File!"), "instance1");
+
+        Assert.Equal("dummy-file.pdf", file.Name);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.StartsWith("instance1_TestProp_", file.ArtifactId);
+    }
+
+    [Fact]
+    public void GenerateFile_UsesFirstAllowedType()
+    {
+        var question = Question("File!");
+        question.FileSettings = new() { AllowedTypes = ["docx", "pdf"] };
+
+        var file = new DummyAnswerGenerator().GenerateFile(question, "instance1");
+
+        Assert.Equal("dummy-file.docx", file.Name);
+    }
+
+    [Fact]
+    public void GenerateFile_WildcardOnly_FallsBackToPdf()
+    {
+        var question = Question("File!");
+        question.FileSettings = new() { AllowedTypes = ["*"] };
+
+        var file = new DummyAnswerGenerator().GenerateFile(question, "instance1");
+
+        Assert.Equal("dummy-file.pdf", file.Name);
     }
 
     // ── Choice ───────────────────────────────────────────────────────────────
@@ -173,6 +230,32 @@ public class DummyAnswerGeneratorTests
 
         Assert.NotNull(result);
         Assert.True(result.Value.GetString()!.Length <= 10);
+    }
+
+    [Fact]
+    public void Generate_String_WithMinLengthValidation_GeneratesStringOfMinLength()
+    {
+        var validation = new Condition
+        {
+            Value = new Value { Property = "TestProp", MinLength = 250 }
+        };
+
+        var result = new DummyAnswerGenerator().Generate(Question("String", validation), DefaultStatus);
+
+        Assert.NotNull(result);
+        Assert.True(result.Value.GetString()!.Length >= 250);
+    }
+
+    [Fact]
+    public void Generate_String_WithMaxLengthSmallerThanMinLength_Throws()
+    {
+        var validation = new Condition
+        {
+            Value = new Value { Property = "TestProp", MinLength = 20, MaxLength = 10 }
+        };
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new DummyAnswerGenerator().Generate(Question("String", validation), DefaultStatus));
     }
 
     // ── Currency ─────────────────────────────────────────────────────────────

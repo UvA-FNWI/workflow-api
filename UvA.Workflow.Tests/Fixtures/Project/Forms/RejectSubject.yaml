@@ -6,8 +6,8 @@ title:
   nl: Feedback onderwerp
 pages:
   - name: Reject
-    introduction:
-      nl: Je wilt het onderwerp van {{ Student.DisplayName }} afkeuren
-      en: You want to reject the subject of {{ Student.DisplayName }}
-    fields:
-    - SubjectRejectReason
+    elements:
+      - text:
+          nl: Je wilt het onderwerp van {{ Student.DisplayName }} afkeuren
+          en: You want to reject the subject of {{ Student.DisplayName }}
+      - question: SubjectRejectReason

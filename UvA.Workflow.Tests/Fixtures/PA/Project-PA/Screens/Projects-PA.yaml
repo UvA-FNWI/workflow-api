@@ -1,5 +1,4 @@
 name: Projects-PA
-workflowDefinition: Project-PA
 columns:
   - property: WorkingTitle
     title:

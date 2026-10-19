@@ -28,7 +28,7 @@ public class StepTemplateParameter : INamed
         "File" => DataType.File,
         "User" => DataType.User,
         "Currency" => DataType.Currency,
-        "Boolean" => DataType.Boolean,
+        "Check" => DataType.Check,
         _ => throw new ArgumentException($"Invalid type {UnderlyingType}")
     };
 }

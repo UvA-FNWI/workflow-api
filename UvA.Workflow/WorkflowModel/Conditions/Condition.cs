@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using UvA.Workflow.Expressions;
 
 namespace UvA.Workflow.WorkflowModel.Conditions;
@@ -34,9 +35,9 @@ public class Condition
     public Date? Date { get; set; }
 
     /// <summary>
-    /// Check if a deadline has passed
+    /// Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.
     /// </summary>
-    public Deadline? Deadline { get; set; }
+    public DeadlineCondition? Deadline { get; set; }
 
     /// <summary>
     /// Use a named reusable condition
@@ -78,35 +79,45 @@ public class Date : ConditionPart
     public override bool IsMet(ObjectContext context)
     {
         var date = context.Get(Source) as DateTime?;
-        return date != null && date.Value <= DateTime.Now;
+        return date != null && date.Value.ToUniversalTime() <= DateTime.UtcNow;
     }
 
     public static implicit operator Date(string s) => new Date { Source = s };
 }
 
-public class Deadline : ConditionPart
+public class DeadlineCondition : ConditionPart
 {
     public string ExpressionText { get; set; } = null!;
 
     private Expression Expression => ExpressionParser.Parse(ExpressionText);
 
-    public DateTime? Evaluate(ObjectContext context)
+    public DateTimeOffset? Evaluate(ObjectContext context)
         => Expression.Execute(context) switch
         {
-            DateTime d => d,
-            string s => DateTime.Parse(s),
+            DateTimeOffset d => d,
+            DateTime d => ToDateTimeOffset(d),
+            string s => DateTimeOffset.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
             _ => null
         };
+
+    private static DateTimeOffset ToDateTimeOffset(DateTime date)
+    {
+        if (date.Kind is DateTimeKind.Utc or DateTimeKind.Local)
+            return new DateTimeOffset(date);
+
+        var serverTimezoneOffset = TimeZoneInfo.Local.GetUtcOffset(date);
+        return new DateTimeOffset(date, serverTimezoneOffset);
+    }
 
     public override IEnumerable<Lookup> Properties => Expression.Properties;
 
     public override bool IsMet(ObjectContext context)
     {
         var deadline = Evaluate(context);
-        return deadline != null && deadline.Value > DateTime.Now;
+        return deadline != null && deadline.Value > DateTimeOffset.Now;
     }
 
-    public static implicit operator Deadline(string s) => new() { ExpressionText = s };
+    public static implicit operator DeadlineCondition(string s) => new() { ExpressionText = s };
 }
 
 public class EventCondition : ConditionPart
@@ -202,6 +213,13 @@ public class Value : ConditionPart
     private Expression? LessThanExpression => ExpressionParser.Parse(LessThan);
 
     /// <summary>
+    /// Value the property should be less than or equal to
+    /// </summary>
+    public string? LessThanOrEqual { get; set; }
+
+    private Expression? LessThanOrEqualExpression => ExpressionParser.Parse(LessThanOrEqual);
+
+    /// <summary>
     /// Value the property should be greater than 
     /// </summary>
     public string? GreaterThan { get; set; }
@@ -232,18 +250,25 @@ public class Value : ConditionPart
     /// </summary>
     public int? MaxLength { get; set; }
 
+    /// <summary>
+    /// Minimum length of a string
+    /// </summary>
+    public int? MinLength { get; set; }
+
     public override Lookup[] Dependants =>
     [
         Property,
-        ..EqualExpression?.Properties ?? [],
-        ..LessThanExpression?.Properties ?? [],
-        ..GreaterThanExpression?.Properties ?? [],
-        ..GreaterThanOrEqualExpression?.Properties ?? [],
-        ..InExpression?.Properties ?? []
+        .. EqualExpression?.Properties ?? [],
+        .. LessThanExpression?.Properties ?? [],
+        .. LessThanOrEqualExpression?.Properties ?? [],
+        .. GreaterThanExpression?.Properties ?? [],
+        .. GreaterThanOrEqualExpression?.Properties ?? [],
+        .. InExpression?.Properties ?? []
     ];
 
     public override IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
-        EqualExpression?.Properties, LessThanExpression?.Properties, GreaterThanExpression?.Properties,
+        EqualExpression?.Properties, LessThanExpression?.Properties, LessThanOrEqualExpression?.Properties,
+        GreaterThanExpression?.Properties,
         GreaterThanOrEqualExpression?.Properties, InExpression?.Properties);
 
     public override bool IsMet(ObjectContext context)
@@ -254,17 +279,33 @@ public class Value : ConditionPart
         if (EqualExpression != null)
             return Equals(EqualExpression.Execute(context), prop);
         if (LessThanExpression != null)
-            return (prop as IComparable)?.CompareTo(LessThanExpression.Execute(context)) < 0;
+            return Compare(prop, LessThanExpression.Execute(context)) < 0;
+        if (LessThanOrEqualExpression != null)
+            return Compare(prop, LessThanOrEqualExpression.Execute(context)) <= 0;
         if (GreaterThanExpression != null)
-            return (prop as IComparable)?.CompareTo(GreaterThanExpression.Execute(context)) > 0;
+            return Compare(prop, GreaterThanExpression.Execute(context)) > 0;
         if (GreaterThanOrEqualExpression != null)
-            return (prop as IComparable)?.CompareTo(GreaterThanOrEqualExpression.Execute(context)) >= 0;
+            return Compare(prop, GreaterThanOrEqualExpression.Execute(context)) >= 0;
         if (IsEmpty != null)
             return IsEmpty.Value ^ !string.IsNullOrWhiteSpace(prop?.ToString());
         if (InExpression != null)
             return InExpression.Execute(context) is IEnumerable p && p.Cast<object>().Contains(prop);
         if (MaxLength != null)
             return prop is string s && s.Length <= MaxLength;
+        if (MinLength != null)
+            return prop is string s && s.Length >= MinLength;
         throw new InvalidOperationException("Invalid condition");
     }
+
+    private static int? Compare(object? left, object? right)
+    {
+        if (IsNumber(left) && IsNumber(right))
+            return left is float or double || right is float or double
+                ? Convert.ToDouble(left).CompareTo(Convert.ToDouble(right))
+                : Convert.ToDecimal(left).CompareTo(Convert.ToDecimal(right));
+        return (left as IComparable)?.CompareTo(right);
+    }
+
+    private static bool IsNumber(object? value)
+        => value is int or long or float or double or decimal;
 }

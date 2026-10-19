@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "ConfiguredMigration",
+  "type": "object",
+  "description": "A migration declared in a workflow YAML configuration.",
+  "additionalProperties": false,
+  "required": [
+    "oldProperty",
+    "newProperty"
+  ],
+  "properties": {
+    "kind": {
+      "description": "Currently only <code>RenameProperty</code> is supported.",
+      "$ref": "#/definitions/MigrationKind"
+    },
+    "oldProperty": {
+      "type": "string"
+    },
+    "newProperty": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "MigrationKind": {
+      "type": "string",
+      "enum": [
+        "RenameProperty"
+      ]
+    }
+  }
+}

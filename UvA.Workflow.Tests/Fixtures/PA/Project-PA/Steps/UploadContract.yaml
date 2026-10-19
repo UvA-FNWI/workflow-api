@@ -3,8 +3,8 @@ title:
   en: Upload internship contract
   nl: Stage-overeenkomst uploaden
 
-condition:
-  deadline: "=2026-05-01"
+deadline:
+  date: "=2026-05-01"
 
 actions:
   - name: SubmitContract

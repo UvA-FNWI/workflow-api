@@ -2,10 +2,14 @@ version: '3.6'
 
 services:
   mongodb:
-    image: mongo
+    image: mongo:8.2.9
+    # Avoid startup ownership changes on the shared Mac folder.
+    user: "999:999"
     ports:
       - 27017:27017
     environment:
+      # Avoid TCMalloc per-CPU cache crashes on affected Docker Desktop kernels.
+      - GLIBC_TUNABLES=glibc.pthread.rseq=1
       - MONGO_INITDB_DATABASE=test
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin

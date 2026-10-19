@@ -263,10 +263,11 @@ public class InstanceService(
         string[] ProjectedProperties);
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
-    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct)
+    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
+        ObjectContext? context = null)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
+        context ??= modelService.CreateContext(instance);
         var recipientLookups = MailBuilder.ResolveRecipientLookups(workflowDefinition, sendMail);
         await Enrich(workflowDefinition, [context], recipientLookups, ct, replaceStep: false);
         return mailBuilder.Build(instance, sendMail, modelService, context);
@@ -365,25 +366,22 @@ public class InstanceService(
 
     public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
     {
-        var allowed = await rightsService.GetAllowedActions(instance,
-            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
-
         var actions = new List<AllowedAction>();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var allowed = await rightsService.GetAllowedActions(instance,
+            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
         var activeSteps = modelService.GetActiveSteps(instance);
+        var context = modelService.CreateContext(instance);
 
         // Submittable forms
         actions.AddRange(allowed
             .Where(a => a.Type == RoleAction.Submit)
-            .SelectMany(a => a.AllForms.Select(f => new { Action = a, Form = f }))
-            .Where(f => !FormSubmissionState.Resolve(instance, modelService.GetForm(instance, f.Form), workflowDef)
-                .IsSubmitted)
+            .SelectMany(a => a.AllForms
+                .SelectMany(name => name == Domain_Action.All ? workflowDef.Forms.Select(f => f.Name) : [name])
+                .Select(name => new { Action = a, Form = modelService.GetForm(instance, name) }))
+            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
             .Distinct()
-            .Select(f =>
-            {
-                var form = modelService.GetForm(instance, f.Form);
-                return new AllowedAction(f.Action, form, DisplaySteps: GetDisplaySteps(f.Action, form));
-            })
+            .Select(f => new AllowedAction(f.Action, f.Form, DisplaySteps: GetDisplaySteps(f.Action, f.Form)))
         );
 
         // Create related entities
@@ -423,7 +421,7 @@ public class InstanceService(
 
         string[] GetDisplaySteps(Domain_Action action, Form? form = null)
         {
-            var matchingActionSteps = action.Steps.Intersect(activeSteps).ToArray();
+            var matchingActionSteps = modelService.GetAvailableStepsForAction(instance, action, activeSteps, context);
             if (matchingActionSteps.Length != 0)
                 return matchingActionSteps;
 

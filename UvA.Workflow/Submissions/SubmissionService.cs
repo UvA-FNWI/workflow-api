@@ -43,16 +43,24 @@ public class SubmissionService(
 
         var objectContext = modelService.CreateContext(instance);
 
+        var questionsToValidate = form.Pages
+            .Where(p => p.Condition.IsMet(objectContext))
+            .SelectMany(p => p.Questions)
+            .Distinct()
+            .ToArray();
+
         // Validate required fields
-        var missing = form.PropertyDefinitions
-            .Where(q => q.IsRequired && !instance.HasAnswer(q.Name)
-                                     && q.DataType != DataType.Boolean // Boolean datatype always defaults to false
-                                     && q.Condition.IsMet(objectContext))
+        var missing = questionsToValidate
+            .Where(q => q.IsRequired
+                        && (q.DataType == DataType.Check
+                            ? instance.GetProperty(q.Name) != BsonBoolean.True
+                            : !instance.HasAnswer(q.Name))
+                        && q.Condition.IsMet(objectContext))
             .Select(q => new InvalidQuestion(q.Name, new BilingualString("Required field", "Verplicht veld")))
             .ToArray();
 
         // Validate field validation rules
-        var invalid = form.PropertyDefinitions
+        var invalid = questionsToValidate
             .Where(q => instance.HasAnswer(q.Name) && !q.Validation.IsMet(objectContext))
             .Select(q => new InvalidQuestion(
                 q.Name,
@@ -66,11 +74,13 @@ public class SubmissionService(
             return new SubmissionResult(false, validationErrors, submissionState);
         }
 
+        var operation = OperationMetadata.CreateForSubmission(form, workflowDef);
+
         if (form.EmitFormSubmitEvent)
-            await effectService.AddEvent(instance, submissionId, user, ct);
+            await effectService.AddEvent(instance, submissionId, user, ct, operation?.Id, operation);
 
         var result = await jobService.CreateAndRunJob(instance, JobSource.Submit,
-            form.Name, form.OnSubmit, user, null, ct);
+            form.Name, form.OnSubmit, user, null, ct, operation);
 
         var finalSubmissionState = FormSubmissionState.Resolve(instance, form, workflowDef);
         if (!finalSubmissionState.IsSubmitted)

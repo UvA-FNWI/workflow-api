@@ -36,7 +36,7 @@ public class AnswersControllerTests : ControllerTestsBase
     {
         _artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         _submissionDtoFactory =
-            new SubmissionDtoFactory(_artifactTokenService, _modelService);
+            new SubmissionDtoFactory(_artifactTokenService, _modelService, _instanceService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,
@@ -44,9 +44,10 @@ public class AnswersControllerTests : ControllerTestsBase
                 _submissionDtoFactory,
                 _rightsService,
                 new StepVersionService(),
-                new StepHeaderStatusResolver(_modelService),
+                new StepProgressResolver(_modelService),
                 _workflowInstanceService,
-                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>());
+                _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
+                _undoService);
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
@@ -369,7 +370,6 @@ public class AnswersControllerTests : ControllerTestsBase
             new AnswersController(
                 _answerService,
                 _rightsService,
-                _artifactTokenService,
                 _submissionDtoFactory,
                 _instanceService,
                 _modelService,

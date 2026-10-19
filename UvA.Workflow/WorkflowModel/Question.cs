@@ -1,3 +1,4 @@
+using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -12,7 +13,8 @@ public enum ChoiceLayoutType
 {
     Dropdown,
     RadioList,
-    Rubric
+    Rubric,
+    ComboBox
 }
 
 public enum TableLayout
@@ -87,6 +89,17 @@ public class PropertyDefinition : INamed
     public PropertyVisibility Visibility { get; set; }
 
     /// <summary>
+    /// Configure settings for file upload questions
+    /// </summary>
+    public FileSettings? FileSettings { get; set; }
+
+    public IReadOnlyList<string>? EffectiveAllowedFileTypes =>
+        FileSettings?.AllowedTypes ?? (DataType == DataType.File ? ["pdf"] : null);
+
+    public int? EffectiveAllowedFileSize =>
+        FileSettings?.MaximumSize ?? (DataType == DataType.File ? 10_000_000 : null);
+
+    /// <summary>
     /// Specific layout options for the data type
     /// </summary>
     /// <remarks>
@@ -100,11 +113,18 @@ public class PropertyDefinition : INamed
     public BilingualString? ShortText { get; set; }
 
     /// <summary>
-    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean
+    /// Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Check
     /// or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate
     /// a required value.
     /// </summary>
     public string Type { get; set; } = null!;
+
+    /// <summary>
+    /// Expression used to initialize this property when an instance is created without a value.
+    /// </summary>
+    public string? Default { get; set; }
+
+    public Expression? DefaultExpression => ExpressionParser.Parse(Default);
 
     /// <summary>
     /// Values for a choice propertyDefinition.
@@ -147,7 +167,7 @@ public class PropertyDefinition : INamed
         "File" => DataType.File,
         "User" => DataType.User,
         "Currency" => DataType.Currency,
-        "Boolean" => DataType.Boolean,
+        "Check" => DataType.Check,
         _ when WorkflowDefinition?.IsEmbedded == true => DataType.Object,
         _ when WorkflowDefinition != null => DataType.Reference,
         _ when Values != null => DataType.Choice,
@@ -215,6 +235,28 @@ public class PropertyDefinition : INamed
     /// The name of another property this property is linked to.
     /// </summary>
     public string? LinkedTo { get; set; }
+}
+
+public class FileSettings
+{
+    /// <summary>
+    /// Prefix (template) to add to the file names when storing files
+    /// </summary>
+    public string? Prefix { get; set; }
+
+    public Template? PrefixTemplate => Template.Create(Prefix);
+
+    /// <summary>
+    /// File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).
+    /// Use * to allow any format.
+    /// Defaults to pdf when omitted.
+    /// </summary>
+    public string[]? AllowedTypes { get; set; }
+
+    /// <summary>
+    /// Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted.
+    /// </summary>
+    public int? MaximumSize { get; set; }
 }
 
 public enum CalculationType

@@ -3,11 +3,11 @@ step: AssessmentPresentation
 
 pages:
   - name: Interdisciplinary defence evaluation form
-    fields:
-      - PresentationResearchTopic
-      - PresentationTheory
-      - PresentationQuality
-      - PresentationAdditional
-      - PresentationGrade
+    elements:
+      - question: PresentationResearchTopic
+      - question: PresentationTheory
+      - question: PresentationQuality
+      - question: PresentationAdditional
+      - question: PresentationGrade
     
     

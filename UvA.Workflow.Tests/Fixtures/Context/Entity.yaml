@@ -51,4 +51,4 @@ properties:
       - name: PassFail  
       
   - name: GradeGap
-    type: Boolean
+    type: Check

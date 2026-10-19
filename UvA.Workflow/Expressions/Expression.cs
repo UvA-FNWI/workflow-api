@@ -11,15 +11,39 @@ public record Expression
         return this switch
         {
             Boolean(var b) => b,
-            Number(var n) => n,
+            Int(var n) => n,
+            Double(var d) => d,
             Text(var s) => s,
             Identifier(var k) => context.Get(k),
-            Index(var exp, Number(var n)) => (exp.Execute(context) as IList)?[n],
-            Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) => Functions[exp.Text]
-                .Call(args.Select(a => a.Execute(context)).ToArray()),
+            Index(var exp, Int(var n)) => (exp.Execute(context) as IList)?[n],
+            Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) =>
+                CallFunction(Functions[exp.Text], args.Select(a => a.Execute(context)).ToArray()),
             Call(Identifier(var text), var args) => context.Get(new ComplexLookup(text, args)),
+            Operator(var type, var left, var right) => type switch
+            {
+                OperatorType.Equal => Equals(left.Execute(context), right.Execute(context)),
+                _ => throw new NotImplementedException()
+            },
             _ => throw new NotImplementedException()
         };
+    }
+
+    private static object? CallFunction(Function function, params object?[] args)
+    {
+        var types = function.GetType().GetGenericArguments();
+        // TODO: this might need more structure, but just handling some basic cases for now
+        var convertedArguments = args.Select((arg, i) =>
+        {
+            var target = types[i];
+            if (target == typeof(bool) && arg is not bool)
+                return arg != null;
+            if (target == typeof(string))
+                return arg?.ToString();
+            if ((target == typeof(DateTime) || target == typeof(DateTime?)) && arg is string s)
+                return DateTime.TryParse(s, out var val) ? val : null;
+            return arg;
+        }).ToArray();
+        return function.Call(convertedArguments);
     }
 
     private static readonly Dictionary<string, Function> Functions = new()
@@ -31,9 +55,12 @@ public record Expression
             from == null || to == null ? null : (int)Math.Ceiling((to.Value.Date - from.Value.Date).TotalDays)),
         ["formatDate"] = new Function<DateTime?, string, string?>((d, f)
             => d?.ToString(f, CultureInfo.InvariantCulture)),
+        ["dateLong"] = new Function<DateTime?, string?>(d => d?.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture)),
+        ["dateShort"] = new Function<DateTime?, string?>(d => d?.ToString("dd/MM", CultureInfo.InvariantCulture)),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
+        ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
         ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
 
@@ -43,6 +70,7 @@ public record Expression
         Call(Identifier(var text), var args) when Functions.ContainsKey(text) => args.SelectMany(a => a.Properties),
         Call(Identifier(var text) expr, var args) => [new ComplexLookup(text, args)],
         Index(var exp, _) => exp.Properties,
+        Operator(_, var left, var right) => [.. left.Properties, .. right.Properties],
         _ => []
     };
 }
@@ -50,6 +78,16 @@ public record Expression
 abstract class Function
 {
     public abstract object? Call(object?[] args);
+}
+
+class Function<T, TOut>(Func<T?, TOut> func) : Function
+{
+    public override object? Call(object?[] args)
+    {
+        if (args.Length != 1)
+            throw new Exception("Invalid number of arguments");
+        return func((T?)args[0]);
+    }
 }
 
 class Function<T1, T2, TOut>(Func<T1?, T2?, TOut> func) : Function
@@ -85,7 +123,9 @@ public record Operator(OperatorType Type, Expression Left, Expression Right) : E
 
 public record Identifier(string Text) : Expression;
 
-public record Number(int Value) : Expression;
+public record Int(int Value) : Expression;
+
+public record Double(double Value) : Expression;
 
 public record Boolean(bool Value) : Expression;
 

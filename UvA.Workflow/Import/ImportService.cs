@@ -25,7 +25,7 @@ public class ImportService(
         var stub = new WorkflowInstance { WorkflowDefinition = workflowDefinition };
         // Collect edit actions from all roles that apply to this workflow definition,
         var wfKey = workflowDefinition.Split('/')[0];
-        var editActions = modelService.Roles.Values
+        var editActions = definition.Roles
             .SelectMany(r => r.Actions.Where(a =>
                 a.Type == RoleAction.Edit &&
                 (a.WorkflowDefinition == null || a.WorkflowDefinition == wfKey)))

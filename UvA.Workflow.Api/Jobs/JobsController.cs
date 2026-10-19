@@ -60,7 +60,12 @@ public class JobsController(
         StartOn = DateTime.Now,
         CreatedBy = createdBy,
         Status = JobStatus.Pending,
-        Steps = job.Steps.Select(s => new JobStep { Identifier = s.Identifier, Status = JobStatus.Pending }).ToList(),
+        Steps = job.Steps.Select(s => new JobStep
+        {
+            Identifier = s.Identifier,
+            Status = JobStatus.Pending,
+            Outputs = s.Outputs?.ToDictionary(output => output.Key, output => output.Value)
+        }).ToList(),
         Input = job.Input,
         IsSynchronous = job.IsSynchronous,
         WorkerGroup = job.WorkerGroup

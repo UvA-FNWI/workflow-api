@@ -15,9 +15,10 @@ public class WorkflowInstanceDtoFactory(
     SubmissionDtoFactory submissionDtoFactory,
     RightsService rightsService,
     IStepVersionService stepVersionService,
-    StepHeaderStatusResolver stepHeaderStatusResolver,
+    StepProgressResolver stepProgressResolver,
     WorkflowInstanceService workflowInstanceService,
-    ILogger<WorkflowInstanceDtoFactory> logger)
+    ILogger<WorkflowInstanceDtoFactory> logger,
+    UndoService undoService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -27,7 +28,8 @@ public class WorkflowInstanceDtoFactory(
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit);
+        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit,
+            RoleAction.ViewCorrespondence);
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
         // active impersonation); resolve them in a single pass over the instance's roles.
         var realUserActions = await rightsService.GetAllowedActions(
@@ -42,7 +44,9 @@ public class WorkflowInstanceDtoFactory(
         var context = modelService.CreateContext(instance);
         var visibleCards = workflowDefinition.InfoCards
             .Where(card => card.Enabled && card.Type != null &&
-                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()))
+                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
+                           (card.ExcludedSources is not { Length: > 0 } ||
+                            !card.ExcludedSources.Intersect(viewerRoles).Any()))
             .ToArray();
         await instanceService.Enrich(workflowDefinition, [context],
             workflowDefinition.Steps.SelectMany(f => f.Lookups)
@@ -53,10 +57,12 @@ public class WorkflowInstanceDtoFactory(
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
+        var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)));
+            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
+                effectiveEventLogs, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -64,10 +70,19 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.EditableRelatedUsers.Select(r => r.Property),
             editActions);
         var infoCards = visibleCards
-            .Select(card => CreateInfoCard(card, context, canEditByProperty))
+            .Select(card => CreateInfoCard(workflowDefinition, card, context, canEditByProperty))
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
+        var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
+        {
+            var submissionContext = modelService.CreateContext(instance);
+            await instanceService.Enrich(workflowDefinition, [submissionContext], s.Form.ActualForm.Lookups, ct,
+                replaceStep: false);
+            return submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
+                permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
+                instanceHistory, displayNames, submissionContext);
+        }));
         var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -77,11 +92,7 @@ public class WorkflowInstanceDtoFactory(
             actions.Select(ActionDto.Create).ToArray(),
             fields,
             steps,
-            submissions
-                .Select(s => submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
-                    permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
-                    instanceHistory, displayNames))
-                .ToArray(),
+            submissionDtos,
             permissions.Where(a => a.AllForms.Length == 0 && a.PropertyDefinition == null).Select(a => a.Type)
                 .Distinct().ToArray(),
             canUseAdminTools,
@@ -155,46 +166,78 @@ public class WorkflowInstanceDtoFactory(
         WorkflowInstanceHistory instanceHistory,
         ObjectContext context,
         HashSet<string> activeSteps,
+        IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var deadline = GetDeadline(step, context, activeSteps);
+        var headerStatus = HasPassedDeadline(step, context, activeSteps)
+            ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
+            : stepProgressResolver.ResolveHeader(step, instance);
 
-        // The newest version is the step's live state, already rendered as the current submission.
+        // A completed step's latest version is already shown as its live submission.
+        // For an expired, unfinished step, retain every historical version.
         var versions = stepVersionsMap.GetValueOrDefault(step.Name)
             ?.OrderByDescending(version => version.SubmittedAt)
             .Skip(step.HasEnded(context) ? 1 : 0);
+        var versionDtos = versions != null
+            ? await Task.WhenAll(
+                versions.Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
+            : null;
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps, ct)))
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
+                    effectiveEventLogs, ct)))
             : null;
-        var versionDtos = versions != null
-            ? await Task.WhenAll(versions
-                .OrderByDescending(version => version.SubmittedAt)
-                .Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
-            : null;
-
-        var submissionForms = step.Actions
-            .Where(action => action.Type == RoleAction.Submit)
-            .SelectMany(action => action.AllForms)
-            .Distinct()
-            .Select(formName => modelService.GetForm(instance, formName))
+        // Match the step where the UI displays the submission, which can differ from the action's step.
+        // For older forms without an assigned step, keep using the step's submit actions.
+        // Forms without questions, such as confirmation dialogs, leave no submission content to show.
+        var submissionForms = workflowDef.Forms
+            .Where(form => form.Step == step.Name ||
+                           form.Step == null && step.Actions.Any(action =>
+                               action.Type == RoleAction.Submit && action.AllForms.Contains(form.Name)))
+            .Where(form => form.ActualForm.PropertyDefinitions.Any())
             .ToArray();
         var submissionEventIds = submissionForms
             .SelectMany(FormSubmissionState.GetSubmissionEventIds)
             .ToHashSet();
         var hasSubmission = submissionForms.Any(form =>
                                 FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted) ||
-                            instanceHistory.EventLogs.Any(log =>
+                            effectiveEventLogs.Any(log =>
                                 submissionEventIds.Contains(log.EventId) &&
                                 log.Operation is EventLogOperation.Create or EventLogOperation.Update);
-        var expectsSubmission = activeSteps.Contains(step.Name) && step.Actions
+        // Hard deadlines end the submission expectation, including inherited deadlines.
+        var expectsSubmission = activeSteps.Contains(step.Name) && !step.HasPassedHardDeadline(context) && step.Actions
             .Where(action => action.Type == RoleAction.Submit && action.Condition.IsMet(context))
             .SelectMany(action => action.AllForms)
             .Distinct()
             .Select(formName => modelService.GetForm(instance, formName))
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
+        UndoCandidateDto? undoCandidate = null;
+        if (step.ParentStep == null &&
+            await undoService.GetCandidate(instance, step.Name, instanceHistory.EventLogs)
+                is { OperationMetadata: { } operation } root)
+        {
+            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == operation.Step);
+            var form = operation.Type == OperationType.FormSubmission
+                ? modelService.TryGetForm(instance, operation.Source)
+                : null;
+            var sourceTitle = operation.Type switch
+            {
+                OperationType.FormSubmission =>
+                    form?.Title ?? form?.ActualForm.Title ?? form?.ActualForm.Name ?? operation.Source,
+                OperationType.ExecuteAction => candidateStep?.Actions.FirstOrDefault(action =>
+                    action.Type == RoleAction.Execute && action.Name == operation.Source)?.Label ?? operation.Source,
+                _ => operation.Source
+            };
+            undoCandidate = new UndoCandidateDto(operation.Type,
+                candidateStep?.DisplayTitle ?? operation.Step,
+                sourceTitle,
+                root.Timestamp,
+                operation.Id);
+        }
 
         return new StepDto(
             step.Name,
@@ -202,16 +245,37 @@ public class WorkflowInstanceDtoFactory(
             step.Icon,
             step.EndEvent,
             step.GetEndDate(instance, workflowDef),
-            step.GetDeadline(instance, modelService),
+            deadline,
             children,
-            stepHeaderStatusResolver.Resolve(step, instance),
+            headerStatus,
             step.ResultsType,
             expectsSubmission,
             hasSubmission,
             step.HierarchyMode,
-            versionDtos?.ToList()
+            step.ChildrenLayout,
+            versionDtos?.ToList(),
+            undoCandidate
         );
     }
+
+    private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+    {
+        var deadline = step.Deadline;
+        if (deadline == null)
+            return null;
+
+        var isPassed = activeSteps.Contains(step.Name) && !step.HasEnded(context) && deadline.HasPassed(context);
+        var message = isPassed && deadline.Type == DeadlineType.Hard
+            ? deadline.TextTemplate?.Apply(context)
+            : null;
+
+        return new DeadlineDto(step.Deadline?.Evaluate(context), deadline.Type, isPassed, message);
+    }
+
+    private static bool HasPassedDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)
+        => !step.HasEnded(context) && ((activeSteps.Contains(step.Name) && step.Deadline?.HasPassed(context) == true) ||
+                                       step.Children.Where(child => child.Condition.IsMet(context))
+                                           .Any(child => HasPassedDeadline(child, context, activeSteps)));
 
     /// <summary>
     /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
@@ -250,10 +314,14 @@ public class WorkflowInstanceDtoFactory(
                 var workflowDef = modelService.WorkflowDefinitions[instanceAtVersion.WorkflowDefinition];
                 var submissionState = FormSubmissionState.Resolve(instanceAtVersion, form, workflowDef);
 
+                var versionContext = modelService.CreateContext(instanceAtVersion);
+                await instanceService.Enrich(workflowDef, [versionContext], form.ActualForm.Lookups, ct,
+                    replaceStep: false);
+
                 // Create the submission DTO with empty permissions (historical view)
                 var submissionDto =
                     submissionDtoFactory.Create(instanceAtVersion, form, submissionState, questionStatus,
-                        permissions: []);
+                        permissions: [], context: versionContext);
 
                 submissions.Add(submissionDto);
             }
@@ -285,7 +353,7 @@ public class WorkflowInstanceDtoFactory(
             FormSubmissionState.GetSubmissionEventIds(form).Contains(eventId));
     }
 
-    private InfoCardDto? CreateInfoCard(InfoCard card, ObjectContext context,
+    private InfoCardDto? CreateInfoCard(WorkflowDefinition workflowDefinition, InfoCard card, ObjectContext context,
         Dictionary<string, bool> canEditByProperty)
     {
         var type = card.Type!.Value;
@@ -299,7 +367,7 @@ public class WorkflowInstanceDtoFactory(
             };
             return new InfoCardDto(
                 card.Name,
-                card.Title!,
+                card.TitleTemplate!.Apply(context),
                 type,
                 user == null ? null : new InfoCardUserDto(user.DisplayName, user.Picture),
                 card.Fields.Select(field => CreateInfoCardField(field, context)).OfType<InfoCardFieldDto>().ToArray(),
@@ -313,7 +381,7 @@ public class WorkflowInstanceDtoFactory(
                     group.Name,
                     group.Title,
                     group.Users.Select(relatedUser => CreateRelatedUser(
-                            relatedUser, group.AllowEditing, context, canEditByProperty))
+                            workflowDefinition, relatedUser, group.AllowEditing, context, canEditByProperty))
                         .Where(role => role.Users.Length > 0 || role.AllowsAssignment)
                         .ToArray()))
                 .Where(group => group.UserRoles.Length > 0)
@@ -321,16 +389,23 @@ public class WorkflowInstanceDtoFactory(
             var items = CreateInfoCardItems(card, context);
             return groups.Length == 0 && items.Length == 0
                 ? null
-                : new InfoCardDto(card.Name, card.Title!, type, Groups: groups, Items: items);
+                : new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Groups: groups, Items: items);
         }
 
         if (type == InfoCardType.Links)
         {
             var items = CreateInfoCardItems(card, context);
-            return items.Length == 0 ? null : new InfoCardDto(card.Name, card.Title!, type, Items: items);
+            return items.Length == 0
+                ? null
+                : new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Items: items);
         }
 
-        return new InfoCardDto(card.Name, card.Title!, type, Content: card.Content);
+        if (type == InfoCardType.Text)
+        {
+            return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Content: card.Content);
+        }
+
+        return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type);
     }
 
     private static InfoCardItemDto[] CreateInfoCardItems(InfoCard card, ObjectContext context) =>
@@ -349,15 +424,24 @@ public class WorkflowInstanceDtoFactory(
             : new InfoCardFieldDto(field.DisplayTitle, value, field.GetHref(context), field.Icon);
     }
 
-    private static RelatedUserRolesDto CreateRelatedUser(RelatedUser relatedUser, bool allowEditing,
+    private static RelatedUserRolesDto CreateRelatedUser(WorkflowDefinition workflowDefinition,
+        RelatedUser relatedUser, bool allowEditing,
         ObjectContext context, Dictionary<string, bool> canEditByProperty)
     {
         var value = context.Get(relatedUser.Property);
         var users = value is InstanceUser user ? [user] : value as InstanceUser[] ?? [];
+        var genericEmail = workflowDefinition.Roles
+            .GetOrDefault(relatedUser.PropertyDefinition?.Name ?? "")
+            ?.GenericEmail;
+        var usersDto = users.Select(instanceUser =>
+        {
+            var dto = UserDto.CreateFromInstanceUser(instanceUser);
+            return string.IsNullOrWhiteSpace(genericEmail) ? dto : dto with { Email = genericEmail };
+        }).ToArray();
         return new RelatedUserRolesDto(
             relatedUser.Property,
             relatedUser.DisplayTitle,
-            users.Select(UserDto.CreateFromInstanceUser).ToArray(),
+            usersDto,
             relatedUser.PropertyDefinition?.AllowsExternalUsers ?? false,
             !relatedUser.PropertyDefinition?.IsRequired ?? false,
             relatedUser.PropertyDefinition?.IsArray ?? false,

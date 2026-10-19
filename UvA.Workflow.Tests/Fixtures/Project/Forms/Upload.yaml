@@ -32,7 +32,7 @@ pages:
     title:
       en: Final version
       nl: Eindversie
-    fields:
-      - Title
-      - Report
-      - CanBePublished
+    elements:
+      - question: Title
+      - question: Report
+      - question: CanBePublished

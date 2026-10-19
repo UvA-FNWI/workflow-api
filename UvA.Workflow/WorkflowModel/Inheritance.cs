@@ -68,18 +68,27 @@ public partial class ModelParser
         if (!Cleared(target, d => d.GlobalActions))
             target.GlobalActions = MergeActions(target.GlobalActions, source.GlobalActions);
 
-        // Global and overridden-step actions are registered from the merged definition.
         var sourceGlobals = source.GlobalActions.ToHashSet();
-        foreach (var role in Roles)
-        foreach (var action in role.Actions
-                     .Where(a => a.WorkflowDefinition == source.Name
-                                 && !sourceGlobals.Contains(a)
-                                 && !a.Steps.Any(declaredStepNames.Contains))
-                     .ToArray())
+        foreach (var sourceRole in source.Roles)
         {
-            var newAction = action.Clone();
-            newAction.WorkflowDefinition = target.Name;
-            role.Actions.Add(newAction);
+            var targetRole = target.Roles.GetOrDefault(sourceRole.Name);
+            if (targetRole == null)
+            {
+                targetRole = sourceRole.Clone();
+                targetRole.Actions = [];
+                target.Roles.Add(targetRole);
+            }
+            else
+                ApplyInheritance(targetRole, sourceRole);
+
+            var inherited = sourceRole.Actions.Where(a => a.WorkflowDefinition == null ||
+                                                          (a.WorkflowDefinition == source.Name &&
+                                                           !sourceGlobals.Contains(a) &&
+                                                           !a.Steps.Any(declaredStepNames.Contains)));
+
+            targetRole.Actions = MergeActions(targetRole.Actions, inherited.ToList());
+            foreach (var action in targetRole.Actions.Where(a => a.WorkflowDefinition == source.Name))
+                action.WorkflowDefinition = target.Name;
         }
 
         if (!target.Declared(d => d.StepNames)) target.StepNames = source.StepNames;
@@ -124,6 +133,8 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
+        if (!target.Declared(s => s.Step)) target.Step = source.Step;
+
         if (Cleared(target, f => f.Pages))
             return;
         foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
@@ -135,10 +146,13 @@ public partial class ModelParser
         if (!target.Declared(s => s.Title)) target.Title = source.Title;
         if (!target.Declared(s => s.Progress)) target.Progress = source.Progress;
         if (!target.Declared(s => s.Icon)) target.Icon = source.Icon;
-        if (!target.Declared(s => s.HeaderStatus)) target.HeaderStatus = source.HeaderStatus;
         if (!target.Declared(s => s.Condition)) target.Condition = source.Condition;
+        if (!target.Declared(s => s.Deadline)) target.Deadline = source.Deadline;
         if (!target.Declared(s => s.Ends)) target.Ends = source.Ends;
+        if (!target.Declared(s => s.Mode)) target.Mode = source.Mode;
+        if (!target.Declared(s => s.Before)) target.Before = source.Before;
         if (!target.Declared(s => s.HierarchyMode)) target.HierarchyMode = source.HierarchyMode;
+        if (!target.Declared(s => s.ChildrenLayout)) target.ChildrenLayout = source.ChildrenLayout;
         if (!target.Declared(s => s.ResultsType)) target.ResultsType = source.ResultsType;
         if (!target.Declared(s => s.ChildNames)) target.ChildNames = source.ChildNames;
 
@@ -153,5 +167,13 @@ public partial class ModelParser
 
     private void ApplyInheritance(SendMessage target, SendMessage source)
     {
+    }
+
+    private void ApplyInheritance(Role target, Role source)
+    {
+        if (!target.Declared(r => r.Title)) target.Title = source.Title;
+        if (!target.Declared(r => r.Order)) target.Order = source.Order;
+        if (!target.Declared(r => r.InheritFrom)) target.InheritFrom = source.InheritFrom;
+        if (!target.Declared(r => r.GenericEmail)) target.GenericEmail = source.GenericEmail;
     }
 }

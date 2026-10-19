@@ -10,9 +10,11 @@ public interface IInstanceEventRepository
     /// <param name="newEvent">The new event to add or the existing event to update.</param>
     /// <param name="user">The user initiating the add or update operation.</param>
     /// <param name="ct">The cancellation token used to observe the operation's cancellation.</param>
+    /// <param name="operationId">The form-submission operation that caused the event change.</param>
+    /// <param name="operationMetadata">Metadata stored on the operation's first event change.</param>
     /// <returns>An asynchronous operation representing the add or update process.</returns>
     Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
-        CancellationToken ct);
+        CancellationToken ct, string? operationId = null, OperationMetadata? operationMetadata = null);
 
     /// <summary>
     /// Deletes a specified event from a workflow instance and logs the deletion.
@@ -38,7 +40,11 @@ public interface IInstanceEventRepository
     /// Adds an event log entry to the event log collection
     /// </summary>
     Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
-        EventLogOperation operation, CancellationToken ct);
+        EventLogOperation type, CancellationToken ct, string? operationId = null,
+        OperationMetadata? operationMetadata = null);
+
+    Task AddUndoEntry(string instanceId, string operationId, User user, string reason,
+        CancellationToken ct);
 
     /// <summary>
     /// Gets all event log entries for specific events in an instance

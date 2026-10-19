@@ -7,6 +7,7 @@ namespace UvA.Workflow.WorkflowInstances;
 /// Represents a workflow instance - the core domain entity.
 /// Contains business logic for managing workflow state, properties, and events.
 /// </summary>
+[BsonIgnoreExtraElements]
 public class WorkflowInstance
 {
     [BsonId]
@@ -94,7 +95,7 @@ public class WorkflowInstance
         var newEvent = new InstanceEvent
         {
             Id = eventId,
-            Date = date ?? NextEventDate()
+            Date = date?.ToUniversalTime() ?? NextEventDate()
         };
         Events[eventId] = newEvent;
         return newEvent;
@@ -105,7 +106,7 @@ public class WorkflowInstance
     /// comparison on <see cref="InstanceEvent.Date"/>, so two events in one instance must never share
     /// a timestamp; MongoDB stores millisecond precision, hence the 1ms floor.
     /// </summary>
-    private DateTime NextEventDate()
+    public DateTime NextEventDate()
     {
         var now = DateTime.UtcNow;
         var candidate = Events.Values

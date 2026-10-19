@@ -7,9 +7,10 @@ public class InfoCard : INamed
     public string Name { get; set; } = null!;
     public InfoCardType? Type { get; set; }
     public BilingualString? Title { get; set; }
+    public BilingualTemplate? TitleTemplate => field ??= BilingualTemplate.Create(Title);
     public bool Enabled { get; set; } = true;
     public string[]? Sources { get; set; }
-
+    public string[]? ExcludedSources { get; set; }
     public string? User { get; set; }
     public InfoCardField[] Fields { get; set; } = [];
     public BilingualString? EmptyText { get; set; }
@@ -21,10 +22,11 @@ public class InfoCard : INamed
     [YamlIgnore]
     public IEnumerable<Lookup> Properties =>
     [
-        ..(User == null ? Enumerable.Empty<Lookup>() : [(Lookup)new PropertyLookup(User)]),
-        ..Fields.SelectMany(configuredField => configuredField.Properties),
-        ..Groups.SelectMany(group => group.Users).Select(user => (Lookup)new PropertyLookup(user.Property)),
-        ..Items.SelectMany(item => item.UrlTemplate?.Properties ?? [])
+        .. (User == null ? Enumerable.Empty<Lookup>() : [(Lookup)new PropertyLookup(User)]),
+        .. Fields.SelectMany(configuredField => configuredField.Properties),
+        .. Groups.SelectMany(group => group.Users).Select(user => (Lookup)new PropertyLookup(user.Property)),
+        .. Items.SelectMany(item => item.UrlTemplate?.Properties ?? []),
+        .. TitleTemplate?.Properties ?? []
     ];
 }
 
@@ -33,7 +35,8 @@ public enum InfoCardType
     User,
     RelatedUsers,
     Links,
-    Text
+    Text,
+    Progress
 }
 
 public class InfoCardField : Field

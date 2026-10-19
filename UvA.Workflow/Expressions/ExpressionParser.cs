@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace UvA.Workflow.Expressions;
 
@@ -54,7 +55,9 @@ public class ExpressionParser
         if (bool.TryParse(token, out var b))
             return new Boolean(b);
         if (int.TryParse(token, out var x))
-            return new Number(x);
+            return new Int(x);
+        if (double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+            return new Double(d);
         return new Identifier(token);
     }
 
@@ -62,10 +65,23 @@ public class ExpressionParser
     {
         var chars = new List<char> { ',', '(', ')', '[', ']' };
         var operatorChars = new List<char> { '<', '>', '=' };
+        var quotes = new List<char> { '"', '\'' };
         var tokens = new List<string>();
         int start = 0;
+        char? quote = null;
         for (var i = 0; i < exp.Length; i++)
         {
+            if (quotes.Contains(exp[i]))
+            {
+                if (quote == exp[i])
+                    quote = null;
+                else if (quote == null)
+                    quote = exp[i];
+            }
+
+            if (quote != null)
+                continue;
+
             var isOperator = operatorChars.Contains(exp[i]) && operatorChars.Contains(exp[i + 1]);
             if (chars.Contains(exp[i]) || isOperator)
             {
@@ -79,7 +95,7 @@ public class ExpressionParser
         }
 
         if (start < exp.Length)
-            tokens.Add(exp.Substring(start));
+            tokens.Add(exp.Substring(start).Trim());
 
         return tokens;
     }

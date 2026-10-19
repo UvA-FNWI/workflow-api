@@ -6,7 +6,7 @@ public class ModelService(ModelParser parser)
 {
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => parser.WorkflowDefinitions;
 
-    public Dictionary<string, Role> Roles => parser.Roles.ToDictionary(r => r.Name, r => r);
+    public Dictionary<string, Role> Roles => parser.GlobalRoles.ToDictionary(r => r.Name, r => r);
 
     public List<Service> Services => parser.Services;
 
@@ -74,18 +74,40 @@ public class ModelService(ModelParser parser)
             ));
     }
 
+    /// <summary>
+    /// Returns the action's linked step names that are active, or completed for persistent actions.
+    /// Evaluates step availability only; roles, action conditions and deadline restrictions are checked by RightsService.
+    /// </summary>
+    public string[] GetAvailableStepsForAction(WorkflowInstance instance, Action action, string[] activeSteps,
+        ObjectContext context)
+    {
+        if (!action.Persistent)
+            return action.Steps.Intersect(activeSteps).ToArray();
+
+        var definition = WorkflowDefinitions[instance.WorkflowDefinition];
+        return action.Steps.Where(name => activeSteps.Contains(name) ||
+                                          definition.AllSteps.GetOrDefault(name) is { } step &&
+                                          step.Condition.IsMet(context) && step.HasEnded(context)).ToArray();
+    }
+
     public string[] GetActiveSteps(WorkflowInstance instance)
     {
         var (step, context) = ResolveCurrentStep(instance);
-        if (step == null)
-            return [];
         context ??= CreateContext(instance);
-        return step.Children
-            .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
-            .Select(s => s.Name)
+        var walk = WorkflowDefinitions[instance.WorkflowDefinition].WalkSteps.ToList();
+        var alongside = walk
+            .Where(s => IsAvailableAlongside(s, walk, context))
+            .SelectMany(s => OpenDescendantNames(s, context).Append(s.Name));
+
+        if (step == null)
+            return alongside.ToArray();
+
+        return OpenDescendantNames(step, context)
             .Append(step.Name)
             .Append(step.ParentStep?.Name)
+            .Concat(alongside)
             .Where(s => s != null)
+            .Distinct()
             .ToArray()!;
     }
 
@@ -110,8 +132,42 @@ public class ModelService(ModelParser parser)
     {
         var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
         context ??= CreateContext(instance);
-        return workflowDefinition.FlattenedSteps
-            .FirstOrDefault(step => step.Condition.IsMet(context) && !step.HasEnded(context));
+        var walk = workflowDefinition.WalkSteps.ToList();
+        var unfinishedAlongside = walk
+            .Where(step => step.IsAlongside && step.Condition.IsMet(context) && !step.HasEnded(context))
+            .ToList();
+
+        foreach (var step in walk)
+        {
+            if (step.IsAlongside || !step.Condition.IsMet(context) || step.HasEnded(context))
+                continue;
+
+            var blocker = unfinishedAlongside.FirstOrDefault(a => a.Before == step.Name);
+            return blocker ?? step;
+        }
+
+        return unfinishedAlongside.FirstOrDefault(step => step.BlocksWorkflow);
+    }
+
+    private static IEnumerable<string> OpenDescendantNames(Step step, ObjectContext context) =>
+        step.Children
+            .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
+            .Take(step.HierarchyMode == StepHierarchyMode.Sequential ? 1 : int.MaxValue)
+            .SelectMany(s => OpenDescendantNames(s, context).Prepend(s.Name));
+
+    private static bool IsAvailableAlongside(Step step, List<Step> walk, ObjectContext context)
+    {
+        if (!step.IsAlongside || !step.Condition.IsMet(context) || step.HasEnded(context))
+            return false;
+
+        for (var i = walk.IndexOf(step) - 1; i >= 0; i--)
+        {
+            if (walk[i].IsAlongside)
+                continue;
+            return walk[i].HasEnded(context);
+        }
+
+        return true;
     }
 }
 

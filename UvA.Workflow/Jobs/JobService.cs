@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
+using UvA.Workflow.Events;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
@@ -20,12 +21,13 @@ public class JobService(
     IOptions<WorkerOptions> workerOptions)
 {
     public Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, Action action, User user,
-        JobInput? input, CancellationToken ct)
+        JobInput? input, CancellationToken ct, OperationMetadata? operation = null)
         => CreateAndRunJob(instance, JobSource.Action,
-            action.Name ?? throw new InvalidOperationException("Invalid action"), action.OnAction, user, input, ct);
+            action.Name ?? throw new InvalidOperationException("Invalid action"), action.OnAction, user, input, ct,
+            operation);
 
     public async Task<EffectResult> CreateAndRunJob(WorkflowInstance instance, JobSource sourceType, string sourceName,
-        Effect[] effects, User user, JobInput? input, CancellationToken ct)
+        Effect[] effects, User user, JobInput? input, CancellationToken ct, OperationMetadata? operation = null)
     {
         var steps = effects
             .Where(e => e.Delay == null)
@@ -40,14 +42,19 @@ public class JobService(
             Input = input,
             IsSynchronous = true,
             WorkerGroup = workerOptions.Value.WorkerGroup,
-            Steps = steps.Keys.ToList()
+            Steps = steps.Keys.ToList(),
+            OperationId = operation?.Id
         };
 
-        var result = await RunJob(job, instance, effects, user, ct);
+        var persistJob = steps.Values.Any(e => e.IsLogged);
+        if (persistJob)
+            await repository.Add(job, ct);
+
+        var result = await RunJob(job, instance, effects, user, ct, persistJob, operation);
         var jobStepsBeforeFiltering = job.Steps;
         job.Steps = job.Steps.Where(s => steps[s].IsLogged).ToList();
-        if (job.Steps.Count > 0)
-            await repository.Add(job, ct);
+        if (persistJob)
+            await repository.Update(job, ct);
         if (job.Status == JobStatus.Failed)
         {
             var failedSteps = jobStepsBeforeFiltering.FindAll(s => s.Message != null);
@@ -108,7 +115,8 @@ public class JobService(
                 Input = input,
                 IsSynchronous = false,
                 WorkerGroup = workerOptions.Value.WorkerGroup,
-                Steps = delayGroup.Select(e => new JobStep { Identifier = e.Identifier }).ToList()
+                Steps = delayGroup.Select(e => new JobStep { Identifier = e.Identifier }).ToList(),
+                OperationId = operation?.Id
             }, ct);
 
         return result;
@@ -139,13 +147,13 @@ public class JobService(
                 .Forms.Single(f => f.Name == job.SourceName).OnSubmit,
             _ => throw new NotImplementedException()
         };
-        await RunJob(job, instance, effects, user, ct);
+        await RunJob(job, instance, effects, user, ct, persistJob: true);
         await repository.Update(job, ct);
         await instanceService.UpdateCurrentStep(instance, ct);
     }
 
     private async Task<EffectResult> RunJob(Job job, WorkflowInstance instance, Effect[] effects, User user,
-        CancellationToken ct)
+        CancellationToken ct, bool persistJob, OperationMetadata? operation = null)
     {
         var context = modelService.CreateContext(instance);
         EffectResult result = new();
@@ -170,7 +178,8 @@ public class JobService(
 
             try
             {
-                result += await effectService.RunEffect(job, instance, effect, user, context, ct);
+                result += await effectService.RunEffect(job, instance, effect, user, context, ct, operation,
+                    persistJob ? () => repository.Update(job, ct) : null);
             }
             catch (Exception ex)
             {
@@ -183,7 +192,8 @@ public class JobService(
 
             var outputs = context.Get(effect.Name ?? effect.ServiceCall?.Operation ?? "__invalid")
                 as Dictionary<Lookup, object>;
-            step.Outputs = outputs?.ToDictionary(o => o.Key.ToString(), o => o.Value);
+            if (outputs != null)
+                step.Outputs = outputs.ToDictionary(o => o.Key.ToString(), o => o.Value);
             step.Status = JobStatus.Completed;
         }
 

@@ -3,6 +3,7 @@ using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
@@ -42,8 +43,10 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<RightsService>();
         services.AddScoped<JobService>();
         services.AddScoped<EffectService>();
+        services.AddScoped<UndoService>();
         services.AddScoped<AnswerConversionService>();
         services.AddScoped<InitializationService>();
+        services.AddScoped<MigrationService>();
 
         services.AddHostedService<JobWorker>();
 

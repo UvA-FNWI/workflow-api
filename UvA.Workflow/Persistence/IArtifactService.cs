@@ -29,9 +29,12 @@ public record Artifact(ArtifactInfo Info, byte[] Content);
 
 public interface IArtifactService
 {
-    Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, byte[] contents);
-    Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, Stream stream);
-    Task<ArtifactInfo> SaveArtifact(string artifactId, IFormFile file);
+    Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, byte[] contents, string contentType,
+        CancellationToken ct);
+
+    Task<ArtifactInfo> SaveArtifact(string artifactId, string artifactName, Stream stream, string contentType,
+        CancellationToken ct);
+
     Task<Artifact?> GetArtifact(string artifactId, CancellationToken ct);
 
     Task DeleteArtifact(string artifactId, CancellationToken ct = default);

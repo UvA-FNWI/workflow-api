@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -27,7 +28,6 @@ public class WorkflowTests
     readonly Mock<IInstanceEventRepository> _eventRepoMock;
     readonly Mock<IUserService> _userServiceMock;
     readonly Mock<IMailService> _mailServiceMock;
-    readonly Mock<IEduIdUserService> _eduIdUserServiceMock;
     readonly Mock<IMailLogRepository> _mailLogRepositoryMock;
     readonly Mock<IArtifactService> _artifactServiceMock;
     readonly Mock<IInstanceJournalService> _instanceJournalServiceMock;
@@ -68,7 +68,6 @@ public class WorkflowTests
         _eventRepoMock = new Mock<IInstanceEventRepository>();
         _userServiceMock = new Mock<IUserService>();
         _mailServiceMock = new Mock<IMailService>();
-        _eduIdUserServiceMock = new Mock<IEduIdUserService>();
         _mailLogRepositoryMock = new Mock<IMailLogRepository>();
         _artifactServiceMock = new Mock<IArtifactService>();
         _instanceJournalServiceMock = new Mock<IInstanceJournalService>();
@@ -88,7 +87,8 @@ public class WorkflowTests
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
         _workflowInstanceService = new WorkflowInstanceService(_modelService, _instanceRepoMock.Object,
-            _instanceJournalServiceMock.Object, _eventRepoMock.Object, _userServiceMock.Object);
+            _instanceJournalServiceMock.Object, _eventRepoMock.Object, _userServiceMock.Object,
+            Mock.Of<IUserRepository>());
         _assessmentService = new AssessmentService(_modelService, _workflowInstanceService, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
@@ -105,10 +105,11 @@ public class WorkflowTests
             _eventService,
             _modelService,
             _mailServiceMock.Object,
-            _eduIdUserServiceMock.Object,
+            _externalUserServiceMock.Object,
             _artifactServiceMock.Object,
             _mailLogRepositoryMock.Object,
             _configurationMock.Object,
+            _eventRepoMock.Object,
             factory.CreateLogger<EffectService>());
         _jobService = new JobService(_effectService, _modelService, _jobRepositoryMock.Object,
             _instanceRepoMock.Object, userRepository: _userRepoMock.Object, factory.CreateLogger<JobService>(),
@@ -177,6 +178,15 @@ public class WorkflowTests
                 It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    static IFormFile CreateFile(string fileName, int? size = null)
+    {
+        var fileMock = new Mock<IFormFile>();
+        fileMock.Setup(f => f.FileName).Returns(fileName);
+        fileMock.Setup(f => f.OpenReadStream()).Returns(() => new MemoryStream(new byte[size ?? 0]));
+        fileMock.Setup(f => f.Length).Returns(size ?? 0);
+        return fileMock.Object;
+    }
+
     [Fact]
     public async Task SubmitForm_UploadArtifact_Success()
     {
@@ -187,32 +197,197 @@ public class WorkflowTests
             )
             .Build();
 
-        using var ms = new MemoryStream();
-        await using var writer = new StreamWriter(ms);
-        await writer.WriteLineAsync("This is a test file");
-        await writer.FlushAsync(_ct);
         const string fileName = "test.pdf";
 
         var fileId = ObjectId.GenerateNewId();
         var artifactId = S3ArtifactService.ToArtifactId(instance.Id, null, fileId);
 
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
-        _artifactServiceMock.Setup(a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()))
+        _artifactServiceMock.Setup(a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ArtifactInfo(artifactId, fileName));
 
         // Act
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        await _answerService.SaveArtifact(questionContext, fileName, ms, _ct);
+        await _answerService.SaveArtifact(questionContext, CreateFile(fileName), _ct);
 
         // Assert
         Assert.Contains(instance.Properties, p => p.Key == "Report");
         var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
         Assert.Equal(fileName, report.Name);
         _artifactServiceMock.Verify(
-            a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>()), Times.Once);
+            a => a.SaveArtifact(It.IsAny<string>(), fileName, It.IsAny<Stream>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         _instanceRepoMock.Verify(
             r => r.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadArtifact_RejectsFileTypeThatIsNotAllowed()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _answerService.SaveArtifact(questionContext, CreateFile("report.docx"), _ct));
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task UploadArtifact_AppliesPrefix()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        questionContext.PropertyDefinition.FileSettings = new() { Prefix = "prefix_" };
+
+        await _answerService.SaveArtifact(questionContext, CreateFile("report.pdf"), _ct);
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), "prefix_report.pdf", It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadArtifact_AcceptsConfiguredFileTypeCaseInsensitively()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        Assert.Equal(["pdf", "zip"], questionContext.PropertyDefinition.FileSettings?.AllowedTypes!);
+        _artifactServiceMock
+            .Setup(service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ArtifactInfo("artifact-id", "archive.ZIP"));
+        using var contents = new MemoryStream();
+
+        await _answerService.SaveArtifact(questionContext, CreateFile("archive.ZIP"), _ct);
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadArtifact_RejectsFileThatExceedsConfiguredSize()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        questionContext.PropertyDefinition.FileSettings = new() { MaximumSize = 1000 };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _answerService.SaveArtifact(questionContext, CreateFile("report.pdf", 1001), _ct));
+
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task FileArray_UploadsRemovesAndEnforcesCombinedSize()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        context.PropertyDefinition.Type = "[File]";
+        context.PropertyDefinition.FileSettings = new() { AllowedTypes = ["*"], MaximumSize = 10 };
+        var index = 0;
+        _artifactServiceMock.Setup(service =>
+                service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string name, Stream stream, string contentType, CancellationToken ct) =>
+                new ArtifactInfo($"file-{++index}", name, Length: stream.Length));
+
+        await _answerService.SaveArtifact(context, CreateFile("first.txt", 4), _ct);
+        await _answerService.SaveArtifact(context, CreateFile("second.csv", 5), _ct);
+        Assert.Equal(2, instance.Properties["Report"].AsBsonArray.Count);
+        Assert.Equal(["first.txt", "second.csv"],
+            Answer.GetValue(context.PropertyDefinition, instance.Properties["Report"])!.Value
+                .EnumerateArray().Select(name => name.GetString()));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _answerService.SaveArtifact(context, CreateFile("too-large.zip", 2), _ct));
+
+        await _answerService.DeleteArtifact(context, "file-1", _ct);
+        Assert.Single(instance.Properties["Report"].AsBsonArray);
+        await _answerService.DeleteArtifact(context, "file-2", _ct);
+        Assert.True(instance.Properties["Report"].IsBsonNull);
+    }
+
+    [Fact]
+    public async Task SaveArtifactInfo_AttachesFileWithoutUploading()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+
+        await _answerService.SaveArtifact(context, new ArtifactInfo("file-1", "dummy-file.pdf"), _ct);
+
+        var report = BsonSerializer.Deserialize<ArtifactInfo>(instance.Properties["Report"].ToBsonDocument());
+        Assert.Equal("dummy-file.pdf", report.Name);
+        _artifactServiceMock.Verify(
+            service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveArtifactInfo_AppendsToFileArray()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithEvents(b => b.WithId("Start").AsCompleted())
+            .Build();
+        _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+        var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
+        context.PropertyDefinition.Type = "[File]";
+
+        await _answerService.SaveArtifact(context, new ArtifactInfo("file-1", "first.pdf"), _ct);
+        await _answerService.SaveArtifact(context, new ArtifactInfo("file-2", "second.pdf"), _ct);
+
+        Assert.Equal(2, instance.Properties["Report"].AsBsonArray.Count);
+    }
+
+    [Fact]
+    public void FileArray_WildcardConfigurationParses()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Project/Entity.yaml"] =
+                "name: Project\ntitlePlural: Projects\nproperties:\n  - name: Attachments\n    type: '[File]'\n    fileSettings:\n      allowedTypes: ['*']\n      maximumSize: 1000"
+        }));
+
+        var property = parser.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == "Attachments");
+        Assert.True(property.IsArray);
+        Assert.Equal(["*"], property.EffectiveAllowedFileTypes);
     }
 
     [Fact]

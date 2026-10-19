@@ -68,20 +68,15 @@
       "description": "Determines how the child steps of this step are handled",
       "$ref": "#/definitions/StepHierarchyMode"
     },
+    "childrenLayout": {
+      "description": "Controls how child steps appear in the parent card. Defaults to Combined.",
+      "$ref": "#/definitions/StepChildrenLayout"
+    },
     "children": {
       "type": "array",
       "description": "Child steps of this step",
       "items": {
         "type": "string"
-      }
-    },
-    "headerStatus": {
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/StepHeaderStatusConfiguration"
       }
     },
     "condition": {
@@ -95,6 +90,17 @@
         },
         {
           "$ref": "#/definitions/Condition"
+        }
+      ]
+    },
+    "deadline": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Deadline for completing this step. Defaults to a soft deadline.",
+          "$ref": "#/definitions/Deadline"
         }
       ]
     },
@@ -118,6 +124,17 @@
           "$ref": "#/definitions/Condition"
         }
       ]
+    },
+    "mode": {
+      "description": "Determines whether this is a regular, required alongside, or optional alongside step.",
+      "$ref": "#/definitions/StepMode"
+    },
+    "before": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Named step that must not become current until this alongside step has ended."
     },
     "properties": {
       "type": "array",
@@ -180,6 +197,16 @@
             }
           ]
         },
+        "header": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/ProgressHeader"
+            }
+          ]
+        },
         "event": {
           "type": [
             "null",
@@ -208,6 +235,39 @@
       "enum": [
         "Red",
         "Green"
+      ]
+    },
+    "ProgressHeader": {
+      "title": "ProgressHeader",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/StepHeaderPillType"
+        },
+        "label": {
+          "description": "Optional pill label. Defaults to the progress text of the enclosing entry.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "StepHeaderPillType": {
+      "type": "string",
+      "enum": [
+        "Info",
+        "Attention",
+        "Success",
+        "Error"
       ]
     },
     "Condition": {
@@ -268,13 +328,16 @@
           ]
         },
         "deadline": {
+          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Check if a deadline has passed",
-              "$ref": "#/definitions/Deadline"
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/DeadlineCondition"
             }
           ]
         },
@@ -328,6 +391,13 @@
           ],
           "description": "Value the property should be less than"
         },
+        "lessThanOrEqual": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Value the property should be less than or equal to"
+        },
         "greaterThan": {
           "type": [
             "null",
@@ -362,6 +432,13 @@
             "null"
           ],
           "description": "Maximum length of a string"
+        },
+        "minLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Minimum length of a string"
         }
       }
     },
@@ -415,8 +492,8 @@
         }
       }
     },
-    "Deadline": {
-      "title": "Deadline",
+    "DeadlineCondition": {
+      "title": "DeadlineCondition",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -481,36 +558,41 @@
         "Parallel"
       ]
     },
-    "StepHeaderStatusConfiguration": {
-      "title": "StepHeaderStatusConfiguration",
+    "StepChildrenLayout": {
+      "type": "string",
+      "oneOf": [
+        {
+          "description": "Shows child content together in the parent card.",
+          "enum": [
+            "Combined"
+          ]
+        },
+        {
+          "description": "Shows each direct child in its own expandable row.",
+          "enum": [
+            "CollapsibleRows"
+          ]
+        }
+      ]
+    },
+    "Deadline": {
+      "title": "Deadline",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "label"
+        "date"
       ],
       "properties": {
+        "date": {
+          "type": "string",
+          "description": "Expression that resolves to the deadline date."
+        },
         "type": {
-          "$ref": "#/definitions/StepHeaderPillType"
+          "description": "Hard deadlines revoke this step's permissions except View. Separate global/form grants still apply.\n            Soft deadlines do not change permissions.",
+          "$ref": "#/definitions/DeadlineType"
         },
-        "label": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "event": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Shorthand for a condition that applies when a single event is active.\n            For arbitrary logic use <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Condition\"/> instead."
-        },
-        "condition": {
-          "description": "Condition that determines whether this configuration applies. Takes precedence over\n            <see cref=\"P:UvA.Workflow.WorkflowModel.Conditions.ConditionalOption.Event\"/> when set. Omit both properties for an unconditional configuration.",
+        "text": {
+          "description": "Message shown instead of the step content after a hard deadline passes. Supports bilingual text and templates.",
           "oneOf": [
             {
               "type": "null"
@@ -519,18 +601,17 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "#/definitions/BilingualString"
             }
           ]
         }
       }
     },
-    "StepHeaderPillType": {
+    "DeadlineType": {
       "type": "string",
       "enum": [
-        "Info",
-        "Attention",
-        "Success"
+        "Soft",
+        "Hard"
       ]
     },
     "Action": {
@@ -635,6 +716,10 @@
             "type": "string"
           }
         },
+        "persistent": {
+          "type": "boolean",
+          "description": "Keeps this action available on active and completed steps.\n            Roles, action conditions and applicable hard deadlines still apply. Defaults to false."
+        },
         "noAutoOpenForm": {
           "type": "boolean",
           "description": "When true, the submit form does not automatically even if it is the only submit action in the step"
@@ -689,7 +774,8 @@
         "CreateInstance",
         "CreateRelatedInstance",
         "ImpersonateRoles",
-        "ViewResults"
+        "ViewResults",
+        "ViewCorrespondence"
       ]
     },
     "Effect": {
@@ -725,6 +811,17 @@
             },
             {
               "description": "Send an email",
+              "$ref": "#/definitions/SendMessage"
+            }
+          ]
+        },
+        "sendAccessMail": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Prepare login access and send one personalized email per recipient",
               "$ref": "#/definitions/SendMessage"
             }
           ]
@@ -945,7 +1042,8 @@
       "additionalProperties": false,
       "required": [
         "url",
-        "label"
+        "label",
+        "intent"
       ],
       "properties": {
         "url": {
@@ -962,15 +1060,9 @@
           ]
         },
         "intent": {
-          "$ref": "#/definitions/MailButtonIntent"
+          "type": "string"
         }
       }
-    },
-    "MailButtonIntent": {
-      "type": "string",
-      "enum": [
-        "Primary"
-      ]
     },
     "Attachment": {
       "title": "Attachment",
@@ -1103,6 +1195,29 @@
         }
       }
     },
+    "StepMode": {
+      "type": "string",
+      "oneOf": [
+        {
+          "description": "Follows the ordered workflow progression. It becomes current when reached, unless its condition skips it,\n            and progression continues after it ends.",
+          "enum": [
+            "Normal"
+          ]
+        },
+        {
+          "description": "Becomes active after the nearest preceding normal step ends, or when the workflow starts if there is none.\n            Normal steps may continue while it remains active. It becomes current when its before target is reached or\n            when the workflow would otherwise finish, and blocks progression until it ends.",
+          "enum": [
+            "Alongside"
+          ]
+        },
+        {
+          "description": "Becomes active like an alongside step, but never blocks progression or becomes current. If still active when\n            the workflow finishes, it closes with the workflow.",
+          "enum": [
+            "Optional"
+          ]
+        }
+      ]
+    },
     "PropertyDefinition": {
       "title": "PropertyDefinition",
       "type": "object",
@@ -1134,6 +1249,17 @@
         "visibility": {
           "description": "Set if this propertyDefinition is hidden from users without extra permissions",
           "$ref": "#/definitions/PropertyVisibility"
+        },
+        "fileSettings": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Configure settings for file upload questions",
+              "$ref": "#/definitions/FileSettings"
+            }
+          ]
         },
         "layout": {
           "description": "Specific layout options for the data type",
@@ -1168,7 +1294,14 @@
         },
         "type": {
           "type": "string",
-          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Boolean\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+          "description": "Data type of the propertyDefinition. Can be a primitive type String, Int, Double, DateTime, Date, User, Currency, File, Check\n            or a reference to a value set or another entity type. Use [Type] to indicate an array and Type! to indicate\n            a required value."
+        },
+        "default": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression used to initialize this property when an instance is created without a value."
         },
         "values": {
           "type": [
@@ -1319,6 +1452,37 @@
         "Hidden"
       ]
     },
+    "FileSettings": {
+      "title": "FileSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Prefix (template) to add to the file names when storing files"
+        },
+        "allowedTypes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "File extensions that may be uploaded for a File propertyDefinition (for example pdf or zip).\n            Use * to allow any format.\n            Defaults to pdf when omitted.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maximumSize": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Maximum file size in bytes for a File propertyDefinition. Defaults to 10000000 (10 MB) when omitted."
+        }
+      }
+    },
     "ChoiceLayoutOptions": {
       "title": "ChoiceLayoutOptions",
       "type": "object",
@@ -1335,7 +1499,8 @@
       "enum": [
         "Dropdown",
         "RadioList",
-        "Rubric"
+        "Rubric",
+        "ComboBox"
       ]
     },
     "TextLayoutOptions": {

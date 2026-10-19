@@ -3,5 +3,5 @@ step: Proposal
 
 pages:
   - name: Page
-    fields:
-      - Proposal
+    elements:
+      - question: Proposal

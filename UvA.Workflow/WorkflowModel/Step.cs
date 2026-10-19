@@ -1,3 +1,4 @@
+using System.Globalization;
 using UvA.Workflow.Events;
 using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel;
@@ -11,11 +12,46 @@ public enum StepHierarchyMode
     Parallel
 }
 
+public enum StepChildrenLayout
+{
+    /// <summary>Shows child content together in the parent card.</summary>
+    Combined,
+
+    /// <summary>Shows each direct child in its own expandable row.</summary>
+    CollapsibleRows
+}
+
+/// <summary>
+/// Controls how a step participates in the flattened walk.
+/// </summary>
+public enum StepMode
+{
+    /// <summary>
+    /// Follows the ordered workflow progression. It becomes current when reached, unless its condition skips it,
+    /// and progression continues after it ends.
+    /// </summary>
+    Normal,
+
+    /// <summary>
+    /// Becomes active after the nearest preceding normal step ends, or when the workflow starts if there is none.
+    /// Normal steps may continue while it remains active. It becomes current when its before target is reached or
+    /// when the workflow would otherwise finish, and blocks progression until it ends.
+    /// </summary>
+    Alongside,
+
+    /// <summary>
+    /// Becomes active like an alongside step, but never blocks progression or becomes current. If still active when
+    /// the workflow finishes, it closes with the workflow.
+    /// </summary>
+    Optional
+}
+
 public enum StepHeaderPillType
 {
     Info,
     Attention,
-    Success
+    Success,
+    Error
 }
 
 public enum StatusColor
@@ -36,12 +72,29 @@ public class ProgressInformation : ConditionalOption
     public BilingualString? Text { get; init; } = null!;
     [YamlIgnore] public BilingualTemplate? ProgressTextTemplate => field ??= BilingualTemplate.Create(Text);
 
+    public ProgressHeader? Header { get; init; }
+
+    [YamlIgnore] public BilingualTemplate? HeaderLabelTemplate => Header?.LabelTemplate ?? ProgressTextTemplate;
+
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>
     [
-        ..EffectiveCondition?.Properties ?? [],
-        ..ProgressTextTemplate?.Properties ?? []
+        .. EffectiveCondition?.Properties ?? [],
+        .. ProgressTextTemplate?.Properties ?? [],
+        .. HeaderLabelTemplate?.Properties ?? []
     ];
+}
+
+public class ProgressHeader
+{
+    public StepHeaderPillType Type { get; init; }
+
+    /// <summary>
+    /// Optional pill label. Defaults to the progress text of the enclosing entry.
+    /// </summary>
+    public BilingualString? Label { get; init; }
+
+    [YamlIgnore] public BilingualTemplate? LabelTemplate => field ??= BilingualTemplate.Create(Label);
 }
 
 public enum StepResultsType
@@ -49,6 +102,54 @@ public enum StepResultsType
     Normal,
     AssessmentPartOverview,
     AssessmentFinalOverview
+}
+
+public enum DeadlineType
+{
+    Soft,
+    Hard
+}
+
+public class Deadline
+{
+    /// <summary>
+    /// Expression that resolves to the deadline date.
+    /// </summary>
+    public string Date { get; set; } = null!;
+
+    /// <summary>
+    /// Hard deadlines revoke this step's permissions except View. Separate global/form grants still apply.
+    /// Soft deadlines do not change permissions.
+    /// </summary>
+    public DeadlineType Type { get; set; } = DeadlineType.Soft;
+
+    /// <summary>
+    /// Message shown instead of the step content after a hard deadline passes. Supports bilingual text and templates.
+    /// </summary>
+    public BilingualString? Text { get; set; }
+
+    [YamlIgnore] public BilingualTemplate? TextTemplate => BilingualTemplate.Create(Text);
+
+    private Expression Expression => ExpressionParser.Parse(Date);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Properties =>
+        [.. Expression.Properties, .. TextTemplate?.Properties ?? []];
+
+    public DateTimeOffset? Evaluate(ObjectContext context)
+        => Expression.Execute(context) switch
+        {
+            DateTimeOffset date => date,
+            // DateTime's kind determines its offset; unspecified dates use the server's local timezone.
+            DateTime date => new DateTimeOffset(date),
+            string value => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
+            _ => null
+        };
+
+    public bool HasPassed(ObjectContext context)
+        => Evaluate(context) is { } deadline && deadline <= DateTimeOffset.Now;
+
+    public static implicit operator Deadline(string date) => new() { Date = date };
 }
 
 public class Step : INamed, IDeclaredKeys
@@ -106,6 +207,9 @@ public class Step : INamed, IDeclaredKeys
     /// </summary>
     public StepHierarchyMode HierarchyMode { get; set; }
 
+    /// <summary>Controls how child steps appear in the parent card. Defaults to Combined.</summary>
+    public StepChildrenLayout ChildrenLayout { get; set; }
+
     /// <summary>
     /// Child steps of this step
     /// </summary>
@@ -113,17 +217,25 @@ public class Step : INamed, IDeclaredKeys
     public string[] ChildNames { get; set; } = [];
 
     [YamlIgnore] public Step[] Children { get; set; } = [];
-    [YamlIgnore] public Step? ParentStep { get; set; }
+
+    /// <summary>
+    /// Get the direct parent of this step
+    /// </summary>
+    [YamlIgnore]
+    public Step? ParentStep { get; set; }
 
     // Derived definitions relink Children, so inherited steps cannot be shared.
     public Step Clone() => (Step)MemberwiseClone();
-
-    public List<StepHeaderStatusConfiguration>? HeaderStatus { get; set; }
 
     /// <summary>
     /// Condition requires for this step to start
     /// </summary>
     public Condition? Condition { get; set; }
+
+    /// <summary>
+    /// Deadline for completing this step. Defaults to a soft deadline.
+    /// </summary>
+    public Deadline? Deadline { get; set; }
 
     /// <summary>
     /// Actions that are possible while this step is active
@@ -134,6 +246,19 @@ public class Step : INamed, IDeclaredKeys
     /// Condition that determines when the step ends 
     /// </summary>
     public Condition? Ends { get; set; }
+
+    /// <summary>
+    /// Determines whether this is a regular, required alongside, or optional alongside step.
+    /// </summary>
+    public StepMode Mode { get; set; }
+
+    [YamlIgnore] public bool IsAlongside => Mode is StepMode.Alongside or StepMode.Optional;
+    [YamlIgnore] public bool BlocksWorkflow => Mode == StepMode.Alongside;
+
+    /// <summary>
+    /// Named step that must not become current until this alongside step has ended.
+    /// </summary>
+    public string? Before { get; set; }
 
     /// <summary>
     /// Properties related to this step. These will become properties of the corresponding entity 
@@ -147,9 +272,10 @@ public class Step : INamed, IDeclaredKeys
 
     public IEnumerable<Lookup> Lookups =>
     [
-        ..Ends?.Properties ?? [],
-        ..Condition?.Properties ?? [],
-        ..Children.SelectMany(c => c.Lookups)
+        .. Ends?.Properties ?? [],
+        .. Condition?.Properties ?? [],
+        .. Deadline?.Properties ?? [],
+        .. Children.SelectMany(c => c.Lookups)
     ];
 
     public string? EndEvent => Ends?.Event?.Id;
@@ -195,40 +321,18 @@ public class Step : INamed, IDeclaredKeys
         return null;
     }
 
-    public DateTime? GetDeadline(WorkflowInstance instance, ModelService modelService)
-    {
-        if (Condition == null) return null;
-        var deadlineCondition = FindDeadlineCondition(Condition);
-        if (deadlineCondition is null) return null;
-        var context = ObjectContext.Create(instance, modelService);
-        return deadlineCondition.Evaluate(context);
-
-        // Recursively find deadline condition
-        Deadline? FindDeadlineCondition(Condition condition)
-        {
-            if (condition.Deadline != null) return condition.Deadline;
-            if (condition.Logical is not null)
-            {
-                return condition.Logical.Children.Select(FindDeadlineCondition).FirstOrDefault(d => d != null);
-            }
-
-            return null;
-        }
-    }
+    public bool HasPassedHardDeadline(ObjectContext context)
+        // Completed submissions remain available to subsequent steps. If rejection reopens
+        // this step, HasEnded becomes false and its hard deadline applies again.
+        => (Deadline?.Type == DeadlineType.Hard && !HasEnded(context) && Deadline.HasPassed(context)) ||
+           ParentStep?.HasPassedHardDeadline(context) == true;
 
     public bool HasEnded(ObjectContext context)
     {
         if (Ends != null)
             return Ends.IsMet(context);
         if (Children.Any())
-            return Children.All(c => c.HasEnded(context));
+            return Children.Where(c => c.Condition.IsMet(context)).All(c => c.HasEnded(context));
         return false;
-    }
-
-    public class StepHeaderStatusConfiguration : ConditionalOption
-    {
-        public StepHeaderPillType Type { get; set; }
-        public BilingualString Label { get; set; } = null!;
-        public BilingualTemplate LabelTemplate => field ??= BilingualTemplate.Create(Label)!;
     }
 }

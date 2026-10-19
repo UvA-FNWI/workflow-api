@@ -47,7 +47,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             t =>
             {
                 var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
-                return GetValue(t.Value, prop?.DataType ?? DataType.String, prop);
+                return GetValue(t.Value, prop?.DataType ?? workflowDefinition.GetDataType(t.Key), prop);
             });
 
         // Normalize projected event data in the same way as a fully loaded workflow instance.
@@ -60,7 +60,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
                     Id = element.Name,
                     Date = (element.Value as BsonDocument)?.GetValue("Date", BsonNull.Value)
                         is BsonDateTime date
-                            ? date.ToLocalTime()
+                            ? date.ToUniversalTime()
                             : null
                 });
             var instance = new WorkflowInstance
@@ -72,6 +72,10 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             };
 
             AddEventInformation(dict, instance, workflowDefinition);
+        }
+        else if (dict.GetValueOrDefault("LastEvent") == null)
+        {
+            dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
 
         return new ObjectContext(dict);
@@ -92,7 +96,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
         dict.Add("Id", instance.Id);
         dict.Add("CurrentStep", instance.CurrentStep);
-        dict.Add("CreateDate", instance.CreatedOn);
+        dict.Add("CreateDate", instance.CreatedOn.ToLocalTime());
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
@@ -105,6 +109,9 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         WorkflowInstance instance,
         WorkflowDefinition workflowDefinition)
     {
+        dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
+                            ?? dict.GetValueOrDefault("CreateDate");
+
         foreach (var ev in instance.Events.Values)
         {
             var eventKey = ev.Id + "Event";
@@ -116,7 +123,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             dict[activeKey] = isActive;
 
             if (ev.Date != null && isActive)
-                dict[eventKey] = ev.Date;
+                dict[eventKey] = ev.Date.Value.ToLocalTime();
         }
     }
 
@@ -154,7 +161,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Int => BsonConversionTools.ConvertBasicBsonValue(answer),
             DataType.Double => BsonConversionTools.ConvertBasicBsonValue(answer),
-            DataType.Boolean => BsonConversionTools.ConvertBasicBsonValue(answer),
+            DataType.Check => BsonConversionTools.ConvertBasicBsonValue(answer),
             _ => throw new NotImplementedException()
         };
     }

@@ -2,16 +2,16 @@ name: Assessment
 
 pages:
   - name: Report
-    fields:
-      - Structure
-      - Polishing
-      - Nose
+    elements:
+      - question: Structure
+      - question: Polishing
+      - question: Nose
   - name: Presentation
-    fields:
-      - Loudness
-      - Style
-      - Contents
+    elements:
+      - question: Loudness
+      - question: Style
+      - question: Contents
   - name: Practical
-    fields:
-      - Bananas
+    elements:
+      - question: Bananas
     sources: [AssessmentSupervisor]

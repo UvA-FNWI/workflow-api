@@ -1,5 +1,4 @@
 name: Projects-RMSS
-workflowDefinition: Project-RMSS
 columns:
   - property: Title
     title:

@@ -28,9 +28,6 @@ public class ImportController(
         string screenName,
         CancellationToken ct)
     {
-        if (!await CanImport(workflowDefinition, ct))
-            return Forbidden();
-
         var definition =
             modelService.WorkflowDefinitions.GetValueOrDefault(workflowDefinition);
 
@@ -40,6 +37,9 @@ public class ImportController(
         var screen = definition.Screens.FirstOrDefault(s => s.Name == screenName);
         if (screen == null)
             return NotFound("ScreenNotFound", $"Screen '{screenName}' not found for workflow '{workflowDefinition}'.");
+
+        if (!await CanImport(workflowDefinition, ct))
+            return Forbidden();
 
         if (screen.BulkEdit is null)
             return BadRequest("BulkEditNotEnabled", $"Screen '{screenName}' does not support bulk edit.");

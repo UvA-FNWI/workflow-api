@@ -32,8 +32,19 @@ public class Generator(DocumentationReader documentationReader)
             {
                 Type = JsonObjectType.String,
             };
-            foreach (var entry in type.GetEnumNames())
-                schema.Enumeration.Add(entry);
+            var entries = type.GetFields(BindingFlags.Public | BindingFlags.Static);
+            var descriptions = entries.Select(documentationReader.GetSummary).ToArray();
+            var hasDescriptions = descriptions.Any(description => description != null);
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var option = new JsonSchema { Description = descriptions[i] };
+                option.Enumeration.Add(entries[i].Name);
+                if (hasDescriptions)
+                    schema.OneOf.Add(option);
+                else
+                    schema.Enumeration.Add(entries[i].Name);
+            }
+
             _schemas.Add(type, schema);
         }
         else
@@ -92,11 +103,17 @@ public class Generator(DocumentationReader documentationReader)
         [typeof(double?)] = JsonObjectType.Number
     };
 
-    private JsonSchema GetReference(Type type)
+    private JsonSchema GetReference(Type type, bool isNullable = false)
     {
+        var underlyingType = Nullable.GetUnderlyingType(type);
+        isNullable |= underlyingType != null;
+        type = underlyingType ?? type;
+
         if (TypeMapping.TryGetValue(type, out var jsonType))
-            return new JsonSchema { Type = jsonType };
-        return new JsonSchema { Reference = Get(type) };
+            return new JsonSchema { Type = isNullable ? jsonType | JsonObjectType.Null : jsonType };
+
+        var reference = new JsonSchema { Reference = Get(type) };
+        return isNullable ? CreateOneOf(Null, reference) : reference;
     }
 
     private JsonSchemaProperty CreateOneOf(params JsonSchema?[] schemas)
@@ -115,7 +132,8 @@ public class Generator(DocumentationReader documentationReader)
             ? property.PropertyType.GenericTypeArguments[0]
             : property.PropertyType;
 
-        var isNullable = _nullabilityInfoContext.Create(property).WriteState == NullabilityState.Nullable;
+        var nullability = _nullabilityInfoContext.Create(property);
+        var isNullable = nullability.WriteState == NullabilityState.Nullable;
 
         if (property.Name == "Icon" && targetType == typeof(string))
         {
@@ -128,7 +146,7 @@ public class Generator(DocumentationReader documentationReader)
         var basicProp = targetType switch
         {
             // types that are compatible with string
-            { Name: "BilingualString" or "EventCondition" or "Condition" } => CreateOneOf(
+            { Name: "BilingualString" or "EventCondition" or "Condition" or "DeadlineCondition" } => CreateOneOf(
                 isNullable ? Null : null,
                 new JsonSchema { Type = JsonObjectType.String },
                 new JsonSchemaProperty { Reference = Get(targetType) }
@@ -142,16 +160,17 @@ public class Generator(DocumentationReader documentationReader)
             { IsArray: true } or { Name: "List`1" } => new JsonSchemaProperty
             {
                 Type = JsonObjectType.Array,
-                Item = GetReference(targetType.IsArray
-                    ? targetType.GetElementType()!
-                    : targetType.GenericTypeArguments[0]
+                Item = GetReference(
+                    targetType.IsArray ? targetType.GetElementType()! : targetType.GenericTypeArguments[0],
+                    (targetType.IsArray ? nullability.ElementType : nullability.GenericTypeArguments[0])
+                    ?.WriteState == NullabilityState.Nullable
                 )
             },
             // Make LayoutOptions strongly typed in the schema even though it isn't in the backend
             { Name: "Dictionary`2" } when property.Name == "Layout" => CreateOneOf(System.Reflection.Assembly
                 .GetAssembly(typeof(LayoutOptions))?.GetTypes()
                 .Where(type => type.IsSubclassOf(typeof(LayoutOptions)))
-                .Select(GetReference)
+                .Select(type => GetReference(type))
                 .Append(Null)
                 .ToArray() ?? [Null]),
             { Name: "Dictionary`2" } => new JsonSchemaProperty

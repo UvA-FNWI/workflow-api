@@ -4,8 +4,10 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.Submissions;
-using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowInstances;
 
@@ -20,7 +22,9 @@ public class WorkflowInstancesController(
     IAnswerService answerService,
     ModelService modelService,
     RoleImpersonationService impersonationService,
-    IEduIdUserService eduIdUserService
+    IEduIdUserService eduIdUserService,
+    UndoService undoService,
+    IMailLogRepository mailLogRepository
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -87,6 +91,45 @@ public class WorkflowInstancesController(
         return Ok(result);
     }
 
+    [HttpPost("{id}/Undo")]
+    public async Task<ActionResult<WorkflowInstanceDto>> Undo(
+        string id, [FromBody] UndoRequest input, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(input.OperationId))
+            return BadRequest("InvalidUndoOperation", "Operation identifier is required.");
+
+        var reason = input.Reason?.Trim();
+        if (string.IsNullOrWhiteSpace(reason) || reason.Length > 1000)
+            return BadRequest("InvalidUndoReason", "Undo reason must contain between 1 and 1,000 characters.");
+
+        var currentUser = await userService.GetCurrentUser(ct);
+        if (currentUser == null)
+            return Unauthorized();
+
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        var realUser = await userService.GetRealUser(ct);
+        if (realUser == null)
+            return Unauthorized();
+
+        try
+        {
+            await undoService.Undo(instance, input.OperationId, reason, realUser, ct);
+        }
+        catch (ForbiddenWorkflowActionException)
+        {
+            return Forbidden();
+        }
+        catch (UndoCandidateChangedException exception)
+        {
+            return Conflict(exception.Code, exception.Message);
+        }
+
+        return Ok(await workflowInstanceDtoFactory.Create(instance, ct));
+    }
+
     /// <summary>
     /// Returns all properties and values available to the admin data view.
     /// </summary>
@@ -109,6 +152,35 @@ public class WorkflowInstancesController(
             .ToArray();
 
         return Ok(new InstancePropertiesDto(properties, instanceService.GetPropertyValues(instance)));
+    }
+
+    /// <summary>
+    /// Returns all choices for a property to the admin data view.
+    /// </summary>
+    [HttpGet("{id}/Properties/{path}/Choices")]
+    public async Task<ActionResult<IEnumerable<ChoiceDto>>> GetPropertyChoices(string id, string path,
+        CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, [RoleAction.ViewAdminTools], RightsEvaluationMode.RealUser))
+            return Forbidden();
+
+        var property = modelService.GetProperty(instance, path.Split('.'));
+        if (property == null)
+            return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
+
+        if (property.DataType != DataType.Reference || property.WorkflowDefinition == null)
+            return Ok(Array.Empty<ChoiceDto>());
+        var insts = await instanceService.GetPossibleChoices(instance, property, ct);
+        var definition = property.WorkflowDefinition;
+        return Ok(insts.Select(i => new ChoiceDto(
+            i.Id,
+            definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",
+            null,
+            null)));
     }
 
     /// <summary>
@@ -159,7 +231,7 @@ public class WorkflowInstancesController(
         return Ok(roles);
     }
 
-    /// <summary>Returns allowed actions for each impersonatable role, grouped by active step.</summary>
+    /// <summary>Returns allowed actions for each impersonatable role, grouped by linked step.</summary>
     [HttpGet("{id}/Impersonation/Actions")]
     public async Task<ActionResult<IEnumerable<ActiveStepDto>>> GetImpersonationActions(string id,
         CancellationToken ct)
@@ -174,13 +246,20 @@ public class WorkflowInstancesController(
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var perRole = rightsService.GetAllowedActionsPerTargetRole(instance,
             RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
-            RoleAction.Undo);
+            RoleAction.Undo, RoleAction.View);
 
         var currentStepName = modelService.GetCurrentStep(instance)?.Name;
+        var activeSteps = modelService.GetActiveSteps(instance);
+        var context = modelService.CreateContext(instance);
+        var actionSteps = perRole.SelectMany(r => r.Actions)
+            .Distinct()
+            .ToDictionary(a => a, a => modelService.GetAvailableStepsForAction(instance, a, activeSteps, context));
 
-        // Exclude step-independent actions: this endpoint answers who can act in each active step.
-        // Keep GetActiveSteps' child/self/parent order, except place the current step first.
-        var steps = modelService.GetActiveSteps(instance)
+        // Include completed steps with persistent actions, preserving the active-step order.
+        var steps = activeSteps
+            .Concat(perRole.SelectMany(r => r.Actions.Where(a => a.Persistent)
+                .SelectMany(a => actionSteps[a])))
+            .Distinct()
             .Select(definition.AllSteps.GetOrDefault)
             .OfType<Step>()
             .OrderByDescending(s => s.Name == currentStepName)
@@ -196,7 +275,8 @@ public class WorkflowInstancesController(
         ActiveStepRoleDto[] RolesFor(string stepName)
             => perRole
                 .Select(r => new ActiveStepRoleDto(r.Role.Name, r.Role.Title,
-                    r.Actions.Where(a => a.Steps.Contains(stepName))
+                    r.Actions.Where(a => (a.Type != RoleAction.View || a.Persistent) &&
+                                         actionSteps[a].Contains(stepName))
                         .Select(AllowedActionDto.Create).ToArray()))
                 .Where(r => r.Actions.Length > 0)
                 .ToArray();
@@ -426,6 +506,20 @@ public class WorkflowInstancesController(
 
         await answerService.SavePropertyValue(instance, pathParts, propertyDefinition, newValue, shouldLog: true, ct);
         return NoContent();
+    }
+
+    [HttpGet("{id}/Correspondence")]
+    public async Task<ActionResult<IReadOnlyList<CorrespondenceDto>>> GetCorrespondence(string id, CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, RoleAction.ViewCorrespondence))
+            return Forbidden();
+
+        var entries = await mailLogRepository.GetByInstance(id, ct);
+        return Ok(entries.Select(CorrespondenceDto.From).ToList());
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)

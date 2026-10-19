@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using Serilog;
+using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
@@ -9,6 +11,8 @@ namespace UvA.Workflow.WorkflowModel;
 
 public partial class ModelParser
 {
+    private static readonly string[] ReservedEventNames = ["Last"];
+
     private readonly IContentProvider _contentProvider;
 
     /// The source the model was parsed from. Exposed so the API can serve the raw files back for editing.
@@ -19,8 +23,13 @@ public partial class ModelParser
         .Build();
 
     public List<Service> Services { get; }
-    public List<Role> Roles { get; }
+    public List<Role> GlobalRoles { get; }
+
+    public IReadOnlyList<ConfiguredMigration> Migrations =>
+        WorkflowDefinitions.Values.SelectMany(definition => definition.Migrations).ToArray();
+
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
+
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
     private List<StepTemplate> StepTemplates { get; }
@@ -28,7 +37,7 @@ public partial class ModelParser
     public ModelParser(IContentProvider contentProvider)
     {
         _contentProvider = contentProvider;
-        Roles = Read<Role>();
+        GlobalRoles = Read<Role>();
         Services = Read<Service>();
         ValidateServices(Services);
         ValueSets = Read<ValueSet>();
@@ -67,7 +76,7 @@ public partial class ModelParser
             return depth;
         }
 
-        foreach (var definition in definitions)
+        foreach (var definition in definitions.OrderBy(o => o.InheritsFrom != null))
         {
             Log.Debug("Processing definition {Name}", definition.Name);
             foreach (var file in contentProvider.GetFiles(definition.SourceFolder)
@@ -108,6 +117,10 @@ public partial class ModelParser
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
+            definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
+
+            foreach (var migration in definition.Migrations)
+                migration.Scope = definition.Name;
 
             foreach (var set in definition.ValueSets)
             {
@@ -118,17 +131,31 @@ public partial class ModelParser
             }
 
             foreach (var entry in Read<Condition>(definition.SourceFolder))
+            {
+                if (entry.Name != null && NamedConditions.Contains(entry.Name))
+                    throw new Exception(
+                        $"Definition '{definition.Name}' declares condition '{entry.Name}', which already exists in Common.");
                 NamedConditions.Add(entry);
+            }
+
+            definition.Roles = GlobalRoles.Select(r => r.Clone()).ToList();
+            foreach (var role in Read<Role>(definition.SourceFolder))
+            {
+                var target = definition.Roles.GetOrDefault(role.Name);
+                if (target != null)
+                {
+                    ApplyInheritance(target, role);
+                    target.DeclaredKeys = [.. target.DeclaredKeys, .. role.DeclaredKeys];
+                }
+                else
+                    definition.Roles.Add(role);
+            }
 
             if (definition.InheritsFrom != null)
                 ApplyInheritance(definition, WorkflowDefinitions[definition.InheritsFrom]);
 
             definition.Steps = definition.StepNames.Select(n => definition.AllSteps.Get(n)).ToList();
             WorkflowDefinitions[definition.Name] = definition;
-
-            foreach (var prop in definition.Properties.Where(p => p.UnderlyingType == "User"))
-                if (!Roles.Contains(prop.Name))
-                    Roles.Add(new Role { Name = prop.Name });
 
             foreach (var val in definition.Events)
                 val.Name = val.Name;
@@ -137,7 +164,7 @@ public partial class ModelParser
             {
                 action.WorkflowDefinition = definition.Name;
                 foreach (var role in action.Roles)
-                    Roles.Get(role).Actions.Add(action);
+                    definition.Roles.Get(role).Actions.Add(action);
             }
 
             // Inherited parents must resolve child references against this definition's steps.
@@ -152,7 +179,7 @@ public partial class ModelParser
                     action.Steps = [step.Name];
                     foreach (var role in action.Roles)
                     {
-                        var roleObject = Roles.GetOrDefault(role);
+                        var roleObject = definition.Roles.GetOrDefault(role);
                         if (roleObject == null)
                             throw new Exception($"Role {role} is used in action {action.Name} but does not exist");
                         roleObject.Actions.Add(action);
@@ -175,7 +202,7 @@ public partial class ModelParser
             }
         }
 
-        Roles.ForEach(PreProcess);
+        GlobalRoles.ForEach(r => PreProcess(r));
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
     }
@@ -199,9 +226,17 @@ public partial class ModelParser
         }
     }
 
-    private void PreProcess(Role role)
+    private void PreProcess(Role role, WorkflowDefinition? owner = null)
     {
-        role.Actions = role.Actions.Union(role.InheritFrom.SelectMany(r => Roles.Get(r).Actions)).ToList();
+        if (role.GenericEmail != null && !new EmailAddressAttribute().IsValid(role.GenericEmail))
+            throw new Exception(
+                $"Role '{role.Name}' has invalid generic email '{role.GenericEmail}'. Generic email should be a valid email address.");
+
+        Role ResolveInherited(string name) => owner?.Roles.GetOrDefault(name) ?? GlobalRoles.GetOrDefault(name)
+            ?? throw new Exception($"Role '{name}' referenced in inheritFrom of role '{role.Name}' does not exist");
+
+        role.Actions = role.Actions
+            .Union(role.InheritFrom.Select(ResolveInherited).SelectMany(r => r.Actions)).ToList();
         foreach (var act in role.Actions)
         {
             PreProcess(act.OnAction);
@@ -251,17 +286,28 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
-                FieldNames = workflowDefinition.Properties.Select(v => v.Name).ToArray()
+                PageElements = workflowDefinition.Properties.Select(v => new PageElement { Question = v.Name })
+                    .ToArray()
             });
 
         foreach (var ent in form.Pages)
         {
-            var missingFields = ent.FieldNames.Where(f => workflowDefinition.Properties.GetOrDefault(f) == null)
-                .ToArray();
-            if (missingFields.Any())
-                throw new Exception(
-                    $"Form {form.Name} references unknown property {missingFields.ToSeparatedString()}");
-            ent.Fields = ent.FieldNames.Select(q => workflowDefinition.Properties.Get(q)).ToArray();
+            foreach (var element in ent.PageElements)
+            {
+                ValidatePageElement(element, form.Name);
+
+                if (element.Callout?.Condition != null)
+                    PreProcess(element.Callout.Condition);
+
+                if (element.Question == null)
+                    continue;
+
+                element.QuestionDefinition = workflowDefinition.Properties.GetOrDefault(element.Question!)
+                                             ?? throw new Exception(
+                                                 $"Form {form.Name} references unknown property {element.Question}");
+            }
+
+            PreProcess(ent.Condition);
         }
 
         workflowDefinition.Events.Add(new() { Name = form.Name });
@@ -274,6 +320,23 @@ public partial class ModelParser
 
         PreProcess(form.OnSubmit);
         PreProcess(form.OnSave);
+    }
+
+    private static void ValidatePageElement(PageElement element, string formName)
+    {
+        var setKinds = new List<string>();
+        if (element.Question != null) setKinds.Add("question");
+        if (element.Callout != null) setKinds.Add("callout");
+        if (element.Text != null) setKinds.Add("text");
+
+        if (setKinds.Count == 0)
+            throw new Exception(
+                $"Form {formName} has a page element that is missing a type: set one of 'question', 'callout' or 'text'.");
+
+        if (setKinds.Count > 1)
+            throw new Exception(
+                $"Form {formName} has a page element that mixes types ({string.Join(", ", setKinds)}). " +
+                "A page element must be exactly one of 'question', 'callout' or 'text'.");
     }
 
     private void PreProcess(Effect[] effects)
@@ -316,11 +379,16 @@ public partial class ModelParser
                     throw new Exception(
                         $"Info card '{card.Name}' in '{workflowDefinition.Name}' has type 'Links' but contains no items.");
                 break;
+            case InfoCardType.Progress:
+                break;
         }
     }
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        foreach (var role in workflowDefinition.Roles)
+            PreProcess(role, workflowDefinition);
+
         foreach (var ent in workflowDefinition.Properties)
         {
             ent.ParentType = workflowDefinition;
@@ -344,8 +412,26 @@ public partial class ModelParser
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
         ExpandResetParentSteps(workflowDefinition);
+        ValidateReservedEventNames(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private static void ValidateReservedEventNames(WorkflowDefinition definition)
+    {
+        var effects = definition.AllActions.SelectMany(action => action.OnAction)
+            .Concat(definition.Forms.SelectMany(form => form.OnSubmit.Concat(form.OnSave)));
+        var eventNames = definition.Events.Select(ev => ev.Name)
+            .Concat(definition.AllSteps.SelectMany(step => step.Events).Select(ev => ev.Name))
+            .Concat(definition.Forms.Select(form => form.Name))
+            .Concat(effects.SelectMany(effect => new[] { effect.Event, effect.UndoEvent }));
+
+        foreach (var reservedName in ReservedEventNames)
+        {
+            if (eventNames.Contains(reservedName))
+                throw new Exception(
+                    $"Event name '{reservedName}' is reserved in workflow '{definition.Name}'.");
+        }
     }
 
     private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
@@ -390,6 +476,18 @@ public partial class ModelParser
 
         foreach (var progress in step.Progress)
             PreProcess(progress.EffectiveCondition);
+
+        if (step.IsAlongside)
+        {
+            if (step.Mode == StepMode.Optional && step.Before != null)
+                throw new Exception($"Step {step.Name}: optional and before cannot both be set");
+            if (step.Before != null && !workflowDefinition.AllSteps.Contains(step.Before))
+                throw new Exception($"Step {step.Name}: before '{step.Before}' does not exist");
+            if (workflowDefinition.WalkSteps.All(s => s.Name != step.Name))
+                throw new Exception(step.ParentStep != null
+                    ? $"Step {step.Name}: alongside is only valid on a listed step, not on a child of '{step.ParentStep.Name}'"
+                    : $"Step {step.Name}: alongside is only valid on a listed step");
+        }
 
         foreach (var ev in step.Events)
         {
@@ -525,6 +623,31 @@ public partial class ModelParser
             throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
         }
 
+        if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
+        {
+            propertyDefinition.Default = null;
+        }
+        else
+        {
+            try
+            {
+                _ = propertyDefinition.DefaultExpression;
+            }
+            catch (Exception exception)
+            {
+                throw new Exception(
+                    $"Invalid default for property {propertyDefinition.Name}: {exception.Message}", exception);
+            }
+
+            if (propertyDefinition.IsArray || propertyDefinition.DataType is DataType.Object or DataType.Currency
+                    or DataType.File)
+                throw new Exception(
+                    $"Defaults are not supported for property {propertyDefinition.Name} of type {propertyDefinition.Type}");
+        }
+
+        NormalizeAllowedFileTypes(propertyDefinition);
+        ValidateAllowedFileSize(propertyDefinition);
+
         return propertyDefinition;
     }
 
@@ -655,15 +778,16 @@ public partial class ModelParser
         return keys;
     }
 
-    private List<T> Read<T>(string? root = null)
+    private List<T> Read<T>(string? root = null, string? folder = null)
     {
         Log.Debug("Reading {Type} from {Root}", typeof(T).Name, root);
         root ??= "Common";
 
         var typeName = typeof(T).Name;
-        var folder = typeName switch
+        folder ??= typeName switch
         {
             nameof(TemplateMessage) => "Emails",
+            nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
         };

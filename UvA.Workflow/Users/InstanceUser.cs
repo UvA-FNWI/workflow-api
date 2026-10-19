@@ -44,4 +44,6 @@ public class InstanceUser
         IsExternal = UserProviderKeys.IsExternal(user.ProviderKey),
         InvitationState = user.InvitationState
     };
+
+    public override string ToString() => DisplayName;
 }

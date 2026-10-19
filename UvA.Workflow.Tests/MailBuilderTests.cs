@@ -42,6 +42,37 @@ public class MailBuilderTests
     private MailMessage Build(MailBuilder builder, WorkflowInstance instance, SendMessage sendMail)
         => builder.Build(instance, sendMail, _modelService, _modelService.CreateContext(instance));
 
+    [Theory]
+    [InlineData("", MailButtonIntent.Primary)]
+    [InlineData("https://welcome.test/activate", MailButtonIntent.Secondary)]
+    public void Build_ResolvesButtonIntentTemplate(string invitationUrl, MailButtonIntent expectedIntent)
+    {
+        var (builder, layout, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var context = _modelService.CreateContext(instance);
+        context.Values["InvitationUrl"] = invitationUrl;
+        var sendMail = new SendMessage
+        {
+            To = "student@uva.nl",
+            Buttons =
+            [
+                new()
+                {
+                    Label = "View project",
+                    Url = "https://milestones.test/project",
+                    Intent = "{{ if(InvitationUrl == =, =Primary, =Secondary) }}"
+                }
+            ]
+        };
+
+        builder.Build(instance, sendMail, _modelService, context);
+
+        Assert.Equal(expectedIntent, Assert.Single(layout.CapturedButtons!).Intent);
+        Assert.Contains(sendMail.Properties, lookup => lookup.ToString() == "InvitationUrl");
+    }
+
     [Fact]
     public void Build_ResolvesSubjectTemplate()
     {
@@ -80,6 +111,27 @@ public class MailBuilderTests
 
         Assert.NotNull(layout.CapturedBody);
         Assert.Contains("<strong>bold text</strong>", layout.CapturedBody);
+    }
+
+    [Fact]
+    public void Build_DoesNotParseNameStartingWithLetterAndPeriodAsList()
+    {
+        var (builder, layout, _) = CreateBuilder();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .Build();
+        var sendMail = new SendMessage
+        {
+            To = "student@uva.nl",
+            Subject = new BilingualString("Subject", ""),
+            Body = new BilingualString("A. Smith", "")
+        };
+
+        Build(builder, instance, sendMail);
+
+        Assert.NotNull(layout.CapturedBody);
+        Assert.Contains("<p>A. Smith</p>", layout.CapturedBody);
+        Assert.DoesNotContain("<ol", layout.CapturedBody);
     }
 
     [Fact]

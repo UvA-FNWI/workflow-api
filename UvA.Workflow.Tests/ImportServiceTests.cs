@@ -70,7 +70,7 @@ public class ImportServiceTests
             .WithWorkflowDefinition("TestDef")
             .WithCurrentStep("Start")
             .WithProperties(
-                [("StudentNumber", b => b.Value(studentNumber)), ..extraProperties])
+                [("StudentNumber", b => b.Value(studentNumber)), .. extraProperties])
             .Build();
 
     /// Configures the repository mock to return <paramref name="instances"/> for any
@@ -160,7 +160,7 @@ public class ImportServiceTests
                                             - name: Attachment
                                               type: File!
                                             - name: IsPublic
-                                              type: Boolean!
+                                              type: Check!
                                           """,
             ["TestDef/Actions.yaml"] = "globalActions:\n  - roles: [Admin]\n    type: Edit"
         });

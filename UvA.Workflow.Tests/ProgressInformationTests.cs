@@ -12,6 +12,40 @@ public class ProgressInformationTests
     private readonly ModelService _modelService = new(UnitTestsHelpers.CreateModelParser());
 
     [Fact]
+    public void Resolve_CompletedIncludesLastEventDate()
+    {
+        var progress = StepProgressResolver.ResolveProgress(_modelService.WorkflowDefinitions["Project"], null,
+            CreateContext(("Publish", new DateTime(2026, 9, 7))));
+
+        Assert.Equal("Completed (07/09)", progress.Text.En);
+        Assert.Equal("Afgerond (07/09)", progress.Text.Nl);
+        Assert.Equal(StatusColor.Green, progress.Color);
+    }
+
+    [Fact]
+    public void Resolve_CompletedWithoutEventsUsesCreationDate()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project").WithCurrentStep("Start").Build();
+        instance.CreatedOn = new DateTime(2026, 9, 1);
+        var progress = StepProgressResolver.ResolveProgress(_modelService.WorkflowDefinitions["Project"], null,
+            _modelService.CreateContext(instance));
+
+        Assert.Equal("Completed (01/09)", progress.Text.En);
+        Assert.Equal("Afgerond (01/09)", progress.Text.Nl);
+    }
+
+    [Fact]
+    public void Resolve_CompletedWithoutAnyDateRendersPlainText()
+    {
+        var progress = StepProgressResolver.ResolveProgress(_modelService.WorkflowDefinitions["Project"], null,
+            new ObjectContext([]));
+
+        Assert.Equal("Completed", progress.Text.En);
+        Assert.Equal("Afgerond", progress.Text.Nl);
+    }
+
+    [Fact]
     public void Resolve_UsesFallbackProgressWhenNoConditionMatches()
     {
         var context = CreateContext();
@@ -103,6 +137,110 @@ public class ProgressInformationTests
     }
 
     [Fact]
+    public void Resolve_FallsBackToParentDefaultProgressWhenStepHasNoEntries()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var child = definition.AllSteps.Single(candidate => candidate.Name == "Start");
+        var parent = definition.AllSteps.Single(candidate => candidate.Name == "Subject");
+        child.Progress = [];
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Color = StatusColor.Red,
+                Text = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+            }
+        ];
+
+        var progress = Resolve(CreateContext());
+
+        Assert.Equal("Parent default", progress.Text.En);
+        Assert.Equal("Standaard van bovenliggende stap", progress.Text.Nl);
+        Assert.Equal(StatusColor.Red, progress.Color);
+    }
+
+    [Fact]
+    public void Resolve_PrefersOwnFallbackOverParentDefaultProgress()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var parent = definition.AllSteps.Single(candidate => candidate.Name == "Subject");
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Color = StatusColor.Red,
+                Text = new BilingualString("Parent default", "Standaard van bovenliggende stap")
+            }
+        ];
+
+        var progress = Resolve(CreateContext());
+
+        Assert.Equal("Writing proposal", progress.Text.En);
+        Assert.Equal(StatusColor.Green, progress.Color);
+    }
+
+    [Fact]
+    public void Resolve_IgnoresParentHeaderOnlyEntryWhenResolvingProgressText()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var parent = definition.AllSteps.Single(candidate => candidate.Name == "Subject");
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Event = "Start",
+                Header = new ProgressHeader
+                    { Type = StepHeaderPillType.Info, Label = new BilingualString("Pending", "In behandeling") }
+            }
+        ];
+
+        // "Start" is active for this context (via WithCurrentStep "Start" + the Start event), so the
+        // parent's header-only entry would match the condition if it were (wrongly) considered here.
+        var progress = Resolve(CreateContext(("Start", DateTime.UtcNow)));
+
+        Assert.Equal("Writing proposal", progress.Text.En);
+        Assert.Equal(StatusColor.Green, progress.Color);
+    }
+
+    [Fact]
+    public void Resolve_UsesParentConditionalEntryWhenItIsMostRecent()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var parent = definition.AllSteps.Single(candidate => candidate.Name == "Subject");
+        parent.Progress =
+        [
+            new ProgressInformation
+            {
+                Event = "ApproveSubject",
+                Color = StatusColor.Green,
+                Text = new BilingualString("Approved by parent", "Goedgekeurd door bovenliggende stap")
+            }
+        ];
+
+        var context = CreateContext(
+            ("RejectSubject", new DateTime(2026, 4, 1)),
+            ("ApproveSubject", new DateTime(2026, 4, 2)));
+
+        var progress = Resolve(context);
+
+        Assert.Equal("Approved by parent", progress.Text.En);
+        Assert.Equal(StatusColor.Green, progress.Color);
+    }
+
+    [Fact]
+    public void Resolve_PrefersColorOnlyDefaultOverStepTitle()
+    {
+        var step = _modelService.WorkflowDefinitions["Project"].AllSteps
+            .Single(candidate => candidate.Name == "Start");
+        step.Progress = [new ProgressInformation { Color = StatusColor.Green }];
+
+        var progress = Resolve(CreateContext());
+
+        Assert.Equal("Subject proposal", progress.Text.En); // falls back to step title (no Text set)
+        Assert.Equal(StatusColor.Green, progress.Color); // but keeps the entry's Color
+    }
+
+    [Fact]
     public void ModelParser_RejectsFallbackBeforeConditionalEntry()
     {
         var exception = Assert.Throws<Exception>(() => ParseProgressStep("""
@@ -140,7 +278,7 @@ public class ProgressInformationTests
     }
 
     private ProgressInformationDto Resolve(ObjectContext context)
-        => ProgressInformationDto.Resolve(_modelService.WorkflowDefinitions["Project"], "Start", context);
+        => StepProgressResolver.ResolveProgress(_modelService.WorkflowDefinitions["Project"], "Start", context);
 
     private static ModelParser ParseProgressStep(string stepYaml)
         => new(new DictionaryProvider(new Dictionary<string, string>

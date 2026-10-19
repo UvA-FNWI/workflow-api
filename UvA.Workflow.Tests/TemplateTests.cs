@@ -6,6 +6,58 @@ namespace UvA.Workflow.Tests;
 
 public class TemplateTests
 {
+    [Theory]
+    [InlineData("dateLong", "07-09-2026")]
+    [InlineData("dateShort", "07/09")]
+    public void DateHelpers_FormatDatesAndTrackLookup(string helper, string expected)
+    {
+        var template = new Template("{{ " + helper + "(LastEvent) }}");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["LastEvent"] = new DateTime(2026, 9, 7)
+        });
+
+        Assert.Equal(expected, template.Apply(context));
+        Assert.Equal(["LastEvent"], template.Properties.AsSpan());
+    }
+
+    [Theory]
+    [InlineData("dateLong")]
+    [InlineData("dateShort")]
+    public void DateHelpers_RenderMissingDatesAsEmpty(string helper)
+    {
+        var template = new Template("{{ " + helper + "(LastEvent) }}");
+        Assert.Equal("", template.Apply(new ObjectContext([])));
+    }
+
+    [Theory]
+    [InlineData("{{ dateLong() }}")]
+    [InlineData("{{ dateShort(LastEvent, LastEvent) }}")]
+    public void DateHelpers_RejectWrongNumberOfArguments(string source)
+    {
+        var exception = Assert.Throws<Exception>(() => new Template(source).Apply(new ObjectContext([])));
+        Assert.Equal("Invalid number of arguments", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("""{{ template("({{ Field }})") }}""", "(test)")]
+    [InlineData("""{{ template("bah: ({{ Field }}") }}""", "bah: (test")]
+    [InlineData("""{{ template("{{ Field }}")}}""", "test")]
+    [InlineData("""{{ template("{{ Field }}")}} {{ Field }}""", "test test")]
+    public void TestNested(string templateString, string expected)
+    {
+        var template = new Template(templateString);
+
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Field"] = "test"
+        });
+
+        var result = template.Apply(context);
+
+        Assert.Equal(expected, result);
+    }
+
     [Fact]
     public void TestProperties()
     {

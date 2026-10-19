@@ -201,8 +201,8 @@ public class AnswerChangeHistoryTests
     }
 
     private static InstanceEventLogEntry Submit(DateTime submittedAt,
-        EventLogOperation operation = EventLogOperation.Create)
-        => EventLog("ReviewSubmitted", submittedAt, operation);
+        EventLogOperation type = EventLogOperation.Create)
+        => EventLog("ReviewSubmitted", submittedAt, type);
 
     private static PropertyChangeEntry Change(string path, BsonValue oldValue, User user, DateTime timestamp)
         => BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
@@ -224,12 +224,12 @@ public class AnswerChangeHistoryTests
         };
 
     private static InstanceEventLogEntry EventLog(string eventId, DateTime timestamp,
-        EventLogOperation operation)
+        EventLogOperation type)
         => new()
         {
             EventId = eventId,
             Timestamp = timestamp,
             EventDate = timestamp,
-            Operation = operation
+            Operation = type
         };
 }

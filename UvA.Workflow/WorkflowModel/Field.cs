@@ -61,9 +61,9 @@ public class Field
 
     public Lookup[] Properties =>
     [
-        ..PropertyExpression?.Properties ?? [],
-        ..ValueTemplate?.Properties ?? [],
-        ..LinkTemplate?.Properties ?? [],
+        .. PropertyExpression?.Properties ?? [],
+        .. ValueTemplate?.Properties ?? [],
+        .. LinkTemplate?.Properties ?? [],
     ];
 
     public object? GetValue(ObjectContext context)

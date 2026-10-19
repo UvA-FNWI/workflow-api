@@ -12,6 +12,8 @@ public record WorkflowInstanceBasicDto(
     string? CurrentStep
 );
 
+public record UndoRequest(string OperationId, string Reason);
+
 public record WorkflowInstanceDto(
     string Id,
     string? Title,
@@ -41,8 +43,26 @@ public record StepVersionDto
 
 public record StepHeaderStatusDto(
     StepHeaderPillType Type,
-    BilingualString Label
+    BilingualString? Label
 );
+
+public record ProgressInformationDto(
+    BilingualString Text,
+    StatusColor? Color);
+
+public record UndoCandidateDto(
+    OperationType Type,
+    BilingualString StepTitle,
+    BilingualString SourceTitle,
+    DateTime OccurredAt,
+    string OperationId
+);
+
+public record DeadlineDto(
+    DateTimeOffset? Date,
+    DeadlineType Type,
+    bool IsPassed,
+    BilingualString? Message);
 
 public record StepDto(
     string Id,
@@ -50,14 +70,16 @@ public record StepDto(
     Icon? Icon,
     string? Event,
     DateTime? DateCompleted,
-    DateTime? Deadline,
+    DeadlineDto? Deadline,
     StepDto[]? Children,
     StepHeaderStatusDto? HeaderStatus,
     StepResultsType ResultsType,
     bool ExpectsSubmission,
     bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
-    List<StepVersionDto>? Versions = null);
+    StepChildrenLayout ChildrenLayout = StepChildrenLayout.Combined,
+    List<StepVersionDto>? Versions = null,
+    UndoCandidateDto? UndoCandidate = null);
 
 public record ActionDto(
     ActionType Type,
@@ -97,7 +119,7 @@ public record ActionDto(
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),
                 Form: action.Form?.Name,
                 FormLayout: action.Form?.Layout,
-                AutoOpenForm: !action.Action.NoAutoOpenForm
+                AutoOpenForm: !action.Action.NoAutoOpenForm && action.Form?.Layout != WorkflowModel.FormLayout.Modal
             ),
             _ => throw new ArgumentOutOfRangeException()
         };

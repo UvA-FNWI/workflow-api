@@ -178,12 +178,13 @@ public class ExternalUserEmailUpdateService(
         {
             var users = ObjectContext.GetValue(rawValue, property) as InstanceUser[];
             if (users == null) return;
-            instance.Properties[property.Name] = new BsonArray(
-                users.Select(u => u.Id == user.Id ? updatedUser.ToBsonDocument() : u.ToBsonDocument()));
+            instance.SetProperty(new BsonArray(
+                    users.Select(u => u.Id == user.Id ? updatedUser.ToBsonDocument() : u.ToBsonDocument())),
+                property.Name);
         }
         else
         {
-            instance.Properties[property.Name] = updatedUser.ToBsonDocument();
+            instance.SetProperty(updatedUser.ToBsonDocument(), property.Name);
         }
     }
 }

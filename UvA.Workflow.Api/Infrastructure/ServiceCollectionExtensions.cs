@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using UvA.Workflow.Api.Assessments.Dtos;
+using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
@@ -27,6 +28,8 @@ public static class ServiceCollectionExtensions
         }));
 
         services.AddSingleton<WorkflowConfigLoader>();
+        services.AddSingleton<ConfigChangeFeed>();
+        services.AddSingleton<IConfiguredMigrationRunner, ConfiguredMigrationRunner>();
         services.AddHttpClient(nameof(WorkflowConfigLoader), (sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<WorkflowSourceOptions>>().Value;
@@ -35,12 +38,13 @@ public static class ServiceCollectionExtensions
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", opts.Token);
         });
         services.AddHostedService<WorkflowConfigPoller>();
+        services.AddHostedService<WorkflowConfigWatcher>();
 
         services.AddScoped<ArtifactTokenService>();
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
         services.AddScoped<AssessmentDtoFactory>();
-        services.AddScoped<StepHeaderStatusResolver>();
+        services.AddScoped<StepProgressResolver>();
         services.AddScoped<WorkflowInstanceDtoFactory>();
 
         services.AddScoped<PersonalInstanceService>();

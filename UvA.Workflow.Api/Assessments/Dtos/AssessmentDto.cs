@@ -86,6 +86,8 @@ public class AssessmentDtoFactory(
                 })
                 .ToArray();
 
+            // Right now we are not enriching the FormDto with context values.
+            // If enriched text is necessary in the future, we should add it.
             parts.Add(new AssessmentPartDto(
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
@@ -142,8 +144,8 @@ public class AssessmentDtoFactory(
         var shownQuestionIds = modelService.GetQuestionStatus(instance, form, true);
         var questionNamesOnPage = form.ActualForm.Pages
             .Where(p => string.IsNullOrEmpty(pageName) || p.Name == pageName)
-            .SelectMany(p => p.Fields)
-            .Select(f => f.Name);
+            .SelectMany(p => p.Questions)
+            .Select(q => q.Name);
 
         var answers = Answer.Create(instance, form, shownQuestionIds)
             .Where(a => questionNamesOnPage.Contains(a.QuestionName))

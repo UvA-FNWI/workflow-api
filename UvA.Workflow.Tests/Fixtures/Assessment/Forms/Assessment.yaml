@@ -5,5 +5,5 @@ title:
 
 pages:
   - name: Consent
-    fields:
-      - Consent
+    elements:
+      - question: Consent
