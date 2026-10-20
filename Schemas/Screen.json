@@ -18,13 +18,6 @@
         "$ref": "#/definitions/Column"
       }
     },
-    "relation": {
-      "type": [
-        "null",
-        "string"
-      ],
-      "description": "Relation this screen is used for"
-    },
     "grouping": {
       "oneOf": [
         {
@@ -54,6 +47,13 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Internal name of the column, used for inheritance"
+        },
         "type": {
           "description": "Type of the column",
           "$ref": "#/definitions/ColumnType"
@@ -487,6 +487,20 @@
               "string"
             ]
           }
+        },
+        "order": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Optional placement of the group"
+        },
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Optional flag to enable or disable the group"
         }
       }
     },
