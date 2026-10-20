@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         }));
 
         services.AddSingleton<WorkflowConfigLoader>();
+        services.AddSingleton<ConfigChangeFeed>();
         services.AddSingleton<IConfiguredMigrationRunner, ConfiguredMigrationRunner>();
         services.AddHttpClient(nameof(WorkflowConfigLoader), (sp, client) =>
         {
@@ -37,12 +38,13 @@ public static class ServiceCollectionExtensions
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", opts.Token);
         });
         services.AddHostedService<WorkflowConfigPoller>();
+        services.AddHostedService<WorkflowConfigWatcher>();
 
         services.AddScoped<ArtifactTokenService>();
         services.AddScoped<SubmissionDtoFactory>();
         services.AddScoped<AnswerDtoFactory>();
         services.AddScoped<AssessmentDtoFactory>();
-        services.AddScoped<StepHeaderStatusResolver>();
+        services.AddScoped<StepProgressResolver>();
         services.AddScoped<WorkflowInstanceDtoFactory>();
 
         services.AddScoped<PersonalInstanceService>();

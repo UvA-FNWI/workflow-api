@@ -130,9 +130,8 @@ public class ScreenDataService(
                 var columnId = columns[i].Id;
                 object? value = columns[i].ColumnType switch
                 {
-                    ColumnType.CurrentStep => ProgressInformationDto.Resolve(
-                        definition,
-                        context.Get("CurrentStep") as string ?? column.Default ?? "Draft",
+                    ColumnType.CurrentStep => StepProgressResolver.ResolveProgress(definition,
+                        column.GetValue(context) as string ?? "",
                         context),
                     ColumnType.RelatedUsers => GetRelatedUsersScreen(definition, context),
                     _ => column.GetValue(context)

@@ -10,9 +10,23 @@ public class VersionsController(
     ModelServiceResolver modelServiceResolver,
     WorkflowConfigLoader configLoader,
     RightsService rightsService,
+    IOptions<WorkflowSourceOptions> options,
+    ConfigChangeFeed changeFeed,
     ILogger<VersionsController> logger)
     : ApiControllerBase
 {
+    /// Local development stream; sends the current revision and subsequent successful baseline installs.
+    [HttpGet("Events")]
+    public IResult Events(CancellationToken ct)
+    {
+        if (!options.Value.WatchLocalChanges || string.IsNullOrWhiteSpace(options.Value.LocalPath))
+            return TypedResults.NotFound();
+
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+        return TypedResults.ServerSentEvents(changeFeed.Listen(ct), eventType: "config-changed");
+    }
+
     /// Reload the default version from the configured source.
     [HttpPost("Reload")]
     public async Task<ActionResult> Reload()

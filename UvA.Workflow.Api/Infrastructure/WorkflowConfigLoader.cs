@@ -33,6 +33,7 @@ public class WorkflowConfigLoader(
     IConfiguredMigrationRunner migrationRunner,
     IOptions<ConfiguredMigrationOptions> migrationOptions,
     IOptions<WorkflowSourceOptions> options,
+    ConfigChangeFeed changeFeed,
     ILogger<WorkflowConfigLoader> logger)
 {
     // Repo-root-relative path to the default mail layout; read alongside, but outside, the workflow model.
@@ -122,6 +123,9 @@ public class WorkflowConfigLoader(
         }
 
         resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
+        if (kind == VersionKind.Baseline && _opts.WatchLocalChanges &&
+            !string.IsNullOrWhiteSpace(_opts.LocalPath))
+            changeFeed.Publish();
         if (sha is not null)
             _shas[versionKey] = sha;
         else
