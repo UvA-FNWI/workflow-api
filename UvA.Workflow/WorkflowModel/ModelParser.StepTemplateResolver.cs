@@ -158,7 +158,7 @@ public partial class ModelParser
                     $"Missing required template parameter '{param.Name}' for step '{step.Name}'");
         }
 
-        var unknownValues = providedValues.Keys.Except(resolvedValues.Keys).ToList();
+        var unknownValues = providedValues.Keys.Except(resolvedValues.Keys, StringComparer.OrdinalIgnoreCase).ToList();
         if (unknownValues.Count > 0)
             throw new ArgumentException(
                 $"Unknown template parameters '{string.Join(", ", unknownValues)}' for step '{step.Name}'");
@@ -269,7 +269,11 @@ public partial class ModelParser
             throw new Exception(
                 $"Step '{step.Name}' in definition '{definitionName}' references unknown template '{step.TemplateKey}'");
 
-        var prefix = GetPrefix(step.Name);
+        var providedValues =
+            new Dictionary<string, object>(step.TemplateValues ?? [], StringComparer.OrdinalIgnoreCase);
+        var prefix = providedValues.TryGetValue("prefix", out var value)
+            ? value.ToString() ?? ""
+            : GetPrefix(step.Name);
 
         return template.ChildNames
             .Select(childName => TokenPattern().Replace(childName, match =>

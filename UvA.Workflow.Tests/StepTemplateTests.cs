@@ -4,10 +4,12 @@ namespace UvA.Workflow.Tests;
 
 public class StepTemplateTests
 {
-    [Fact]
-    public void ModelParser_SubstitutesTemplateValues()
+    [Theory]
+    [InlineData("caption")]
+    [InlineData("CAPTION")]
+    public void ModelParser_SubstitutesTemplateValues(string parameterName)
     {
-        var parser = Parse("values:\n  caption: Proposal");
+        var parser = Parse($"values:\n  {parameterName}: Proposal");
 
         var step = parser.WorkflowDefinitions["Project"].Steps.Single();
         Assert.Equal("Working on Proposal", step.Progress.Single().Text!.En);
@@ -56,9 +58,12 @@ public class StepTemplateTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ModelParser_InheritsMappingValuesFromParentTemplate(bool overrideChildren)
+    [InlineData(false, "Start", "prefix")]
+    [InlineData(true, "Start", "prefix")]
+    [InlineData(false, "Custom", "prefix")]
+    [InlineData(false, "Custom", "PREFIX")]
+    public void ModelParser_InheritsMappingValuesFromParentTemplate(bool overrideChildren, string prefix,
+        string prefixKey)
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
@@ -81,10 +86,10 @@ public class StepTemplateTests
                                                    """,
             ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start]",
             ["Project/Steps/Start.yaml"] =
-                "name: Start\ntemplate: Parent\nvalues:\n  caption:\n    en: Proposal\n    nl: Voorstel\n"
+                $"name: Start\ntemplate: Parent\nvalues:\n  {prefixKey}: {prefix}\n  caption:\n    en: Proposal\n    nl: Voorstel\n"
                 + (overrideChildren ? "children: [Start_Alternative]" : ""),
             ["Project/Steps/Submit.yaml"] =
-                $"name: {(overrideChildren ? "Start_Alternative" : "Start_Submit")}\ntemplate: Submit"
+                $"name: {(overrideChildren ? "Start_Alternative" : $"{prefix}_Submit")}\ntemplate: Submit"
         }));
 
         var child = parser.WorkflowDefinitions["Project"].Steps.Single().Children.Single();
