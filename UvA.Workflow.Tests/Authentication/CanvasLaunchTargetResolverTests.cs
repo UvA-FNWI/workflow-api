@@ -46,7 +46,8 @@ public class CanvasLaunchTargetResolverTests
 
         Assert.Equal("/screens/Project/First", target);
         Assert.Equal("canvas-course", RenderFilter(courseFilter!)["Properties.ExternalId"]["$in"][0].AsString);
-        Assert.Equal(courseId, RenderFilter(instanceFilter!)["Properties.Course"]["$in"][0].AsString);
+        Assert.Equal(courseId,
+            RenderFilter(instanceFilter!)["$or"][0]["$or"][0]["Properties.Course"]["$in"][0].AsString);
     }
 
     [Fact]
@@ -248,10 +249,21 @@ public class CanvasLaunchTargetResolverTests
 
     private void AddDefinition(string name, params string[] screens)
     {
+        var contextDefinition = new WorkflowDefinition { Name = "Context" };
+
         modelService.WorkflowDefinitions[name] = new WorkflowDefinition
         {
             Name = name,
-            Screens = screens.Select(screen => new Screen { Name = screen }).ToList()
+            Screens = screens.Select(screen => new Screen { Name = screen }).ToList(),
+            Properties =
+            [
+                new PropertyDefinition
+                {
+                    Name = "Course",
+                    Type = "Context!",
+                    WorkflowDefinition = contextDefinition
+                }
+            ]
         };
     }
 
