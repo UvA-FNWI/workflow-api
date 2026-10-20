@@ -131,7 +131,7 @@ public class ScreenDataService(
                 object? value = columns[i].ColumnType switch
                 {
                     ColumnType.CurrentStep => StepProgressResolver.ResolveProgress(definition,
-                        column.GetValue(context) as string ?? "",
+                        context.Get("CurrentStep") as string ?? column.Default ?? "",
                         context),
                     ColumnType.RelatedUsers => GetRelatedUsersScreen(definition, context),
                     _ => column.GetValue(context)
