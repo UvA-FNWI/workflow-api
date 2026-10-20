@@ -241,6 +241,25 @@ public class ProgressInformationTests
     }
 
     [Fact]
+    public void ModelParser_IncludesProgressHeaderExpressionLookups()
+    {
+        var parser = ParseProgressStep("""
+                                       name: Start
+                                       progress:
+                                         - text: Working on proposal
+                                           header:
+                                             label:
+                                               en: Changes needed since {{ LastEvent }}
+                                               nl: Wijzigingen nodig sinds {{ LastEvent }}
+                                       """);
+
+        Assert.Equal(["LastEvent"], parser.WorkflowDefinitions["TestWorkflow"].ProgressLookups
+            .Select(lookup => lookup.ToString()).ToArray());
+        Assert.Contains("LastEvent", parser.WorkflowDefinitions["TestWorkflow"].Steps.Single().Lookups
+            .Select(lookup => lookup.ToString()).ToArray());
+    }
+
+    [Fact]
     public void ModelParser_RejectsFallbackBeforeConditionalEntry()
     {
         var exception = Assert.Throws<Exception>(() => ParseProgressStep("""

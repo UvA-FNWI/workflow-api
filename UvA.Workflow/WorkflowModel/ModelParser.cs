@@ -20,6 +20,7 @@ public partial class ModelParser
 
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .WithDuplicateKeyChecking()
         .Build();
 
     public List<Service> Services { get; }
@@ -32,6 +33,7 @@ public partial class ModelParser
 
     private List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
+    private List<StepTemplate> StepTemplates { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
@@ -41,6 +43,8 @@ public partial class ModelParser
         ValidateServices(Services);
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
+        StepTemplates = Read<StepTemplate>();
+
         var parsed = GetWorkflowDefinitionFolders()
             .Select(folder =>
             {
@@ -107,6 +111,10 @@ public partial class ModelParser
             definition.Forms = Read<Form>(definition.SourceFolder);
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
+
+            var stepTemplatesByName = StepTemplates.ToDictionary(t => t.Name);
+            definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
+
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
@@ -744,6 +752,8 @@ public partial class ModelParser
             var obj = _deserializer.Deserialize<T>(content);
             if (obj is IDeclaredKeys tracked)
                 tracked.DeclaredKeys = ReadTopLevelKeys(content);
+            if (obj is StepTemplate template)
+                template.RootFile = content;
             return obj;
         }
         catch (YamlException ex)
