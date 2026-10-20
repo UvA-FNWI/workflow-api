@@ -38,7 +38,7 @@ properties:
   - name: Reviewer
     type: User!
     text: 
-      en: Second Reviewer
+      en: Second reviewer
       nl: Tweede beoordelaar
         
   - name: SecondReader
