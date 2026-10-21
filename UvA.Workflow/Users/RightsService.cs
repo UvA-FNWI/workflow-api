@@ -131,9 +131,36 @@ public class RightsService(
         var user = await userService.GetCurrentUser(ct);
         if (user == null) return [];
 
-        // Process inherited roles
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
+        var inheritedProperties = await GetInheritedRoles(definition, instance, ct);
+
+        return definition.Properties
+            .Where(p => p.DataType == DataType.User)
+            .Select(p => new RoleValue(p.Name, instance.GetProperty(p.Name)))
+            .Concat(inheritedProperties)
+            .Where(p => p.Value != null)
+            .Where(p => p.Value switch
+            {
+                BsonDocument d => BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id,
+                BsonArray a => a.Any(v =>
+                    v is BsonDocument d && BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id),
+                _ => false
+            })
+            .Select(p => definition.Roles.GetOrDefault(p.Name))
+            .Where(p => p != null)
+            .ToArray();
+    }
+
+    private sealed record RoleValue(string Name, BsonValue? Value);
+
+    /// <summary>
+    /// Collects roles that this instance inherits from the instances it references,
+    /// following the chain upwards.
+    /// </summary>
+    private async Task<IEnumerable<RoleValue>> GetInheritedRoles(WorkflowDefinition definition,
+        WorkflowInstance instance, CancellationToken ct = default)
+    {
         var inheritedRoles = definition.Properties
             .Where(p => p.InheritedRoles.Any())
             .SelectMany(p => p.InheritedRoles.Select(r => new
@@ -150,36 +177,48 @@ public class RightsService(
             .Where(r => r.WorkflowDefinition != null && r.InstanceIds.Length > 0)
             .ToList();
 
-        var inheritedViaInstances = inheritedRoles.Any()
-            ? (await workflowInstanceRepository.GetAllById(
-                inheritedRoles.SelectMany(r => r.InstanceIds).Distinct().ToArray(),
-                inheritedRoles.Select(r => new { r.Role, Key = r.WorkflowDefinition!.GetKey(r.Role) }).Distinct()
-                    .ToDictionary(r => r.Role, r => r.Key),
-                ct
-            )).ToDictionary(r => r["_id"].ToString()!)
-            : new();
+        var inheritedViaInstances =
+            (await workflowInstanceRepository.GetByIds(
+                inheritedRoles.SelectMany(r => r.InstanceIds).Distinct().ToArray(), ct)).ToDictionary(i => i.Id);
 
-        var inheritedProperties = inheritedRoles.SelectMany(r => r.InstanceIds.Select(i => new
-        {
-            Name = r.Role,
-            Value = inheritedViaInstances.GetValueOrDefault(i!)?.GetValueOrDefault(r.Role)
-        }));
+        var resolvedRoles = await Task.WhenAll(
+            inheritedRoles.SelectMany(r => r.InstanceIds
+                .Where(id => inheritedViaInstances.ContainsKey(id))
+                .Select(id => ResolveRole(inheritedViaInstances[id], r.Role, new(), ct))));
 
-        return definition.Properties
-            .Where(p => p.DataType == DataType.User)
-            .Select(p => new { p.Name, Value = instance.GetProperty(p.Name) })
-            .Concat(inheritedProperties)
-            .Where(p => p.Value != null)
-            .Where(p => p.Value switch
+        return resolvedRoles.SelectMany(roles => roles);
+    }
+
+    private async Task<IEnumerable<RoleValue>> ResolveRole(WorkflowInstance instance, string role,
+        HashSet<(string InstanceId, string Role)> visited, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (!visited.Add((instance.Id, role)))
+            return [];
+
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+
+        if (definition.Properties.Any(p => p.Name == role && p.DataType == DataType.User))
+            return [new RoleValue(role, instance.GetProperty(role))];
+
+        var referenceIds = definition.Properties
+            .Where(p => p.WorkflowDefinition != null && p.InheritedRoles.Contains(role))
+            .SelectMany(p => instance.GetProperty(p.Name) switch
             {
-                BsonDocument d => BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id,
-                BsonArray a => a.Any(v =>
-                    v is BsonDocument d && BsonSerializer.Deserialize<InstanceUser>(d).Id == user.Id),
-                _ => false
+                BsonArray a => a.Select(v => v.AsString).ToArray(),
+                BsonString s => [s.AsString],
+                _ => []
             })
-            .Select(p => definition.Roles.GetOrDefault(p.Name))
-            .Where(p => p != null)
+            .Distinct()
             .ToArray();
+
+        if (referenceIds.Length == 0)
+            return [];
+
+        var referencedInstances = await workflowInstanceRepository.GetByIds(referenceIds, ct);
+        var resolvedRoles = await Task.WhenAll(referencedInstances.Select(i => ResolveRole(i, role, new(visited), ct)));
+        return resolvedRoles.SelectMany(roles => roles);
     }
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, IEnumerable<Role?> roles,

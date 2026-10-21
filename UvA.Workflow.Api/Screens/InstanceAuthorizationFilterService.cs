@@ -158,42 +158,96 @@ public class InstanceAuthorizationFilterService(
                 if (definition.Roles.GetOrDefault(inheritedRole)?.Actions.Any(a => a.Type == RoleAction.View) != true)
                     continue;
 
-                var referencedWorkflowDef = property.WorkflowDefinition?.Name;
+                var referencedWorkflowDef = property.WorkflowDefinition;
                 if (referencedWorkflowDef == null)
                     continue;
 
-                var roleProperty = property.WorkflowDefinition?.Properties
-                    .FirstOrDefault(p => p.Name == inheritedRole && p.DataType == DataType.User);
+                var matchingIds = await GetInstanceIdsForRole(referencedWorkflowDef, inheritedRole, user, new(), ct);
 
-                if (roleProperty == null)
-                    continue;
-
-                var userId = new ObjectId(user.Id);
-                var rolePropertyPath = $"Properties.{roleProperty.Name}._id";
-
-                // Create filter for referenced instances
-                var referencedFilter = new BsonDocument(rolePropertyPath, userId);
-
-                // Query to get IDs of referenced instances where user has the role
-                var referencedInstanceIds = await workflowInstanceRepository.GetAllByType(
-                    referencedWorkflowDef,
-                    new Dictionary<string, string> { ["_id"] = "$_id" },
-                    referencedFilter,
-                    ct);
-
-                var matchingIds = referencedInstanceIds
-                    .Select(r => r["_id"].AsObjectId)
-                    .ToList();
-
-                if (matchingIds.Any())
+                if (matchingIds.Length > 0)
                 {
-                    var propertyPath = $"Properties.{property.Name}";
-                    filters.Add(new BsonDocument(propertyPath,
-                        new BsonDocument("$in", new BsonArray(matchingIds.Select(id => id.ToString())))));
+                    filters.Add(new BsonDocument(
+                        $"Properties.{property.Name}",
+                        new BsonDocument("$in", new BsonArray(matchingIds))));
                 }
             }
         }
 
         return filters;
+    }
+
+    private async Task<string[]> GetInstanceIdsForRole(
+        WorkflowDefinition definition,
+        string role,
+        User user,
+        HashSet<WorkflowDefinition> visited,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (!visited.Add(definition))
+        {
+            throw new InvalidOperationException(
+                $"Circular inherited-role references for role '{role}' "
+                + $"in workflow definition '{definition.Name}'.");
+        }
+
+        var roleProperty = definition.Properties
+            .FirstOrDefault(p => p.Name == role && p.DataType == DataType.User);
+
+        if (roleProperty == null)
+        {
+            var referenceProperties = definition.Properties
+                .Where(p => p.WorkflowDefinition != null
+                            && p.InheritedRoles.Contains(role))
+                .ToArray();
+
+            var matchingIds = await Task.WhenAll(
+                referenceProperties.Select(async property =>
+                {
+                    var referencedDefinition = property.WorkflowDefinition;
+                    if (referencedDefinition == null)
+                        return Array.Empty<string>();
+
+                    var referencedIds = await GetInstanceIdsForRole(
+                        referencedDefinition, role, user, new HashSet<WorkflowDefinition>(visited), ct);
+
+                    if (referencedIds.Length == 0)
+                        return Array.Empty<string>();
+
+                    var referenceFilter = new BsonDocument(
+                        $"Properties.{property.Name}",
+                        new BsonDocument("$in", new BsonArray(referencedIds)));
+
+                    return await GetMatchingInstanceIds(definition, referenceFilter, ct);
+                }));
+
+            return matchingIds
+                .SelectMany(ids => ids)
+                .Distinct()
+                .ToArray();
+        }
+
+        var filter = new BsonDocument(
+            $"Properties.{roleProperty.Name}._id",
+            new ObjectId(user.Id));
+
+        return await GetMatchingInstanceIds(definition, filter, ct);
+    }
+
+    private async Task<string[]> GetMatchingInstanceIds(
+        WorkflowDefinition definition,
+        BsonDocument filter,
+        CancellationToken ct)
+    {
+        var instances = await workflowInstanceRepository.GetAllByType(
+            definition.Name,
+            new Dictionary<string, string> { ["_id"] = "$_id" },
+            filter,
+            ct);
+
+        return instances
+            .Select(i => i["_id"].AsObjectId.ToString())
+            .ToArray();
     }
 }

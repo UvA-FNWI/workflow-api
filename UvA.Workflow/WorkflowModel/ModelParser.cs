@@ -153,7 +153,14 @@ public partial class ModelParser
             foreach (var val in definition.Events)
                 val.Name = val.Name;
 
-            foreach (var action in definition.GlobalActions.Except(definition.Parent?.GlobalActions ?? []))
+            var inheritedActionNames = new HashSet<string?>();
+
+            for (var ancestor = definition.Parent; ancestor != null; ancestor = ancestor.Parent)
+                foreach (var action in ancestor.GlobalActions)
+                    inheritedActionNames.Add(action.Name);
+
+            foreach (var action in
+                     definition.GlobalActions.Where(action => !inheritedActionNames.Contains(action.Name)))
             {
                 action.WorkflowDefinition = definition.Name;
                 foreach (var role in action.Roles)
