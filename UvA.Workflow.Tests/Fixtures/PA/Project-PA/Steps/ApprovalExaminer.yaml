@@ -28,7 +28,7 @@ properties:
     text:
       nl: Reden van afkeuring
       en: Reason for rejection
-    multiline: true
+    control: TextArea
 
 ends:
   event: ApproveExaminer

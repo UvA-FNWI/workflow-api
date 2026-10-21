@@ -18,7 +18,7 @@ properties:
       Is the research question suitable for an interdisciplinary analysis?  
       Does the research demonstrate a ‘sufficient’ level of interdisciplinarity within the context of supervisors’ project theme?  
       Does the student demonstrate how in the absence of interdisciplinaritythe research question could not be/only be partly answered?
-    multiline: true
+    control: TextArea
   - name: PresentationTheory
     type: String
     text: Interdisciplinarity in the theory and/or methodology
@@ -28,7 +28,7 @@ properties:
       Does the research feature multiple methodological approaches?  
       Does the research integrate interdisciplinarity in the methodology?  
       Does the research feature interdisciplinary discussion in the findings?
-    multiline: true
+    control: TextArea
   - name: PresentationQuality
     type: String
     text: Quality of the presentation and the Q&A
@@ -36,11 +36,11 @@ properties:
       Structure, clarity, timeliness, tone, non-verbal language, use of voice of the presenter, quality of slides, comprehensive use of tables & figures.  
       The completeness of responses during the Q&A.  
       The reflection process of the student.
-    multiline: true
+    control: TextArea
   - name: PresentationAdditional
     type: String
     text: Additional criteria set by the co-supervisor (if any)
-    multiline: true
+    control: TextArea
   - name: PresentationGrade 
     text: Overall grade
     description: |
@@ -52,7 +52,7 @@ properties:
     type: HalfGrade!
     calculation: 
       weight: 1
-    layout: Dropdown
+    control: Dropdown
   
 
 actions:

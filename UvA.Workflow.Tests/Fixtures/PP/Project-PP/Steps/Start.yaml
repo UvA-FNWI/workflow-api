@@ -18,7 +18,7 @@ properties:
     text:
       en: Is this an internal (UvA or VU) or external project?
       nl: Is dit een intern (UvA of VU) of extern project?
-    layout: RadioList
+    control: RadioList
     values:
       - name: Internal
         text:

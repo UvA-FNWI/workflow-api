@@ -7,7 +7,7 @@ properties:
     text:
       en: Is this sufficient?
       nl: Is dit voldoende?
-    layout: RadioList
+    control: RadioList
     values:
       - name: Pass
         text:
@@ -23,7 +23,7 @@ properties:
     text:
       en: Explanation
       nl: Toelichting
-    multiline: true
+    control: TextArea
 
   - name: ProposalDocument
     type: File
@@ -36,7 +36,7 @@ properties:
     text:
       en: Is this sufficient?
       nl: Is dit voldoende?
-    layout: RadioList
+    control: RadioList
     values:
       - name: Pass
         text:
@@ -52,5 +52,5 @@ properties:
     text:
       en: Explanation
       nl: Toelichting
-    multiline: true
+    control: TextArea
 

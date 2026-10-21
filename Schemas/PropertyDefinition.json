@@ -7,29 +7,21 @@
     "StringPropertyDefinition": {
       "title": "StringPropertyDefinition",
       "type": "object",
-      "description": "Text value with optional input layout and length validation.",
+      "description": "Text value with optional input control and length validation.",
       "additionalProperties": false,
       "required": [
         "name",
         "type"
       ],
       "properties": {
-        "multiline": {
-          "type": "boolean",
-          "description": "Show a multiline text field."
-        },
-        "allowAttachments": {
-          "type": "boolean",
-          "description": "Allow attachments in the text field."
-        },
-        "variant": {
+        "control": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Render an email or phone input with matching validation; omitted for ordinary text.",
-              "$ref": "#/definitions/StringVariant"
+              "description": "Render a text area, email or phone input; omitted for ordinary text.",
+              "$ref": "#/definitions/StringControl"
             }
           ]
         },
@@ -169,9 +161,10 @@
         }
       }
     },
-    "StringVariant": {
+    "StringControl": {
       "type": "string",
       "enum": [
+        "TextArea",
         "Email",
         "Phone"
       ]
@@ -2132,7 +2125,7 @@
     "ChoicePropertyDefinition": {
       "title": "ChoicePropertyDefinition",
       "type": "object",
-      "description": "Selection from inline choices or a named value set, with optional layout and rubric settings.",
+      "description": "Selection from inline choices or a named value set, with optional control and rubric settings.",
       "additionalProperties": false,
       "required": [
         "name",
@@ -2149,14 +2142,14 @@
             "$ref": "#/definitions/Choice"
           }
         },
-        "layout": {
+        "control": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Layout for choice input; omitted to use the default control.",
-              "$ref": "#/definitions/ChoiceLayoutType"
+              "description": "Control for choice input; omitted to use the default control.",
+              "$ref": "#/definitions/ChoiceControl"
             }
           ]
         },
@@ -2414,7 +2407,7 @@
         }
       }
     },
-    "ChoiceLayoutType": {
+    "ChoiceControl": {
       "type": "string",
       "enum": [
         "Dropdown",
@@ -2463,14 +2456,14 @@
         "type"
       ],
       "properties": {
-        "layout": {
+        "control": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Layout for reference selection; omitted to use the default control.",
-              "$ref": "#/definitions/ChoiceLayoutType"
+              "description": "Control for reference selection; omitted to use the default control.",
+              "$ref": "#/definitions/ChoiceControl"
             }
           ]
         },
@@ -2675,14 +2668,14 @@
         "type"
       ],
       "properties": {
-        "layout": {
+        "control": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "description": "Layout for embedded objects; omitted to use the default control.",
-              "$ref": "#/definitions/TableLayout"
+              "description": "Control for embedded objects; omitted to use the default control.",
+              "$ref": "#/definitions/ObjectControl"
             }
           ]
         },
@@ -2856,7 +2849,7 @@
         }
       }
     },
-    "TableLayout": {
+    "ObjectControl": {
       "type": "string",
       "enum": [
         "InlineEditing",

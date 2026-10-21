@@ -8,7 +8,7 @@ properties:
   - name: ProblemStatement
     type: HalfGrade!
     text: Problem statement
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.1
     results:
@@ -41,12 +41,12 @@ properties:
     linkedTo: ProblemStatement
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: TheoreticalFramework
     type: HalfGrade!
     text: Theoretical framework
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.15
     results:
@@ -83,12 +83,12 @@ properties:
     linkedTo: TheoreticalFramework
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: Methods
     type: HalfGrade!
     text: Methods
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.15
     results:
@@ -122,12 +122,12 @@ properties:
     linkedTo: Methods
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: AnalysisEvaluationResults
     type: HalfGrade!
     text: Analysis / Evaluation of the Results
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.15
     results:
@@ -166,12 +166,12 @@ properties:
     linkedTo: AnalysisEvaluationResults
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: ArgumentationCreativity
     type: HalfGrade!
     text: Argumentation and creativity
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.25
     results:
@@ -206,12 +206,12 @@ properties:
     linkedTo: ArgumentationCreativity
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: ConclusionDiscussion
     type: HalfGrade!
     text: Conclusion and discussion
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.1
     results:
@@ -244,12 +244,12 @@ properties:
     linkedTo: ConclusionDiscussion
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: Structure
     type: HalfGrade!
     text: Structure
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.05
     results:
@@ -280,12 +280,12 @@ properties:
     linkedTo: Structure
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: LayoutLanguage
     type: HalfGrade!
     text: Layout and language
-    layout: Rubric
+    control: Rubric
     calculation: 
       weight: 0.05
     results:
@@ -318,14 +318,14 @@ properties:
     linkedTo: LayoutLanguage
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
 
   - name: APA
     type: MalusHalf!
     text: APA
     description: |
       If too many incorrect or missing citations in text and bibliography are identified, the grade may be adjusted negatively (max -0,5); this is at the discretion of supervisors
-    layout: Rubric
+    control: Rubric
     calculation:
       type: Sum
     results:
@@ -360,7 +360,7 @@ properties:
   - name: Process
     description: If potential deficits are identified, the grade may be adjusted negatively (max -1); this is at the discretion of supervisors
     type: MalusOne!
-    layout: Rubric
+    control: Rubric
     calculation:
       type: Sum
     results:
@@ -405,7 +405,7 @@ properties:
   - name: DoctrinalAnalysis
     text: Does the thesis meet the requirement of containing 50% doctrinal analysis
     type: DoctrinalAnalysis!
-    layout: Dropdown
+    control: Dropdown
     sources: [AssessmentSupervisor]
     values:
       - name: Yes
@@ -422,7 +422,7 @@ properties:
     type: String
     results:
       source: AssessmentCombined
-    multiline: true
+    control: TextArea
     description: |
       For a final grade of 8 or above, you must explain why the thesis is of exceptional quality
 

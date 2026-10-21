@@ -28,7 +28,7 @@ properties:
     text:
       en: Subject
       nl: Onderwerp
-    multiline: true
+    control: TextArea
       
   - name: Description
     type: File!

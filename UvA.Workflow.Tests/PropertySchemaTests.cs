@@ -27,9 +27,9 @@ public class PropertySchemaTests
             var property = resolved.Properties["properties"].Item;
             Assert.NotNull(property);
             Assert.Empty(property.Validate("{\"name\": \"Due\", \"type\": \"Date\"}"));
-            Assert.Empty(property.Validate("{\"name\": \"Notes\", \"type\": \"String\", \"variant\": null}"));
+            Assert.Empty(property.Validate("{\"name\": \"Notes\", \"type\": \"String\", \"control\": null}"));
             Assert.Empty(
-                property.Validate("{\"name\": \"Notes\", \"type\": \"String\", \"multiline\": true}"));
+                property.Validate("{\"name\": \"Notes\", \"type\": \"String\", \"control\": \"TextArea\"}"));
             Assert.NotEmpty(property.Validate("{\"name\": \"Due\", \"type\": \"Date\", \"allowedTypes\": [\"pdf\"]}"));
         }
         finally
@@ -47,12 +47,12 @@ public class PropertySchemaTests
     [InlineData("File", ", \"allowedTypes\": [\"zip\"]")]
     [InlineData("File", ", \"maximumSize\": 1000")]
     [InlineData("[File]!", ", \"allowedTypes\": [\"zip\"], \"maximumSize\": 1000, \"prefix\": \"archive_\"")]
-    [InlineData("String", ", \"multiline\": true, \"allowAttachments\": true, \"variant\": \"Email\"")]
+    [InlineData("String", ", \"control\": \"Email\"")]
     [InlineData("User", ", \"allowsExternalUsers\": true")]
-    [InlineData("Country", ", \"values\": [{\"name\": \"NL\"}], \"layout\": \"Dropdown\"")]
-    [InlineData("[Context]", ", \"inheritedRoles\": [\"Coordinator\"], \"layout\": \"RadioList\"")]
-    [InlineData("Assessment", ", \"layout\": \"Modal\"")]
-    [InlineData("Country", ", \"layout\": null")]
+    [InlineData("Country", ", \"values\": [{\"name\": \"NL\"}], \"control\": \"Dropdown\"")]
+    [InlineData("[Context]", ", \"inheritedRoles\": [\"Coordinator\"], \"control\": \"RadioList\"")]
+    [InlineData("Assessment", ", \"control\": \"Modal\"")]
+    [InlineData("Country", ", \"control\": null")]
     [InlineData("Country", "")]
     [InlineData("Int!", ", \"calculation\": {\"weight\": 2}")]
     [InlineData("Double", ", \"calculation\": {\"weight\": 2}")]
@@ -68,12 +68,16 @@ public class PropertySchemaTests
     [InlineData("Date", "\"allowedTypes\": [\"pdf\"]")]
     [InlineData("Date", "\"allowsExternalUsers\": true")]
     [InlineData("Date", "\"multiline\": true")]
-    [InlineData("File", "\"layout\": \"Dropdown\"")]
+    [InlineData("File", "\"control\": \"Dropdown\"")]
+    [InlineData("String", "\"allowAttachments\": true")]
+    [InlineData("String", "\"multiline\": true")]
+    [InlineData("String", "\"variant\": \"Email\"")]
     [InlineData("String", "\"layout\": \"RadioList\"")]
-    [InlineData("String", "\"layout\": {\"multiline\": true}")]
-    [InlineData("Country", "\"values\": [], \"layout\": {\"type\": \"RadioList\"}")]
+    [InlineData("String", "\"control\": \"RadioList\"")]
+    [InlineData("String", "\"control\": {\"multiline\": true}")]
+    [InlineData("Country", "\"values\": [], \"control\": {\"type\": \"RadioList\"}")]
     [InlineData("Country", "\"values\": [], \"multiline\": true")]
-    [InlineData("Country", "\"values\": [], \"variant\": \"Email\"")]
+    [InlineData("Country", "\"values\": [], \"control\": \"Email\"")]
     [InlineData("String", "\"values\": [{\"name\": \"NL\"}]")]
     [InlineData("Country", "\"maximumSize\": 1000")]
     [InlineData("String", "\"prefix\": \"report_\"")]
@@ -81,7 +85,7 @@ public class PropertySchemaTests
     [InlineData("File", "\"maximumSize\": null")]
     [InlineData("File", "\"fileSettings\": {\"allowedTypes\": [\"pdf\"]}")]
     [InlineData("Country", "\"values\": [], \"filter\": \"Title\"")]
-    [InlineData("Assessment", "\"layout\": \"Modal\", \"inheritedRoles\": []")]
+    [InlineData("Assessment", "\"control\": \"Modal\", \"inheritedRoles\": []")]
     [InlineData("Date", "\"calculation\": {\"weight\": 1}")]
     [InlineData("String", "\"calculation\": {\"weight\": 1}")]
     [InlineData("File", "\"calculation\": {\"weight\": 1}")]
@@ -93,7 +97,7 @@ public class PropertySchemaTests
     }
 
     [Fact]
-    public async Task PropertyUnion_HasClosedVariantsAndTypeSpecificLayouts()
+    public async Task PropertyUnion_HasClosedVariantsAndTypeSpecificControls()
     {
         var schema = await Generate();
         Assert.Equal(12, schema.AnyOf.Count);
@@ -113,13 +117,14 @@ public class PropertySchemaTests
 
         var text = schema.Definitions[nameof(StringPropertyDefinition)];
         Assert.DoesNotContain("layout", text.Properties.Keys);
-        Assert.Contains("multiline", text.Properties.Keys);
-        Assert.Contains("allowAttachments", text.Properties.Keys);
-        Assert.Contains("variant", text.Properties.Keys);
-        Assert.Contains(schema.Definitions[nameof(ChoicePropertyDefinition)].Properties["layout"].OneOf,
-            branch => branch.Reference == schema.Definitions[nameof(ChoiceLayoutType)]);
-        Assert.Contains(schema.Definitions[nameof(ObjectPropertyDefinition)].Properties["layout"].OneOf,
-            branch => branch.Reference == schema.Definitions[nameof(TableLayout)]);
+        Assert.DoesNotContain("variant", text.Properties.Keys);
+        Assert.DoesNotContain("multiline", text.Properties.Keys);
+        Assert.DoesNotContain("allowAttachments", text.Properties.Keys);
+        Assert.Contains("control", text.Properties.Keys);
+        Assert.Contains(schema.Definitions[nameof(ChoicePropertyDefinition)].Properties["control"].OneOf,
+            branch => branch.Reference == schema.Definitions[nameof(ChoiceControl)]);
+        Assert.Contains(schema.Definitions[nameof(ObjectPropertyDefinition)].Properties["control"].OneOf,
+            branch => branch.Reference == schema.Definitions[nameof(ObjectControl)]);
     }
 
     private static async Task<JsonSchema> Generate()

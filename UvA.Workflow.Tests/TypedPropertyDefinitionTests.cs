@@ -29,9 +29,13 @@ public class TypedPropertyDefinitionTests
     [InlineData("String", "maximumSize: 1000")]
     [InlineData("Date", "prefix: report_")]
     [InlineData("File", "allowsExternalUsers: true")]
-    [InlineData("Date", "multiline: true")]
+    [InlineData("Date", "control: TextArea")]
+    [InlineData("String", "allowAttachments: true")]
+    [InlineData("String", "multiline: true")]
+    [InlineData("String", "variant: Email")]
     [InlineData("String", "layout: RadioList")]
-    [InlineData("Country", "values: [{ name: NL }]\nvariant: Email")]
+    [InlineData("String", "control: RadioList")]
+    [InlineData("Country", "values: [{ name: NL }]\ncontrol: Email")]
     [InlineData("Country", "values: [{ name: NL }]\nfilter: Title")]
     [InlineData("Date", "calculation: { weight: 1 }")]
     [InlineData("String", "calculation: { weight: 1 }")]
@@ -75,10 +79,10 @@ public class TypedPropertyDefinitionTests
                                         - name: Course
                                           type: '[Context]!'
                                           inheritedRoles: [Coordinator]
-                                          layout: RadioList
+                                          control: RadioList
                                         - name: Assessment
                                           type: '[Assessment]'
-                                          layout: Modal
+                                          control: Modal
                                       """,
             ["Context/Entity.yaml"] = "name: Context",
             ["Assessment/Entity.yaml"] = "name: Assessment\ninheritsFrom: BaseAssessment",
@@ -92,30 +96,28 @@ public class TypedPropertyDefinitionTests
         Assert.True(reference.IsRequired);
         Assert.Same(parser.WorkflowDefinitions["Context"], reference.WorkflowDefinition);
         Assert.Equal("Coordinator", Assert.Single(reference.InheritedRoles));
-        Assert.Equal(ChoiceLayoutType.RadioList, reference.Layout);
+        Assert.Equal(ChoiceControl.RadioList, reference.Control);
 
         var embedded = Assert.IsType<ObjectPropertyDefinition>(properties.Get("Assessment"));
         Assert.Equal(DataType.Object, embedded.DataType);
         Assert.Same(parser.WorkflowDefinitions["Assessment"], embedded.WorkflowDefinition);
-        Assert.Equal(TableLayout.Modal, embedded.Layout);
+        Assert.Equal(ObjectControl.Modal, embedded.Control);
     }
 
     [Fact]
-    public void Parser_ReadsFlattenedTextSettingsAndChoiceLayout()
+    public void Parser_ReadsTextAndChoiceControls()
     {
         var text = Assert.IsType<StringPropertyDefinition>(ParseProperty(
-            "name: Notes\ntype: String\nmultiline: true\nallowAttachments: true"));
-        Assert.True(text.Multiline);
-        Assert.True(text.AllowAttachments);
-        Assert.Null(text.Variant);
+            "name: Notes\ntype: String\ncontrol: TextArea"));
+        Assert.Equal(StringControl.TextArea, text.Control);
 
         var choice = Assert.IsType<ChoicePropertyDefinition>(ParseProperty(
-            "name: Country\ntype: Country\nvalues: [{ name: NL }]\nlayout: RadioList"));
-        Assert.Equal(ChoiceLayoutType.RadioList, choice.Layout);
+            "name: Country\ntype: Country\nvalues: [{ name: NL }]\ncontrol: RadioList"));
+        Assert.Equal(ChoiceControl.RadioList, choice.Control);
 
         var defaultLayout = Assert.IsType<ChoicePropertyDefinition>(ParseProperty(
             "name: Country\ntype: Country\nvalues: [{ name: NL }]"));
-        Assert.Null(defaultLayout.Layout);
+        Assert.Null(defaultLayout.Control);
     }
 
     [Fact]
@@ -149,23 +151,22 @@ public class TypedPropertyDefinitionTests
     }
 
     [Theory]
-    [InlineData("String", "layout: { multiline: true }")]
-    [InlineData("Country", "values: [{ name: NL }]\nlayout: { type: RadioList }")]
+    [InlineData("String", "control: { multiline: true }")]
+    [InlineData("Country", "values: [{ name: NL }]\ncontrol: { type: RadioList }")]
     [InlineData("File", "fileSettings: { allowedTypes: [pdf] }")]
     public void Parser_RejectsNestedPropertySettings(string type, string settings)
         => Assert.Throws<Exception>(() => ParseProperty($"name: Value\ntype: {type}\n{settings}"));
 
     [Theory]
-    [InlineData("Email", StringVariant.Email)]
-    [InlineData("Phone", StringVariant.Phone)]
-    public void Parser_ReadsTextVariant(string variant, StringVariant expected)
+    [InlineData("TextArea", StringControl.TextArea)]
+    [InlineData("Email", StringControl.Email)]
+    [InlineData("Phone", StringControl.Phone)]
+    public void Parser_ReadsTextControl(string control, StringControl expected)
     {
         var property = Assert.IsType<StringPropertyDefinition>(ParseProperty(
-            $"name: Contact\ntype: String\nvariant: {variant}"));
+            $"name: Contact\ntype: String\ncontrol: {control}"));
 
-        Assert.Equal(expected, property.Variant);
-        Assert.False(property.Multiline);
-        Assert.False(property.AllowAttachments);
+        Assert.Equal(expected, property.Control);
     }
 
     private static PropertyDefinition ParseProperty(string yaml)

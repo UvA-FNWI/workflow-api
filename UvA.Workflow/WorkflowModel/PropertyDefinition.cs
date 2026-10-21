@@ -10,7 +10,7 @@ public enum PropertyVisibility
     Hidden
 }
 
-public enum ChoiceLayoutType
+public enum ChoiceControl
 {
     Dropdown,
     RadioList,
@@ -18,14 +18,15 @@ public enum ChoiceLayoutType
     ComboBox
 }
 
-public enum TableLayout
+public enum ObjectControl
 {
     InlineEditing,
     Modal
 }
 
-public enum StringVariant
+public enum StringControl
 {
+    TextArea,
     Email,
     Phone
 }
@@ -141,19 +142,13 @@ public abstract class WeightedPropertyDefinition : PropertyDefinition
     public CalculationSettings? Calculation { get; set; }
 }
 
-/// <summary>Text value with optional input layout and length validation.</summary>
+/// <summary>Text value with optional input control and length validation.</summary>
 public class StringPropertyDefinition : PropertyDefinition
 {
     public override DataType DataType => DataType.String;
 
-    /// <summary>Show a multiline text field.</summary>
-    public bool Multiline { get; set; }
-
-    /// <summary>Allow attachments in the text field.</summary>
-    public bool AllowAttachments { get; set; }
-
-    /// <summary>Render an email or phone input with matching validation; omitted for ordinary text.</summary>
-    public StringVariant? Variant { get; set; }
+    /// <summary>Render a text area, email or phone input; omitted for ordinary text.</summary>
+    public StringControl? Control { get; set; }
 }
 
 /// <summary>Calendar date, also used for step deadlines and postponement limits.</summary>
@@ -231,7 +226,7 @@ public class UserPropertyDefinition : PropertyDefinition
     public bool? AllowsExternalUsers { get; set; } = false;
 }
 
-/// <summary>Selection from inline choices or a named value set, with optional layout and rubric settings.</summary>
+/// <summary>Selection from inline choices or a named value set, with optional control and rubric settings.</summary>
 public class ChoicePropertyDefinition : WeightedPropertyDefinition
 {
     public override DataType DataType => DataType.Choice;
@@ -243,8 +238,8 @@ public class ChoicePropertyDefinition : WeightedPropertyDefinition
     [YamlIgnore]
     public ValueSetSorting? Sorting { get; set; }
 
-    /// <summary>Layout for choice input; omitted to use the default control.</summary>
-    public ChoiceLayoutType? Layout { get; set; }
+    /// <summary>Control for choice input; omitted to use the default control.</summary>
+    public ChoiceControl? Control { get; set; }
 
     /// <summary>Rubric entries that describe grading criteria for this property.</summary>
     public List<RubricEntry>? Rubric { get; set; }
@@ -264,8 +259,8 @@ public class ReferencePropertyDefinition : WorkflowPropertyDefinition
 {
     public override DataType DataType => DataType.Reference;
 
-    /// <summary>Layout for reference selection; omitted to use the default control.</summary>
-    public ChoiceLayoutType? Layout { get; set; }
+    /// <summary>Control for reference selection; omitted to use the default control.</summary>
+    public ChoiceControl? Control { get; set; }
 
     /// <summary>Roles inherited from the referenced instance.</summary>
     public string[] InheritedRoles { get; set; } = [];
@@ -282,8 +277,8 @@ public class ObjectPropertyDefinition : WorkflowPropertyDefinition
 {
     public override DataType DataType => DataType.Object;
 
-    /// <summary>Layout for embedded objects; omitted to use the default control.</summary>
-    public TableLayout? Layout { get; set; }
+    /// <summary>Control for embedded objects; omitted to use the default control.</summary>
+    public ObjectControl? Control { get; set; }
 }
 
 public enum CalculationType

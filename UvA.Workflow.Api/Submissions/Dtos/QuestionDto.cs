@@ -67,16 +67,12 @@ public record StringQuestionDto : QuestionDto
 {
     public StringQuestionDto(StringPropertyDefinition property) : base(property)
     {
-        Multiline = property.Multiline;
-        AllowAttachments = property.AllowAttachments;
-        Variant = property.Variant;
+        Control = property.Control;
         MaxLength = property.Validation.GetAllValues().Select(v => v.MaxLength).FirstOrDefault(v => v != null);
         MinLength = property.Validation.GetAllValues().Select(v => v.MinLength).FirstOrDefault(v => v != null);
     }
 
-    public bool Multiline { get; init; }
-    public bool AllowAttachments { get; init; }
-    public StringVariant? Variant { get; init; }
+    public StringControl? Control { get; init; }
     public int? MaxLength { get; init; }
     public int? MinLength { get; init; }
 }
@@ -151,13 +147,13 @@ public record ChoiceQuestionDto : WeightedQuestionDto
     {
         Choices = (property.Values ?? []).Select(value => new ChoiceDto(
             value.Name, value.Text ?? value.Name, value.Description, value.Value)).ToArray();
-        Layout = property.Layout;
+        Control = property.Control;
         Rubric = property.Rubric?.Select(entry => RubricEntryDto.Create(entry, property.Values)).ToList();
         Sorting = property.Sorting;
     }
 
     public ChoiceDto[] Choices { get; init; }
-    public ChoiceLayoutType? Layout { get; init; }
+    public ChoiceControl? Control { get; init; }
     public List<RubricEntryDto>? Rubric { get; init; }
     public ValueSetSorting? Sorting { get; init; }
 }
@@ -167,11 +163,11 @@ public record ReferenceQuestionDto : QuestionDto
     public ReferenceQuestionDto(ReferencePropertyDefinition property) : base(property)
     {
         WorkflowDefinition = property.WorkflowDefinition?.Name;
-        Layout = property.Layout;
+        Control = property.Control;
     }
 
     public string? WorkflowDefinition { get; init; }
-    public ChoiceLayoutType? Layout { get; init; }
+    public ChoiceControl? Control { get; init; }
 }
 
 public record ObjectQuestionDto : QuestionDto
@@ -179,12 +175,12 @@ public record ObjectQuestionDto : QuestionDto
     public ObjectQuestionDto(ObjectPropertyDefinition property, decimal totalWeight) : base(property)
     {
         WorkflowDefinition = property.WorkflowDefinition?.Name;
-        Layout = property.Layout;
+        Control = property.Control;
         SubProperties = property.WorkflowDefinition?.Properties.Select(child => Create(child, totalWeight)).ToArray();
     }
 
     public string? WorkflowDefinition { get; init; }
-    public TableLayout? Layout { get; init; }
+    public ObjectControl? Control { get; init; }
     public QuestionDto[]? SubProperties { get; init; }
 }
 

@@ -682,15 +682,15 @@ public partial class ModelParser
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' has rubric entries defined but no values. Rubrics can only be used on properties with predefined values.");
 
-        var layoutType = propertyDefinition.Layout;
+        var control = propertyDefinition.Control;
 
-        if (layoutType == ChoiceLayoutType.Rubric && rubric == null)
+        if (control == ChoiceControl.Rubric && rubric == null)
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' has layout type 'Rubric' but no rubric entries defined.");
+                $"Property '{propertyDefinition.Name}' has control 'Rubric' but no rubric entries defined.");
 
-        if (propertyDefinition.Rubric != null && layoutType != ChoiceLayoutType.Rubric)
+        if (propertyDefinition.Rubric != null && control != ChoiceControl.Rubric)
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' has rubric entries but layout type is '{layoutType?.ToString() ?? "not set"}'. Set layout type to 'Rubric'.");
+                $"Property '{propertyDefinition.Name}' has rubric entries but control is '{control?.ToString() ?? "not set"}'. Set control to 'Rubric'.");
 
         var validNames = propertyDefinition.Values.Select(v => v.Name).ToHashSet();
         var unknownGrades = rubric
