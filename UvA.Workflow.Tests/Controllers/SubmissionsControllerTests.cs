@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions;
@@ -479,6 +480,62 @@ public class SubmissionsControllerTests : ControllerTestsBase
             service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
                 It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateDummyData_FillsRequiredReferenceWithPossibleChoice()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["SystemAdmin"], "Start");
+        MockAddOrUpdateUser();
+        IncludeCourseInStartForm();
+        instance.Properties.Remove("Course");
+        var courses = new[] { "Course A", "Course B" }
+            .Select(name => new WorkflowInstanceBuilder()
+                .With(workflowDefinition: "Context", currentStep: "Start")
+                .WithProperties(("Name", b => b.Value(name)))
+                .Build())
+            .ToList();
+        MockContextChoices(courses);
+
+        await controller.GenerateDummyData(instance.Id, "Start", _ct);
+
+        var courseId = instance.Properties["Course"].AsString;
+        Assert.Contains(courses, course => course.Id == courseId);
+    }
+
+    [Fact]
+    public async Task GenerateDummyData_SkipsReferenceWhenNoChoices()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["SystemAdmin"], "Start");
+        MockAddOrUpdateUser();
+        IncludeCourseInStartForm();
+        instance.Properties.Remove("Course");
+        MockContextChoices([]);
+
+        await controller.GenerateDummyData(instance.Id, "Start", _ct);
+
+        Assert.False(instance.Properties.ContainsKey("Course"));
+    }
+
+    private void MockAddOrUpdateUser() =>
+        _userServiceMock.Setup(s => s.AddOrUpdateUser(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+
+    private void MockContextChoices(List<WorkflowInstance> choices) =>
+        _workflowInstanceRepoMock
+            .Setup(r => r.GetByWorkflowDefinition(
+                "Context",
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(choices);
+
+    private void IncludeCourseInStartForm()
+    {
+        var workflow = _modelService.WorkflowDefinitions["Project"];
+        var page = workflow.Forms.Single(form => form.Name == "Start").Pages[0];
+        var prop = workflow.Properties.Single(q => q.Name == "Course");
+        page.PageElements = [.. page.PageElements, new PageElement { Question = prop.Name, QuestionDefinition = prop }];
     }
 
     private (SubmissionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
