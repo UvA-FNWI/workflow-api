@@ -68,6 +68,20 @@ public record Expression
         ["except"] = new Function<IEnumerable, object, object?[]>((a, b) =>
             a?.Cast<object?>().Except(b is IEnumerable values && b is not string ? values.Cast<object?>() : [b])
                 .ToArray() ?? []),
+        ["select"] = new Function<IEnumerable, string, object?[]>((list, field) =>
+        {
+            if (string.IsNullOrWhiteSpace(field))
+                throw new ArgumentException("select expects a field name, e.g. select(List, =Field)");
+            return list?.Cast<object?>()
+                .Select(row => row switch
+                {
+                    Dictionary<string, object> dict => dict.GetValueOrDefault(field),
+                    Dictionary<Lookup, object> dict => dict.GetValueOrDefault(field),
+                    _ => null
+                })
+                .Where(value => !DataExtensions.IsEffectivelyEmpty(value))
+                .ToArray() ?? [];
+        }),
         ["flatten"] = new Function<IEnumerable, object?[]>(list =>
             list?.Cast<object?>()
                 .SelectMany(item => item is IEnumerable values && item is not string

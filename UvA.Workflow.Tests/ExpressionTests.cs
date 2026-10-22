@@ -88,6 +88,87 @@ public class ExpressionTests
         Assert.Empty(Assert.IsType<object[]>(exp.Execute(new ObjectContext([]))));
     }
 
+    private static ObjectContext RowsContext(object? rows)
+        => new(new Dictionary<Lookup, object?> { ["Rows"] = rows });
+
+    [Fact]
+    public void Select_ScalarField_ReturnsValuePerRow()
+    {
+        var exp = ExpressionParser.Parse("select(Rows, =Code)");
+        var rows = new[]
+        {
+            new Dictionary<string, object> { ["Code"] = "NL" },
+            new Dictionary<string, object> { ["Code"] = "FR" }
+        };
+
+        Assert.Equal(new object[] { "NL", "FR" }, Assert.IsType<object[]>(exp.Execute(RowsContext(rows))));
+        Assert.Equal([new PropertyLookup("Rows")], exp.Properties);
+    }
+
+    [Fact]
+    public void Select_ArrayField_KeepsArraysForFlatten()
+    {
+        var exp = ExpressionParser.Parse("select(Rows, =Codes)");
+        var rows = new[]
+        {
+            new Dictionary<string, object> { ["Codes"] = new List<object> { "NL", "BE" } },
+            new Dictionary<string, object> { ["Codes"] = new List<object> { "FR" } }
+        };
+
+        var result = Assert.IsType<object[]>(exp.Execute(RowsContext(rows)));
+
+        Assert.Equal(2, result.Length);
+        Assert.Equal(new List<object> { "NL", "BE" }, result[0]);
+        Assert.Equal(new List<object> { "FR" }, result[1]);
+    }
+
+    [Fact]
+    public void Select_MixedRows_SkipsNullAndEmptyValues()
+    {
+        var exp = ExpressionParser.Parse("flatten(select(Rows, =Codes))");
+        var rows = new[]
+        {
+            new Dictionary<string, object> { ["Codes"] = new List<object> { "NL", "BE" } },
+            new Dictionary<string, object> { ["Codes"] = "FR" },
+            new Dictionary<string, object> { ["Codes"] = new List<object>() },
+            new Dictionary<string, object> { ["Codes"] = " " },
+            new Dictionary<string, object> { ["Other"] = "DE" },
+            null
+        };
+
+        Assert.Equal(new object[] { "NL", "BE", "FR" }, Assert.IsType<object[]>(exp.Execute(RowsContext(rows))));
+    }
+
+    [Fact]
+    public void Select_LookupKeyedRows_AreSupported()
+    {
+        var exp = ExpressionParser.Parse("select(Rows, =Code)");
+        var rows = new[] { new Dictionary<Lookup, object> { ["Code"] = "NL" } };
+
+        Assert.Equal(new object[] { "NL" }, Assert.IsType<object[]>(exp.Execute(RowsContext(rows))));
+    }
+
+    [Fact]
+    public void Select_NullOrEmptyList_ReturnsEmptyCollection()
+    {
+        var exp = ExpressionParser.Parse("select(Rows, =Code)");
+
+        Assert.Empty(Assert.IsType<object[]>(exp.Execute(RowsContext(null))));
+        Assert.Empty(Assert.IsType<object[]>(exp.Execute(RowsContext(Array.Empty<Dictionary<string, object>>()))));
+    }
+
+    [Fact]
+    public void Select_FieldWithoutEqualsSign_Throws()
+    {
+        // Without '=', Code is looked up as a property, which doesn't exist → null field name
+        var exp = ExpressionParser.Parse("select(Rows, Code)");
+        var rows = new[] { new Dictionary<string, object> { ["Code"] = "NL" } };
+
+        var error = Assert.Throws<ArgumentException>(() => exp.Execute(RowsContext(rows)));
+
+        Assert.Contains("field name", error.Message);
+    }
+
     [Fact]
     public void Flatten_FlattensOneLevelAndKeepsScalars()
     {
