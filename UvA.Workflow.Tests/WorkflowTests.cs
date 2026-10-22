@@ -252,7 +252,7 @@ public class WorkflowTests
             .Build();
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        questionContext.PropertyDefinition.FileSettings = new() { Prefix = "prefix_" };
+        Assert.IsType<FilePropertyDefinition>(questionContext.PropertyDefinition).Prefix = "prefix_";
 
         await _answerService.SaveArtifact(questionContext, CreateFile("report.pdf"), _ct);
 
@@ -271,7 +271,8 @@ public class WorkflowTests
             .Build();
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        Assert.Equal(["pdf", "zip"], questionContext.PropertyDefinition.FileSettings?.AllowedTypes!);
+        Assert.Equal(["pdf", "zip"],
+            Assert.IsType<FilePropertyDefinition>(questionContext.PropertyDefinition).AllowedTypes);
         _artifactServiceMock
             .Setup(service => service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
                 It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -295,7 +296,7 @@ public class WorkflowTests
             .Build();
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var questionContext = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
-        questionContext.PropertyDefinition.FileSettings = new() { MaximumSize = 1000 };
+        Assert.IsType<FilePropertyDefinition>(questionContext.PropertyDefinition).MaximumSize = 1000;
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             _answerService.SaveArtifact(questionContext, CreateFile("report.pdf", 1001), _ct));
@@ -316,7 +317,9 @@ public class WorkflowTests
         _instanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         var context = await _answerService.GetQuestionContext(instance.Id, "Upload", "Report", _ct);
         context.PropertyDefinition.Type = "[File]";
-        context.PropertyDefinition.FileSettings = new() { AllowedTypes = ["*"], MaximumSize = 10 };
+        var fileProperty = Assert.IsType<FilePropertyDefinition>(context.PropertyDefinition);
+        fileProperty.AllowedTypes = ["*"];
+        fileProperty.MaximumSize = 10;
         var index = 0;
         _artifactServiceMock.Setup(service =>
                 service.SaveArtifact(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Stream>(),
@@ -382,12 +385,12 @@ public class WorkflowTests
         var parser = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
         {
             ["Project/Entity.yaml"] =
-                "name: Project\ntitlePlural: Projects\nproperties:\n  - name: Attachments\n    type: '[File]'\n    fileSettings:\n      allowedTypes: ['*']\n      maximumSize: 1000"
+                "name: Project\ntitlePlural: Projects\nproperties:\n  - name: Attachments\n    type: '[File]'\n    allowedTypes: ['*']\n    maximumSize: 1000"
         }));
 
         var property = parser.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == "Attachments");
         Assert.True(property.IsArray);
-        Assert.Equal(["*"], property.EffectiveAllowedFileTypes);
+        Assert.Equal(["*"], Assert.IsType<FilePropertyDefinition>(property).AllowedTypes);
     }
 
     [Fact]
@@ -402,7 +405,8 @@ public class WorkflowTests
         Assert.Equal(6, assessmentForm.Pages.Count);
         Assert.Equal("FinalDetailsConfirmation", assessmentForm.Pages[^1].Name);
         Assert.Equal("Assessment-PP",
-            projectPp.Properties.Single(p => p.Name == "AssessmentSecondAssessor").WorkflowDefinition?.Name);
+            Assert.IsType<ObjectPropertyDefinition>(
+                projectPp.Properties.Single(p => p.Name == "AssessmentSecondAssessor")).WorkflowDefinition?.Name);
     }
 
     [Fact]

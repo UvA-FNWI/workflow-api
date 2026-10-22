@@ -154,7 +154,7 @@ public class InstanceAuthorizationFilterService(
             .Distinct()
             .ToArray();
 
-        var referenceProperties = definition.Properties
+        var referenceProperties = definition.Properties.OfType<ReferencePropertyDefinition>()
             .Where(p => p.WorkflowDefinition != null
                         && p.DataType == DataType.Reference)
             .ToArray();

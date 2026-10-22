@@ -189,9 +189,8 @@ public class RightsService(
                         p.Name, instance.GetProperty(p.Name))));
         }
 
-        var references = definition.Properties
-            .Where(p => p.WorkflowDefinition != null
-                        && p.DataType == DataType.Reference)
+        var references = definition.Properties.OfType<ReferencePropertyDefinition>()
+            .Where(p => p.WorkflowDefinition != null)
             .SelectMany(p =>
             {
                 var ids = instance.GetProperty(p.Name) switch

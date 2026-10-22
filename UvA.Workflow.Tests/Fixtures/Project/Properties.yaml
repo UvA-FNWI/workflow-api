@@ -8,9 +8,8 @@ properties:
       
   - name: Report
     type: File!
-    fileSettings:
-      allowedTypes: [PDF, zip]
-      maximumSize: 10000000
+    allowedTypes: [PDF, zip]
+    maximumSize: 10000000
 
   - name: TurnitinId
     type: String
