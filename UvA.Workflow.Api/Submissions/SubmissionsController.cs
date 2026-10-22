@@ -138,11 +138,11 @@ public class SubmissionsController(
                     continue;
                 }
 
-                if (question.DataType == DataType.File)
+                if (question is FilePropertyDefinition fileQuestion)
                 {
                     if (!question.IsRequired) continue;
 
-                    var dummyFile = dummyAnswerGenerator.GenerateFile(question, instance.Id);
+                    var dummyFile = dummyAnswerGenerator.GenerateFile(fileQuestion, instance.Id);
                     await answerService.SaveArtifact(
                         new QuestionContext(instance, submissionState, form, question), dummyFile, ct);
                     filledQuestionIds.Add(questionName);

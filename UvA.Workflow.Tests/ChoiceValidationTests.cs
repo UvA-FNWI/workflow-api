@@ -6,7 +6,7 @@ namespace UvA.Workflow.Tests;
 
 public class ChoiceValidationTests
 {
-    private static readonly PropertyDefinition Choice = new()
+    private static readonly ChoicePropertyDefinition Choice = new()
     {
         Name = "Reason",
         Type = "PassFail",

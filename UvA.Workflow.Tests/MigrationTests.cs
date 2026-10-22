@@ -246,7 +246,7 @@ public class MigrationTests
             Name = "Project-Added",
             InheritsFrom = "Project-Base",
             Parent = parser.WorkflowDefinitions["Project-Base"],
-            Properties = [new PropertyDefinition { Name = "ProjectTitle", Type = "String" }]
+            Properties = [new StringPropertyDefinition { Name = "ProjectTitle", Type = "String" }]
         });
 
         var migration = await service.RunConfigured(configured);
@@ -264,7 +264,7 @@ public class MigrationTests
         var leaf = parser.WorkflowDefinitions["Project-Leaf"];
         leaf.Properties.Clear();
         if (containsOldProperty)
-            leaf.Properties.Add(new PropertyDefinition { Name = "Title", Type = "String" });
+            leaf.Properties.Add(new StringPropertyDefinition { Name = "Title", Type = "String" });
         var configured = Assert.Single(parser.Migrations, migration => migration.Scope == "Project-Base");
         var repository = new Mock<IMigrationRepository>();
         var service = CreateService(repository, parser);

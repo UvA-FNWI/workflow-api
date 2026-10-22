@@ -34,9 +34,9 @@ public class DummyAnswerGenerator
     /// Builds placeholder file metadata for a file question. No file is stored, so downloading it will fail.
     /// The extension is taken from the question's allowed file types so the answer passes upload validation.
     /// </summary>
-    public ArtifactInfo GenerateFile(PropertyDefinition question, string instanceId)
+    public ArtifactInfo GenerateFile(FilePropertyDefinition question, string instanceId)
     {
-        var extension = question.EffectiveAllowedFileTypes?.FirstOrDefault(type => type != "*") ?? "pdf";
+        var extension = question.AllowedTypes.FirstOrDefault(type => type != "*") ?? "pdf";
         var fileName = $"dummy-file.{extension}";
         if (!ContentTypeProvider.TryGetContentType(fileName, out var contentType))
             contentType = "application/octet-stream";
