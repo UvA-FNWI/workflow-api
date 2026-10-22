@@ -159,7 +159,7 @@ public class CanvasLaunchTargetResolver(
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
             return [];
 
-        return definition.Properties.Where(property =>
+        return definition.Properties.OfType<WorkflowPropertyDefinition>().Where(property =>
                 string.Equals(property.WorkflowDefinition?.Name, "Context", StringComparison.OrdinalIgnoreCase))
             .Select(property => property.Name);
     }

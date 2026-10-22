@@ -129,13 +129,13 @@ public class CanvasLaunchTargetResolverTests
             Screens = [new Screen { Name = "First" }],
             Properties =
             [
-                new PropertyDefinition
+                new ReferencePropertyDefinition
                 {
                     Name = "Course",
                     Type = "Context!",
                     WorkflowDefinition = contextDefinition
                 },
-                new PropertyDefinition
+                new ReferencePropertyDefinition
                 {
                     Name = "ProposalCourse",
                     Type = "Context!",
@@ -189,13 +189,13 @@ public class CanvasLaunchTargetResolverTests
             Name = "Project",
             Properties =
             [
-                new PropertyDefinition
+                new ReferencePropertyDefinition
                 {
                     Name = "Course",
                     Type = "Context!",
                     WorkflowDefinition = contextDefinition
                 },
-                new PropertyDefinition
+                new ReferencePropertyDefinition
                 {
                     Name = "ProposalCourse",
                     Type = "Context!",
@@ -257,7 +257,7 @@ public class CanvasLaunchTargetResolverTests
             Screens = screens.Select(screen => new Screen { Name = screen }).ToList(),
             Properties =
             [
-                new PropertyDefinition
+                new ReferencePropertyDefinition
                 {
                     Name = "Course",
                     Type = "Context!",
