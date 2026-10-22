@@ -144,9 +144,9 @@ public class PropertyDefinition : INamed
     public BilingualString? Description { get; set; }
 
     /// <summary>
-    /// To be used for properties that refer to other entities. List of roles that is inherited from the target instance.
+    /// Marks this property as an inheritable role, meaning that the users in this role will be inherited by child entities.
     /// </summary>
-    public string[] InheritedRoles { get; set; } = [];
+    public bool? IsInheritableRole { get; set; }
 
     [YamlIgnore] public WorkflowDefinition ParentType { get; set; } = null!;
 

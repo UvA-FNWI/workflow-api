@@ -46,8 +46,7 @@ public class RightsService(
 
         var definitionRoles = definition.Properties
             .Where(p => p.DataType == DataType.User)
-            .Select(p => p.Name)
-            .Concat(definition.Properties.SelectMany(p => p.InheritedRoles));
+            .Select(p => p.Name);
 
         return actionRoles
             .Concat(definitionRoles)
@@ -155,70 +154,85 @@ public class RightsService(
     private sealed record RoleValue(string Name, BsonValue? Value);
 
     /// <summary>
-    /// Collects roles that this instance inherits from the instances it references,
-    /// following the chain upwards.
+    /// Resolves inheritable user-role assignments from referenced instances.
+    /// Permissions remain defined by the consuming workflow.
     /// </summary>
-    private async Task<IEnumerable<RoleValue>> GetInheritedRoles(WorkflowDefinition definition,
-        WorkflowInstance instance, CancellationToken ct = default)
-    {
-        var inheritedRoles = definition.Properties
-            .Where(p => p.InheritedRoles.Any())
-            .SelectMany(p => p.InheritedRoles.Select(r => new
-            {
-                Role = r,
-                p.WorkflowDefinition,
-                InstanceIds = instance.GetProperty(p.Name) switch
-                {
-                    BsonArray a => a.Select(v => v.AsString).ToArray(),
-                    BsonString s => [s.AsString],
-                    _ => []
-                }
-            }))
-            .Where(r => r.WorkflowDefinition != null && r.InstanceIds.Length > 0)
-            .ToList();
+    private Task<IEnumerable<RoleValue>> GetInheritedRoles(
+        WorkflowDefinition definition,
+        WorkflowInstance instance,
+        CancellationToken ct = default)
+        => ResolveInheritableRoles(
+            definition, instance, new HashSet<string>(), false, ct);
 
-        var inheritedViaInstances =
-            (await workflowInstanceRepository.GetByIds(
-                inheritedRoles.SelectMany(r => r.InstanceIds).Distinct().ToArray(), ct)).ToDictionary(i => i.Id);
-
-        var resolvedRoles = await Task.WhenAll(
-            inheritedRoles.SelectMany(r => r.InstanceIds
-                .Where(id => inheritedViaInstances.ContainsKey(id))
-                .Select(id => ResolveRole(inheritedViaInstances[id], r.Role, new(), ct))));
-
-        return resolvedRoles.SelectMany(roles => roles);
-    }
-
-    private async Task<IEnumerable<RoleValue>> ResolveRole(WorkflowInstance instance, string role,
-        HashSet<(string InstanceId, string Role)> visited, CancellationToken ct = default)
+    private async Task<IEnumerable<RoleValue>> ResolveInheritableRoles(
+        WorkflowDefinition definition,
+        WorkflowInstance instance,
+        HashSet<string> visited,
+        bool includeOwnRoles,
+        CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
-        if (!visited.Add((instance.Id, role)))
+        // A reference cycle must not cause infinite role resolution.
+        if (!visited.Add(instance.Id))
             return [];
 
-        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var roles = new List<RoleValue>();
 
-        if (definition.Properties.Any(p => p.Name == role && p.DataType == DataType.User))
-            return [new RoleValue(role, instance.GetProperty(role))];
+        if (includeOwnRoles)
+        {
+            roles.AddRange(
+                definition.Properties
+                    .Where(p => p.DataType == DataType.User
+                                && p.IsInheritableRole == true)
+                    .Select(p => new RoleValue(
+                        p.Name, instance.GetProperty(p.Name))));
+        }
 
-        var referenceIds = definition.Properties
-            .Where(p => p.WorkflowDefinition != null && p.InheritedRoles.Contains(role))
-            .SelectMany(p => instance.GetProperty(p.Name) switch
+        var references = definition.Properties
+            .Where(p => p.WorkflowDefinition != null
+                        && p.DataType == DataType.Reference)
+            .SelectMany(p =>
             {
-                BsonArray a => a.Select(v => v.AsString).ToArray(),
-                BsonString s => [s.AsString],
-                _ => []
+                var ids = instance.GetProperty(p.Name) switch
+                {
+                    BsonArray a => a.Select(v => v.AsString).ToArray(),
+                    BsonString s => [s.AsString],
+                    _ => Array.Empty<string>()
+                };
+
+                return ids.Select(id => (
+                    Id: id,
+                    Definition: p.WorkflowDefinition!));
             })
             .Distinct()
             .ToArray();
 
-        if (referenceIds.Length == 0)
-            return [];
+        if (references.Length == 0)
+            return roles;
 
-        var referencedInstances = await workflowInstanceRepository.GetByIds(referenceIds, ct);
-        var resolvedRoles = await Task.WhenAll(referencedInstances.Select(i => ResolveRole(i, role, new(visited), ct)));
-        return resolvedRoles.SelectMany(roles => roles);
+        var referencedInstances = await workflowInstanceRepository.GetByIds(
+            references.Select(r => r.Id).Distinct().ToArray(), ct);
+
+        foreach (var referencedInstance in referencedInstances)
+        {
+            var reference = references.FirstOrDefault(r =>
+                r.Id == referencedInstance.Id
+                && r.Definition.Name == referencedInstance.WorkflowDefinition);
+
+            // Only follow instances of the reference property's declared type.
+            if (reference.Definition == null)
+                continue;
+
+            roles.AddRange(await ResolveInheritableRoles(
+                reference.Definition,
+                referencedInstance,
+                visited,
+                true,
+                ct));
+        }
+
+        return roles;
     }
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, IEnumerable<Role?> roles,
