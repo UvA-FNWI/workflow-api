@@ -150,12 +150,12 @@ public class SubmissionsController(
                     continue;
                 }
 
-                if (question.DataType == DataType.Reference)
+                if (question is ReferencePropertyDefinition referenceQuestion)
                 {
-                    if (!question.IsRequired || question.WorkflowDefinition == null) continue;
+                    if (!question.IsRequired || referenceQuestion.WorkflowDefinition == null) continue;
 
                     // Same choice source as the UI picker; skip when no instances match (like empty choice enums)
-                    var choices = (await instanceService.GetPossibleChoices(instance, question, ct)).ToList();
+                    var choices = (await instanceService.GetPossibleChoices(instance, referenceQuestion, ct)).ToList();
                     if (choices.Count == 0) continue;
 
                     var referenceId = choices[Random.Shared.Next(choices.Count)].Id;
