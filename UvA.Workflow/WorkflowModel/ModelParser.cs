@@ -18,9 +18,21 @@ public partial class ModelParser
     /// The source the model was parsed from. Exposed so the API can serve the raw files back for editing.
     public IContentProvider ContentProvider => _contentProvider;
 
-    private readonly IDeserializer _deserializer = new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .Build();
+    private readonly IDeserializer _deserializer;
+
+    private static readonly Dictionary<string, Type> BuiltInPropertyTypes = new Dictionary<string, Type>
+    {
+        ["String"] = typeof(StringPropertyDefinition),
+        ["Date"] = typeof(DatePropertyDefinition),
+        ["DateTime"] = typeof(DateTimePropertyDefinition),
+        ["Int"] = typeof(IntPropertyDefinition),
+        ["Double"] = typeof(DoublePropertyDefinition),
+        ["Check"] = typeof(CheckPropertyDefinition),
+        ["Currency"] = typeof(CurrencyPropertyDefinition),
+        ["File"] = typeof(FilePropertyDefinition),
+        ["User"] = typeof(UserPropertyDefinition)
+    }.SelectMany(entry => new[] { entry.Key, $"{entry.Key}!", $"[{entry.Key}]", $"[{entry.Key}]!" }
+        .Select(type => new KeyValuePair<string, Type>(type, entry.Value))).ToDictionary();
 
     public List<Service> Services { get; }
     public List<Role> GlobalRoles { get; }
@@ -36,12 +48,14 @@ public partial class ModelParser
     public ModelParser(IContentProvider contentProvider)
     {
         _contentProvider = contentProvider;
+        var folders = GetWorkflowDefinitionFolders().ToArray();
+        _deserializer = CreateDeserializer(folders);
         GlobalRoles = Read<Role>();
         Services = Read<Service>();
         ValidateServices(Services);
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
-        var parsed = GetWorkflowDefinitionFolders()
+        var parsed = folders
             .Select(folder =>
             {
                 var definition = Parse<WorkflowDefinition>(Path.Combine(folder, "Entity.yaml"));
@@ -539,10 +553,10 @@ public partial class ModelParser
 
             if (i < parts.Length - 1)
             {
-                if (property.WorkflowDefinition == null)
+                if (property is not WorkflowPropertyDefinition { WorkflowDefinition: not null } workflowProperty)
                     return null;
 
-                type = property.WorkflowDefinition;
+                type = workflowProperty.WorkflowDefinition;
             }
         }
 
@@ -575,23 +589,29 @@ public partial class ModelParser
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
     {
-        propertyDefinition.Layout = NormalizeLayout(propertyDefinition.Layout);
-
-        foreach (var entry in propertyDefinition.Values ?? [])
-            PreProcess(entry);
-
-        if (propertyDefinition.ParentType.ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out var set) ||
-            ValueSets.TryGetValue(propertyDefinition.UnderlyingType, out set))
+        if (propertyDefinition is ChoicePropertyDefinition choice)
         {
-            propertyDefinition.Values = set.Values;
-            propertyDefinition.Sorting = set.Sorting;
+            foreach (var entry in choice.Values ?? [])
+                PreProcess(entry);
+
+            if (choice.ParentType.ValueSets.TryGetValue(choice.UnderlyingType, out var set) ||
+                ValueSets.TryGetValue(choice.UnderlyingType, out set))
+            {
+                choice.Values = set.Values;
+                choice.Sorting = set.Sorting;
+            }
+
+            if (choice.Values == null)
+                throw new Exception($"Invalid data type {choice.Type} for property {choice.Name}");
+            if (choice.Rubric != null)
+                PreProcess(choice.Rubric, choice);
         }
 
-        if (WorkflowDefinitions.TryGetValue(propertyDefinition.UnderlyingType, out var type))
-            propertyDefinition.WorkflowDefinition = type;
+        if (propertyDefinition is WorkflowPropertyDefinition workflow)
+            workflow.WorkflowDefinition = WorkflowDefinitions.GetValueOrDefault(workflow.UnderlyingType)
+                                          ?? throw new Exception(
+                                              $"Invalid data type {workflow.Type} for property {workflow.Name}");
 
-        if (propertyDefinition.Rubric != null)
-            PreProcess(propertyDefinition.Rubric, propertyDefinition);
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
 
@@ -606,15 +626,6 @@ public partial class ModelParser
             propertyDefinition.ParentType.Properties.GetOrDefault(propertyDefinition.LinkedTo) == null)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' in '{propertyDefinition.ParentType.Name}' has linkedTo '{propertyDefinition.LinkedTo}', but that property does not exist.");
-
-        try
-        {
-            _ = propertyDefinition.DataType;
-        }
-        catch (Exception)
-        {
-            throw new Exception($"Invalid data type {propertyDefinition.Type} for property {propertyDefinition.Name}");
-        }
 
         if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
         {
@@ -638,28 +649,14 @@ public partial class ModelParser
                     $"Defaults are not supported for property {propertyDefinition.Name} of type {propertyDefinition.Type}");
         }
 
-        NormalizeAllowedFileTypes(propertyDefinition);
-        ValidateAllowedFileSize(propertyDefinition);
+        if (propertyDefinition is FilePropertyDefinition file)
+        {
+            NormalizeAllowedFileTypes(file);
+            ValidateAllowedFileSize(file);
+        }
 
         return propertyDefinition;
     }
-
-    private static Dictionary<string, object>? NormalizeLayout(Dictionary<string, object>? layout)
-    {
-        if (layout == null)
-            return null;
-
-        return layout.ToDictionary(entry => entry.Key, entry => NormalizeLayoutValue(entry.Value));
-    }
-
-    private static object NormalizeLayoutValue(object value)
-        => value switch
-        {
-            Dictionary<string, object> dict => NormalizeLayout(dict)!,
-            List<object> list => list.Select(NormalizeLayoutValue).ToList(),
-            string text when bool.TryParse(text, out var boolean) => boolean,
-            _ => value
-        };
 
     private void PreProcess(Condition? condition)
     {
@@ -679,21 +676,21 @@ public partial class ModelParser
         PreProcess(choice.Condition);
     }
 
-    private void PreProcess(List<RubricEntry> rubric, PropertyDefinition propertyDefinition)
+    private void PreProcess(List<RubricEntry> rubric, ChoicePropertyDefinition propertyDefinition)
     {
         if (propertyDefinition.Values == null)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' has rubric entries defined but no values. Rubrics can only be used on properties with predefined values.");
 
-        var layoutType = propertyDefinition.Layout?.GetValueOrDefault("type")?.ToString();
+        var control = propertyDefinition.Control;
 
-        if (layoutType == "Rubric" && rubric == null)
+        if (control == ChoiceControl.Rubric && rubric == null)
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' has layout type 'Rubric' but no rubric entries defined.");
+                $"Property '{propertyDefinition.Name}' has control 'Rubric' but no rubric entries defined.");
 
-        if (propertyDefinition.Rubric != null && layoutType != "Rubric")
+        if (propertyDefinition.Rubric != null && control != ChoiceControl.Rubric)
             throw new Exception(
-                $"Property '{propertyDefinition.Name}' has rubric entries but layout type is '{layoutType ?? "not set"}'. Set layout type to 'Rubric'.");
+                $"Property '{propertyDefinition.Name}' has rubric entries but control is '{control?.ToString() ?? "not set"}'. Set control to 'Rubric'.");
 
         var validNames = propertyDefinition.Values.Select(v => v.Name).ToHashSet();
         var unknownGrades = rubric
