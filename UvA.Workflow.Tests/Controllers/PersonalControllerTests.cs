@@ -79,7 +79,7 @@ public class PersonalControllerTests : ControllerTestsBase
         var projectRow = Assert.Single(rows);
         Assert.Equal(["Supervisor", "Reviewer"], response.Roles.Select(role => role.Name));
         Assert.Equal("Begeleider", response.Roles[0].Title.Nl);
-        Assert.Equal("Beoordelaar", response.Roles[1].Title.Nl);
+        Assert.Equal("Academisch begeleider", response.Roles[1].Title.Nl);
 
         Assert.Equal(project.Id, projectRow.Id);
         Assert.Equal("Project", projectRow.WorkflowDefinition);

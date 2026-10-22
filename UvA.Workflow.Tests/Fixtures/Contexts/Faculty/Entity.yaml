@@ -1,0 +1,8 @@
+name: Faculty
+inheritsFrom: Context
+titlePlural: Faculties
+
+properties:
+  - name: LocalAdmin
+    type: "[User]!"
+    isInheritableRole: true

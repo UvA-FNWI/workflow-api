@@ -393,18 +393,16 @@ public class WorkflowTests
     [Fact]
     public void GroupedWorkflowDefinitions_AreLoadedFromTheirSourceFolder()
     {
-        var assessmentPb = _modelService.WorkflowDefinitions["Assessment-PB"];
-        var assessmentForm = assessmentPb.Forms.Single(f => f.Name == "Assessment");
+        var projectPp = _modelService.WorkflowDefinitions["Project-PP"];
+        var assessmentPp = _modelService.WorkflowDefinitions["Assessment-PP"];
+        var assessmentForm = assessmentPp.Forms.Single(f => f.Name == "Assessment");
 
-        Assert.Equal("PB/Assessment-PB", assessmentPb.SourceFolder);
-        Assert.Equal(4, assessmentForm.Pages.Count);
-        Assert.Equal("Practical", assessmentForm.Pages[^1].Name);
-
-        var projectAi = _modelService.WorkflowDefinitions["Project-AI"];
-
-        Assert.Equal("AI/Project-AI", projectAi.SourceFolder);
-        Assert.Equal("Assessment-AI",
-            projectAi.Properties.Single(p => p.Name == "AssessmentReviewer").WorkflowDefinition?.Name);
+        Assert.Equal("PP/Project-PP", projectPp.SourceFolder);
+        Assert.Equal("PP/Assessment-PP", assessmentPp.SourceFolder);
+        Assert.Equal(6, assessmentForm.Pages.Count);
+        Assert.Equal("FinalDetailsConfirmation", assessmentForm.Pages[^1].Name);
+        Assert.Equal("Assessment-PP",
+            projectPp.Properties.Single(p => p.Name == "AssessmentSecondAssessor").WorkflowDefinition?.Name);
     }
 
     [Fact]

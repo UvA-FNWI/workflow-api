@@ -1,5 +1,6 @@
 name: Project-PP
 title: Thesis PPLE
+inheritsFrom: Project-Base
 titlePlural: 3803THQPVY
 instanceTitle: '{{ Title }}'
 
@@ -22,7 +23,7 @@ steps:
 properties:
   - name: AssessmentSupervisor
     type: Assessment-PP!
-  - name: AssessmentSecondReader
+  - name: AssessmentSecondAssessor
     type: Assessment-PP!
   - name: AssessmentCombined
     type: Assessment-PP!
@@ -41,9 +42,9 @@ assessments:
             en: Supervisor
             nl: Begeleider
           weight: 2
-        - name: AssessmentSecondReader 
+        - name: AssessmentSecondAssessor
           title:
-            en: Second reader
+            en: Second assessor
             nl: Tweede beoordelaar
           weight: 1
     - name: Presentation

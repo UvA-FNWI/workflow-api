@@ -86,7 +86,7 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
         var controller = BuildController();
         MockNoVisibleInstances();
         var courseId = ObjectId.GenerateNewId();
-        MockVisibleInstancesFor("Context",
+        MockVisibleInstancesFor("Course",
             new BsonDocument("Properties.Coordinator._id", ObjectId.Parse(UnitTestsHelpers.AdminUser.Id)),
             courseId);
         MockVisibleInstancesFor("Project-PP",

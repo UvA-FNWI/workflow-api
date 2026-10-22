@@ -1,0 +1,10 @@
+name: Context
+titlePlural: Contexts
+instanceTitle: "{{ Name }} ({{ ExternalId }})"
+
+properties:
+  - name: Name
+    type: String!
+
+  - name: ExternalId
+    type: String!

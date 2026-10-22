@@ -1,0 +1,22 @@
+name: AssessmentSecondAssessor
+title:
+  en: Assessment (Second Assessor)
+  nl: Beoordeling (Tweede beoordelaar)
+icon:
+  type: law-balance-line
+
+properties:
+  - name: AssessmentSecondAssessor
+    type: Assessment-PP!
+
+actions:
+  - name: AssessmentSecondAssessor
+    type: Submit
+    roles: [SecondAssessor]
+    form: AssessmentSecondAssessor
+    label:
+      en: Submit assessment
+      nl: Beoordeling indienen
+
+ends:
+  event: AssessmentSecondAssessor
