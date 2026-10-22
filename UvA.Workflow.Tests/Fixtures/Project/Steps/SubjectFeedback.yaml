@@ -29,8 +29,7 @@ properties:
     text:
       nl: Licht toe, wees daarbij zo specifiek mogelijk
       en: Please explain, be as specific as possible
-    layout:
-      multiline: true
+    control: TextArea
       
 progress:
   - color: Red

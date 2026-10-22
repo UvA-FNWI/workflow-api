@@ -138,13 +138,32 @@ public class SubmissionsController(
                     continue;
                 }
 
-                if (question.DataType == DataType.File)
+                if (question is FilePropertyDefinition fileQuestion)
                 {
                     if (!question.IsRequired) continue;
 
-                    var dummyFile = dummyAnswerGenerator.GenerateFile(question, instance.Id);
+                    var dummyFile = dummyAnswerGenerator.GenerateFile(fileQuestion, instance.Id);
                     await answerService.SaveArtifact(
                         new QuestionContext(instance, submissionState, form, question), dummyFile, ct);
+                    filledQuestionIds.Add(questionName);
+                    anyNewVisibleQuestions = true;
+                    continue;
+                }
+
+                if (question is ReferencePropertyDefinition referenceQuestion)
+                {
+                    if (!question.IsRequired || referenceQuestion.WorkflowDefinition == null) continue;
+
+                    // Same choice source as the UI picker; skip when no instances match (like empty choice enums)
+                    var choices = (await instanceService.GetPossibleChoices(instance, referenceQuestion, ct)).ToList();
+                    if (choices.Count == 0) continue;
+
+                    var referenceId = choices[Random.Shared.Next(choices.Count)].Id;
+                    var referenceElement = question.IsArray
+                        ? JsonSerializer.SerializeToElement(new[] { referenceId })
+                        : JsonSerializer.SerializeToElement(referenceId);
+                    await answerService.SaveAnswer(
+                        new QuestionContext(instance, submissionState, form, question), referenceElement, ct);
                     filledQuestionIds.Add(questionName);
                     anyNewVisibleQuestions = true;
                     continue;

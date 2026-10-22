@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.FileProviders;
 using Serilog;
 using UvA.Workflow;
 using UvA.Workflow.Api.Authentication;
@@ -41,7 +42,11 @@ builder.Services.AddWorkflowCore(builder.Configuration);
 builder.Services.AddWorkflowApiCore();
 builder.Services
     .AddControllers(opts => opts.Filters.Add<WorkflowVersionFilter>())
-    .AddJsonOptions(opts => { opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        opts.JsonSerializerOptions.TypeInfoResolver = new QuestionJsonTypeInfoResolver();
+    });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
@@ -83,6 +88,11 @@ var app = builder.Build();
 app.UseExceptionHandler();
 
 app.UseCors(corsPolicyName);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(AppContext.BaseDirectory, "Schemas")),
+    RequestPath = "/Schemas"
+});
 app.UseWorkflowAuthenticationSelector();
 app.UseWorkflowCanvasLti(app.Configuration);
 
