@@ -150,6 +150,25 @@ public class SubmissionsController(
                     continue;
                 }
 
+                if (question.DataType == DataType.Reference)
+                {
+                    if (!question.IsRequired || question.WorkflowDefinition == null) continue;
+
+                    // Same choice source as the UI picker; skip when no instances match (like empty choice enums)
+                    var choices = (await instanceService.GetPossibleChoices(instance, question, ct)).ToList();
+                    if (choices.Count == 0) continue;
+
+                    var referenceId = choices[Random.Shared.Next(choices.Count)].Id;
+                    var referenceElement = question.IsArray
+                        ? JsonSerializer.SerializeToElement(new[] { referenceId })
+                        : JsonSerializer.SerializeToElement(referenceId);
+                    await answerService.SaveAnswer(
+                        new QuestionContext(instance, submissionState, form, question), referenceElement, ct);
+                    filledQuestionIds.Add(questionName);
+                    anyNewVisibleQuestions = true;
+                    continue;
+                }
+
                 var dummyAnswer = dummyAnswerGenerator.Generate(question, status, lastGeneratedDate);
 
                 if (dummyAnswer == null) continue;
