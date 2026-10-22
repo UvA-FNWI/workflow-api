@@ -88,7 +88,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var result = await controller.GetScreenData("Project", "Projects", _ct);
 
         var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
-        var progressColumn = response.Columns.Single(column => column.IsCurrentStep);
+        var progressColumn = response.Columns.Single(column => column.ColumnType == ColumnType.CurrentStep);
         var row = Assert.Single(response.Groups!.Single(group => group.Name == "approve-subject").Rows);
         var progress = Assert.IsType<ProgressInformationDto>(row.Values[progressColumn.Id]);
         Assert.Equal("Revising proposal", progress.Text.En);
@@ -144,7 +144,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var result = await controller.GetScreenData("Project", "Projects", _ct);
 
         var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
-        var column = response.Columns.Single(column => column.IsCurrentStep);
+        var column = response.Columns.Single(column => column.ColumnType == ColumnType.CurrentStep);
         var rows = response.Groups!.Single(group => group.Name == "approve-subject").Rows;
         var revised = Assert.IsType<ProgressInformationDto>(rows[0].Values[column.Id]);
         Assert.Equal("Working (07/09) on proposal", revised.Text.En);
@@ -183,7 +183,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var result = await controller.GetScreenData("Project", "Projects", _ct);
 
         var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
-        var progressColumn = response.Columns.Single(column => column.IsCurrentStep);
+        var progressColumn = response.Columns.Single(column => column.ColumnType == ColumnType.CurrentStep);
         var row = Assert.Single(response.Groups!.Single(group => group.Name == "approve-subject").Rows);
         var progress = Assert.IsType<ProgressInformationDto>(row.Values[progressColumn.Id]);
         Assert.Equal("Writing proposal", progress.Text.En);

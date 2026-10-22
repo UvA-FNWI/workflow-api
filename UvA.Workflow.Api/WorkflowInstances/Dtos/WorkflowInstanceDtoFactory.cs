@@ -118,8 +118,8 @@ public class WorkflowInstanceDtoFactory(
             var obj = field.GetValue(context);
             if (obj is object[] arr && arr.Length == 1)
                 obj = arr[0];
-            var key = field.CurrentStep ? "CurrentStep" : field.Property;
-            result.Add(new FieldDto(key, field.DisplayTitle, obj, field.IsHighlighted ?? false, field.Order));
+            result.Add(new FieldDto(field.Property, field.DisplayTitle, obj, field.IsHighlighted ?? false,
+                field.Order));
         }
 
         return result.ToArray();

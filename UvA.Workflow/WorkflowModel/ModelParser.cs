@@ -551,6 +551,17 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        screen.Columns = screen.Columns.OrderBy(column => column.Order ?? 0).ToArray();
+
+        var duplicateColumn = screen.Columns.Where(column => column.Name != null)
+            .GroupBy(column => column.Name)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateColumn != null)
+            throw new Exception(
+                $"Screen '{screen.Name}' in '{workflowDefinition.Name}' " +
+                $"has duplicate column name '{duplicateColumn.Key}'.");
+
         if (screen.BulkEdit != null)
         {
             var unknownProps = screen.BulkEdit.EditableProperties
@@ -743,7 +754,9 @@ public partial class ModelParser
             Log.Debug("Parsing {File} for {Type}", file, typeof(T).Name);
             var obj = _deserializer.Deserialize<T>(content);
             if (obj is IDeclaredKeys tracked)
-                tracked.DeclaredKeys = ReadTopLevelKeys(content);
+                tracked.DeclaredKeys = ReadMappingKeys(content);
+            if (obj is Screen { BulkEdit: not null } screen)
+                screen.BulkEdit.DeclaredKeys = ReadMappingKeys(content, "bulkEdit");
             return obj;
         }
         catch (YamlException ex)
@@ -753,13 +766,35 @@ public partial class ModelParser
     }
 
     // Deserialization loses the distinction between omitted keys and explicit default values.
-    private static HashSet<string> ReadTopLevelKeys(string content)
+    private static HashSet<string> ReadMappingKeys(string content, string? mappingName = null)
     {
-        var keys = new HashSet<string>();
         var parser = new Parser(new StringReader(content));
         parser.Consume<StreamStart>();
         if (!parser.TryConsume<DocumentStart>(out _) || !parser.TryConsume<MappingStart>(out _))
-            return keys;
+            return [];
+
+        if (mappingName == null)
+            return ReadMappingKeys(parser);
+
+
+        while (parser.TryConsume<Scalar>(out var key))
+        {
+            if (key.Value == mappingName)
+            {
+                parser.Consume<MappingStart>();
+                return ReadMappingKeys(parser);
+            }
+
+            parser.SkipThisAndNestedEvents();
+        }
+
+        return [];
+    }
+
+    private static HashSet<string> ReadMappingKeys(IParser parser)
+    {
+        var keys = new HashSet<string>();
+
         while (parser.TryConsume<Scalar>(out var key))
         {
             keys.Add(key.Value);

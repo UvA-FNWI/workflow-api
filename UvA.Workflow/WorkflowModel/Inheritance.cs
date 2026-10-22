@@ -54,8 +54,12 @@ public partial class ModelParser
             foreach (var ev in source.Events.Where(e => !target.Events.Contains(e.Name)))
                 target.Events.Add(ev.Clone());
 
-        foreach (var screen in source.Screens.Where(s => !target.Screens.Contains(s.Name)))
-            target.Screens.Add(screen);
+        foreach (var sourceScreen in source.Screens)
+        {
+            var targetScreen = target.Screens.GetOrDefault(sourceScreen.Name);
+            if (targetScreen != null)
+                ApplyInheritance(targetScreen, sourceScreen, target.Name);
+        }
 
         foreach (var set in source.ValueSets)
         {
@@ -135,6 +139,9 @@ public partial class ModelParser
     {
         if (!target.Declared(s => s.Step)) target.Step = source.Step;
 
+        if (!target.Declared(f => f.Confirmation))
+            target.Confirmation = source.Confirmation;
+
         if (Cleared(target, f => f.Pages))
             return;
         foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
@@ -175,5 +182,155 @@ public partial class ModelParser
         if (!target.Declared(r => r.Order)) target.Order = source.Order;
         if (!target.Declared(r => r.InheritFrom)) target.InheritFrom = source.InheritFrom;
         if (!target.Declared(r => r.GenericEmail)) target.GenericEmail = source.GenericEmail;
+    }
+
+    private void ApplyInheritance(
+        Screen target,
+        Screen source,
+        string definitionName)
+    {
+        if (!Cleared(target, s => s.Columns))
+            target.Columns = MergeColumns(target.Columns, source.Columns);
+
+        if (!target.Declared(s => s.BulkEdit))
+            target.BulkEdit = source.BulkEdit?.Clone();
+        else if (target.BulkEdit != null && source.BulkEdit != null)
+            ApplyInheritance(target.BulkEdit, source.BulkEdit);
+
+        if (source.Grouping != null)
+        {
+            target.Grouping = MergeGrouping(
+                target.Grouping,
+                source.Grouping,
+                target.Name,
+                definitionName);
+        }
+    }
+
+    private void ApplyInheritance(BulkEditConfig target, BulkEditConfig source)
+    {
+        if (!target.Declared(b => b.Identifier))
+            target.Identifier = source.Identifier.Clone();
+
+        if (!target.Declared(b => b.ReadOnlyProperties) ||
+            target.ReadOnlyProperties is { Length: > 0 })
+        {
+            target.ReadOnlyProperties = (target.ReadOnlyProperties ?? [])
+                .Concat(source.ReadOnlyProperties ?? [])
+                .DistinctBy(property => property.Property)
+                .Select(property => property.Clone())
+                .ToArray();
+        }
+
+        if (!Cleared(target, b => b.EditableProperties))
+        {
+            target.EditableProperties = source.EditableProperties
+                .Concat(target.EditableProperties)
+                .Distinct()
+                .ToArray();
+        }
+    }
+
+    private static Column[] MergeColumns(Column[] target, Column[] source)
+    {
+        var result = source.Select(column => column.Clone()).ToList();
+
+        foreach (var column in target)
+        {
+            var index = column.Name == null
+                ? -1
+                : result.FindIndex(inherited => inherited.Name == column.Name);
+
+            if (index < 0)
+            {
+                result.Add(column);
+                continue;
+            }
+
+            var inherited = result[index];
+            var replacement = column.Clone();
+            replacement.Order ??= inherited.Order;
+            result[index] = replacement;
+        }
+
+        return result.ToArray();
+    }
+
+    private static ScreenGrouping MergeGrouping(
+        ScreenGrouping? target,
+        ScreenGrouping source,
+        string screenName,
+        string definitionName)
+    {
+        var context = $"Screen '{screenName}' in '{definitionName}'";
+
+        if (target == null)
+            throw new Exception(
+                $"{context} must declare step mappings for its inherited groups.");
+
+        ValidateGroupNames(source.Groups, context);
+        ValidateGroupNames(target.Groups, context);
+
+
+        var targetGroupsByName = target.Groups.ToLookup(group => group.Name);
+        var sourceNames = source.Groups.Select(group => group.Name).ToHashSet();
+        var groups = new List<StepGroup>();
+
+        foreach (var sourceGroup in source.Groups)
+        {
+            var targetGroup = targetGroupsByName[sourceGroup.Name].FirstOrDefault();
+
+            groups.Add(new StepGroup
+            {
+                Name = sourceGroup.Name,
+                Title = targetGroup?.Title ?? sourceGroup.Title,
+                Steps = targetGroup == null ? [] : [.. targetGroup.Steps],
+                Order = targetGroup?.Order ?? sourceGroup.Order,
+                Enabled = targetGroup?.Enabled ?? sourceGroup.Enabled
+            });
+        }
+
+        foreach (var targetGroup in target.Groups)
+        {
+            if (sourceNames.Contains(targetGroup.Name))
+                continue;
+
+            if (targetGroup.Title == null)
+                throw new Exception(
+                    $"{context} requires a title for new group '{targetGroup.Name}'.");
+
+            groups.Add(new StepGroup
+            {
+                Name = targetGroup.Name,
+                Title = targetGroup.Title,
+                Steps = [.. targetGroup.Steps],
+                Order = targetGroup.Order,
+                Enabled = targetGroup.Enabled
+            });
+        }
+
+        var duplicateStep = groups
+            .SelectMany(group => group.Steps)
+            .GroupBy(step => step)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateStep != null)
+            throw new Exception(
+                $"{context} maps step '{duplicateStep.Key ?? "null"}' more than once.");
+
+        return new ScreenGrouping { Groups = groups.OrderBy(group => group.Order ?? 0).ToArray() };
+    }
+
+    private static void ValidateGroupNames(IEnumerable<StepGroup> groups, string context)
+    {
+        var duplicate = groups
+            .GroupBy(group => group.Name)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicate != null)
+        {
+            throw new Exception(
+                $"{context} has duplicate group '{duplicate.Key}'.");
+        }
     }
 }

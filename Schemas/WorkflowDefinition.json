@@ -1541,10 +1541,6 @@
             "string"
           ],
           "description": "Target step the field should show the end date of"
-        },
-        "currentStep": {
-          "type": "boolean",
-          "description": "If true, display the current step in this field"
         }
       }
     },
@@ -2237,10 +2233,6 @@
             "string"
           ],
           "description": "Target step the field should show the end date of"
-        },
-        "currentStep": {
-          "type": "boolean",
-          "description": "If true, display the current step in this field"
         }
       }
     },
