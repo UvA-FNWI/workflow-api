@@ -78,13 +78,18 @@ public class TypedPropertyDefinitionTests
                                       properties:
                                         - name: Course
                                           type: '[Context]!'
-                                          inheritedRoles: [Coordinator]
                                           control: RadioList
                                         - name: Assessment
                                           type: '[Assessment]'
                                           control: Modal
                                       """,
-            ["Context/Entity.yaml"] = "name: Context",
+            ["Context/Entity.yaml"] = """
+                                      name: Context
+                                      properties:
+                                        - name: Coordinator
+                                          type: User
+                                          isInheritableRole: true
+                                      """,
             ["Assessment/Entity.yaml"] = "name: Assessment\ninheritsFrom: BaseAssessment",
             ["BaseAssessment/Entity.yaml"] = "name: BaseAssessment\nisEmbedded: true"
         }));
@@ -95,8 +100,13 @@ public class TypedPropertyDefinitionTests
         Assert.True(reference.IsArray);
         Assert.True(reference.IsRequired);
         Assert.Same(parser.WorkflowDefinitions["Context"], reference.WorkflowDefinition);
-        Assert.Equal("Coordinator", Assert.Single(reference.InheritedRoles));
         Assert.Equal(ChoiceControl.RadioList, reference.Control);
+
+        Assert.NotNull(reference.WorkflowDefinition);
+        var coordinator = Assert.IsType<UserPropertyDefinition>(
+            reference.WorkflowDefinition.Properties.Get("Coordinator"));
+        Assert.True(coordinator.IsInheritableRole);
+        Assert.DoesNotContain(properties, property => property.Name == "Coordinator");
 
         var embedded = Assert.IsType<ObjectPropertyDefinition>(properties.Get("Assessment"));
         Assert.Equal(DataType.Object, embedded.DataType);

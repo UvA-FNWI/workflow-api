@@ -50,7 +50,7 @@ public class PropertySchemaTests
     [InlineData("String", ", \"control\": \"Email\"")]
     [InlineData("User", ", \"allowsExternalUsers\": true")]
     [InlineData("Country", ", \"values\": [{\"name\": \"NL\"}], \"control\": \"Dropdown\"")]
-    [InlineData("[Context]", ", \"inheritedRoles\": [\"Coordinator\"], \"control\": \"RadioList\"")]
+    [InlineData("[Context]", ", \"control\": \"RadioList\"")]
     [InlineData("Assessment", ", \"control\": \"Modal\"")]
     [InlineData("Country", ", \"control\": null")]
     [InlineData("Country", "")]
@@ -85,7 +85,10 @@ public class PropertySchemaTests
     [InlineData("File", "\"maximumSize\": null")]
     [InlineData("File", "\"fileSettings\": {\"allowedTypes\": [\"pdf\"]}")]
     [InlineData("Country", "\"values\": [], \"filter\": \"Title\"")]
-    [InlineData("Assessment", "\"control\": \"Modal\", \"inheritedRoles\": []")]
+    [InlineData("Assessment", "\"control\": \"Modal\", \"isInheritableRole\": true")]
+    [InlineData("[Context]", "\"control\": \"RadioList\", \"isInheritableRole\": true")]
+    [InlineData("String", "\"isInheritableRole\": true")]
+    [InlineData("User", "\"isInheritableRole\": [\"Coordinator\"]")]
     [InlineData("Date", "\"calculation\": {\"weight\": 1}")]
     [InlineData("String", "\"calculation\": {\"weight\": 1}")]
     [InlineData("File", "\"calculation\": {\"weight\": 1}")]
@@ -114,6 +117,14 @@ public class PropertySchemaTests
         Assert.DoesNotContain("maximumSize", file.RequiredProperties);
         Assert.Equal(new FilePropertyDefinition().MaximumSize, file.Properties["maximumSize"].Default);
         Assert.Equal(["name", "type"], date.RequiredProperties);
+
+        var user = schema.Definitions[nameof(UserPropertyDefinition)];
+        Assert.Contains("isInheritableRole", user.Properties.Keys);
+        Assert.DoesNotContain("isInheritableRole", user.RequiredProperties);
+        Assert.DoesNotContain("inheritedRoles", user.Properties.Keys);
+        var reference = schema.Definitions[nameof(ReferencePropertyDefinition)];
+        Assert.DoesNotContain("isInheritableRole", reference.Properties.Keys);
+        Assert.DoesNotContain("inheritedRoles", reference.Properties.Keys);
 
         var text = schema.Definitions[nameof(StringPropertyDefinition)];
         Assert.DoesNotContain("layout", text.Properties.Keys);

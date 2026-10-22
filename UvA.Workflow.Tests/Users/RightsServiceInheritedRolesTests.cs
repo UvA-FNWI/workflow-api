@@ -69,7 +69,7 @@ public class RightsServiceInheritedRolesTests
     [Fact]
     public async Task GetViewerRoles_DoesNotInheritRolesUnlessExplicitlyEnabled()
     {
-        var properties = _model.WorkflowDefinitions["Course"].Properties;
+        var properties = _model.WorkflowDefinitions["Course"].Properties.OfType<UserPropertyDefinition>();
         properties.Single(p => p.Name == "Coordinator").IsInheritableRole = false;
         properties.Single(p => p.Name == "Impersonator").IsInheritableRole = null;
         var course = Instance("Course",
@@ -130,7 +130,7 @@ public class RightsServiceInheritedRolesTests
         var course = Instance("Course", ("Coordinator", new BsonArray { UserDocument() }));
         var project = CreateProjectWithCourse(course);
         // The fixtures are acyclic; add a back reference to exercise cycle protection.
-        _model.WorkflowDefinitions["Course"].Properties.Add(new PropertyDefinition
+        _model.WorkflowDefinitions["Course"].Properties.Add(new ReferencePropertyDefinition
         {
             Name = "BackReference",
             Type = "Project",

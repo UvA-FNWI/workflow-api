@@ -120,8 +120,7 @@ public class InstanceAuthorizationFilterService(
         );
 
         // Find user type properties that correspond to these roles
-        var userProperties = definition.Properties
-            .Where(p => p.DataType == DataType.User)
+        var userProperties = definition.Properties.OfType<UserPropertyDefinition>()
             .Where(p => rolesWithViewAccess.Contains(p.Name))
             .ToList();
 
@@ -155,8 +154,7 @@ public class InstanceAuthorizationFilterService(
             .ToArray();
 
         var referenceProperties = definition.Properties.OfType<ReferencePropertyDefinition>()
-            .Where(p => p.WorkflowDefinition != null
-                        && p.DataType == DataType.Reference)
+            .Where(p => p.WorkflowDefinition != null)
             .ToArray();
 
         foreach (var property in referenceProperties)
@@ -205,10 +203,8 @@ public class InstanceAuthorizationFilterService(
 
         var filters = new List<BsonDocument>();
 
-        var roleProperty = definition.Properties.FirstOrDefault(p =>
-            p.Name == role
-            && p.DataType == DataType.User
-            && p.IsInheritableRole == true);
+        var roleProperty = definition.Properties.OfType<UserPropertyDefinition>().FirstOrDefault(p =>
+            p.Name == role && p.IsInheritableRole == true);
 
         if (roleProperty != null)
         {
@@ -217,9 +213,8 @@ public class InstanceAuthorizationFilterService(
                 new ObjectId(user.Id)));
         }
 
-        var referenceProperties = definition.Properties
-            .Where(p => p.WorkflowDefinition != null
-                        && p.DataType == DataType.Reference)
+        var referenceProperties = definition.Properties.OfType<ReferencePropertyDefinition>()
+            .Where(p => p.WorkflowDefinition != null)
             .ToArray();
 
         foreach (var property in referenceProperties)
