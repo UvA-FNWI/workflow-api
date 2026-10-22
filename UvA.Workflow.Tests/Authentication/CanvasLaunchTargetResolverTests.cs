@@ -46,7 +46,8 @@ public class CanvasLaunchTargetResolverTests
 
         Assert.Equal("/screens/Project/First", target);
         Assert.Equal("canvas-course", RenderFilter(courseFilter!)["Properties.ExternalId"]["$in"][0].AsString);
-        Assert.Equal(courseId, RenderFilter(instanceFilter!)["Properties.Course"]["$in"][0].AsString);
+        Assert.Equal(courseId,
+            RenderFilter(instanceFilter!)["$or"][0]["$or"][0]["Properties.Course"]["$in"][0].AsString);
     }
 
     [Fact]
@@ -118,6 +119,128 @@ public class CanvasLaunchTargetResolverTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task ResolveTarget_TeacherMatchesInstancesUsingAllContextProperties()
+    {
+        var contextDefinition = new WorkflowDefinition { Name = "Context" };
+        var projectDefinition = new WorkflowDefinition
+        {
+            Name = "Project",
+            Screens = [new Screen { Name = "First" }],
+            Properties =
+            [
+                new PropertyDefinition
+                {
+                    Name = "Course",
+                    Type = "Context!",
+                    WorkflowDefinition = contextDefinition
+                },
+                new PropertyDefinition
+                {
+                    Name = "ProposalCourse",
+                    Type = "Context!",
+                    WorkflowDefinition = contextDefinition
+                }
+            ]
+        };
+        modelService.WorkflowDefinitions["Context"] = contextDefinition;
+        modelService.WorkflowDefinitions["Project"] = projectDefinition;
+
+        var courseContextId = ObjectId.GenerateNewId().ToString();
+        var proposalContextId = ObjectId.GenerateNewId().ToString();
+
+        repository.Setup(r => r.GetByWorkflowDefinition(
+                "Context",
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                Course(courseContextId, "canvas-course"),
+                Course(proposalContextId, "proposal-course")
+            ]);
+
+        repository.Setup(r => r.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<FilterDefinition<WorkflowInstance>, CancellationToken>((filter, _) =>
+                instanceFilter = filter)
+            .ReturnsAsync([Instance("Project")]);
+
+        var target = await CreateResolver().ResolveTarget(
+            user,
+            TeacherLaunch("canvas-course", "proposal-course"),
+            ct);
+
+        Assert.Equal("/screens/Project/First", target);
+
+        var renderedFilter = RenderFilter(instanceFilter!).ToJson();
+        Assert.Contains("Properties.Course", renderedFilter);
+        Assert.Contains("Properties.ProposalCourse", renderedFilter);
+        Assert.Contains(courseContextId, renderedFilter);
+        Assert.Contains(proposalContextId, renderedFilter);
+    }
+
+    [Fact]
+    public async Task ResolveTarget_StudentMatchesThroughProposalCourseContext()
+    {
+        var contextDefinition = new WorkflowDefinition { Name = "Context" };
+        modelService.WorkflowDefinitions["Context"] = contextDefinition;
+        modelService.WorkflowDefinitions["Project"] = new WorkflowDefinition
+        {
+            Name = "Project",
+            Properties =
+            [
+                new PropertyDefinition
+                {
+                    Name = "Course",
+                    Type = "Context!",
+                    WorkflowDefinition = contextDefinition
+                },
+                new PropertyDefinition
+                {
+                    Name = "ProposalCourse",
+                    Type = "Context!",
+                    WorkflowDefinition = contextDefinition
+                }
+            ]
+        };
+
+        var matchingContextId = ObjectId.GenerateNewId().ToString();
+        var otherContextId = ObjectId.GenerateNewId().ToString();
+
+        var matchingInstance = Instance("Project");
+        matchingInstance.CreatedOn = DateTime.UtcNow.AddMinutes(-1);
+        matchingInstance.Properties = new Dictionary<string, BsonValue>
+        {
+            ["Course"] = otherContextId,
+            ["ProposalCourse"] = matchingContextId
+        };
+
+        var newerNonMatchingInstance = Instance("Project");
+        newerNonMatchingInstance.CreatedOn = DateTime.UtcNow;
+        newerNonMatchingInstance.Properties = new Dictionary<string, BsonValue>
+        {
+            ["Course"] = otherContextId,
+            ["ProposalCourse"] = otherContextId
+        };
+
+        repository.Setup(r => r.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([matchingInstance, newerNonMatchingInstance]);
+
+        repository.Setup(r => r.GetByIds(
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([Course(matchingContextId, "canvas-course")]);
+
+        var target = await CreateResolver().ResolveTarget(
+            user,
+            StudentLaunch("canvas-course"),
+            ct);
+
+        Assert.Equal($"/instance/{matchingInstance.Id}", target);
+    }
+
     private CanvasLaunchTargetResolver CreateResolver() => new(
         repository.Object,
         modelService,
@@ -126,10 +249,21 @@ public class CanvasLaunchTargetResolverTests
 
     private void AddDefinition(string name, params string[] screens)
     {
+        var contextDefinition = new WorkflowDefinition { Name = "Context" };
+
         modelService.WorkflowDefinitions[name] = new WorkflowDefinition
         {
             Name = name,
-            Screens = screens.Select(screen => new Screen { Name = screen }).ToList()
+            Screens = screens.Select(screen => new Screen { Name = screen }).ToList(),
+            Properties =
+            [
+                new PropertyDefinition
+                {
+                    Name = "Course",
+                    Type = "Context!",
+                    WorkflowDefinition = contextDefinition
+                }
+            ]
         };
     }
 
