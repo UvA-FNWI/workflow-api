@@ -71,7 +71,7 @@ public class StepVersionService : IStepVersionService
         Condition? completionCondition
     )
     {
-        if (step.Ends == null && step.Children.Any())
+        if (step.Ends?.Logical != null || step.Ends == null && step.Children.Any())
             return BuildMultiEventVersions(submissionEvents, resetEvents, completionCondition);
 
         return BuildSingleEventVersions(submissionEvents);

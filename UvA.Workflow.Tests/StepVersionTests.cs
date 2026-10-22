@@ -303,6 +303,54 @@ public class StepVersionTests
         Assert.Empty(versions);
     }
 
+    [Theory]
+    [InlineData("SupervisorAssessment", "SecondAssessorAssessment")]
+    [InlineData("SecondAssessorAssessment", "SupervisorAssessment")]
+    public void LeafStepVersioning_GroupsBothAssessmentsIntoOneRound(string firstEvent, string secondEvent)
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Assessment")
+            .Build();
+        var step = new Step
+        {
+            Name = "Assessment",
+            Ends = new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.And,
+                    Children =
+                    [
+                        new Condition { Event = new EventCondition { Id = firstEvent } },
+                        new Condition { Event = new EventCondition { Id = secondEvent } }
+                    ]
+                }
+            }
+        };
+        var submittedAt = DateTime.UtcNow;
+        var service = new StepVersionService();
+        List<InstanceEventLogEntry> logs = [EventLog(instance, firstEvent, submittedAt)];
+
+        Assert.Empty(service.GetStepVersions(instance, step, logs));
+
+        logs.Add(EventLog(instance, secondEvent, submittedAt.AddMinutes(1)));
+        var firstRound = Assert.Single(service.GetStepVersions(instance, step, logs));
+        Assert.Equal(1, firstRound.VersionNumber);
+        Assert.Equal([firstEvent, secondEvent], firstRound.EventIds);
+        Assert.Equal(submittedAt.AddMinutes(1), firstRound.SubmittedAt);
+
+        logs.Add(EventLog(instance, firstEvent, submittedAt.AddMinutes(2)));
+        Assert.Single(service.GetStepVersions(instance, step, logs));
+
+        logs.Add(EventLog(instance, secondEvent, submittedAt.AddMinutes(3)));
+        var rounds = service.GetStepVersions(instance, step, logs);
+        Assert.Equal(2, rounds.Count);
+        Assert.Equal(2, rounds[1].VersionNumber);
+        Assert.Equal([firstEvent, secondEvent], rounds[1].EventIds);
+        Assert.Equal(submittedAt.AddMinutes(3), rounds[1].SubmittedAt);
+    }
+
     [Fact]
     public void ParentStepVersioning_LastChildCompletionCreatesVersion()
     {
