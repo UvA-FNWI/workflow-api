@@ -68,6 +68,16 @@ public record Expression
         ["except"] = new Function<IEnumerable, object, object?[]>((a, b) =>
             a?.Cast<object?>().Except(b is IEnumerable values && b is not string ? values.Cast<object?>() : [b])
                 .ToArray() ?? []),
+        ["flatten"] = new Function<IEnumerable, object?[]>(list =>
+            list?.Cast<object?>()
+                .SelectMany(item => item is IEnumerable values && item is not string
+                    ? values.Cast<object?>()
+                    : [item])
+                .ToArray() ?? []),
+        ["unique"] = new Function<IEnumerable, object?[]>(list =>
+            list?.Cast<object?>()
+                .DistinctBy(item => item is string s ? s.ToUpperInvariant() : item)
+                .ToArray() ?? []),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
         ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
         ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),

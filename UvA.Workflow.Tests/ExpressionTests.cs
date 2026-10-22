@@ -88,6 +88,65 @@ public class ExpressionTests
         Assert.Empty(Assert.IsType<object[]>(exp.Execute(new ObjectContext([]))));
     }
 
+    [Fact]
+    public void Flatten_FlattensOneLevelAndKeepsScalars()
+    {
+        var exp = ExpressionParser.Parse("flatten(Values)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Values"] = new object[] { new[] { "a", "b" }, "c", new List<object> { "d", new[] { "e" } } }
+        });
+
+        var result = Assert.IsType<object[]>(exp.Execute(context));
+
+        Assert.Equal(5, result.Length);
+        Assert.Equal(new object[] { "a", "b", "c", "d" }, result[..4]);
+        Assert.Equal(new[] { "e" }, result[4]);
+    }
+
+    [Fact]
+    public void Flatten_NullOrEmpty_ReturnsEmptyCollection()
+    {
+        var exp = ExpressionParser.Parse("flatten(Values)");
+
+        Assert.Empty(Assert.IsType<object[]>(exp.Execute(new ObjectContext([]))));
+        Assert.Empty(Assert.IsType<object[]>(exp.Execute(new ObjectContext(
+            new Dictionary<Lookup, object?> { ["Values"] = Array.Empty<object>() }))));
+    }
+
+    [Fact]
+    public void Unique_IsCaseInsensitiveAndKeepsFirstOccurrence()
+    {
+        var exp = ExpressionParser.Parse("unique(Values)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Values"] = new object[] { "NL", "fr", "nl", "BE", "FR", 1, 1 }
+        });
+
+        Assert.Equal(new object[] { "NL", "fr", "BE", 1 }, Assert.IsType<object[]>(exp.Execute(context)));
+    }
+
+    [Fact]
+    public void Unique_NullCollection_ReturnsEmptyCollection()
+    {
+        var exp = ExpressionParser.Parse("unique(Values)");
+
+        Assert.Empty(Assert.IsType<object[]>(exp.Execute(new ObjectContext([]))));
+    }
+
+    [Fact]
+    public void UniqueFlatten_ComposeAndCount()
+    {
+        var exp = ExpressionParser.Parse("count(unique(flatten(Values)))");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Values"] = new object[] { new[] { "NL" }, new[] { "fr", "BE" }, new[] { "FR", "nl" } }
+        });
+
+        Assert.Equal(3, exp.Execute(context));
+        Assert.Equal([new PropertyLookup("Values")], exp.Properties);
+    }
+
     [Theory]
     [InlineData(false, false, false, false)]
     [InlineData(false, true, false, false)]
