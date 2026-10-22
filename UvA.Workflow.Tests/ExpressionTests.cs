@@ -228,6 +228,64 @@ public class ExpressionTests
         Assert.Equal([new PropertyLookup("Values")], exp.Properties);
     }
 
+    [Fact]
+    public void MinMax_ReturnSmallestAndLargestNumber()
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Values"] = new object[] { 3, 1, 7, 2 } });
+
+        Assert.Equal(1, ExpressionParser.Parse("min(Values)").Execute(context));
+        Assert.Equal(7, ExpressionParser.Parse("max(Values)").Execute(context));
+    }
+
+    [Fact]
+    public void MinMax_MixedNumericTypes_ReturnOriginalValue()
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Values"] = new object[] { 2, 2.5, 10L, 0.5m }
+        });
+
+        Assert.Equal(0.5m, ExpressionParser.Parse("min(Values)").Execute(context));
+        Assert.Equal(10L, ExpressionParser.Parse("max(Values)").Execute(context));
+    }
+
+    [Fact]
+    public void MinMax_NullOrEmpty_ReturnNull()
+    {
+        var empty = new ObjectContext(new Dictionary<Lookup, object?> { ["Values"] = Array.Empty<int>() });
+
+        Assert.Null(ExpressionParser.Parse("min(Values)").Execute(empty));
+        Assert.Null(ExpressionParser.Parse("max(Values)").Execute(empty));
+        Assert.Null(ExpressionParser.Parse("max(Values)").Execute(new ObjectContext([])));
+    }
+
+    [Theory]
+    [InlineData("min")]
+    [InlineData("max")]
+    public void MinMax_NonNumericValues_Throw(string function)
+    {
+        var exp = ExpressionParser.Parse($"{function}(Values)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Values"] = new object[] { 1, "2" } });
+
+        var error = Assert.Throws<ArgumentException>(() => exp.Execute(context));
+
+        Assert.Equal($"{function} expects a list of numbers", error.Message);
+    }
+
+    [Fact]
+    public void Max_ComposesWithSelect()
+    {
+        var exp = ExpressionParser.Parse("max(select(Rows, =Score))");
+        var rows = new[]
+        {
+            new Dictionary<string, object> { ["Score"] = 4 },
+            new Dictionary<string, object> { ["Other"] = "x" },
+            new Dictionary<string, object> { ["Score"] = 9 }
+        };
+
+        Assert.Equal(9, exp.Execute(RowsContext(rows)));
+    }
+
     [Theory]
     [InlineData(false, false, false, false)]
     [InlineData(false, true, false, false)]

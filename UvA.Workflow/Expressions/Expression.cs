@@ -92,10 +92,33 @@ public record Expression
             list?.Cast<object?>()
                 .DistinctBy(item => item is string s ? s.ToUpperInvariant() : item)
                 .ToArray() ?? []),
+        ["min"] = new Function<IEnumerable, object?>(list => FindExtreme(list, "min", -1)),
+        ["max"] = new Function<IEnumerable, object?>(list => FindExtreme(list, "max", 1)),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
         ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
         ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
+
+    /// <summary>
+    /// Returns the smallest (direction -1) or largest (direction 1) number in the list, or null if it is empty.
+    /// Compares as double when any value is floating point, as decimal otherwise (same as Value conditions).
+    /// </summary>
+    private static object? FindExtreme(IEnumerable? list, string name, int direction)
+    {
+        var values = list?.Cast<object?>().ToArray() ?? [];
+        if (values.Any(v => v is not (int or long or float or double or decimal)))
+            throw new ArgumentException($"{name} expects a list of numbers");
+        if (values.Length == 0)
+            return null;
+
+        var useDouble = values.Any(v => v is float or double);
+
+        int Compare(object? a, object? b) => useDouble
+            ? Convert.ToDouble(a).CompareTo(Convert.ToDouble(b))
+            : Convert.ToDecimal(a).CompareTo(Convert.ToDecimal(b));
+
+        return values.Aggregate((best, value) => Compare(value, best) * direction > 0 ? value : best);
+    }
 
     public virtual IEnumerable<Lookup> Properties => this switch
     {
