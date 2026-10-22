@@ -25,7 +25,8 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
 
-        var canCreateInstance = await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
+        var canCreateInstance = workflowDefinition != "Context" &&
+                                await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
 
         // Build projection based on screen columns
         var contexts = await LoadData(screen, workflowDefinition, ct);
@@ -33,7 +34,8 @@ public class ScreenDataService(
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
 
-        var canBulkEdit = await instanceAuthorizationFilterService.HasEditableInstances(workflowDefinition, ct);
+        var canBulkEdit = workflowDefinition != "Context" &&
+                          await instanceAuthorizationFilterService.HasEditableInstances(workflowDefinition, ct);
 
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
@@ -140,28 +142,59 @@ public class ScreenDataService(
 
     private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
     {
-        var definition = modelService.WorkflowDefinitions[workflowDefinition];
-        var hasProgressColumn = screen.Columns.Any(column => column.CurrentStep);
-        var progressLookups = hasProgressColumn
-            ? definition.ProgressLookups.ToArray()
-            : [];
+        var definitions = modelService.WorkflowDefinitions.Values.Where(definition =>
+        {
+            if (workflowDefinition != "Context")
+                return definition.Name == workflowDefinition;
 
-        // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen.Columns, workflowDefinition, progressLookups);
-        projection.TryAdd("CurrentStep", "$CurrentStep");
-        projection.TryAdd("Events", "$Events");
-        projection.TryAdd("CreateDate", "$CreatedOn");
+            if (definition.IsEmbedded)
+                return false;
 
-        // Build authorization filter to restrict instances to those the user can view
-        var authorizationFilter =
-            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
+            while (definition.Name != "Context" && definition.Parent != null)
+                definition = definition.Parent;
 
-        var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
+            return definition.Name == "Context";
+        });
 
-        // Add related properties as needed
-        await instanceService.Enrich(definition,
-            contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups), ct, false);
+        var contexts = new List<ObjectContext>();
+
+        foreach (var definition in definitions)
+        {
+            var progressLookups = screen.Columns.Any(column => column.CurrentStep)
+                ? definition.ProgressLookups.ToArray()
+                : [];
+
+            var projection = BuildProjection(screen.Columns, definition.Name, progressLookups);
+            projection.TryAdd("CurrentStep", "$CurrentStep");
+            projection.TryAdd("Events", "$Events");
+            projection.TryAdd("CreateDate", "$CreatedOn");
+
+            var authorizationFilter =
+                await instanceAuthorizationFilterService.BuildAuthorizationFilter(
+                    definition.Name, RoleAction.View, ct);
+
+            var rawData = await repository.GetAllByType(
+                definition.Name, projection, authorizationFilter, ct);
+
+            var rows = rawData
+                .Select(row => modelService.CreateContext(definition.Name, row))
+                .ToList();
+
+            await instanceService.Enrich(
+                definition,
+                rows,
+                screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups),
+                ct,
+                false);
+
+            if (workflowDefinition == "Context")
+            {
+                foreach (var row in rows)
+                    row.Values["Type"] = definition.Name;
+            }
+
+            contexts.AddRange(rows);
+        }
 
         return contexts;
     }
