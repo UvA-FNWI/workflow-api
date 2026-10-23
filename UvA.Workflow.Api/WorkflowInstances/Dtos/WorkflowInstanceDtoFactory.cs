@@ -91,10 +91,11 @@ public class WorkflowInstanceDtoFactory(
                     CreateStepVersionDto(version, instance, instanceHistory, displayNames, ct)))).ToList());
         var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
+        var actionSteps = actions.SelectMany(action => action.DisplaySteps ?? []).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
             .Select(s => CreateStepDto(s, instance, stepVersionDtos, instanceHistory, context, activeSteps,
-                effectiveEventLogs, submissionDtos, ct)));
+                effectiveEventLogs, submissionDtos, actionSteps, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -160,6 +161,7 @@ public class WorkflowInstanceDtoFactory(
         HashSet<string> activeSteps,
         IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
         SubmissionDto[] unversionedSubmissions,
+        HashSet<string> actionSteps,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -184,7 +186,7 @@ public class WorkflowInstanceDtoFactory(
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
-                    effectiveEventLogs, unversionedSubmissions, ct)))
+                    effectiveEventLogs, unversionedSubmissions, actionSteps, ct)))
             : null;
         // Match the step where the UI displays the submission, which can differ from the action's step.
         // For older forms without an assigned step, keep using the step's submit actions.
@@ -234,6 +236,17 @@ public class WorkflowInstanceDtoFactory(
                 operation.Id);
         }
 
+        var isAvailable =
+            activeSteps.Contains(step.Name) || step.HasEnded(context) ||
+            // Reached attempts remain inspectable while progression temporarily makes the step inactive.
+            versionDtos?.Current != null || versionDtos?.History.Count > 0 ||
+            // Submission history can exist even when this viewer cannot see its answers.
+            displayedSubmissions.Count != 0 || hasSubmission || actionSteps.Contains(step.Name) ||
+            // Expired steps must still show their deadline explanation.
+            deadline is { IsPassed: true } or { Message: not null } ||
+            // Grouping steps must open to expose available children.
+            children?.Any(child => child.IsAvailable) == true;
+
         return new StepDto(
             step.Name,
             step.DisplayTitle,
@@ -250,7 +263,8 @@ public class WorkflowInstanceDtoFactory(
             step.ChildrenLayout,
             versionDtos,
             undoCandidate,
-            displayedSubmissions
+            displayedSubmissions,
+            isAvailable
         );
     }
 

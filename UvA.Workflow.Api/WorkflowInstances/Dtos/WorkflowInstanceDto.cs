@@ -81,7 +81,8 @@ public record StepDto(
     StepChildrenLayout ChildrenLayout = StepChildrenLayout.Combined,
     StepVersionsDto? Versions = null,
     UndoCandidateDto? UndoCandidate = null,
-    List<SubmissionDto>? Submissions = null);
+    List<SubmissionDto>? Submissions = null,
+    bool IsAvailable = false);
 
 public record ActionDto(
     ActionType Type,
