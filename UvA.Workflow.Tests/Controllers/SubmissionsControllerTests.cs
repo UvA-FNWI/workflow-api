@@ -44,7 +44,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 _modelService,
                 _submissionDtoFactory,
                 _rightsService,
-                new StepVersionService(),
+                new StepVersionService(_modelService),
                 new StepProgressResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),

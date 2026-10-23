@@ -4,15 +4,17 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.WorkflowModel;
 
-public class ObjectContext(Dictionary<Lookup, object?> values)
+public class ObjectContext(Dictionary<Lookup, object?> values, DateTime? evaluatedAt = null)
 {
+    public DateTime Now => evaluatedAt ?? DateTime.Now;
+
     public Dictionary<Lookup, object?> Values { get; } = values;
     public string? Id => Values.GetValueOrDefault("Id")?.ToString();
 
     public object? Get(Lookup path)
     {
         if (path == "now")
-            return DateTime.Now;
+            return Now;
         if (Values.TryGetValue(path, out var res))
             return res;
         var parts = path.ToString().Split('.');
@@ -101,7 +103,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
 
-        return new ObjectContext(dict);
+        return new ObjectContext(dict, instance.EvaluatedAt);
     }
 
     private static void AddEventInformation(

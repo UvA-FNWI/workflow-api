@@ -56,13 +56,45 @@ public class WorkflowInstanceDtoFactory(
         // Fetch versions for all steps
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
-        var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
+        var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
+        {
+            var submissionContext = modelService.CreateContext(instance);
+            await instanceService.Enrich(workflowDefinition, [submissionContext], s.Form.ActualForm.Lookups, ct,
+                replaceStep: false);
+            var dto = submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
+                permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
+                instanceHistory, displayNames, submissionContext);
+            return dto with
+            {
+                Form = dto.Form with { Step = StepVersionService.ResolveFormStep(workflowDefinition, s.Form)?.Name }
+            };
+        }));
+        Dictionary<string, StepVersions> stepVersionsMap;
+        try
+        {
+            stepVersionsMap = stepVersionService.GetStepVersions(instance, instanceHistory) ?? [];
+        }
+        catch (StepVersionHistoryUnavailableException ex)
+        {
+            logger.LogWarning(ex, "Omitting attempt history for instance {InstanceId}: {Reason}", instance.Id,
+                ex.Message);
+            stepVersionsMap = [];
+        }
+
+        var stepVersionDtos = new Dictionary<string, StepVersionsDto>();
+        foreach (var (name, versions) in stepVersionsMap)
+            stepVersionDtos[name] = new StepVersionsDto(
+                versions.Current == null
+                    ? null
+                    : await CreateStepVersionDto(versions.Current, instance, instanceHistory, displayNames, ct),
+                (await Task.WhenAll(versions.History.Select(version =>
+                    CreateStepVersionDto(version, instance, instanceHistory, displayNames, ct)))).ToList());
         var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
-                effectiveEventLogs, ct)));
+            .Select(s => CreateStepDto(s, instance, stepVersionDtos, instanceHistory, context, activeSteps,
+                effectiveEventLogs, submissionDtos, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -74,15 +106,6 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
-        var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
-        {
-            var submissionContext = modelService.CreateContext(instance);
-            await instanceService.Enrich(workflowDefinition, [submissionContext], s.Form.ActualForm.Lookups, ct,
-                replaceStep: false);
-            return submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
-                permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
-                instanceHistory, displayNames, submissionContext);
-        }));
         var x = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -126,47 +149,17 @@ public class WorkflowInstanceDtoFactory(
     }
 
     /// <summary>
-    /// Creates versions for all steps from a preloaded instance-wide event log.
-    /// </summary>
-    private Dictionary<string, List<StepVersion>> GetStepVersionsMap(
-        WorkflowInstance instance,
-        IEnumerable<Step> steps,
-        IEnumerable<InstanceEventLogEntry> eventLogs)
-    {
-        var eventLogList = eventLogs.ToList();
-        var stepVersionsMap = new Dictionary<string, List<StepVersion>>();
-
-        foreach (var step in steps)
-        {
-            try
-            {
-                var versions = stepVersionService.GetStepVersions(instance, step, eventLogList);
-                if (versions.Any())
-                {
-                    stepVersionsMap[step.Name] = versions;
-                }
-            }
-            catch (Exception ex)
-            {
-                // If fetching versions fails for a step, continue without versions for that step
-                logger.LogError(ex, "Failed to fetch step versions for step {StepName}", step.Name);
-            }
-        }
-
-        return stepVersionsMap;
-    }
-
-    /// <summary>
     /// Creates a StepDto with versions from the map, recursively handling child steps
     /// </summary>
     private async Task<StepDto> CreateStepDto(
         Step step,
         WorkflowInstance instance,
-        Dictionary<string, List<StepVersion>> stepVersionsMap,
+        Dictionary<string, StepVersionsDto> stepVersionsMap,
         WorkflowInstanceHistory instanceHistory,
         ObjectContext context,
         HashSet<string> activeSteps,
         IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
+        SubmissionDto[] unversionedSubmissions,
         CancellationToken ct)
     {
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -175,21 +168,23 @@ public class WorkflowInstanceDtoFactory(
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
             : stepProgressResolver.ResolveHeader(step, instance);
 
-        // A completed step's latest version is already shown as its live submission.
-        // For an expired, unfinished step, retain every historical version.
-        var versions = stepVersionsMap.GetValueOrDefault(step.Name)
-            ?.OrderByDescending(version => version.SubmittedAt)
-            .Skip(step.HasEnded(context) ? 1 : 0);
-        var versionDtos = versions != null
-            ? await Task.WhenAll(
-                versions.Select(version => CreateStepVersionDto(version, instance, instanceHistory, ct)))
-            : null;
+        var versionDtos = stepVersionsMap.GetValueOrDefault(step.Name);
+
+        var owner = step;
+        while (!stepVersionsMap.ContainsKey(owner.Name) && owner.ParentStep != null)
+            owner = owner.ParentStep;
+        var currentDto = stepVersionsMap.GetValueOrDefault(owner.Name)?.Current;
+        var subtree = Descendants(step).Select(s => s.Name).ToHashSet();
+        IEnumerable<SubmissionDto> assignedSubmissions =
+            stepVersionsMap.Count == 0 ? unversionedSubmissions : currentDto?.Submissions ?? [];
+        var displayedSubmissions = assignedSubmissions.Where(s =>
+            s.Form.Step != null && subtree.Contains(s.Form.Step)).ToList();
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
-                    effectiveEventLogs, ct)))
+                    effectiveEventLogs, unversionedSubmissions, ct)))
             : null;
         // Match the step where the UI displays the submission, which can differ from the action's step.
         // For older forms without an assigned step, keep using the step's submit actions.
@@ -253,8 +248,9 @@ public class WorkflowInstanceDtoFactory(
             hasSubmission,
             step.HierarchyMode,
             step.ChildrenLayout,
-            versionDtos?.ToList(),
-            undoCandidate
+            versionDtos,
+            undoCandidate,
+            displayedSubmissions
         );
     }
 
@@ -277,80 +273,49 @@ public class WorkflowInstanceDtoFactory(
                                        step.Children.Where(child => child.Condition.IsMet(context))
                                            .Any(child => HasPassedDeadline(child, context, activeSteps)));
 
-    /// <summary>
-    /// Creates a StepVersionDto with properly constructed SubmissionDtos for all events in the version
-    /// </summary>
+    private static IEnumerable<Step> Descendants(Step step)
+        => new[] { step }.Concat(step.Children.SelectMany(Descendants));
+
     private async Task<StepVersionDto> CreateStepVersionDto(
         StepVersion stepVersion,
         WorkflowInstance instance,
         WorkflowInstanceHistory instanceHistory,
+        IReadOnlyDictionary<string, string> displayNames,
         CancellationToken ct)
     {
-        try
-        {
-            var submissions = new List<SubmissionDto>();
-
-            // Get the instance at the version timestamp
-            var instanceAtVersion = workflowInstanceService
-                .GetAsOfTimestamp(instance, stepVersion.SubmittedAt, instanceHistory);
-            var allowedViewActions = await rightsService.GetAllowedActions(instanceAtVersion, RoleAction.View);
-
-            // Create a submission for each event in the version
-            foreach (var eventId in stepVersion.EventIds)
-            {
-                var form = ResolveSubmissionForm(instanceAtVersion, eventId);
-                if (form == null)
-                {
-                    logger.LogWarning("Form not found for event {EventId} in version {VersionNumber}",
-                        eventId, stepVersion.VersionNumber);
-                    continue;
-                }
-
-                if (!allowedViewActions.Any(action => action.MatchesForm(form.Name)))
-                    continue;
-
-                // Get question status with all fields visible (historical view)
-                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false);
-                var workflowDef = modelService.WorkflowDefinitions[instanceAtVersion.WorkflowDefinition];
-                var submissionState = FormSubmissionState.Resolve(instanceAtVersion, form, workflowDef);
-
-                var versionContext = modelService.CreateContext(instanceAtVersion);
-                await instanceService.Enrich(workflowDef, [versionContext], form.ActualForm.Lookups, ct,
-                    replaceStep: false);
-
-                // Create the submission DTO with empty permissions (historical view)
-                var submissionDto =
-                    submissionDtoFactory.Create(instanceAtVersion, form, submissionState, questionStatus,
-                        permissions: [], context: versionContext);
-
-                submissions.Add(submissionDto);
-            }
-
-            return new StepVersionDto
-            {
-                VersionNumber = stepVersion.VersionNumber,
-                EventIds = stepVersion.EventIds,
-                SubmittedAt = stepVersion.SubmittedAt,
-                Submissions = submissions
-            };
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to create StepVersionDto for version {VersionNumber}",
-                stepVersion.VersionNumber);
-            throw;
-        }
-    }
-
-    private Form? ResolveSubmissionForm(WorkflowInstance instance, string eventId)
-    {
-        var directForm = modelService.TryGetForm(instance, eventId);
-        if (directForm != null)
-            return directForm;
-
+        var historical = stepVersion.FrozenAt != null;
+        var snapshot = historical
+            ? workflowInstanceService.GetAsOfTimestamp(instance, stepVersion.FrozenAt!.Value,
+                instanceHistory with { EventLogs = EventHistory.Project(instanceHistory.EventLogs).ToList() })
+            : instance;
+        var allowedViewActions = await rightsService.GetAllowedActions(instance, RoleAction.View);
+        var editActions = historical ? [] : await rightsService.GetAllowedActions(instance, RoleAction.Edit);
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        return workflowDef.Forms.FirstOrDefault(form =>
-            FormSubmissionState.GetSubmissionEventIds(form).Contains(eventId));
+        var submissions = new List<SubmissionDto>();
+        foreach (var member in stepVersion.Submissions)
+        {
+            var form = modelService.GetForm(instance, member.FormName);
+            if (!allowedViewActions.Any(action => action.MatchesForm(form.Name)))
+                continue;
+            // A reset can suppress the event while its submission still belongs to the preceding attempt.
+            var submissionState = new FormSubmissionState(FormSubmissionState.GetSubmissionEventIds(form),
+                member.EventIds.Select(id => new InstanceEvent { Id = id, Date = member.DateSubmitted }).ToArray(),
+                member.DateSubmitted);
+            var context = modelService.CreateContext(snapshot);
+            await instanceService.Enrich(workflowDef, [context], form.ActualForm.Lookups, ct, replaceStep: false);
+            var dto = submissionDtoFactory.Create(snapshot, form, submissionState,
+                modelService.GetQuestionStatus(snapshot, form, false),
+                editActions.Where(a => a.MatchesForm(form.Name)).Select(a => a.Type).ToArray(),
+                historical ? null : instanceHistory, displayNames, context);
+            submissions.Add(dto with { Form = dto.Form with { Step = member.Step ?? dto.Form.Step } });
+        }
+
+        return new StepVersionDto
+        {
+            VersionNumber = stepVersion.VersionNumber,
+            CompletionTimestamp = stepVersion.CompletionTimestamp,
+            Submissions = submissions
+        };
     }
 
     private InfoCardDto? CreateInfoCard(WorkflowDefinition workflowDefinition, InfoCard card, ObjectContext context,

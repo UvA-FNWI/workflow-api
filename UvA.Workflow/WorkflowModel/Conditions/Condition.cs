@@ -79,7 +79,7 @@ public class Date : ConditionPart
     public override bool IsMet(ObjectContext context)
     {
         var date = context.Get(Source) as DateTime?;
-        return date != null && date.Value.ToUniversalTime() <= DateTime.UtcNow;
+        return date != null && date.Value.ToUniversalTime() <= context.Now.ToUniversalTime();
     }
 
     public static implicit operator Date(string s) => new Date { Source = s };
@@ -114,7 +114,7 @@ public class DeadlineCondition : ConditionPart
     public override bool IsMet(ObjectContext context)
     {
         var deadline = Evaluate(context);
-        return deadline != null && deadline.Value > DateTimeOffset.Now;
+        return deadline != null && deadline.Value.UtcDateTime > context.Now.ToUniversalTime();
     }
 
     public static implicit operator DeadlineCondition(string s) => new() { ExpressionText = s };

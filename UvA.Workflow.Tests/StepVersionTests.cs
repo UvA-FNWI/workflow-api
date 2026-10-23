@@ -1,5 +1,6 @@
 using MongoDB.Bson;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
@@ -287,293 +288,351 @@ public class StepVersionTests
     }
 
     [Fact]
-    public void ParentStepVersioning_CurrentCycleWithoutLastChildCompletionIsNotReturned()
+    public void FirstReachStartsAnEmptyAttemptBeforeAnySubmission()
     {
-        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project")
-            .WithCurrentStep("SubjectFeedback")
-            .WithEvent("Start", submittedAt)
+        var model = new ModelService(UnitTestsHelpers.CreateModelParser());
+        var instance = new WorkflowInstanceBuilder().WithWorkflowDefinition("Reset").WithCurrentStep("Proposal")
             .Build();
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt)
-        ]);
+        var versions = new StepVersionService(model).GetStepVersions(instance,
+            new WorkflowInstanceHistory(null, []));
 
-        Assert.Empty(versions);
+        Assert.Equal(1, versions["Thesis"].Current!.VersionNumber);
+        Assert.Null(versions["Thesis"].Current!.CompletionTimestamp);
+        Assert.Empty(versions["Thesis"].Current!.Submissions);
+        Assert.Null(versions["Writing"].Current);
+        Assert.False(versions.ContainsKey("Draft"));
     }
 
     [Fact]
-    public void ParentStepVersioning_LastChildCompletionCreatesVersion()
+    public void NestedRestartAdvancesWritingButKeepsTheThesisAttempt()
     {
-        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var feedbackAt = DateTime.UtcNow.AddMinutes(-5);
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project")
-            .WithCurrentStep("Start")
-            .WithEvent("Start", submittedAt)
-            .WithEvent("RejectSubject", feedbackAt)
-            .Build();
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "RejectSubject", feedbackAt)
-        ]);
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted",
+            "SupervisorApproved", "ExaminerApproved", "RequestRevision");
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
 
-        var version = Assert.Single(versions);
-        Assert.Equal(1, version.VersionNumber);
-        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
-        Assert.Equal(feedbackAt, version.SubmittedAt);
+        Assert.Equal(1, versions["Thesis"].Current!.VersionNumber);
+        Assert.Null(versions["Thesis"].Current!.CompletionTimestamp);
+        Assert.Equal(["Proposal"], versions["Thesis"].Current!.Submissions.Select(s => s.FormName));
+        var writing = versions["Writing"];
+        Assert.Equal(2, writing.Current!.VersionNumber);
+        Assert.Empty(writing.Current.Submissions);
+        Assert.Null(writing.Current.CompletionTimestamp);
+        var previous = Assert.Single(writing.History);
+        Assert.Equal(At(4), previous.CompletionTimestamp);
+        Assert.Equal(["Draft", "SupervisorReview", "ExaminerReview"], previous.Submissions.Select(s => s.FormName));
     }
 
     [Fact]
-    public void ParentStepVersioning_FeedbackStaysWithSubmissionAndResubmissionStartsNewVersion()
+    public void CompletionKeepsTheSameCurrentAttempt()
     {
-        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-15);
-        var feedbackAt = DateTime.UtcNow.AddMinutes(-10);
-        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-5);
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project")
-            .WithCurrentStep("SubjectFeedback")
-            .WithEvent("Start", secondSubmittedAt)
-            .WithEvent("RejectSubject", feedbackAt)
-            .Build();
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", firstSubmittedAt),
-            EventLog(instance, "RejectSubject", feedbackAt),
-            EventLog(instance, "Start", secondSubmittedAt)
-        ]);
-
-        var version = Assert.Single(versions);
-        Assert.Equal(1, version.VersionNumber);
-        Assert.Equal(["Start", "RejectSubject"], version.EventIds);
-        Assert.Equal(feedbackAt, version.SubmittedAt);
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted",
+            "SupervisorApproved", "ExaminerApproved");
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
+        Assert.Equal(1, versions["Thesis"].Current!.VersionNumber);
+        Assert.Equal(At(4), versions["Thesis"].Current!.CompletionTimestamp);
+        Assert.Empty(versions["Thesis"].History);
+        Assert.Equal(At(4), versions["Writing"].Current!.CompletionTimestamp);
     }
 
     [Fact]
-    public void ParentStepVersioning_EachLastChildCompletionFinishesOneVersion()
+    public void RestartKeepsAnUnfinishedAttemptInHistory()
     {
-        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
-        var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
-        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project")
-            .WithCurrentStep("Upload")
-            .Build();
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", firstSubmittedAt),
-            EventLog(instance, "RejectSubject", rejectedAt),
-            EventLog(instance, "Start", secondSubmittedAt),
-            EventLog(instance, "ApproveSubject", approvedAt)
-        ]);
-
-        Assert.Collection(versions,
-            first =>
-            {
-                Assert.Equal(1, first.VersionNumber);
-                Assert.Equal(["Start", "RejectSubject"], first.EventIds);
-                Assert.Equal(rejectedAt, first.SubmittedAt);
-            },
-            latest =>
-            {
-                Assert.Equal(2, latest.VersionNumber);
-                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
-                Assert.Equal(approvedAt, latest.SubmittedAt);
-            });
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted",
+            "SupervisorApproved", "RequestRevision", "DraftSubmitted");
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
+        var writing = versions["Writing"];
+        Assert.Equal(2, writing.Current!.VersionNumber);
+        Assert.Equal(["Draft"], writing.Current.Submissions.Select(s => s.FormName));
+        var previous = Assert.Single(writing.History);
+        Assert.Null(previous.CompletionTimestamp);
+        Assert.Equal(["Draft", "SupervisorReview"], previous.Submissions.Select(s => s.FormName));
+        Assert.Equal(["Proposal", "Draft"], versions["Thesis"].Current!.Submissions.Select(s => s.FormName));
     }
 
     [Fact]
-    public void ParentStepVersioning_CompletedStepIncludesLatestVersion()
+    public void ParentRestartDefersTheChildAttemptUntilItIsReachedAgain()
     {
-        var firstSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
-        var rejectedAt = DateTime.UtcNow.AddMinutes(-15);
-        var secondSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project")
-            .WithCurrentStep("Upload")
-            .WithEvent("RejectSubject", rejectedAt)
-            .WithEvent("Start", secondSubmittedAt)
-            .WithEvent("ApproveSubject", approvedAt)
-            .Build();
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", firstSubmittedAt),
-            EventLog(instance, "RejectSubject", rejectedAt),
-            EventLog(instance, "Start", secondSubmittedAt),
-            EventLog(instance, "ApproveSubject", approvedAt)
-        ]);
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted",
+            "SupervisorApproved", "ExaminerApproved", "RejectProposal");
+        var service = new StepVersionService(model);
+        var versions = service.GetStepVersions(instance, history);
+        Assert.Equal(2, versions["Thesis"].Current!.VersionNumber);
+        Assert.Empty(versions["Thesis"].Current!.Submissions);
+        Assert.Equal(1, versions["Writing"].Current!.VersionNumber);
+        Assert.Empty(versions["Writing"].History);
 
-        Assert.Collection(versions,
-            first =>
-            {
-                Assert.Equal(1, first.VersionNumber);
-                Assert.Equal(["Start", "RejectSubject"], first.EventIds);
-                Assert.Equal(rejectedAt, first.SubmittedAt);
-            },
-            latest =>
-            {
-                Assert.Equal(2, latest.VersionNumber);
-                Assert.Equal(["Start", "ApproveSubject"], latest.EventIds);
-                Assert.Equal(approvedAt, latest.SubmittedAt);
-            });
-    }
-
-    [Fact]
-    public void ParentStepVersioning_WaitsForCompositeLastChildCompletionCondition()
-    {
-        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
-        var rejectedAt = DateTime.UtcNow.AddMinutes(-2);
-        var instance = new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project")
-            .WithCurrentStep("Start")
-            .Build();
-
-        void ConfigureModel(ModelService modelService)
+        history.EventLogs.Add(new InstanceEventLogEntry
         {
-            modelService.WorkflowDefinitions["Project"].AllSteps
-                .Single(step => step.Name == "SubjectFeedback").Ends = new Condition
-            {
-                Logical = new Logical
-                {
-                    Operator = LogicalOperator.And,
-                    Children =
-                    [
-                        new Condition { Event = new EventCondition { Id = "RejectSubject" } },
-                        new Condition { Event = new EventCondition { Id = "ApproveSubject" } }
-                    ]
-                }
-            };
+            Id = "6", EventId = "ProposalSubmitted",
+            EventDate = At(6), Timestamp = At(6), Operation = EventLogOperation.Update
+        });
+        versions = service.GetStepVersions(instance, history);
+        Assert.Equal(2, versions["Writing"].Current!.VersionNumber);
+        Assert.Empty(versions["Writing"].Current!.Submissions);
+        Assert.Single(versions["Writing"].History);
+        Assert.Equal(["Proposal"], versions["Thesis"].Current!.Submissions.Select(s => s.FormName));
+    }
+
+    [Theory]
+    [InlineData("ExaminerApproved", 1, true)]
+    [InlineData("RequestRevision", 1, false)]
+    public void UndoReconstructsEffectiveAttemptBoundaries(string undoneEvent, int number, bool isIncomplete)
+    {
+        var events = undoneEvent == "ExaminerApproved"
+            ? new[] { "ProposalSubmitted", "DraftSubmitted", "SupervisorApproved", "ExaminerApproved" }
+            : ["ProposalSubmitted", "DraftSubmitted", "SupervisorApproved", "ExaminerApproved", "RequestRevision"];
+        var (model, instance, history) = ResetHistory(events);
+        history.EventLogs.Add(new InstanceEventLogEntry
+        {
+            Id = "undo", Timestamp = At(7),
+            Operation = EventLogOperation.Undo, OperationId = history.EventLogs.Last().OperationId
+        });
+        var writing = new StepVersionService(model).GetStepVersions(instance, history)["Writing"];
+        Assert.Equal(number, writing.Current!.VersionNumber);
+        Assert.Equal(isIncomplete, writing.Current.CompletionTimestamp == null);
+        Assert.Empty(writing.History);
+    }
+
+    [Fact]
+    public void EquivalentManualAndGeneratedSuppressionHaveTheSameAttempts()
+    {
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted", "SupervisorApproved",
+            "RequestRevision", "DraftSubmitted", "SupervisorApproved", "ExaminerApproved", "RejectProposal",
+            "ProposalSubmitted", "DraftSubmitted");
+        var generated = new StepVersionService(model).GetStepVersions(instance, history);
+        foreach (var step in model.WorkflowDefinitions["Reset"].AllSteps)
+            step.Events.Clear();
+        model.WorkflowDefinitions["Reset"].AllSteps.Single(step => step.Name == "Thesis").Events =
+            [new EventDefinition { Name = "RequestRevision" }, new EventDefinition { Name = "RejectProposal" }];
+        var manual = new StepVersionService(model).GetStepVersions(instance, history);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(generated),
+            System.Text.Json.JsonSerializer.Serialize(manual));
+    }
+
+    [Fact]
+    public void AChildCannotBeReachedWhileItsParentConditionIsFalse()
+    {
+        var (model, instance, history) = ResetHistory("ProposalSubmitted");
+        model.WorkflowDefinitions["Reset"].AllSteps.Single(s => s.Name == "Writing").Condition =
+            new Condition { Event = new EventCondition { Id = "Enabled" } };
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
+        Assert.Null(versions["Writing"].Current);
+    }
+
+    [Fact]
+    public void EachFormMustContributeAgainAfterAnIndependentRestart()
+    {
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted", "ExtraDraft",
+            "SupervisorApproved", "RequestRevision", "DraftSubmitted");
+        model.WorkflowDefinitions["Reset"].Forms.Add(new Form
+            { Name = "ExtraDraft", Step = "Draft", SubmittedWhenEvents = ["ExtraDraft"] });
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
+        Assert.Equal(["Draft", "ExtraDraft", "SupervisorReview"],
+            versions["Writing"].History[0].Submissions.Select(s => s.FormName));
+        Assert.Equal(["Draft"], versions["Writing"].Current!.Submissions.Select(s => s.FormName));
+        Assert.Equal(["Proposal", "Draft"], versions["Thesis"].Current!.Submissions.Select(s => s.FormName));
+    }
+
+    [Fact]
+    public void EqualAuditTimestampsStillFollowEventHistoryOrder()
+    {
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted",
+            "SupervisorApproved", "ExaminerApproved", "RequestRevision");
+        foreach (var log in history.EventLogs)
+            log.Timestamp = At(1);
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
+        Assert.Equal(2, versions["Writing"].Current!.VersionNumber);
+        Assert.Equal(At(4), Assert.Single(versions["Writing"].History).CompletionTimestamp);
+        Assert.Equal(3, versions["Writing"].History[0].Submissions.Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void InactiveSubmissionsDoNotRemainInTheCurrentAttempt(bool delete)
+    {
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted", "Pause");
+        if (delete)
+        {
+            history.EventLogs[^1].EventId = "DraftSubmitted";
+            history.EventLogs[^1].Operation = EventLogOperation.Delete;
         }
+        else
+            model.WorkflowDefinitions["Reset"].Events.Add(new EventDefinition
+                { Name = "Pause", Suppresses = ["DraftSubmitted"] });
 
-        var incompleteVersions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "RejectSubject", rejectedAt)
-        ], ConfigureModel);
-        var completeVersions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "ApproveSubject", approvedAt),
-            EventLog(instance, "RejectSubject", rejectedAt)
-        ], ConfigureModel);
-
-        Assert.Empty(incompleteVersions);
-        var version = Assert.Single(completeVersions);
-        Assert.Equal(["Start", "ApproveSubject", "RejectSubject"], version.EventIds);
-        Assert.Equal(rejectedAt, version.SubmittedAt);
+        var writing = new StepVersionService(model).GetStepVersions(instance, history)["Writing"];
+        Assert.Equal(1, writing.Current!.VersionNumber);
+        Assert.Empty(writing.Current.Submissions);
+        Assert.Empty(writing.History);
     }
 
     [Fact]
-    public void RmssProposalVersioning_ParallelLastChildCompletionCreatesVersion()
+    public void AThreeEventSuppressionCycleRestartsItsScope()
     {
-        var instance = CreateRmssInstance();
-        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
-        var approvedAt = DateTime.UtcNow.AddMinutes(-2);
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt),
-            EventLog(instance, "ProposalApprovedReviewer", approvedAt)
-        ]);
-
-        var version = Assert.Single(versions);
-        Assert.Equal(1, version.VersionNumber);
-        Assert.Equal(approvedAt, version.SubmittedAt);
-        Assert.Equal(["Start", "ProposalRejectedSupervisor", "ProposalApprovedReviewer"], version.EventIds);
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted", "SupervisorApproved");
+        var definition = model.WorkflowDefinitions["Reset"];
+        foreach (var ev in definition.Events)
+            ev.Suppresses = [];
+        definition.Events.Single(item => item.Name == "ProposalSubmitted").Suppresses = ["DraftSubmitted"];
+        definition.Events.Single(item => item.Name == "DraftSubmitted").Suppresses = ["SupervisorApproved"];
+        definition.Events.Add(new EventDefinition { Name = "SupervisorApproved", Suppresses = ["ProposalSubmitted"] });
+        var thesis = new StepVersionService(model).GetStepVersions(instance, history)["Thesis"];
+        Assert.Equal(2, thesis.Current!.VersionNumber);
+        Assert.Empty(thesis.Current.Submissions);
+        Assert.Single(thesis.History);
     }
 
     [Fact]
-    public void RmssProposalVersioning_SingleApprovalDoesNotCompleteVersion()
+    public void DateCompletionUsesTheHistoricalClockAndKeepsTheFirstAttempt()
     {
-        var instance = CreateRmssInstance();
-        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "ProposalApprovedSupervisor", approvedAt)
-        ]);
-
-        Assert.Empty(versions);
+        var (model, instance, history) = ResetHistory();
+        var definition = model.WorkflowDefinitions["Reset"];
+        var proposal = definition.AllSteps.Single(item => item.Name == "Proposal");
+        proposal.Ends = new Condition { Date = new Date { Source = "Deadline" } };
+        definition.Properties.Add(new PropertyDefinition { Name = "Deadline", Type = "DateTime" });
+        instance.Properties["Deadline"] = At(2);
+        definition.Steps = [proposal, definition.AllSteps.Single(item => item.Name == "Writing")];
+        proposal.ParentStep = null;
+        definition.AllSteps.Single(item => item.Name == "Writing").ParentStep = null;
+        foreach (var ev in definition.Events)
+            ev.Suppresses = [];
+        definition.AllSteps = definition.AllSteps.Where(step => step.Name != "Thesis").ToList();
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
+        Assert.Equal(1, versions["Proposal"].Current!.VersionNumber);
+        Assert.Equal(At(2), versions["Proposal"].Current!.CompletionTimestamp);
+        Assert.Equal(1, versions["Writing"].Current!.VersionNumber);
     }
 
     [Fact]
-    public void RmssProposalVersioning_SingleRejectionDoesNotCompleteVersion()
+    public void AlongsideAndParallelOwnersStartWhenProgressionMakesThemAvailable()
     {
-        var instance = CreateRmssInstance();
-        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var rejectedAt = DateTime.UtcNow.AddMinutes(-5);
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "ProposalRejectedSupervisor", rejectedAt)
-        ]);
-
-        Assert.Empty(versions);
+        var (model, instance, history) = ResetHistory("ProposalSubmitted");
+        var definition = model.WorkflowDefinitions["Reset"];
+        var proposal = definition.AllSteps.Single(step => step.Name == "Proposal");
+        var draft = definition.AllSteps.Single(step => step.Name == "Draft");
+        var review = definition.AllSteps.Single(step => step.Name == "Review");
+        definition.Steps = [proposal, draft, review];
+        foreach (var step in definition.Steps)
+            step.ParentStep = null;
+        draft.Mode = StepMode.Alongside;
+        definition.AllSteps = [proposal, draft, review, .. review.Children];
+        foreach (var ev in definition.Events)
+            ev.Suppresses = [];
+        var service = new StepVersionService(model);
+        var initial = service.GetStepVersions(instance, new WorkflowInstanceHistory(null, []));
+        Assert.Equal(1, initial["Proposal"].Current!.VersionNumber);
+        Assert.Null(initial["Draft"].Current);
+        Assert.Null(initial["Review"].Current);
+        var reached = service.GetStepVersions(instance, history);
+        Assert.Equal(1, reached["Draft"].Current!.VersionNumber);
+        Assert.Equal(1, reached["Review"].Current!.VersionNumber);
     }
 
     [Fact]
-    public void RmssProposalVersioning_ResetEventClosesVersionBeforeLastChildCompletes()
+    public void RemovingSuppressionRestoresTheSubmissionWithinTheSameAttempt()
     {
-        var instance = CreateRmssInstance();
-        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
-        var approvedAt = DateTime.UtcNow.AddMinutes(-5);
-        var resetAt = DateTime.UtcNow.AddMinutes(-2);
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", submittedAt),
-            EventLog(instance, "ProposalApprovedSupervisor", approvedAt),
-            EventLog(instance, "ProposalReturnedForRevision", resetAt)
-        ]);
-
-        var version = Assert.Single(versions);
-        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalReturnedForRevision"], version.EventIds);
-        Assert.Equal(resetAt, version.SubmittedAt);
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted", "Pause", "Pause");
+        model.WorkflowDefinitions["Reset"].Events.Add(new EventDefinition
+            { Name = "Pause", Suppresses = ["DraftSubmitted"] });
+        history.EventLogs[^1].Operation = EventLogOperation.Delete;
+        var writing = new StepVersionService(model).GetStepVersions(instance, history)["Writing"];
+        Assert.Equal(1, writing.Current!.VersionNumber);
+        Assert.Equal(["Draft"], writing.Current.Submissions.Select(member => member.FormName));
+        Assert.Empty(writing.History);
     }
 
     [Fact]
-    public void RmssProposalVersioning_ResetAfterCompletedVersionDoesNotCreateExtraVersion()
+    public void DeletingOneMarkerFallsBackToTheFormsEarlierEffectiveSubmission()
     {
-        var instance = CreateRmssInstance();
-        var t = DateTime.UtcNow.AddMinutes(-10);
-        var versions = GetStepVersions(instance,
-        [
-            EventLog(instance, "Start", t),
-            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(1)),
-            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(2)),
-            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(3))
-        ]);
-
-        var version = Assert.Single(versions);
-        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalApprovedReviewer"], version.EventIds);
+        var (model, instance, history) =
+            ResetHistory("ProposalSubmitted", "DraftSubmitted", "OtherDraft", "OtherDraft");
+        model.WorkflowDefinitions["Reset"].Forms.Single(form => form.Name == "Draft").SubmittedWhenEvents =
+            ["DraftSubmitted", "OtherDraft"];
+        history.EventLogs[^1].Operation = EventLogOperation.Delete;
+        var writing = new StepVersionService(model).GetStepVersions(instance, history)["Writing"];
+        Assert.Equal(At(2), Assert.Single(writing.Current!.Submissions).DateSubmitted);
     }
 
     [Fact]
-    public void RmssProposalVersioning_ResubmissionAfterResetStartsNewVersion()
+    public void LaterAnswerEditsWithoutAProvableBoundaryCannotBePresentedAsExactHistory()
     {
-        var instance = CreateRmssInstance();
-        var t = DateTime.UtcNow.AddMinutes(-20);
-        var versions = GetStepVersions(instance,
+        var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted", "RequestRevision");
+        model.WorkflowDefinitions["Reset"].Forms.Single(form => form.Name == "Draft").Pages =
         [
-            EventLog(instance, "Start", t),
-            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(1)),
-            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(2)),
-            EventLog(instance, "Start", t.AddMinutes(3)),
-            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(4)),
-            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(5))
-        ]);
+            new Page
+            {
+                PageElements =
+                [
+                    new PageElement { QuestionDefinition = new PropertyDefinition { Name = "Title", Type = "String" } }
+                ]
+            }
+        ];
+        instance.Properties["Title"] = "New draft";
+        var journal = new UvA.Workflow.Journaling.InstanceJournalEntry
+        {
+            PropertyChanges =
+            [
+                UvA.Workflow.Journaling.PropertyChangeEntry.Create("Title", "Previous answer",
+                    UnitTestsHelpers.AdminUser)
+            ]
+        };
+        Assert.Throws<StepVersionHistoryUnavailableException>(() =>
+            new StepVersionService(model).GetStepVersions(instance, history with { Journal = journal }));
+    }
 
-        Assert.Equal(2, versions.Count);
-        Assert.Equal(1, versions[0].VersionNumber);
-        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalReturnedForRevision"], versions[0].EventIds);
-        Assert.Equal(2, versions[1].VersionNumber);
-        Assert.Equal(["Start", "ProposalApprovedSupervisor", "ProposalApprovedReviewer"], versions[1].EventIds);
+    [Fact]
+    public void AnEventDerivedDateBoundaryIsReplayedAfterTheEventArrives()
+    {
+        var (model, instance, history) = ResetHistory("ProposalSubmitted");
+        var definition = model.WorkflowDefinitions["Reset"];
+        var proposal = definition.AllSteps.Single(step => step.Name == "Proposal");
+        var writing = definition.AllSteps.Single(step => step.Name == "Writing");
+        definition.Steps = [proposal, writing];
+        proposal.ParentStep = null;
+        writing.ParentStep = null;
+        definition.AllSteps = definition.AllSteps.Where(step => step.Name != "Thesis").ToList();
+        foreach (var ev in definition.Events)
+            ev.Suppresses = [];
+        proposal.Ends = new Condition
+        {
+            Logical = new Logical
+            {
+                Operator = LogicalOperator.And, Children =
+                [
+                    new Condition { Event = new EventCondition { Id = "ProposalSubmitted" } },
+                    new Condition
+                    {
+                        Not = true,
+                        Deadline = new DeadlineCondition { ExpressionText = "addDays(ProposalSubmittedEvent, 1)" }
+                    }
+                ]
+            }
+        };
+        var versions = new StepVersionService(model).GetStepVersions(instance, history);
+        Assert.Equal(At(1).AddDays(1), versions["Proposal"].Current!.CompletionTimestamp);
+        Assert.Equal(1, versions["Writing"].Current!.VersionNumber);
+    }
+
+    private static DateTime At(int minute) => new(2026, 1, 1, 0, minute, 0, DateTimeKind.Utc);
+
+    private static (ModelService Model, WorkflowInstance Instance, WorkflowInstanceHistory History) ResetHistory(
+        params string[] events)
+    {
+        var model = new ModelService(UnitTestsHelpers.CreateModelParser());
+        var definition = model.WorkflowDefinitions["Reset"];
+        definition.Forms = definition.AllSteps.Where(s => s.EndEvent != null)
+            .Select(s => new Form { Name = s.Name, Step = s.Name, SubmittedWhenEvents = [s.EndEvent!] }).ToList();
+        var instance = new WorkflowInstanceBuilder().WithWorkflowDefinition("Reset").WithCurrentStep("Proposal")
+            .Build();
+        instance.CreatedOn = At(0);
+        var logs = events.Select((id, index) => new InstanceEventLogEntry
+        {
+            Id = (index + 1).ToString(), EventId = id, EventDate = At(index + 1), Timestamp = At(index + 1),
+            Operation = EventLogOperation.Create, OperationId = "operation-" + index
+        }).ToList();
+        instance.Events = EventHistory.RebuildEvents(logs);
+        return (model, instance, new WorkflowInstanceHistory(null, logs));
     }
 
     private static Dictionary<string, BsonValue?> CloneProperties(Dictionary<string, BsonValue?> original)
@@ -581,42 +640,6 @@ public class StepVersionTests
             kvp => kvp.Key,
             kvp => kvp.Value?.DeepClone()
         );
-
-    private static WorkflowInstance CreateRmssInstance()
-        => new WorkflowInstanceBuilder()
-            .WithWorkflowDefinition("Project-RMSS")
-            .WithCurrentStep("ProposalPhase")
-            .Build();
-
-    private static List<StepVersion> GetStepVersions(
-        WorkflowInstance instance,
-        List<InstanceEventLogEntry> eventLogs,
-        Action<ModelService>? configureModel = null)
-    {
-        var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
-        var modelService = new ModelService(new ModelParser(modelProvider));
-        configureModel?.Invoke(modelService);
-        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var step = workflowDefinition.AllSteps.Single(step => step.Name == "Start");
-        var parentStep = workflowDefinition.AllSteps.FirstOrDefault(parent =>
-            parent.Children.Any(child => child.Name == step.Name));
-        var versionedStep = parentStep is { Children.Length: > 1 } ? parentStep : step;
-
-        return new StepVersionService().GetStepVersions(instance, versionedStep, eventLogs);
-    }
-
-    private static InstanceEventLogEntry EventLog(
-        WorkflowInstance instance,
-        string eventId,
-        DateTime timestamp)
-        => new()
-        {
-            WorkflowInstanceId = instance.Id,
-            EventId = eventId,
-            EventDate = timestamp,
-            Operation = EventLogOperation.Create,
-            Timestamp = timestamp
-        };
 
     private static Dictionary<string, BsonValue?> RestorePropertiesToVersion(
         Dictionary<string, BsonValue?> current,
