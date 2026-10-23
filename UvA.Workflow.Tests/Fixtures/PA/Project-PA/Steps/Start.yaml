@@ -18,8 +18,7 @@ properties:
     text:
       en: Is this an internal (UvA or VU) or external project?
       nl: Is dit een intern (UvA of VU) of extern project?
-    layout:
-      type: RadioList
+    control: RadioList
     values:
       - name: Internal
         text:
@@ -47,16 +46,14 @@ properties:
     text:
       en: Country
       nl: Land
-    layout:
-      type: Dropdown
+    control: Dropdown
 
   - name: PartAbroad
     type: PartAbroadType!
     text:
       en: Will part of the project take place abroad?
       nl: Zal een deel van het project in het buitenland plaatsvinden?
-    layout:
-      type: RadioList
+    control: RadioList
     values:
       - name: Yes
         text:
@@ -116,8 +113,7 @@ properties:
     text:
       en: Frequency consultation Examiner / Second reviewer
       nl: Frequentie overleg examinator / tweede beoordelaar
-    layout:
-      type: Dropdown
+    control: Dropdown
     values:
       - name: Daily
         text:
@@ -155,8 +151,7 @@ properties:
     text:
       en: Frequency consultation daily supervisor
       nl: Frequentie overleg dagelijks begeleider
-    layout:
-      type: Dropdown
+    control: Dropdown
     values:
       - name: Daily
         text:

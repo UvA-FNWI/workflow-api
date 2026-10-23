@@ -29,6 +29,8 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Content Include="..\Schemas\*.json" Link="Schemas\%(Filename)%(Extension)"
+                 CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
         <Content Include="..\.dockerignore">
             <Link>.dockerignore</Link>
         </Content>
