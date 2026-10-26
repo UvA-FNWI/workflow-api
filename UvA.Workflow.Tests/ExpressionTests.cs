@@ -88,6 +88,38 @@ public class ExpressionTests
         Assert.Empty(Assert.IsType<object[]>(exp.Execute(new ObjectContext([]))));
     }
 
+    [Fact]
+    public void ValueSets_ResolveFromSeparateCollection()
+    {
+        var context = new ObjectContext(
+            new Dictionary<Lookup, object?> { ["Selection"] = new[] { "None", "Alpha", "Beta" } },
+            new Dictionary<string, string[]> { ["Excluded"] = ["None", "Beta"] });
+
+        Assert.Equal(new object[] { "Alpha" },
+            Assert.IsType<object[]>(ExpressionParser.Parse("except(Selection, ValueSets.Excluded)").Execute(context)));
+    }
+
+    [Fact]
+    public void ValueSets_DoNotClashWithValuesOfTheSameName()
+    {
+        // e.g. an access effect adds its output as "Access" while a value set is also called Access
+        var context = new ObjectContext(
+            new Dictionary<Lookup, object?> { ["Access"] = "effect output" },
+            new Dictionary<string, string[]> { ["Access"] = ["Read", "Write"] });
+
+        Assert.Equal("effect output", ExpressionParser.Parse("Access").Execute(context));
+        Assert.Equal(new[] { "Read", "Write" }, ExpressionParser.Parse("ValueSets.Access").Execute(context));
+    }
+
+    [Fact]
+    public void ValueSets_UnknownName_ReturnsNull()
+    {
+        var context = new ObjectContext([], new Dictionary<string, string[]> { ["Excluded"] = ["None"] });
+
+        Assert.Null(ExpressionParser.Parse("ValueSets.Missing").Execute(context));
+        Assert.Null(ExpressionParser.Parse("ValueSets.Excluded").Execute(new ObjectContext([])));
+    }
+
     private static ObjectContext RowsContext(object? rows)
         => new(new Dictionary<Lookup, object?> { ["Rows"] = rows });
 

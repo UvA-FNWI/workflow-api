@@ -4,15 +4,28 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.WorkflowModel;
 
-public class ObjectContext(Dictionary<Lookup, object?> values)
+public class ObjectContext(
+    Dictionary<Lookup, object?> values,
+    IReadOnlyDictionary<string, string[]>? valueSets = null)
 {
+    private static readonly IReadOnlyDictionary<string, string[]> NoValueSets = new Dictionary<string, string[]>();
+
     public Dictionary<Lookup, object?> Values { get; } = values;
+
+    /// <summary>
+    /// Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
+    /// Kept apart from <see cref="Values"/> so value-set names cannot clash with properties or effect outputs.
+    /// </summary>
+    public IReadOnlyDictionary<string, string[]> ValueSets { get; } = valueSets ?? NoValueSets;
+
     public string? Id => Values.GetValueOrDefault("Id")?.ToString();
 
     public object? Get(Lookup path)
     {
         if (path == "now")
             return DateTime.Now;
+        if (path is PropertyLookup { Parts: ["ValueSets", var valueSet] })
+            return ValueSets.GetValueOrDefault(valueSet);
         if (Values.TryGetValue(path, out var res))
             return res;
         var parts = path.ToString().Split('.');
@@ -78,8 +91,7 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
             dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
 
-        AddValueSets(dict, workflowDefinition);
-        return new ObjectContext(dict);
+        return new ObjectContext(dict, GetValueSets(workflowDefinition));
     }
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
@@ -101,15 +113,19 @@ public class ObjectContext(Dictionary<Lookup, object?> values)
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
-        AddValueSets(dict, workflowDef);
 
-        return new ObjectContext(dict);
+        return new ObjectContext(dict, GetValueSets(workflowDef));
     }
 
-    private static void AddValueSets(Dictionary<Lookup, object?> values, WorkflowDefinition definition)
+    /// <summary>
+    /// Collects the common and definition-local value sets that expressions can reference as <c>ValueSets.Name</c>.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string[]> GetValueSets(WorkflowDefinition definition)
     {
+        var valueSets = new Dictionary<string, string[]>();
         foreach (var set in (definition.ModelParser?.ValueSets ?? []).Concat(definition.ValueSets))
-            values.TryAdd(set.Name, set.Values.Select(choice => choice.Name).ToArray());
+            valueSets.TryAdd(set.Name, set.Values.Select(choice => choice.Name).ToArray());
+        return valueSets;
     }
 
     private static void AddEventInformation(

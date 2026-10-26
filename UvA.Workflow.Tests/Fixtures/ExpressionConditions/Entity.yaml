@@ -31,7 +31,7 @@ properties:
     type: Check
     condition:
       value:
-        property: count(except(except(Selection, ExcludedOptions), SharedExcludedOptions))
+        property: count(except(except(Selection, ValueSets.ExcludedOptions), ValueSets.SharedExcludedOptions))
         lessThanOrEqual: Limit
 
   - name: Rows
@@ -55,7 +55,7 @@ properties:
     type: Check
     condition:
       value:
-        property: count(except(unique(flatten(select(Rows, =Codes))), AllowedCodes))
+        property: count(except(unique(flatten(select(Rows, =Codes))), ValueSets.AllowedCodes))
         greaterThanOrEqual: "1"
 
   - name: ScoreWithinLimit
