@@ -6,6 +6,7 @@ using UvA.Workflow.Submissions;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
+using WorkflowAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -53,9 +54,13 @@ public class WorkflowInstanceDtoFactory(
                 .Concat(visibleCards.SelectMany(card => card.Properties)),
             ct);
 
-        // Fetch versions for all steps
-        var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
-        var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
+        // Answer corrections need the full log to evaluate each edit before later undo operations.
+        var answerHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
+        var effectiveHistory = answerHistory with
+        {
+            EventLogs = EventHistory.Project(answerHistory.EventLogs).ToList()
+        };
+        var displayNames = await submissionDtoFactory.ResolveDisplayNames(effectiveHistory.Journal, ct);
         var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
         {
             var submissionContext = modelService.CreateContext(instance);
@@ -63,7 +68,7 @@ public class WorkflowInstanceDtoFactory(
                 replaceStep: false);
             var dto = submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
                 permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
-                instanceHistory, displayNames, submissionContext);
+                answerHistory, displayNames, submissionContext);
             return dto with
             {
                 Form = dto.Form with { Step = StepVersionService.ResolveFormStep(workflowDefinition, s.Form)?.Name }
@@ -72,7 +77,7 @@ public class WorkflowInstanceDtoFactory(
         Dictionary<string, StepVersions> stepVersionsMap;
         try
         {
-            stepVersionsMap = stepVersionService.GetStepVersions(instance, instanceHistory) ?? [];
+            stepVersionsMap = stepVersionService.GetStepVersions(instance, effectiveHistory) ?? [];
         }
         catch (StepVersionHistoryUnavailableException ex)
         {
@@ -81,21 +86,24 @@ public class WorkflowInstanceDtoFactory(
             stepVersionsMap = [];
         }
 
+        var versionPermissions = (await rightsService.GetAllowedActions(instance, RoleAction.View))
+            .Concat(permissions.Where(action => action.Type == RoleAction.Edit)).ToArray();
         var stepVersionDtos = new Dictionary<string, StepVersionsDto>();
         foreach (var (name, versions) in stepVersionsMap)
             stepVersionDtos[name] = new StepVersionsDto(
                 versions.Current == null
                     ? null
-                    : await CreateStepVersionDto(versions.Current, instance, instanceHistory, displayNames, ct),
+                    : await CreateStepVersionDto(versions.Current, instance, answerHistory, effectiveHistory,
+                        displayNames, versionPermissions, ct),
                 (await Task.WhenAll(versions.History.Select(version =>
-                    CreateStepVersionDto(version, instance, instanceHistory, displayNames, ct)))).ToList());
-        var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
+                    CreateStepVersionDto(version, instance, answerHistory, effectiveHistory,
+                        displayNames, versionPermissions, ct)))).ToList());
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var actionSteps = actions.SelectMany(action => action.DisplaySteps ?? []).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
-            .Select(s => CreateStepDto(s, instance, stepVersionDtos, instanceHistory, context, activeSteps,
-                effectiveEventLogs, submissionDtos, actionSteps, ct)));
+            .Select(s => CreateStepDto(s, instance, stepVersionDtos, context, activeSteps,
+                effectiveHistory.EventLogs, submissionDtos, actionSteps, ct)));
 
         var editActions = permissions.Where(a => a.Type == RoleAction.Edit).ToArray();
         var canEditByProperty = rightsService.CanEditProperties(
@@ -107,7 +115,7 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
-        var x = new WorkflowInstanceDto(
+        return new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
@@ -124,7 +132,6 @@ public class WorkflowInstanceDtoFactory(
             viewerRoles,
             infoCards
         );
-        return x;
     }
 
     private async Task<FieldDto[]> CreateFields(WorkflowDefinition workflowDefinition, WorkflowInstance instance,
@@ -156,7 +163,6 @@ public class WorkflowInstanceDtoFactory(
         Step step,
         WorkflowInstance instance,
         Dictionary<string, StepVersionsDto> stepVersionsMap,
-        WorkflowInstanceHistory instanceHistory,
         ObjectContext context,
         HashSet<string> activeSteps,
         IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
@@ -185,7 +191,7 @@ public class WorkflowInstanceDtoFactory(
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
-                .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
+                .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, activeSteps,
                     effectiveEventLogs, unversionedSubmissions, actionSteps, ct)))
             : null;
         // Match the step where the UI displays the submission, which can differ from the action's step.
@@ -214,7 +220,7 @@ public class WorkflowInstanceDtoFactory(
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
         UndoCandidateDto? undoCandidate = null;
         if (step.ParentStep == null &&
-            await undoService.GetCandidate(instance, step.Name, instanceHistory.EventLogs)
+            await undoService.GetCandidate(instance, step.Name, effectiveEventLogs)
                 is { OperationMetadata: { } operation } root)
         {
             var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == operation.Step);
@@ -293,35 +299,35 @@ public class WorkflowInstanceDtoFactory(
     private async Task<StepVersionDto> CreateStepVersionDto(
         StepVersion stepVersion,
         WorkflowInstance instance,
-        WorkflowInstanceHistory instanceHistory,
+        WorkflowInstanceHistory answerHistory,
+        WorkflowInstanceHistory effectiveHistory,
         IReadOnlyDictionary<string, string> displayNames,
+        WorkflowAction[] permissions,
         CancellationToken ct)
     {
         var historical = stepVersion.FrozenAt != null;
         var snapshot = historical
-            ? workflowInstanceService.GetAsOfTimestamp(instance, stepVersion.FrozenAt!.Value,
-                instanceHistory with { EventLogs = EventHistory.Project(instanceHistory.EventLogs).ToList() })
+            ? workflowInstanceService.GetAsOfTimestamp(instance, stepVersion.FrozenAt!.Value, effectiveHistory)
             : instance;
-        var allowedViewActions = await rightsService.GetAllowedActions(instance, RoleAction.View);
-        var editActions = historical ? [] : await rightsService.GetAllowedActions(instance, RoleAction.Edit);
+        var editActions = historical ? [] : permissions.Where(action => action.Type == RoleAction.Edit).ToArray();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var submissions = new List<SubmissionDto>();
         foreach (var member in stepVersion.Submissions)
         {
             var form = modelService.GetForm(instance, member.FormName);
-            if (!allowedViewActions.Any(action => action.MatchesForm(form.Name)))
+            if (!permissions.Any(action => action.Type == RoleAction.View && action.MatchesForm(form.Name)))
                 continue;
             // A reset can suppress the event while its submission still belongs to the preceding attempt.
             var submissionState = new FormSubmissionState(FormSubmissionState.GetSubmissionEventIds(form),
-                member.EventIds.Select(id => new InstanceEvent { Id = id, Date = member.DateSubmitted }).ToArray(),
+                [new InstanceEvent { Id = member.EventId, Date = member.DateSubmitted }],
                 member.DateSubmitted);
             var context = modelService.CreateContext(snapshot);
             await instanceService.Enrich(workflowDef, [context], form.ActualForm.Lookups, ct, replaceStep: false);
             var dto = submissionDtoFactory.Create(snapshot, form, submissionState,
                 modelService.GetQuestionStatus(snapshot, form, false),
                 editActions.Where(a => a.MatchesForm(form.Name)).Select(a => a.Type).ToArray(),
-                historical ? null : instanceHistory, displayNames, context);
-            submissions.Add(dto with { Form = dto.Form with { Step = member.Step ?? dto.Form.Step } });
+                historical ? null : answerHistory, displayNames, context);
+            submissions.Add(dto with { Form = dto.Form with { Step = member.Step } });
         }
 
         return new StepVersionDto

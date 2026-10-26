@@ -6,7 +6,7 @@ using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Versioning;
 
-public record StepVersionSubmission(string FormName, DateTime DateSubmitted, string[] EventIds, string? Step = null);
+public record StepVersionSubmission(string FormName, DateTime DateSubmitted, string EventId, string Step);
 
 public record StepVersion
 {
@@ -96,22 +96,18 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
         public Dictionary<string, StepVersions> Reconstruct()
         {
             // Undo is resolved first. Removing a restart operation also removes its version boundary.
-            var logs = EventHistory.Project(history.EventLogs).ToList();
-            // Only properties come from snapshots: events must be applied individually, even at equal timestamps.
-            var propertyHistory = history with { EventLogs = [] };
+            var logs = EventHistory.Project(history.EventLogs);
             // Audit timestamps determine replay order; EventDate still identifies the submission's effective date.
             var logsByDate = logs.GroupBy(log => log.Timestamp)
                 .ToDictionary(group => group.Key, group => group.ToArray());
             _now = DateTime.UtcNow;
-            // Seed the times to visit: recorded changes, initial reach at creation, and the state as of now.
-            // This is a sorted set so a timestamp shared by several changes is visited only once.
-            _pendingDates =
-            [
-                .. logsByDate.Keys
-                    .Concat(history.Journal?.PropertyChanges.Select(change => change.Timestamp) ?? [])
-                    .Append(instance.CreatedOn).Append(_now)
-            ];
-            var events = new Dictionary<string, InstanceEvent>();
+            _pendingDates = [.. logsByDate.Keys.Append(instance.CreatedOn).Append(_now)];
+            // Validation excludes changes to progression properties, so only events and the clock need replaying.
+            var snapshot = new WorkflowInstance
+            {
+                Id = instance.Id, WorkflowDefinition = instance.WorkflowDefinition, ParentId = instance.ParentId,
+                CreatedOn = instance.CreatedOn, Properties = instance.Properties, Events = []
+            };
 
             // Reached: start the first or replacement version, even without submissions.
             // Completed: update that version. Restarted: freeze it until the step is reached again.
@@ -120,21 +116,17 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             {
                 var date = _pendingDates.Min;
                 _pendingDates.Remove(date);
-                // Restore properties and the evaluation clock to this time; carry events forward from the last visit.
-                var snapshot = propertyHistory.GetInstanceAt(instance, date, modelService);
-                snapshot.Events = events;
+                snapshot.EvaluatedAt = date;
 
-                // Account for progression caused by time/properties before applying this timestamp's events.
+                // Account for time-driven progression before applying this timestamp's events.
                 ScheduleConditionDates(snapshot, date);
                 StartVersionsForReachedSteps(snapshot);
                 // Project already ordered equal-time logs by ID. Apply them individually to retain reset boundaries.
                 foreach (var log in logsByDate.GetValueOrDefault(date) ?? [])
                     ApplyRecordedEvent(snapshot, log, date);
 
-                // Property changes and deadlines can complete a step even when no event was recorded.
+                // Deadlines can complete a step even when no event was recorded.
                 UpdateCurrentVersions(snapshot, date);
-                // The next property snapshot starts with exactly the event state reached here.
-                events = snapshot.Events;
             }
 
             return _histories.ToDictionary(pair => pair.Key, pair => pair.Value.GetVersions());
@@ -307,7 +299,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             // A rejection can freeze this version before submissions are recalculated.
             current.Submissions.RemoveAll(member => member.FormName == form.Name);
             var submission =
-                new StepVersionSubmission(form.Name, log.EventDate ?? log.Timestamp, [log.EventId], formStep.Name);
+                new StepVersionSubmission(form.Name, log.EventDate ?? log.Timestamp, log.EventId, formStep.Name);
             current.SubmissionCandidates.Add(submission);
             current.Submissions.Add(submission);
         }
@@ -332,7 +324,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             current?.SubmissionCandidates.RemoveAll(BelongsToRestartedStep);
 
             bool BelongsToRestartedStep(StepVersionSubmission submission)
-                => submission.Step != null && IsWithin(definition.AllSteps.Get(submission.Step), restartedStep);
+                => IsWithin(definition.AllSteps.Get(submission.Step), restartedStep);
         }
 
         /// <summary>
@@ -346,8 +338,9 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             // Candidates retain every submission in this version. Only the latest active one per form is visible.
             // Removing suppression or deleting a newer event can make an earlier candidate visible again.
             // Match the event date as well as its ID: reusing an event ID must not revive an older submission.
-            var effectiveSubmissions = current.SubmissionCandidates.Where(member => member.EventIds.Any(id =>
-                    IsActive(id, snapshot, definition) && snapshot.Events[id].Date == member.DateSubmitted))
+            var effectiveSubmissions = current.SubmissionCandidates.Where(member =>
+                    IsActive(member.EventId, snapshot, definition) &&
+                    snapshot.Events[member.EventId].Date == member.DateSubmitted)
                 .GroupBy(member => member.FormName).Select(group => group.Last()).ToArray();
             current.Submissions.Clear();
             current.Submissions.AddRange(effectiveSubmissions);
@@ -382,10 +375,12 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
         public WorkflowVersionRules(WorkflowDefinition definition)
         {
             _definition = definition;
-            _restartStepsByEvent = FindRestartSteps(definition);
+            var restartStepsByEvent = FindRestartSteps(definition);
             _stepOrder = definition.Steps.SelectMany(Subtree).ToList();
             VersionedSteps = definition.AllSteps.Where(step =>
-                step.ParentStep == null || _restartStepsByEvent.Values.Contains(step)).ToArray();
+                step.ParentStep == null || restartStepsByEvent.Values.Contains(step)).ToArray();
+            _restartStepsByEvent = restartStepsByEvent
+                .Where(pair => TargetsEarlierWork(pair.Key, pair.Value)).ToDictionary();
         }
 
         /// <summary>
@@ -395,13 +390,21 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
         public Step? DetermineRestart(
             InstanceEventLogEntry log, WorkflowInstance before, WorkflowInstance snapshot)
         {
-            var restartStep = _restartStepsByEvent.GetValueOrDefault(log.EventId);
-            var suppressed = _definition.Events.GetOrDefault(log.EventId)?.Suppresses ?? [];
-            var suppressedEventBecameInactive = suppressed.Any(id =>
-                IsActive(id, before, _definition) && !IsActive(id, snapshot, _definition));
-            var sourceStep = FindEventStep(_definition, log.EventId);
+            if (log.Operation is not (EventLogOperation.Create or EventLogOperation.Update) ||
+                !_restartStepsByEvent.TryGetValue(log.EventId, out var restartStep))
+                return null;
+
+            return (_definition.Events.Get(log.EventId).Suppresses ?? []).Any(id =>
+                IsActive(id, before, _definition) && !IsActive(id, snapshot, _definition))
+                ? restartStep
+                : null;
+        }
+
+        private bool TargetsEarlierWork(string eventId, Step restartStep)
+        {
+            var sourceStep = FindEventStep(_definition, eventId);
             // Moving backward in definition order identifies rejection/reset rather than ordinary forward progression.
-            var targetsEarlierWork = restartStep != null && suppressed.Any(id =>
+            return (_definition.Events.Get(eventId).Suppresses ?? []).Any(id =>
             {
                 var targetStep = FindEventStep(_definition, id);
                 if (targetStep == null)
@@ -412,12 +415,6 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
                 // A reset action without a form or completion step targets the beginning of the restarted work.
                 return IsWithin(targetStep, restartStep.Children.FirstOrDefault() ?? restartStep);
             });
-
-            // Only a rejection/reset that invalidates earlier work starts another attempt.
-            return targetsEarlierWork && suppressedEventBecameInactive &&
-                   log.Operation is EventLogOperation.Create or EventLogOperation.Update
-                ? restartStep
-                : null;
         }
 
         /// <summary>

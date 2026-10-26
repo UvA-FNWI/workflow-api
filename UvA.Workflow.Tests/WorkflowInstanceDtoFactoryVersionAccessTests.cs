@@ -50,6 +50,60 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Create_UndoingRejectionKeepsDraftEditsOutOfLiveAnswerCorrections()
+    {
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateProjectInstance();
+        instance.CreatedOn = t;
+        instance.Properties["EC"] = 18;
+        var rejection = EventLog(instance, "RejectSubject", t.AddMinutes(3));
+        rejection.OperationId = "rejection";
+        var logs = new[]
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            rejection,
+            new InstanceEventLogEntry
+            {
+                WorkflowInstanceId = instance.Id, Timestamp = t.AddMinutes(5),
+                Operation = EventLogOperation.Undo, OperationId = rejection.OperationId
+            }
+        };
+        instance.Events = EventHistory.RebuildEvents(logs);
+        var correction = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(2), ["Path"] = "EC", ["OldValue"] = 6,
+            ["ModifiedBy"] = "coordinator"
+        });
+        var draft = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(4), ["Path"] = "EC", ["OldValue"] = 12,
+            ["ModifiedBy"] = "coordinator"
+        });
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockPropertyJournal(instance, (correction, 1), (draft, 1));
+        MockHistoricalEventLog(instance, logs);
+
+        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+
+        var versions = FindStep(dto.Steps, "Subject").Versions!;
+        Assert.Equal(1, versions.Current!.VersionNumber);
+        Assert.Empty(versions.History);
+        foreach (var submission in new[]
+                 {
+                     dto.Submissions.Single(s => s.FormName == "Start"),
+                     versions.Current.Submissions.Single(s => s.FormName == "Start")
+                 })
+        {
+            var answer = submission.Answers.Single(a => a.QuestionName == "EC");
+            Assert.Equal(18, answer.Value?.GetInt32());
+            var changes = Assert.Single(answer.Changes!).Changes;
+            Assert.Equal([12, 6], changes.Select(change => change.Value!.Value.GetInt32()));
+        }
+    }
+
+    [Fact]
     public async Task Create_UsesCurrentViewRightsForVersionSubmissions()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
@@ -57,7 +111,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var stepVersionService = CreateStepVersionService("Start", new StepVersion
         {
             VersionNumber = 1,
-            Submissions = [new("Start", submittedAt, ["Start"])],
+            Submissions = [new("Start", submittedAt, "Start", "Start")],
             FrozenAt = submittedAt
         });
         var factory = CreateFactory(stepVersionService.Object);
@@ -87,7 +141,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var stepVersionService = CreateStepVersionService("Start", new StepVersion
         {
             VersionNumber = 1,
-            Submissions = [new("Start", submittedAt, ["Start"])],
+            Submissions = [new("Start", submittedAt, "Start", "Start")],
             FrozenAt = submittedAt
         });
         var factory = CreateFactory(stepVersionService.Object);
@@ -129,7 +183,11 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var stepVersionService = CreateStepVersionService("ProposalAssessmentSupervisor", new StepVersion
         {
             VersionNumber = 1,
-            Submissions = [new("ProposalAndEthicsReviewSupervisor", submittedAt, ["ProposalApprovedSupervisor"])],
+            Submissions =
+            [
+                new("ProposalAndEthicsReviewSupervisor", submittedAt, "ProposalApprovedSupervisor",
+                    "ProposalAssessmentSupervisor")
+            ],
             FrozenAt = submittedAt
         });
         var factory = CreateFactory(stepVersionService.Object);
@@ -171,13 +229,13 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
             new StepVersion
             {
                 VersionNumber = 1,
-                Submissions = [new("Start", historicalSubmittedAt, ["Start"])],
+                Submissions = [new("Start", historicalSubmittedAt, "Start", "Start")],
                 FrozenAt = historicalSubmittedAt
             },
             new StepVersion
             {
                 VersionNumber = 2,
-                Submissions = [new("Start", currentSubmittedAt, ["Start"])]
+                Submissions = [new("Start", currentSubmittedAt, "Start", "Start")]
             });
         var factory = CreateFactory(stepVersionService.Object);
 
@@ -251,10 +309,11 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var instance = CreateProjectInstance();
         instance.CreatedOn = t;
-        instance.Properties["Subject"] = "New draft";
+        instance.Properties["Subject"] = "test2";
         var logs = new[]
         {
             EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "ApproveSubject", t.AddMinutes(1.5)),
             EventLog(instance, "RejectSubject", t.AddMinutes(3))
         };
         instance.Events = EventHistory.RebuildEvents(logs);
@@ -263,27 +322,35 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         MockEmptyRelatedInstanceLookups();
         var correction = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
         {
-            ["Timestamp"] = t.AddMinutes(2), ["Path"] = "Subject", ["OldValue"] = "Original",
+            ["Timestamp"] = t.AddMinutes(2), ["Path"] = "Subject", ["OldValue"] = "test",
             ["ModifiedBy"] = "coordinator", ["Version"] = 1
         });
         var draft = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
         {
             ["Timestamp"] = t.AddMinutes(lastDraftEditMinute),
-            ["Path"] = "Subject", ["OldValue"] = "Corrected",
+            ["Path"] = "Subject", ["OldValue"] = "test2",
             ["ModifiedBy"] = "coordinator", ["Version"] = 1
         });
-        MockPropertyJournal(instance, (correction, 1), (draft, 1));
+        MockPropertyJournal(instance, (correction, 1));
         MockHistoricalEventLog(instance, logs);
+        var factory = CreateFactory(new StepVersionService(_modelService));
 
-        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+        var beforeEditing = await factory.Create(instance, CancellationToken.None);
+        Assert.Equal(2, FindStep(beforeEditing.Steps, "Subject").Versions!.Current!.VersionNumber);
+
+        instance.Properties["Subject"] = "New draft";
+        MockPropertyJournal(instance, (correction, 1), (draft, 1));
+        var dto = await factory.Create(instance, CancellationToken.None);
 
         var subject = FindStep(dto.Steps, "Subject");
         Assert.NotNull(subject.Versions);
         Assert.Equal(2, subject.Versions.Current!.VersionNumber);
         Assert.Empty(subject.Versions.Current.Submissions);
         var previous = Assert.Single(subject.Versions.History);
+        Assert.Equal(1, previous.VersionNumber);
+        Assert.Equal(t.AddMinutes(1.5), previous.CompletionTimestamp);
         var submission = Assert.Single(previous.Submissions, submission => submission.FormName == "Start");
-        Assert.Equal("Corrected",
+        Assert.Equal("test2",
             submission.Answers.Single(answer => answer.QuestionName == "Subject").Value?.GetString());
     }
 

@@ -63,10 +63,6 @@ public abstract class ConditionPart
     public virtual Lookup[] Dependants => [];
     public abstract bool IsMet(ObjectContext context);
 
-    public virtual bool IsMet(IReadOnlySet<string> eventIds)
-        => throw new NotSupportedException(
-            $"Condition type '{GetType().Name}' cannot be evaluated using only historical event IDs.");
-
     public virtual IEnumerable<Lookup> Properties => [];
 }
 
@@ -141,9 +137,6 @@ public class EventCondition : ConditionPart
         return true;
     }
 
-    public override bool IsMet(IReadOnlySet<string> eventIds)
-        => eventIds.Contains(Id);
-
     public static implicit operator EventCondition(string s) => new() { Id = s };
 }
 
@@ -168,21 +161,6 @@ public class Logical : ConditionPart
             LogicalOperator.Or => Children.Any(c => c.IsMet(context)),
             _ => throw new NotImplementedException()
         };
-
-    public override bool IsMet(IReadOnlySet<string> eventIds)
-    {
-        // Evaluate every child first so unsupported condition types are always reported,
-        // even when And/Or would otherwise short-circuit before reaching that child.
-        var childResults = Children.Select(c => c.IsMet(eventIds)).ToArray();
-
-        return Operator switch
-        {
-            LogicalOperator.And => childResults.All(result => result),
-            LogicalOperator.Or => childResults.Any(result => result),
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(Operator), Operator, "Unsupported logical operator.")
-        };
-    }
 }
 
 /// <summary>
