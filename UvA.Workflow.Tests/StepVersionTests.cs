@@ -490,7 +490,7 @@ public class StepVersionTests
         var definition = model.WorkflowDefinitions["Reset"];
         var proposal = definition.AllSteps.Single(item => item.Name == "Proposal");
         proposal.Ends = new Condition { Date = new Date { Source = "Deadline" } };
-        definition.Properties.Add(new PropertyDefinition { Name = "Deadline", Type = "DateTime" });
+        definition.Properties.Add(new DateTimePropertyDefinition { Name = "Deadline", Type = "DateTime" });
         instance.Properties["Deadline"] = At(2);
         definition.Steps = [proposal, definition.AllSteps.Single(item => item.Name == "Writing")];
         proposal.ParentStep = null;
@@ -555,7 +555,7 @@ public class StepVersionTests
     }
 
     [Fact]
-    public void LaterAnswerEditsWithoutAProvableBoundaryCannotBePresentedAsExactHistory()
+    public void LaterAnswerEditsPreserveAttemptHistory()
     {
         var (model, instance, history) = ResetHistory("ProposalSubmitted", "DraftSubmitted", "RequestRevision");
         model.WorkflowDefinitions["Reset"].Forms.Single(form => form.Name == "Draft").Pages =
@@ -564,21 +564,34 @@ public class StepVersionTests
             {
                 PageElements =
                 [
-                    new PageElement { QuestionDefinition = new PropertyDefinition { Name = "Title", Type = "String" } }
+                    new PageElement
+                        { QuestionDefinition = new StringPropertyDefinition { Name = "Title", Type = "String" } }
                 ]
             }
         ];
         instance.Properties["Title"] = "New draft";
+        var change = new BsonDocument
+        {
+            ["Timestamp"] = At(4), ["Path"] = "Title", ["OldValue"] = "Previous answer",
+            ["ModifiedBy"] = "coordinator"
+        };
         var journal = new UvA.Workflow.Journaling.InstanceJournalEntry
         {
             PropertyChanges =
             [
-                UvA.Workflow.Journaling.PropertyChangeEntry.Create("Title", "Previous answer",
-                    UnitTestsHelpers.AdminUser)
+                MongoDB.Bson.Serialization.BsonSerializer
+                    .Deserialize<UvA.Workflow.Journaling.PropertyChangeEntry>(change)
             ]
         };
-        Assert.Throws<StepVersionHistoryUnavailableException>(() =>
-            new StepVersionService(model).GetStepVersions(instance, history with { Journal = journal }));
+        var versions = new StepVersionService(model).GetStepVersions(instance, history with { Journal = journal });
+
+        var writing = versions["Writing"];
+        Assert.Equal(2, writing.Current!.VersionNumber);
+        Assert.Empty(writing.Current.Submissions);
+        var previous = Assert.Single(writing.History);
+        Assert.Equal(1, previous.VersionNumber);
+        Assert.Equal(At(3), previous.FrozenAt);
+        Assert.Equal("Draft", Assert.Single(previous.Submissions).FormName);
     }
 
     [Fact]

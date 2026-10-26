@@ -243,6 +243,50 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.Empty(Assert.Single(subject.Versions.History).Submissions);
     }
 
+    [Theory]
+    [InlineData(4)]
+    [InlineData(10)]
+    public async Task Create_SavingANewDraftAfterRestartPreservesTheCorrectedPreviousAttempt(int lastDraftEditMinute)
+    {
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateProjectInstance();
+        instance.CreatedOn = t;
+        instance.Properties["Subject"] = "New draft";
+        var logs = new[]
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "RejectSubject", t.AddMinutes(3))
+        };
+        instance.Events = EventHistory.RebuildEvents(logs);
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        var correction = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(2), ["Path"] = "Subject", ["OldValue"] = "Original",
+            ["ModifiedBy"] = "coordinator", ["Version"] = 1
+        });
+        var draft = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(lastDraftEditMinute),
+            ["Path"] = "Subject", ["OldValue"] = "Corrected",
+            ["ModifiedBy"] = "coordinator", ["Version"] = 1
+        });
+        MockPropertyJournal(instance, (correction, 1), (draft, 1));
+        MockHistoricalEventLog(instance, logs);
+
+        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+
+        var subject = FindStep(dto.Steps, "Subject");
+        Assert.NotNull(subject.Versions);
+        Assert.Equal(2, subject.Versions.Current!.VersionNumber);
+        Assert.Empty(subject.Versions.Current.Submissions);
+        var previous = Assert.Single(subject.Versions.History);
+        var submission = Assert.Single(previous.Submissions, submission => submission.FormName == "Start");
+        Assert.Equal("Corrected",
+            submission.Answers.Single(answer => answer.QuestionName == "Subject").Value?.GetString());
+    }
+
     [Fact]
     public async Task Create_UnreconstructableProgressionKeepsNormalSubmissionDisplayWithoutInventingAttempts()
     {

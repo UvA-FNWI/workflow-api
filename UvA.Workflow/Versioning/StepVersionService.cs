@@ -50,7 +50,7 @@ public interface IStepVersionService
 /// </para>
 /// </remarks>
 /// <exception cref="StepVersionHistoryUnavailableException">
-/// History cannot be reconstructed reliably, for example because merged answer edits obscure which version they belong to.
+/// Progression cannot be reconstructed reliably, for example because merged property edits obscure when a step was reached.
 /// </exception>
 public class StepVersionService(ModelService modelService) : IStepVersionService
 {
@@ -84,7 +84,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
         WorkflowVersionRules rules)
     {
         private readonly Dictionary<string, StepAttemptHistory> _histories = rules.VersionedSteps.ToDictionary(
-            step => step.Name, step => new StepAttemptHistory(step, definition, history));
+            step => step.Name, step => new StepAttemptHistory(step, definition));
 
         private SortedSet<DateTime> _pendingDates = [];
         private DateTime _now;
@@ -276,7 +276,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
     /// Owns the complete version sequence for one step. This is the only place that mutates a version.
     /// The latest version is Current, including while frozen and waiting for this step to be reached again.
     /// </summary>
-    private sealed class StepAttemptHistory(Step step, WorkflowDefinition definition, WorkflowInstanceHistory history)
+    private sealed class StepAttemptHistory(Step step, WorkflowDefinition definition)
     {
         private readonly List<StepVersion> _versions = [];
         private StepVersion? Current => _versions.LastOrDefault();
@@ -313,15 +313,12 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
         }
 
         /// <summary>
-        /// Closes the current attempt at the reset timestamp, after checking its answers can be reconstructed reliably.
-        /// Completion alone never freezes an attempt; later corrections still belong to it until a reset.
+        /// Records the restart cutoff, keeping the first cutoff while the step waits to be reached again.
         /// </summary>
-        public void FreezeCurrentVersionOnRestart(DateTime date)
+        public void FreezeCurrentVersionOnRestart(DateTime restartedAt)
         {
-            if (Current is not { FrozenAt: null } current)
-                return;
-            ValidateFrozenAnswers(current, date);
-            current.FrozenAt = date;
+            if (Current is { } current)
+                current.FrozenAt ??= restartedAt;
         }
 
         /// <summary>
@@ -368,29 +365,6 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
                 current.CompletionTimestamp = null;
             else
                 current.CompletionTimestamp ??= Step.GetEndDate(snapshot, definition) ?? date;
-        }
-
-        /// <summary>
-        /// Rejects answer histories that may contain edits merged across this attempt's closing timestamp.
-        /// Check question, condition and lookup properties because all can affect how the historical form is read.
-        /// </summary>
-        private void ValidateFrozenAnswers(StepVersion version, DateTime date)
-        {
-            foreach (var member in version.Submissions)
-            {
-                var form = definition.Forms.Get(member.FormName);
-                var paths = form.ActualForm.PropertyDefinitions
-                    .Select(question =>
-                        form.PropertyName == null ? question.Name : $"{form.PropertyName}.{question.Name}")
-                    .Concat(form.ActualForm.PropertyDefinitions.SelectMany(question => question.Conditions)
-                        .SelectMany(condition => condition.Properties).Select(path => path.ToString()))
-                    .Concat(form.Lookups.Select(path => path.ToString())).ToArray();
-                if ((history.Journal?.PropertyChanges ?? []).Any(change => change.Timestamp >= date &&
-                                                                           paths.Any(path =>
-                                                                               PathsOverlap(path, change.Path))))
-                    throw new StepVersionHistoryUnavailableException(
-                        "Later answer edits may have merged across an attempt boundary; its frozen answers cannot be reconstructed exactly.");
-            }
         }
     }
 
