@@ -283,7 +283,11 @@ public class ImportService(
         var user = await userRepository.GetByEmail(trimmedEmail, ct);
         if (user != null)
         {
-            var userInput = new { userName = user.UserName, displayName = user.DisplayName, email = user.Email };
+            var userInput = new
+            {
+                userName = user.UserName, displayName = user.DisplayName, email = user.Email,
+                organization = user.Organization
+            };
             return JsonSerializer.SerializeToElement(userInput, AnswerConversionService.Options);
         }
 
@@ -296,8 +300,10 @@ public class ImportService(
 
         var matchingExternalUserInput = new
         {
-            userName = matchingExternalUser.UserName, displayName = matchingExternalUser.DisplayName,
-            email = matchingExternalUser.Email
+            userName = matchingExternalUser.UserName,
+            displayName = matchingExternalUser.DisplayName,
+            email = matchingExternalUser.Email,
+            organization = matchingExternalUser.Organization
         };
         return JsonSerializer.SerializeToElement(matchingExternalUserInput, AnswerConversionService.Options);
     }
