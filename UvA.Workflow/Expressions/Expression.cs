@@ -122,6 +122,8 @@ public record Expression
 
     public virtual IEnumerable<Lookup> Properties => this switch
     {
+        // Value sets come from the model, not from instance data, so there is nothing to load
+        Identifier(var k) when k.StartsWith("ValueSets.", StringComparison.Ordinal) => [],
         Identifier(var k) => [k],
         Call(Identifier(var text), var args) when Functions.ContainsKey(text) => args.SelectMany(a => a.Properties),
         Call(Identifier(var text) expr, var args) => [new ComplexLookup(text, args)],

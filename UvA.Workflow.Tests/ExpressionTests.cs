@@ -112,6 +112,14 @@ public class ExpressionTests
     }
 
     [Fact]
+    public void ValueSets_AreNotReportedAsPropertiesToLoad()
+    {
+        Assert.Equal([new PropertyLookup("Selection")],
+            ExpressionParser.Parse("count(except(Selection, ValueSets.Excluded))").Properties);
+        Assert.Empty(ExpressionParser.Parse("ValueSets.Excluded").Properties);
+    }
+
+    [Fact]
     public void ValueSets_UnknownName_ReturnsNull()
     {
         var context = new ObjectContext([], new Dictionary<string, string[]> { ["Excluded"] = ["None"] });
