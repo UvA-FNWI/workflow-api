@@ -65,9 +65,13 @@ public record Expression
             IEnumerable values when values is not string => values.Cast<object?>().Count(),
             _ => throw new ArgumentException("count expects a collection")
         }),
-        ["except"] = new Function<IEnumerable, object, object?[]>((a, b) =>
-            a?.Cast<object?>().Except(b is IEnumerable values && b is not string ? values.Cast<object?>() : [b])
-                .ToArray() ?? []),
+        ["except"] = new Function<IEnumerable, object, object?[]>((list, excluded) =>
+        {
+            HashSet<object?> remove = excluded is IEnumerable values && excluded is not string
+                ? values.Cast<object?>().ToHashSet()
+                : [excluded];
+            return list?.Cast<object?>().Where(item => !remove.Contains(item)).ToArray() ?? [];
+        }),
         ["select"] = new Function<IEnumerable, string, object?[]>((list, field) =>
         {
             if (string.IsNullOrWhiteSpace(field))

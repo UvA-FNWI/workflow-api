@@ -80,6 +80,35 @@ public class ExpressionTests
         Assert.Equal(new object[] { "Beta" }, Assert.IsType<object[]>(exp.Execute(context)));
     }
 
+    [Theory]
+    [InlineData("except(Choices, =None)")]
+    [InlineData("except(Choices, Excluded)")]
+    public void Except_KeepsDuplicatesThatAreNotExcluded(string expression)
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Choices"] = new[] { "Alpha", "None", "Beta", "Alpha" },
+            ["Excluded"] = new[] { "None" }
+        });
+
+        Assert.Equal(new object[] { "Alpha", "Beta", "Alpha" },
+            Assert.IsType<object[]>(ExpressionParser.Parse(expression).Execute(context)));
+    }
+
+    [Fact]
+    public void Except_CountsRemainingSelectedRows()
+    {
+        var exp = ExpressionParser.Parse("count(except(select(Rows, =Code), =None))");
+        var rows = new[]
+        {
+            new Dictionary<string, object> { ["Code"] = "Alpha" },
+            new Dictionary<string, object> { ["Code"] = "Alpha" },
+            new Dictionary<string, object> { ["Code"] = "None" }
+        };
+
+        Assert.Equal(2, exp.Execute(RowsContext(rows)));
+    }
+
     [Fact]
     public void Except_NullCollection_ReturnsEmptyCollection()
     {
