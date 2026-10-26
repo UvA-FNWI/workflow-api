@@ -257,7 +257,7 @@ public class Value : ConditionPart
 
     public override Lookup[] Dependants =>
     [
-        Property,
+        .. PropertyExpression.Properties,
         .. EqualExpression?.Properties ?? [],
         .. LessThanExpression?.Properties ?? [],
         .. LessThanOrEqualExpression?.Properties ?? [],
