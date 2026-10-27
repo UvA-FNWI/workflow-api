@@ -45,7 +45,7 @@ public class PersonalControllerTests : ControllerTestsBase
                     UserDocument(userId, "Current Employee"))),
                 ("Examiner", property => property.Value(
                     UserDocument(userId, "Current Employee"))),
-                ("SecondReader", property => property.Value(
+                ("SecondAssessor", property => property.Value(
                     UserDocument(ObjectId.GenerateNewId(), "Examiner Name"))))
             .Build();
         project.CreatedOn = createdOn;
