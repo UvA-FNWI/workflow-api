@@ -1,6 +1,7 @@
 using System.Text.Json;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -13,6 +14,7 @@ public record SaveAnswerResponse(
     bool Success,
     Answer[] Answers,
     SubmissionDto Submission,
+    WorkflowInstanceDto? UpdatedInstance,
     string? ErrorMessage = null,
     UserSearchResultDto? User = null);
 

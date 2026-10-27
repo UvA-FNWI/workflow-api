@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowInstances;
@@ -14,7 +15,8 @@ public class AnswersController(
     InstanceService instanceService,
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository,
-    WorkflowInstanceService workflowInstanceService) : ApiControllerBase
+    WorkflowInstanceService workflowInstanceService,
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
     [HttpDelete("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> ClearAnswers(string instanceId, string submissionId,
@@ -57,7 +59,14 @@ public class AnswersController(
                 context.SubmissionState,
                 modelService.GetQuestionStatus(context.Instance, context.Form, true),
                 permissions.Select(p => p.Type).ToArray(), history, ct);
-            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission,
+            WorkflowInstanceDto? updatedInstance = null;
+            if (await rightsService.Can(context.Instance, RoleAction.View))
+            {
+                await instanceService.UpdateCurrentStep(context.Instance, ct);
+                updatedInstance = await workflowInstanceDtoFactory.Create(context.Instance, ct);
+            }
+
+            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, updatedInstance,
                 User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }
         catch (ExternalUserCreationException ex)
