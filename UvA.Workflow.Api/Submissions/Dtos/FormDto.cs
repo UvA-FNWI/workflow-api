@@ -12,6 +12,7 @@ public record FormDto(
 {
     public static FormDto Create(Form form, ObjectContext context)
     {
+        context = form.GetContext(context);
         var allPages = form.ActualForm.Pages.ToArray();
         var totalWeight = allPages
             .SelectMany(p => p.Questions)

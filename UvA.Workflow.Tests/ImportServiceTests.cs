@@ -3,9 +3,11 @@ using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Import;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Organizations;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Users;
+using UvA.Workflow.Users.DataNose;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
 
@@ -120,6 +122,7 @@ public class ImportServiceTests
             answerService ?? null!, // ← forwarded
             modelService,
             userRepoMock.Object,
+            userServiceMock.Object,
             new RightsService(modelService, userServiceMock.Object, repoMock.Object));
 
         return (service, repoMock, userRepoMock, userServiceMock);
@@ -343,6 +346,64 @@ public class ImportServiceTests
         Assert.Equal("UserNotFound", error.Code);
         Assert.Equal("Supervisor", error.Column);
     }
+
+    [Fact]
+    public async Task ImportAsync_UserProperty_ResolvesFromExternalDirectory_WhenNotInRepository()
+    {
+        const string email = "ext.user@uva.nl";
+        BsonValue? capturedValue = null;
+        var answerMock = new Mock<IAnswerService>();
+        answerMock
+            .Setup(a => a.SavePropertyValue(
+                It.IsAny<WorkflowInstance>(),
+                It.Is<string[]>(p => p[0] == "Supervisor"),
+                It.IsAny<PropertyDefinition>(), It.IsAny<BsonValue>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkflowInstance, string[], PropertyDefinition, BsonValue, bool, CancellationToken>((_, _, _, v,
+                _, _) => capturedValue = v)
+            .Returns(Task.CompletedTask);
+
+        var (service, repo, userRepo, userServiceMock) = CreateService(DefaultPreviewYaml, ["Admin"],
+            answerService: answerMock.Object);
+        var instance = BasicInstance();
+        repo.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(instance);
+
+        // Not in our repository yet...
+        userRepo.Setup(u => u.GetByEmail(email, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        // ...but found externally, e.g. in DataNose.
+        userServiceMock.Setup(s => s.FindUsers(email, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new UserSearchResult("ext.user", "External Person", email, DataNoseDirectoryKeys.SourceKey)
+            ]);
+
+        // Newly created user (first time seen internally).
+        userServiceMock.Setup(s => s.GetUser("ext.user", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        userServiceMock.Setup(s => s.AddOrUpdateUser(
+                "ext.user", "External Person", email, UserProviderKeys.Internal,
+                It.IsAny<Organization?>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                UserName = "ext.user",
+                DisplayName = "External Person",
+                Email = email,
+                ProviderKey = UserProviderKeys.Internal
+            });
+
+        await service.ImportAsync("TestDef", "Overview",
+            [new ImportConfirmRow(instance.Id, new Dictionary<string, string> { ["Supervisor"] = email })],
+            CancellationToken.None);
+
+        var doc = Assert.IsType<BsonDocument>(capturedValue);
+        Assert.Equal(email, doc["Email"].AsString);
+        Assert.Equal("ext.user", doc["UserName"].AsString);
+        Assert.Equal("External Person", doc["DisplayName"].AsString);
+    }
+
 
     [Fact]
     public async Task PreviewAsync_UserHasNoEditRights_ProducesNotAllowedErrorOnIdentifierColumn()
