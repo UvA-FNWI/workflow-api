@@ -183,7 +183,7 @@ public class RightsService(
         {
             roles.AddRange(
                 definition.Properties.OfType<UserPropertyDefinition>()
-                    .Where(p => p.IsInheritableRole == true)
+                    .Where(p => p.InheritRole == true)
                     .Select(p => new RoleValue(
                         p.Name, instance.GetProperty(p.Name))));
         }

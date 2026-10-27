@@ -5,4 +5,4 @@ titlePlural: Faculties
 properties:
   - name: LocalAdmin
     type: "[User]!"
-    isInheritableRole: true
+    inheritRole: true

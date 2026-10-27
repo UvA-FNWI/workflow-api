@@ -204,7 +204,7 @@ public class InstanceAuthorizationFilterService(
         var filters = new List<BsonDocument>();
 
         var roleProperty = definition.Properties.OfType<UserPropertyDefinition>().FirstOrDefault(p =>
-            p.Name == role && p.IsInheritableRole == true);
+            p.Name == role && p.InheritRole == true);
 
         if (roleProperty != null)
         {

@@ -11,11 +11,11 @@ properties:
     text:
       en: Coordinator
       nl: Coördinator
-    isInheritableRole: true
+    inheritRole: true
 
   - name: Impersonator
     type: "[User]!"
-    isInheritableRole: true
+    inheritRole: true
 
   - name: CourseManual
     type: String!

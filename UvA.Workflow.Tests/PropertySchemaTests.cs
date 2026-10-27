@@ -85,10 +85,10 @@ public class PropertySchemaTests
     [InlineData("File", "\"maximumSize\": null")]
     [InlineData("File", "\"fileSettings\": {\"allowedTypes\": [\"pdf\"]}")]
     [InlineData("Country", "\"values\": [], \"filter\": \"Title\"")]
-    [InlineData("Assessment", "\"control\": \"Modal\", \"isInheritableRole\": true")]
-    [InlineData("[Context]", "\"control\": \"RadioList\", \"isInheritableRole\": true")]
-    [InlineData("String", "\"isInheritableRole\": true")]
-    [InlineData("User", "\"isInheritableRole\": [\"Coordinator\"]")]
+    [InlineData("Assessment", "\"control\": \"Modal\", \"inheritRole\": true")]
+    [InlineData("[Context]", "\"control\": \"RadioList\", \"inheritRole\": true")]
+    [InlineData("String", "\"inheritRole\": true")]
+    [InlineData("User", "\"inheritRole\": [\"Coordinator\"]")]
     [InlineData("Date", "\"calculation\": {\"weight\": 1}")]
     [InlineData("String", "\"calculation\": {\"weight\": 1}")]
     [InlineData("File", "\"calculation\": {\"weight\": 1}")]
@@ -119,11 +119,11 @@ public class PropertySchemaTests
         Assert.Equal(["name", "type"], date.RequiredProperties);
 
         var user = schema.Definitions[nameof(UserPropertyDefinition)];
-        Assert.Contains("isInheritableRole", user.Properties.Keys);
-        Assert.DoesNotContain("isInheritableRole", user.RequiredProperties);
+        Assert.Contains("inheritRole", user.Properties.Keys);
+        Assert.DoesNotContain("inheritRole", user.RequiredProperties);
         Assert.DoesNotContain("inheritedRoles", user.Properties.Keys);
         var reference = schema.Definitions[nameof(ReferencePropertyDefinition)];
-        Assert.DoesNotContain("isInheritableRole", reference.Properties.Keys);
+        Assert.DoesNotContain("inheritRole", reference.Properties.Keys);
         Assert.DoesNotContain("inheritedRoles", reference.Properties.Keys);
 
         var text = schema.Definitions[nameof(StringPropertyDefinition)];

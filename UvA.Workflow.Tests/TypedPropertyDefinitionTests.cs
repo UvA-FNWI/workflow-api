@@ -88,7 +88,7 @@ public class TypedPropertyDefinitionTests
                                       properties:
                                         - name: Coordinator
                                           type: User
-                                          isInheritableRole: true
+                                          inheritRole: true
                                       """,
             ["Assessment/Entity.yaml"] = "name: Assessment\ninheritsFrom: BaseAssessment",
             ["BaseAssessment/Entity.yaml"] = "name: BaseAssessment\nisEmbedded: true"
@@ -105,7 +105,7 @@ public class TypedPropertyDefinitionTests
         Assert.NotNull(reference.WorkflowDefinition);
         var coordinator = Assert.IsType<UserPropertyDefinition>(
             reference.WorkflowDefinition.Properties.Get("Coordinator"));
-        Assert.True(coordinator.IsInheritableRole);
+        Assert.True(coordinator.InheritRole);
         Assert.DoesNotContain(properties, property => property.Name == "Coordinator");
 
         var embedded = Assert.IsType<ObjectPropertyDefinition>(properties.Get("Assessment"));

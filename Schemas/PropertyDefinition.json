@@ -1986,7 +1986,7 @@
           ],
           "description": "Determines if the propertyDefinition allows external users"
         },
-        "isInheritableRole": {
+        "inheritRole": {
           "type": [
             "boolean",
             "null"

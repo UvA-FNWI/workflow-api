@@ -224,11 +224,11 @@ public class UserPropertyDefinition : PropertyDefinition
     /// Determines if the propertyDefinition allows external users
     /// </summary>
     public bool? AllowsExternalUsers { get; set; } = false;
-    
+
     /// <summary>
     /// Marks this property as an inheritable role, meaning that the users in this role will be inherited by child entities.
     /// </summary>
-    public bool? IsInheritableRole { get; set; }
+    public bool? InheritRole { get; set; }
 }
 
 /// <summary>Selection from inline choices or a named value set, with optional control and rubric settings.</summary>

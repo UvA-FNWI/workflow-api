@@ -70,8 +70,8 @@ public class RightsServiceInheritedRolesTests
     public async Task GetViewerRoles_DoesNotInheritRolesUnlessExplicitlyEnabled()
     {
         var properties = _model.WorkflowDefinitions["Course"].Properties.OfType<UserPropertyDefinition>();
-        properties.Single(p => p.Name == "Coordinator").IsInheritableRole = false;
-        properties.Single(p => p.Name == "Impersonator").IsInheritableRole = null;
+        properties.Single(p => p.Name == "Coordinator").InheritRole = false;
+        properties.Single(p => p.Name == "Impersonator").InheritRole = null;
         var course = Instance("Course",
             ("Coordinator", new BsonArray { UserDocument() }),
             ("Impersonator", UserDocument()));
