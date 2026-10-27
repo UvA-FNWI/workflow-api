@@ -12,6 +12,7 @@ public class ImportService(
     IAnswerService answerService,
     ModelService modelService,
     IUserRepository userRepository,
+    IUserService userService,
     RightsService rightsService) : IImportService
 {
     public bool IsImportableType(DataType dt) => dt is
@@ -276,11 +277,35 @@ public class ImportService(
 
     private async Task<JsonElement> ResolveUserElement(string email, CancellationToken ct)
     {
-        var user = await userRepository.GetByEmail(email.Trim(), ct);
-        if (user == null) return JsonSerializer.SerializeToElement<object?>(null);
+        var trimmedEmail = email.Trim();
 
-        var userInput = new { userName = user.UserName, displayName = user.DisplayName, email = user.Email };
-        return JsonSerializer.SerializeToElement(userInput, AnswerConversionService.Options);
+        // User already exist in the user repository
+        var user = await userRepository.GetByEmail(trimmedEmail, ct);
+        if (user != null)
+        {
+            var userInput = new
+            {
+                userName = user.UserName, displayName = user.DisplayName, email = user.Email,
+                organization = user.Organization
+            };
+            return JsonSerializer.SerializeToElement(userInput, AnswerConversionService.Options);
+        }
+
+        // User does not exist in the user repository yet, but is known in the external user database
+        var matchingExternalUser = (await userService.FindUsers(trimmedEmail, includeExternalUsers: false, ct))
+            .FirstOrDefault(u => string.Equals(u.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingExternalUser == null)
+            return JsonSerializer.SerializeToElement<object?>(null);
+
+        var matchingExternalUserInput = new
+        {
+            userName = matchingExternalUser.UserName,
+            displayName = matchingExternalUser.DisplayName,
+            email = matchingExternalUser.Email,
+            organization = matchingExternalUser.Organization
+        };
+        return JsonSerializer.SerializeToElement(matchingExternalUserInput, AnswerConversionService.Options);
     }
 
     private IEnumerable<Dictionary<string, string>> ParseFile(Stream fileStream, string contentType)

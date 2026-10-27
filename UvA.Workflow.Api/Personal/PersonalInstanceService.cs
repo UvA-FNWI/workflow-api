@@ -91,8 +91,13 @@ public class PersonalInstanceService(
                 property => property.Name,
                 property => GetUsers(context.Get(property.Name)).ToArray(),
                 StringComparer.OrdinalIgnoreCase);
+
+        var visibleRoleNames = GetVisibleUserProperties(definition)
+            .Select(property => property.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var roles = usersByRole
-            .Where(entry => entry.Value.Any(instanceUser =>
+            .Where(entry => visibleRoleNames.Contains(entry.Key) && entry.Value.Any(instanceUser =>
                 string.Equals(instanceUser.Id, user.Id, StringComparison.Ordinal)))
             .Select(entry => entry.Key)
             .Distinct(StringComparer.OrdinalIgnoreCase)
