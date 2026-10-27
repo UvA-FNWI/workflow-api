@@ -1,6 +1,7 @@
 name: Context
 titlePlural: Contexts
 instanceTitle: "{{ Name }} ({{ ExternalId }})"
+groupChildScreens: true
 
 properties:
   - name: Name
