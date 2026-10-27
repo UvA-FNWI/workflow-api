@@ -320,7 +320,7 @@ public class InstanceService(
                         entity.Properties.FirstOrDefault(p => p.Name == t))
                 );
             dict["Id"] = r["_id"].ToString();
-            return new ObjectContext(dict);
+            return new ObjectContext(dict, ObjectContext.GetValueSets(entity));
         });
     }
 

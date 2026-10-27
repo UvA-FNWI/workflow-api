@@ -1,0 +1,66 @@
+name: ExpressionConditions
+titlePlural: Expression condition tests
+
+properties:
+  - name: Selection
+    type: "[Options]"
+    values:
+      - name: None
+      - name: Alpha
+      - name: Beta
+      - name: Gamma
+
+  - name: Limit
+    type: Int
+
+  - name: WithinLimit
+    type: Check
+    condition:
+      value:
+        property: count(except(Selection, =None))
+        lessThanOrEqual: Limit
+
+  - name: EmptySelection
+    type: Check
+    condition:
+      value:
+        property: Selection
+        isEmpty: true
+
+  - name: WithinSetLimit
+    type: Check
+    condition:
+      value:
+        property: count(except(except(Selection, ValueSets.ExcludedOptions), ValueSets.SharedExcludedOptions))
+        lessThanOrEqual: Limit
+
+  - name: Rows
+    type: "[ExpressionRow]"
+
+  - name: ScalarCodesWithinLimit
+    type: Check
+    condition:
+      value:
+        property: count(unique(select(Rows, =Code)))
+        lessThanOrEqual: Limit
+
+  - name: ArrayCodesWithinLimit
+    type: Check
+    condition:
+      value:
+        property: count(unique(flatten(select(Rows, =Codes))))
+        lessThanOrEqual: Limit
+
+  - name: HasCodesOutsideSet
+    type: Check
+    condition:
+      value:
+        property: count(except(unique(flatten(select(Rows, =Codes))), ValueSets.AllowedCodes))
+        greaterThanOrEqual: "1"
+
+  - name: ScoreWithinLimit
+    type: Check
+    condition:
+      value:
+        property: max(select(Rows, =Score))
+        lessThanOrEqual: Limit
