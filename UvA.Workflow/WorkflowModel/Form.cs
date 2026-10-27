@@ -160,6 +160,17 @@ public class Form : INamed, IDeclaredKeys
 
     [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
 
+    public ObjectContext GetContext(ObjectContext context)
+    {
+        if (TargetForm == null)
+            return context;
+
+        var values = new Dictionary<Lookup, object?>(context.Values);
+        foreach (var property in ActualForm.WorkflowDefinition.Properties)
+            values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
+        return new ObjectContext(values);
+    }
+
     public Form Clone()
     {
         var clone = (Form)MemberwiseClone();

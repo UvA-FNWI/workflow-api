@@ -62,12 +62,12 @@ public class ModelService(ModelParser parser)
         bool canViewHidden,
         IEnumerable<PropertyDefinition>? questions = null)
     {
-        var context = CreateContext(instance);
+        var context = form.GetContext(CreateContext(instance));
         return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden)
                                            && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
-                !instance.Properties.ContainsKey(q.Name)
+                instance.GetProperty(form.PropertyName, q.Name) is null
                     ? null
                     : q.GetValidationError(context),
                 (q as ChoicePropertyDefinition)?.Values?.Where(v => v.Condition.IsMet(context))
