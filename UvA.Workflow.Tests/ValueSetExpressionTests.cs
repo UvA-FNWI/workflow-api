@@ -33,29 +33,7 @@ public class ValueSetExpressionTests
     }
 
     [Theory]
-    [InlineData("Common")]
-    [InlineData("Base")]
-    [InlineData("Child")]
-    public void ValueSetName_CannotMatchAPropertyIncludingInheritedProperties(string scope)
-    {
-        var error = Assert.Throws<Exception>(() => new ModelParser(new DictionaryProvider(new()
-        {
-            ["Base/Entity.yaml"] = """
-                                   name: Base
-                                   titlePlural: Bases
-                                   properties:
-                                     - name: ExcludedOptions
-                                       type: String
-                                   """,
-            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
-            [$"{scope}/ValueSets/ExcludedOptions.yaml"] = "name: ExcludedOptions\nvalues:\n  - name: None"
-        })));
-
-        Assert.Contains("ExcludedOptions", error.Message);
-        Assert.Contains("conflicts", error.Message);
-    }
-
-    [Theory]
+    [InlineData("Title")]
     [InlineData("now")]
     [InlineData("Id")]
     [InlineData("CurrentStep")]
@@ -63,15 +41,42 @@ public class ValueSetExpressionTests
     [InlineData("LastEvent")]
     [InlineData("UploadEvent")]
     [InlineData("UploadEventActive")]
-    public void ValueSetName_CannotMatchAContextName(string name)
+    [InlineData("Access")]
+    public void ValueSetName_MayMatchPropertyContextAndEffectNames(string name)
     {
+        var definition = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Example/Entity.yaml"] = """
+                                      name: Example
+                                      titlePlural: Examples
+                                      events:
+                                        - name: Upload
+                                      properties:
+                                        - name: Title
+                                          type: String
+                                      """,
+            [$"Example/ValueSets/{name}.yaml"] = $"name: {name}\nvalues:\n  - name: None"
+        })).WorkflowDefinitions["Example"];
+        var context = ObjectContext.Create(definition, new Dictionary<string, BsonValue> { ["Title"] = "My title" });
+
+        Assert.Equal(new[] { "None" }, context.Get($"ValueSets.{name}"));
+        Assert.Equal("My title", context.Get("Title"));
+    }
+
+    [Theory]
+    [InlineData("Base")]
+    [InlineData("Child")]
+    public void PropertyNamedValueSets_IsRejected(string declaredIn)
+    {
+        const string property = "\nproperties:\n  - name: ValueSets\n    type: String";
         var error = Assert.Throws<Exception>(() => new ModelParser(new DictionaryProvider(new()
         {
-            ["Example/Entity.yaml"] = "name: Example\ntitlePlural: Examples\nevents:\n  - name: Upload",
-            ["Example/ValueSets/ExcludedOptions.yaml"] = $"name: {name}\nvalues:\n  - name: None"
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases" + (declaredIn == "Base" ? property : ""),
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base" +
+                                    (declaredIn == "Child" ? property : "")
         })));
 
-        Assert.Contains(name, error.Message);
-        Assert.Contains("conflicts", error.Message);
+        Assert.Contains("'ValueSets' is reserved", error.Message);
+        Assert.Contains($"'{declaredIn}'", error.Message);
     }
 }

@@ -420,19 +420,19 @@ public partial class ModelParser
 
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
-        ValidateValueSetNames(workflowDefinition);
+        ValidateValueSetsPrefix(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
 
-    private void ValidateValueSetNames(WorkflowDefinition workflowDefinition)
+    /// <summary>
+    /// Expressions reference value sets as <c>ValueSets.Name</c>, so a property called ValueSets would be unreachable
+    /// </summary>
+    private static void ValidateValueSetsPrefix(WorkflowDefinition workflowDefinition)
     {
-        foreach (var set in ValueSets.Concat(workflowDefinition.ValueSets))
-            if (workflowDefinition.Properties.Contains(set.Name) ||
-                set.Name is "now" or "Id" or "CurrentStep" or "CreateDate" or "LastEvent" ||
-                workflowDefinition.Events.Any(e => set.Name == e.Name + "Event" || set.Name == e.Name + "EventActive"))
-                throw new Exception(
-                    $"Definition '{workflowDefinition.Name}': value set '{set.Name}' conflicts with a property or context name.");
+        if (workflowDefinition.Properties.Contains("ValueSets"))
+            throw new Exception(
+                $"Definition '{workflowDefinition.Name}': property name 'ValueSets' is reserved for value set references.");
     }
 
     private static void ValidateReservedEventNames(WorkflowDefinition definition)

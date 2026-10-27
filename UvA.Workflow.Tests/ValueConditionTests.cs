@@ -68,6 +68,23 @@ public class ValueConditionTests
         Assert.Equal(expected, condition.IsMet(model.CreateContext(instance)));
     }
 
+    [Theory]
+    [InlineData("Selection", "EmptySelection")] // plain property
+    [InlineData("Selection", "WithinLimit")] // count(except(Selection, =None))
+    [InlineData("Selection", "WithinSetLimit")] // except with ValueSets.…
+    [InlineData("Limit", "WithinLimit")] // comparison operand
+    [InlineData("Rows", "ScalarCodesWithinLimit")]
+    [InlineData("Rows", "HasCodesOutsideSet")]
+    [InlineData("Rows", "ScoreWithinLimit")]
+    public void ExpressionProperty_RegistersDependentQuestion(string property, string dependent)
+    {
+        var definition = UnitTestsHelpers.CreateModelParser().WorkflowDefinitions["ExpressionConditions"];
+
+        var source = definition.Properties.Single(p => p.Name == property);
+
+        Assert.Contains(source.DependentQuestions, q => q.Name == dependent);
+    }
+
     private static bool EvaluateFixtureCondition(string property, string[] selection)
     {
         var definition = UnitTestsHelpers.CreateModelParser().WorkflowDefinitions["ExpressionConditions"];

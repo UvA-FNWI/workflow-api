@@ -257,7 +257,7 @@ public class Value : ConditionPart
 
     public override Lookup[] Dependants =>
     [
-        Property,
+        .. PropertyExpression.Properties,
         .. EqualExpression?.Properties ?? [],
         .. LessThanExpression?.Properties ?? [],
         .. LessThanOrEqualExpression?.Properties ?? [],
@@ -287,7 +287,7 @@ public class Value : ConditionPart
         if (GreaterThanOrEqualExpression != null)
             return Compare(prop, GreaterThanOrEqualExpression.Execute(context)) >= 0;
         if (IsEmpty != null)
-            return Equals(IsEmpty.Value, IsEffectivelyEmpty(prop));
+            return Equals(IsEmpty.Value, DataExtensions.IsEffectivelyEmpty(prop));
         if (InExpression != null)
             return InExpression.Execute(context) is IEnumerable p && p.Cast<object>().Contains(prop);
         if (MaxLength != null)
@@ -295,17 +295,6 @@ public class Value : ConditionPart
         if (MinLength != null)
             return prop is string s && s.Length >= MinLength;
         throw new InvalidOperationException("Invalid condition");
-    }
-
-    private static bool IsEffectivelyEmpty(object? value)
-    {
-        return value switch
-        {
-            null => true,
-            string s => string.IsNullOrWhiteSpace(s),
-            IEnumerable values => !values.Cast<object?>().Any(),
-            _ => false
-        };
     }
 
     private static int? Compare(object? left, object? right)

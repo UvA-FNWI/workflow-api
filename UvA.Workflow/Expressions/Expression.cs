@@ -65,16 +65,69 @@ public record Expression
             IEnumerable values when values is not string => values.Cast<object?>().Count(),
             _ => throw new ArgumentException("count expects a collection")
         }),
-        ["except"] = new Function<IEnumerable, object, object?[]>((a, b) =>
-            a?.Cast<object?>().Except(b is IEnumerable values && b is not string ? values.Cast<object?>() : [b])
+        ["except"] = new Function<IEnumerable, object, object?[]>((list, excluded) =>
+        {
+            HashSet<object?> remove = excluded is IEnumerable values && excluded is not string
+                ? values.Cast<object?>().ToHashSet()
+                : [excluded];
+            return list?.Cast<object?>().Where(item => !remove.Contains(item)).ToArray() ?? [];
+        }),
+        ["select"] = new Function<IEnumerable, string, object?[]>((list, field) =>
+        {
+            if (string.IsNullOrWhiteSpace(field))
+                throw new ArgumentException("select expects a field name, e.g. select(List, =Field)");
+            return list?.Cast<object?>()
+                .Select(row => row switch
+                {
+                    Dictionary<string, object> dict => dict.GetValueOrDefault(field),
+                    Dictionary<Lookup, object> dict => dict.GetValueOrDefault(field),
+                    _ => null
+                })
+                .Where(value => !DataExtensions.IsEffectivelyEmpty(value))
+                .ToArray() ?? [];
+        }),
+        ["flatten"] = new Function<IEnumerable, object?[]>(list =>
+            list?.Cast<object?>()
+                .SelectMany(item => item is IEnumerable values && item is not string
+                    ? values.Cast<object?>()
+                    : [item])
                 .ToArray() ?? []),
+        ["unique"] = new Function<IEnumerable, object?[]>(list =>
+            list?.Cast<object?>()
+                .DistinctBy(item => item is string s ? s.ToUpperInvariant() : item)
+                .ToArray() ?? []),
+        ["min"] = new Function<IEnumerable, object?>(list => FindExtreme(list, "min", -1)),
+        ["max"] = new Function<IEnumerable, object?>(list => FindExtreme(list, "max", 1)),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
         ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
         ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
 
+    /// <summary>
+    /// Returns the smallest (direction -1) or largest (direction 1) number in the list, or null if it is empty.
+    /// Compares as double when any value is floating point, as decimal otherwise (same as Value conditions).
+    /// </summary>
+    private static object? FindExtreme(IEnumerable? list, string name, int direction)
+    {
+        var values = list?.Cast<object?>().ToArray() ?? [];
+        if (values.Any(v => v is not (int or long or float or double or decimal)))
+            throw new ArgumentException($"{name} expects a list of numbers");
+        if (values.Length == 0)
+            return null;
+
+        var useDouble = values.Any(v => v is float or double);
+
+        int Compare(object? a, object? b) => useDouble
+            ? Convert.ToDouble(a).CompareTo(Convert.ToDouble(b))
+            : Convert.ToDecimal(a).CompareTo(Convert.ToDecimal(b));
+
+        return values.Aggregate((best, value) => Compare(value, best) * direction > 0 ? value : best);
+    }
+
     public virtual IEnumerable<Lookup> Properties => this switch
     {
+        // Value sets come from the model, not from instance data, so there is nothing to load
+        Identifier(var k) when k.StartsWith("ValueSets.", StringComparison.Ordinal) => [],
         Identifier(var k) => [k],
         Call(Identifier(var text), var args) when Functions.ContainsKey(text) => args.SelectMany(a => a.Properties),
         Call(Identifier(var text) expr, var args) => [new ComplexLookup(text, args)],

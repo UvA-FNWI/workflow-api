@@ -31,5 +31,36 @@ properties:
     type: Check
     condition:
       value:
-        property: count(except(except(Selection, ExcludedOptions), SharedExcludedOptions))
+        property: count(except(except(Selection, ValueSets.ExcludedOptions), ValueSets.SharedExcludedOptions))
+        lessThanOrEqual: Limit
+
+  - name: Rows
+    type: "[ExpressionRow]"
+
+  - name: ScalarCodesWithinLimit
+    type: Check
+    condition:
+      value:
+        property: count(unique(select(Rows, =Code)))
+        lessThanOrEqual: Limit
+
+  - name: ArrayCodesWithinLimit
+    type: Check
+    condition:
+      value:
+        property: count(unique(flatten(select(Rows, =Codes))))
+        lessThanOrEqual: Limit
+
+  - name: HasCodesOutsideSet
+    type: Check
+    condition:
+      value:
+        property: count(except(unique(flatten(select(Rows, =Codes))), ValueSets.AllowedCodes))
+        greaterThanOrEqual: "1"
+
+  - name: ScoreWithinLimit
+    type: Check
+    condition:
+      value:
+        property: max(select(Rows, =Score))
         lessThanOrEqual: Limit

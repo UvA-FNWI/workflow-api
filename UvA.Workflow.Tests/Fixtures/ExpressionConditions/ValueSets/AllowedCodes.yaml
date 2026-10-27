@@ -1,0 +1,4 @@
+name: AllowedCodes
+values:
+  - name: AA
+  - name: BB
