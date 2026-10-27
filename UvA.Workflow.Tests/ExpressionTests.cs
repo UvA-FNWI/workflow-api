@@ -7,6 +7,108 @@ namespace UvA.Workflow.Tests;
 
 public class ExpressionTests
 {
+    [Theory]
+    [InlineData(null, 0)]
+    [InlineData(new string[0], 0)]
+    [InlineData(new[] { "a", "b" }, 2)]
+    [InlineData(new[] { 1, 2, 3 }, 3)]
+    public void Count_ReturnsCollectionSize(object? values, int expected)
+    {
+        var exp = ExpressionParser.Parse("count(Choices)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Choices"] = values });
+
+        Assert.Equal(expected, exp.Execute(context));
+        Assert.Equal([new PropertyLookup("Choices")], exp.Properties);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Alpha")]
+    [InlineData(42)]
+    [InlineData(42.5)]
+    public void Count_RejectsStringsAndNumericScalars(object value)
+    {
+        var exp = ExpressionParser.Parse("count(Choices)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Choices"] = value });
+
+        var error = Assert.Throws<ArgumentException>(() => exp.Execute(context));
+
+        Assert.Equal("count expects a collection", error.Message);
+    }
+
+    [Theory]
+    [InlineData("except(Choices, =ab)")]
+    [InlineData("except(Choices, Excluded)")]
+    public void Except_RemovesAnItemOrACollection(string expression)
+    {
+        var exp = ExpressionParser.Parse(expression);
+        var choices = new[] { "ab", "a", "b", "ab" };
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Choices"] = choices,
+            ["Excluded"] = new[] { "ab", "missing" }
+        });
+
+        Assert.Equal(new object[] { "a", "b" }, Assert.IsType<object[]>(exp.Execute(context)));
+        Assert.Equal(new[] { "ab", "a", "b", "ab" }, choices);
+    }
+
+    [Fact]
+    public void Except_SupportsValueTypeCollectionsAndNestedCount()
+    {
+        var exp = ExpressionParser.Parse("count(except(Choices, Excluded))");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Choices"] = new[] { 1, 2, 3 },
+            ["Excluded"] = new[] { 1, 3 }
+        });
+
+        Assert.Equal(1, exp.Execute(context));
+        Assert.Equal([new PropertyLookup("Choices"), new PropertyLookup("Excluded")], exp.Properties);
+    }
+
+    [Fact]
+    public void Except_RemovesAllValuesInASet()
+    {
+        var exp = ExpressionParser.Parse("except(Choices, Excluded)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Choices"] = new[] { "Alpha", "Beta", "Gamma" },
+            ["Excluded"] = new HashSet<string> { "Alpha", "Gamma" }
+        });
+
+        Assert.Equal(new object[] { "Beta" }, Assert.IsType<object[]>(exp.Execute(context)));
+    }
+
+    [Fact]
+    public void Except_NullCollection_ReturnsEmptyCollection()
+    {
+        var exp = ExpressionParser.Parse("except(Missing, =ab)");
+
+        Assert.Empty(Assert.IsType<object[]>(exp.Execute(new ObjectContext([]))));
+    }
+
+    [Theory]
+    [InlineData(false, false, false, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, true, false, true)]
+    [InlineData(false, false, true, true)]
+    public void Or_ComposesWithAnd(bool first, bool second, bool third, bool expected)
+    {
+        var exp = ExpressionParser.Parse("or(and(First, Second), Third)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["First"] = first,
+            ["Second"] = second,
+            ["Third"] = third
+        });
+
+        Assert.Equal(expected, exp.Execute(context));
+        Assert.Equal([new PropertyLookup("First"), new PropertyLookup("Second"), new PropertyLookup("Third")],
+            exp.Properties);
+    }
+
     [Fact]
     public void TestFunction()
     {
