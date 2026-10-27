@@ -519,6 +519,7 @@ public partial class ModelParser
                     existing.Suppresses = ev.Suppresses;
                 if (ev.ResetParentStep)
                     existing.ResetParentStep = true;
+                existing.Label ??= ev.Label;
             }
             else
             {
