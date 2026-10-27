@@ -42,7 +42,7 @@ properties:
       nl: Stad
 
   - name: Country
-    type: Country!
+    type: CountryOptions!
     text:
       en: Country
       nl: Land

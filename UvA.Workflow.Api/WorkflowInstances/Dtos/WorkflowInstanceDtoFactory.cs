@@ -381,7 +381,7 @@ public class WorkflowInstanceDtoFactory(
                     group.Title,
                     group.Users.Select(relatedUser => CreateRelatedUser(
                             workflowDefinition, relatedUser, group.AllowEditing, context, canEditByProperty))
-                        .Where(role => role.Users.Length > 0 || role.AllowsAssignment)
+                        .Where(role => role.Users.Length > 0 || role.AllowsAssignment || role.CanEdit)
                         .ToArray()))
                 .Where(group => group.UserRoles.Length > 0)
                 .ToArray();

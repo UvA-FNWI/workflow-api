@@ -456,6 +456,28 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.DoesNotContain("StudentOnly", examinerCardNames);
     }
 
+    [Fact]
+    public async Task Create_KeepsEditableEmptyRequiredStaff()
+    {
+        var instance = CreateProjectInstance();
+        var factory = CreateFactory(Mock.Of<IStepVersionService>());
+
+        MockCurrentUser("SystemAdmin");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance);
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+
+        var card = Assert.Single(dto.InfoCards, card => card.Name == "Staff");
+        var supervisor = Assert.Single(card.Groups!.SelectMany(group => group.UserRoles),
+            role => role.Role == "Supervisor");
+        Assert.Empty(supervisor.Users);
+        Assert.True(supervisor.CanEdit);
+        Assert.False(supervisor.AllowsAssignment);
+    }
+
     private WorkflowInstanceDtoFactory CreateFactory(IStepVersionService stepVersionService)
     {
         var submissionDtoFactory =

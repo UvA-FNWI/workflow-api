@@ -235,7 +235,7 @@ public class Value : ConditionPart
 
     public override Lookup[] Dependants =>
     [
-        Property,
+        .. PropertyExpression.Properties,
         .. EqualExpression?.Properties ?? [],
         .. LessThanExpression?.Properties ?? [],
         .. LessThanOrEqualExpression?.Properties ?? [],
@@ -265,7 +265,7 @@ public class Value : ConditionPart
         if (GreaterThanOrEqualExpression != null)
             return Compare(prop, GreaterThanOrEqualExpression.Execute(context)) >= 0;
         if (IsEmpty != null)
-            return IsEmpty.Value ^ !string.IsNullOrWhiteSpace(prop?.ToString());
+            return Equals(IsEmpty.Value, DataExtensions.IsEffectivelyEmpty(prop));
         if (InExpression != null)
             return InExpression.Execute(context) is IEnumerable p && p.Cast<object>().Contains(prop);
         if (MaxLength != null)

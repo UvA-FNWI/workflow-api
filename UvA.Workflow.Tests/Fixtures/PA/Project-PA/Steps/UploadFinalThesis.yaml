@@ -48,7 +48,7 @@ properties:
       nl: Trefwoorden
 
   - name: Language
-    type: Language!
+    type: LanguageOptions!
     text:
       en: Language
       nl: Taal
