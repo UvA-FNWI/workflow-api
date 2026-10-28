@@ -138,10 +138,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -169,6 +165,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1050,10 +1053,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -1081,6 +1080,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1207,10 +1213,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -1238,6 +1240,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1375,10 +1384,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -1406,6 +1411,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1568,10 +1580,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -1599,6 +1607,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1725,10 +1740,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -1756,6 +1767,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1893,10 +1911,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -1924,6 +1938,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2069,10 +2090,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -2100,6 +2117,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2240,10 +2264,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -2271,6 +2291,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2473,10 +2500,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -2504,6 +2527,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2791,10 +2821,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -2822,6 +2848,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2993,10 +3026,6 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
-        "messages": {
-          "type": "boolean",
-          "description": "When the entity has messages.enabled, false excludes this field from field threads"
-        },
         "results": {
           "oneOf": [
             {
@@ -3024,6 +3053,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
