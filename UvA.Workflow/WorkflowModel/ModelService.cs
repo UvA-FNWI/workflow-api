@@ -162,7 +162,7 @@ public class ModelService(ModelParser parser)
 
         for (var i = walk.IndexOf(step) - 1; i >= 0; i--)
         {
-            if (walk[i].IsAlongside)
+            if (walk[i].IsAlongside || !walk[i].Condition.IsMet(context))
                 continue;
             return walk[i].HasEnded(context);
         }
