@@ -33,17 +33,25 @@ public record MessageDto(string Id, string? QuestionName, bool IsClosed, Message
         message.Id,
         message.QuestionName,
         message.IsClosed,
-        message.Items.Select(i => MessageItemDto.Create(i, users)).ToArray());
+        message.Items.Select((item, index) => MessageItemDto.Create(item, index, users)).ToArray());
 }
 
 public record MessageUserDto(string Id, string DisplayName);
 
-public record MessageItemDto(DateTime DateTime, MessageUserDto User, string? Body, ItemKind Kind)
+public record MessageItemDto(
+    string Id,
+    string? ParentItemId,
+    DateTime DateTime,
+    MessageUserDto User,
+    string? Body,
+    ItemKind Kind)
 {
-    public static MessageItemDto Create(MessageItem item, IReadOnlyDictionary<string, User> users)
+    public static MessageItemDto Create(MessageItem item, int index, IReadOnlyDictionary<string, User> users)
     {
         var user = users.GetValueOrDefault(item.AuthorId);
         return new(
+            MessageItemIds.EnsureItemId(item, index),
+            item.ParentItemId,
             item.DateTime,
             new MessageUserDto(item.AuthorId, user?.DisplayName ?? user?.UserName ?? item.AuthorId),
             item.Body,

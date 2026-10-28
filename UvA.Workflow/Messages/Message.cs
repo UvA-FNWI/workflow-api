@@ -15,11 +15,33 @@ public class Message
 
     public MessageItem[] Items { get; set; } = [];
 
-    public bool IsClosed => Items.LastOrDefault()?.Kind == ItemKind.Close;
+    public bool IsClosed
+    {
+        get
+        {
+            for (var i = Items.Length - 1; i >= 0; i--)
+            {
+                switch (Items[i].Kind)
+                {
+                    case ItemKind.Close:
+                        return true;
+                    case ItemKind.Reopen:
+                        return false;
+                }
+            }
+
+            return false;
+        }
+    }
 }
 
 public class MessageItem
 {
+    /// <summary>Stable id for nested replies; stored as string (includes legacy-{index} for older items).</summary>
+    public string Id { get; set; } = null!;
+
+    public string? ParentItemId { get; set; }
+
     public DateTime DateTime { get; set; }
 
     [BsonRepresentation(BsonType.ObjectId)]
@@ -33,5 +55,6 @@ public class MessageItem
 public enum ItemKind
 {
     Message,
-    Close
+    Close,
+    Reopen
 }
