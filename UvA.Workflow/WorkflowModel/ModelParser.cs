@@ -42,7 +42,7 @@ public partial class ModelParser
 
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
 
-    private List<ValueSet> ValueSets { get; }
+    internal List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
 
     public ModelParser(IContentProvider contentProvider)
@@ -420,8 +420,19 @@ public partial class ModelParser
 
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
+        ValidateValueSetsPrefix(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    /// <summary>
+    /// Expressions reference value sets as <c>ValueSets.Name</c>, so a property called ValueSets would be unreachable
+    /// </summary>
+    private static void ValidateValueSetsPrefix(WorkflowDefinition workflowDefinition)
+    {
+        if (workflowDefinition.Properties.Contains("ValueSets"))
+            throw new Exception(
+                $"Definition '{workflowDefinition.Name}': property name 'ValueSets' is reserved for value set references.");
     }
 
     private static void ValidateReservedEventNames(WorkflowDefinition definition)
