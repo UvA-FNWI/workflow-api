@@ -32,7 +32,7 @@ public record FormDto(
         var questions = activePages
             .SelectMany(p => p.Questions)
             .Distinct()
-            .ToDictionary(q => q, q => QuestionDto.Create(q, totalWeight));
+            .ToDictionary(q => q, q => QuestionDto.Create(q, totalWeight, form.WorkflowDefinition));
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
         var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         var originalForm = form;
