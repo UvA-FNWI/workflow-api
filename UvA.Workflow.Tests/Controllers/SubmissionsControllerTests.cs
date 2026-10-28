@@ -715,8 +715,12 @@ public class SubmissionsControllerTests : ControllerTestsBase
             [new() { Type = RoleAction.Submit, Form = "Start" }];
     }
 
-    [Fact]
-    public async Task PinnedActions_InstanceApiSeparatesAuthorizedActionsUsingActionSteps()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task PinnedActions_InstanceApiSeparatesAuthorizedActionsAndExcludesUnnamedExecutePermissions(
+        string? permissionName)
     {
         var (_, instance) = BuildControllerWithRoles(["Student"], "Start");
         ConfigurePinnedSubmit();
@@ -724,6 +728,9 @@ public class SubmissionsControllerTests : ControllerTestsBase
         definition.Forms.Single(form => form.Name == "Start").Step = "Start";
         var role = definition.Roles.Single(role => role.Name == "Student");
         role.Actions.AddRange([
+            new() { Type = RoleAction.Execute, Name = permissionName },
+            new() { Type = RoleAction.Execute, Name = permissionName },
+            new() { Type = RoleAction.Execute, Name = permissionName },
             new() { Type = RoleAction.Execute, Name = "Global" },
             new() { Type = RoleAction.Execute, Name = "Scoped", Steps = ["Start"] },
             new() { Type = RoleAction.Execute, Name = "Hidden", Condition = new Condition { Event = "Never" } }
@@ -740,6 +747,9 @@ public class SubmissionsControllerTests : ControllerTestsBase
             Assert.False(action.AutoOpenForm);
         });
         Assert.Equal("Scoped", Assert.Single(dto.Actions).Name);
+        Assert.Equal("Global", Assert.Single(dto.PinnedActions, action => action.Type == ActionType.Execute).Name);
+        var permissions = await _rightsService.GetAllowedActions(instance, RoleAction.Execute);
+        Assert.Equal(3, permissions.Count(action => action.Name == permissionName));
     }
 
     private static (string name, Func<PropertyBuilder, BsonValue> builder)[] RequiredStartProperties() =>
