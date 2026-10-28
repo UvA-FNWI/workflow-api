@@ -2,6 +2,8 @@ name: Project
 inheritsFrom: Project-Base
 titlePlural: Projects
 instanceTitle: '{{ Title }}'
+messages:
+  enabled: true
 
 fields:
  - property: Course.Name
