@@ -11,6 +11,9 @@ public class MessageService(
     IUserService userService,
     IUserRepository userRepository)
 {
+    /// <summary>
+    /// Returns threads visible to the caller. Read authorization uses instance <see cref="RoleAction.View"/>
+    /// </summary>
     public async Task<IReadOnlyList<Message>> GetVisibleMessages(string instanceId, CancellationToken ct)
     {
         var instance = await GetAuthorizedInstance(instanceId, RoleAction.View, ct);
