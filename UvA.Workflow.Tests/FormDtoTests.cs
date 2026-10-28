@@ -79,6 +79,36 @@ public class FormDtoTests
     }
 
     [Fact]
+    public void Create_SetsAllowMessagesFromEntitySettings()
+    {
+        var definition = new WorkflowDefinition
+        {
+            Name = "Application",
+            Messages = new MessagesSettings { Enabled = true }
+        };
+        var name = new StringPropertyDefinition { Name = "Name", Type = "String", ParentType = definition };
+        var hidden = new StringPropertyDefinition
+        {
+            Name = "Internal",
+            Type = "String",
+            ParentType = definition,
+            Visibility = PropertyVisibility.Hidden
+        };
+        var excluded = new StringPropertyDefinition
+        {
+            Name = "StatusBadge",
+            Type = "String",
+            ParentType = definition,
+            Messages = false
+        };
+        definition.Properties = [name, hidden, excluded];
+
+        Assert.True(QuestionDto.Create(name, 0).AllowMessages);
+        Assert.False(QuestionDto.Create(hidden, 0).AllowMessages);
+        Assert.False(QuestionDto.Create(excluded, 0).AllowMessages);
+    }
+
+    [Fact]
     public void TextSettings_SerializeDirectlyOnQuestion()
     {
         var parent = new WorkflowDefinition { Name = "Project" };

@@ -9,4 +9,4 @@ actions:
   - type: Edit
   - type: Submit
   - type: Execute
-  - type: ViewCorrespondence
+  - type: AddInstanceMessage
