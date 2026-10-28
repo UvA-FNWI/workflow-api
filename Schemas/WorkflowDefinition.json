@@ -108,6 +108,17 @@
       "type": "boolean",
       "description": "Indicated whether this entity type is stored as an embedded document in the parent instance"
     },
+    "messages": {
+      "description": "Optional instance and field discussion threads. Omitted or enabled false means off.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/MessagesSettings"
+        }
+      ]
+    },
     "seedData": {
       "type": [
         "array",
@@ -130,6 +141,17 @@
     }
   },
   "definitions": {
+    "MessagesSettings": {
+      "title": "MessagesSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "When true, instance and field discussion threads are available"
+        }
+      }
+    },
     "BilingualString": {
       "title": "BilingualString",
       "type": "object",
