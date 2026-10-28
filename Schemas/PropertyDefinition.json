@@ -138,6 +138,10 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
+        },
         "results": {
           "oneOf": [
             {
@@ -1046,6 +1050,10 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
+        },
         "results": {
           "oneOf": [
             {
@@ -1198,6 +1206,10 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
         },
         "results": {
           "oneOf": [
@@ -1362,6 +1374,10 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
         },
         "results": {
           "oneOf": [
@@ -1552,6 +1568,10 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
+        },
         "results": {
           "oneOf": [
             {
@@ -1704,6 +1724,10 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
         },
         "results": {
           "oneOf": [
@@ -1868,6 +1892,10 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
         },
         "results": {
           "oneOf": [
@@ -2041,6 +2069,10 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
+        },
         "results": {
           "oneOf": [
             {
@@ -2207,6 +2239,10 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
         },
         "results": {
           "oneOf": [
@@ -2436,6 +2472,10 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
         },
         "results": {
           "oneOf": [
@@ -2751,6 +2791,10 @@
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
         },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
+        },
         "results": {
           "oneOf": [
             {
@@ -2948,6 +2992,10 @@
         "hideInResults": {
           "type": "boolean",
           "description": "Determines if the propertyDefinition should be hidden in the results table"
+        },
+        "messages": {
+          "type": "boolean",
+          "description": "When the entity has messages.enabled, false excludes this field from field threads"
         },
         "results": {
           "oneOf": [
