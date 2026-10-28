@@ -90,12 +90,12 @@ public class WorkflowInstanceService(
         foreach (var root in referenceRoots)
         {
             var property = definition.Properties.GetOrDefault(root);
-            if (property?.DataType != DataType.Reference)
+            if (property is not ReferencePropertyDefinition reference)
                 continue;
 
             var id = context.Get(root) as string;
             var referenced = id == null ? null : await repository.GetById(id, ct);
-            if (referenced == null || referenced.WorkflowDefinition != property.WorkflowDefinition?.Name)
+            if (referenced == null || referenced.WorkflowDefinition != reference.WorkflowDefinition?.Name)
                 throw new InvalidOperationException($"Default reference {root} could not be resolved");
 
             context.Values[root] = modelService.CreateContext(referenced).Values;
@@ -112,10 +112,10 @@ public class WorkflowInstanceService(
                 : InstanceUser.FromUser(user).ToBsonDocument();
         }
 
-        if (property.DataType == DataType.Reference && value is string id)
+        if (property is ReferencePropertyDefinition reference && value is string id)
         {
             var target = await repository.GetById(id, ct);
-            return target == null || target.WorkflowDefinition != property.WorkflowDefinition?.Name
+            return target == null || target.WorkflowDefinition != reference.WorkflowDefinition?.Name
                 ? throw new InvalidOperationException($"Default reference for property {property.Name} was not found")
                 : id;
         }
@@ -128,7 +128,8 @@ public class WorkflowInstanceService(
         BsonValue? converted = property.DataType switch
         {
             DataType.String when value is string text => text,
-            DataType.Choice when value is string choice && property.Values?.Any(v => v.Name == choice) == true =>
+            DataType.Choice when value is string choice &&
+                                 (property as ChoicePropertyDefinition)?.Values?.Any(v => v.Name == choice) == true =>
                 choice,
             DataType.Int when value is int number => number,
             DataType.Check when value is bool boolean => boolean,

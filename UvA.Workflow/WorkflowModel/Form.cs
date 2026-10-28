@@ -56,7 +56,7 @@ public class Page : INamed
 
     public BilingualString DisplayTitle => Title ?? Name;
 
-    public bool HasResults => PageElements.Any(e => e.QuestionDefinition?.Calculation?.Weight != null);
+    public bool HasResults => Questions.OfType<WeightedPropertyDefinition>().Any(q => q.Calculation?.Weight != null);
 
     [YamlIgnore]
     public IEnumerable<Lookup> Lookups =>
@@ -159,6 +159,17 @@ public class Form : INamed, IDeclaredKeys
             .Distinct();
 
     [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
+
+    public ObjectContext GetContext(ObjectContext context)
+    {
+        if (TargetForm == null)
+            return context;
+
+        var values = new Dictionary<Lookup, object?>(context.Values);
+        foreach (var property in ActualForm.WorkflowDefinition.Properties)
+            values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
+        return new ObjectContext(values);
+    }
 
     public Form Clone()
     {
