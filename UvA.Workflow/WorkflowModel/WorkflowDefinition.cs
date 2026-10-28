@@ -112,6 +112,26 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     [YamlMember(Alias = "assessments")] public AssessmentConfiguration? AssessmentConfiguration { get; set; }
 
+    /// <summary>
+    /// Optional instance/field discussion threads. Omitted or Enabled=false means off.
+    /// </summary>
+    public MessagesSettings? Messages { get; set; }
+
+    public bool MessagesEnabled => Messages?.Enabled == true;
+
+    public bool AllowsMessages(string? questionName)
+    {
+        if (!MessagesEnabled)
+            return false;
+        if (string.IsNullOrEmpty(questionName))
+            return true;
+        if (!Properties.TryGetValue(questionName, out var property))
+            return false;
+        if (property.Visibility == PropertyVisibility.Hidden)
+            return false;
+        return property.Messages != false;
+    }
+
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
     [YamlIgnore] public string SourceFolder { get; set; } = null!;
 
@@ -168,6 +188,11 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
             return $"$Events.{property[..^5]}.Date";
         return "$" + property;
     }
+}
+
+public class MessagesSettings
+{
+    public bool Enabled { get; set; }
 }
 
 public class EventDefinition : INamed
