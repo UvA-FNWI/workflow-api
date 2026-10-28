@@ -20,6 +20,7 @@ public abstract record QuestionDto
         ShortText = property.ShortDisplayName;
         HideInResults = property.HideInResults;
         LinkedTo = property.LinkedTo;
+        AllowMessages = property.ParentType.AllowsMessages(property.Name);
     }
 
     public string Id { get; init; }
@@ -33,6 +34,7 @@ public abstract record QuestionDto
     public BilingualString? ShortText { get; init; }
     public bool HideInResults { get; init; }
     public string? LinkedTo { get; init; }
+    public bool AllowMessages { get; init; }
 
     public static QuestionDto Create(PropertyDefinition property, decimal totalWeight)
         => property switch
