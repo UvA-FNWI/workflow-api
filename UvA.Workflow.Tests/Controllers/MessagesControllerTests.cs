@@ -202,6 +202,58 @@ public class MessagesControllerTests : ControllerTestsBase
         await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
             CreateController().AddMessage(instance.Id,
                 new AddMessageInput(null, thread.Id, Body: "too late"), _ct));
+
+        var reopen = await CreateController().AddMessage(instance.Id,
+            new AddMessageInput(null, thread.Id, ItemKind.Reopen), _ct);
+        var reopenDto = Assert.IsType<MessageDto>(Assert.IsType<OkObjectResult>(reopen.Result).Value);
+        Assert.False(reopenDto.IsClosed);
+
+        var afterReopen = await CreateController().AddMessage(instance.Id,
+            new AddMessageInput(null, thread.Id, Body: "Thanks"), _ct);
+        var afterDto = Assert.IsType<MessageDto>(Assert.IsType<OkObjectResult>(afterReopen.Result).Value);
+        Assert.False(afterDto.IsClosed);
+        Assert.Equal(5, afterDto.Items.Length);
+    }
+
+    [Fact]
+    public async Task AddMessage_NestedReply_SetsParentItemId()
+    {
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
+        var rootId = ObjectId.GenerateNewId().ToString();
+        var thread = new Message
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            InstanceId = instance.Id,
+            QuestionName = null,
+            Items =
+            [
+                new MessageItem
+                {
+                    Id = rootId,
+                    AuthorId = UnitTestsHelpers.AdminUser.Id,
+                    DateTime = DateTime.UtcNow,
+                    Kind = ItemKind.Message,
+                    Body = "Root"
+                }
+            ]
+        };
+        _messageRepoMock.Setup(r => r.GetMessages(instance.Id, _ct)).ReturnsAsync([thread]);
+        MessageItem? captured = null;
+        _messageRepoMock.Setup(r => r.AddMessageItem(instance.Id, thread.Id, It.IsAny<MessageItem>(), _ct))
+            .ReturnsAsync((string _, string _, MessageItem item, CancellationToken _) =>
+            {
+                captured = item;
+                thread.Items = thread.Items.Append(item).ToArray();
+                return thread;
+            });
+
+        await CreateController().AddMessage(instance.Id,
+            new AddMessageInput(null, thread.Id, Body: "Nested", ParentItemId: rootId), _ct);
+
+        Assert.NotNull(captured);
+        Assert.Equal(rootId, captured.ParentItemId);
+        Assert.Equal(ItemKind.Message, captured.Kind);
     }
 
     [Fact]
@@ -241,5 +293,43 @@ public class MessagesControllerTests : ControllerTestsBase
 
         var roundTrip = BsonSerializer.Deserialize<Message>(document);
         Assert.Equal(ItemKind.Close, Assert.Single(roundTrip.Items).Kind);
+    }
+
+    [Fact]
+    public void MessageItem_LegacyIds_SerializeAsStrings()
+    {
+        var message = new Message
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            InstanceId = ObjectId.GenerateNewId().ToString(),
+            Items =
+            [
+                new MessageItem
+                {
+                    Id = "legacy-0",
+                    AuthorId = ObjectId.GenerateNewId().ToString(),
+                    DateTime = DateTime.UtcNow,
+                    Kind = ItemKind.Message,
+                    Body = "Root",
+                },
+                new MessageItem
+                {
+                    Id = ObjectId.GenerateNewId().ToString(),
+                    ParentItemId = "legacy-0",
+                    AuthorId = ObjectId.GenerateNewId().ToString(),
+                    DateTime = DateTime.UtcNow,
+                    Kind = ItemKind.Message,
+                    Body = "Reply",
+                },
+            ],
+        };
+
+        var document = message.ToBsonDocument();
+        var reply = document["Items"].AsBsonArray[1].AsBsonDocument;
+        Assert.Equal(BsonType.String, reply["ParentItemId"].BsonType);
+        Assert.Equal("legacy-0", reply["ParentItemId"].AsString);
+
+        var roundTrip = BsonSerializer.Deserialize<Message>(document);
+        Assert.Equal("legacy-0", roundTrip.Items[1].ParentItemId);
     }
 }

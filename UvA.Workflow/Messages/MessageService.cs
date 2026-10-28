@@ -48,7 +48,7 @@ public class MessageService(
         {
             InstanceId = instance.Id,
             QuestionName = input.QuestionName,
-            Items = [CreateItem(user.Id, input)]
+            Items = [CreateItem(user.Id, input with { ParentItemId = null })]
         };
         await repository.AddMessage(message, ct);
         return message;
@@ -74,15 +74,58 @@ public class MessageService(
             throw new InvalidWorkflowStateException(instance.Id, "MessagesDisabled",
                 "Messages are not enabled for this target.");
 
-        if (existing.IsClosed)
-            throw new InvalidWorkflowStateException(instance.Id, "MessageClosed",
-                "This message thread is closed.");
+        switch (input.Kind)
+        {
+            case ItemKind.Reopen:
+                if (!existing.IsClosed)
+                    throw new InvalidWorkflowStateException(instance.Id, "MessageOpen",
+                        "This conversation is already open.");
+                break;
+            case ItemKind.Close:
+                if (existing.IsClosed)
+                    throw new InvalidWorkflowStateException(instance.Id, "MessageClosed",
+                        "This conversation is already closed.");
+                break;
+            case ItemKind.Message:
+                if (existing.IsClosed)
+                    throw new InvalidWorkflowStateException(instance.Id, "MessageClosed",
+                        "This conversation is closed. Reopen it before replying.");
+                if (string.IsNullOrWhiteSpace(input.Body))
+                    throw new ArgumentException("Message body is required.");
+                break;
+            default:
+                throw new InvalidWorkflowStateException(instance.Id, "InvalidMessageKind",
+                    "Unsupported message kind.");
+        }
 
-        if (input.Kind == ItemKind.Message && string.IsNullOrWhiteSpace(input.Body))
-            throw new ArgumentException("Message body is required.");
+        var itemInput = input.Kind == ItemKind.Message
+            ? input with { ParentItemId = ResolveParentItemId(existing, input.ParentItemId) }
+            : input with { ParentItemId = null, Body = null };
 
-        var updated = await repository.AddMessageItem(instance.Id, existing.Id, CreateItem(user.Id, input), ct);
+        var updated = await repository.AddMessageItem(instance.Id, existing.Id, CreateItem(user.Id, itemInput), ct);
         return updated ?? throw new EntityNotFoundException("Message", existing.Id);
+    }
+
+    private static string ResolveParentItemId(Message thread, string? parentItemId)
+    {
+        var root = thread.Items.FirstOrDefault(i => i.Kind == ItemKind.Message)
+                   ?? throw new InvalidWorkflowStateException(thread.InstanceId, "InvalidMessageThread",
+                       "Conversation has no opening message.");
+
+        var rootId = MessageItemIds.EnsureItemId(root, 0);
+        if (string.IsNullOrEmpty(parentItemId) || parentItemId == rootId)
+            return rootId;
+
+        var knownIds = thread.Items
+            .Where(i => i.Kind == ItemKind.Message)
+            .Select((item, index) => MessageItemIds.EnsureItemId(item, index))
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (!knownIds.Contains(parentItemId))
+            throw new InvalidWorkflowStateException(thread.InstanceId, "InvalidParentItem",
+                "Parent message was not found in this conversation.");
+
+        return parentItemId;
     }
 
     private async Task<WorkflowInstance> GetAuthorizedInstance(string instanceId, RoleAction action,
@@ -96,6 +139,8 @@ public class MessageService(
 
     private static MessageItem CreateItem(string authorId, AddMessageInput input) => new()
     {
+        Id = MessageItemIds.CreateId(),
+        ParentItemId = input.ParentItemId,
         AuthorId = authorId,
         DateTime = DateTime.UtcNow,
         Kind = input.Kind,
@@ -107,5 +152,6 @@ public record AddMessageInput(
     string? QuestionName,
     string? ReplyToId,
     ItemKind Kind = ItemKind.Message,
-    string? Body = null
+    string? Body = null,
+    string? ParentItemId = null
 );
