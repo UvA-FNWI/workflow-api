@@ -16,7 +16,7 @@ public class ValueSetSortingTests
     {
         var parser = UnitTestsHelpers.CreateModelParser();
         var country = Assert.IsType<ChoicePropertyDefinition>(
-            parser.WorkflowDefinitions["Project-PA"].Properties.Get("Country"));
+            parser.WorkflowDefinitions["Project-RMSS"].Properties.Get("Country"));
 
         Assert.NotNull(country.Sorting);
         Assert.Equal(ChoiceSortField.Text, country.Sorting!.Field);

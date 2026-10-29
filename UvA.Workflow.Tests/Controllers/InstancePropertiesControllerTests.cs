@@ -135,12 +135,12 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
     public async Task GetPropertyChoices_ReturnsReferenceTargets_WithoutASubmission()
     {
         var course = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Context", currentStep: "Start")
+            .With(workflowDefinition: "Course", currentStep: "Start")
             .WithProperties(("Name", b => b.Value("Introduction to AI")))
             .Build();
         _workflowInstanceRepoMock
             .Setup(r => r.GetByWorkflowDefinition(
-                "Context",
+                "Course",
                 It.IsAny<FilterDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([course]);
@@ -302,11 +302,11 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
             user.Email
         }));
 
-        var result = await controller.AssignRelatedUser(instance.Id, "SecondReader", input, _ct);
+        var result = await controller.AssignRelatedUser(instance.Id, "SecondAssessor", input, _ct);
 
         Assert.IsType<NoContentResult>(result);
-        Assert.Equal(user.Id, instance.GetProperty("SecondReader")?.AsBsonDocument["_id"].ToString());
-        Assert.Equal("SecondReader", Assert.Single(_loggedChanges).Path);
+        Assert.Equal(user.Id, instance.GetProperty("SecondAssessor")?.AsBsonDocument["_id"].ToString());
+        Assert.Equal("SecondAssessor", Assert.Single(_loggedChanges).Path);
     }
 
     [Fact]

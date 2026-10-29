@@ -492,7 +492,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         instance.Properties.Remove("Course");
         var courses = new[] { "Course A", "Course B" }
             .Select(name => new WorkflowInstanceBuilder()
-                .With(workflowDefinition: "Context", currentStep: "Start")
+                .With(workflowDefinition: "Course", currentStep: "Start")
                 .WithProperties(("Name", b => b.Value(name)))
                 .Build())
             .ToList();
@@ -526,7 +526,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
     private void MockContextChoices(List<WorkflowInstance> choices) =>
         _workflowInstanceRepoMock
             .Setup(r => r.GetByWorkflowDefinition(
-                "Context",
+                "Course",
                 It.IsAny<FilterDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(choices);
@@ -549,7 +549,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
     {
         var courseInstance = new WorkflowInstanceBuilder()
-            .With("Context", "Start")
+            .With("Course", "Start")
             .WithProperties(
                 ("Name", _ => "CourseTitle"),
                 ("ExternalId", _ => "DummyId"),

@@ -462,18 +462,14 @@ public class MailBuilderTests
         };
 
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Project-PA", currentStep: "AssessmentExaminer")
-            .WithProperties(("SecondReviewer", _ => reviewerDoc))
+            .With(workflowDefinition: "Project", currentStep: "AssessmentSupervisor")
+            .WithProperties(("SecondAssessor", _ => reviewerDoc))
             .Build();
 
-        // Mirrors AssessmentExaminer.yaml:
-        // - sendMail:
-        //     template: AssessmentRequestAssessor
-        //     to: SecondReviewer
         var sendMail = new SendMessage
         {
             TemplateKey = "AssessmentRequestAssessor",
-            To = "SecondReviewer"
+            To = "SecondAssessor"
         };
 
         var result = Build(builder, instance, sendMail);
@@ -521,7 +517,7 @@ public class MailBuilderTests
     {
         var (builder, _, _) = CreateBuilder();
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Context", currentStep: "Start")
+            .With(workflowDefinition: "Course", currentStep: "Start")
             .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
             {
                 UserDoc("Alice", "alice@uva.nl", "nl-NL"),
@@ -545,7 +541,7 @@ public class MailBuilderTests
     {
         var (builder, _, _) = CreateBuilder();
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Context", currentStep: "Start")
+            .With(workflowDefinition: "Course", currentStep: "Start")
             .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
             {
                 UserDoc("Alice", "alice@uva.nl", "nl"),
@@ -569,7 +565,7 @@ public class MailBuilderTests
     {
         var (builder, _, _) = CreateBuilder();
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Context", currentStep: "Start")
+            .With(workflowDefinition: "Course", currentStep: "Start")
             .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
             {
                 UserDoc("Alice", "alice@uva.nl"),
@@ -593,7 +589,7 @@ public class MailBuilderTests
     {
         var (builder, _, _) = CreateBuilder();
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Context", currentStep: "Start")
+            .With(workflowDefinition: "Course", currentStep: "Start")
             .WithProperties(
                 ("Coordinator", _ => new MongoDB.Bson.BsonArray
                 {
@@ -645,7 +641,7 @@ public class MailBuilderTests
     {
         var (builder, _, _) = CreateBuilder();
         var instance = new WorkflowInstanceBuilder()
-            .With(workflowDefinition: "Context", currentStep: "Start")
+            .With(workflowDefinition: "Course", currentStep: "Start")
             .WithProperties(("Coordinator", _ => new MongoDB.Bson.BsonArray
             {
                 UserDoc("Alice", "alice@uva.nl"),

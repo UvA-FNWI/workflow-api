@@ -86,7 +86,7 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
         var controller = BuildController();
         MockNoVisibleInstances();
         var courseId = ObjectId.GenerateNewId();
-        MockVisibleInstancesFor("Context",
+        MockVisibleInstancesFor("Course",
             new BsonDocument("Properties.Coordinator._id", ObjectId.Parse(UnitTestsHelpers.AdminUser.Id)),
             courseId);
         MockVisibleInstancesFor("Project-PP",
@@ -160,6 +160,36 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
         var dtos = GetDtos(await controller.GetAccessible(_ct));
 
         Assert.Empty(dtos);
+    }
+
+    [Fact]
+    public async Task GetAccessible_ReturnsGroupedChildScreens()
+    {
+        var controller = BuildController("SystemAdmin");
+        MockNoVisibleInstances();
+        var courseId = ObjectId.GenerateNewId();
+        var programmeId = ObjectId.GenerateNewId();
+        var facultyId = ObjectId.GenerateNewId();
+        MockVisibleInstancesFor("Faculty",
+            new BsonDocument("Properties.LocalAdmin._id", ObjectId.Parse(UnitTestsHelpers.AdminUser.Id)),
+            facultyId);
+        MockVisibleInstancesFor("Programme",
+            new BsonDocument("Properties.Faculty", facultyId),
+            programmeId);
+        MockVisibleInstancesFor("Course",
+            new BsonDocument("Properties.Programme", programmeId),
+            courseId);
+
+        MockVisibleInstancesFor("Project",
+            new BsonDocument("Properties.Course", new BsonDocument("$in", new BsonArray { courseId.ToString() })),
+            ObjectId.GenerateNewId());
+
+        var dtos = GetDtos(await controller.GetAccessible(_ct));
+
+        Assert.Contains(dtos, d => d.Name == "Context" && d.Screens.Length == 1 && d.Screens[0] == "Default");
+        Assert.Contains(dtos, d => d.Name == "Project");
+        Assert.DoesNotContain(dtos, d =>
+            d.Name is "Course" or "Programme" or "Faculty" or "Specialisation");
     }
 
     private void MockNoVisibleInstances() =>

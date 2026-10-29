@@ -13,4 +13,4 @@ hierarchyMode: Parallel
 
 children:
   - AssessmentSupervisor
-  - AssessmentSecondReader
+  - AssessmentSecondAssessor

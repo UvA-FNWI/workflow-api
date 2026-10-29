@@ -1,0 +1,7 @@
+name: Specialisation
+inheritsFrom: Context
+titlePlural: Specialisations
+
+properties:
+  - name: Faculty
+    type: Faculty!

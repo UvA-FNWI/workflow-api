@@ -1,7 +1,0 @@
-name: SecondReviewer
-order: 1
-title:
-  en: Second reviewer
-  nl: Tweede beoordelaar
-actions:
-  - type: View

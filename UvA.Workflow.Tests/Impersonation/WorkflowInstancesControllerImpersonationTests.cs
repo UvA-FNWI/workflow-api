@@ -102,15 +102,18 @@ public class WorkflowInstancesControllerImpersonationTests
                 ["_id"] = new ObjectId(userId),
                 ["UserName"] = "admin"
             });
-        repository.Setup(r => r.GetAllById(
-                It.Is<string[]>(ids => ids.Contains(courseId)),
-                It.IsAny<Dictionary<string, string>>(),
+        repository.Setup(r => r.GetByIds(
+                It.Is<string[]>(ids => Enumerable.Contains(ids, courseId)),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new Dictionary<string, BsonValue>
+                new WorkflowInstance
                 {
-                    ["_id"] = new ObjectId(courseId),
-                    ["Impersonator"] = impersonators
+                    Id = courseId,
+                    WorkflowDefinition = "Course",
+                    Properties = new Dictionary<string, BsonValue>
+                    {
+                        ["Impersonator"] = impersonators
+                    }
                 }
             ]);
 
