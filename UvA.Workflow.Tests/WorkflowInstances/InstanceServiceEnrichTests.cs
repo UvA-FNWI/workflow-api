@@ -108,6 +108,192 @@ public class InstanceServiceEnrichTests
             _ct), Times.Once);
     }
 
+    [Theory]
+    [InlineData(1, false, false)]
+    [InlineData(2, false, true)]
+    [InlineData(2, true, false)]
+    [InlineData(1, true, true)]
+    public async Task Enrich_NestedReferences_ResolvesRequestedDepth(
+        int depth,
+        bool alreadyLoaded,
+        bool referenceArray)
+    {
+        var targetId = ObjectId.GenerateNewId();
+        var targetIdString = targetId.ToString();
+
+        object reference = referenceArray
+            ? new[] { targetIdString }
+            : targetIdString;
+
+        if (alreadyLoaded)
+        {
+            var loadedValues = new Dictionary<Lookup, object?>
+            {
+                ["Id"] = targetIdString,
+                ["Parent"] = targetIdString
+            };
+
+            reference = referenceArray
+                ? new[] { loadedValues }
+                : loadedValues;
+        }
+
+        var firstContext = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Shared"] = reference
+        });
+        var secondContext = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Shared"] = reference
+        });
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetIdString),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 1 &&
+                    projection.ContainsKey("Parent") &&
+                    projection["Parent"] == "$Properties.Parent"),
+                _ct))
+            .ReturnsAsync([Result(targetId, ("Parent", targetIdString))]);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetIdString),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 1 &&
+                    projection.ContainsKey("Name") &&
+                    projection["Name"] == "$Properties.Name"),
+                _ct))
+            .ReturnsAsync([Result(targetId, ("Name", "Advisor"))]);
+
+        var lookup = "Shared."
+                     + string.Concat(Enumerable.Repeat("Parent.", depth))
+                     + "Name";
+
+        EnrichmentBatch[] batches =
+        [
+            new(_modelService.WorkflowDefinitions["SourceA"],
+                [firstContext], [new PropertyLookup(lookup)]),
+            new(_modelService.WorkflowDefinitions["SourceB"],
+                [secondContext], [new PropertyLookup(lookup)])
+        ];
+
+        await _service.Enrich(batches, _ct, replaceStep: false);
+
+        foreach (var context in new[] { firstContext, secondContext })
+        {
+            if (referenceArray)
+            {
+                Assert.Equal(
+                    new object?[] { "Advisor" },
+                    Assert.IsType<object[]>(context.Get(lookup)));
+            }
+            else
+            {
+                Assert.Equal("Advisor", context.Get(lookup));
+            }
+        }
+
+        var expectedQueries = alreadyLoaded ? depth : depth + 1;
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Exactly(expectedQueries));
+
+        // Reusing the fully enriched contexts must not trigger more queries.
+        await _service.Enrich(batches, _ct, replaceStep: false);
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Exactly(expectedQueries));
+
+        foreach (var context in new[] { firstContext, secondContext })
+        {
+            if (referenceArray)
+            {
+                Assert.Equal(
+                    new object?[] { "Advisor" },
+                    Assert.IsType<object[]>(context.Get(lookup)));
+            }
+            else
+            {
+                Assert.Equal("Advisor", context.Get(lookup));
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Enrich_MissingReferencedInstance_ReturnsNull(
+        bool missingFirstLevel)
+    {
+        var targetId = ObjectId.GenerateNewId();
+        var parentId = ObjectId.GenerateNewId();
+        var context = Context("Shared", targetId);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetId.ToString()),
+                It.IsAny<Dictionary<string, string>>(),
+                _ct))
+            .ReturnsAsync(missingFirstLevel
+                ? []
+                : [Result(targetId, ("Parent", parentId.ToString()))]);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == parentId.ToString()),
+                It.IsAny<Dictionary<string, string>>(),
+                _ct))
+            .ReturnsAsync([]);
+
+        await _service.Enrich(
+            _modelService.WorkflowDefinitions["SourceA"],
+            [context],
+            [new PropertyLookup("Shared.Parent.Name")],
+            _ct,
+            replaceStep: false);
+
+        Assert.Null(context.Get("Shared.Parent.Name"));
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Exactly(missingFirstLevel ? 1 : 2));
+    }
+
+    [Fact]
+    public async Task Enrich_AbsentNestedReference_DoesNotQueryNextLevel()
+    {
+        var targetId = ObjectId.GenerateNewId();
+        var context = Context("Shared", targetId);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetId.ToString()),
+                It.IsAny<Dictionary<string, string>>(),
+                _ct))
+            .ReturnsAsync([Result(targetId)]);
+
+        await _service.Enrich(
+            _modelService.WorkflowDefinitions["SourceA"],
+            [context],
+            [new PropertyLookup("Shared.Parent.Name")],
+            _ct,
+            replaceStep: false);
+
+        Assert.Null(context.Get("Shared.Parent.Name"));
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Once);
+    }
+
     private static ObjectContext Context(string property, ObjectId targetId)
         => new(new Dictionary<Lookup, object?>
         {
@@ -135,6 +321,8 @@ public class InstanceServiceEnrichTests
                                           type: String!
                                         - name: Type
                                           type: String!
+                                        - name: Parent
+                                          type: TargetA
                                       """,
             ["TargetB/Entity.yaml"] = """
                                       name: TargetB
