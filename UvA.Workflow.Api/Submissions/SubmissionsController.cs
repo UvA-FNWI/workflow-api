@@ -34,7 +34,8 @@ public class SubmissionsController(
             await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
             var context = await instanceService.CreateFormContext(instance, form, ct);
             return Ok(submissionDtoFactory.Create(instance, form, submissionState,
-                modelService.GetQuestionStatus(instance, form, true, context: context), permissions: [], context: context));
+                modelService.GetQuestionStatus(instance, form, true, context: context), permissions: [],
+                context: context));
         }
 
         // Live drafts require submit permissions; submitted forms require view permissions.

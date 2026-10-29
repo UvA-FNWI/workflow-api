@@ -99,11 +99,15 @@ public class AnswersControllerTests : ControllerTestsBase
     public async Task Answers_SaveAnswer_RejectsComputedParentBeforeCreatingExternalUser()
     {
         var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
-        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Source\n    type: Party\n  - name: Alias\n    type: Party\n    expression: Source", new()
-        {
-            ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Contact\n    type: User\n    allowsExternalUsers: true"
-        });
-        _modelService.WorkflowDefinitions["Project"].Properties.AddRange(model.WorkflowDefinitions["Project"].Properties);
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Source\n    type: Party\n  - name: Alias\n    type: Party\n    expression: Source",
+            new()
+            {
+                ["Party/Entity.yaml"] =
+                    "name: Party\nisEmbedded: true\nproperties:\n  - name: Contact\n    type: User\n    allowsExternalUsers: true"
+            });
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .AddRange(model.WorkflowDefinitions["Project"].Properties);
         _modelService.GetForm(instance, "Start").PropertyName = "Alias";
         _externalUserServiceMock.Setup(service => service.CreateOrUpdateExternalUser(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), _ct))
@@ -112,7 +116,8 @@ public class AnswersControllerTests : ControllerTestsBase
 
         var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() => controller.SaveAnswer(
             instance.Id, "Start", "Contact",
-            new SaveAnswerRequest(null, ExternalUser: new ExternalUserDto("External User", "external@example.org")), _ct));
+            new SaveAnswerRequest(null, ExternalUser: new ExternalUserDto("External User", "external@example.org")),
+            _ct));
 
         Assert.Equal("ComputedPropertyReadOnly", exception.Code);
         Assert.False(instance.Properties.ContainsKey("Alias"));

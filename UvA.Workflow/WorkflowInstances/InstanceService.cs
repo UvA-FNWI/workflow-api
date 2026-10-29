@@ -29,7 +29,8 @@ public partial class InstanceService(
     IAssessmentService assessmentService
 )
 {
-    public async Task<Dictionary<string, JsonElement?>> GetPropertyValues(WorkflowInstance instance, CancellationToken ct)
+    public async Task<Dictionary<string, JsonElement?>> GetPropertyValues(WorkflowInstance instance,
+        CancellationToken ct)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var values = new Dictionary<string, JsonElement?>();
@@ -222,8 +223,8 @@ public partial class InstanceService(
         }
 
         foreach (var state in states)
-            foreach (var context in state.Batch.Contexts)
-                context.ComputeProperties(state.Batch.WorkflowDefinition);
+        foreach (var context in state.Batch.Contexts)
+            context.ComputeProperties(state.Batch.WorkflowDefinition);
 
         // Replace internal step names using the titles from the original workflow definition.
         if (replaceStep)
@@ -262,7 +263,8 @@ public partial class InstanceService(
             if (targetDefinition == null)
                 continue;
 
-            var lookups = referenceProperty.Select(property => (Lookup)string.Join('.', property.Parts.Skip(1))).ToArray();
+            var lookups = referenceProperty.Select(property => (Lookup)string.Join('.', property.Parts.Skip(1)))
+                .ToArray();
             targetDefinition.ValidateReadLookups(lookups, allowReference: false);
             yield return new ReferenceEnrichment(targetDefinition, state.Batch.Contexts, referenceProperty.Key,
                 targetDefinition.GetProjection(lookups));

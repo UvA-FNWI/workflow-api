@@ -107,7 +107,8 @@ public class ScreenDataService(
             await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row, projection.Keys)).ToList();
+        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row, projection.Keys))
+            .ToList();
 
         // Add related properties as needed
         await instanceService.Enrich(definition, contexts, lookups, ct, false);

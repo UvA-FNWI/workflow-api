@@ -86,11 +86,15 @@ public class EffectServiceTests : ControllerTestsBase
     public async Task SetProperty_ObjectCopyPersistsOnlyStoredDescendants(bool array)
     {
         var type = array ? "[Party]" : "Party";
-        var model = DerivedPropertyTests.Parse($"name: Project\nproperties:\n  - name: Source\n    type: '{type}'\n  - name: Destination\n    type: '{type}'", new()
-        {
-            ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Children\n    type: '[Child]'\n  - name: Total\n    type: Int\n    expression: count(Children)",
-            ["Child/Entity.yaml"] = "name: Child\nisEmbedded: true\nproperties:\n  - name: Name\n    type: String\n  - name: Display\n    type: String\n    expression: Name"
-        });
+        var model = DerivedPropertyTests.Parse(
+            $"name: Project\nproperties:\n  - name: Source\n    type: '{type}'\n  - name: Destination\n    type: '{type}'",
+            new()
+            {
+                ["Party/Entity.yaml"] =
+                    "name: Party\nisEmbedded: true\nproperties:\n  - name: Children\n    type: '[Child]'\n  - name: Total\n    type: Int\n    expression: count(Children)",
+                ["Child/Entity.yaml"] =
+                    "name: Child\nisEmbedded: true\nproperties:\n  - name: Name\n    type: String\n  - name: Display\n    type: String\n    expression: Name"
+            });
         foreach (var definition in model.WorkflowDefinitions)
             _modelService.WorkflowDefinitions[definition.Key] = definition.Value;
         var stored = new BsonDocument("Children", new BsonArray { new BsonDocument("Name", "A") });

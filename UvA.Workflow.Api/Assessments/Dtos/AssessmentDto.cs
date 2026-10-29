@@ -87,7 +87,8 @@ public class AssessmentDtoFactory(
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(instance, sourceResult, pageName, formContexts[sourceResult.Form], sourcePercentage,
+                    return MapToSourceResultDto(instance, sourceResult, pageName, formContexts[sourceResult.Form],
+                        sourcePercentage,
                         sourceConfig?.Title);
                 })
                 .ToArray();

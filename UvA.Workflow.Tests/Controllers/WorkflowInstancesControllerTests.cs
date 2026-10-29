@@ -162,6 +162,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
                 { Name = "Reset", Suppresses = ["ApproveSubject"] });
             events["Reset"] = new BsonDocument("Date", date.AddDays(1));
         }
+
         MockInstances(new Dictionary<string, BsonValue>
         {
             ["_id"] = ObjectId.GenerateNewId(),
@@ -178,7 +179,8 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         var row = Assert.Single(rows);
         Assert.Equal(occurred && !suppressed ? date.ToLocalTime() : (DateTime?)null, row["approveSubjectEvent"]);
         Assert.Equal(occurred && !suppressed, row["approveSubjectEventActive"]);
-        Assert.Equal((suppressed ? date.AddDays(1) : occurred ? date : date.AddDays(-1)).ToLocalTime(), row["lastEvent"]);
+        Assert.Equal((suppressed ? date.AddDays(1) : occurred ? date : date.AddDays(-1)).ToLocalTime(),
+            row["lastEvent"]);
         Assert.False(row.ContainsKey("events"));
     }
 
@@ -187,16 +189,20 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
     {
         MockCurrentUser("SystemAdmin");
         MockEmptyRelatedInstanceLookups();
-        var computed = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Customer\n    type: Customer\n  - name: DisplayName\n    type: String\n    expression: Customer.Name", new()
-        {
-            ["Customer/Entity.yaml"] = "name: Customer\nproperties:\n  - name: Name\n    type: String"
-        }).WorkflowDefinitions[WorkflowDefinition];
+        var computed = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Customer\n    type: Customer\n  - name: DisplayName\n    type: String\n    expression: Customer.Name",
+            new()
+            {
+                ["Customer/Entity.yaml"] = "name: Customer\nproperties:\n  - name: Name\n    type: String"
+            }).WorkflowDefinitions[WorkflowDefinition];
         var definition = _modelService.WorkflowDefinitions[WorkflowDefinition];
         definition.Properties.AddRange(computed.Properties);
         definition.ComputedProperties.AddRange(computed.ComputedProperties);
-        _modelService.WorkflowDefinitions["Customer"] = ((ReferencePropertyDefinition)computed.Properties[0]).WorkflowDefinition!;
+        _modelService.WorkflowDefinitions["Customer"] =
+            ((ReferencePropertyDefinition)computed.Properties[0]).WorkflowDefinition!;
         var customerId = ObjectId.GenerateNewId().ToString();
-        MockInstances(new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId(), ["Customer"] = customerId });
+        MockInstances(new Dictionary<string, BsonValue>
+            { ["_id"] = ObjectId.GenerateNewId(), ["Customer"] = customerId });
         _workflowInstanceRepoMock.Setup(repository => repository.GetAllById(new[] { customerId },
                 It.IsAny<Dictionary<string, string>>(), _ct))
             .ReturnsAsync([new() { ["_id"] = customerId, ["Name"] = "Customer name" }]);
@@ -218,17 +224,17 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         var referenceType = array ? "'[Customer]'" : "Customer";
         var displayType = array ? "'[String]'" : "String";
         var computed = DerivedPropertyTests.Parse($"""
-            name: Project
-            properties:
-              - name: Source
-                type: {referenceType}
-              - name: Alias
-                type: {referenceType}
-                expression: Source
-              - name: Display
-                type: {displayType}
-                expression: Source.Name
-            """, new()
+                                                   name: Project
+                                                   properties:
+                                                     - name: Source
+                                                       type: {referenceType}
+                                                     - name: Alias
+                                                       type: {referenceType}
+                                                       expression: Source
+                                                     - name: Display
+                                                       type: {displayType}
+                                                       expression: Source.Name
+                                                   """, new()
         {
             ["Customer/Entity.yaml"] = "name: Customer\nproperties:\n  - name: Name\n    type: String"
         }).WorkflowDefinitions[WorkflowDefinition];
@@ -242,13 +248,15 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         MockInstances(new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId(), ["Source"] = source });
         _workflowInstanceRepoMock.Setup(repository => repository.GetAll(
                 It.IsAny<System.Linq.Expressions.Expression<Func<WorkflowInstance, bool>>>(), _ct))
-            .ReturnsAsync([new WorkflowInstance
-            {
-                Id = ObjectId.GenerateNewId().ToString(),
-                WorkflowDefinition = WorkflowDefinition,
-                Properties = new() { ["Source"] = source },
-                Events = []
-            }]);
+            .ReturnsAsync([
+                new WorkflowInstance
+                {
+                    Id = ObjectId.GenerateNewId().ToString(),
+                    WorkflowDefinition = WorkflowDefinition,
+                    Properties = new() { ["Source"] = source },
+                    Events = []
+                }
+            ]);
         _workflowInstanceRepoMock.Setup(repository => repository.GetAllById(new[] { customerId },
                 It.IsAny<Dictionary<string, string>>(), _ct))
             .ReturnsAsync([new() { ["_id"] = customerId, ["Name"] = "Customer name" }]);
@@ -259,8 +267,10 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         var payload = JsonSerializer.SerializeToElement(Assert.IsType<OkObjectResult>(result.Result).Value);
         var row = Assert.Single(payload.EnumerateArray());
 
-        Assert.Equal(customerId, array ? row.GetProperty("alias")[0].GetString() : row.GetProperty("alias").GetString());
-        Assert.Equal("Customer name", array ? row.GetProperty("display")[0].GetString() : row.GetProperty("display").GetString());
+        Assert.Equal(customerId,
+            array ? row.GetProperty("alias")[0].GetString() : row.GetProperty("alias").GetString());
+        Assert.Equal("Customer name",
+            array ? row.GetProperty("display")[0].GetString() : row.GetProperty("display").GetString());
     }
 
     [Fact]

@@ -122,14 +122,17 @@ public class ComputedFormDependencyTests
         var repository = new Mock<IWorkflowInstanceRepository>();
         repository.Setup(r => r.GetAllById(new[] { targetId },
                 It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("NeedsDetail") &&
-                    projection.ContainsKey("AcceptsValue") && projection.ContainsKey("IncludesChoice") &&
-                    projection.ContainsKey("ShowsPage")),
+                                                                projection.ContainsKey("AcceptsValue") &&
+                                                                projection.ContainsKey("IncludesChoice") &&
+                                                                projection.ContainsKey("ShowsPage")),
                 CancellationToken.None))
-            .ReturnsAsync([new()
-            {
-                ["_id"] = targetId, ["NeedsDetail"] = true, ["AcceptsValue"] = false,
-                ["IncludesChoice"] = true, ["ShowsPage"] = true
-            }]);
+            .ReturnsAsync([
+                new()
+                {
+                    ["_id"] = targetId, ["NeedsDetail"] = true, ["AcceptsValue"] = false,
+                    ["IncludesChoice"] = true, ["ShowsPage"] = true
+                }
+            ]);
         var service = new InstanceService(repository.Object, model, null!, null!, null!, null!);
         var answers = new BsonDocument { ["Target"] = targetId, ["Validated"] = "Answer" };
         var instance = new WorkflowInstance

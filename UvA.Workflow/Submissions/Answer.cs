@@ -68,11 +68,13 @@ public record Answer(
         value = question.DataType switch
         {
             DataType.Currency => value is CurrencyAmount currency
-                ? new { currency = currency.Currency, amount = currency.Amount } : null,
+                ? new { currency = currency.Currency, amount = currency.Amount }
+                : null,
             DataType.User when question.IsArray => value as InstanceUser[],
             DataType.User => value as InstanceUser,
             DataType.File when question.IsArray => value is ArtifactInfo[] { Length: > 0 } files
-                ? files.Select(file => file.Name).ToArray() : null,
+                ? files.Select(file => file.Name).ToArray()
+                : null,
             DataType.File => (value as ArtifactInfo)?.Name,
             DataType.Check => value as bool? ?? false,
             DataType.Reference when value is Dictionary<Lookup, object?> reference => reference.GetValueOrDefault("Id"),

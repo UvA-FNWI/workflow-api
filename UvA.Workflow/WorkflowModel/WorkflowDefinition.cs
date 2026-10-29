@@ -117,13 +117,17 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
             {
                 if (!visited.Add((definition, lookup, canLoadReference)) || lookup.Parts.Length < 2 ||
                     definition.Properties.GetOrDefault(lookup.Parts[0]) is not WorkflowPropertyDefinition
-                        { WorkflowDefinition: not null } property)
+                    {
+                        WorkflowDefinition: not null
+                    } property)
                     continue;
 
                 var isReference = property is ReferencePropertyDefinition;
                 if (isReference && (definition.IsEmbedded || !canLoadReference))
                     throw new Exception($"'{definition.Name}.{lookup.Property}' requires " +
-                        (definition.IsEmbedded ? "reference loading inside an embedded object" : "more than one reference hop"));
+                                        (definition.IsEmbedded
+                                            ? "reference loading inside an embedded object"
+                                            : "more than one reference hop"));
 
                 Validate(property.WorkflowDefinition, [(Lookup)string.Join('.', lookup.Parts.Skip(1))],
                     canLoadReference && !isReference);

@@ -107,23 +107,24 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
     public async Task SavePropertyInput_RejectsComputedPathBeforeUserCreation(string path)
     {
         var model = DerivedPropertyTests.Parse("""
-            name: Project
-            properties:
-              - name: Source
-                type: Party
-              - name: Alias
-                type: Party
-                expression: Source
-              - name: Contact
-                type: User
-              - name: ComputedContact
-                type: User
-                expression: Contact
-            """, new()
+                                               name: Project
+                                               properties:
+                                                 - name: Source
+                                                   type: Party
+                                                 - name: Alias
+                                                   type: Party
+                                                   expression: Source
+                                                 - name: Contact
+                                                   type: User
+                                                 - name: ComputedContact
+                                                   type: User
+                                                   expression: Contact
+                                               """, new()
         {
             ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Contact\n    type: User"
         });
-        _modelService.WorkflowDefinitions["Project"].Properties.AddRange(model.WorkflowDefinitions["Project"].Properties);
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .AddRange(model.WorkflowDefinitions["Project"].Properties);
         var (_, instance) = Build("SystemAdmin");
         var input = Value(new { UserName = "new-user", DisplayName = "New user", Email = "new@example.org" }).Value;
 
@@ -153,8 +154,10 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
     [Fact]
     public async Task SaveProperty_RejectsChildOfComputedObjectWithoutSavingOrJournaling()
     {
-        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Source\n    type: Party\n  - name: Alias\n    type: Party\n    expression: Source");
-        _modelService.WorkflowDefinitions["Project"].Properties.AddRange(model.WorkflowDefinitions["Project"].Properties);
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Source\n    type: Party\n  - name: Alias\n    type: Party\n    expression: Source");
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .AddRange(model.WorkflowDefinitions["Project"].Properties);
         var (controller, instance) = Build("SystemAdmin");
 
         var exception = await Assert.ThrowsAsync<UvA.Workflow.Infrastructure.InvalidWorkflowStateException>(() =>
