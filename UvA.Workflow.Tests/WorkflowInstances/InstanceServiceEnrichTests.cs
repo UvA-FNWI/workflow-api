@@ -29,15 +29,18 @@ public class InstanceServiceEnrichTests
     public async Task Enrich_PartialReferenceDoesNotEvaluateUnloadedComputedSource(bool array)
     {
         var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: '" +
-            (array ? "[Target]" : "Target") + "'\n  - name: Display\n    type: " +
-            (array ? "'[String]'" : "String!") + "\n    expression: Target.Name", new()
-        {
-            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String\n  - name: Code\n    type: String"
-        });
+                                               (array ? "[Target]" : "Target") + "'\n  - name: Display\n    type: " +
+                                               (array ? "'[String]'" : "String!") + "\n    expression: Target.Name",
+            new()
+            {
+                ["Target/Entity.yaml"] =
+                    "name: Target\nproperties:\n  - name: Name\n    type: String\n  - name: Code\n    type: String"
+            });
         var id = ObjectId.GenerateNewId().ToString();
         var context = model.CreateContext("Project", new() { ["Target"] = array ? new BsonArray { id } : id });
         _repository.Setup(repository => repository.GetAllById(new[] { id },
-                It.Is<Dictionary<string, string>>(projection => projection.Count == 1 && projection.ContainsKey("Code")), _ct))
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 1 && projection.ContainsKey("Code")), _ct))
             .ReturnsAsync([new() { ["_id"] = id, ["Code"] = "A1" }]);
 
         await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
@@ -52,10 +55,12 @@ public class InstanceServiceEnrichTests
     [InlineData("select(except(Targets, Excluded), =Name)")]
     public async Task Enrich_SelectLoadsLiteralReferenceFieldBeforeComputing(string expression)
     {
-        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Targets\n    type: '[Target]'\n  - name: Excluded\n    type: '[Target]'\n  - name: Names\n    type: '[String]'\n    expression: " + expression, new()
-        {
-            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
-        });
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Targets\n    type: '[Target]'\n  - name: Excluded\n    type: '[Target]'\n  - name: Names\n    type: '[String]'\n    expression: " +
+            expression, new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
         var id = ObjectId.GenerateNewId().ToString();
         var context = model.CreateContext("Project", new()
         {
@@ -75,10 +80,12 @@ public class InstanceServiceEnrichTests
     [Fact]
     public void Context_SelectFromEmptyReferenceListReturnsEmptyArray()
     {
-        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Targets\n    type: '[Target]'\n  - name: Names\n    type: '[String]'\n    expression: select(Targets, =Name)", new()
-        {
-            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
-        });
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Targets\n    type: '[Target]'\n  - name: Names\n    type: '[String]'\n    expression: select(Targets, =Name)",
+            new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
 
         var context = model.CreateContext("Project", new() { ["Targets"] = new BsonArray() });
 
@@ -88,10 +95,12 @@ public class InstanceServiceEnrichTests
     [Fact]
     public async Task Enrich_ProjectedNullStillValidatesRequiredComputedProperty()
     {
-        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target\n  - name: Display\n    type: String!\n    expression: Target.Name", new()
-        {
-            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
-        });
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Target\n    type: Target\n  - name: Display\n    type: String!\n    expression: Target.Name",
+            new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
         var id = ObjectId.GenerateNewId().ToString();
         var context = model.CreateContext("Project", new() { ["Target"] = id });
         _repository.Setup(repository => repository.GetAllById(new[] { id },
@@ -126,8 +135,11 @@ public class InstanceServiceEnrichTests
         _repository.Setup(repository => repository.GetAllById(new[] { targetId },
                 It.Is<Dictionary<string, string>>(projection => projection.Count == 1 &&
                                                                 projection["Values"] == "$Properties.Values"), _ct))
-            .ReturnsAsync([missing ? new() { ["_id"] = targetId }
-                : new() { ["_id"] = targetId, ["Values"] = new BsonArray { "A", "B" } }]);
+            .ReturnsAsync([
+                missing
+                    ? new() { ["_id"] = targetId }
+                    : new() { ["_id"] = targetId, ["Values"] = new BsonArray { "A", "B" } }
+            ]);
 
         await service.Enrich(model.WorkflowDefinitions["Source"], [context], ["Total"], _ct, false);
 
@@ -140,10 +152,12 @@ public class InstanceServiceEnrichTests
     public async Task Enrich_ComputedReferenceAliasKeepsDottedFields(bool array)
     {
         var type = array ? "'[Target]'" : "Target";
-        var model = DerivedPropertyTests.Parse($"name: Project\nproperties:\n  - name: Source\n    type: {type}\n  - name: Alias\n    type: {type}\n    expression: Source", new()
-        {
-            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
-        });
+        var model = DerivedPropertyTests.Parse(
+            $"name: Project\nproperties:\n  - name: Source\n    type: {type}\n  - name: Alias\n    type: {type}\n    expression: Source",
+            new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
         var id = ObjectId.GenerateNewId().ToString();
         var context = model.CreateContext("Project", new() { ["Source"] = array ? new BsonArray { id } : id });
         var service = CreateInstanceService(model, _repository);
@@ -160,6 +174,54 @@ public class InstanceServiceEnrichTests
     }
 
     [Theory]
+    [InlineData(false, "Target")]
+    [InlineData(true, "Target")]
+    [InlineData(false, "Alias")]
+    [InlineData(true, "Alias")]
+    public async Task Enrich_ComputedStringReferenceIdsRemainStable(bool array, string expression)
+    {
+        var referenceType = array ? "[Target]" : "Target";
+        var stringType = array ? "[String]" : "String";
+        var model = DerivedPropertyTests.Parse($"""
+                                                name: Project
+                                                properties:
+                                                  - name: Target
+                                                    type: '{referenceType}'
+                                                  - name: Alias
+                                                    type: '{referenceType}'
+                                                    expression: Target
+                                                  - name: TargetIds
+                                                    type: '{stringType}'
+                                                    expression: {expression}
+                                                """, new()
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+        });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = array ? new BsonArray { id } : id });
+        var before = context.Get("TargetIds");
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync([new() { ["_id"] = id, ["Name"] = "Target name" }]);
+
+        await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+            ["TargetIds", "Alias.Name"], _ct, false);
+
+        if (array)
+        {
+            Assert.Equal(new[] { id }, Assert.IsType<string[]>(before));
+            Assert.Equal(new[] { id }, Assert.IsType<string[]>(context.Get("TargetIds")));
+            Assert.Equal("Target name", Assert.IsType<object[]>(context.Get("Alias.Name"))[0]);
+        }
+        else
+        {
+            Assert.Equal(id, before);
+            Assert.Equal(id, context.Get("TargetIds"));
+            Assert.Equal("Target name", context.Get("Alias.Name"));
+        }
+    }
+
+    [Theory]
     [InlineData("if(ApprovedEventActive, =done, =pending)", "done")]
     [InlineData("dateLong(ApprovedEvent)", "15-10-2026")]
     [InlineData("dateLong(CreateDate)", "14-10-2026")]
@@ -169,7 +231,9 @@ public class InstanceServiceEnrichTests
     {
         var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
         {
-            ["Target/Entity.yaml"] = "name: Target\nevents:\n  - name: Approved\nproperties:\n  - name: Display\n    type: String\n    expression: " + expression
+            ["Target/Entity.yaml"] =
+                "name: Target\nevents:\n  - name: Approved\nproperties:\n  - name: Display\n    type: String\n    expression: " +
+                expression
         });
         var id = ObjectId.GenerateNewId().ToString();
         var context = model.CreateContext("Project", new() { ["Target"] = id });
@@ -295,7 +359,8 @@ public class InstanceServiceEnrichTests
     {
         var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
         {
-            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Status\n    type: String!\n    expression: =pending"
+            ["Target/Entity.yaml"] =
+                "name: Target\nproperties:\n  - name: Status\n    type: String!\n    expression: =pending"
         });
         var id = ObjectId.GenerateNewId().ToString();
         var context = model.CreateContext("Project", new() { ["Target"] = id });
@@ -319,16 +384,16 @@ public class InstanceServiceEnrichTests
         var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
         {
             ["Target/Entity.yaml"] = """
-                name: Target
-                properties:
-                  - name: Parent
-                    type: Target
-                  - name: Name
-                    type: String
-                  - name: Display
-                    type: String
-                    expression: Parent.Name
-                """
+                                     name: Target
+                                     properties:
+                                       - name: Parent
+                                         type: Target
+                                       - name: Name
+                                         type: String
+                                       - name: Display
+                                         type: String
+                                         expression: Parent.Name
+                                     """
         });
         var id = ObjectId.GenerateNewId().ToString();
         var context = model.CreateContext("Project", new() { ["Target"] = id });

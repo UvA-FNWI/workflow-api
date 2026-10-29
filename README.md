@@ -166,6 +166,10 @@ Computed references may only directly alias another reference property of the sa
 one reference hop. Multiple reference hops and reference-backed computations inside embedded objects are rejected
 when loading the model. Embedded computations using local stored values remain supported.
 
+Permission conditions, step availability and completion conditions, and hard deadlines cannot load references
+or assessment results. Their computed values must use inputs available in the local instance context;
+unsupported rules are rejected when loading the model.
+
 Computed properties cannot have defaults, appear as form questions or editable bulk-edit fields, or be targets
 of `setProperty` effects. Use a text template to display a computed value in a form. Direct writes are rejected.
 

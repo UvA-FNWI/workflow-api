@@ -78,6 +78,8 @@ public partial class ObjectContext
         return property.DataType switch
         {
             DataType.String or DataType.Reference when value is string => value,
+            DataType.String when value is Dictionary<Lookup, object?> reference &&
+                                 reference.GetValueOrDefault("Id") is string id => id,
             DataType.Reference when value is Dictionary<Lookup, object?> => value,
             DataType.Choice when value is string name &&
                                  ((ChoicePropertyDefinition)property).Values?.Any(choice => choice.Name == name) == true

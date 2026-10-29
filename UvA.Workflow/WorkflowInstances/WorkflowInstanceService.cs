@@ -75,8 +75,10 @@ public class WorkflowInstanceService(
             return;
 
         // Defaults are pending inputs until assigned, rather than null sources for computed properties.
-        var context = ObjectContext.Create(instance, modelService, properties.Select(property => property.Name).ToHashSet());
+        var context = ObjectContext.Create(instance, modelService,
+            properties.Select(property => property.Name).ToHashSet());
         await EnrichDefaultReferences(definition, properties, context, ct);
+        context.ComputeProperties(definition);
         foreach (var property in properties)
             instance.Properties[property.Name] = await ConvertDefault(
                 property, property.DefaultExpression!.Execute(context), ct);
@@ -85,8 +87,8 @@ public class WorkflowInstanceService(
     private async Task EnrichDefaultReferences(WorkflowDefinition definition, PropertyDefinition[] properties,
         ObjectContext context, CancellationToken ct)
     {
-        var referenceRoots = properties
-            .SelectMany(property => property.DefaultExpression!.Properties)
+        var referenceRoots = definition.GetSourceLookups(properties
+                .SelectMany(property => property.DefaultExpression!.Properties))
             .OfType<PropertyLookup>()
             .Where(lookup => lookup.Parts.Length > 1)
             .Select(lookup => lookup.Parts[0])

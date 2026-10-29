@@ -16,12 +16,12 @@ public partial class ModelParser
             Visit(property);
 
         foreach (var property in definition.Properties)
-            foreach (var source in definition.GetSourceLookups(property.Conditions.SelectMany(c => c.Properties))
-                         .OfType<PropertyLookup>().SelectMany(lookup => lookup.Parts).Distinct())
-            {
-                var dependents = definition.Properties.GetOrDefault(source)?.DependentQuestions;
-                if (dependents != null && !dependents.Contains(property)) dependents.Add(property);
-            }
+        foreach (var source in definition.GetSourceLookups(property.Conditions.SelectMany(c => c.Properties))
+                     .OfType<PropertyLookup>().SelectMany(lookup => lookup.Parts).Distinct())
+        {
+            var dependents = definition.Properties.GetOrDefault(source)?.DependentQuestions;
+            if (dependents != null && !dependents.Contains(property)) dependents.Add(property);
+        }
 
         void Visit(PropertyDefinition property)
         {
@@ -36,8 +36,10 @@ public partial class ModelParser
                 if (property is ReferencePropertyDefinition &&
                     (property.ComputedExpression is not Identifier(var name) ||
                      definition.Properties.GetOrDefault(name) is not ReferencePropertyDefinition referenceSource ||
-                     referenceSource.UnderlyingType != property.UnderlyingType || referenceSource.IsArray != property.IsArray))
-                    throw new Exception("Computed references must directly alias a reference property of the same type");
+                     referenceSource.UnderlyingType != property.UnderlyingType ||
+                     referenceSource.IsArray != property.IsArray))
+                    throw new Exception(
+                        "Computed references must directly alias a reference property of the same type");
                 foreach (var source in property.ComputedExpression.Properties.OfType<PropertyLookup>())
                 {
                     var root = source.Parts[0];
@@ -70,9 +72,30 @@ public partial class ModelParser
             }
             catch (Exception exception)
             {
-                throw new Exception($"Invalid expression for computed property '{property.Name}' in '{definition.Name}': {exception.Message}",
+                throw new Exception(
+                    $"Invalid expression for computed property '{property.Name}' in '{definition.Name}': {exception.Message}",
                     exception);
             }
+        }
+
+        // Permission conditions use the current context without loading references or calculating assessments.
+        var permissionLookups = definition.Roles.SelectMany(role => role.Actions).Concat(definition.AllActions)
+            .SelectMany(action => action.Condition?.Properties ?? [])
+            .Concat(definition.AllSteps.SelectMany(step =>
+                (step.Condition?.Properties ?? []).Concat(step.Ends?.Properties ?? [])
+                .Concat(step.Deadline is { Type: DeadlineType.Hard } deadline
+                    ? ExpressionParser.Parse(deadline.Date).Properties
+                    : []))).ToArray();
+        try
+        {
+            definition.ValidateReadLookups(permissionLookups, allowReference: false);
+            if (!definition.Properties.Contains("Assessment") && definition.GetSourceLookups(permissionLookups)
+                    .OfType<PropertyLookup>().Any(lookup => lookup.Parts[0] == "Assessment"))
+                throw new Exception("Assessment inputs require enrichment");
+        }
+        catch (Exception exception)
+        {
+            throw new Exception($"Invalid permission rule in '{definition.Name}': {exception.Message}", exception);
         }
     }
 
@@ -100,8 +123,10 @@ public partial class ModelParser
             foreach (var property in screen.BulkEdit?.EditableProperties ?? [])
                 EnsureStoredProperty(definition, property, $"Bulk edit on '{screen.Name}'");
             if (screen.BulkEdit?.Identifier != null)
-                EnsureStoredProperty(definition, screen.BulkEdit.Identifier.Property, $"Bulk edit identifier on '{screen.Name}'");
+                EnsureStoredProperty(definition, screen.BulkEdit.Identifier.Property,
+                    $"Bulk edit identifier on '{screen.Name}'");
         }
+
         foreach (var user in definition.EditableRelatedUsers)
             EnsureStoredProperty(definition, user.Property, "Editable related user");
 

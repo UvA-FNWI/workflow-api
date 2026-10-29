@@ -151,8 +151,10 @@ public class DerivedPropertyTests
     {
         var model = Parse("name: Project\nproperties:\n  - name: Container\n    type: Container", new()
         {
-            ["Container/Entity.yaml"] = "name: Container\nisEmbedded: true\nproperties:\n  - name: Party\n    type: Party",
-            ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Names\n    type: '[String]'\n  - name: Total\n    type: Int\n    expression: count(Names)"
+            ["Container/Entity.yaml"] =
+                "name: Container\nisEmbedded: true\nproperties:\n  - name: Party\n    type: Party",
+            ["Party/Entity.yaml"] =
+                "name: Party\nisEmbedded: true\nproperties:\n  - name: Names\n    type: '[String]'\n  - name: Total\n    type: Int\n    expression: count(Names)"
         });
         var context = model.CreateContext("Project", new()
         {
@@ -168,10 +170,12 @@ public class DerivedPropertyTests
     public async Task Answer_EmbeddedValuesRoundTripWithoutComputedDescendants(bool array, bool storedAsArray)
     {
         var model = Parse("name: Project\nproperties:\n  - name: Nested\n    type: '" +
-            (array ? "[Party]" : "Party") + "'", new()
+                          (array ? "[Party]" : "Party") + "'", new()
         {
-            ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Children\n    type: '[Child]'\n  - name: Total\n    type: Int\n    expression: count(Children)",
-            ["Child/Entity.yaml"] = "name: Child\nisEmbedded: true\nproperties:\n  - name: Name\n    type: String\n  - name: Display\n    type: String\n    expression: Name"
+            ["Party/Entity.yaml"] =
+                "name: Party\nisEmbedded: true\nproperties:\n  - name: Children\n    type: '[Child]'\n  - name: Total\n    type: Int\n    expression: count(Children)",
+            ["Child/Entity.yaml"] =
+                "name: Child\nisEmbedded: true\nproperties:\n  - name: Name\n    type: String\n  - name: Display\n    type: String\n    expression: Name"
         });
         var property = model.WorkflowDefinitions["Project"].Properties.Single();
         var stored = new BsonDocument
@@ -198,7 +202,8 @@ public class DerivedPropertyTests
     {
         var model = Parse("name: Project\nproperties:\n  - name: Nested\n    type: Party", new()
         {
-            ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Name\n    type: String\n  - name: Display\n    type: String!\n    expression: Name"
+            ["Party/Entity.yaml"] =
+                "name: Party\nisEmbedded: true\nproperties:\n  - name: Name\n    type: String\n  - name: Display\n    type: String!\n    expression: Name"
         });
 
         var payload = Answer.GetValue(model.WorkflowDefinitions["Project"].Properties.Single(), new BsonDocument());
@@ -210,14 +215,14 @@ public class DerivedPropertyTests
     public void Parser_RejectsComputedExternalAccountTarget()
     {
         var exception = Assert.ThrowsAny<Exception>(() => Parse("""
-            name: Project
-            properties:
-              - name: Owner
-                type: User
-              - name: Recipient
-                type: User
-                expression: Owner
-            """, new()
+                                                                name: Project
+                                                                properties:
+                                                                  - name: Owner
+                                                                    type: User
+                                                                  - name: Recipient
+                                                                    type: User
+                                                                    expression: Owner
+                                                                """, new()
         {
             ["Project/Forms/Edit.yaml"] = "name: Edit\nonSubmit:\n  - createExternalUserAccount:\n      role: Recipient"
         }));
@@ -231,9 +236,12 @@ public class DerivedPropertyTests
         var exception = Assert.ThrowsAny<Exception>(() => Parse(
             "name: Project\nproperties:\n  - name: Container\n    type: Container", new()
             {
-                ["Container/Entity.yaml"] = "name: Container\nisEmbedded: true\nproperties:\n  - name: Party\n    type: Party",
-                ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Total\n    type: Int\n    expression: 1",
-                ["Project/Forms/Edit.yaml"] = "name: Edit\nonSubmit:\n  - setProperty:\n      property: Container.Party.Total\n      value: 2"
+                ["Container/Entity.yaml"] =
+                    "name: Container\nisEmbedded: true\nproperties:\n  - name: Party\n    type: Party",
+                ["Party/Entity.yaml"] =
+                    "name: Party\nisEmbedded: true\nproperties:\n  - name: Total\n    type: Int\n    expression: 1",
+                ["Project/Forms/Edit.yaml"] =
+                    "name: Edit\nonSubmit:\n  - setProperty:\n      property: Container.Party.Total\n      value: 2"
             }));
         Assert.Contains("computed", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Container.Party.Total", exception.Message);
@@ -244,10 +252,12 @@ public class DerivedPropertyTests
     [InlineData(true)]
     public void Context_ComputesFromConfiguredEventThatHasNotOccurred(bool projected)
     {
-        var model = Parse("name: Project\nevents:\n  - name: Approved\nproperties:\n  - name: Status\n    type: String\n    expression: if(ApprovedEventActive, =done, =pending)");
+        var model = Parse(
+            "name: Project\nevents:\n  - name: Approved\nproperties:\n  - name: Status\n    type: String\n    expression: if(ApprovedEventActive, =done, =pending)");
         var context = projected
             ? model.CreateContext("Project", new() { ["Events"] = new BsonDocument() })
-            : model.CreateContext(new WorkflowInstance { WorkflowDefinition = "Project", Properties = [], Events = [] });
+            : model.CreateContext(new WorkflowInstance
+                { WorkflowDefinition = "Project", Properties = [], Events = [] });
         Assert.Equal("pending", context.Get("Status"));
     }
 
@@ -257,12 +267,12 @@ public class DerivedPropertyTests
     public void Parser_ComputedPropertyCanUseEventDeclaredByFormEffect(string effects)
     {
         var model = Parse("""
-            name: Project
-            properties:
-              - name: Status
-                type: String
-                expression: if(ApprovedEventActive, =done, =pending)
-            """, new()
+                          name: Project
+                          properties:
+                            - name: Status
+                              type: String
+                              expression: if(ApprovedEventActive, =done, =pending)
+                          """, new()
         {
             ["Project/Forms/Edit.yaml"] = $"name: Edit\n{effects}:\n  - event: Approved"
         });
@@ -277,14 +287,14 @@ public class DerivedPropertyTests
     public void Context_DoesNotComputeFromUnprojectedLastEvent()
     {
         var model = Parse("""
-            name: Project
-            properties:
-              - name: Name
-                type: String
-              - name: LastChanged
-                type: String!
-                expression: dateLong(LastEvent)
-            """);
+                          name: Project
+                          properties:
+                            - name: Name
+                              type: String
+                            - name: LastChanged
+                              type: String!
+                              expression: dateLong(LastEvent)
+                          """);
 
         var context = model.CreateContext("Project", new() { ["Name"] = "Example" }, ["Name"]);
 
@@ -300,16 +310,16 @@ public class DerivedPropertyTests
     public void Parser_RejectsComputedReferenceThatIsNotADirectAlias(string expression)
     {
         var exception = Assert.ThrowsAny<Exception>(() => Parse($"""
-            name: Project
-            properties:
-              - name: Source
-                type: Target
-              - name: TargetId
-                type: String
-              - name: Primary
-                type: Target
-                expression: {expression}
-            """, new()
+                                                                 name: Project
+                                                                 properties:
+                                                                   - name: Source
+                                                                     type: Target
+                                                                   - name: TargetId
+                                                                     type: String
+                                                                   - name: Primary
+                                                                     type: Target
+                                                                     expression: {expression}
+                                                                 """, new()
         {
             ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
         }));
@@ -325,31 +335,168 @@ public class DerivedPropertyTests
     public void Parser_RejectsComputedInputsRequiringUnsupportedReferenceLoading(bool embedded, string expression)
     {
         var exception = Assert.ThrowsAny<Exception>(() => Parse($"""
-            name: Project
-            isEmbedded: {embedded.ToString().ToLowerInvariant()}
-            properties:
-              - name: Target
-                type: Target
-              - name: Display
-                type: String
-                expression: {expression}
-            """, new()
+                                                                 name: Project
+                                                                 isEmbedded: {embedded.ToString().ToLowerInvariant()}
+                                                                 properties:
+                                                                   - name: Target
+                                                                     type: Target
+                                                                   - name: Display
+                                                                     type: String
+                                                                     expression: {expression}
+                                                                 """, new()
         {
             ["Target/Entity.yaml"] = """
-                name: Target
-                properties:
-                  - name: Name
-                    type: String
-                  - name: Parent
-                    type: Target
-                  - name: Display
-                    type: String
-                    expression: Parent.Name
-                """
+                                     name: Target
+                                     properties:
+                                       - name: Name
+                                         type: String
+                                       - name: Parent
+                                         type: Target
+                                       - name: Display
+                                         type: String
+                                         expression: Parent.Name
+                                     """
         }));
 
         Assert.Contains("Display", exception.Message);
         Assert.Contains("reference", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("role")]
+    [InlineData("globalAction")]
+    [InlineData("stepAction")]
+    [InlineData("stepCondition")]
+    [InlineData("stepEnds")]
+    public void Parser_RejectsReferenceBackedComputedPermissionRules(string usage)
+    {
+        const string condition = "condition:\n  not: true\n  value:\n    property: IsBlocked\n    equal: true";
+        var yaml = """
+                   name: Project
+                   properties:
+                     - name: Target
+                       type: Target
+                     - name: Blocked
+                       type: Check
+                       expression: Target.Blocked
+                     - name: IsBlocked
+                       type: Check
+                       expression: Blocked
+                   """;
+        var extra = new Dictionary<string, string>
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Blocked\n    type: Check"
+        };
+        var action = "- type: Edit\n  " + condition.Replace("\n", "\n  ");
+        switch (usage)
+        {
+            case "role":
+                extra["Project/Roles/Registered.yaml"] =
+                    "name: Registered\nactions:\n  " + action.Replace("\n", "\n  ");
+                break;
+            case "globalAction":
+                yaml += "\nglobalActions:\n  " + action.Replace("\n", "\n  ");
+                break;
+            case "stepAction":
+                extra["Project/Steps/Review.yaml"] = "name: Review\nactions:\n  " + action.Replace("\n", "\n  ");
+                break;
+            default:
+                extra["Project/Steps/Review.yaml"] = "name: Review\n" +
+                                                     (usage == "stepEnds"
+                                                         ? condition.Replace("condition:", "ends:")
+                                                         : condition);
+                break;
+        }
+
+        var exception = Assert.ThrowsAny<Exception>(() => Parse(yaml, extra));
+
+        Assert.Contains("permission", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("reference", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Parser_RejectsReferenceBackedComputedHardDeadline()
+    {
+        var exception = Assert.ThrowsAny<Exception>(() => Parse("""
+                                                                name: Project
+                                                                properties:
+                                                                  - name: Target
+                                                                    type: Target
+                                                                  - name: DueDate
+                                                                    type: Date
+                                                                    expression: Target.DueDate
+                                                                """, new()
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: DueDate\n    type: Date",
+            ["Project/Steps/Review.yaml"] = "name: Review\ndeadline:\n  date: DueDate\n  type: Hard"
+        }));
+
+        Assert.Contains("permission", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("reference", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PermissionRules_CanUseComputedValuesFromLocalSources(bool blocked)
+    {
+        var model = Parse("""
+                          name: Project
+                          properties:
+                            - name: Blocked
+                              type: Check
+                            - name: IsBlocked
+                              type: Check
+                              expression: Blocked
+                          """, new()
+        {
+            ["Project/Roles/Registered.yaml"] = """
+                                                name: Registered
+                                                actions:
+                                                  - type: Edit
+                                                    condition:
+                                                      not: true
+                                                      value:
+                                                        property: IsBlocked
+                                                        equal: true
+                                                """
+        });
+        var users = new Mock<IUserService>();
+        users.Setup(user => user.GetRolesOfCurrentUser(default)).ReturnsAsync([]);
+        var rights = new RightsService(model, users.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var instance = new WorkflowInstance
+        {
+            WorkflowDefinition = "Project", Properties = new() { ["Blocked"] = blocked }, Events = []
+        };
+
+        Assert.Equal(!blocked, await rights.Can(instance, RoleAction.Edit));
+    }
+
+    [Fact]
+    public void Parser_RejectsAssessmentBackedComputedPermissionRule()
+    {
+        var exception = Assert.ThrowsAny<Exception>(() => Parse("""
+                                                                name: Project
+                                                                properties:
+                                                                  - name: Grade
+                                                                    type: Double
+                                                                    expression: Assessment.FinalGrade
+                                                                """, new()
+        {
+            ["Project/Roles/Registered.yaml"] = """
+                                                name: Registered
+                                                actions:
+                                                  - type: Edit
+                                                    condition:
+                                                      not: true
+                                                      value:
+                                                        property: Grade
+                                                        equal: 10
+                                                """
+        }));
+
+        Assert.Contains("permission", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Assessment", exception.Message);
     }
 
     internal static ModelService Parse(string yaml = Properties, Dictionary<string, string>? extra = null)
