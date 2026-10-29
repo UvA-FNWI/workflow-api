@@ -47,6 +47,21 @@
         }
       ]
     },
+    "template": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Name of a step template (folder under Common/StepTemplates) to resolve this step from"
+    },
+    "values": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "description": "Parameter values passed to the resolved template",
+      "additionalProperties": {}
+    },
     "hierarchyMode": {
       "description": "Determines how the child steps of this step are handled",
       "$ref": "#/definitions/StepHierarchyMode"

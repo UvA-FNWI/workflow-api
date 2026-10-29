@@ -35,6 +35,7 @@ public partial class ModelParser
 
         return new DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .WithDuplicateKeyChecking()
             .WithTypeDiscriminatingNodeDeserializer(options =>
             {
                 options.AddKeyValueTypeDiscriminator<PropertyDefinition>("type", propertyTypes);

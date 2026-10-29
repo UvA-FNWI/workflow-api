@@ -178,7 +178,7 @@ public class WorkflowInstanceDtoFactory(
         var deadline = GetDeadline(step, context, activeSteps);
         var headerStatus = HasPassedDeadline(step, context, activeSteps)
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
-            : stepProgressResolver.ResolveHeader(step, instance);
+            : stepProgressResolver.ResolveHeader(step, context);
 
         // A completed step's latest version is already shown as its live submission.
         // For an expired, unfinished step, retain every historical version.
