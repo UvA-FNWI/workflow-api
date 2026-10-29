@@ -5,6 +5,7 @@ global using MongoDB.Driver;
 global using Microsoft.Extensions.Options;
 global using UvA.Workflow.Events;
 global using UvA.Workflow.Jobs;
+global using UvA.Workflow.Messages;
 global using UvA.Workflow.Journaling;
 global using UvA.Workflow.Notifications;
 global using UvA.Workflow.Persistence;

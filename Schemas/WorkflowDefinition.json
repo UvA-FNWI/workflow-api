@@ -127,6 +127,17 @@
           "$ref": "#/definitions/AssessmentConfiguration"
         }
       ]
+    },
+    "messages": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Optional instance/field discussion threads. Omitted or Enabled=false means off.",
+          "$ref": "#/definitions/MessagesSettings"
+        }
+      ]
     }
   },
   "definitions": {
@@ -2013,6 +2024,16 @@
         "Decimal",
         "PassFail"
       ]
+    },
+    "MessagesSettings": {
+      "title": "MessagesSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

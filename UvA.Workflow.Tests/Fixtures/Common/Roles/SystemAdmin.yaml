@@ -10,3 +10,4 @@ actions:
   - type: Submit
   - type: Execute
   - type: ViewCorrespondence
+  - type: AddInstanceMessage

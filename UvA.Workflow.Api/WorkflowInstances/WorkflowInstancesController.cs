@@ -147,7 +147,7 @@ public class WorkflowInstancesController(
 
         // The admin view ignores property conditions and visibility.
         var properties = definition.Properties
-            .Select(p => QuestionDto.Create(p, totalWeight: 0))
+            .Select(p => QuestionDto.Create(p, totalWeight: 0, definition))
             .ToArray();
 
         return Ok(new InstancePropertiesDto(properties, instanceService.GetPropertyValues(instance)));

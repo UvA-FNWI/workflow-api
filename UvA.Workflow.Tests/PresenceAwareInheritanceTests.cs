@@ -250,6 +250,20 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
+    public void MessagesSettings_Inherited_UnlessDeclared()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nmessages:\n  enabled: true",
+            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
+            ["Off/Entity.yaml"] = "name: Off\ntitlePlural: Fs\ninheritsFrom: Base\nmessages:\n  enabled: false"
+        }));
+
+        Assert.True(parser.WorkflowDefinitions["Omit"].MessagesEnabled);
+        Assert.False(parser.WorkflowDefinitions["Off"].MessagesEnabled);
+    }
+
+    [Fact]
     public void FormPages_MergeUnlessExplicitlyCleared()
     {
         var parser = new ModelParser(new DictionaryProvider(new()

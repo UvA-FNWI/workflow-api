@@ -18,6 +18,7 @@ public class FormDtoTests
         var form = new Form
         {
             Name = "Review",
+            WorkflowDefinition = definition,
             Pages =
             [
                 new Page
@@ -69,13 +70,86 @@ public class FormDtoTests
             ParentType = definition
         };
 
-        var configuredDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(configured, 0));
-        var defaultedDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(defaulted, 0));
+        var configuredDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(configured, 0, definition));
+        var defaultedDto = Assert.IsType<FileQuestionDto>(QuestionDto.Create(defaulted, 0, definition));
 
         Assert.Equal(["zip", "tar.gz"], configuredDto.AllowedFileTypes);
         Assert.Equal(["pdf"], defaultedDto.AllowedFileTypes);
         Assert.Equal(25_000_000, configuredDto.AllowedFileSize);
         Assert.Equal(10_000_000, defaultedDto.AllowedFileSize);
+    }
+
+    [Fact]
+    public void Create_SetsAllowMessagesFromEntitySettings()
+    {
+        var definition = new WorkflowDefinition
+        {
+            Name = "Application",
+            Messages = new MessagesSettings { Enabled = true }
+        };
+        var name = new StringPropertyDefinition { Name = "Name", Type = "String", ParentType = definition };
+        var hidden = new StringPropertyDefinition
+        {
+            Name = "Internal",
+            Type = "String",
+            ParentType = definition,
+            Visibility = PropertyVisibility.Hidden
+        };
+        var excluded = new StringPropertyDefinition
+        {
+            Name = "StatusBadge",
+            Type = "String",
+            ParentType = definition,
+            Messages = false
+        };
+        definition.Properties = [name, hidden, excluded];
+
+        Assert.True(QuestionDto.Create(name, 0, definition).AllowMessages);
+        Assert.False(QuestionDto.Create(hidden, 0, definition).AllowMessages);
+        Assert.False(QuestionDto.Create(excluded, 0, definition).AllowMessages);
+    }
+
+    [Fact]
+    public void Create_AllowMessages_UsesFormWorkflowDefinition_WhenPropertyParentTypeIsStale()
+    {
+        var parent = new WorkflowDefinition { Name = "Thesis-Base" };
+        var title = new StringPropertyDefinition { Name = "Title", Type = "String", ParentType = parent };
+        parent.Properties = [title];
+
+        var child = new WorkflowDefinition
+        {
+            Name = "Project-Playground",
+            Messages = new MessagesSettings { Enabled = true }
+        };
+        child.Properties = [title];
+        title.ParentType = parent;
+
+        var subject = new StringPropertyDefinition { Name = "Subject", Type = "String", ParentType = child };
+        child.Properties.Add(subject);
+
+        var form = new Form
+        {
+            Name = "Start",
+            WorkflowDefinition = child,
+            Pages =
+            [
+                new Page
+                {
+                    PageElements =
+                    [
+                        new PageElement { Question = "Title", QuestionDefinition = title },
+                        new PageElement { Question = "Subject", QuestionDefinition = subject },
+                    ]
+                }
+            ]
+        };
+
+        var questions = FormDto.Create(form, new ObjectContext([])).Pages[0].Elements
+            .Select(element => element.Question!)
+            .ToDictionary(question => question.Name);
+
+        Assert.True(questions["Title"].AllowMessages);
+        Assert.True(questions["Subject"].AllowMessages);
     }
 
     [Fact]
@@ -89,7 +163,7 @@ public class FormDtoTests
             ParentType = parent,
             Control = StringControl.TextArea
         };
-        var question = QuestionDto.Create(property, 0);
+        var question = QuestionDto.Create(property, 0, parent);
         var json = JsonSerializer.SerializeToElement(question, CreateJsonOptions());
 
         Assert.False(json.TryGetProperty("multiline", out _));
