@@ -20,6 +20,65 @@ namespace UvA.Workflow.Tests;
 
 public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_VisibleSummaryRetainsBothReviewsUntilResubmissionWithoutChangingAttempts(bool resubmitted)
+    {
+        var t = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateRmssInstanceWithSupervisorAssessment("Fail");
+        instance.CreatedOn = t;
+        instance.CurrentStep = resubmitted ? "ProposalAssessmentSupervisor" : "Start";
+        instance.Properties["ReviewerProposalAndEthicsReview"] = new BsonDocument
+        {
+            ["ProposalSufficient"] = "Pass", ["EthicsSufficient"] = "Pass"
+        };
+        var logs = new List<InstanceEventLogEntry>
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "ProposalRejectedSupervisor", t.AddMinutes(2)),
+            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(3)),
+            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(4))
+        };
+        if (resubmitted)
+            logs.Add(EventLog(instance, "Start", t.AddMinutes(5)));
+        instance.Events = EventHistory.RebuildEvents(logs);
+        MockCurrentUser("Student");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, logs.ToArray());
+        var factory = CreateFactory(new StepVersionService(_modelService));
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+        var proposal = FindStep(dto.Steps, "ProposalPhase");
+
+        Assert.Equal(
+            resubmitted ? ["Start"] : new[] { "ProposalAndEthicsReviewReviewer", "ProposalAndEthicsReviewSupervisor" },
+            proposal.Submissions!.Select(submission => submission.FormName).Order());
+        Assert.Equal(2, proposal.Versions!.Current!.VersionNumber);
+        Assert.Equal(resubmitted ? 1 : 0, proposal.Versions.Current.Submissions.Count);
+        Assert.Equal(1, Assert.Single(proposal.Versions.History).VersionNumber);
+        if (resubmitted)
+        {
+            // Student review access closes on resubmission, including access to historical review answers.
+            Assert.Equal("Start", Assert.Single(proposal.Versions.History[0].Submissions).FormName);
+        }
+        else
+        {
+            Assert.Contains(proposal.Versions.History[0].Submissions,
+                submission => submission.FormName == "ProposalAndEthicsReviewSupervisor");
+            Assert.Contains(proposal.Versions.History[0].Submissions,
+                submission => submission.FormName == "ProposalAndEthicsReviewReviewer");
+        }
+
+        MockCurrentUser("NoViewRights");
+        var hidden = FindStep((await factory.Create(instance, CancellationToken.None)).Steps, "ProposalPhase");
+        Assert.Empty(hidden.Submissions!);
+        Assert.Equal(2, hidden.Versions!.Current!.VersionNumber);
+        Assert.Empty(Assert.Single(hidden.Versions.History).Submissions);
+    }
+
     [Fact]
     public async Task Create_LiveSubmissionIncludesGroupedAnswerHistory()
     {
@@ -47,6 +106,32 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.Equal(1, group.VersionNumber);
         Assert.Equal(12, group.Changes[0].Value?.GetInt32());
         Assert.Equal(6, group.Changes[1].Value?.GetInt32());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_SummaryOnlyIncludesSubmissionsFromTheVisibleStepHierarchy(bool visible)
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = CreateProjectInstance();
+        instance.Properties["Title"] = visible ? "Visible" : "Hidden";
+        instance.Events["Start"] = new InstanceEvent { Id = "Start", Date = submittedAt };
+        _modelService.GetForm(instance, "Start").Step = "Start";
+        _modelService.WorkflowDefinitions["Project"].AllSteps.Single(step => step.Name == "Start").Condition =
+            new() { Value = new() { Property = "Title", Equal = "=Visible" } };
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
+
+        var dto = await CreateFactory(Mock.Of<IStepVersionService>()).Create(instance, CancellationToken.None);
+
+        Assert.Contains(dto.Submissions, submission => submission.FormName == "Start");
+        var subject = FindStep(dto.Steps, "Subject");
+        Assert.Equal(visible, subject.Children!.Any(child => child.Id == "Start"));
+        Assert.Equal(visible, subject.Submissions!.Any(submission => submission.FormName == "Start"));
     }
 
     [Fact]

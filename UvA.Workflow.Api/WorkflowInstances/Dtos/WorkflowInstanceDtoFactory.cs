@@ -187,7 +187,7 @@ public class WorkflowInstanceDtoFactory(
         ObjectContext context,
         HashSet<string> activeSteps,
         IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
-        SubmissionDto[] unversionedSubmissions,
+        SubmissionDto[] visibleSubmissions,
         HashSet<string> actionSteps,
         CancellationToken ct)
     {
@@ -199,21 +199,16 @@ public class WorkflowInstanceDtoFactory(
 
         var versionDtos = stepVersionsMap.GetValueOrDefault(step.Name);
 
-        var owner = step;
-        while (!stepVersionsMap.ContainsKey(owner.Name) && owner.ParentStep != null)
-            owner = owner.ParentStep;
-        var currentDto = stepVersionsMap.GetValueOrDefault(owner.Name)?.Current;
-        var subtree = Descendants(step).Select(s => s.Name).ToHashSet();
-        IEnumerable<SubmissionDto> assignedSubmissions =
-            stepVersionsMap.Count == 0 ? unversionedSubmissions : currentDto?.Submissions ?? [];
-        var displayedSubmissions = assignedSubmissions.Where(s =>
+        var subtree = Descendants(step, context).Select(s => s.Name).ToHashSet();
+        // The summary follows live view rules; attempt membership is kept separately in Versions.
+        var displayedSubmissions = visibleSubmissions.Where(s =>
             s.Form.Step != null && subtree.Contains(s.Form.Step)).ToList();
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
                 .Where(s => s.Condition.IsMet(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, context, activeSteps,
-                    effectiveEventLogs, unversionedSubmissions, actionSteps, ct)))
+                    effectiveEventLogs, visibleSubmissions, actionSteps, ct)))
             : null;
         // Match the step where the UI displays the submission, which can differ from the action's step.
         // For older forms without an assigned step, keep using the step's submit actions.
@@ -314,8 +309,9 @@ public class WorkflowInstanceDtoFactory(
                                        step.Children.Where(child => child.Condition.IsMet(context))
                                            .Any(child => HasPassedDeadline(child, context, activeSteps)));
 
-    private static IEnumerable<Step> Descendants(Step step)
-        => new[] { step }.Concat(step.Children.SelectMany(Descendants));
+    private static IEnumerable<Step> Descendants(Step step, ObjectContext context)
+        => new[] { step }.Concat(step.Children.Where(child => child.Condition.IsMet(context))
+            .SelectMany(child => Descendants(child, context)));
 
     private StepVersionDto CreateStepVersionDto(
         StepVersion stepVersion,
