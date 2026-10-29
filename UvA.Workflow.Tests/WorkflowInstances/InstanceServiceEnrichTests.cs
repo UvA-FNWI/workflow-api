@@ -290,6 +290,59 @@ public class InstanceServiceEnrichTests
             [property] = targetId.ToString()
         });
 
+    [Fact]
+    public async Task Enrich_ConstantComputedReferenceFieldKeepsAValidProjection()
+    {
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Status\n    type: String!\n    expression: =pending"
+        });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = id });
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync((string[] _, Dictionary<string, string> projection, CancellationToken _) =>
+            {
+                Assert.NotEmpty(projection);
+                return [new() { ["_id"] = id }];
+            });
+
+        await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+            ["Target.Status"], _ct, false);
+
+        Assert.Equal("pending", context.Get("Target.Status"));
+    }
+
+    [Fact]
+    public async Task Enrich_RejectsComputedReferenceReadRequiringAnotherHop()
+    {
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
+        {
+            ["Target/Entity.yaml"] = """
+                name: Target
+                properties:
+                  - name: Parent
+                    type: Target
+                  - name: Name
+                    type: String
+                  - name: Display
+                    type: String
+                    expression: Parent.Name
+                """
+        });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = id });
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync([new() { ["_id"] = id, ["Parent"] = ObjectId.GenerateNewId().ToString() }]);
+
+        var error = await Assert.ThrowsAnyAsync<Exception>(() =>
+            CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+                ["Target.Display"], _ct, false));
+
+        Assert.Contains("reference hop", error.Message);
+    }
+
     private static Dictionary<string, BsonValue> Result(
         ObjectId id,
         params (string Property, string Value)[] properties)

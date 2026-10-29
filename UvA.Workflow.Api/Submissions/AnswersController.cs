@@ -28,8 +28,7 @@ public class AnswersController(
             RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
         return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
-            modelService.GetQuestionStatus(context.Instance, context.Form, true),
-            permissions.Select(permission => permission.Type).ToArray(), history, ct));
+            permissions: permissions.Select(permission => permission.Type).ToArray(), history: history, ct: ct));
     }
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
@@ -56,8 +55,7 @@ public class AnswersController(
             var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
             var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
                 context.SubmissionState,
-                modelService.GetQuestionStatus(context.Instance, context.Form, true),
-                permissions.Select(p => p.Type).ToArray(), history, ct);
+                permissions: permissions.Select(p => p.Type).ToArray(), history: history, ct: ct);
             return Ok(new SaveAnswerResponse(true, answers, updatedSubmission,
                 User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }

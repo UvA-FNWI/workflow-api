@@ -20,7 +20,7 @@ public sealed record EnrichmentBatch(
     ICollection<ObjectContext> Contexts,
     IEnumerable<Lookup> Lookups);
 
-public class InstanceService(
+public partial class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     IUserService userService,
@@ -262,8 +262,10 @@ public class InstanceService(
             if (targetDefinition == null)
                 continue;
 
+            var lookups = referenceProperty.Select(property => (Lookup)string.Join('.', property.Parts.Skip(1))).ToArray();
+            targetDefinition.ValidateReadLookups(lookups, allowReference: false);
             yield return new ReferenceEnrichment(targetDefinition, state.Batch.Contexts, referenceProperty.Key,
-                targetDefinition.GetProjection(referenceProperty.Select(property => (Lookup)property.Parts[1])));
+                targetDefinition.GetProjection(lookups));
         }
     }
 
@@ -479,7 +481,7 @@ public class InstanceService(
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        return forms
+        var submissions = forms
             .Values
             .Distinct()
             .Select(form => new
@@ -489,10 +491,10 @@ public class InstanceService(
             })
             .Where(x => x.State.IsSubmitted)
             .OrderBy(x => workflowDef.Forms.FindIndex(f => f.Name == x.Form.Name))
-            .ThenBy(x => x.State.DateSubmitted)
-            .Select(x => new AllowedSubmission(x.State, x.Form,
-                modelService.GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name)),
-                allowed.Any(a => a.Type == RoleAction.View && a.MatchesForm(x.Form.Name))));
+            .ThenBy(x => x.State.DateSubmitted);
+        return await Task.WhenAll(submissions.Select(async x => new AllowedSubmission(x.State, x.Form,
+            await GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name), ct),
+            allowed.Any(a => a.Type == RoleAction.View && a.MatchesForm(x.Form.Name)))));
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,

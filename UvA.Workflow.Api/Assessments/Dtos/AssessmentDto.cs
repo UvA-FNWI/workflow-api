@@ -41,7 +41,8 @@ public record SourceResultDto(
 public class AssessmentDtoFactory(
     ArtifactTokenService artifactTokenService,
     ModelService modelService,
-    IAssessmentService assessmentService
+    IAssessmentService assessmentService,
+    InstanceService instanceService
 )
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
@@ -50,12 +51,13 @@ public class AssessmentDtoFactory(
     private decimal? RoundToTwo(decimal? input) =>
         input == null ? null : Math.Round(input.Value, 2, MidpointRounding.AwayFromZero);
 
-    public AssessmentDto Create(
+    public async Task<AssessmentDto> Create(
         WorkflowInstance instance,
         IEnumerable<SubmissionContext> contexts,
         AssessmentConfiguration? assessmentConfig,
         string? pageName = null,
-        string[]? allowedForms = null)
+        string[]? allowedForms = null,
+        CancellationToken ct = default)
     {
         var contextList = contexts.ToList();
         var parts = new List<AssessmentPartDto>();
@@ -68,6 +70,10 @@ public class AssessmentDtoFactory(
             contextList.Select(c => c.Form.Name).ToList(),
             pageName
         );
+        var formContexts = new Dictionary<Form, ObjectContext>();
+        foreach (var form in result.PartResults.SelectMany(part => part.AllResults)
+                     .Select(source => source.Form).OfType<Form>().Distinct())
+            formContexts[form] = await instanceService.CreateFormContext(instance, form, ct);
 
         foreach (var part in result.PartResults)
         {
@@ -81,18 +87,18 @@ public class AssessmentDtoFactory(
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(instance, sourceResult, pageName, sourcePercentage,
+                    return MapToSourceResultDto(instance, sourceResult, pageName, formContexts[sourceResult.Form], sourcePercentage,
                         sourceConfig?.Title);
                 })
                 .ToArray();
 
-            // Right now we are not enriching the FormDto with context values.
-            // If enriched text is necessary in the future, we should add it.
             parts.Add(new AssessmentPartDto(
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
-                part.SourceResults.Count > 0 ? MapToSourceResultDto(instance, part.Combined, null) : null,
+                part.SourceResults.Count > 0
+                    ? MapToSourceResultDto(instance, part.Combined, null, formContexts[part.Combined.Form])
+                    : null,
                 RoundToTwo(part.PartPercentage),
                 partConfig.MaximumDiscrepancy > 0 && sourceResultDtos.Any(s1 => s1.WeightedAverage != null
                     && sourceResultDtos.Any(s2 =>
@@ -100,7 +106,7 @@ public class AssessmentDtoFactory(
                         partConfig.MaximumDiscrepancy)),
                 part.SourceResults.Count > 0
                     ? FormDto.Create(part.SourceResults[0].Form,
-                        ObjectContext.Create(contextList[0].Instance, modelService))
+                        formContexts[part.SourceResults[0].Form])
                     : null
             ));
         }
@@ -124,24 +130,27 @@ public class AssessmentDtoFactory(
             finalGradeLabel));
     }
 
-    public SourceResultDto CreateSourceResults(SubmissionContext context, string? pageName = null)
+    public async Task<SourceResultDto> CreateSourceResults(SubmissionContext context, string? pageName = null,
+        CancellationToken ct = default)
     {
+        var objectContext = await instanceService.CreateFormContext(context.Instance, context.Form, ct);
         var sourceResult = AssessmentHelpers.CalculateSourceResult(context.Form,
-            modelService.CreateContext(context.Instance),
+            objectContext,
             pageName);
-        return MapToSourceResultDto(context.Instance, sourceResult, pageName);
+        return MapToSourceResultDto(context.Instance, sourceResult, pageName, objectContext);
     }
 
     private SourceResultDto MapToSourceResultDto(
         WorkflowInstance instance,
         SourceResult sourceResult,
         string? pageName,
+        ObjectContext context,
         decimal? percentage = null,
         BilingualString? titleOverride = null)
     {
         var form = sourceResult.Form;
 
-        var shownQuestionIds = modelService.GetQuestionStatus(instance, form, true);
+        var shownQuestionIds = modelService.GetQuestionStatus(instance, form, true, context: context);
         var questionNamesOnPage = form.ActualForm.Pages
             .Where(p => string.IsNullOrEmpty(pageName) || p.Name == pageName)
             .SelectMany(p => p.Questions)

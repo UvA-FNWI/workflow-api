@@ -142,7 +142,7 @@ public class AnswerService(
 
         // Check if user can view hidden fields
         var canViewHidden = await rightsService.Can(instance, RoleAction.ViewHidden, form.Name);
-        var updates = modelService.GetQuestionStatus(instance, form, canViewHidden, questionsToUpdate);
+        var updates = await instanceService.GetQuestionStatus(instance, form, canViewHidden, ct, questionsToUpdate);
 
         // Build response
         return Answer.Create(instance, form, updates);

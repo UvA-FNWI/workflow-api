@@ -168,7 +168,7 @@ public class Form : INamed, IDeclaredKeys
         var values = new Dictionary<Lookup, object?>(context.Values);
         foreach (var property in ActualForm.WorkflowDefinition.Properties)
             values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
-        return new ObjectContext(values);
+        return new ObjectContext(values, ObjectContext.GetValueSets(ActualForm.WorkflowDefinition));
     }
 
     public Form Clone()

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using Moq;
@@ -204,6 +205,62 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         var rows = Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object>>>(
             Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal("Customer name", Assert.Single(rows)["displayName"]);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task GetInstances_EnrichedComputedReferenceSerializesAsId(bool array, bool full)
+    {
+        MockCurrentUser("SystemAdmin");
+        var referenceType = array ? "'[Customer]'" : "Customer";
+        var displayType = array ? "'[String]'" : "String";
+        var computed = DerivedPropertyTests.Parse($"""
+            name: Project
+            properties:
+              - name: Source
+                type: {referenceType}
+              - name: Alias
+                type: {referenceType}
+                expression: Source
+              - name: Display
+                type: {displayType}
+                expression: Source.Name
+            """, new()
+        {
+            ["Customer/Entity.yaml"] = "name: Customer\nproperties:\n  - name: Name\n    type: String"
+        }).WorkflowDefinitions[WorkflowDefinition];
+        var definition = _modelService.WorkflowDefinitions[WorkflowDefinition];
+        definition.Properties.AddRange(computed.Properties);
+        definition.ComputedProperties.AddRange(computed.ComputedProperties);
+        _modelService.WorkflowDefinitions["Customer"] =
+            ((ReferencePropertyDefinition)computed.Properties[0]).WorkflowDefinition!;
+        const string customerId = "000000000000000000000001";
+        BsonValue source = array ? new BsonArray { customerId } : customerId;
+        MockInstances(new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId(), ["Source"] = source });
+        _workflowInstanceRepoMock.Setup(repository => repository.GetAll(
+                It.IsAny<System.Linq.Expressions.Expression<Func<WorkflowInstance, bool>>>(), _ct))
+            .ReturnsAsync([new WorkflowInstance
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                WorkflowDefinition = WorkflowDefinition,
+                Properties = new() { ["Source"] = source },
+                Events = []
+            }]);
+        _workflowInstanceRepoMock.Setup(repository => repository.GetAllById(new[] { customerId },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync([new() { ["_id"] = customerId, ["Name"] = "Customer name" }]);
+
+        var result = full
+            ? await CreateController().GetFullInstances(WorkflowDefinition, ["Alias", "Display"], _ct)
+            : await CreateController().GetInstances(WorkflowDefinition, ["Alias", "Display"], _ct);
+        var payload = JsonSerializer.SerializeToElement(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var row = Assert.Single(payload.EnumerateArray());
+
+        Assert.Equal(customerId, array ? row.GetProperty("alias")[0].GetString() : row.GetProperty("alias").GetString());
+        Assert.Equal("Customer name", array ? row.GetProperty("display")[0].GetString() : row.GetProperty("display").GetString());
     }
 
     [Fact]

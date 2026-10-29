@@ -273,6 +273,85 @@ public class DerivedPropertyTests
         Assert.Equal("done", model.CreateContext(instance).Get("Status"));
     }
 
+    [Fact]
+    public void Context_DoesNotComputeFromUnprojectedLastEvent()
+    {
+        var model = Parse("""
+            name: Project
+            properties:
+              - name: Name
+                type: String
+              - name: LastChanged
+                type: String!
+                expression: dateLong(LastEvent)
+            """);
+
+        var context = model.CreateContext("Project", new() { ["Name"] = "Example" }, ["Name"]);
+
+        Assert.Equal("Example", context.Get("Name"));
+        Assert.False(context.Values.ContainsKey("LastEvent"));
+        Assert.False(context.Values.ContainsKey("LastChanged"));
+    }
+
+    [Theory]
+    [InlineData("=000000000000000000000001")]
+    [InlineData("TargetId")]
+    [InlineData("if(true, Source, Source)")]
+    public void Parser_RejectsComputedReferenceThatIsNotADirectAlias(string expression)
+    {
+        var exception = Assert.ThrowsAny<Exception>(() => Parse($"""
+            name: Project
+            properties:
+              - name: Source
+                type: Target
+              - name: TargetId
+                type: String
+              - name: Primary
+                type: Target
+                expression: {expression}
+            """, new()
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+        }));
+
+        Assert.Contains("Primary", exception.Message);
+        Assert.Contains("alias", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(true, "Target.Name")]
+    [InlineData(false, "Target.Parent.Name")]
+    [InlineData(false, "Target.Display")]
+    public void Parser_RejectsComputedInputsRequiringUnsupportedReferenceLoading(bool embedded, string expression)
+    {
+        var exception = Assert.ThrowsAny<Exception>(() => Parse($"""
+            name: Project
+            isEmbedded: {embedded.ToString().ToLowerInvariant()}
+            properties:
+              - name: Target
+                type: Target
+              - name: Display
+                type: String
+                expression: {expression}
+            """, new()
+        {
+            ["Target/Entity.yaml"] = """
+                name: Target
+                properties:
+                  - name: Name
+                    type: String
+                  - name: Parent
+                    type: Target
+                  - name: Display
+                    type: String
+                    expression: Parent.Name
+                """
+        }));
+
+        Assert.Contains("Display", exception.Message);
+        Assert.Contains("reference", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     internal static ModelService Parse(string yaml = Properties, Dictionary<string, string>? extra = null)
     {
         var files = new Dictionary<string, string>

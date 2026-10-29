@@ -30,8 +30,11 @@ public class ModelService(ModelParser parser)
     /// Returns <c>null</c> if any part of the path cannot be resolved.
     /// </summary>
     public PropertyDefinition? GetProperty(WorkflowInstance instance, params string?[] parts)
+        => GetProperty(WorkflowDefinitions[instance.WorkflowDefinition], parts);
+
+    public PropertyDefinition? GetProperty(WorkflowDefinition definition, params string?[] parts)
     {
-        WorkflowDefinition? type = WorkflowDefinitions[instance.WorkflowDefinition];
+        WorkflowDefinition? type = definition;
         foreach (var part in parts.Take(parts.Length - 1).Where(p => p != null))
         {
             var prop = type!.Properties.GetOrDefault(part!);
@@ -67,9 +70,9 @@ public class ModelService(ModelParser parser)
 
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,
-        IEnumerable<PropertyDefinition>? questions = null)
+        IEnumerable<PropertyDefinition>? questions = null, ObjectContext? context = null)
     {
-        var context = form.GetContext(CreateContext(instance));
+        context = form.GetContext(context ?? CreateContext(instance));
         return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden)

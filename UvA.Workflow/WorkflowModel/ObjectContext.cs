@@ -92,7 +92,7 @@ public partial class ObjectContext(
 
             AddEventInformation(dict, instance, workflowDefinition);
         }
-        else if (dict.GetValueOrDefault("LastEvent") == null)
+        else if (!dict.ContainsKey("LastEvent") && dict.ContainsKey("CreateDate"))
         {
             dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }

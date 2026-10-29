@@ -162,6 +162,10 @@ cycles are rejected. Values are recalculated when the context is rebuilt, includ
 and are never stored as instance properties or answer history. Projected contexts calculate a value only when
 its source properties have been loaded. Results must match the declared scalar or list type; optional values may be null.
 
+Computed references may only directly alias another reference property of the same type. Computed reads support
+one reference hop. Multiple reference hops and reference-backed computations inside embedded objects are rejected
+when loading the model. Embedded computations using local stored values remain supported.
+
 Computed properties cannot have defaults, appear as form questions or editable bulk-edit fields, or be targets
 of `setProperty` effects. Use a text template to display a computed value in a form. Direct writes are rejected.
 

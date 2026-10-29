@@ -79,9 +79,7 @@ public class WorkflowInstanceDtoFactory(
         var fields = await CreateFields(workflowDefinition, instance, ct);
         var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
         {
-            var submissionContext = modelService.CreateContext(instance);
-            await instanceService.Enrich(workflowDefinition, [submissionContext], s.Form.ActualForm.Lookups, ct,
-                replaceStep: false);
+            var submissionContext = await instanceService.CreateFormContext(instance, s.Form, ct);
             return submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
                 permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
                 instanceHistory, displayNames, submissionContext);
@@ -314,14 +312,11 @@ public class WorkflowInstanceDtoFactory(
                 if (!allowedViewActions.Any(action => action.MatchesForm(form.Name)))
                     continue;
 
-                // Get question status with all fields visible (historical view)
-                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false);
+                var versionContext = await instanceService.CreateFormContext(instanceAtVersion, form, ct);
+                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false,
+                    context: versionContext);
                 var workflowDef = modelService.WorkflowDefinitions[instanceAtVersion.WorkflowDefinition];
                 var submissionState = FormSubmissionState.Resolve(instanceAtVersion, form, workflowDef);
-
-                var versionContext = modelService.CreateContext(instanceAtVersion);
-                await instanceService.Enrich(workflowDef, [versionContext], form.ActualForm.Lookups, ct,
-                    replaceStep: false);
 
                 // Create the submission DTO with empty permissions (historical view)
                 var submissionDto =

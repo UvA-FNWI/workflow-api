@@ -1,3 +1,5 @@
+using UvA.Workflow.Expressions;
+
 namespace UvA.Workflow.WorkflowModel;
 
 public partial class ModelParser
@@ -31,6 +33,11 @@ public partial class ModelParser
                 if (string.IsNullOrWhiteSpace(property.Expression))
                     throw new Exception("Expression is empty");
                 property.ComputedExpression!.Validate();
+                if (property is ReferencePropertyDefinition &&
+                    (property.ComputedExpression is not Identifier(var name) ||
+                     definition.Properties.GetOrDefault(name) is not ReferencePropertyDefinition referenceSource ||
+                     referenceSource.UnderlyingType != property.UnderlyingType || referenceSource.IsArray != property.IsArray))
+                    throw new Exception("Computed references must directly alias a reference property of the same type");
                 foreach (var source in property.ComputedExpression.Properties.OfType<PropertyLookup>())
                 {
                     var root = source.Parts[0];
@@ -50,6 +57,22 @@ public partial class ModelParser
             visiting.Remove(property.Name);
             visited.Add(property.Name);
             definition.ComputedProperties.Add(property);
+        }
+    }
+
+    private static void ValidateComputedReads(WorkflowDefinition definition)
+    {
+        foreach (var property in definition.ComputedProperties)
+        {
+            try
+            {
+                definition.ValidateReadLookups(property.ComputedExpression!.Properties);
+            }
+            catch (Exception exception)
+            {
+                throw new Exception($"Invalid expression for computed property '{property.Name}' in '{definition.Name}': {exception.Message}",
+                    exception);
+            }
         }
     }
 

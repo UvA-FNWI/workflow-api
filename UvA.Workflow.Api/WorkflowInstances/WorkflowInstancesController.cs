@@ -321,15 +321,16 @@ public class WorkflowInstancesController(
 
         var res = await repository.GetAll(i => i.WorkflowDefinition == workflowDefinition, ct);
         var contexts = res.Select(modelService.CreateContext).ToList();
+        var entity = modelService.WorkflowDefinitions[workflowDefinition];
 
-        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition], contexts,
+        await instanceService.Enrich(entity, contexts,
             properties.Select(p => new PropertyLookup(p)), ct);
 
         return Ok(contexts
             .OrderByDescending(i => i.Id)
             .Select(row => properties.ToDictionary(
                 JsonNamingPolicy.CamelCase.ConvertName,
-                p => row.Get(p)
+                p => GetResponseValue(entity, row, p)
             )));
     }
 
@@ -375,10 +376,12 @@ public class WorkflowInstancesController(
                     k => k.Key == "_id" ? "Id" : k.Key,
                     v => BsonConversionTools.ConvertBasicBsonValue(v.Value));
                 foreach (var property in requestedProperties.Where(property =>
-                             entity.Properties.GetOrDefault(property)?.IsComputed == true ||
+                             property.Contains('.') ||
+                             modelService.GetProperty(entity, property.Split('.')) is { IsComputed: true } or
+                                 { DataType: DataType.Object or DataType.Reference } ||
                              property == "LastEvent" || entity.Events.Any(ev =>
                                  property == ev.Name + "Event" || property == ev.Name + "EventActive")))
-                    row[property] = context.Get(property);
+                    row[property] = GetResponseValue(entity, context, property);
                 if (titleTemplate != null)
                     row["Title"] = titleTemplate.Apply(context);
                 return row;
@@ -528,6 +531,15 @@ public class WorkflowInstancesController(
 
         var entries = await mailLogRepository.GetByInstance(id, ct);
         return Ok(entries.Select(CorrespondenceDto.From).ToList());
+    }
+
+    private object? GetResponseValue(WorkflowDefinition definition, ObjectContext context, string path)
+    {
+        var value = context.Get(path);
+        return modelService.GetProperty(definition, path.Split('.')) is
+            { DataType: DataType.Reference } property
+            ? Answer.SerializeValue(property, value)
+            : value;
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)
