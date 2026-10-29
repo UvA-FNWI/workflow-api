@@ -25,17 +25,15 @@ public class ScreenDataService(
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
 
-        var canCreateInstance = workflowDefinition != "Context" &&
-                                await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
+        var canCreateInstance = await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
 
         // Build projection based on screen columns
-        var contexts = await LoadData(screen, workflowDefinition, ct);
+        var contexts = await LoadData(screen, definition, ct);
 
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
 
-        var canBulkEdit = workflowDefinition != "Context" &&
-                          await instanceAuthorizationFilterService.HasEditableInstances(workflowDefinition, ct);
+        var canBulkEdit = await instanceAuthorizationFilterService.HasEditableInstances(workflowDefinition, ct);
 
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
@@ -140,20 +138,24 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
-    private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
+    private async Task<List<ObjectContext>> LoadData(Screen screen, WorkflowDefinition workflowDefinition,
+        CancellationToken ct)
     {
         var definitions = modelService.WorkflowDefinitions.Values.Where(definition =>
         {
-            if (workflowDefinition != "Context")
-                return definition.Name == workflowDefinition;
+            if (!workflowDefinition.GroupChildScreens)
+                return definition == workflowDefinition;
 
             if (definition.IsEmbedded)
                 return false;
 
-            while (definition.Name != "Context" && definition.Parent != null)
-                definition = definition.Parent;
+            for (var current = definition; current != null; current = current.Parent)
+            {
+                if (ReferenceEquals(current, workflowDefinition))
+                    return true;
+            }
 
-            return definition.Name == "Context";
+            return false;
         });
 
         var contexts = new List<ObjectContext>();
@@ -187,7 +189,7 @@ public class ScreenDataService(
                 ct,
                 false);
 
-            if (workflowDefinition == "Context")
+            if (workflowDefinition.GroupChildScreens)
             {
                 foreach (var row in rows)
                     row.Values["Type"] = definition.Name;
