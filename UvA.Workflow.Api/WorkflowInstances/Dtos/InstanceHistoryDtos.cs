@@ -16,10 +16,13 @@ public record InstanceHistoryItemDto(
     BilingualString Title,
     DateTime Timestamp,
     UserSearchResultDto User,
-    PropertyHistoryDto? PropertyHistory
+    PropertyHistoryDto? PropertyHistory,
+    UndoHistoryDto? UndoHistory
 );
 
 public record PropertyHistoryDto(
     QuestionDto Question,
     AnswerChangeGroupDto AnswerChangeGroup
 );
+
+public record UndoHistoryDto(string? Reason);
