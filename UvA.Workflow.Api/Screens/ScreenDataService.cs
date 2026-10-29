@@ -55,57 +55,6 @@ public class ScreenDataService(
         return entity.Screens.GetOrDefault(screenName);
     }
 
-    private Dictionary<string, string> BuildProjection(
-        Column[] columns,
-        string workflowDefinition,
-        IEnumerable<Lookup> progressLookups)
-    {
-        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
-            throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
-
-        var projection = new Dictionary<string, string>();
-
-        foreach (var column in columns)
-        {
-            if (column.CurrentStep)
-                projection["CurrentStep"] = "$CurrentStep";
-            foreach (var prop in column.Properties)
-                AddLookupToProjection(projection, prop, entity);
-        }
-
-        foreach (var lookup in progressLookups)
-            AddLookupToProjection(projection, lookup, entity);
-
-        return projection;
-    }
-
-    private void AddLookupToProjection(Dictionary<string, string> projection, Lookup lookup, WorkflowDefinition entity)
-    {
-        switch (lookup)
-        {
-            case PropertyLookup propertyLookup:
-                var propertyName = propertyLookup.Property.Split('.')[0];
-                // ObjectContext computes LastEvent from Events, which LoadData always projects.
-                if (propertyName == "LastEvent")
-                    break;
-
-                var mongoPath = entity.GetKey(propertyName);
-                projection.TryAdd(propertyName, mongoPath);
-                break;
-            case ComplexLookup complexLookup:
-                // For complex lookups, we need to add properties from their arguments
-                foreach (var arg in complexLookup.Arguments)
-                {
-                    foreach (var prop in arg.Properties)
-                    {
-                        AddLookupToProjection(projection, prop, entity);
-                    }
-                }
-
-                break;
-        }
-    }
-
     private ScreenRowDto[] ProcessRows(
         WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
@@ -147,7 +96,8 @@ public class ScreenDataService(
             : [];
 
         // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen.Columns, workflowDefinition, progressLookups);
+        var lookups = screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups).ToArray();
+        var projection = definition.GetProjection(lookups);
         projection.TryAdd("CurrentStep", "$CurrentStep");
         projection.TryAdd("Events", "$Events");
         projection.TryAdd("CreateDate", "$CreatedOn");
@@ -157,11 +107,10 @@ public class ScreenDataService(
             await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
 
         var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
+        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row, projection.Keys)).ToList();
 
         // Add related properties as needed
-        await instanceService.Enrich(definition,
-            contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups), ct, false);
+        await instanceService.Enrich(definition, contexts, lookups, ct, false);
 
         return contexts;
     }

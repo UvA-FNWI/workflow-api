@@ -120,6 +120,93 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task GetInstances_ComputedPropertyProjectsInputsWithoutExposingThem()
+    {
+        MockCurrentUser("SystemAdmin");
+        var definition = _modelService.WorkflowDefinitions[WorkflowDefinition];
+        var computedDefinition = DerivedPropertyTests.Parse().WorkflowDefinitions[WorkflowDefinition];
+        definition.Properties.AddRange(computedDefinition.Properties);
+        definition.ComputedProperties.AddRange(computedDefinition.ComputedProperties);
+        _workflowInstanceRepoMock.Setup(repository => repository.GetAllByType(WorkflowDefinition,
+                It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("Parties") &&
+                                                                !projection.ContainsKey("Count")), _ct))
+            .ReturnsAsync([
+                new Dictionary<string, BsonValue>(DerivedPropertyTests.Instance().Properties)
+                    { ["_id"] = ObjectId.GenerateNewId() }
+            ]);
+
+        var result = await CreateController().GetInstances(WorkflowDefinition, ["Count"], _ct);
+
+        var rows = Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object>>>(
+            Assert.IsType<OkObjectResult>(result.Result).Value);
+        var row = Assert.Single(rows);
+        Assert.Equal(2, row["count"]);
+        Assert.False(row.ContainsKey("parties"));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task GetInstances_ReturnsRequestedNormalizedEventValues(bool occurred, bool suppressed)
+    {
+        MockCurrentUser("SystemAdmin");
+        var date = new DateTime(2026, 10, 14, 12, 0, 0, DateTimeKind.Utc);
+        var events = occurred
+            ? new BsonDocument("ApproveSubject", new BsonDocument("Date", date))
+            : new BsonDocument();
+        if (suppressed)
+        {
+            _modelService.WorkflowDefinitions[WorkflowDefinition].Events.Add(new EventDefinition
+                { Name = "Reset", Suppresses = ["ApproveSubject"] });
+            events["Reset"] = new BsonDocument("Date", date.AddDays(1));
+        }
+        MockInstances(new Dictionary<string, BsonValue>
+        {
+            ["_id"] = ObjectId.GenerateNewId(),
+            ["CreatedOn"] = date.AddDays(-1),
+            ["CreateDate"] = date.AddDays(-1),
+            ["Events"] = events
+        });
+
+        var result = await CreateController().GetInstances(WorkflowDefinition,
+            ["ApproveSubjectEvent", "ApproveSubjectEventActive", "LastEvent"], _ct);
+
+        var rows = Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object>>>(
+            Assert.IsType<OkObjectResult>(result.Result).Value);
+        var row = Assert.Single(rows);
+        Assert.Equal(occurred && !suppressed ? date.ToLocalTime() : (DateTime?)null, row["approveSubjectEvent"]);
+        Assert.Equal(occurred && !suppressed, row["approveSubjectEventActive"]);
+        Assert.Equal((suppressed ? date.AddDays(1) : occurred ? date : date.AddDays(-1)).ToLocalTime(), row["lastEvent"]);
+        Assert.False(row.ContainsKey("events"));
+    }
+
+    [Fact]
+    public async Task GetInstances_EnrichesReferenceDependentComputedProperty()
+    {
+        MockCurrentUser("SystemAdmin");
+        MockEmptyRelatedInstanceLookups();
+        var computed = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Customer\n    type: Customer\n  - name: DisplayName\n    type: String\n    expression: Customer.Name", new()
+        {
+            ["Customer/Entity.yaml"] = "name: Customer\nproperties:\n  - name: Name\n    type: String"
+        }).WorkflowDefinitions[WorkflowDefinition];
+        var definition = _modelService.WorkflowDefinitions[WorkflowDefinition];
+        definition.Properties.AddRange(computed.Properties);
+        definition.ComputedProperties.AddRange(computed.ComputedProperties);
+        _modelService.WorkflowDefinitions["Customer"] = ((ReferencePropertyDefinition)computed.Properties[0]).WorkflowDefinition!;
+        var customerId = ObjectId.GenerateNewId().ToString();
+        MockInstances(new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId(), ["Customer"] = customerId });
+        _workflowInstanceRepoMock.Setup(repository => repository.GetAllById(new[] { customerId },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync([new() { ["_id"] = customerId, ["Name"] = "Customer name" }]);
+
+        var result = await CreateController().GetInstances(WorkflowDefinition, ["DisplayName"], _ct);
+        var rows = Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object>>>(
+            Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal("Customer name", Assert.Single(rows)["displayName"]);
+    }
+
+    [Fact]
     public async Task GetInstances_IncludeTitle_RendersTitleFromTemplateAndCreatedOn()
     {
         // Arrange — SystemAdmin grants ViewAdminTools, which GetInstances requires.

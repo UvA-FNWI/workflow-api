@@ -150,7 +150,7 @@ public class WorkflowInstancesController(
             .Select(p => QuestionDto.Create(p, totalWeight: 0))
             .ToArray();
 
-        return Ok(new InstancePropertiesDto(properties, instanceService.GetPropertyValues(instance)));
+        return Ok(new InstancePropertiesDto(properties, await instanceService.GetPropertyValues(instance, ct)));
     }
 
     /// <summary>
@@ -198,16 +198,13 @@ public class WorkflowInstancesController(
             return BadRequest("PropertyPathTooDeep",
                 $"Cannot edit '{path}': only properties nested at most one level deep can be saved.");
 
-        var property = modelService.GetProperty(instance, parts);
-        if (property == null)
+        if (modelService.GetProperty(instance, parts) == null)
             return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
 
         if (!await rightsService.CanEditProperty(instance, path))
             return Forbidden();
 
-        var newValue = await answerConversionService.ConvertToValue(input.Value, property, ct);
-
-        await answerService.SavePropertyValue(instance, parts, property, newValue, shouldLog: true, ct);
+        await answerService.SaveProperty(instance, parts, input.Value, shouldLog: true, ct);
 
         return NoContent();
     }
@@ -356,23 +353,34 @@ public class WorkflowInstancesController(
                 // Id maps to the always-present _id
                 .Where(p => p != "Id");
 
-        var projection = properties
+        var requestedProperties = properties
             .Append("CreatedOn")
             .Concat(titleProperties)
             .Distinct()
-            .ToDictionary(p => p, entity.GetKey);
+            .ToArray();
+        var lookups = requestedProperties.Select(property => (Lookup)property).ToArray();
+        var projection = entity.GetProjection(lookups);
 
         var res = await repository.GetAllByType(workflowDefinition, projection, ct);
+        var data = res.Select(row => (Row: row,
+            Context: modelService.CreateContext(workflowDefinition, row, projection.Keys))).ToArray();
+        await instanceService.Enrich(entity, data.Select(row => row.Context).ToArray(), lookups, ct, false);
 
-        return Ok(res
-            .OrderByDescending(i => i.GetValueOrDefault("_id"))
-            .Select(i =>
+        return Ok(data
+            .OrderByDescending(item => item.Row.GetValueOrDefault("_id"))
+            .Select(item =>
             {
-                var row = i.ToDictionary(
+                var (i, context) = item;
+                var row = i.Where(entry => entry.Key == "_id" || requestedProperties.Contains(entry.Key)).ToDictionary(
                     k => k.Key == "_id" ? "Id" : k.Key,
                     v => BsonConversionTools.ConvertBasicBsonValue(v.Value));
+                foreach (var property in requestedProperties.Where(property =>
+                             entity.Properties.GetOrDefault(property)?.IsComputed == true ||
+                             property == "LastEvent" || entity.Events.Any(ev =>
+                                 property == ev.Name + "Event" || property == ev.Name + "EventActive")))
+                    row[property] = context.Get(property);
                 if (titleTemplate != null)
-                    row["Title"] = titleTemplate.Apply(modelService.CreateContext(workflowDefinition, i));
+                    row["Title"] = titleTemplate.Apply(context);
                 return row;
             })
             .Select(row => row.ToDictionary(
@@ -429,6 +437,7 @@ public class WorkflowInstancesController(
         if (propertyDefinition == null)
             return BadRequest("InvalidRelatedUser", $"Related user '{property}' does not exist");
 
+        modelService.EnsureWritable(instance, property.Split('.'));
         var externalUserInput = input.ExternalUser is { } eu
             ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
             : null;

@@ -29,30 +29,54 @@ public class InstanceService(
     IAssessmentService assessmentService
 )
 {
-    public Dictionary<string, JsonElement?> GetPropertyValues(WorkflowInstance instance)
+    public async Task<Dictionary<string, JsonElement?>> GetPropertyValues(WorkflowInstance instance, CancellationToken ct)
     {
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var values = new Dictionary<string, JsonElement?>();
-        Collect(modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties, []);
+        var sources = new Dictionary<string, BsonValue>(instance.Properties);
+        var computedValues = new List<(PropertyDefinition Property, string Path)>();
+        Collect(definition.Properties, [], false);
+        if (computedValues.Count == 0)
+            return values;
+
+        // Bad stored values remain editable in the admin view, but cannot be used as expression inputs.
+        var context = modelService.CreateContext(new WorkflowInstance
+        {
+            Id = instance.Id, WorkflowDefinition = instance.WorkflowDefinition, Properties = sources,
+            Events = instance.Events, CurrentStep = instance.CurrentStep, CreatedOn = instance.CreatedOn
+        });
+        await Enrich(definition, [context], computedValues.Select(value => (Lookup)value.Path), ct, false);
+        foreach (var (property, path) in computedValues)
+            values[path] = Answer.SerializeValue(property, context.Get(path));
         return values;
 
-        void Collect(IEnumerable<PropertyDefinition> properties, string[] prefix)
+        void Collect(IEnumerable<PropertyDefinition> properties, string[] prefix, bool parentComputed)
         {
             foreach (var property in properties)
             {
                 string[] parts = [.. prefix, property.Name];
+                var computed = parentComputed || property.IsComputed;
                 if (property is ObjectPropertyDefinition { IsArray: false, WorkflowDefinition: not null } embedded)
                 {
-                    Collect(embedded.WorkflowDefinition.Properties, parts);
+                    Collect(embedded.WorkflowDefinition.Properties, parts, computed);
+                    continue;
+                }
+
+                var path = string.Join('.', parts);
+                if (computed)
+                {
+                    computedValues.Add((property, path));
                     continue;
                 }
 
                 try
                 {
-                    values[string.Join('.', parts)] = Answer.GetValue(property, instance.GetProperty(parts));
+                    values[path] = Answer.GetValue(property, instance.GetProperty(parts));
                 }
                 catch
                 {
-                    values[string.Join('.', parts)] = null;
+                    values[path] = null;
+                    sources.Remove(parts[0]);
                 }
             }
         }
@@ -98,7 +122,7 @@ public class InstanceService(
         // Assessments need some course settings in addition to the values requested by the caller.
         var states = batches.Select(batch =>
         {
-            var lookups = batch.Lookups.ToList();
+            var lookups = batch.WorkflowDefinition.GetSourceLookups(batch.Lookups).ToList();
             var hasAssessment = lookups.Any(lookup =>
                                     lookup is PropertyLookup property && property.Parts[0] == "Assessment")
                                 && batch.WorkflowDefinition.AssessmentConfiguration != null;
@@ -126,13 +150,13 @@ public class InstanceService(
             .ToArray();
         if (referenceIds.Length > 0)
         {
-            var projectedProperties = targetGroups
-                .SelectMany(targetGroup => targetGroup.SelectMany(enrichment => enrichment.ProjectedProperties))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
+            var projection = targetGroups
+                .SelectMany(targetGroup => targetGroup.SelectMany(enrichment => enrichment.Projection))
+                .DistinctBy(entry => entry.Key, StringComparer.Ordinal)
+                .ToDictionary(entry => entry.Key, entry => entry.Value);
             var results = await workflowInstanceRepository.GetAllById(
                 referenceIds,
-                projectedProperties.ToDictionary(property => property, property => $"$Properties.{property}"),
+                projection,
                 ct);
             var resultsById = results.ToDictionary(result => result["_id"].ToString()!);
 
@@ -148,7 +172,8 @@ public class InstanceService(
                     .Where(resultsById.ContainsKey)
                     .ToDictionary(
                         id => id,
-                        id => modelService.CreateContext(targetDefinition.Name, resultsById[id]).Values,
+                        id => modelService.CreateContext(targetDefinition.Name, resultsById[id],
+                            targetGroup.SelectMany(enrichment => enrichment.Projection.Keys)).Values,
                         StringComparer.Ordinal);
 
                 foreach (var enrichment in targetGroup)
@@ -196,6 +221,10 @@ public class InstanceService(
             }
         }
 
+        foreach (var state in states)
+            foreach (var context in state.Batch.Contexts)
+                context.ComputeProperties(state.Batch.WorkflowDefinition);
+
         // Replace internal step names using the titles from the original workflow definition.
         if (replaceStep)
         {
@@ -233,11 +262,8 @@ public class InstanceService(
             if (targetDefinition == null)
                 continue;
 
-            yield return new ReferenceEnrichment(
-                targetDefinition,
-                state.Batch.Contexts,
-                referenceProperty.Key,
-                referenceProperty.Select(property => property.Parts[1]).Distinct().ToArray());
+            yield return new ReferenceEnrichment(targetDefinition, state.Batch.Contexts, referenceProperty.Key,
+                targetDefinition.GetProjection(referenceProperty.Select(property => (Lookup)property.Parts[1])));
         }
     }
 
@@ -259,7 +285,7 @@ public class InstanceService(
         WorkflowDefinition TargetDefinition,
         ICollection<ObjectContext> Contexts,
         string ReferenceProperty,
-        string[] ProjectedProperties);
+        Dictionary<string, string> Projection);
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
     public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,

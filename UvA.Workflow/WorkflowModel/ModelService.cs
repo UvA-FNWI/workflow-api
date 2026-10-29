@@ -55,8 +55,15 @@ public class ModelService(ModelParser parser)
     public ObjectContext CreateContext(WorkflowInstance instance)
         => ObjectContext.Create(instance, this);
 
-    public ObjectContext CreateContext(string workflowDefinition, Dictionary<string, BsonValue> rawData)
-        => ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData);
+    public ObjectContext CreateContext(string workflowDefinition, Dictionary<string, BsonValue> rawData,
+        IEnumerable<string>? projectedProperties = null)
+        => ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData, projectedProperties);
+
+    public void EnsureWritable(WorkflowInstance instance, params string[] path)
+    {
+        for (var length = 1; length <= path.Length; length++)
+            GetProperty(instance, path[..length])?.EnsureWritable();
+    }
 
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,

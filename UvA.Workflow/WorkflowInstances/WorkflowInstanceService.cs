@@ -52,8 +52,12 @@ public class WorkflowInstanceService(
                 throw new ArgumentException("CreatedBy is required when UserProperty is set", nameof(createdBy));
             var user = InstanceUser.FromUser(createdBy).ToBsonDocument();
             var property = modelService.WorkflowDefinitions[workflowDefinition].Properties.Get(userProperty);
+            property.EnsureWritable();
             instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
         }
+
+        foreach (var name in instance.Properties.Keys)
+            modelService.WorkflowDefinitions[workflowDefinition].Properties.GetOrDefault(name)?.EnsureWritable();
 
         await ApplyDefaults(instance, ct);
 
@@ -70,7 +74,8 @@ public class WorkflowInstanceService(
         if (properties.Length == 0)
             return;
 
-        var context = modelService.CreateContext(instance);
+        // Defaults are pending inputs until assigned, rather than null sources for computed properties.
+        var context = ObjectContext.Create(instance, modelService, properties.Select(property => property.Name).ToHashSet());
         await EnrichDefaultReferences(definition, properties, context, ct);
         foreach (var property in properties)
             instance.Properties[property.Name] = await ConvertDefault(
@@ -255,6 +260,7 @@ public class WorkflowInstanceService(
     public async Task AppendPropertyValue(WorkflowInstance instance, string[] pathParts, BsonValue newValue,
         CancellationToken ct)
     {
+        modelService.EnsureWritable(instance, pathParts);
         var user = await userService.GetCurrentUser(ct);
         if (user == null)
             throw new InvalidOperationException("User not logged in");

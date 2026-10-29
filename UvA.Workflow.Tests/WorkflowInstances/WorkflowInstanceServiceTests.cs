@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -46,6 +47,18 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
+    public async Task Create_RejectsExplicitComputedProperty()
+    {
+        _modelService.WorkflowDefinitions["Project"].Properties.Single(property => property.Name == "Title")
+            .Expression = "=Computed";
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            _service.Create("Project", null, _ct,
+                initialProperties: new Dictionary<string, BsonValue> { ["Title"] = "Injected" }));
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        _repository.Verify(repository => repository.Create(It.IsAny<WorkflowInstance>(), _ct), Times.Never);
+    }
+
+    [Fact]
     public async Task Create_AppliesDefaultToMissingProperty()
     {
         _modelService.WorkflowDefinitions["Project"].Properties
@@ -66,6 +79,29 @@ public class WorkflowInstanceServiceTests
             initialProperties: new Dictionary<string, BsonValue> { ["Title"] = BsonNull.Value });
 
         Assert.True(created.Properties["Title"].IsBsonNull);
+    }
+
+    [Fact]
+    public async Task Create_AppliesDefaultBeforeComputingRequiredDependentProperty()
+    {
+        var model = DerivedPropertyTests.Parse("""
+            name: Project
+            properties:
+              - name: Display
+                type: String!
+                expression: Title
+              - name: Title
+                type: String
+                default: =Untitled
+            """);
+        var service = new WorkflowInstanceService(model, _repository.Object, _journal.Object,
+            Mock.Of<IInstanceEventRepository>(), Mock.Of<IUserService>(), _userRepository.Object);
+
+        var created = await service.Create("Project", null, _ct);
+
+        Assert.Equal("Untitled", created.Properties["Title"].AsString);
+        Assert.Equal("Untitled", model.CreateContext(created).Get("Display"));
+        Assert.False(created.Properties.ContainsKey("Display"));
     }
 
     [Fact]

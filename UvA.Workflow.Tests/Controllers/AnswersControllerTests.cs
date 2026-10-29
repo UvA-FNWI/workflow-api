@@ -17,6 +17,7 @@ using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.Tools;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
@@ -63,6 +64,74 @@ public class AnswersControllerTests : ControllerTestsBase
             _instanceJournalServiceMock.Object,
             _userServiceMock.Object,
             _externalUserServiceMock.Object);
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_RejectsComputedPropertyWithoutChangingStorageOrHistory()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var property = new IntPropertyDefinition { Name = "Computed", Type = "Int", Expression = "1" };
+        _modelService.WorkflowDefinitions["Project"].Properties.Add(property);
+
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() => controller.SaveAnswer(
+            instance.Id, "Start", "Computed", new SaveAnswerRequest(JsonSerializer.SerializeToElement(2)), _ct));
+
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey("Computed"));
+        _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(It.IsAny<string>(),
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _instanceJournalServiceMock.Verify(journal => journal.LogPropertyChange(It.IsAny<string>(),
+            It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SavePropertyValue_RejectsComputedPropertyBeforeMutation()
+    {
+        var instance = DerivedPropertyTests.Instance();
+        var property = DerivedPropertyTests.Parse().WorkflowDefinitions["Project"].Properties.Get("Count");
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            _answerService.SavePropertyValue(instance, ["Count"], property, 3, true, _ct));
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey("Count"));
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_RejectsComputedParentBeforeCreatingExternalUser()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Source\n    type: Party\n  - name: Alias\n    type: Party\n    expression: Source", new()
+        {
+            ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Contact\n    type: User\n    allowsExternalUsers: true"
+        });
+        _modelService.WorkflowDefinitions["Project"].Properties.AddRange(model.WorkflowDefinitions["Project"].Properties);
+        _modelService.GetForm(instance, "Start").PropertyName = "Alias";
+        _externalUserServiceMock.Setup(service => service.CreateOrUpdateExternalUser(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), _ct))
+            .ReturnsAsync(new UserSearchResult("external@example.org", "External User", "external@example.org",
+                UserSearchSources.Repository, "eduid"));
+
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() => controller.SaveAnswer(
+            instance.Id, "Start", "Contact",
+            new SaveAnswerRequest(null, ExternalUser: new ExternalUserDto("External User", "external@example.org")), _ct));
+
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey("Alias"));
+        _externalUserServiceMock.Verify(service => service.CreateOrUpdateExternalUser(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), _ct), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConvertToValue_RejectsComputedFieldsInEmbeddedInput()
+    {
+        var definition = DerivedPropertyTests.Parse().WorkflowDefinitions["Project"];
+        var property = new ObjectPropertyDefinition
+        {
+            Name = "Nested", Type = "Project", WorkflowDefinition = definition
+        };
+        var input = JsonSerializer.SerializeToElement(new { Count = 99 });
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            _answerConversionService.ConvertToValue(input, property, _ct));
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
     }
 
     [Fact]

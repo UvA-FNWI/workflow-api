@@ -4,7 +4,7 @@ using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.WorkflowModel;
 
-public class ObjectContext(
+public partial class ObjectContext(
     Dictionary<Lookup, object?> values,
     IReadOnlyDictionary<string, string[]>? valueSets = null)
 {
@@ -53,19 +53,25 @@ public class ObjectContext(
         return res;
     }
 
-    public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData)
+    public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData,
+        IEnumerable<string>? projectedProperties = null)
     {
-        var dict = rawData.ToDictionary(
-            Lookup (t) => new PropertyLookup(t.Key == "_id" ? "Id" : t.Key),
-            t =>
-            {
-                var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
-                return GetValue(t.Value, prop?.DataType ?? workflowDefinition.GetDataType(t.Key), prop);
-            });
+        var dict = rawData.Where(entry => workflowDefinition.Properties.GetOrDefault(entry.Key)?.IsComputed != true)
+            .ToDictionary(
+                Lookup (t) => new PropertyLookup(t.Key == "_id" ? "Id" : t.Key),
+                t =>
+                {
+                    var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
+                    return GetValue(t.Value, prop?.DataType ?? workflowDefinition.GetDataType(t.Key), prop);
+                });
+
+        foreach (var property in projectedProperties ?? [])
+            dict.TryAdd(property == "_id" ? "Id" : property, null);
 
         // Normalize projected event data in the same way as a fully loaded workflow instance.
-        if (rawData.TryGetValue("Events", out var eventsValue) && eventsValue is BsonDocument eventsDoc)
+        if (rawData.GetValueOrDefault("Events") is BsonDocument || projectedProperties?.Contains("Events") == true)
         {
+            var eventsDoc = rawData.GetValueOrDefault("Events") as BsonDocument ?? new BsonDocument();
             var events = eventsDoc.Elements.ToDictionary(
                 element => element.Name,
                 element => new InstanceEvent
@@ -91,17 +97,20 @@ public class ObjectContext(
             dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
 
-        return new ObjectContext(dict, GetValueSets(workflowDefinition));
+        var context = new ObjectContext(dict, GetValueSets(workflowDefinition));
+        context.ComputeProperties(workflowDefinition);
+        return context;
     }
 
-    public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
+    public static ObjectContext Create(WorkflowInstance instance, ModelService modelService,
+        IReadOnlySet<string>? pendingProperties = null)
     {
         var dict = new Dictionary<Lookup, object?>();
         foreach (var (k, v) in instance.Properties)
         {
             // Only add property values that are present in the workflow definition
             var propertyDefinition = modelService.GetProperty(instance, k);
-            if (propertyDefinition != null)
+            if (propertyDefinition is { IsComputed: false })
             {
                 dict.Add(k, GetValue(v, propertyDefinition));
             }
@@ -112,9 +121,14 @@ public class ObjectContext(
         dict.Add("CreateDate", instance.CreatedOn.ToLocalTime());
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        foreach (var property in workflowDef.Properties.Where(property =>
+                     !property.IsComputed && pendingProperties?.Contains(property.Name) != true))
+            dict.TryAdd(property.Name, null);
         AddEventInformation(dict, instance, workflowDef);
 
-        return new ObjectContext(dict, GetValueSets(workflowDef));
+        var context = new ObjectContext(dict, GetValueSets(workflowDef));
+        context.ComputeProperties(workflowDef);
+        return context;
     }
 
     /// <summary>
@@ -136,6 +150,12 @@ public class ObjectContext(
         dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
                             ?? dict.GetValueOrDefault("CreateDate");
 
+        foreach (var ev in workflowDefinition.Events)
+        {
+            dict.TryAdd(ev.Name + "Event", null);
+            dict.TryAdd(ev.Name + "EventActive", false);
+        }
+
         foreach (var ev in instance.Events.Values)
         {
             var eventKey = ev.Id + "Event";
@@ -143,7 +163,7 @@ public class ObjectContext(
             var isActive = EventSuppressionHelper.IsEventActive(ev.Id, instance, workflowDefinition);
 
             // A projected event date may already exist. Replace it with the normalized active value.
-            dict.Remove(eventKey);
+            dict[eventKey] = null;
             dict[activeKey] = isActive;
 
             if (ev.Date != null && isActive)
@@ -155,7 +175,7 @@ public class ObjectContext(
         => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
 
     // TODO: is there a better way to do this?
-    private static IEnumerable GetTypedArray(BsonArray array, DataType type)
+    private static IEnumerable GetTypedArray(BsonArray array, DataType type, PropertyDefinition? property)
         => type switch
         {
             DataType.User => array.Select(r => GetValue(r, type) as InstanceUser).ToArray(),
@@ -163,7 +183,7 @@ public class ObjectContext(
             DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
             DataType.String or DataType.Choice or DataType.Reference => array.Select(r => GetValue(r, type) as string)
                 .ToArray(),
-            DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
+            DataType.Object => array.Select(r => GetObjectValue(r, property as ObjectPropertyDefinition)).ToArray(),
             _ => array.Select(r => GetValue(r, type)).ToArray()
         };
 
@@ -174,12 +194,12 @@ public class ObjectContext(
         return type switch
         {
             _ when question?.IsArray == true => answer.IsBsonArray
-                ? GetTypedArray(answer.AsBsonArray, type)
-                : GetTypedArray(new BsonArray { answer }, type),
+                ? GetTypedArray(answer.AsBsonArray, type, question)
+                : GetTypedArray(new BsonArray { answer }, type, question),
             DataType.User => BsonSerializer.Deserialize<InstanceUser>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
-            DataType.Object => answer.AsBsonDocument.ToDictionary(),
+            DataType.Object => GetObjectValue(answer, question as ObjectPropertyDefinition),
             DataType.Reference => answer.ToString(),
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
@@ -188,5 +208,17 @@ public class ObjectContext(
             DataType.Check => BsonConversionTools.ConvertBasicBsonValue(answer),
             _ => throw new NotImplementedException()
         };
+    }
+
+    private static Dictionary<string, object?>? GetObjectValue(BsonValue value, ObjectPropertyDefinition? property)
+    {
+        if (value.IsBsonNull) return null;
+        var definition = property?.WorkflowDefinition;
+        if (definition == null)
+            return value.AsBsonDocument.ToDictionary();
+        var data = value.AsBsonDocument.ToDictionary(entry => entry.Name, entry => entry.Value);
+        foreach (var source in definition.Properties.Where(source => !source.IsComputed))
+            data.TryAdd(source.Name, BsonNull.Value);
+        return Create(definition, data).Values.ToDictionary(entry => entry.Key.ToString()!, entry => entry.Value);
     }
 }

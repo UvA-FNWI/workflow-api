@@ -293,7 +293,8 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
-                PageElements = workflowDefinition.Properties.Select(v => new PageElement { Question = v.Name })
+                PageElements = workflowDefinition.Properties.Where(v => !v.IsComputed)
+                    .Select(v => new PageElement { Question = v.Name })
                     .ToArray()
             });
 
@@ -312,6 +313,7 @@ public partial class ModelParser
                 element.QuestionDefinition = workflowDefinition.Properties.GetOrDefault(element.Question!)
                                              ?? throw new Exception(
                                                  $"Form {form.Name} references unknown property {element.Question}");
+                EnsureStoredProperty(workflowDefinition, element.Question, $"Form '{form.Name}' question");
             }
 
             PreProcess(ent.Condition);
@@ -418,9 +420,12 @@ public partial class ModelParser
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
+        PreparePropertyDependencies(workflowDefinition);
+
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
         ValidateValueSetsPrefix(workflowDefinition);
+        ValidateComputedWrites(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
@@ -626,17 +631,13 @@ public partial class ModelParser
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
 
-        foreach (var dep in propertyDefinition.Conditions
-                     .SelectMany(c => c.Part.Dependants)
-                     .SelectMany(d => d.ToString().Split('.'))
-                     .Distinct())
-            propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
-                .Add(propertyDefinition);
-
         if (propertyDefinition.LinkedTo != null &&
             propertyDefinition.ParentType.Properties.GetOrDefault(propertyDefinition.LinkedTo) == null)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' in '{propertyDefinition.ParentType.Name}' has linkedTo '{propertyDefinition.LinkedTo}', but that property does not exist.");
+
+        if (propertyDefinition.IsComputed && propertyDefinition.Default != null)
+            throw new Exception($"Computed property '{propertyDefinition.Name}' cannot define a default");
 
         if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
         {

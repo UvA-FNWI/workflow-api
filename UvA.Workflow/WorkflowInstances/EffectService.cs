@@ -253,14 +253,15 @@ public class EffectService(
         CancellationToken ct)
     {
         var parts = setProperty.Property.Split('.');
+        modelService.EnsureWritable(instance, parts);
         var value = setProperty.ValueExpression.Execute(context);
         if (value is string text &&
             modelService.GetProperty(instance, parts)?.DataType is DataType.Date or DataType.DateTime)
             value = DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        instance.SetProperty(
-            value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value),
-            parts
-        );
+        var storedValue = value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value);
+        if (modelService.GetProperty(instance, parts) is { } property)
+            storedValue = BsonConversionTools.GetStoredValue(storedValue, property);
+        instance.SetProperty(storedValue, parts);
         await instanceService.SaveValue(instance, parts.Reverse().Skip(1).FirstOrDefault(), parts.Last(), ct);
     }
 

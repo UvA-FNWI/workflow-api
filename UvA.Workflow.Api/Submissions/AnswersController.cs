@@ -39,6 +39,7 @@ public class AnswersController(
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
+        modelService.EnsureWritable(context.Instance, context.PathParts);
 
         var externalUserInput = input.ExternalUser is { } eu
             ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization, eu.UserId)

@@ -89,6 +89,85 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         => new(JsonSerializer.SerializeToElement(value));
 
     [Fact]
+    public async Task SavePropertyInput_ConvertsAndJournalsValueThroughOneOperation()
+    {
+        var (_, instance) = Build("SystemAdmin");
+
+        await _answerService.SaveProperty(instance, ["Title"], Value("Corrected title").Value, true, _ct);
+
+        Assert.Equal("Corrected title", instance.GetProperty("Title")?.AsString);
+        var change = Assert.Single(_loggedChanges);
+        Assert.Equal("Title", change.Path);
+        Assert.Equal("My Thesis", change.OldValue?.AsString);
+    }
+
+    [Theory]
+    [InlineData("Alias.Contact")]
+    [InlineData("ComputedContact")]
+    public async Task SavePropertyInput_RejectsComputedPathBeforeUserCreation(string path)
+    {
+        var model = DerivedPropertyTests.Parse("""
+            name: Project
+            properties:
+              - name: Source
+                type: Party
+              - name: Alias
+                type: Party
+                expression: Source
+              - name: Contact
+                type: User
+              - name: ComputedContact
+                type: User
+                expression: Contact
+            """, new()
+        {
+            ["Party/Entity.yaml"] = "name: Party\nisEmbedded: true\nproperties:\n  - name: Contact\n    type: User"
+        });
+        _modelService.WorkflowDefinitions["Project"].Properties.AddRange(model.WorkflowDefinitions["Project"].Properties);
+        var (_, instance) = Build("SystemAdmin");
+        var input = Value(new { UserName = "new-user", DisplayName = "New user", Email = "new@example.org" }).Value;
+
+        var exception = await Assert.ThrowsAsync<UvA.Workflow.Infrastructure.InvalidWorkflowStateException>(() =>
+            _answerService.SaveProperty(instance, path.Split('.'), input, true, _ct));
+
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey(path.Split('.')[0]));
+        Assert.Empty(_loggedChanges);
+        _userServiceMock.Verify(service => service.AddOrUpdateUser(It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<UvA.Workflow.Organizations.Organization?>(),
+            It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SavePropertyInput_RejectsUnknownPath()
+    {
+        var (_, instance) = Build("SystemAdmin");
+
+        await Assert.ThrowsAsync<UvA.Workflow.Infrastructure.EntityNotFoundException>(() =>
+            _answerService.SaveProperty(instance, ["Missing"], Value("value").Value, true, _ct));
+
+        Assert.False(instance.Properties.ContainsKey("Missing"));
+        Assert.Empty(_loggedChanges);
+    }
+
+    [Fact]
+    public async Task SaveProperty_RejectsChildOfComputedObjectWithoutSavingOrJournaling()
+    {
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Source\n    type: Party\n  - name: Alias\n    type: Party\n    expression: Source");
+        _modelService.WorkflowDefinitions["Project"].Properties.AddRange(model.WorkflowDefinitions["Project"].Properties);
+        var (controller, instance) = Build("SystemAdmin");
+
+        var exception = await Assert.ThrowsAsync<UvA.Workflow.Infrastructure.InvalidWorkflowStateException>(() =>
+            controller.SaveProperty(instance.Id, "Alias.Country", Value(new[] { "NL" }), _ct));
+
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey("Alias"));
+        Assert.Empty(_loggedChanges);
+        _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(It.IsAny<string>(),
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task GetProperties_ReturnsEveryPropertyWithItsValue()
     {
         var (controller, instance) = Build("SystemAdmin");

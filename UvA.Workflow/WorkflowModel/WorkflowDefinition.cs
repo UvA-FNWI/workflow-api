@@ -55,6 +55,54 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     /// </summary>
     public List<PropertyDefinition> Properties { get; set; } = new();
 
+    [YamlIgnore] public List<PropertyDefinition> ComputedProperties { get; } = [];
+
+    /// <summary>Replaces computed lookups with the stored inputs needed to evaluate them.</summary>
+    public IEnumerable<Lookup> GetSourceLookups(IEnumerable<Lookup> lookups)
+    {
+        foreach (var lookup in lookups)
+        {
+            if (lookup is PropertyLookup property &&
+                Properties.GetOrDefault(property.Parts[0]) is { IsComputed: true } computed)
+            {
+                var sources = computed.ComputedExpression!.Properties;
+                if (property.Parts.Length > 1 && computed is WorkflowPropertyDefinition)
+                    sources = sources.Select(source => source is PropertyLookup input
+                        ? new PropertyLookup(input.Property + "." + string.Join('.', property.Parts.Skip(1)))
+                        : source);
+                foreach (var source in GetSourceLookups(sources))
+                    yield return source;
+            }
+            else if (lookup is ComplexLookup complex)
+            {
+                foreach (var source in GetSourceLookups(complex.Arguments.SelectMany(arg => arg.Properties)))
+                    yield return source;
+            }
+            else
+                yield return lookup;
+        }
+    }
+
+    /// <summary>Projects stored inputs and metadata needed to evaluate the requested lookups.</summary>
+    public Dictionary<string, string> GetProjection(IEnumerable<Lookup> lookups)
+    {
+        var projection = new Dictionary<string, string>();
+        foreach (var lookup in GetSourceLookups(lookups).OfType<PropertyLookup>())
+        {
+            var property = lookup.Parts[0];
+            if (property == "LastEvent" || Events.Any(ev =>
+                    property == ev.Name + "Event" || property == ev.Name + "EventActive"))
+            {
+                projection.TryAdd("Events", "$Events");
+                projection.TryAdd("CreateDate", "$CreatedOn");
+            }
+            else
+                projection.TryAdd(property, GetKey(property));
+        }
+
+        return projection;
+    }
+
     /// <summary>
     /// Dictionary of event definitions for this entity type
     /// </summary>
