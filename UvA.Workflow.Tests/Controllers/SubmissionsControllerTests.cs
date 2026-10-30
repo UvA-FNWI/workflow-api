@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -652,6 +653,104 @@ public class SubmissionsControllerTests : ControllerTestsBase
         Assert.NotNull(capturedEventUser);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, capturedEventUser.Id);
         Assert.NotEqual(UnitTestsHelpers.ImpersonatedTarget.Id, capturedEventUser.Id);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PinnedActions_SubmittedFormsDisappearAndCannotBeSubmittedAgain(bool alternateMarker)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        ConfigurePinnedSubmit();
+        if (alternateMarker)
+            ConfigureAlternateSubmissionMarker("Start", "PinnedSubmitted");
+        Assert.Single((await _workflowInstanceDtoFactory.Create(instance, _ct)).PinnedActions);
+
+        var result = Assert.IsType<SubmitSubmissionResult>(Assert.IsType<OkObjectResult>(
+            (await controller.SubmitSubmission(instance.Id, "Start", _ct)).Result).Value);
+
+        await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            controller.SubmitSubmission(instance.Id, "Start", _ct));
+        Assert.Empty(Assert.IsType<WorkflowInstanceDto>(result.UpdatedInstance).PinnedActions);
+        _instanceJournalServiceMock.Verify(service => service.IncrementVersion(instance.Id, _ct), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("read")]
+    [InlineData("save")]
+    [InlineData("clear")]
+    public async Task PinnedActions_SubmitPermissionDoesNotGrantAccessToSubmittedForms(string operation)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"],
+            builder => builder.WithId("Start").AsCompleted());
+        ConfigurePinnedSubmit();
+        var answers = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService,
+            _workflowInstanceDtoFactory);
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(async () =>
+        {
+            switch (operation)
+            {
+                case "read":
+                    await controller.GetSubmission(instance.Id, "Start", null, _ct);
+                    break;
+                case "save":
+                    await answers.SaveAnswer(instance.Id, "Start", "Title",
+                        new SaveAnswerRequest(Value: JsonSerializer.SerializeToElement("New title")), _ct);
+                    break;
+                case "clear":
+                    await answers.ClearAnswers(instance.Id, "Start", _ct);
+                    break;
+            }
+        });
+    }
+
+    private void ConfigurePinnedSubmit()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var form = definition.Forms.Single(form => form.Name == "Start");
+        form.Pages.Clear();
+        form.OnSubmit = [];
+        definition.Roles.Single(role => role.Name == "Student").Actions =
+            [new() { Type = RoleAction.Submit, Form = "Start" }];
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task PinnedActions_InstanceApiSeparatesAuthorizedActionsAndExcludesUnnamedExecutePermissions(
+        string? permissionName)
+    {
+        var (_, instance) = BuildControllerWithRoles(["Student"], "Start");
+        ConfigurePinnedSubmit();
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.Forms.Single(form => form.Name == "Start").Step = "Start";
+        var role = definition.Roles.Single(role => role.Name == "Student");
+        role.Actions.AddRange([
+            new() { Type = RoleAction.Execute, Name = permissionName },
+            new() { Type = RoleAction.Execute, Name = permissionName },
+            new() { Type = RoleAction.Execute, Name = permissionName },
+            new() { Type = RoleAction.Execute, Name = "Global" },
+            new() { Type = RoleAction.Execute, Name = "Scoped", Steps = ["Start"] },
+            new() { Type = RoleAction.Execute, Name = "Hidden", Condition = new Condition { Event = "Never" } }
+        ]);
+
+        var dto = await _workflowInstanceDtoFactory.Create(instance, _ct);
+        var json = JsonSerializer.SerializeToElement(dto);
+
+        Assert.True(json.TryGetProperty("PinnedActions", out var pinned));
+        Assert.Equal(2, pinned.GetArrayLength());
+        Assert.All(dto.PinnedActions, action =>
+        {
+            Assert.Empty(action.Steps);
+            Assert.False(action.AutoOpenForm);
+        });
+        Assert.Equal("Scoped", Assert.Single(dto.Actions).Name);
+        Assert.Equal("Global", Assert.Single(dto.PinnedActions, action => action.Type == ActionType.Execute).Name);
+        var permissions = await _rightsService.GetAllowedActions(instance, RoleAction.Execute);
+        Assert.Equal(3, permissions.Count(action => action.Name == permissionName));
     }
 
     private static (string name, Func<PropertyBuilder, BsonValue> builder)[] RequiredStartProperties() =>
