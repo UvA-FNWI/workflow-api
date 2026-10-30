@@ -195,10 +195,11 @@ public class WorkflowInstanceService(
         return workflowInstance;
     }
 
-    public WorkflowInstance GetAsOfTimestamp(
+    public async Task<WorkflowInstance> GetAsOfTimestamp(
         WorkflowInstance instance,
         DateTime timestamp,
-        WorkflowInstanceHistory history)
+        WorkflowInstanceHistory history,
+        CancellationToken ct = default)
     {
         var instanceAtTimestamp = CloneInstance(instance);
         var version = GetVersionAtTimestamp(history.Journal, timestamp);
@@ -207,7 +208,10 @@ public class WorkflowInstanceService(
 
         instanceAtTimestamp.Events = EventHistory.RebuildEvents(history.EventLogs, timestamp);
 
-        RecalculateCurrentStep(instanceAtTimestamp);
+        var context =
+            await ContextLoader.CreateContext(modelService, repository, instanceAtTimestamp,
+                modelService.WorkflowDefinitions[instanceAtTimestamp.WorkflowDefinition].PermissionAndStepLookups, ct);
+        instanceAtTimestamp.CurrentStep = modelService.FindOpenStep(instanceAtTimestamp, context)?.Name;
 
         return instanceAtTimestamp;
     }
@@ -253,11 +257,6 @@ public class WorkflowInstanceService(
 
     private static WorkflowInstance CloneInstance(WorkflowInstance instance)
         => BsonSerializer.Deserialize<WorkflowInstance>(instance.ToBsonDocument());
-
-    private void RecalculateCurrentStep(WorkflowInstance instance)
-    {
-        instance.CurrentStep = modelService.FindOpenStep(instance)?.Name;
-    }
 
     public async Task AppendPropertyValue(WorkflowInstance instance, string[] pathParts, BsonValue newValue,
         CancellationToken ct)

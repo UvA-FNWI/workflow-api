@@ -1,5 +1,6 @@
 using System.Collections;
 using UvA.Workflow.Infrastructure;
+using UvA.Workflow.Expressions;
 using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -10,17 +11,35 @@ public partial class ObjectContext
     public void ComputeProperties(WorkflowDefinition definition)
     {
         foreach (var property in definition.ComputedProperties)
+        {
             Values.Remove(property.Name);
+            LoadedReferenceValues.Remove(property.Name);
+            UnresolvedReferences.Remove(property.Name);
+            UnavailableProperties.Remove(property.Name);
+        }
 
         foreach (var property in definition.ComputedProperties)
         {
             var expression = property.ComputedExpression!;
+            if (expression.Properties.Any(IsInputUnavailable))
+            {
+                UnavailableProperties.Add(property.Name);
+                continue;
+            }
+
             if (expression.Properties.OfType<PropertyLookup>().Any(source => !HasSource(source)))
                 continue;
 
             try
             {
                 Values[property.Name] = ConvertComputedValue(expression.Execute(this), property);
+                if (property is ReferencePropertyDefinition && expression is Identifier(var source) &&
+                    LoadedReferenceValues.TryGetValue(source, out var referenced))
+                {
+                    LoadedReferenceValues[property.Name] = referenced;
+                    if (UnresolvedReferences.Contains(source))
+                        UnresolvedReferences.Add(property.Name);
+                }
             }
             catch (Exception exception)
             {
@@ -35,14 +54,16 @@ public partial class ObjectContext
             if (!Values.ContainsKey(source.Parts[0])) return false;
             return source.Parts.Length == 1 ||
                    definition.Properties.GetOrDefault(source.Parts[0]) is not ReferencePropertyDefinition ||
-                   Get(source.Parts[0]) switch
-                   {
-                       null or Array { Length: 0 } => true,
-                       Dictionary<Lookup, object?> reference => reference.ContainsKey(source.Parts[1]),
-                       Dictionary<Lookup, object?>?[] references => references.All(reference =>
-                           reference == null || reference.ContainsKey(source.Parts[1])),
-                       _ => false
-                   };
+                   (LoadedReferenceValues.TryGetValue(source.Parts[0], out var referenced)
+                           ? referenced
+                           : Get(source.Parts[0])) switch
+                       {
+                           null or Array { Length: 0 } => true,
+                           Dictionary<Lookup, object?> reference => reference.ContainsKey(source.Parts[1]),
+                           Dictionary<Lookup, object?>?[] references => references.All(reference =>
+                               reference == null || reference.ContainsKey(source.Parts[1])),
+                           _ => false
+                       };
         }
     }
 

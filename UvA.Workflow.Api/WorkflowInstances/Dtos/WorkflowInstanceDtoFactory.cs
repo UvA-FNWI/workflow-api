@@ -25,43 +25,48 @@ public class WorkflowInstanceDtoFactory(
     /// </summary>
     public async Task<WorkflowInstanceDto> Create(WorkflowInstance instance, CancellationToken ct)
     {
-        var actions = await instanceService.GetAllowedActions(instance, ct);
-        var pinnedActions = actions.Where(action => action.Action.Steps.Length == 0 &&
-                                                    action.Action.Type is RoleAction.Submit or RoleAction.Execute)
-            .ToArray();
-        var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit,
-            RoleAction.ViewCorrespondence);
-        // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
-        // active impersonation); resolve them in a single pass over the instance's roles.
-        var realUserActions = await rightsService.GetAllowedActions(
-            instance,
-            RightsEvaluationMode.RealUser,
-            RoleAction.ViewAdminTools,
-            RoleAction.ImpersonateRoles);
-        var canUseAdminTools = realUserActions.Any(a => a.Type == RoleAction.ViewAdminTools);
-        var canImpersonate = realUserActions.Any(a => a.Type == RoleAction.ImpersonateRoles);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
-
-        var context = modelService.CreateContext(instance);
         var visibleCards = workflowDefinition.InfoCards
             .Where(card => card.Enabled && card.Type != null &&
                            (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
                            (card.ExcludedSources is not { Length: > 0 } ||
                             !card.ExcludedSources.Intersect(viewerRoles).Any()))
             .ToArray();
-        await instanceService.Enrich(workflowDefinition, [context],
-            workflowDefinition.Steps.SelectMany(f => f.Lookups)
-                .Concat(visibleCards.SelectMany(card => card.Properties)),
-            ct);
+        var context = await instanceService.CreateContext(instance,
+            workflowDefinition.PermissionAndStepLookups
+                .Concat(workflowDefinition.Steps.SelectMany(step => step.Lookups))
+                .Concat(visibleCards.SelectMany(card => card.Properties))
+                .Concat(workflowDefinition.InstanceTitleTemplate?.Properties ?? [])
+                .Concat(workflowDefinition.Fields.SelectMany(field =>
+                    field.Properties.Concat(field.Condition?.Properties ?? []))), ct);
+        var actions = await instanceService.GetAllowedActions(instance, ct, context);
+        var pinnedActions = actions.Where(action => action.Action.Steps.Length == 0 &&
+                                                    action.Action.Type is RoleAction.Submit or RoleAction.Execute)
+            .ToArray();
+        var submissions = await instanceService.GetAllowedSubmissions(instance, ct, context: context);
+        var permissions = await rightsService.GetAllowedActions(instance, context, RightsEvaluationMode.RequestContext,
+            RoleAction.ViewAdminTools, RoleAction.Edit, RoleAction.ViewCorrespondence);
+        // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
+        // active impersonation); resolve them in a single pass over the instance's roles.
+        var realUserActions = await rightsService.GetAllowedActions(
+            instance,
+            context,
+            RightsEvaluationMode.RealUser,
+            RoleAction.ViewAdminTools,
+            RoleAction.ImpersonateRoles);
+        var canUseAdminTools = realUserActions.Any(a => a.Type == RoleAction.ViewAdminTools);
+        var canImpersonate = realUserActions.Any(a => a.Type == RoleAction.ImpersonateRoles);
+        var currentStep = modelService.GetCurrentStep(instance, context)?.Name;
+        var activeSteps = modelService.GetActiveSteps(instance, context).ToHashSet();
+        var displayContext = context.WithValues(new Dictionary<Lookup, object?> { ["CurrentStep"] = currentStep });
+        displayContext.ComputeProperties(workflowDefinition);
 
         // Fetch versions for all steps
         var instanceHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
         var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
-        var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
             .Where(s => s.Condition.IsMet(context))
             .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
@@ -73,10 +78,10 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.EditableRelatedUsers.Select(r => r.Property),
             editActions);
         var infoCards = visibleCards
-            .Select(card => CreateInfoCard(workflowDefinition, card, context, canEditByProperty))
+            .Select(card => CreateInfoCard(workflowDefinition, card, displayContext, canEditByProperty))
             .OfType<InfoCardDto>()
             .ToArray();
-        var fields = await CreateFields(workflowDefinition, instance, ct);
+        var fields = CreateFields(workflowDefinition, displayContext);
         var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
         {
             var submissionContext = await instanceService.CreateFormContext(instance, s.Form, ct);
@@ -86,9 +91,9 @@ public class WorkflowInstanceDtoFactory(
         }));
         var x = new WorkflowInstanceDto(
             instance.Id,
-            workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
+            workflowDefinition.InstanceTitleTemplate?.Apply(displayContext),
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
-            instance.CurrentStep,
+            currentStep,
             instance.ParentId,
             actions.Except(pinnedActions).Select(ActionDto.Create).ToArray(),
             pinnedActions.Select(action => ActionDto.Create(action) with { Steps = [], AutoOpenForm = false })
@@ -106,19 +111,15 @@ public class WorkflowInstanceDtoFactory(
         return x;
     }
 
-    private async Task<FieldDto[]> CreateFields(WorkflowDefinition workflowDefinition, WorkflowInstance instance,
-        CancellationToken ct)
+    private static FieldDto[] CreateFields(WorkflowDefinition workflowDefinition, ObjectContext context)
     {
         var result = new List<FieldDto>();
-        var context = ObjectContext.Create(instance, modelService);
-        await instanceService.Enrich(workflowDefinition, [context],
-            workflowDefinition.Fields.SelectMany(f => f.Properties), ct);
         foreach (var field in workflowDefinition.Fields)
         {
             if (!field.Condition.IsMet(context))
                 continue;
 
-            var obj = field.GetValue(context);
+            var obj = GetDisplayValue(workflowDefinition, field, context);
             if (obj is object[] arr && arr.Length == 1)
                 obj = arr[0];
             var key = field.CurrentStep ? "CurrentStep" : field.Property;
@@ -294,8 +295,8 @@ public class WorkflowInstanceDtoFactory(
             var submissions = new List<SubmissionDto>();
 
             // Get the instance at the version timestamp
-            var instanceAtVersion = workflowInstanceService
-                .GetAsOfTimestamp(instance, stepVersion.SubmittedAt, instanceHistory);
+            var instanceAtVersion = await workflowInstanceService
+                .GetAsOfTimestamp(instance, stepVersion.SubmittedAt, instanceHistory, ct);
             var allowedViewActions = await rightsService.GetAllowedActions(instanceAtVersion, RoleAction.View);
 
             // Create a submission for each event in the version
@@ -370,7 +371,8 @@ public class WorkflowInstanceDtoFactory(
                 card.TitleTemplate!.Apply(context),
                 type,
                 user == null ? null : new InfoCardUserDto(user.DisplayName, user.Picture),
-                card.Fields.Select(field => CreateInfoCardField(field, context)).OfType<InfoCardFieldDto>().ToArray(),
+                card.Fields.Select(field => CreateInfoCardField(workflowDefinition, field, context))
+                    .OfType<InfoCardFieldDto>().ToArray(),
                 card.EmptyText);
         }
 
@@ -413,9 +415,18 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardItemDto>()
             .ToArray();
 
-    private static InfoCardFieldDto? CreateInfoCardField(InfoCardField field, ObjectContext context)
+    private static object? GetDisplayValue(WorkflowDefinition definition, Field field, ObjectContext context)
     {
         var value = field.GetValue(context);
+        return field.CurrentStep && value is string stepName
+            ? (object?)definition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? value
+            : value;
+    }
+
+    private static InfoCardFieldDto? CreateInfoCardField(WorkflowDefinition definition, InfoCardField field,
+        ObjectContext context)
+    {
+        var value = GetDisplayValue(definition, field, context);
         if (value is object[] values)
             value = values.Length == 1 ? values[0] : values;
         return value == null || value is string text && string.IsNullOrWhiteSpace(text) ||

@@ -101,9 +101,10 @@ public class ModelService(ModelParser parser)
                                           step.Condition.IsMet(context) && step.HasEnded(context)).ToArray();
     }
 
-    public string[] GetActiveSteps(WorkflowInstance instance)
+    public string[] GetActiveSteps(WorkflowInstance instance, ObjectContext? context = null)
     {
-        var (step, context) = ResolveCurrentStep(instance);
+        var (step, resolvedContext) = ResolveCurrentStep(instance, context);
+        context = resolvedContext;
         context ??= CreateContext(instance);
         var walk = WorkflowDefinitions[instance.WorkflowDefinition].WalkSteps.ToList();
         var alongside = walk
@@ -123,15 +124,21 @@ public class ModelService(ModelParser parser)
     }
 
     /// <summary>
-    /// Returns CurrentStep when it resolves; otherwise returns the first open step.
+    /// Refreshes reference-backed step rules from a supplied context; otherwise uses CurrentStep when it resolves.
     /// </summary>
-    public Step? GetCurrentStep(WorkflowInstance instance) => ResolveCurrentStep(instance).Step;
+    public Step? GetCurrentStep(WorkflowInstance instance, ObjectContext? context = null)
+        => ResolveCurrentStep(instance, context).Step;
 
     private (Step? Step, ObjectContext? Context) ResolveCurrentStep(WorkflowInstance instance,
         ObjectContext? context = null)
     {
         var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
-        if (!string.IsNullOrEmpty(instance.CurrentStep) &&
+        var refreshStep = context != null && workflowDefinition.GetSourceLookups(workflowDefinition.AllSteps
+                .SelectMany(step => (step.Condition?.Properties ?? []).Concat(step.Ends?.Properties ?? [])))
+            .OfType<PropertyLookup>()
+            .Any(lookup => lookup.Parts.Length > 1 &&
+                           workflowDefinition.Properties.GetOrDefault(lookup.Parts[0]) is ReferencePropertyDefinition);
+        if (!refreshStep && !string.IsNullOrEmpty(instance.CurrentStep) &&
             workflowDefinition.AllSteps.GetOrDefault(instance.CurrentStep) is { } currentStep)
             return (currentStep, context);
 

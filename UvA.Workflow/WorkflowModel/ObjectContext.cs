@@ -1,5 +1,6 @@
 using System.Collections;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Persistence;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -11,6 +12,11 @@ public partial class ObjectContext(
     private static readonly IReadOnlyDictionary<string, string[]> NoValueSets = new Dictionary<string, string[]>();
 
     public Dictionary<Lookup, object?> Values { get; } = values;
+
+    // Keep reference IDs available for equality and collection operations.
+    internal Dictionary<Lookup, object?> LoadedReferenceValues { get; } = new();
+    internal HashSet<string> UnresolvedReferences { get; } = new();
+    private HashSet<string> UnavailableProperties { get; } = new();
 
     /// <summary>
     /// Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
@@ -29,7 +35,9 @@ public partial class ObjectContext(
         if (Values.TryGetValue(path, out var res))
             return res;
         var parts = path.ToString().Split('.');
-        res = Values.GetValueOrDefault(parts[0]);
+        res = parts.Length > 1 && LoadedReferenceValues.TryGetValue(parts[0], out var referenced)
+            ? referenced
+            : Values.GetValueOrDefault(parts[0]);
         foreach (var part in parts.Skip(1))
         {
             if (res is null)
@@ -51,6 +59,69 @@ public partial class ObjectContext(
         }
 
         return res;
+    }
+
+    public ObjectContext WithValues(IEnumerable<KeyValuePair<Lookup, object?>> overrides,
+        IReadOnlyDictionary<string, string[]>? valueSets = null)
+    {
+        var entries = overrides.ToArray();
+        var overridden = entries.Select(entry => entry.Key).ToHashSet();
+        var copy = new ObjectContext(new Dictionary<Lookup, object?>(Values), valueSets ?? ValueSets);
+        foreach (var (key, value) in entries)
+            copy.Values[key] = value;
+        foreach (var (key, value) in LoadedReferenceValues.Where(entry => !overridden.Contains(entry.Key)))
+            copy.LoadedReferenceValues[key] = value;
+        copy.UnresolvedReferences.UnionWith(UnresolvedReferences.Where(name => !overridden.Contains((Lookup)name)));
+        copy.UnavailableProperties.UnionWith(UnavailableProperties.Where(name => !overridden.Contains((Lookup)name)));
+        return copy;
+    }
+
+    internal ObjectContext WithPropertyValues(string path, WorkflowDefinition definition)
+    {
+        var overrides = definition.Properties.ToDictionary(
+            property => (Lookup)property.Name, property => Get($"{path}.{property.Name}"));
+        var scoped = WithValues(overrides, GetValueSets(definition));
+        foreach (var property in definition.Properties)
+            if (IsInputUnavailable((Lookup)$"{path}.{property.Name}"))
+                scoped.UnavailableProperties.Add(property.Name);
+        return scoped;
+    }
+
+    internal void EnsureInputsAvailable(IEnumerable<Lookup> lookups)
+    {
+        foreach (var lookup in lookups)
+            if (IsInputUnavailable(lookup))
+                throw new InvalidWorkflowStateException(Id ?? "", "UnresolvedReference",
+                    $"Input '{lookup}' is unavailable because a referenced workflow instance could not be loaded");
+    }
+
+    private bool IsInputUnavailable(Lookup lookup) => lookup switch
+    {
+        PropertyLookup property => UnavailableProperties.Contains(property.Parts[0]) ||
+                                   property.Parts.Length > 1 && UnresolvedReferences.Contains(property.Parts[0]),
+        ComplexLookup complex => complex.Arguments.SelectMany(argument => argument.Properties).Any(IsInputUnavailable),
+        _ => false
+    };
+
+    internal object? ResolveReferenceItems(object? value, IEnumerable<Lookup> sources)
+    {
+        if (value is not IEnumerable items || value is string)
+            return value;
+        var references = sources.OfType<PropertyLookup>()
+            .Select(source => LoadedReferenceValues.GetValueOrDefault(source.Parts[0]))
+            .SelectMany(loaded => loaded switch
+            {
+                Dictionary<Lookup, object?> reference => [reference],
+                Dictionary<Lookup, object?>[] many => many,
+                _ => Array.Empty<Dictionary<Lookup, object?>>()
+            })
+            .DistinctBy(reference => reference["Id"])
+            .ToDictionary(reference => reference["Id"]!.ToString()!);
+        return references.Count == 0
+            ? value
+            : items.Cast<object?>()
+                .Select(item => item is string id && references.TryGetValue(id, out var reference) ? reference : item)
+                .ToArray();
     }
 
     public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData,

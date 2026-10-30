@@ -5,9 +5,12 @@ public static class ConditionExtensions
     extension(Condition? condition)
     {
         public bool IsMet(ObjectContext context)
-            => condition?.Not == true
+        {
+            context.EnsureInputsAvailable(condition?.Properties ?? []);
+            return condition?.Not == true
                 ? !condition.Part.IsMet(context)
                 : condition?.Part.IsMet(context) != false;
+        }
 
         /// <summary>
         /// Evaluates only event and logical conditions against a historical set of event IDs.

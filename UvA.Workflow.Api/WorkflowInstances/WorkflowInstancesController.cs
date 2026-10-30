@@ -220,7 +220,7 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
-        var roles = rightsService.GetImpersonationTargetRoles(instance)
+        var roles = (await rightsService.GetImpersonationTargetRoles(instance))
             .Select(ImpersonationRoleDto.Create)
             .ToArray();
 
@@ -240,13 +240,13 @@ public class WorkflowInstancesController(
             return Forbidden();
 
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var perRole = rightsService.GetAllowedActionsPerTargetRole(instance,
+        var perRole = await rightsService.GetAllowedActionsPerTargetRole(instance,
             RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
             RoleAction.Undo, RoleAction.View);
 
-        var currentStepName = modelService.GetCurrentStep(instance)?.Name;
-        var activeSteps = modelService.GetActiveSteps(instance);
-        var context = modelService.CreateContext(instance);
+        var context = await instanceService.CreateContext(instance, definition.PermissionAndStepLookups, ct);
+        var currentStepName = modelService.GetCurrentStep(instance, context)?.Name;
+        var activeSteps = modelService.GetActiveSteps(instance, context);
         var actionSteps = perRole.SelectMany(r => r.Actions)
             .Distinct()
             .ToDictionary(a => a, a => modelService.GetAvailableStepsForAction(instance, a, activeSteps, context));
@@ -293,7 +293,7 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
-        var normalizedRoleName = rightsService.NormalizeImpersonationTargetRole(instance, input.Role);
+        var normalizedRoleName = await rightsService.NormalizeImpersonationTargetRole(instance, input.Role);
         if (normalizedRoleName == null)
             return BadRequest("InvalidImpersonationRole",
                 $"Role '{input.Role}' cannot be impersonated for workflow '{instance.WorkflowDefinition}'.");

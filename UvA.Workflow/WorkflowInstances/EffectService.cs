@@ -122,8 +122,7 @@ public class EffectService(
                     }
                 }
 
-                var recipientContext = new ObjectContext(context.Values.ToDictionary(v => v.Key, v => v.Value),
-                    context.ValueSets);
+                var recipientContext = context.WithValues([]);
                 recipientContext.Values.Add("AccessRecipient", accessRecipient);
                 recipientContext.Values.Add(effect.Name ?? "Access", new Dictionary<Lookup, object>
                 {
@@ -450,15 +449,9 @@ public class EffectService(
                 // Service config values (base URLs, tokens, etc.) come next.
                 // Workflow instance properties are available as a lower-priority fallback.
 
-                responseContext = new ObjectContext(
-                    context.Values
-                        .Concat(optionContext.Values)
-                        .Concat(body!.RootElement.EnumerateObject()
-                            .ToDictionary(Lookup (p) => p.Name, object? (p) => p.Value.ToString()))
-                        .GroupBy(p => p.Key)
-                        .ToDictionary(g => g.Key, g => g.Last().Value),
-                    context.ValueSets
-                );
+                responseContext = context.WithValues(optionContext.Values
+                    .Concat(body!.RootElement.EnumerateObject()
+                        .ToDictionary(Lookup (p) => p.Name, object? (p) => p.Value.ToString())));
             }
 
             context.Values.Add(effect.Name ?? operation.Name, operation.Outputs.ToDictionary(

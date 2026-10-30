@@ -637,7 +637,7 @@ public class DeadlineTests
         var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>());
 
         var actions = await rights.GetAllowedActions(instance, mode, requested);
-        var perRole = rights.GetAllowedActionsPerTargetRole(instance, requested).SelectMany(r => r.Actions);
+        var perRole = (await rights.GetAllowedActionsPerTargetRole(instance, requested)).SelectMany(r => r.Actions);
 
         if (active)
         {

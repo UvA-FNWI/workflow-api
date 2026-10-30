@@ -42,6 +42,10 @@ public record Expression
             Text(var s) => s,
             Identifier(var k) => context.Get(k),
             Index(var exp, Int(var n)) => (exp.Execute(context) as IList)?[n],
+            Call(Identifier("select"), [var collection, var field]) =>
+                CallFunction(Functions["select"],
+                    context.ResolveReferenceItems(collection.Execute(context), collection.Properties),
+                    field.Execute(context)),
             Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) =>
                 CallFunction(Functions[exp.Text], args.Select(a => a.Execute(context)).ToArray()),
             Call(Identifier(var text), var args) => context.Get(new ComplexLookup(text, args)),

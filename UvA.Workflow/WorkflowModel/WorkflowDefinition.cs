@@ -57,6 +57,16 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     [YamlIgnore] public List<PropertyDefinition> ComputedProperties { get; } = [];
 
+    [YamlIgnore]
+    [JsonIgnore]
+    public IEnumerable<Lookup> PermissionAndStepLookups => Roles.SelectMany(role => role.Actions).Concat(AllActions)
+        .SelectMany(action => action.Condition?.Properties ?? [])
+        .Concat(AllSteps.SelectMany(step =>
+            (step.Condition?.Properties ?? []).Concat(step.Ends?.Properties ?? [])
+            .Concat(step.Deadline is { Type: DeadlineType.Hard } deadline
+                ? ExpressionParser.Parse(deadline.Date).Properties
+                : [])));
+
     /// <summary>Replaces computed lookups with the stored inputs needed to evaluate them.</summary>
     public IEnumerable<Lookup> GetSourceLookups(IEnumerable<Lookup> lookups)
     {
@@ -106,7 +116,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     }
 
     // Computed reads use the existing single reference-loading pass.
-    internal void ValidateReadLookups(IEnumerable<Lookup> lookups, bool allowReference = true)
+    internal void ValidateReadLookups(IEnumerable<Lookup> lookups, bool allowReference = true,
+        bool allowAssessment = true)
     {
         var visited = new HashSet<(WorkflowDefinition, PropertyLookup, bool)>();
         Validate(this, lookups, allowReference);
@@ -115,6 +126,9 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
         {
             foreach (var lookup in definition.GetSourceLookups(inputs).OfType<PropertyLookup>())
             {
+                if (!allowAssessment && !definition.Properties.Contains("Assessment") &&
+                    lookup.Parts[0] == "Assessment")
+                    throw new Exception("Assessment inputs require enrichment");
                 if (!visited.Add((definition, lookup, canLoadReference)) || lookup.Parts.Length < 2 ||
                     definition.Properties.GetOrDefault(lookup.Parts[0]) is not WorkflowPropertyDefinition
                     {

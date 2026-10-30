@@ -78,20 +78,10 @@ public partial class ModelParser
             }
         }
 
-        // Permission conditions use the current context without loading references or calculating assessments.
-        var permissionLookups = definition.Roles.SelectMany(role => role.Actions).Concat(definition.AllActions)
-            .SelectMany(action => action.Condition?.Properties ?? [])
-            .Concat(definition.AllSteps.SelectMany(step =>
-                (step.Condition?.Properties ?? []).Concat(step.Ends?.Properties ?? [])
-                .Concat(step.Deadline is { Type: DeadlineType.Hard } deadline
-                    ? ExpressionParser.Parse(deadline.Date).Properties
-                    : []))).ToArray();
+        var permissionLookups = definition.PermissionAndStepLookups.ToArray();
         try
         {
-            definition.ValidateReadLookups(permissionLookups, allowReference: false);
-            if (!definition.Properties.Contains("Assessment") && definition.GetSourceLookups(permissionLookups)
-                    .OfType<PropertyLookup>().Any(lookup => lookup.Parts[0] == "Assessment"))
-                throw new Exception("Assessment inputs require enrichment");
+            definition.ValidateReadLookups(permissionLookups, allowAssessment: false);
         }
         catch (Exception exception)
         {
