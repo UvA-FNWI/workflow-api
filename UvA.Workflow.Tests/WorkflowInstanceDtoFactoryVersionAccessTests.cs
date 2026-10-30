@@ -21,9 +21,14 @@ namespace UvA.Workflow.Tests;
 public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Create_VisibleSummaryRetainsBothReviewsUntilResubmissionWithoutChangingAttempts(bool resubmitted)
+    [InlineData("Student", false, false)]
+    [InlineData("Student", true, false)]
+    [InlineData("Student", true, true)]
+    [InlineData("Coordinator", false, false)]
+    [InlineData("Coordinator", true, false)]
+    [InlineData("Coordinator", true, true)]
+    public async Task Create_SharedReviewsRemainInHistoryAfterResubmission(
+        string role, bool resubmitted, bool supervisorReviewedAgain)
     {
         var t = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
         var instance = CreateRmssInstanceWithSupervisorAssessment("Fail");
@@ -42,8 +47,10 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         };
         if (resubmitted)
             logs.Add(EventLog(instance, "Start", t.AddMinutes(5)));
+        if (supervisorReviewedAgain)
+            logs.Add(EventLog(instance, "ProposalRejectedSupervisor", t.AddMinutes(6)));
         instance.Events = EventHistory.RebuildEvents(logs);
-        MockCurrentUser("Student");
+        MockCurrentUser(role);
         MockInstance(instance);
         MockEmptyRelatedInstanceLookups();
         MockNoPropertyJournal(instance);
@@ -59,24 +66,93 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.Equal(2, proposal.Versions!.Current!.VersionNumber);
         Assert.Equal(resubmitted ? 1 : 0, proposal.Versions.Current.Submissions.Count);
         Assert.Equal(1, Assert.Single(proposal.Versions.History).VersionNumber);
-        if (resubmitted)
-        {
-            // Student review access closes on resubmission, including access to historical review answers.
-            Assert.Equal("Start", Assert.Single(proposal.Versions.History[0].Submissions).FormName);
-        }
-        else
-        {
-            Assert.Contains(proposal.Versions.History[0].Submissions,
-                submission => submission.FormName == "ProposalAndEthicsReviewSupervisor");
-            Assert.Contains(proposal.Versions.History[0].Submissions,
-                submission => submission.FormName == "ProposalAndEthicsReviewReviewer");
-        }
+        var history = proposal.Versions.History[0];
+        Assert.Contains(history.Submissions,
+            submission => submission.FormName == "ProposalAndEthicsReviewSupervisor");
+        Assert.Contains(history.Submissions,
+            submission => submission.FormName == "ProposalAndEthicsReviewReviewer");
+        Assert.All(history.Submissions, submission => Assert.Empty(submission.Permissions));
 
         MockCurrentUser("NoViewRights");
         var hidden = FindStep((await factory.Create(instance, CancellationToken.None)).Steps, "ProposalPhase");
         Assert.Empty(hidden.Submissions!);
         Assert.Equal(2, hidden.Versions!.Current!.VersionNumber);
         Assert.Empty(Assert.Single(hidden.Versions.History).Submissions);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_HistoricalSharingDoesNotUseTheCurrentAttemptsReviews(bool previouslyShared)
+    {
+        var t = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateRmssInstanceWithSupervisorAssessment("Pass");
+        instance.CreatedOn = t;
+        instance.CurrentStep = "Finish";
+        var logs = new List<InstanceEventLogEntry>
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "ProposalRejectedSupervisor", t.AddMinutes(2))
+        };
+        if (previouslyShared)
+            logs.Add(EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(3)));
+        logs.AddRange([
+            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(4)),
+            EventLog(instance, "Start", t.AddMinutes(5)),
+            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(6)),
+            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(7))
+        ]);
+        instance.Events = EventHistory.RebuildEvents(logs);
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, logs.ToArray());
+
+        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+
+        var proposal = FindStep(dto.Steps, "ProposalPhase");
+        Assert.Contains(proposal.Submissions!,
+            submission => submission.FormName == "ProposalAndEthicsReviewSupervisor");
+        var history = Assert.Single(proposal.Versions!.History);
+        Assert.Equal(previouslyShared,
+            history.Submissions.Any(submission => submission.FormName == "ProposalAndEthicsReviewSupervisor"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(20)]
+    public async Task Create_HistoricalVersionsResolveCurrentRolesOnce(int historyCount)
+    {
+        var instance = CreateProjectInstance();
+        instance.CreatedOn = DateTime.UtcNow.AddDays(-30);
+        instance.Properties["Course"] = ObjectId.GenerateNewId().ToString();
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance);
+        var history = new List<StepVersion>();
+        var versions = new Mock<IStepVersionService>();
+        versions.Setup(service => service.GetStepVersions(It.IsAny<WorkflowInstance>(),
+                It.IsAny<WorkflowInstanceHistory>()))
+            .Returns(new Dictionary<string, StepVersions> { ["Subject"] = new(null, history) });
+        var factory = CreateFactory(versions.Object);
+
+        int RoleReads() => _workflowInstanceRepoMock.Invocations.Count(call =>
+            call.Method.Name == nameof(IWorkflowInstanceRepository.GetAllById));
+
+        await factory.Create(instance, CancellationToken.None);
+        var baselineReads = RoleReads();
+        history.AddRange(Enumerable.Range(1, historyCount).Select(number => new StepVersion
+        {
+            VersionNumber = number, FrozenAt = instance.CreatedOn.AddMinutes(number)
+        }));
+
+        await factory.Create(instance, CancellationToken.None);
+
+        Assert.Equal(historyCount == 0 ? 0 : 1, RoleReads() - 2 * baselineReads);
     }
 
     [Fact]
@@ -189,7 +265,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Create_UsesCurrentViewRightsForVersionSubmissions()
+    public async Task Create_FiltersHistoricalSubmissionsByViewActions()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var instance = CreateProjectInstance();
@@ -341,7 +417,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Create_RealReconstructionFreezesCorrectionsAtRestartAndUsesCurrentViewPermission()
+    public async Task Create_RealReconstructionFreezesCorrectionsAtRestartAndFiltersHistoricalViews()
     {
         var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var instance = CreateProjectInstance();

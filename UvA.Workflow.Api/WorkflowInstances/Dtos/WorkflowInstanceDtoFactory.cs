@@ -76,7 +76,7 @@ public class WorkflowInstanceDtoFactory(
             stepVersionsMap = [];
         }
 
-        var versionPermissions = (await rightsService.GetAllowedActions(instance, RoleAction.View))
+        var currentVersionPermissions = (await rightsService.GetAllowedActions(instance, RoleAction.View))
             .Concat(permissions.Where(action => action.Type == RoleAction.Edit)).ToArray();
         var versionContexts = stepVersionsMap.Values
             .SelectMany(versions => versions.Current == null
@@ -89,6 +89,11 @@ public class WorkflowInstanceDtoFactory(
                     : instance;
                 return (Snapshot: snapshot, Context: modelService.CreateContext(snapshot));
             });
+        var versionPermissions = await rightsService.GetAllowedHistoricalViewActions(instance,
+            versionContexts.Where(entry => entry.Key.FrozenAt != null)
+                .Select(entry => entry.Value.Snapshot).ToArray());
+        versionPermissions[instance] = currentVersionPermissions;
+
         var submissionContext = modelService.CreateContext(instance);
         await instanceService.Enrich(
             new[]
@@ -98,7 +103,7 @@ public class WorkflowInstanceDtoFactory(
             }.Concat(versionContexts.Select(entry => new EnrichmentBatch(workflowDefinition,
                 [entry.Value.Context], entry.Key.Submissions
                     .Select(member => modelService.GetForm(instance, member.FormName))
-                    .Where(form => versionPermissions.Any(action =>
+                    .Where(form => versionPermissions[entry.Value.Snapshot].Any(action =>
                         action.Type == RoleAction.View && action.MatchesForm(form.Name)))
                     .SelectMany(form => form.ActualForm.Lookups)))),
             ct, replaceStep: false);
@@ -118,10 +123,11 @@ public class WorkflowInstanceDtoFactory(
                 versions.Current == null
                     ? null
                     : CreateStepVersionDto(versions.Current, versionContexts[versions.Current].Snapshot,
-                        versionContexts[versions.Current].Context, answerHistory, displayNames, versionPermissions),
+                        versionContexts[versions.Current].Context, answerHistory, displayNames,
+                        versionPermissions[versionContexts[versions.Current].Snapshot]),
                 versions.History.Select(version =>
                     CreateStepVersionDto(version, versionContexts[version].Snapshot, versionContexts[version].Context,
-                        answerHistory, displayNames, versionPermissions)).ToList());
+                        answerHistory, displayNames, versionPermissions[versionContexts[version].Snapshot])).ToList());
         var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
         var actionSteps = actions.SelectMany(action => action.DisplaySteps ?? []).ToHashSet();
         var steps = await Task.WhenAll(workflowDefinition.Steps
