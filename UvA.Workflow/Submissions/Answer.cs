@@ -54,50 +54,35 @@ public record Answer(
 
     public static JsonElement? GetValue(PropertyDefinition question, BsonValue? answer)
     {
-        if (question.DataType == DataType.Currency)
+        if (question is not ObjectPropertyDefinition || answer == null || answer.IsBsonNull)
+            return SerializeValue(question, ObjectContext.GetValue(answer, question));
+
+        if (question.IsArray && !answer.IsBsonArray)
+            answer = new BsonArray { answer };
+        return SerializeValue(question,
+            BsonConversionTools.ConvertBasicBsonValue(BsonConversionTools.GetStoredValue(answer, question)));
+    }
+
+    public static JsonElement? SerializeValue(PropertyDefinition question, object? value)
+    {
+        value = question.DataType switch
         {
-            var value = ObjectContext.GetValue(answer, question) as CurrencyAmount;
-            var currencyObj = new { currency = value?.Currency, amount = value?.Amount };
-            return value == null
-                ? null
-                : JsonSerializer.SerializeToElement(currencyObj, AnswerConversionService.Options);
-        }
-
-        if (question.DataType == DataType.User && question.IsArray)
-        {
-            var users = ObjectContext.GetValue(answer, question) as InstanceUser[];
-            return users == null
-                ? null
-                : JsonSerializer.SerializeToElement(users, AnswerConversionService.Options);
-        }
-
-        if (question.DataType == DataType.User)
-        {
-            var user = ObjectContext.GetValue(answer, question) as InstanceUser;
-            return user == null ? null : JsonSerializer.SerializeToElement(user, AnswerConversionService.Options);
-        }
-
-        if (question.DataType == DataType.File)
-        {
-            var value = ObjectContext.GetValue(answer, question);
-            if (question.IsArray)
-            {
-                var names = (value as ArtifactInfo[] ?? []).Select(file => file.Name).ToArray();
-                return names.Length == 0 ? null : JsonSerializer.SerializeToElement(names);
-            }
-
-            return value is ArtifactInfo file ? JsonSerializer.SerializeToElement(file.Name) : null;
-        }
-
-        if (question.DataType == DataType.Check)
-        {
-            // Default to false, not to null
-            var value = ObjectContext.GetValue(answer, question) as bool?;
-            return JsonSerializer.SerializeToElement(value ?? false);
-        }
-
-        // Handle remaining types: String, DateTime, Date, Int, Double, Choice, Reference
-        var convertedValue = ObjectContext.GetValue(answer, question);
-        return convertedValue == null ? null : JsonSerializer.SerializeToElement(convertedValue);
+            DataType.Currency => value is CurrencyAmount currency
+                ? new { currency = currency.Currency, amount = currency.Amount }
+                : null,
+            DataType.User when question.IsArray => value as InstanceUser[],
+            DataType.User => value as InstanceUser,
+            DataType.File when question.IsArray => value is ArtifactInfo[] { Length: > 0 } files
+                ? files.Select(file => file.Name).ToArray()
+                : null,
+            DataType.File => (value as ArtifactInfo)?.Name,
+            DataType.Check => value as bool? ?? false,
+            DataType.Reference when value is Dictionary<Lookup, object?> reference => reference.GetValueOrDefault("Id"),
+            DataType.Reference when value is Dictionary<Lookup, object?>?[] references
+                => references.Select(reference => reference?.GetValueOrDefault("Id")).ToArray(),
+            _ => value
+        };
+        var options = question.DataType is DataType.Currency or DataType.User ? AnswerConversionService.Options : null;
+        return value == null ? null : JsonSerializer.SerializeToElement(value, options);
     }
 }

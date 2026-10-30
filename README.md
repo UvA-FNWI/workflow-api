@@ -142,6 +142,40 @@ The API Docker build also runs the solution tests before publishing the applicat
 
 Workflow definitions are YAML-based and are organized under `Examples`. Schemas under `Schemas` describe the supported format and can be used by editors and tooling for validation and completion. We currently use this to power type checks in our [VS Code extension](https://github.com/uvA-FNWI/workflow-dev).
 
+### Computed properties
+
+Add `expression` to a property to calculate a read-only value with the condition expression DSL:
+
+```yaml
+properties:
+  - name: PartyCount
+    type: Int
+    expression: count(PartiesInvolved)
+  - name: PartyCountries
+    type: "[String]"
+    expression: unique(flatten(select(PartiesInvolved, =Country)))
+```
+
+`select` takes a literal field name prefixed with `=`, as elsewhere in the expression DSL.
+Conditions and templates can use these property names. Computed dependencies resolve regardless of YAML order;
+cycles are rejected. Values are recalculated when the context is rebuilt, including after reference enrichment,
+and are never stored as instance properties or answer history. Projected contexts calculate a value only when
+its source properties have been loaded. Results must match the declared scalar or list type; optional values may be null.
+
+Computed references may only directly alias another reference property of the same type. Computed reads support
+one reference hop. Multiple reference hops and reference-backed computations inside embedded objects are rejected
+when loading the model. Embedded computations using local stored values remain supported.
+
+Permission conditions, step availability and completion conditions, and hard deadlines load the referenced
+inputs needed by computed properties, with the same one-hop limit. Referenced values are read when the rule
+is evaluated. Conditions and hard deadlines reject inputs from missing referenced instances; display fields
+can remain blank when those values are unavailable.
+Historical views also use the current values of referenced instances. Assessment-backed rules remain
+unsupported and are rejected when loading the model.
+
+Computed properties cannot have defaults, appear as form questions or editable bulk-edit fields, or be targets
+of `setProperty` effects. Use a text template to display a computed value in a form. Direct writes are rejected.
+
 ### Configuration migrations
 
 Migrations rename stored properties when the baseline configuration is loaded. Add a YAML file to the workflow's

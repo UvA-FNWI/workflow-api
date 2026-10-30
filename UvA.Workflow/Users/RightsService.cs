@@ -60,27 +60,34 @@ public class RightsService(
     }
 
     // View rights keep a role eligible for impersonation even after a hard deadline.
-    public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
+    public async Task<WorkflowImpersonationRole[]> GetImpersonationTargetRoles(WorkflowInstance instance)
+        => GetImpersonationTargetRoles(instance, await ContextLoader.CreateContext(modelService,
+            workflowInstanceRepository, instance,
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition].PermissionAndStepLookups, default));
+
+    private WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance, ObjectContext context)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         return GetImpersonationCandidateRoles(instance.WorkflowDefinition)
             .Where(r => definition.Roles.GetOrDefault(r.Name) is { } role
-                        && GetAllowedActions(instance, [role], RoleAction.View).Any())
+                        && GetAllowedActions(instance, context, [role], RoleAction.View).Any())
             .ToArray();
     }
 
-    public WorkflowImpersonationRole? NormalizeImpersonationTargetRole(WorkflowInstance instance, string roleName)
-        => GetImpersonationTargetRoles(instance)
+    public async Task<WorkflowImpersonationRole?> NormalizeImpersonationTargetRole(WorkflowInstance instance,
+        string roleName)
+        => (await GetImpersonationTargetRoles(instance))
             .FirstOrDefault(r => string.Equals(r.Name, roleName, StringComparison.OrdinalIgnoreCase));
 
-    public RoleAllowedActions[] GetAllowedActionsPerTargetRole(WorkflowInstance instance,
+    public async Task<RoleAllowedActions[]> GetAllowedActionsPerTargetRole(WorkflowInstance instance,
         params RoleAction[] actions)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
-        var activeSteps = modelService.GetActiveSteps(instance);
+        var context = await ContextLoader.CreateContext(modelService, workflowInstanceRepository, instance,
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition].PermissionAndStepLookups, default);
+        var activeSteps = modelService.GetActiveSteps(instance, context);
 
-        return GetImpersonationTargetRoles(instance)
+        return GetImpersonationTargetRoles(instance, context)
             .Select(r =>
             {
                 var roleActions = GetAllowedActions(instance, context, activeSteps,
@@ -113,7 +120,7 @@ public class RightsService(
         var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance, ct);
         if (!string.IsNullOrWhiteSpace(impersonatedRoleName))
         {
-            var normalized = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
+            var normalized = await NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
             return normalized != null ? [normalized.Name] : [];
         }
 
@@ -182,10 +189,11 @@ public class RightsService(
             .ToArray();
     }
 
-    private Domain_Action[] GetAllowedActions(WorkflowInstance instance, IEnumerable<Role?> roles,
+    private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
+        IEnumerable<Role?> roles,
         params RoleAction[] actions)
-        => GetAllowedActions(instance, modelService.CreateContext(instance),
-            modelService.GetActiveSteps(instance), roles, actions);
+        => GetAllowedActions(instance, context,
+            modelService.GetActiveSteps(instance, context), roles, actions);
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
         string[] activeSteps, IEnumerable<Role?> roles, params RoleAction[] actions)
@@ -203,26 +211,14 @@ public class RightsService(
             .ToArray();
     }
 
-    private async Task<Domain_Action[]> GetAllowedActionsForRealUser(WorkflowInstance instance,
-        params RoleAction[] actions)
-    {
-        return GetAllowedActions(instance, await GetRealUserRoles(instance), actions);
-    }
-
-    private async Task<Domain_Action[]> GetAllowedActionsForRequestContext(
-        WorkflowInstance instance,
-        params RoleAction[] actions)
-    {
-        return GetAllowedActions(instance, await GetRequestContextRoles(instance), actions);
-    }
-
     public async Task<Domain_Action[]> GetAllowedActionsForStep(
         WorkflowInstance instance,
         string stepName,
         params RoleAction[] actions)
     {
-        var context = modelService.CreateContext(instance);
-        var roles = await GetRequestContextRoles(instance);
+        var context = await ContextLoader.CreateContext(modelService, workflowInstanceRepository, instance,
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition].PermissionAndStepLookups, default);
+        var roles = await GetRequestContextRoles(instance, context);
         return GetAllowedActions(instance, context, [stepName], roles, actions);
     }
 
@@ -232,13 +228,14 @@ public class RightsService(
             .Concat(await GetInstanceRoles(instance))
             .ToArray();
 
-    private async Task<Role?[]> GetRequestContextRoles(WorkflowInstance instance)
+    private async Task<Role?[]> GetRequestContextRoles(WorkflowInstance instance, ObjectContext context)
     {
         var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance);
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetRealUserRoles(instance);
 
-        var normalizedRoleName = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
+        var normalizedRoleName = GetImpersonationTargetRoles(instance, context)
+            .FirstOrDefault(role => string.Equals(role.Name, impersonatedRoleName, StringComparison.OrdinalIgnoreCase));
         return normalizedRoleName == null
             ? []
             :
@@ -263,19 +260,28 @@ public class RightsService(
         RightsEvaluationMode evaluationMode,
         params RoleAction[] actions)
     {
-        var roleActions = evaluationMode switch
+        var context = await ContextLoader.CreateContext(modelService, workflowInstanceRepository, instance,
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition].PermissionAndStepLookups, default);
+        return await GetAllowedActions(instance, context, evaluationMode, actions);
+    }
+
+    public async Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, ObjectContext context,
+        RightsEvaluationMode evaluationMode, params RoleAction[] actions)
+    {
+        var roles = evaluationMode switch
         {
-            RightsEvaluationMode.RealUser => await GetAllowedActionsForRealUser(instance, actions),
-            _ => await GetAllowedActionsForRequestContext(instance, actions)
+            RightsEvaluationMode.RealUser => await GetRealUserRoles(instance),
+            _ => await GetRequestContextRoles(instance, context)
         };
-        return GetAllowedActions(instance, modelService.CreateContext(instance), roleActions);
+        var roleActions = GetAllowedActions(instance, context, roles, actions);
+        return GetAllowedActions(instance, context, roleActions);
     }
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
         Domain_Action[] actions)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var activeSteps = modelService.GetActiveSteps(instance);
+        var activeSteps = modelService.GetActiveSteps(instance, context);
         // Check deadlines after resolving persistent steps so parent deadlines also apply to completed children.
         return actions.Where(a => a.Type == RoleAction.View || a.Steps.Length == 0 || modelService
             .GetAvailableStepsForAction(instance, a, activeSteps, context)

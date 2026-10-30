@@ -56,12 +56,25 @@ public class AnswerService(
         return new QuestionContext(instance, submissionState, form, question);
     }
 
+    /// <summary>Prototype entry point for validating, converting, and saving a property input.</summary>
+    public async Task SaveProperty(WorkflowInstance instance, string[] pathParts, JsonElement? value,
+        bool shouldLog, CancellationToken ct)
+    {
+        var property = modelService.GetProperty(instance, pathParts)
+                       ?? throw new EntityNotFoundException("PropertyDefinition", string.Join('.', pathParts));
+        modelService.EnsureWritable(instance, pathParts);
+        var newValue = await answerConversionService.ConvertToValue(value, property, ct);
+        await SavePropertyValue(instance, pathParts, property, newValue, shouldLog, ct);
+    }
+
     /// <summary>
     /// Persists a property change and optionally journals its previous value.
     /// </summary>
     public async Task SavePropertyValue(WorkflowInstance instance, string[] pathParts,
         PropertyDefinition propertyDefinition, BsonValue newValue, bool shouldLog, CancellationToken ct)
     {
+        propertyDefinition.EnsureWritable();
+        modelService.EnsureWritable(instance, pathParts);
         var currentValue = instance.GetProperty(pathParts);
         if (newValue == currentValue)
             return;
@@ -113,6 +126,7 @@ public class AnswerService(
     public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
     {
         var (instance, _, form, question) = context;
+        modelService.EnsureWritable(instance, context.PathParts);
 
         // Get current answer
         var currentAnswer = instance.GetProperty(form.PropertyName, question.Name);
@@ -128,7 +142,7 @@ public class AnswerService(
 
         // Check if user can view hidden fields
         var canViewHidden = await rightsService.Can(instance, RoleAction.ViewHidden, form.Name);
-        var updates = modelService.GetQuestionStatus(instance, form, canViewHidden, questionsToUpdate);
+        var updates = await instanceService.GetQuestionStatus(instance, form, canViewHidden, ct, questionsToUpdate);
 
         // Build response
         return Answer.Create(instance, form, updates);
@@ -211,6 +225,8 @@ public class AnswerService(
     public async Task SaveArtifact(QuestionContext context, IFormFile formFile, CancellationToken ct = default)
     {
         var (instance, _, _, propertyDefinition) = context;
+        propertyDefinition.EnsureWritable();
+        modelService.EnsureWritable(instance, context.PathParts);
         if (propertyDefinition is not FilePropertyDefinition file)
             throw new ArgumentException($"Property '{propertyDefinition.Name}' does not accept file uploads");
         ValidateFile(file, instance.GetProperty(context.PathParts), formFile.FileName, formFile.Length);
@@ -310,6 +326,7 @@ public class AnswerService(
         ExternalUserInput? externalUser,
         CancellationToken ct)
     {
+        propertyDefinition.EnsureWritable();
         UserSearchResult? createdUser = null;
 
         if (externalUser != null)

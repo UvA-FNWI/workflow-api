@@ -75,14 +75,14 @@ public class ExpressionParser
             {
                 if (quote == exp[i])
                     quote = null;
-                else if (quote == null)
+                else if (quote == null && exp[start..i].Trim() is "" or "=")
                     quote = exp[i];
             }
 
             if (quote != null)
                 continue;
 
-            var isOperator = operatorChars.Contains(exp[i]) && operatorChars.Contains(exp[i + 1]);
+            var isOperator = i + 1 < exp.Length && operatorChars.Contains(exp[i]) && operatorChars.Contains(exp[i + 1]);
             if (chars.Contains(exp[i]) || isOperator)
             {
                 if (i - start > 0)
@@ -96,6 +96,9 @@ public class ExpressionParser
 
         if (start < exp.Length)
             tokens.Add(exp.Substring(start).Trim());
+
+        if (quote != null)
+            throw new ArgumentException("Unclosed quote");
 
         return tokens;
     }
@@ -111,8 +114,11 @@ public class ExpressionParser
         return Cache.GetOrAdd(exp, s =>
         {
             var parser = new ExpressionParser();
-            var tokens = parser.Tokenize(s);
-            return parser.Parse(new Queue<string>(tokens));
+            var tokens = new Queue<string>(parser.Tokenize(s));
+            var expression = parser.Parse(tokens);
+            if (tokens.Count > 0)
+                throw new ArgumentException($"Unexpected token '{tokens.Peek()}'");
+            return expression;
         });
     }
 }

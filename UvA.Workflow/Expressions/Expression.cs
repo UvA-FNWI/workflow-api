@@ -6,6 +6,32 @@ namespace UvA.Workflow.Expressions;
 
 public record Expression
 {
+    /// <summary>Checks executable expressions without needing instance data.</summary>
+    public void Validate()
+    {
+        switch (this)
+        {
+            case Call(Identifier(var name), var arguments):
+                if (!Functions.TryGetValue(name, out var function))
+                    throw new ArgumentException($"Unknown function '{name}'");
+                if (arguments.Length != function.GetType().GetGenericArguments().Length - 1)
+                    throw new ArgumentException($"Invalid number of arguments for '{name}'");
+                foreach (var argument in arguments) argument.Validate();
+                break;
+            case Operator(OperatorType.Equal, var left, var right):
+                left.Validate();
+                right.Validate();
+                break;
+            case Index(var expression, Int(var index)) when index >= 0:
+                expression.Validate();
+                break;
+            case Boolean or Int or Double or Text or Identifier or Template:
+                break;
+            default:
+                throw new ArgumentException("Unsupported expression");
+        }
+    }
+
     public virtual object? Execute(ObjectContext context)
     {
         return this switch
@@ -16,6 +42,10 @@ public record Expression
             Text(var s) => s,
             Identifier(var k) => context.Get(k),
             Index(var exp, Int(var n)) => (exp.Execute(context) as IList)?[n],
+            Call(Identifier("select"), [var collection, var field]) =>
+                CallFunction(Functions["select"],
+                    context.ResolveReferenceItems(collection.Execute(context), collection.Properties),
+                    field.Execute(context)),
             Call(Identifier exp, var args) when Functions.ContainsKey(exp.Text) =>
                 CallFunction(Functions[exp.Text], args.Select(a => a.Execute(context)).ToArray()),
             Call(Identifier(var text), var args) => context.Get(new ComplexLookup(text, args)),
@@ -129,6 +159,10 @@ public record Expression
         // Value sets come from the model, not from instance data, so there is nothing to load
         Identifier(var k) when k.StartsWith("ValueSets.", StringComparison.Ordinal) => [],
         Identifier(var k) => [k],
+        Call(Identifier("select"), [var collection, Text(var selectedField)]) =>
+            collection.Properties.Select(lookup => lookup is PropertyLookup property
+                ? new PropertyLookup(property.Property + "." + selectedField)
+                : lookup),
         Call(Identifier(var text), var args) when Functions.ContainsKey(text) => args.SelectMany(a => a.Properties),
         Call(Identifier(var text) expr, var args) => [new ComplexLookup(text, args)],
         Index(var exp, _) => exp.Properties,

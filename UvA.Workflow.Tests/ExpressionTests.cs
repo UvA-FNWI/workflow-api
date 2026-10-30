@@ -8,6 +8,23 @@ namespace UvA.Workflow.Tests;
 public class ExpressionTests
 {
     [Theory]
+    [InlineData("=Bachelor's thesis", "Bachelor's thesis")]
+    [InlineData("if(true, =Bachelor's thesis, =Other)", "Bachelor's thesis")]
+    [InlineData("=A 6\" screen", "A 6\" screen")]
+    [InlineData("=\"One, two\"", "\"One, two\"")]
+    [InlineData("template(\"Bachelor's ({{ Title }})\")", "Bachelor's (thesis)")]
+    public void Parse_PreservesQuotesWithinLiterals(string expression, string expected)
+    {
+        var context = new ObjectContext(new Dictionary<Lookup, object?> { ["Title"] = "thesis" });
+
+        Assert.Equal(expected, ExpressionParser.Parse(expression).Execute(context));
+    }
+
+    [Fact]
+    public void Parse_RejectsUnclosedQuotedTemplate()
+        => Assert.Throws<ArgumentException>(() => ExpressionParser.Parse("template(\"Unclosed)"));
+
+    [Theory]
     [InlineData(null, 0)]
     [InlineData(new string[0], 0)]
     [InlineData(new[] { "a", "b" }, 2)]
@@ -171,7 +188,7 @@ public class ExpressionTests
         };
 
         Assert.Equal(new object[] { "NL", "FR" }, Assert.IsType<object[]>(exp.Execute(RowsContext(rows))));
-        Assert.Equal([new PropertyLookup("Rows")], exp.Properties);
+        Assert.Equal([new PropertyLookup("Rows.Code")], exp.Properties);
     }
 
     [Fact]
