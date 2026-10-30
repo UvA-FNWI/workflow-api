@@ -20,6 +20,141 @@ namespace UvA.Workflow.Tests;
 
 public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 {
+    [Theory]
+    [InlineData("Student", false, false)]
+    [InlineData("Student", true, false)]
+    [InlineData("Student", true, true)]
+    [InlineData("Coordinator", false, false)]
+    [InlineData("Coordinator", true, false)]
+    [InlineData("Coordinator", true, true)]
+    public async Task Create_SharedReviewsRemainInHistoryAfterResubmission(
+        string role, bool resubmitted, bool supervisorReviewedAgain)
+    {
+        var t = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateRmssInstanceWithSupervisorAssessment("Fail");
+        instance.CreatedOn = t;
+        instance.CurrentStep = resubmitted ? "ProposalAssessmentSupervisor" : "Start";
+        instance.Properties["ReviewerProposalAndEthicsReview"] = new BsonDocument
+        {
+            ["ProposalSufficient"] = "Pass", ["EthicsSufficient"] = "Pass"
+        };
+        var logs = new List<InstanceEventLogEntry>
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "ProposalRejectedSupervisor", t.AddMinutes(2)),
+            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(3)),
+            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(4))
+        };
+        if (resubmitted)
+            logs.Add(EventLog(instance, "Start", t.AddMinutes(5)));
+        if (supervisorReviewedAgain)
+            logs.Add(EventLog(instance, "ProposalRejectedSupervisor", t.AddMinutes(6)));
+        instance.Events = EventHistory.RebuildEvents(logs);
+        MockCurrentUser(role);
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, logs.ToArray());
+        var factory = CreateFactory(new StepVersionService(_modelService));
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+        var proposal = FindStep(dto.Steps, "ProposalPhase");
+
+        Assert.Equal(
+            resubmitted ? ["Start"] : new[] { "ProposalAndEthicsReviewReviewer", "ProposalAndEthicsReviewSupervisor" },
+            proposal.Submissions!.Select(submission => submission.FormName).Order());
+        Assert.Equal(2, proposal.Versions!.Current!.VersionNumber);
+        Assert.Equal(resubmitted ? 1 : 0, proposal.Versions.Current.Submissions.Count);
+        Assert.Equal(1, Assert.Single(proposal.Versions.History).VersionNumber);
+        var history = proposal.Versions.History[0];
+        Assert.Contains(history.Submissions,
+            submission => submission.FormName == "ProposalAndEthicsReviewSupervisor");
+        Assert.Contains(history.Submissions,
+            submission => submission.FormName == "ProposalAndEthicsReviewReviewer");
+        Assert.All(history.Submissions, submission => Assert.Empty(submission.Permissions));
+
+        MockCurrentUser("NoViewRights");
+        var hidden = FindStep((await factory.Create(instance, CancellationToken.None)).Steps, "ProposalPhase");
+        Assert.Empty(hidden.Submissions!);
+        Assert.Equal(2, hidden.Versions!.Current!.VersionNumber);
+        Assert.Empty(Assert.Single(hidden.Versions.History).Submissions);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_HistoricalSharingDoesNotUseTheCurrentAttemptsReviews(bool previouslyShared)
+    {
+        var t = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateRmssInstanceWithSupervisorAssessment("Pass");
+        instance.CreatedOn = t;
+        instance.CurrentStep = "Finish";
+        var logs = new List<InstanceEventLogEntry>
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "ProposalRejectedSupervisor", t.AddMinutes(2))
+        };
+        if (previouslyShared)
+            logs.Add(EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(3)));
+        logs.AddRange([
+            EventLog(instance, "ProposalReturnedForRevision", t.AddMinutes(4)),
+            EventLog(instance, "Start", t.AddMinutes(5)),
+            EventLog(instance, "ProposalApprovedSupervisor", t.AddMinutes(6)),
+            EventLog(instance, "ProposalApprovedReviewer", t.AddMinutes(7))
+        ]);
+        instance.Events = EventHistory.RebuildEvents(logs);
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, logs.ToArray());
+
+        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+
+        var proposal = FindStep(dto.Steps, "ProposalPhase");
+        Assert.Contains(proposal.Submissions!,
+            submission => submission.FormName == "ProposalAndEthicsReviewSupervisor");
+        var history = Assert.Single(proposal.Versions!.History);
+        Assert.Equal(previouslyShared,
+            history.Submissions.Any(submission => submission.FormName == "ProposalAndEthicsReviewSupervisor"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(20)]
+    public async Task Create_HistoricalVersionsResolveCurrentRolesOnce(int historyCount)
+    {
+        var instance = CreateProjectInstance();
+        instance.CreatedOn = DateTime.UtcNow.AddDays(-30);
+        instance.Properties["Course"] = ObjectId.GenerateNewId().ToString();
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance);
+        var history = new List<StepVersion>();
+        var versions = new Mock<IStepVersionService>();
+        versions.Setup(service => service.GetStepVersions(It.IsAny<WorkflowInstance>(),
+                It.IsAny<WorkflowInstanceHistory>()))
+            .Returns(new Dictionary<string, StepVersions> { ["Subject"] = new(null, history) });
+        var factory = CreateFactory(versions.Object);
+
+        int RoleReads() => _workflowInstanceRepoMock.Invocations.Count(call =>
+            call.Method.Name == nameof(IWorkflowInstanceRepository.GetAllById));
+
+        await factory.Create(instance, CancellationToken.None);
+        var baselineReads = RoleReads();
+        history.AddRange(Enumerable.Range(1, historyCount).Select(number => new StepVersion
+        {
+            VersionNumber = number, FrozenAt = instance.CreatedOn.AddMinutes(number)
+        }));
+
+        await factory.Create(instance, CancellationToken.None);
+
+        Assert.Equal(historyCount == 0 ? 0 : 1, RoleReads() - 2 * baselineReads);
+    }
+
     [Fact]
     public async Task Create_LiveSubmissionIncludesGroupedAnswerHistory()
     {
@@ -49,16 +184,96 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         Assert.Equal(6, group.Changes[1].Value?.GetInt32());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_SummaryOnlyIncludesSubmissionsFromTheVisibleStepHierarchy(bool visible)
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = CreateProjectInstance();
+        instance.Properties["Title"] = visible ? "Visible" : "Hidden";
+        instance.Events["Start"] = new InstanceEvent { Id = "Start", Date = submittedAt };
+        _modelService.GetForm(instance, "Start").Step = "Start";
+        _modelService.WorkflowDefinitions["Project"].AllSteps.Single(step => step.Name == "Start").Condition =
+            new() { Value = new() { Property = "Title", Equal = "=Visible" } };
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
+
+        var dto = await CreateFactory(Mock.Of<IStepVersionService>()).Create(instance, CancellationToken.None);
+
+        Assert.Contains(dto.Submissions, submission => submission.FormName == "Start");
+        var subject = FindStep(dto.Steps, "Subject");
+        Assert.Equal(visible, subject.Children!.Any(child => child.Id == "Start"));
+        Assert.Equal(visible, subject.Submissions!.Any(submission => submission.FormName == "Start"));
+    }
+
     [Fact]
-    public async Task Create_UsesHistoricalViewRightsForVersionSubmissions()
+    public async Task Create_UndoingRejectionKeepsDraftEditsOutOfLiveAnswerCorrections()
+    {
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateProjectInstance();
+        instance.CreatedOn = t;
+        instance.Properties["EC"] = 18;
+        var rejection = EventLog(instance, "RejectSubject", t.AddMinutes(3));
+        rejection.OperationId = "rejection";
+        var logs = new[]
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            rejection,
+            new InstanceEventLogEntry
+            {
+                WorkflowInstanceId = instance.Id, Timestamp = t.AddMinutes(5),
+                Operation = EventLogOperation.Undo, OperationId = rejection.OperationId
+            }
+        };
+        instance.Events = EventHistory.RebuildEvents(logs);
+        var correction = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(2), ["Path"] = "EC", ["OldValue"] = 6,
+            ["ModifiedBy"] = "coordinator"
+        });
+        var draft = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(4), ["Path"] = "EC", ["OldValue"] = 12,
+            ["ModifiedBy"] = "coordinator"
+        });
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockPropertyJournal(instance, (correction, 1), (draft, 1));
+        MockHistoricalEventLog(instance, logs);
+
+        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+
+        var versions = FindStep(dto.Steps, "Subject").Versions!;
+        Assert.Equal(1, versions.Current!.VersionNumber);
+        Assert.Empty(versions.History);
+        foreach (var submission in new[]
+                 {
+                     dto.Submissions.Single(s => s.FormName == "Start"),
+                     versions.Current.Submissions.Single(s => s.FormName == "Start")
+                 })
+        {
+            var answer = submission.Answers.Single(a => a.QuestionName == "EC");
+            Assert.Equal(18, answer.Value?.GetInt32());
+            var changes = Assert.Single(answer.Changes!).Changes;
+            Assert.Equal([12, 6], changes.Select(change => change.Value!.Value.GetInt32()));
+        }
+    }
+
+    [Fact]
+    public async Task Create_FiltersHistoricalSubmissionsByViewActions()
     {
         var submittedAt = DateTime.UtcNow.AddMinutes(-10);
         var instance = CreateProjectInstance();
         var stepVersionService = CreateStepVersionService("Start", new StepVersion
         {
             VersionNumber = 1,
-            EventIds = ["Start"],
-            SubmittedAt = submittedAt
+            Submissions = [new("Start", submittedAt, "Start", "Start")],
+            FrozenAt = submittedAt
         });
         var factory = CreateFactory(stepVersionService.Object);
 
@@ -71,7 +286,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var startStep = FindStep(dto.Steps, "Start");
-        var version = Assert.Single(startStep.Versions!);
+        var version = Assert.Single(startStep.Versions!.History);
         Assert.NotEmpty(version.Submissions);
         Assert.All(version.Submissions, submission => Assert.Equal("Start", submission.FormName));
         Assert.All(version.Submissions, submission => Assert.Equal(submittedAt, submission.DateSubmitted));
@@ -87,8 +302,8 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var stepVersionService = CreateStepVersionService("Start", new StepVersion
         {
             VersionNumber = 1,
-            EventIds = ["Start"],
-            SubmittedAt = submittedAt
+            Submissions = [new("Start", submittedAt, "Start", "Start")],
+            FrozenAt = submittedAt
         });
         var factory = CreateFactory(stepVersionService.Object);
 
@@ -115,7 +330,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var startStep = FindStep(dto.Steps, "Start");
-        var version = Assert.Single(startStep.Versions!);
+        var version = Assert.Single(startStep.Versions!.History);
         Assert.NotEmpty(version.Submissions);
         Assert.All(version.Submissions, submission => Assert.Equal("Start", submission.FormName));
         Assert.All(version.Submissions, submission => Assert.Equal(submittedAt, submission.DateSubmitted));
@@ -129,8 +344,12 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var stepVersionService = CreateStepVersionService("ProposalAssessmentSupervisor", new StepVersion
         {
             VersionNumber = 1,
-            EventIds = ["ProposalApprovedSupervisor"],
-            SubmittedAt = submittedAt
+            Submissions =
+            [
+                new("ProposalAndEthicsReviewSupervisor", submittedAt, "ProposalApprovedSupervisor",
+                    "ProposalAssessmentSupervisor")
+            ],
+            FrozenAt = submittedAt
         });
         var factory = CreateFactory(stepVersionService.Object);
 
@@ -149,14 +368,14 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var supervisorStep = FindStep(dto.Steps, "ProposalAssessmentSupervisor");
-        var version = Assert.Single(supervisorStep.Versions!);
+        var version = Assert.Single(supervisorStep.Versions!.History);
         var submission = Assert.Single(version.Submissions);
         var proposalSufficient = submission.Answers.Single(answer => answer.QuestionName == "ProposalSufficient");
         Assert.Equal("Pass", proposalSufficient.Value?.GetString());
     }
 
     [Fact]
-    public async Task Create_OmitsNewestVersionWhenStepIsCompleted()
+    public async Task Create_MapsCurrentSeparatelyFromHistory()
     {
         var historicalSubmittedAt = DateTime.UtcNow.AddMinutes(-20);
         var currentSubmittedAt = DateTime.UtcNow.AddMinutes(-10);
@@ -171,14 +390,13 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
             new StepVersion
             {
                 VersionNumber = 1,
-                EventIds = ["Start"],
-                SubmittedAt = historicalSubmittedAt
+                Submissions = [new("Start", historicalSubmittedAt, "Start", "Start")],
+                FrozenAt = historicalSubmittedAt
             },
             new StepVersion
             {
                 VersionNumber = 2,
-                EventIds = ["Start"],
-                SubmittedAt = currentSubmittedAt
+                Submissions = [new("Start", currentSubmittedAt, "Start", "Start")]
             });
         var factory = CreateFactory(stepVersionService.Object);
 
@@ -194,8 +412,152 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var dto = await factory.Create(instance, CancellationToken.None);
 
         var startStep = FindStep(dto.Steps, "Start");
-        var historicalVersion = Assert.Single(startStep.Versions!);
+        var historicalVersion = Assert.Single(startStep.Versions!.History);
         Assert.Equal(1, historicalVersion.VersionNumber);
+    }
+
+    [Fact]
+    public async Task Create_RealReconstructionFreezesCorrectionsAtRestartAndFiltersHistoricalViews()
+    {
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateProjectInstance();
+        instance.CreatedOn = t;
+        instance.Properties["Subject"] = "Corrected";
+        instance.Events["Start"] = new InstanceEvent { Id = "Start", Date = t.AddMinutes(1) };
+        instance.Events["RejectSubject"] = new InstanceEvent { Id = "RejectSubject", Date = t.AddMinutes(3) };
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var view = new DomainAction
+        {
+            Type = RoleAction.View, Form = "Start",
+            Condition = new() { Event = new() { Id = "RejectSubject" } }
+        };
+        definition.Roles.Add(new Role { Name = "PresentViewer", Actions = [view] });
+        MockCurrentUser("PresentViewer");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        var correction = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(2), ["Path"] = "Subject", ["OldValue"] = "Original",
+            ["ModifiedBy"] = "coordinator", ["Version"] = 1
+        });
+        MockPropertyJournal(instance, (correction, 1));
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "RejectSubject", t.AddMinutes(3)));
+        var factory = CreateFactory(new StepVersionService(_modelService));
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+        var subject = FindStep(dto.Steps, "Subject");
+        Assert.Equal(2, subject.Versions!.Current!.VersionNumber);
+        Assert.Empty(subject.Versions.Current.Submissions);
+        Assert.Null(FindStep(dto.Steps, "Start").Versions);
+        var history = Assert.Single(subject.Versions.History);
+        var submission = Assert.Single(history.Submissions);
+        Assert.Equal("Corrected", submission.Answers.Single(a => a.QuestionName == "Subject").Value?.GetString());
+        Assert.Empty(submission.Permissions);
+
+        view.Condition!.Not = true;
+        dto = await factory.Create(instance, CancellationToken.None);
+        subject = FindStep(dto.Steps, "Subject");
+        Assert.Equal(2, subject.Versions!.Current!.VersionNumber);
+        Assert.Empty(Assert.Single(subject.Versions.History).Submissions);
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(10)]
+    public async Task Create_SavingANewDraftAfterRestartPreservesTheCorrectedPreviousAttempt(int lastDraftEditMinute)
+    {
+        var t = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var instance = CreateProjectInstance();
+        instance.CreatedOn = t;
+        instance.Properties["Subject"] = "test2";
+        var logs = new[]
+        {
+            EventLog(instance, "Start", t.AddMinutes(1)),
+            EventLog(instance, "ApproveSubject", t.AddMinutes(1.5)),
+            EventLog(instance, "RejectSubject", t.AddMinutes(3))
+        };
+        instance.Events = EventHistory.RebuildEvents(logs);
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        var correction = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(2), ["Path"] = "Subject", ["OldValue"] = "test",
+            ["ModifiedBy"] = "coordinator", ["Version"] = 1
+        });
+        var draft = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<PropertyChangeEntry>(new BsonDocument
+        {
+            ["Timestamp"] = t.AddMinutes(lastDraftEditMinute),
+            ["Path"] = "Subject", ["OldValue"] = "test2",
+            ["ModifiedBy"] = "coordinator", ["Version"] = 1
+        });
+        MockPropertyJournal(instance, (correction, 1));
+        MockHistoricalEventLog(instance, logs);
+        var factory = CreateFactory(new StepVersionService(_modelService));
+
+        var beforeEditing = await factory.Create(instance, CancellationToken.None);
+        Assert.Equal(2, FindStep(beforeEditing.Steps, "Subject").Versions!.Current!.VersionNumber);
+
+        instance.Properties["Subject"] = "New draft";
+        MockPropertyJournal(instance, (correction, 1), (draft, 1));
+        var dto = await factory.Create(instance, CancellationToken.None);
+
+        var subject = FindStep(dto.Steps, "Subject");
+        Assert.NotNull(subject.Versions);
+        Assert.Equal(2, subject.Versions.Current!.VersionNumber);
+        Assert.Empty(subject.Versions.Current.Submissions);
+        var previous = Assert.Single(subject.Versions.History);
+        Assert.Equal(1, previous.VersionNumber);
+        Assert.Equal(t.AddMinutes(1.5), previous.CompletionTimestamp);
+        var submission = Assert.Single(previous.Submissions, submission => submission.FormName == "Start");
+        Assert.Equal("test2",
+            submission.Answers.Single(answer => answer.QuestionName == "Subject").Value?.GetString());
+    }
+
+    [Fact]
+    public async Task Create_UnreconstructableProgressionKeepsNormalSubmissionDisplayWithoutInventingAttempts()
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = CreateProjectInstance();
+        instance.Properties["Title"] = "Visible";
+        instance.Events["Start"] = new InstanceEvent { Id = "Start", Date = submittedAt };
+        _modelService.WorkflowDefinitions["Project"].AllSteps.Single(step => step.Name == "Subject").Condition =
+            new() { Value = new() { Property = "Title", Equal = "=Visible" } };
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockPropertyJournal(instance, (PropertyChangeEntry.Create("Title", "Hidden", UnitTestsHelpers.AdminUser), 1));
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
+
+        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+
+        var subject = FindStep(dto.Steps, "Subject");
+        Assert.Null(subject.Versions);
+        Assert.Contains(subject.Submissions!, submission => submission.FormName == "Start");
+        Assert.Null(FindStep(dto.Steps, "Start").Versions);
+    }
+
+    [Fact]
+    public async Task Create_ResolvesActionAttachedFormsForNonOwningChildRows()
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = CreateProjectInstance();
+        instance.Events["Start"] = new InstanceEvent { Id = "Start", Date = submittedAt };
+        _modelService.GetForm(instance, "Start").Step = null;
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
+
+        var dto = await CreateFactory(new StepVersionService(_modelService)).Create(instance, CancellationToken.None);
+
+        var start = FindStep(dto.Steps, "Start");
+        Assert.Null(start.Versions);
+        var submission = Assert.Single(start.Submissions!);
+        Assert.Equal("Start", submission.Form.Step);
+        Assert.Equal("Start", submission.FormName);
     }
 
     [Fact]
@@ -300,18 +662,13 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         params StepVersion[] versions)
     {
         var stepVersionService = new Mock<IStepVersionService>();
-        stepVersionService
-            .Setup(s => s.GetStepVersions(
-                It.IsAny<WorkflowInstance>(),
-                It.IsAny<Step>(),
-                It.IsAny<IEnumerable<InstanceEventLogEntry>>()))
-            .Returns([]);
-        stepVersionService
-            .Setup(s => s.GetStepVersions(
-                It.IsAny<WorkflowInstance>(),
-                It.Is<Step>(step => step.Name == stepName),
-                It.IsAny<IEnumerable<InstanceEventLogEntry>>()))
-            .Returns(versions.ToList());
+        stepVersionService.Setup(s => s.GetStepVersions(It.IsAny<WorkflowInstance>(),
+                It.IsAny<WorkflowInstanceHistory>()))
+            .Returns(new Dictionary<string, StepVersions>
+            {
+                [stepName] = new(versions.LastOrDefault(v => v.FrozenAt == null),
+                    versions.Where(v => v.FrozenAt != null).Reverse().ToList())
+            });
         return stepVersionService;
     }
 

@@ -9,7 +9,25 @@ namespace UvA.Workflow.WorkflowInstances;
 
 public record WorkflowInstanceHistory(
     InstanceJournalEntry? Journal,
-    List<InstanceEventLogEntry> EventLogs);
+    List<InstanceEventLogEntry> EventLogs)
+{
+    public WorkflowInstance GetInstanceAt(WorkflowInstance instance, DateTime timestamp, ModelService modelService)
+    {
+        var snapshot = new WorkflowInstance
+        {
+            Id = instance.Id, WorkflowDefinition = instance.WorkflowDefinition, ParentId = instance.ParentId,
+            CreatedOn = instance.CreatedOn, EvaluatedAt = timestamp,
+            Properties = instance.Properties.ToDictionary(pair => pair.Key, pair => pair.Value.DeepClone()),
+            Events = []
+        };
+        foreach (var change in (Journal?.PropertyChanges ?? []).Reverse()
+                 .OrderByDescending(change => change.Timestamp).Where(change => change.Timestamp > timestamp))
+            snapshot.SetProperty(change.OldValue?.DeepClone(), change.Path.Split('.'));
+        snapshot.Events = EventHistory.RebuildEvents(EventLogs, timestamp);
+        snapshot.CurrentStep = modelService.FindOpenStep(snapshot)?.Name;
+        return snapshot;
+    }
+}
 
 public class WorkflowInstanceService(
     ModelService modelService,
@@ -193,16 +211,7 @@ public class WorkflowInstanceService(
         DateTime timestamp,
         WorkflowInstanceHistory history)
     {
-        var instanceAtTimestamp = CloneInstance(instance);
-        var version = GetVersionAtTimestamp(history.Journal, timestamp);
-
-        EnrichInstanceByJournalEntries(instanceAtTimestamp, history.Journal, version);
-
-        instanceAtTimestamp.Events = EventHistory.RebuildEvents(history.EventLogs, timestamp);
-
-        RecalculateCurrentStep(instanceAtTimestamp);
-
-        return instanceAtTimestamp;
+        return history.GetInstanceAt(instance, timestamp, modelService);
     }
 
     public async Task<WorkflowInstanceHistory> GetInstanceHistory(string instanceId, CancellationToken ct)
@@ -228,28 +237,6 @@ public class WorkflowInstanceService(
         {
             instance.SetProperty(change.OldValue, change.Path.Split('.'));
         }
-    }
-
-    private static int GetVersionAtTimestamp(InstanceJournalEntry? journal, DateTime timestamp)
-    {
-        if (journal is not { PropertyChanges.Length: > 0 })
-            return 0;
-
-        var changesBeforeTimestamp = journal.PropertyChanges
-            .Where(pc => pc.Timestamp < timestamp)
-            .ToList();
-
-        return changesBeforeTimestamp.Any()
-            ? changesBeforeTimestamp.Max(pc => pc.Version)
-            : 0;
-    }
-
-    private static WorkflowInstance CloneInstance(WorkflowInstance instance)
-        => BsonSerializer.Deserialize<WorkflowInstance>(instance.ToBsonDocument());
-
-    private void RecalculateCurrentStep(WorkflowInstance instance)
-    {
-        instance.CurrentStep = modelService.FindOpenStep(instance)?.Name;
     }
 
     public async Task AppendPropertyValue(WorkflowInstance instance, string[] pathParts, BsonValue newValue,
