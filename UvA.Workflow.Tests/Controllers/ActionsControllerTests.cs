@@ -302,7 +302,8 @@ public class ActionsControllerTests : ControllerTestsBase
 
         var controller =
             new ActionsController(_workflowInstanceRepoMock.Object, _userServiceMock.Object, _rightsService,
-                _effectService, _jobService, _workflowInstanceDtoFactory, _instanceService, _modelService);
+                new ActionExecutionService(_effectService, _jobService, _instanceService, _modelService),
+                _workflowInstanceDtoFactory);
 
         return (controller, instance);
     }

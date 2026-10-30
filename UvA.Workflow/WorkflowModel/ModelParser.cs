@@ -576,6 +576,21 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        var actionNames = new HashSet<string>();
+        foreach (var bulkAction in screen.BulkActions)
+        {
+            var actions = workflowDefinition.AllActions.Where(a => a.Name == bulkAction.Action).ToArray();
+            if (string.IsNullOrWhiteSpace(bulkAction.Action) || !actionNames.Add(bulkAction.Action) ||
+                bulkAction.Label == null || string.IsNullOrWhiteSpace(bulkAction.Icon?.Type) ||
+                actions.Length == 0 || actions.Any(a => a.Type != RoleAction.Execute ||
+                                                        a.OnAction.Any(e => e.SendMail?.SendAutomatically == false ||
+                                                                            e.SendAccessMail?.SendAutomatically ==
+                                                                            false)))
+                throw new Exception($"Invalid bulk action '{bulkAction.Action}' on screen '{screen.Name}' in " +
+                                    $"'{workflowDefinition.Name}': use a unique existing Execute action requiring " +
+                                    "no additional input, with a label and icon.");
+        }
+
         if (screen.BulkEdit != null)
         {
             var unknownProps = screen.BulkEdit.EditableProperties
