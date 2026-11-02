@@ -224,7 +224,9 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
             { Name: "Dictionary`2" } => new JsonSchemaProperty
             {
                 Type = JsonObjectType.Object,
-                AdditionalPropertiesSchema = GetReference(targetType.GenericTypeArguments[1])
+                AdditionalPropertiesSchema = targetType.GenericTypeArguments[1] == typeof(object)
+                    ? new JsonSchema()
+                    : GetReference(targetType.GenericTypeArguments[1])
             },
             { IsClass: true, Name: not "String" } or { IsEnum: true } => CreateReference(targetType),
             _ => new JsonSchemaProperty
