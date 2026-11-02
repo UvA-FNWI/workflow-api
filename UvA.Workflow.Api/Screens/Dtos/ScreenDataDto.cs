@@ -93,6 +93,7 @@ public record ScreenRowDto(
 }
 
 public record ScreenRelatedUserDto(
+    string UserName,
     string DisplayName,
     BilingualString[] Roles,
     string? Organisation

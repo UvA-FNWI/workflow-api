@@ -148,9 +148,10 @@ public class ScreenDataService(
     public static ScreenRelatedUserDto[] GetRelatedUsersScreen(WorkflowDefinition definition, ObjectContext context) =>
         GetDefaultRelatedUsers(definition)
             .SelectMany(relatedUser => GetUsersForRole(relatedUser, context))
-            .GroupBy(user => user.DisplayName)
+            .GroupBy(user => user.UserName)
             .Select(group => new ScreenRelatedUserDto(
                 group.Key,
+                group.First().DisplayName,
                 group.SelectMany(user => user.Roles).ToArray(),
                 group.First().Organisation))
             .ToArray();
@@ -171,6 +172,7 @@ public class ScreenDataService(
         };
 
         return users.Select(user => new ScreenRelatedUserDto(
+            user.UserName,
             user.DisplayName,
             [relatedUser.DisplayTitle],
             user.Organization?.Name));
