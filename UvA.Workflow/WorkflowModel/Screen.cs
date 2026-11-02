@@ -23,6 +23,27 @@ public class Screen : INamed, IDeclaredKeys
     public BulkEditConfig? BulkEdit { get; set; }
 
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
+
+    public Screen Clone() => new()
+    {
+        Name = Name,
+        Columns = Columns.Select(column => column.Clone()).ToArray(),
+        Grouping = Grouping is null
+            ? null
+            : new ScreenGrouping
+            {
+                Groups = Grouping.Groups.Select(group => new StepGroup
+                {
+                    Name = group.Name,
+                    Title = group.Title,
+                    Steps = [.. group.Steps],
+                    Order = group.Order,
+                    Enabled = group.Enabled
+                }).ToArray()
+            },
+        BulkEdit = BulkEdit?.Clone(),
+        DeclaredKeys = [.. DeclaredKeys]
+    };
 }
 
 /// <summary>

@@ -46,7 +46,7 @@ public class PersonalControllerTests : ControllerTestsBase
                 ("Examiner", property => property.Value(
                     UserDocument(userId, "Current Employee"))),
                 ("SecondReader", property => property.Value(
-                    UserDocument(ObjectId.GenerateNewId(), "Examiner Name"))))
+                    UserDocument(ObjectId.GenerateNewId(), "Second Reader Name"))))
             .Build();
         project.CreatedOn = createdOn;
 
@@ -101,6 +101,7 @@ public class PersonalControllerTests : ControllerTestsBase
                 Assert.Equal(
                     [
                         ("Supervisor", "Begeleider"),
+                        ("Examiner", "Examinator"),
                         ("Second reviewer", "Tweede beoordelaar")
                     ],
                     staff.Roles.Select(role => (role.En, role.Nl)));
@@ -108,9 +109,9 @@ public class PersonalControllerTests : ControllerTestsBase
             },
             staff =>
             {
-                Assert.Equal("Examiner Name", staff.DisplayName);
+                Assert.Equal("Second Reader Name", staff.DisplayName);
                 Assert.Equal(
-                    [("Examiner", "Examinator")],
+                    [("Second reader", "Tweede lezer")],
                     staff.Roles.Select(role => (role.En, role.Nl)));
                 Assert.Null(staff.Organisation);
             });
@@ -267,6 +268,7 @@ public class PersonalControllerTests : ControllerTestsBase
     private static BsonDocument UserDocument(ObjectId id, string displayName) => new()
     {
         ["_id"] = id,
+        ["UserName"] = id.ToString(),
         ["DisplayName"] = displayName
     };
 

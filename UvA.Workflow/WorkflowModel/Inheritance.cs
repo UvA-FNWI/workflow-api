@@ -59,6 +59,8 @@ public partial class ModelParser
             var targetScreen = target.Screens.GetOrDefault(sourceScreen.Name);
             if (targetScreen != null)
                 ApplyInheritance(targetScreen, sourceScreen, target.Name);
+            else
+                target.Screens.Add(sourceScreen.Clone());
         }
 
         foreach (var set in source.ValueSets)
