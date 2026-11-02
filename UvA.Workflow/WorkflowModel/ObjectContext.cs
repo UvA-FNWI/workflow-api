@@ -6,11 +6,18 @@ namespace UvA.Workflow.WorkflowModel;
 
 public class ObjectContext(
     Dictionary<Lookup, object?> values,
-    IReadOnlyDictionary<string, string[]>? valueSets = null)
+    IReadOnlyDictionary<string, string[]>? valueSets = null,
+    WorkflowDefinition? workflowDefinition = null)
 {
     private static readonly IReadOnlyDictionary<string, string[]> NoValueSets = new Dictionary<string, string[]>();
 
     public Dictionary<Lookup, object?> Values { get; } = values;
+
+    [JsonIgnore] public WorkflowDefinition? WorkflowDefinition { get; } = workflowDefinition;
+    [JsonIgnore] public Action? Action { get; private init; }
+
+    public ObjectContext ForAction(Action action)
+        => new(Values, ValueSets, WorkflowDefinition) { Action = action };
 
     /// <summary>
     /// Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
@@ -91,7 +98,7 @@ public class ObjectContext(
             dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
 
-        return new ObjectContext(dict, GetValueSets(workflowDefinition));
+        return new ObjectContext(dict, GetValueSets(workflowDefinition), workflowDefinition);
     }
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
@@ -114,7 +121,7 @@ public class ObjectContext(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
 
-        return new ObjectContext(dict, GetValueSets(workflowDef));
+        return new ObjectContext(dict, GetValueSets(workflowDef), workflowDef);
     }
 
     /// <summary>

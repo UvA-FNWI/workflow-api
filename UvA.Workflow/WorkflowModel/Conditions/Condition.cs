@@ -40,6 +40,12 @@ public class Condition
     public DeadlineCondition? Deadline { get; set; }
 
     /// <summary>
+    /// Check whether a populated Date property is directly referenced by an applicable, unfinished step's deadline.
+    /// On actions, respects the action's property and step restrictions. Expired deadlines are included.
+    /// </summary>
+    public bool? HasPostponeableDeadlines { get; set; }
+
+    /// <summary>
     /// Use a named reusable condition
     /// </summary>
     public string? Name { get; set; }
@@ -51,7 +57,8 @@ public class Condition
 
     [JsonIgnore] [YamlIgnore] public Condition? NamedCondition { get; set; }
 
-    public ConditionPart Part => Value ?? Logical ?? Date ?? Deadline ?? Event ?? NamedCondition?.Part!;
+    public ConditionPart Part => Value ?? Logical ?? Date ?? Deadline ?? Event ?? NamedCondition?.Part ??
+        (HasPostponeableDeadlines is { } expected ? new PostponeableDeadlinesCondition(expected) : null)!;
 
     public IEnumerable<Lookup> Properties => Part?.Properties ?? [];
 
@@ -68,6 +75,12 @@ public abstract class ConditionPart
             $"Condition type '{GetType().Name}' cannot be evaluated using only historical event IDs.");
 
     public virtual IEnumerable<Lookup> Properties => [];
+}
+
+public class PostponeableDeadlinesCondition(bool expected) : ConditionPart
+{
+    public override bool IsMet(ObjectContext context)
+        => (context.WorkflowDefinition?.GetDeadlineCandidates(context, context.Action).Any() == true) == expected;
 }
 
 public class Date : ConditionPart

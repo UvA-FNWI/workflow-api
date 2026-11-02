@@ -14,6 +14,8 @@ public record WorkflowInstanceBasicDto(
 
 public record UndoRequest(string OperationId, string Reason);
 
+public record PostponeDeadlinesRequest(DeadlinePostponement[] Changes, string Reason);
+
 public record WorkflowInstanceDto(
     string Id,
     string? Title,
@@ -29,7 +31,8 @@ public record WorkflowInstanceDto(
     bool CanUseAdminTools,
     bool CanImpersonate,
     string[] ViewerRoles,
-    InfoCardDto[] InfoCards
+    InfoCardDto[] InfoCards,
+    PostponableDeadline[] PostponableDeadlines
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
@@ -114,6 +117,11 @@ public record ActionDto(
                 action.Action.Label ?? action.Action.Name ?? "Action",
                 Name: action.Action.Name,
                 Mail: action.Mail
+            ),
+            RoleAction.PostponeDeadlines => new(
+                ActionType.PostponeDeadlines,
+                action.Action.Label ?? action.Action.Name ?? "Action",
+                Name: action.Action.Name
             ),
             RoleAction.Submit => new(
                 ActionType.SubmitForm,

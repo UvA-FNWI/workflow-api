@@ -185,7 +185,7 @@
             "null",
             "string"
           ],
-          "description": "Internal name of the action. Required for actions of type execute"
+          "description": "Internal name of the action. Required for any action with onAction effects."
         },
         "label": {
           "description": "Localized label of the action as shown in the user interface",
@@ -237,7 +237,7 @@
             "null",
             "string"
           ],
-          "description": "Target propertyDefinition for the view hidden propertyDefinition action"
+          "description": "Target property for ViewHidden, Edit or PostponeDeadlines actions."
         },
         "workflowDefinition": {
           "type": [
@@ -265,7 +265,7 @@
         },
         "onAction": {
           "type": "array",
-          "description": "List of effects to run for an Execute action",
+          "description": "List of effects to run for Execute or PostponeDeadlines actions.",
           "items": {
             "$ref": "#/definitions/Effect"
           }
@@ -336,7 +336,8 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
-        "ViewCorrespondence"
+        "ViewCorrespondence",
+        "PostponeDeadlines"
       ]
     },
     "Condition": {
@@ -409,6 +410,13 @@
               "$ref": "#/definitions/DeadlineCondition"
             }
           ]
+        },
+        "hasPostponeableDeadlines": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Check whether a populated Date property is directly referenced by an applicable, unfinished step's deadline.\n            On actions, respects the action's property and step restrictions. Expired deadlines are included."
         },
         "name": {
           "type": [

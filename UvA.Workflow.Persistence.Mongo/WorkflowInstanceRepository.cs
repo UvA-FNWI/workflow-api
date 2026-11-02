@@ -195,6 +195,14 @@ public class WorkflowInstanceRepository(IMongoDatabase database) : IWorkflowInst
         await instanceCollection.UpdateOneAsync(filter, updateDefinition, cancellationToken: ct);
     }
 
+    public async Task<bool> TryUpdateFields(string instanceId, FilterDefinition<WorkflowInstance> condition,
+        UpdateDefinition<WorkflowInstance> updateDefinition, CancellationToken ct)
+    {
+        var filter = Builders<WorkflowInstance>.Filter.Eq(instance => instance.Id, instanceId) & condition;
+        var result = await instanceCollection.UpdateOneAsync(filter, updateDefinition, cancellationToken: ct);
+        return result.ModifiedCount == 1;
+    }
+
     public async Task UpdateArrayFields(string instanceId, UpdateDefinition<WorkflowInstance> updateDefinition,
         IEnumerable<ArrayFilterDefinition> arrayFilters, CancellationToken ct)
     {

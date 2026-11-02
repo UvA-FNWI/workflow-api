@@ -114,6 +114,7 @@ public class Deadline
 {
     /// <summary>
     /// Expression that resolves to the deadline date.
+    /// A direct Date-property reference can be postponed by users with PostponeDeadlines permission for this step.
     /// </summary>
     public string Date { get; set; } = null!;
 

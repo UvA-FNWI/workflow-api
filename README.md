@@ -17,6 +17,23 @@ Workflow API is a service for modelling real-world processes in a generic and re
 - `Deployment`: Helm charts and deployment configuration.
 - `docs`: deeper project documentation.
 
+## Postponing deadlines
+
+A named global action opens the postponement modal:
+
+```yaml
+globalActions:
+  - name: PostponeDeadlines
+    type: PostponeDeadlines
+    roles: [Coordinator]
+    condition:
+      hasPostponeableDeadlines: true
+```
+
+The condition checks for populated scalar `Date` properties directly referenced by applicable,
+unfinished step deadlines, including expired deadlines. Calculated and literal dates are excluded.
+Optional `onAction` effects run after saving through `POST /WorkflowInstances/{id}/PostponeDeadlines`.
+
 ## Prerequisites
 
 - .NET 10 SDK

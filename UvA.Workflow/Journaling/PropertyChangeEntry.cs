@@ -10,6 +10,8 @@ public class PropertyChangeEntry
     public BsonValue? OldValue { get; private set; }
     public string ModifiedBy { get; private set; } = null!;
 
+    [BsonIgnoreIfNull] public string? Reason { get; private set; }
+
     public int Version { get; set; } = 1;
 
     private PropertyChangeEntry()
@@ -33,10 +35,10 @@ public class PropertyChangeEntry
     public static PropertyChangeEntry Create(
         string path,
         BsonValue? oldValue,
-        User modifiedBy)
-        => new(
-            DateTime.Now,
-            path,
-            oldValue,
-            modifiedBy.UserName);
+        User modifiedBy,
+        string? reason = null)
+        => new(DateTime.UtcNow, path, oldValue, modifiedBy.UserName)
+        {
+            Reason = reason
+        };
 }

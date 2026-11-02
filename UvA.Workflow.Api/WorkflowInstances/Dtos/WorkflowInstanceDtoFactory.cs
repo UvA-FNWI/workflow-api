@@ -18,7 +18,8 @@ public class WorkflowInstanceDtoFactory(
     StepProgressResolver stepProgressResolver,
     WorkflowInstanceService workflowInstanceService,
     ILogger<WorkflowInstanceDtoFactory> logger,
-    UndoService undoService)
+    UndoService undoService,
+    DeadlinePostponementService postponementService)
 {
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
@@ -27,7 +28,8 @@ public class WorkflowInstanceDtoFactory(
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var pinnedActions = actions.Where(action => action.Action.Steps.Length == 0 &&
-                                                    action.Action.Type is RoleAction.Submit or RoleAction.Execute)
+                                                    action.Action.Type is RoleAction.Submit or RoleAction.Execute
+                                                        or RoleAction.PostponeDeadlines)
             .ToArray();
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -103,7 +105,8 @@ public class WorkflowInstanceDtoFactory(
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            infoCards
+            infoCards,
+            await postponementService.GetDeadlines(instance)
         );
         return x;
     }

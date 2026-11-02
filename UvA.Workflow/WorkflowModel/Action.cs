@@ -21,7 +21,8 @@ public enum RoleAction
     CreateRelatedInstance,
     ImpersonateRoles,
     ViewResults,
-    ViewCorrespondence
+    ViewCorrespondence,
+    PostponeDeadlines
 }
 
 public class Action
@@ -29,7 +30,7 @@ public class Action
     public const string All = "<All>";
 
     /// <summary>
-    /// Internal name of the action. Required for actions of type execute
+    /// Internal name of the action. Required for any action with onAction effects.
     /// </summary>
     public string? Name { get; set; }
 
@@ -63,7 +64,7 @@ public class Action
     public string[] Collections { get; set; } = [];
 
     /// <summary>
-    /// Target propertyDefinition for the view hidden propertyDefinition action
+    /// Target property for ViewHidden, Edit or PostponeDeadlines actions.
     /// </summary>
     public string? PropertyDefinition { get; set; }
 
@@ -80,7 +81,7 @@ public class Action
     public Condition? Condition { get; set; }
 
     /// <summary>
-    /// List of effects to run for an Execute action
+    /// List of effects to run for Execute or PostponeDeadlines actions.
     /// </summary>
     public Effect[] OnAction { get; set; } = [];
 

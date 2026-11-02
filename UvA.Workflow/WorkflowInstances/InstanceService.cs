@@ -368,7 +368,7 @@ public class InstanceService(
         var actions = new List<AllowedAction>();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var allowed = await rightsService.GetAllowedActions(instance,
-            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
+            RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute, RoleAction.PostponeDeadlines);
         var activeSteps = modelService.GetActiveSteps(instance);
         var context = modelService.CreateContext(instance);
 
@@ -399,6 +399,10 @@ public class InstanceService(
                         DisplaySteps: GetDisplaySteps(rel)));
                 }
             }
+
+        actions.AddRange(allowed
+            .Where(a => a.Type == RoleAction.PostponeDeadlines && !string.IsNullOrWhiteSpace(a.Name))
+            .Select(a => new AllowedAction(a, DisplaySteps: GetDisplaySteps(a))));
 
         // Executable actions
         foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute && !string.IsNullOrWhiteSpace(a.Name)))
