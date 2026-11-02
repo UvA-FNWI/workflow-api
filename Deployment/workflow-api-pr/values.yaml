@@ -73,6 +73,7 @@ apiPaths:
   - /Migrations
   - /Steps
   - /Import
+  - /Schemas
   - /oidc
   - /signin-oidc
 

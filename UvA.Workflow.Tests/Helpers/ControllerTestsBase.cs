@@ -169,6 +169,7 @@ public abstract class ControllerTestsBase
             _answerService,
             _modelService,
             _userRepoMock.Object,
+            _userServiceMock.Object,
             _rightsService);
     }
 

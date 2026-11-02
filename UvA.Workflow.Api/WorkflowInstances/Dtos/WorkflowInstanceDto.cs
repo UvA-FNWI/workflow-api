@@ -23,6 +23,7 @@ public record WorkflowInstanceDto(
     string? CurrentStep,
     string? ParentId,
     ActionDto[] Actions,
+    ActionDto[] PinnedActions,
     FieldDto[] Fields,
     StepDto[] Steps,
     SubmissionDto[] Submissions,

@@ -98,8 +98,11 @@ public class AnswersController(
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedForAction(context, RoleAction.View);
 
-        var insts = await instanceService.GetPossibleChoices(context.Instance, context.PropertyDefinition, ct);
-        var definition = context.PropertyDefinition.WorkflowDefinition!;
+        if (context.PropertyDefinition is not ReferencePropertyDefinition reference)
+            return NotFound();
+
+        var insts = await instanceService.GetPossibleChoices(context.Instance, reference, ct);
+        var definition = reference.WorkflowDefinition!;
         return Ok(insts.Select(i => new ChoiceDto(
             i.Id,
             definition.InstanceTitleTemplate?.Execute(modelService.CreateContext(i)) ?? "nameless",
@@ -123,10 +126,10 @@ public class AnswersController(
             _ => []
         };
 
-        if (ids.Length == 0 || context.PropertyDefinition.DataType != DataType.Reference)
+        if (ids.Length == 0 || context.PropertyDefinition is not ReferencePropertyDefinition reference)
             return NotFound();
 
-        var definition = context.PropertyDefinition.WorkflowDefinition!;
+        var definition = reference.WorkflowDefinition!;
         var insts = await workflowInstanceRepository.GetByIds(ids, ct);
         return Ok(insts.Select(i => new ChoiceDto(
             i.Id,

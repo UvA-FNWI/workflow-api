@@ -30,7 +30,8 @@
             "message_type": "LtiResourceLinkRequest"
           }
         ]
-      }
+      },
+      "privacy_level": "public"
     }
   ]
 }

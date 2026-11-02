@@ -1,4 +1,4 @@
-name: Country
+name: CountryOptions
 sorting:
   field: Text
   direction: Ascending

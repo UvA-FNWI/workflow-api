@@ -8,14 +8,26 @@ public class DummyAnswerGeneratorTests
 {
     private static readonly QuestionStatus DefaultStatus = new(true, null, null);
 
-    private static PropertyDefinition Question(string type, Condition? validation = null) => new()
+    private static PropertyDefinition Question(string type, Condition? validation = null)
     {
-        Name = "TestProp",
-        Type = type,
-        Validation = validation
-    };
+        PropertyDefinition property = type.TrimEnd('!', ']').TrimStart('[') switch
+        {
+            "String" => new StringPropertyDefinition(),
+            "Int" => new IntPropertyDefinition(),
+            "Double" => new DoublePropertyDefinition(),
+            "DateTime" => new DateTimePropertyDefinition(),
+            "Check" => new CheckPropertyDefinition(),
+            "Currency" => new CurrencyPropertyDefinition(),
+            "File" => new FilePropertyDefinition(),
+            _ => throw new ArgumentException($"Unsupported test type: {type}")
+        };
+        property.Name = "TestProp";
+        property.Type = type;
+        property.Validation = validation;
+        return property;
+    }
 
-    private static PropertyDefinition ChoiceQuestion(params string[] choices) => new()
+    private static ChoicePropertyDefinition ChoiceQuestion(params string[] choices) => new()
     {
         Name = "TestProp",
         Type = "MyChoice",
@@ -96,7 +108,7 @@ public class DummyAnswerGeneratorTests
     public void Generate_UnknownType_ReturnsNull()
     {
         // File and User types are not generated
-        var question = new PropertyDefinition
+        var question = new FilePropertyDefinition
         {
             Name = "TestProp",
             Type = "File"
@@ -117,7 +129,7 @@ public class DummyAnswerGeneratorTests
     [Fact]
     public void GenerateFile_DefaultAllowedTypes_ReturnsPdfPlaceholder()
     {
-        var file = new DummyAnswerGenerator().GenerateFile(Question("File!"), "instance1");
+        var file = new DummyAnswerGenerator().GenerateFile((FilePropertyDefinition)Question("File!"), "instance1");
 
         Assert.Equal("dummy-file.pdf", file.Name);
         Assert.Equal("application/pdf", file.ContentType);
@@ -127,8 +139,8 @@ public class DummyAnswerGeneratorTests
     [Fact]
     public void GenerateFile_UsesFirstAllowedType()
     {
-        var question = Question("File!");
-        question.FileSettings = new() { AllowedTypes = ["docx", "pdf"] };
+        var question = (FilePropertyDefinition)Question("File!");
+        question.AllowedTypes = ["docx", "pdf"];
 
         var file = new DummyAnswerGenerator().GenerateFile(question, "instance1");
 
@@ -138,8 +150,8 @@ public class DummyAnswerGeneratorTests
     [Fact]
     public void GenerateFile_WildcardOnly_FallsBackToPdf()
     {
-        var question = Question("File!");
-        question.FileSettings = new() { AllowedTypes = ["*"] };
+        var question = (FilePropertyDefinition)Question("File!");
+        question.AllowedTypes = ["*"];
 
         var file = new DummyAnswerGenerator().GenerateFile(question, "instance1");
 

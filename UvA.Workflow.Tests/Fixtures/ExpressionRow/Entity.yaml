@@ -1,0 +1,13 @@
+name: ExpressionRow
+titlePlural: Expression rows
+isEmbedded: true
+
+properties:
+  - name: Code
+    type: String
+
+  - name: Codes
+    type: "[String]"
+
+  - name: Score
+    type: Int

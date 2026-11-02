@@ -80,7 +80,7 @@ public class ExternalUserEmailUpdateServiceTests
     public async Task PrepareAnswerReferenceUpdate_RejectsExpiredStepPermission()
     {
         var userId = ObjectId.GenerateNewId().ToString();
-        var property = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var property = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var form = new Form
         {
             Name = "Proposal", Step = "Start",
@@ -137,7 +137,7 @@ public class ExternalUserEmailUpdateServiceTests
     public async Task GetMatchingInstanceOnlyProperties_NonUserProperty_ReturnsUserNotInAnswer()
     {
         var userId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Title", Type = "String" };
+        var propDef = new StringPropertyDefinition { Name = "Title", Type = "String" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
@@ -158,7 +158,7 @@ public class ExternalUserEmailUpdateServiceTests
     public async Task GetMatchingInstanceOnlyProperties_UserPropertyInForm_ReturnsUserNotInAnswer()
     {
         var userId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var propDef = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var form = new Form
         {
             Name = "SupervisorForm",
@@ -191,7 +191,7 @@ public class ExternalUserEmailUpdateServiceTests
     public async Task GetMatchingInstanceOnlyProperties_NullInstanceValue_ReturnsUserNotInAnswer()
     {
         var userId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var propDef = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
@@ -210,7 +210,7 @@ public class ExternalUserEmailUpdateServiceTests
     public async Task GetMatchingInstanceOnlyProperties_NonArrayUserProperty_MatchingUserId_ReturnsUpdated()
     {
         var userId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var propDef = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
@@ -233,7 +233,7 @@ public class ExternalUserEmailUpdateServiceTests
     {
         var userId = ObjectId.GenerateNewId().ToString();
         var otherUserId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var propDef = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
@@ -254,7 +254,7 @@ public class ExternalUserEmailUpdateServiceTests
     {
         var userId = ObjectId.GenerateNewId().ToString();
         var otherUserId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Assessors", Type = "[User]" };
+        var propDef = new UserPropertyDefinition { Name = "Assessors", Type = "[User]" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
@@ -280,7 +280,7 @@ public class ExternalUserEmailUpdateServiceTests
         var userId = ObjectId.GenerateNewId().ToString();
         var otherUserId1 = ObjectId.GenerateNewId().ToString();
         var otherUserId2 = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Assessors", Type = "[User]" };
+        var propDef = new UserPropertyDefinition { Name = "Assessors", Type = "[User]" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
@@ -302,7 +302,7 @@ public class ExternalUserEmailUpdateServiceTests
     public async Task UpdateAnswerReferences_SingleUserProperty_UpdatesUserDataOnInstance()
     {
         var userId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var propDef = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var workflowDef = CreateWorkflowDefinition([propDef]); // no forms → instance-only property
 
         var instance = new WorkflowInstanceBuilder()
@@ -329,7 +329,7 @@ public class ExternalUserEmailUpdateServiceTests
     {
         var targetId = ObjectId.GenerateNewId().ToString();
         var otherId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Assessors", Type = "[User]" };
+        var propDef = new UserPropertyDefinition { Name = "Assessors", Type = "[User]" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
@@ -363,7 +363,7 @@ public class ExternalUserEmailUpdateServiceTests
     public async Task UpdateAnswerReferences_NullPropertyValue_DoesNotThrowAndLeavesPropertyAbsent()
     {
         var userId = ObjectId.GenerateNewId().ToString();
-        var propDef = new PropertyDefinition { Name = "Supervisor", Type = "User" };
+        var propDef = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var workflowDef = CreateWorkflowDefinition([propDef]);
 
         var instance = new WorkflowInstanceBuilder()
