@@ -39,8 +39,7 @@ properties:
     text:
       en: Abstract
       nl: Samenvatting
-    layout:
-      multiline: true
+    control: TextArea
 
   - name: Keywords
     type: "[String]!"
@@ -49,7 +48,7 @@ properties:
       nl: Trefwoorden
 
   - name: Language
-    type: Language!
+    type: LanguageOptions!
     text:
       en: Language
       nl: Taal
@@ -59,8 +58,7 @@ properties:
     text:
       en: Do you consent to publication of this thesis in the UvA thesis database?
       nl: Geef je toestemming voor publicatie van deze scriptie in de UvA scriptiedatabase?
-    layout:
-      type: RadioList
+    control: RadioList
     values:
       - name: Yes
         text:

@@ -17,5 +17,4 @@ values:
     text:
       en: An exemption
       nl: Een vrijstelling
-layout:
-  type: RadioList
+control: RadioList

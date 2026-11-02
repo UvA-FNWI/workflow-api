@@ -47,7 +47,7 @@ public class RightsService(
         var definitionRoles = definition.Properties
             .Where(p => p.DataType == DataType.User)
             .Select(p => p.Name)
-            .Concat(definition.Properties.SelectMany(p => p.InheritedRoles));
+            .Concat(definition.Properties.OfType<ReferencePropertyDefinition>().SelectMany(p => p.InheritedRoles));
 
         return actionRoles
             .Concat(definitionRoles)
@@ -134,7 +134,7 @@ public class RightsService(
         // Process inherited roles
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        var inheritedRoles = definition.Properties
+        var inheritedRoles = definition.Properties.OfType<ReferencePropertyDefinition>()
             .Where(p => p.InheritedRoles.Any())
             .SelectMany(p => p.InheritedRoles.Select(r => new
             {

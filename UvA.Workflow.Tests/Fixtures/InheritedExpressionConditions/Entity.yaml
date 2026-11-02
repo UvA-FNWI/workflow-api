@@ -1,0 +1,3 @@
+name: InheritedExpressionConditions
+titlePlural: Inherited expression condition tests
+inheritsFrom: ExpressionConditions

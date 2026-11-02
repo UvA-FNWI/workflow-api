@@ -113,7 +113,8 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         var dto = Assert.IsType<InstancePropertiesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
 
         // Step-level embedded properties are included.
-        var assessment = Assert.Single(dto.Properties, p => p.Name == "AssessmentReviewer");
+        var assessment = Assert.IsType<ObjectQuestionDto>(
+            Assert.Single(dto.Properties, p => p.Name == "AssessmentReviewer"));
         Assert.NotNull(assessment.SubProperties);
         Assert.Contains(assessment.SubProperties, p => p.Name == "Consent");
         // Nested values use dotted paths.

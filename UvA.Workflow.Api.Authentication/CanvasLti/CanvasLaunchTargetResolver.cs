@@ -22,12 +22,15 @@ public class CanvasLaunchTargetResolver(
             return options.FallbackTarget;
         }
 
-        var matchingCourseIds = await FindMatchingCourseIds(candidates, launchInfo.CourseIdentifiers, ct);
+        var matchingContextIds = await FindMatchingContextIds(candidates, launchInfo.CourseIdentifiers, ct);
         var selected = candidates
-                           .Where(i => matchingCourseIds.Contains(i.GetProperty("Course")?.ToString() ?? ""))
-                           .OrderByDescending(i => i.CreatedOn)
+                           .Where(instance => GetContextProperties(instance.WorkflowDefinition)
+                               .SelectMany(propertyName =>
+                                   GetReferenceIds(instance.GetProperty(propertyName)))
+                               .Any(matchingContextIds.Contains))
+                           .OrderByDescending(instance => instance.CreatedOn)
                            .FirstOrDefault()
-                       ?? candidates.OrderByDescending(i => i.CreatedOn).First();
+                       ?? candidates.OrderByDescending(instance => instance.CreatedOn).First();
 
         if (candidates.Count > 1)
         {
@@ -43,7 +46,7 @@ public class CanvasLaunchTargetResolver(
 
     private async Task<string> ResolveTeacherTarget(CanvasLaunchInfo launchInfo, CancellationToken ct)
     {
-        var instances = await GetCourseInstances(launchInfo.CourseIdentifiers, ct);
+        var instances = await GetContextInstances(launchInfo.CourseIdentifiers, ct);
         var definitions = instances
             .Select(i => i.WorkflowDefinition)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -65,7 +68,7 @@ public class CanvasLaunchTargetResolver(
         return target;
     }
 
-    private async Task<List<WorkflowInstance>> GetCourseInstances(
+    private async Task<List<WorkflowInstance>> GetContextInstances(
         IReadOnlyCollection<string> launchCourseIdentifiers,
         CancellationToken ct)
     {
@@ -75,16 +78,41 @@ public class CanvasLaunchTargetResolver(
         var courseFilter = Builders<WorkflowInstance>.Filter.In(
             "Properties.ExternalId",
             launchCourseIdentifiers);
-        var courses = await workflowInstanceRepository.GetByWorkflowDefinition("Context", courseFilter, ct);
-        var courseIds = courses
+        var contexts = await workflowInstanceRepository.GetByWorkflowDefinition("Context", courseFilter, ct);
+        var contextIds = contexts
             .Select(course => course.Id)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if (courseIds.Length == 0)
+
+        if (contextIds.Length == 0)
             return [];
 
-        var instanceFilter = Builders<WorkflowInstance>.Filter.In("Properties.Course", courseIds);
+        var definitionFilters = modelService.WorkflowDefinitions.Values
+            .Select(definition =>
+            {
+                var propertyFilters = GetContextProperties(definition.Name)
+                    .Select(property => Builders<WorkflowInstance>.Filter.In(
+                        $"Properties.{property}",
+                        contextIds))
+                    .ToArray();
+
+                if (propertyFilters.Length == 0)
+                    return null;
+
+                return Builders<WorkflowInstance>.Filter.And(
+                    Builders<WorkflowInstance>.Filter.Eq(
+                        instance => instance.WorkflowDefinition,
+                        definition.Name),
+                    Builders<WorkflowInstance>.Filter.Or(propertyFilters));
+            })
+            .OfType<FilterDefinition<WorkflowInstance>>()
+            .ToArray();
+
+        if (definitionFilters.Length == 0)
+            return [];
+
+        var instanceFilter = Builders<WorkflowInstance>.Filter.Or(definitionFilters);
         return (await workflowInstanceRepository.GetByFilter(instanceFilter, ct)).ToList();
     }
 
@@ -97,7 +125,7 @@ public class CanvasLaunchTargetResolver(
         return (await workflowInstanceRepository.GetByFilter(filter, ct)).ToList();
     }
 
-    private async Task<HashSet<string>> FindMatchingCourseIds(
+    private async Task<HashSet<string>> FindMatchingContextIds(
         IEnumerable<WorkflowInstance> candidates,
         IReadOnlyCollection<string> launchCourseIdentifiers,
         CancellationToken ct)
@@ -105,17 +133,17 @@ public class CanvasLaunchTargetResolver(
         if (launchCourseIdentifiers.Count == 0)
             return [];
 
-        var courseIds = candidates
-            .Select(i => i.GetProperty("Course")?.ToString())
-            .Where(id => !string.IsNullOrWhiteSpace(id))
+        var contextIds = candidates
+            .SelectMany(instance => GetContextProperties(instance.WorkflowDefinition)
+                .SelectMany(propertyName => GetReferenceIds(instance.GetProperty(propertyName))))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray()!;
+            .ToArray();
 
-        if (courseIds.Length == 0)
+        if (contextIds.Length == 0)
             return [];
 
-        var courseInstances = await workflowInstanceRepository.GetByIds(courseIds!, ct);
-        return courseInstances
+        var contexts = await workflowInstanceRepository.GetByIds(contextIds, ct);
+        return contexts
             .Where(course =>
             {
                 var externalId = course.GetProperty("ExternalId")?.ToString();
@@ -125,4 +153,28 @@ public class CanvasLaunchTargetResolver(
             .Select(course => course.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
+
+    private IEnumerable<string> GetContextProperties(string workflowDefinition)
+    {
+        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition))
+            return [];
+
+        return definition.Properties.OfType<WorkflowPropertyDefinition>().Where(property =>
+                string.Equals(property.WorkflowDefinition?.Name, "Context", StringComparison.OrdinalIgnoreCase))
+            .Select(property => property.Name);
+    }
+
+    /// <summary>
+    /// Returns the reference IDs stored in a BSON property value.
+    /// Handles both a single ID and an array of IDs, ignoring null or blank values.
+    /// </summary>
+    private static IEnumerable<string> GetReferenceIds(BsonValue? value)
+        => value switch
+        {
+            null or BsonNull => [],
+            BsonArray values => values.SelectMany(GetReferenceIds),
+            _ => value.ToString() is { } id && !string.IsNullOrWhiteSpace(id)
+                ? [id]
+                : []
+        };
 }

@@ -38,14 +38,14 @@ public class ModelService(ModelParser parser)
             if (prop == null) return null;
 
             if (prop.DataType == DataType.User)
-                return new PropertyDefinition
+                return new StringPropertyDefinition
                 {
                     Name = parts[^1]!,
                     Text = new BilingualString(parts[^1]!, parts[^1]!),
                     Type = "String"
                 };
 
-            type = prop.WorkflowDefinition;
+            type = (prop as WorkflowPropertyDefinition)?.WorkflowDefinition;
             if (type == null) return null;
         }
 
@@ -62,15 +62,16 @@ public class ModelService(ModelParser parser)
         bool canViewHidden,
         IEnumerable<PropertyDefinition>? questions = null)
     {
-        var context = CreateContext(instance);
+        var context = form.GetContext(CreateContext(instance));
         return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden)
                                            && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
-                q.Validation.IsMet(context) || !instance.Properties.ContainsKey(q.Name)
+                instance.GetProperty(form.PropertyName, q.Name) is null
                     ? null
-                    : q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde"),
-                q.Values?.Where(v => v.Condition.IsMet(context)).Select(v => v.Name).ToArray()
+                    : q.GetValidationError(context),
+                (q as ChoicePropertyDefinition)?.Values?.Where(v => v.Condition.IsMet(context))
+                .Select(v => v.Name).ToArray()
             ));
     }
 

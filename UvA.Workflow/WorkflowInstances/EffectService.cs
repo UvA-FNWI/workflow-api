@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -121,7 +122,8 @@ public class EffectService(
                     }
                 }
 
-                var recipientContext = new ObjectContext(context.Values.ToDictionary(v => v.Key, v => v.Value));
+                var recipientContext = new ObjectContext(context.Values.ToDictionary(v => v.Key, v => v.Value),
+                    context.ValueSets);
                 recipientContext.Values.Add("AccessRecipient", accessRecipient);
                 recipientContext.Values.Add(effect.Name ?? "Access", new Dictionary<Lookup, object>
                 {
@@ -252,6 +254,9 @@ public class EffectService(
     {
         var parts = setProperty.Property.Split('.');
         var value = setProperty.ValueExpression.Execute(context);
+        if (value is string text &&
+            modelService.GetProperty(instance, parts)?.DataType is DataType.Date or DataType.DateTime)
+            value = DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         instance.SetProperty(
             value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value),
             parts
@@ -450,7 +455,8 @@ public class EffectService(
                         .Concat(body!.RootElement.EnumerateObject()
                             .ToDictionary(Lookup (p) => p.Name, object? (p) => p.Value.ToString()))
                         .GroupBy(p => p.Key)
-                        .ToDictionary(g => g.Key, g => g.Last().Value)
+                        .ToDictionary(g => g.Key, g => g.Last().Value),
+                    context.ValueSets
                 );
             }
 

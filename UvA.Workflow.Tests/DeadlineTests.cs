@@ -261,11 +261,12 @@ public class DeadlineTests
         {
             Assert.Contains(dto.Submissions, submission => submission.FormName == "Closed");
             Assert.Contains(dto.Submissions, submission => submission.FormName == "Available");
+            Assert.DoesNotContain(dto.PinnedActions, action => action.Form == "Available");
         }
         else
         {
             Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Closed");
-            Assert.Contains(dto.Actions, action => action.Form == "Available");
+            Assert.Contains(dto.PinnedActions, action => action.Form == "Available");
         }
 
         modelService.WorkflowDefinitions["Hard"].AllSteps.Single(step => step.Name == "Step").Deadline!.Type =
