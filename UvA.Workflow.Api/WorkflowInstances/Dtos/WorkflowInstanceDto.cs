@@ -93,7 +93,8 @@ public record ActionDto(
     string[] Steps = null!,
     ActionIntent Intent = ActionIntent.Primary,
     FormLayout? FormLayout = null,
-    bool AutoOpenForm = false
+    bool AutoOpenForm = false,
+    BilingualString? Label = null
 )
 {
     public string Id => $"{Type}_{Name ?? Property ?? Form ?? UserId}";
@@ -106,18 +107,18 @@ public record ActionDto(
         {
             RoleAction.CreateRelatedInstance => new(
                 ActionType.CreateInstance,
-                action.Action.Label ?? Add(action.WorkflowDefinition?.DisplayTitle ?? "form"),
+                Add(action.WorkflowDefinition?.DisplayTitle ?? "form"),
                 Form: action.Action.Property
             ),
             RoleAction.Execute => new(
                 ActionType.Execute,
-                action.Action.Label ?? action.Action.Name ?? "Action",
+                action.Action.Name ?? "Action",
                 Name: action.Action.Name,
                 Mail: action.Mail
             ),
             RoleAction.Submit => new(
                 ActionType.SubmitForm,
-                action.Action.Label ?? Add(action.Form?.Name ?? "form"),
+                Add(action.Form?.Name ?? "form"),
                 Form: action.Form?.Name,
                 FormLayout: action.Form?.Layout,
                 AutoOpenForm: !action.Action.NoAutoOpenForm && action.Form?.Layout != WorkflowModel.FormLayout.Modal
@@ -127,7 +128,8 @@ public record ActionDto(
         return dto with
         {
             Steps = steps,
-            Intent = action.Action.Intent
+            Intent = action.Action.Intent,
+            Label = action.Action.Label
         };
     }
 
