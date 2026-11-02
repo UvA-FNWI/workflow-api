@@ -1,5 +1,6 @@
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Migrations;
+using UvA.Workflow.WorkflowModel.Conditions;
 using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -147,6 +148,28 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     /// </summary>
     public IEnumerable<Step> WalkSteps => Steps.SelectMany(GetWalkSteps);
 
+    public IEnumerable<DeadlineCandidate> GetDeadlineCandidates(ObjectContext context, Action? action = null)
+    {
+        var stepsByProperty = AllSteps
+            .Where(step => step.Deadline != null &&
+                           (action == null || action.Steps.Length == 0 || action.Steps.Contains(step.Name)) &&
+                           step.Condition.IsMet(context) && !step.HasEnded(context))
+            .Select(step => new { Step = step, Property = ExpressionParser.Parse(step.Deadline!.Date) as Identifier })
+            .Where(entry => entry.Property != null)
+            .ToLookup(entry => entry.Property!.Text, entry => entry.Step);
+
+        foreach (var property in Properties.Where(property => property.DataType == DataType.Date &&
+                                                              !property.IsArray &&
+                                                              stepsByProperty.Contains(property.Name) &&
+                                                              (action?.PropertyDefinition == null ||
+                                                               action.PropertyDefinition == property.Name)))
+        {
+            if (context.Get(property.Name) is DateTime date)
+                yield return new DeadlineCandidate(property.Name, property.DisplayName,
+                    DateOnly.FromDateTime(date), stepsByProperty[property.Name].ToArray());
+        }
+    }
+
     public DataType GetDataType(string property)
     {
         if (property is "LastEvent" or "CreateDate")
@@ -169,6 +192,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
         return "$" + property;
     }
 }
+
+public record DeadlineCandidate(string Property, BilingualString Title, DateOnly Date, Step[] Steps);
 
 public class EventDefinition : INamed
 {

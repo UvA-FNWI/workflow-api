@@ -118,6 +118,11 @@ public record ActionDto(
                 Name: action.Action.Name,
                 Mail: action.Mail
             ),
+            RoleAction.PostponeDeadlines => new(
+                ActionType.PostponeDeadlines,
+                action.Action.Label ?? action.Action.Name ?? "Action",
+                Name: action.Action.Name
+            ),
             RoleAction.Submit => new(
                 ActionType.SubmitForm,
                 action.Action.Label ?? Add(action.Form?.Name ?? "form"),

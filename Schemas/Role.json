@@ -306,6 +306,13 @@
             }
           ]
         },
+        "hasPostponeableDeadlines": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Check whether a populated Date property is directly referenced by an applicable, unfinished step's deadline.\n            On actions, respects the action's property and step restrictions. Expired deadlines are included."
+        },
         "name": {
           "type": [
             "null",

@@ -57,7 +57,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
     {
         var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
         var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        definition.Properties.Add(new PropertyDefinition { Name = "DueDate", Type = "Date" });
+        definition.Properties.Add(new DatePropertyDefinition { Name = "DueDate", Type = "Date" });
         definition.AllSteps.Single(step => step.Name == "Subject").Deadline = new Deadline { Date = "DueDate" };
         instance.Properties["DueDate"] = new BsonDateTime(new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Local));
         MockCurrentUser("SystemAdmin");
@@ -183,7 +183,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         var definition = _modelService.WorkflowDefinitions["Project"];
         foreach (var (property, step) in new[] { ("DueDate", "Subject"), ("OtherDueDate", "Upload") })
         {
-            definition.Properties.Add(new PropertyDefinition { Name = property, Type = "Date" });
+            definition.Properties.Add(new DatePropertyDefinition { Name = property, Type = "Date" });
             definition.AllSteps.Get(step).Deadline = new Deadline { Date = property };
             instance.Properties[property] = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Local);
         }

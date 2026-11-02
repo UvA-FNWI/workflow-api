@@ -22,7 +22,8 @@ public class DeadlinePostponementTests
     {
         ["Common/Roles/Registered.yaml"] = "name: Registered",
         ["Common/Roles/Editor.yaml"] = "name: Editor\nactions:\n  - type: Edit",
-        ["Common/Roles/Postponer.yaml"] = "name: Postponer\nactions:\n  - type: View\n  - type: PostponeDeadlines",
+        ["Common/Roles/Postponer.yaml"] =
+            "name: Postponer\nactions:\n  - type: View\n  - type: PostponeDeadlines\n    condition:\n      hasPostponeableDeadlines: true",
         ["Common/Roles/Viewer.yaml"] = "name: Viewer\nactions:\n  - type: View",
         ["Test/Entity.yaml"] =
             "name: Test\ntitlePlural: Tests\nsteps: [First, Shared, Second, Calculated, Literal, NonDate]",
@@ -146,6 +147,74 @@ public class DeadlinePostponementTests
         foreach (var step in _model.WorkflowDefinitions["Test"].AllSteps.Take(2))
             step.Ends = new Condition { Deadline = "=2999-01-01" };
         Assert.Empty(await _service.GetDeadlines(_instance));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task Condition_UsesTheSameCandidatesAsDiscovery(bool populated, bool completed)
+    {
+        if (!populated)
+        {
+            _instance.Properties.Remove("DueDate");
+            _instance.Properties.Remove("OtherDueDate");
+        }
+
+        if (completed)
+            foreach (var step in _model.WorkflowDefinitions["Test"].AllSteps.Take(3))
+                step.Ends = new Condition { Deadline = "=2999-01-01" };
+
+        var context = _model.CreateContext(_instance);
+        var expected = populated && !completed;
+        Assert.Equal(expected, new Condition { HasPostponeableDeadlines = true }.IsMet(context));
+        Assert.Equal(!expected, new Condition { HasPostponeableDeadlines = false }.IsMet(context));
+        Assert.Equal(expected, _model.WorkflowDefinitions["Test"].GetDeadlineCandidates(context).Any());
+        Assert.Equal(expected, (await _service.GetDeadlines(_instance)).Length > 0);
+    }
+
+    [Theory]
+    [InlineData(null, "DueDate", true)]
+    [InlineData(null, "OtherDueDate", false)]
+    [InlineData(null, "StartDate", false)]
+    [InlineData("First", null, true)]
+    [InlineData("Second", null, false)]
+    public async Task Condition_RespectsTheActionsPropertyAndStepScope(string? step, string? property, bool expected)
+    {
+        _instance.Properties.Remove("OtherDueDate");
+        var action = new DomainAction
+        {
+            Type = RoleAction.PostponeDeadlines,
+            PropertyDefinition = property,
+            Steps = step == null ? [] : [step],
+            Condition = new Condition { HasPostponeableDeadlines = true }
+        };
+        _model.WorkflowDefinitions["Test"].Roles.Single(role => role.Name == "Postponer").Actions = [action];
+
+        Assert.Equal(expected, action.Condition.IsMet(_model.CreateContext(_instance).ForAction(action)));
+        Assert.Equal(expected, (await _service.GetDeadlines(_instance)).Length > 0);
+    }
+
+    [Fact]
+    public void Detection_UsesTheConcreteWorkflowForInheritedDateProperties()
+    {
+        var model = new ModelService(new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: DueDate\n    type: Date",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base\nsteps: [Finish]",
+            ["Child/Steps/Finish.yaml"] = "name: Finish\ndeadline:\n  date: DueDate"
+        })));
+        var instance = new WorkflowInstance
+        {
+            Id = "test", WorkflowDefinition = "Child", CurrentStep = "Finish", Events = [],
+            Properties = new() { ["DueDate"] = DateValue(1) }
+        };
+        var context = model.CreateContext(instance);
+
+        Assert.Equal("DueDate",
+            Assert.Single(model.WorkflowDefinitions["Child"].GetDeadlineCandidates(context)).Property);
+        Assert.Empty(model.WorkflowDefinitions["Base"].GetDeadlineCandidates(context));
+        Assert.True(new Condition { HasPostponeableDeadlines = true }.IsMet(context));
     }
 
     [Fact]

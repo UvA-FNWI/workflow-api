@@ -14,12 +14,70 @@ using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Tests;
 
 public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 {
+    [Theory]
+    [InlineData(true, true, true, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(true, true, true, true)]
+    [InlineData(true, false, true, true)]
+    public async Task Create_PinsConfiguredPostponementActions(bool permitted, bool populated, bool named,
+        bool requireCandidates)
+    {
+        var instance = new WorkflowInstanceBuilder().With("Project", "Subject").Build();
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        foreach (var (property, step) in new[] { ("DueDate", "Subject"), ("OtherDueDate", "Upload") })
+        {
+            definition.Properties.Add(new DatePropertyDefinition { Name = property, Type = "Date" });
+            definition.AllSteps.Single(s => s.Name == step).Deadline =
+                new Deadline { Date = property, Type = DeadlineType.Hard };
+            if (populated)
+                instance.Properties[property] = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Local);
+        }
+
+        definition.Roles.Single(role => role.Name == "Coordinator").Actions.Add(new DomainAction
+        {
+            Name = named ? "ExtendDeadlines" : null,
+            Type = RoleAction.PostponeDeadlines,
+            Label = new BilingualString("Extend deadlines", "Uitstel verlenen"),
+            Intent = ActionIntent.Secondary,
+            Condition = requireCandidates ? new Condition { HasPostponeableDeadlines = true } : null
+        });
+        MockCurrentUser(permitted ? "Coordinator" : "Student");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance);
+
+        var dto = await CreateFactory(Mock.Of<IStepVersionService>()).Create(instance, _ct);
+        var actions = dto.PinnedActions.Where(action => action.Type == ActionType.PostponeDeadlines).ToArray();
+
+        Assert.DoesNotContain(dto.Actions, action => action.Type == ActionType.PostponeDeadlines);
+        Assert.Equal(permitted && populated ? 2 : 0, dto.PostponableDeadlines.Length);
+        if (permitted && named && (!requireCandidates || populated))
+        {
+            var action = Assert.Single(actions);
+            Assert.Equal("PostponeDeadlines_ExtendDeadlines", action.Id);
+            Assert.Equal("ExtendDeadlines", action.Name);
+            Assert.Equal("Extend deadlines", action.Title.En);
+            Assert.Equal("Uitstel verlenen", action.Title.Nl);
+            Assert.Equal(ActionIntent.Secondary, action.Intent);
+            Assert.Empty(action.Steps);
+            Assert.False(action.AutoOpenForm);
+        }
+        else
+        {
+            Assert.Empty(actions);
+        }
+    }
+
     [Fact]
     public async Task Create_LiveSubmissionIncludesGroupedAnswerHistory()
     {

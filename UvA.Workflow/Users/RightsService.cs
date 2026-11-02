@@ -193,8 +193,8 @@ public class RightsService(
         return roles
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
-                .Where(a => (a.Condition == null || a.Condition.IsMet(context))
-                            && actions.Contains(a.Type)
+                .Where(a => actions.Contains(a.Type)
+                            && (a.Condition == null || a.Condition.IsMet(context.ForAction(a)))
                             && (a.Steps.Length == 0 || modelService
                                 .GetAvailableStepsForAction(instance, a, activeSteps, context).Length > 0)
                             && (a.WorkflowDefinition == null || a.WorkflowDefinition == instance.WorkflowDefinition)

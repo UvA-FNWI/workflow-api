@@ -28,7 +28,8 @@ public class WorkflowInstanceDtoFactory(
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
         var pinnedActions = actions.Where(action => action.Action.Steps.Length == 0 &&
-                                                    action.Action.Type is RoleAction.Submit or RoleAction.Execute)
+                                                    action.Action.Type is RoleAction.Submit or RoleAction.Execute
+                                                        or RoleAction.PostponeDeadlines)
             .ToArray();
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];

@@ -19,42 +19,20 @@ public class DeadlinePostponementService(
     InstanceService instanceService,
     JobService jobService)
 {
-    private record DeadlineCandidate(PostponableDeadline Deadline, Step[] Steps);
-
     public async Task<PostponableDeadline[]> GetDeadlines(WorkflowInstance instance)
     {
         var deadlines = new List<PostponableDeadline>();
         foreach (var candidate in GetDeadlineCandidates(instance).Values)
             if ((await GetAllowedActions(instance, candidate)).Length > 0)
-                deadlines.Add(candidate.Deadline);
+                deadlines.Add(new PostponableDeadline(candidate.Property, candidate.Title, candidate.Date));
 
         return deadlines.ToArray();
     }
 
     private Dictionary<string, DeadlineCandidate> GetDeadlineCandidates(WorkflowInstance instance)
-    {
-        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
-        var stepsByProperty = definition.AllSteps
-            .Where(step => step.Deadline != null && step.Condition.IsMet(context) && !step.HasEnded(context))
-            .ToLookup(step => step.Deadline!.Date.Trim());
-        var candidates = new Dictionary<string, DeadlineCandidate>();
-
-        // Exact property-name matching excludes expressions, literal dates and external references.
-        foreach (var property in definition.Properties
-                     .Where(property => property.DataType == DataType.Date && !property.IsArray &&
-                                        stepsByProperty.Contains(property.Name)))
-        {
-            if (instance.GetProperty(property.Name) is not BsonDateTime date)
-                continue;
-
-            var deadline = new PostponableDeadline(property.Name, property.DisplayName,
-                DateOnly.FromDateTime(date.ToLocalTime()));
-            candidates.Add(property.Name, new DeadlineCandidate(deadline, stepsByProperty[property.Name].ToArray()));
-        }
-
-        return candidates;
-    }
+        => modelService.WorkflowDefinitions[instance.WorkflowDefinition]
+            .GetDeadlineCandidates(modelService.CreateContext(instance))
+            .ToDictionary(candidate => candidate.Property);
 
     private async Task<DomainAction[]> GetAllowedActions(WorkflowInstance instance, DeadlineCandidate candidate)
     {
@@ -64,7 +42,7 @@ public class DeadlinePostponementService(
             var allowed =
                 await rightsService.GetAllowedActionsForStep(instance, step.Name, RoleAction.PostponeDeadlines);
             actions.AddRange(allowed.Where(action =>
-                action.PropertyDefinition == null || action.PropertyDefinition == candidate.Deadline.Property));
+                action.PropertyDefinition == null || action.PropertyDefinition == candidate.Property));
         }
 
         return actions.Distinct().ToArray();
@@ -103,7 +81,7 @@ public class DeadlinePostponementService(
                 throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.PostponeDeadlines, change.Property);
             actions.UnionWith(allowed);
 
-            var deadline = candidate.Deadline;
+            var deadline = candidate;
             if (change.CurrentDate != deadline.Date)
                 throw Invalid("DeadlineChanged", "The deadline has changed. Refresh and try again.");
             if (change.Date <= deadline.Date)
