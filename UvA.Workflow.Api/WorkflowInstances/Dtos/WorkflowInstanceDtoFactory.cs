@@ -26,6 +26,9 @@ public class WorkflowInstanceDtoFactory(
     public async Task<WorkflowInstanceDto> Create(WorkflowInstance instance, CancellationToken ct)
     {
         var actions = await instanceService.GetAllowedActions(instance, ct);
+        var pinnedActions = actions.Where(action => action.Action.Steps.Length == 0 &&
+                                                    action.Action.Type is RoleAction.Submit or RoleAction.Execute)
+            .ToArray();
         var submissions = await instanceService.GetAllowedSubmissions(instance, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var permissions = await rightsService.GetAllowedActions(instance, RoleAction.ViewAdminTools, RoleAction.Edit,
@@ -89,7 +92,9 @@ public class WorkflowInstanceDtoFactory(
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
             instance.CurrentStep,
             instance.ParentId,
-            actions.Select(ActionDto.Create).ToArray(),
+            actions.Except(pinnedActions).Select(ActionDto.Create).ToArray(),
+            pinnedActions.Select(action => ActionDto.Create(action) with { Steps = [], AutoOpenForm = false })
+                .ToArray(),
             fields,
             steps,
             submissionDtos,
