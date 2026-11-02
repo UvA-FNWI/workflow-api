@@ -352,6 +352,24 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.Equal(expectedMessage, error.Message);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Answers_HiddenReference_DeniesChoiceReadsWithoutPropertyGrant(bool currentChoices)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Start", "SubjectFeedback");
+        _modelService.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == "Course").Visibility =
+            PropertyVisibility.Hidden;
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(async () =>
+        {
+            if (currentChoices)
+                await controller.GetCurrentChoices(instance.Id, "Start", "Course", _ct);
+            else
+                await controller.GetChoices(instance.Id, "Start", "Course", _ct);
+        });
+    }
+
     private (AnswersController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string submissionId, string stepName = "Start")
     {

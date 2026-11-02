@@ -20,6 +20,84 @@ namespace UvA.Workflow.Tests;
 
 public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
 {
+    [Theory]
+    [InlineData(true, false, true, false, true)]
+    [InlineData(false, true, true, true, false)]
+    [InlineData(true, true, false, true, false)]
+    public async Task Create_HistoricalHiddenRightsUseCurrentRolesAndSnapshotConditions(
+        bool assignedNow, bool assignedThen, bool releasedThen, bool releasedNow, bool visible)
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = CreateProjectInstance();
+        var user = InstanceUser.FromUser(UnitTestsHelpers.AdminUser).ToBsonDocument();
+        instance.Properties["Supervisor"] = assignedNow ? user : BsonNull.Value;
+        instance.Properties["Title"] = releasedNow ? "Released" : "Private";
+        instance.Properties["EC"] = 6;
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.Properties.Single(p => p.Name == "EC").Visibility = PropertyVisibility.Hidden;
+        definition.Roles.Single(r => r.Name == "Supervisor").Actions.Add(new()
+        {
+            Type = RoleAction.ViewHidden, Form = "Start", PropertyDefinition = "EC",
+            Condition = new() { Value = new() { Property = "Title", Equal = "=Released" } }
+        });
+        var factory = CreateFactory(CreateStepVersionService("Start", new StepVersion
+        {
+            VersionNumber = 1, EventIds = ["Start"], SubmittedAt = submittedAt
+        }).Object);
+        MockCurrentUser("Student");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockPropertyJournal(instance,
+            (PropertyChangeEntry.Create("Supervisor", assignedThen ? user : BsonNull.Value, UnitTestsHelpers.AdminUser),
+                1),
+            (PropertyChangeEntry.Create("Title", releasedThen ? "Released" : "Private", UnitTestsHelpers.AdminUser),
+                1));
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+
+        var submission = Assert.Single(Assert.Single(FindStep(dto.Steps, "Start").Versions!).Submissions);
+        var grade = submission.Answers.Single(a => a.QuestionName == "EC");
+        Assert.Equal(visible, grade.IsVisible);
+        Assert.Equal(visible ? 6 : (int?)null, grade.Value?.GetInt32());
+        Assert.Null(grade.Changes);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_HistoricalVersionsUsePropertyScopedHiddenGrants(bool granted)
+    {
+        var submittedAt = DateTime.UtcNow.AddMinutes(-10);
+        var instance = CreateProjectInstance();
+        instance.Properties["EC"] = 6;
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.Properties.Single(p => p.Name == "EC").Visibility = PropertyVisibility.Hidden;
+        definition.Properties.Single(p => p.Name == "Title").Visibility = PropertyVisibility.Hidden;
+        if (granted)
+            definition.Roles.Single(r => r.Name == "Coordinator").Actions.Add(new()
+            {
+                Type = RoleAction.ViewHidden, Form = "Start", PropertyDefinition = "EC"
+            });
+        var factory = CreateFactory(CreateStepVersionService("Start", new StepVersion
+        {
+            VersionNumber = 1, EventIds = ["Start"], SubmittedAt = submittedAt
+        }).Object);
+        MockCurrentUser("Coordinator");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance, EventLog(instance, "Start", submittedAt));
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+
+        var submission = Assert.Single(Assert.Single(FindStep(dto.Steps, "Start").Versions!).Submissions);
+        var grade = submission.Answers.Single(a => a.QuestionName == "EC");
+        Assert.Equal(granted, grade.IsVisible);
+        Assert.Equal(granted ? 6 : (int?)null, grade.Value?.GetInt32());
+        Assert.False(submission.Answers.Single(a => a.QuestionName == "Title").IsVisible);
+    }
+
     [Fact]
     public async Task Create_LiveSubmissionIncludesGroupedAnswerHistory()
     {

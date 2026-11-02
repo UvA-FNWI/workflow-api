@@ -298,7 +298,8 @@ public class WorkflowInstanceDtoFactory(
             // Get the instance at the version timestamp
             var instanceAtVersion = workflowInstanceService
                 .GetAsOfTimestamp(instance, stepVersion.SubmittedAt, instanceHistory);
-            var allowedViewActions = await rightsService.GetAllowedActions(instanceAtVersion, RoleAction.View);
+            var historicalActions = await rightsService.GetAllowedHistoricalActions(instance, instanceAtVersion,
+                RoleAction.View, RoleAction.ViewHidden);
 
             // Create a submission for each event in the version
             foreach (var eventId in stepVersion.EventIds)
@@ -311,11 +312,10 @@ public class WorkflowInstanceDtoFactory(
                     continue;
                 }
 
-                if (!allowedViewActions.Any(action => action.MatchesForm(form.Name)))
+                if (!historicalActions.Any(action => action.Type == RoleAction.View && action.MatchesForm(form.Name)))
                     continue;
 
-                // Get question status with all fields visible (historical view)
-                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, false);
+                var questionStatus = modelService.GetQuestionStatus(instanceAtVersion, form, historicalActions);
                 var workflowDef = modelService.WorkflowDefinitions[instanceAtVersion.WorkflowDefinition];
                 var submissionState = FormSubmissionState.Resolve(instanceAtVersion, form, workflowDef);
 
