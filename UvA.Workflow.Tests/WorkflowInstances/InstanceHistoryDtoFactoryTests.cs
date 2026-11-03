@@ -113,24 +113,10 @@ public class InstanceHistoryDtoFactoryTests
         Assert.Collection(result,
             item =>
             {
-                Assert.Equal("orphan-undo", item.Id);
-                Assert.Equal(InstanceHistoryType.Undo, item.Type);
-                Assert.Equal("missing-operation reversed", item.Title.En);
-            },
-            item =>
-            {
-                Assert.Equal("action-undo", item.Id);
-                Assert.Equal(InstanceHistoryType.Undo, item.Type);
-                Assert.Equal("Archive reversed", item.Title.En);
-                Assert.Equal("Archiveren teruggedraaid", item.Title.Nl);
-                Assert.Equal("known", item.User.UserName);
-                Assert.Null(item.UndoHistory?.Reason);
-            },
-            item =>
-            {
-                Assert.Equal("action-operation", item.Id);
+                Assert.Equal("form-operation", item.Id);
                 Assert.Equal(InstanceHistoryType.Event, item.Type);
-                Assert.Equal("UnknownEvent", item.Title.En);
+                Assert.Equal("Known event", item.Title.En);
+                Assert.Equal("Bekende gebeurtenis", item.Title.Nl);
             },
             item =>
             {
@@ -143,10 +129,24 @@ public class InstanceHistoryDtoFactoryTests
             },
             item =>
             {
-                Assert.Equal("form-operation", item.Id);
+                Assert.Equal("action-operation", item.Id);
                 Assert.Equal(InstanceHistoryType.Event, item.Type);
-                Assert.Equal("Known event", item.Title.En);
-                Assert.Equal("Bekende gebeurtenis", item.Title.Nl);
+                Assert.Equal("UnknownEvent", item.Title.En);
+            },
+            item =>
+            {
+                Assert.Equal("action-undo", item.Id);
+                Assert.Equal(InstanceHistoryType.Undo, item.Type);
+                Assert.Equal("Archive reversed", item.Title.En);
+                Assert.Equal("Archiveren teruggedraaid", item.Title.Nl);
+                Assert.Equal("known", item.User.UserName);
+                Assert.Null(item.UndoHistory?.Reason);
+            },
+            item =>
+            {
+                Assert.Equal("orphan-undo", item.Id);
+                Assert.Equal(InstanceHistoryType.Undo, item.Type);
+                Assert.Equal("missing-operation reversed", item.Title.En);
             });
     }
 
@@ -169,7 +169,7 @@ public class InstanceHistoryDtoFactoryTests
 
         var result = await _factory.Create(instance, CancellationToken.None);
 
-        Assert.Equal(["updated", $"EC:{changedAt.Ticks}", "submitted"], result.Select(item => item.Id));
+        Assert.Equal(["submitted", $"EC:{changedAt.Ticks}", "updated"], result.Select(item => item.Id));
     }
 
     [Fact]
