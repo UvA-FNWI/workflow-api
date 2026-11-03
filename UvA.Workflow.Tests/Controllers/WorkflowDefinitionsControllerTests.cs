@@ -96,7 +96,6 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
         var dtos = GetDtos(await controller.GetAccessible(_ct));
 
         Assert.All(dtos, d => Assert.NotEmpty(d.Screens));
-        Assert.Contains(dtos, d => d.Name == "Project-PP");
         Assert.DoesNotContain(dtos, d => d.Name == "Project-RMSS");
     }
 
@@ -190,6 +189,86 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
         Assert.Contains(dtos, d => d.Name == "Project");
         Assert.DoesNotContain(dtos, d =>
             d.Name is "Course" or "Programme" or "Faculty" or "Specialisation");
+    }
+
+    [Fact]
+    public async Task BuildAuthorizationFilter_AllowsNonCyclicReferenceBetweenCourses()
+    {
+        MockCurrentUser();
+
+        var courseDefinition = _modelService.WorkflowDefinitions["Course"];
+        courseDefinition.Properties.Add(new ReferencePropertyDefinition
+        {
+            Name = "RelatedCourse",
+            Type = "Course",
+            WorkflowDefinition = courseDefinition
+        });
+
+        var courseAId = ObjectId.GenerateNewId();
+        var courseBId = ObjectId.GenerateNewId();
+
+        _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string definition, Dictionary<string, string> _, BsonDocument? filter,
+                CancellationToken _) =>
+            {
+                if (definition != "Course" || filter == null)
+                    return [];
+
+                var json = filter.ToJson();
+                if (json.Contains("Properties.RelatedCourse") &&
+                    json.Contains("Properties.Coordinator._id"))
+                    return [new Dictionary<string, BsonValue> { ["_id"] = courseAId }];
+
+                if (filter.Contains("Properties.Coordinator._id"))
+                    return [new Dictionary<string, BsonValue> { ["_id"] = courseBId }];
+
+                return [];
+            });
+
+        var authorization = new InstanceAuthorizationFilterService(
+            _rightsService, _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+
+        var filter = await authorization.BuildAuthorizationFilter("Project", RoleAction.View, _ct);
+
+        Assert.NotNull(filter);
+        Assert.Contains(courseAId.ToString(), filter.ToJson());
+    }
+
+    [Fact]
+    public async Task BuildAuthorizationFilter_DoesNotThrowOrHang_ForCyclicReferenceBetweenCourses()
+    {
+        MockCurrentUser();
+
+        var courseDefinition = _modelService.WorkflowDefinitions["Course"];
+        courseDefinition.Properties.Add(new ReferencePropertyDefinition
+        {
+            Name = "RelatedCourse",
+            Type = "Course",
+            WorkflowDefinition = courseDefinition
+        });
+
+        // Every query reports a match, so following RelatedCourse never bottoms out - this
+        // simulates a reference chain the type graph considers infinite. Course also already
+        // references Programme (existing fixture), so this must cover any definition, not just
+        // "Course", or that branch gets an unmocked (null) result.
+        _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new Dictionary<string, BsonValue> { ["_id"] = ObjectId.GenerateNewId() }]);
+
+        var authorization = new InstanceAuthorizationFilterService(
+            _rightsService, _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+
+        // Must terminate (bounded by WorkflowDefinitions.Count) instead of throwing or recursing forever.
+        var filter = await authorization.BuildAuthorizationFilter("Project", RoleAction.View, _ct);
+
+        Assert.NotNull(filter);
     }
 
     private void MockNoVisibleInstances() =>

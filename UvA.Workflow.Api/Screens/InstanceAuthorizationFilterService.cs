@@ -170,7 +170,6 @@ public class InstanceAuthorizationFilterService(
                     referencedDefinition,
                     role,
                     user,
-                    new HashSet<WorkflowDefinition>(),
                     ct));
             }
 
@@ -185,21 +184,24 @@ public class InstanceAuthorizationFilterService(
         return filters;
     }
 
+    private Task<string[]> GetInstanceIdsForRole(
+        WorkflowDefinition definition,
+        string role,
+        User user,
+        CancellationToken ct)
+        => GetInstanceIdsForRole(definition, role, user, depth: 0, ct);
+
     private async Task<string[]> GetInstanceIdsForRole(
         WorkflowDefinition definition,
         string role,
         User user,
-        HashSet<WorkflowDefinition> visited,
+        int depth,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
-        if (!visited.Add(definition))
-        {
-            throw new InvalidOperationException(
-                $"Circular inherited-role references for role '{role}' "
-                + $"in workflow definition '{definition.Name}'.");
-        }
+        if (depth > modelService.WorkflowDefinitions.Count)
+            return []; // Prevent infinite recursion in case of cyclic references
 
         var filters = new List<BsonDocument>();
 
@@ -226,7 +228,7 @@ public class InstanceAuthorizationFilterService(
                 referencedDefinition,
                 role,
                 user,
-                new HashSet<WorkflowDefinition>(visited),
+                depth + 1,
                 ct);
 
             if (referencedIds.Length > 0)

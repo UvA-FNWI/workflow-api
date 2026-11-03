@@ -221,6 +221,8 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
+        var changes = new List<(string[] Parts, PropertyDefinition Property, BsonValue Value)>();
+
         foreach (var (path, value) in input)
         {
             var parts = path.Split('.');
@@ -237,7 +239,13 @@ public class WorkflowInstancesController(
 
             var newValue = await answerConversionService.ConvertToValue(value, property, ct);
 
-            await answerService.SavePropertyValue(instance, parts, property, newValue, shouldLog: true, ct);
+            changes.Add((parts, property, newValue));
+        }
+
+        foreach (var change in changes)
+        {
+            await answerService.SavePropertyValue(instance, change.Parts, change.Property, change.Value,
+                shouldLog: true, ct);
         }
 
         return NoContent();
