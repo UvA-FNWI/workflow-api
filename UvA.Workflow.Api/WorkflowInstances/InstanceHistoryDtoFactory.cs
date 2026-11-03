@@ -62,7 +62,7 @@ public class InstanceHistoryDtoFactory(
             null));
 
         return eventEntries.Concat(propertyEntries)
-            .OrderByDescending(entry => entry.Timestamp)
+            .OrderBy(entry => entry.Timestamp)
             .ToArray();
     }
 
