@@ -22,6 +22,42 @@ namespace UvA.Workflow.Tests;
 
 public class StepHeaderStatusTests
 {
+    [Theory]
+    [InlineData(true, "Submitted on 14-04-2026")]
+    [InlineData(false, "Waiting for submission")]
+    public void Resolver_UsesConfiguredProgressHeaderWithDefaultInfoType(bool submitted, string expectedLabel)
+    {
+        var modelService = new ModelService(new ModelParser(new DictionaryProvider(new()
+        {
+            ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start]",
+            ["Project/Steps/Start.yaml"] = """
+                                           name: Start
+                                           progress:
+                                             - event: Submitted
+                                               text: Submitted
+                                               header:
+                                                 label: Submitted on {{ formatDate(SubmittedEvent, =dd-MM-yyyy) }}
+                                             - text: Writing proposal
+                                               header:
+                                                 label:
+                                                   en: Waiting for submission
+                                                   nl: Wacht op indiening
+                                           """
+        })));
+        var instance = CreateInstance("Project", "Start", submitted
+            ? [("Submitted", new DateTime(2026, 4, 14, 9, 0, 0, DateTimeKind.Utc))]
+            : []);
+
+        var status = new StepProgressResolver(modelService).ResolveHeader(GetStep(modelService, "Start"), instance);
+
+        Assert.NotNull(status);
+        Assert.Equal(StepHeaderPillType.Info, status.Type);
+        Assert.NotNull(status.Label);
+        Assert.Equal(expectedLabel, status.Label.En);
+        if (!submitted)
+            Assert.Equal("Wacht op indiening", status.Label.Nl);
+    }
+
     [Fact]
     public void Resolver_ReturnsPendingStatusWhenPendingEventIsActive()
     {
