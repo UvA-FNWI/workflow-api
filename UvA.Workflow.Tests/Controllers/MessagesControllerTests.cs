@@ -4,8 +4,10 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using Moq;
 using UvA.Workflow.Api.Messages;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Messages;
+using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.WorkflowInstances;
@@ -54,7 +56,7 @@ public class MessagesControllerTests : ControllerTestsBase
     public async Task GetMessages_ReturnsThreads_WhenUserCanView()
     {
         var instance = CreateInstance();
-        MockCurrentUser("Examiner");
+        MockCurrentUser("SystemAdmin");
         var stored = new Message
         {
             Id = ObjectId.GenerateNewId().ToString(),
@@ -83,10 +85,20 @@ public class MessagesControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task GetMessages_HidesExcludedFieldThreads()
+    public async Task GetMessages_ThrowsForbidden_WhenUserCanViewInstanceButNotMessages()
     {
         var instance = CreateInstance();
         MockCurrentUser("Examiner");
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            CreateController().GetMessages(instance.Id, _ct));
+    }
+
+    [Fact]
+    public async Task GetMessages_HidesExcludedFieldThreads()
+    {
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
         _messageRepoMock.Setup(r => r.GetMessages(instance.Id, _ct)).ReturnsAsync(
         [
             new Message
@@ -146,6 +158,40 @@ public class MessagesControllerTests : ControllerTestsBase
         Assert.Equal("Title", dto.QuestionName);
         Assert.Equal("Please clarify", Assert.Single(dto.Items).Body);
         Assert.False(dto.IsClosed);
+    }
+
+    [Fact]
+    public async Task AddMessage_AcceptsEmbeddedQuestionPath()
+    {
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
+        Message? saved = null;
+        _messageRepoMock.Setup(r => r.AddMessage(It.IsAny<Message>(), _ct))
+            .Callback<Message, CancellationToken>((m, _) =>
+            {
+                m.Id = ObjectId.GenerateNewId().ToString();
+                saved = m;
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await CreateController().AddMessage(instance.Id,
+            new AddMessageInput("AssessmentReviewer.Consent", null, Body: "Check this answer"), _ct);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<MessageDto>(ok.Value);
+        Assert.Equal("AssessmentReviewer.Consent", saved?.QuestionName);
+        Assert.Equal("AssessmentReviewer.Consent", dto.QuestionName);
+    }
+
+    [Fact]
+    public async Task AddMessage_RejectsLeafNameOfEmbeddedQuestion()
+    {
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
+
+        var error = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            CreateController().AddMessage(instance.Id, new AddMessageInput("Consent", null, Body: "nope"), _ct));
+        Assert.Equal("MessagesDisabled", error.Code);
     }
 
     [Fact]
@@ -332,4 +378,31 @@ public class MessagesControllerTests : ControllerTestsBase
         var roundTrip = BsonSerializer.Deserialize<Message>(document);
         Assert.Equal("legacy-0", roundTrip.Items[1].ParentItemId);
     }
+
+    [Fact]
+    public void AssessmentForms_AllowMessagesOnDistinctInstancePaths()
+    {
+        var project = _modelService.WorkflowDefinitions["Project"];
+        var reviewer = FormDto.Create(project.Forms.Single(form => form.Name == "AssessmentReviewer"),
+            new ObjectContext([]));
+        var supervisor = FormDto.Create(project.Forms.Single(form => form.Name == "AssessmentSupervisor"),
+            new ObjectContext([]));
+
+        var reviewerConsent = Consent(reviewer);
+        var supervisorConsent = Consent(supervisor);
+
+        Assert.Equal("AssessmentReviewer", reviewer.PropertyName);
+        Assert.Equal("AssessmentSupervisor", supervisor.PropertyName);
+        Assert.Equal("Consent", reviewerConsent.Name);
+        Assert.Equal("Consent", supervisorConsent.Name);
+        Assert.True(reviewerConsent.AllowMessages);
+        Assert.True(supervisorConsent.AllowMessages);
+        Assert.False(project.AllowsMessages("Consent"));
+        Assert.True(project.AllowsMessages("AssessmentReviewer.Consent"));
+        Assert.True(project.AllowsMessages("AssessmentSupervisor.Consent"));
+    }
+
+    private static QuestionDto Consent(FormDto form)
+        => form.Pages.SelectMany(page => page.Elements).Select(element => element.Question)
+            .Single(question => question?.Name == "Consent")!;
 }

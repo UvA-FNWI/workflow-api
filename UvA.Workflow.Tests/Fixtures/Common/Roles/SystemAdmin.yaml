@@ -11,3 +11,4 @@ actions:
   - type: Execute
   - type: ViewCorrespondence
   - type: AddInstanceMessage
+  - type: ViewAnswerMessages

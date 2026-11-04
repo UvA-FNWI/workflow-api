@@ -73,7 +73,7 @@ Each action in the `actions` list has a `type` and optional scope:
 | `ViewStates` | Can view workflow state details |
 | `Delete` | Can delete instances |
 | `AddInstanceMessage` | Can add messages to an instance |
-| `ViewAnswerMessages` | Can view answer messages |
+| `ViewAnswerMessages` | Can read instance and field message threads |
 | `AssignMessages` | Can assign messages |
 | `CreateInstance` | Can create new workflow instances |
 | `CreateRelatedInstance` | Can create related instances |

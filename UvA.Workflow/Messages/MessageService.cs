@@ -12,11 +12,12 @@ public class MessageService(
     IUserRepository userRepository)
 {
     /// <summary>
-    /// Returns threads visible to the caller. Read authorization uses instance <see cref="RoleAction.View"/>
+    /// Returns threads visible to the caller. Read authorization uses <see cref="RoleAction.ViewAnswerMessages"/>,
+    /// not instance <see cref="RoleAction.View"/>, so participants such as students do not see staff threads.
     /// </summary>
     public async Task<IReadOnlyList<Message>> GetVisibleMessages(string instanceId, CancellationToken ct)
     {
-        var instance = await GetAuthorizedInstance(instanceId, RoleAction.View, ct);
+        var instance = await GetAuthorizedInstance(instanceId, RoleAction.ViewAnswerMessages, ct);
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var messages = await repository.GetMessages(instanceId, ct) ?? [];
         return messages.Where(m => definition.AllowsMessages(m.QuestionName)).ToList();
