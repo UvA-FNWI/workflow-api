@@ -18,17 +18,39 @@ properties:
   - name: JointDocument
     type: File!
     text: Joint thesis PDF
-  - name: JointQuality
-    type: LinkedStepsDemoQuality!
-    text: Joint product quality (demonstration rubric)
+  - name: JointCriterion1
+    type: HalfGrade!
+    text: Shared criterion 1
     control: Rubric
-    rubric:
-      - name: ProductQuality
-        description: Grade the joint product using the demonstration scale.
-        grades: [Insufficient, Sufficient, Good, Excellent]
     calculation:
       type: Average
       weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 1. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
+  - name: JointCriterion2
+    type: HalfGrade!
+    text: Shared criterion 2
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 2. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
+  - name: JointCriterion3
+    type: HalfGrade!
+    text: Shared criterion 3
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 3. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
 assessments:
   gradingBasis: Decimal
   gradeGap: false

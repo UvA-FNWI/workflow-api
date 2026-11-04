@@ -20,17 +20,39 @@ properties:
   - name: LocalDocument
     type: File!
     text: Individual analysis PDF
-  - name: LocalQuality
-    type: LinkedStepsDemoQuality!
-    text: Individual product quality (demonstration rubric)
+  - name: LocalCriterion1
+    type: HalfGrade!
+    text: Individual criterion 1
     control: Rubric
-    rubric:
-      - name: ProductQuality
-        description: Grade the individual product using the demonstration scale.
-        grades: [Insufficient, Sufficient, Good, Excellent]
     calculation:
       type: Average
       weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 1. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
+  - name: LocalCriterion2
+    type: HalfGrade!
+    text: Individual criterion 2
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 2. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
+  - name: LocalCriterion3
+    type: HalfGrade!
+    text: Individual criterion 3
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 3. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
   - name: Finished
     type: Check!
     text: Finish demonstration (does not publish a grade)

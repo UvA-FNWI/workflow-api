@@ -26,18 +26,34 @@ public class LinkedStepWorkflowTests
     [Theory]
     [InlineData("LinkedStepsDemoShared", "AssessJoint")]
     [InlineData("LinkedStepsDemoIndividual", "AssessLocal")]
-    public void DemoRubric_ExposesEveryGradeAsASelectableOption(string definition, string formName)
+    public void DemoRubric_OffersNumericGradesForMultipleRequiredCriteria(string definition, string formName)
     {
         var model = new ModelService(UnitTestsHelpers.CreateModelParser());
         var instance = Instance(definition);
-        var property = Assert.Single(model.GetForm(instance, formName).Pages.SelectMany(page => page.Questions));
-        var question = Assert.IsType<ChoiceQuestionDto>(
-            QuestionDto.Create(property, 1, model.WorkflowDefinitions[definition]));
-
-        Assert.Equal(ChoiceControl.Rubric, question.Control);
-        Assert.NotNull(question.Rubric);
-        Assert.Equal(question.Choices.Select(choice => choice.Name),
-            question.Rubric.SelectMany(entry => entry.Grades).Select(grade => grade.Name));
+        instance.Properties["JointQuality"] = "Good";
+        instance.Properties["LocalQuality"] = "Sufficient";
+        instance.Properties["JointGrade"] = 8d;
+        instance.Properties["LocalGrade"] = 7d;
+        var properties = model.GetForm(instance, formName).Pages.SelectMany(page => page.Questions).ToArray();
+        Assert.Equal(3, properties.Length);
+        foreach (var property in properties)
+        {
+            var question = Assert.IsType<ChoiceQuestionDto>(
+                QuestionDto.Create(property, 3, model.WorkflowDefinitions[definition]));
+            Assert.True(question.IsRequired);
+            Assert.Equal(ChoiceControl.Rubric, question.Control);
+            Assert.NotNull(question.Rubric);
+            Assert.Equal(question.Choices.Select(choice => choice.Name),
+                question.Rubric.SelectMany(entry => entry.Grades).Select(grade => grade.Name));
+            Assert.All(question.Choices, choice =>
+            {
+                Assert.NotNull(choice.Value);
+                Assert.InRange(choice.Value.Value, 1, 10);
+                Assert.Equal(choice.Value.Value,
+                    double.Parse(choice.Text.En, System.Globalization.CultureInfo.InvariantCulture));
+            });
+            Assert.Null(model.CreateContext(instance).Get(property.Name));
+        }
     }
 
     [Theory]
@@ -184,7 +200,13 @@ public class LinkedStepWorkflowTests
         Assert.Single(logs);
         Assert.Equal(source.Id, logs[0].WorkflowInstanceId);
 
-        var localQualities = new[] { "Sufficient", "Excellent", "Good", "Insufficient" };
+        var localGrades = new[]
+        {
+            new[] { "6", "7", "8" },
+            new[] { "8", "9", "10" },
+            new[] { "5,5", "6,5", "7,5" },
+            new[] { "3", "4", "5" }
+        };
         for (var i = 0; i < hosts.Length; i++)
         {
             var host = hosts[i];
@@ -193,27 +215,32 @@ public class LinkedStepWorkflowTests
                 { ["ArtifactId"] = $"local-{i}", ["Name"] = "analysis.pdf", ["Length"] = 1 };
             await Submit(host, "UploadLocal");
             current = supervisor;
-            host.Properties["LocalQuality"] = localQualities[i];
+            for (var criterion = 0; criterion < 3; criterion++)
+                host.Properties[$"LocalCriterion{criterion + 1}"] = localGrades[i][criterion];
             await Submit(host, "AssessLocal");
             Assert.Null((await ReadResults(host)).FinalGrade);
         }
 
         current = supervisor;
-        source.Properties["JointQuality"] = "Good";
+        source.Properties["JointCriterion1"] = "7";
+        source.Properties["JointCriterion2"] = "8";
+        source.Properties["JointCriterion3"] = "9";
         var assessment = model.GetForm(source, "AssessJoint");
         Assert.True(await rights.Can(source, RoleAction.Submit, assessment.Name));
         Assert.True((await submissions.SubmitSubmission(new SubmissionContext(source,
             FormSubmissionState.Resolve(source, assessment, model.WorkflowDefinitions[source.WorkflowDefinition]),
             assessment, assessment.Name), current, default)).Success);
-        var expectedGrades = new[] { 6.8f, 9.2f, 8f, 5.6f };
+        var expectedGrades = new[] { 7.4f, 8.6f, 7.1f, 5.6f };
         for (var i = 0; i < hosts.Length; i++)
         {
             current = students[i];
             var dto = await ReadResults(hosts[i]);
             Assert.Equal(expectedGrades[i], dto.FinalGrade!.Rounded);
+            Assert.Equal(8m, dto.Parts[0].Combined!.WeightedAverage);
+            Assert.Equal(new decimal[] { 7, 9, 6.5m, 4 }[i], dto.Parts[1].Combined!.WeightedAverage);
             Assert.Equal(new[] { "SharedAssessment", "IndividualWork" }, dto.Parts.Select(part => part.Id));
             Assert.Equal(new decimal?[] { 40, 60 }, dto.Parts.Select(part => part.Percentage));
-            Assert.False(hosts[i].Properties.ContainsKey("JointQuality"));
+            Assert.False(hosts[i].Properties.ContainsKey("JointCriterion1"));
             Assert.True(await rights.Can(hosts[i], RoleAction.Submit, "Finalise"));
         }
 
@@ -231,14 +258,16 @@ public class LinkedStepWorkflowTests
         Assert.True(FormSubmissionState.Resolve(source, assessment,
             model.WorkflowDefinitions[source.WorkflowDefinition]).IsSubmitted);
         Assert.Null((await ReadResults(hosts[0])).FinalGrade);
-        Assert.Equal(9.2f, (await ReadResults(hosts[1])).FinalGrade!.Rounded);
+        Assert.Equal(8.6f, (await ReadResults(hosts[1])).FinalGrade!.Rounded);
 
         current = students[0];
         await Submit(hosts[0], "UploadLocal");
         current = supervisor;
-        hosts[0].Properties["LocalQuality"] = "Good";
+        hosts[0].Properties["LocalCriterion1"] = "8";
+        hosts[0].Properties["LocalCriterion2"] = "8,5";
+        hosts[0].Properties["LocalCriterion3"] = "9";
         await Submit(hosts[0], "AssessLocal");
-        Assert.Equal(8f, (await ReadResults(hosts[0])).FinalGrade!.Rounded);
+        Assert.Equal(8.3f, (await ReadResults(hosts[0])).FinalGrade!.Rounded);
         current = students[0];
         Assert.True(await rights.Can(hosts[0], RoleAction.Submit, "Finalise"));
 

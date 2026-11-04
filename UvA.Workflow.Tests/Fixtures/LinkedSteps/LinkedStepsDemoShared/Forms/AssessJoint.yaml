@@ -4,4 +4,6 @@ title: Assess the joint product once
 pages:
   - name: JointProduct
     elements:
-      - question: JointQuality
+      - question: JointCriterion1
+      - question: JointCriterion2
+      - question: JointCriterion3

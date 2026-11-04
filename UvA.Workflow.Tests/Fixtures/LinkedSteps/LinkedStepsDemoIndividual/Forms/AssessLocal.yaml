@@ -3,4 +3,6 @@ step: IndividualWork
 pages:
   - name: IndividualProduct
     elements:
-      - question: LocalQuality
+      - question: LocalCriterion1
+      - question: LocalCriterion2
+      - question: LocalCriterion3
