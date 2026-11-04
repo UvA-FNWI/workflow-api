@@ -134,6 +134,9 @@ public partial class ModelParser
     private void ApplyInheritance(Form target, Form source)
     {
         if (!target.Declared(s => s.Step)) target.Step = source.Step;
+        if (!target.Declared(s => s.Title)) target.Title = source.Title;
+        if (!target.Declared(s => s.Layout)) target.Layout = source.Layout;
+        if (!target.Declared(s => s.OnSubmit)) target.OnSubmit = source.OnSubmit;
 
         if (Cleared(target, f => f.Pages))
             return;

@@ -129,7 +129,7 @@ public class StepTemplateTests
         Assert.Equal(nl, progress[0].Text!.Nl);
         Assert.Equal("Review " + en["Working on ".Length..], progress[0].Header!.Label!.En);
         Assert.Equal("Review " + nl["Werkt aan ".Length..], progress[0].Header!.Label!.Nl);
-        Assert.Equal(DataType.LocalString, new StepTemplateParameter { Type = "LocalString!" }.DataType);
+        Assert.Equal(DataType.LocalString, new TemplateParameter { Type = "LocalString!" }.DataType);
     }
 
     [Fact]

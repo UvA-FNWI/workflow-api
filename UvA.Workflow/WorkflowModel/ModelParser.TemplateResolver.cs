@@ -84,68 +84,107 @@ public partial class ModelParser
         if (string.IsNullOrWhiteSpace(step.TemplateKey))
             return step;
 
-        if (!stepTemplatesByName.TryGetValue(step.TemplateKey, out var template))
-            throw new Exception(
-                $"Step '{step.Name}' in definition '{definitionName}' references unknown template '{step.TemplateKey}'");
+        var template = GetTemplate(step, stepTemplatesByName, definitionName);
+        var resolved = Instantiate(template, step, parentValues, out var substituted);
 
-        return ResolveTemplateToStep(step, template, _deserializer, parentValues);
+        ApplyInheritance(step, resolved);
+        step.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+
+        // Consumer properties replace template properties with the same name.
+        var consumerPropertyNames = step.Properties.Select(p => p.Name).ToHashSet();
+        step.Properties =
+        [
+            .. resolved.Properties.Where(p => !consumerPropertyNames.Contains(p.Name)),
+            .. step.Properties
+        ];
+
+        return step;
     }
-
+    
     /// <summary>
-    /// Resolves a step template into a step.
+    /// Resolves the form template for every form in a definition that declares one. Unlike steps, forms have
+    /// no parent/child hierarchy, so each form is resolved independently and inherits no values.
     /// </summary>
-    private Step ResolveTemplateToStep(Step consumer, StepTemplate template, IDeserializer deserializer,
-        IReadOnlyDictionary<string, object>? parentValues = null)
+    private List<Form> ResolveFormTemplates(List<Form> forms,
+        Dictionary<string, FormTemplate> formTemplatesByName, string definitionName)
     {
-        var values = ResolveTemplateValues(template, consumer, parentValues);
+        var duplicateNames = forms.GroupBy(f => f.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateNames.Count > 0)
+            throw new Exception(
+                $"Definition '{definitionName}' declares duplicate form(s): {string.Join(", ", duplicateNames)}");
+
+        foreach (var form in forms.Where(f => !string.IsNullOrWhiteSpace(f.TemplateKey)))
+        {
+            var template = GetTemplate(form, formTemplatesByName, definitionName);
+            var resolved = Instantiate(template, form, null, out var substituted);
+
+            ApplyInheritance(form, resolved);
+            form.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+        }
+
+        return forms;
+    }
+    
+    /// <summary>
+    /// Instantiates a template for a consuming step or form: resolves the parameter values, substitutes them
+    /// into the template's source YAML and deserializes the result. The caller is responsible for merging
+    /// the returned instance into its consumer, since that differs per type.
+    /// </summary>
+    private TTemplate Instantiate<TTemplate>(TTemplate template, ITemplateConsumer consumer,
+        IReadOnlyDictionary<string, object>? parentValues, out string substituted)
+        where TTemplate : ITemplate
+    {
+        var values = ResolveTemplateValues(template.Parameters, consumer, parentValues);
         foreach (var parameter in template.Parameters.Where(p => p.UnderlyingType == "LocalString"))
             if (values.TryGetValue(parameter.Name, out var value) && value is not BilingualString)
                 values[parameter.Name] = value is string text
                     ? (BilingualString)text
-                    : deserializer.Deserialize<BilingualString>(new SerializerBuilder().Build().Serialize(value));
-        var substituted = SubstituteTemplateValues(template.RootFile, template.Name, values);
+                    : _deserializer.Deserialize<BilingualString>(new SerializerBuilder().Build().Serialize(value));
 
-        Step resolved;
+        substituted = SubstituteTemplateValues(template.RootFile, template.Name, values);
+        consumer.ResolvedTemplateValues = values;
+
         try
         {
-            resolved = deserializer.Deserialize<StepTemplate>(substituted);
+            return _deserializer.Deserialize<TTemplate>(substituted);
         }
         catch (Exception ex)
         {
             throw new ArgumentException(
-                $"Failed to resolve template '{template.Name}' for step '{consumer.Name}': {ex.Message}", ex);
+                $"Failed to resolve template '{template.Name}' for '{consumer.Name}': {ex.Message}", ex);
         }
-
-        ApplyInheritance(consumer, resolved);
-        consumer.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
-        consumer.ResolvedTemplateValues = values;
-        // Consumer properties replace template properties with the same name.
-        var consumerPropertyNames = consumer.Properties.Select(p => p.Name).ToHashSet();
-        consumer.Properties =
-        [
-            .. resolved.Properties.Where(p => !consumerPropertyNames.Contains(p.Name)),
-            .. consumer.Properties
-        ];
-
-        return consumer;
     }
+    
+    /// <summary>
+    /// Looks up the template a step or form refers to with <c>template:</c>.
+    /// </summary>
+    private static TTemplate GetTemplate<TTemplate>(ITemplateConsumer consumer,
+        Dictionary<string, TTemplate> templatesByName, string definitionName) where TTemplate : ITemplate
+        => templatesByName.TryGetValue(consumer.TemplateKey!, out var template)
+            ? template
+            : throw new Exception(
+                $"'{consumer.Name}' in definition '{definitionName}' references unknown template " +
+                $"'{consumer.TemplateKey}'");
 
     /// <summary>
-    /// Resolves the values for a step template from the provided values.
+    /// Resolves the values for a template from the values the consuming step or form provides. A missing
+    /// value falls back to a value inherited from the parent step (steps only), then to the parameter's
+    /// default. The implicit <c>prefix</c> value defaults to everything before the first underscore in the
+    /// consumer's name.
     /// </summary>
-    private static Dictionary<string, object> ResolveTemplateValues(StepTemplate template, Step step,
-        IReadOnlyDictionary<string, object>? parentValues)
+    private static Dictionary<string, object> ResolveTemplateValues(List<TemplateParameter> parameters,
+        ITemplateConsumer consumer, IReadOnlyDictionary<string, object>? parentValues)
     {
         var providedValues =
-            new Dictionary<string, object>(step.TemplateValues ?? [], StringComparer.OrdinalIgnoreCase);
-        providedValues.TryAdd("prefix", GetPrefix(step.Name));
+            new Dictionary<string, object>(consumer.TemplateValues ?? [], StringComparer.OrdinalIgnoreCase);
+        providedValues.TryAdd("prefix", GetPrefix(consumer.Name));
 
         var resolvedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["prefix"] = providedValues["prefix"]
         };
 
-        foreach (var param in template.Parameters)
+        foreach (var param in parameters)
         {
             if (providedValues.TryGetValue(param.Name, out var value))
                 resolvedValues[param.Name] = value;
@@ -155,13 +194,13 @@ public partial class ModelParser
                 resolvedValues[param.Name] = param.Default;
             else if (param.IsRequired)
                 throw new ArgumentException(
-                    $"Missing required template parameter '{param.Name}' for step '{step.Name}'");
+                    $"Missing required template parameter '{param.Name}' for '{consumer.Name}'");
         }
 
         var unknownValues = providedValues.Keys.Except(resolvedValues.Keys, StringComparer.OrdinalIgnoreCase).ToList();
         if (unknownValues.Count > 0)
             throw new ArgumentException(
-                $"Unknown template parameters '{string.Join(", ", unknownValues)}' for step '{step.Name}'");
+                $"Unknown template parameters '{string.Join(", ", unknownValues)}' for '{consumer.Name}'");
 
         return resolvedValues;
     }
