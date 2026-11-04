@@ -22,6 +22,10 @@ properties:
     type: LinkedStepsDemoQuality!
     text: Joint product quality (demonstration rubric)
     control: Rubric
+    rubric:
+      - name: ProductQuality
+        description: Grade the joint product using the demonstration scale.
+        grades: [Insufficient, Sufficient, Good, Excellent]
     calculation:
       type: Average
       weight: 1

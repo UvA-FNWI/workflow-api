@@ -7,6 +7,7 @@ using Moq;
 using UvA.Workflow.Api.Assessments;
 using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
@@ -22,6 +23,23 @@ namespace UvA.Workflow.Tests;
 
 public class LinkedStepWorkflowTests
 {
+    [Theory]
+    [InlineData("LinkedStepsDemoShared", "AssessJoint")]
+    [InlineData("LinkedStepsDemoIndividual", "AssessLocal")]
+    public void DemoRubric_ExposesEveryGradeAsASelectableOption(string definition, string formName)
+    {
+        var model = new ModelService(UnitTestsHelpers.CreateModelParser());
+        var instance = Instance(definition);
+        var property = Assert.Single(model.GetForm(instance, formName).Pages.SelectMany(page => page.Questions));
+        var question = Assert.IsType<ChoiceQuestionDto>(
+            QuestionDto.Create(property, 1, model.WorkflowDefinitions[definition]));
+
+        Assert.Equal(ChoiceControl.Rubric, question.Control);
+        Assert.NotNull(question.Rubric);
+        Assert.Equal(question.Choices.Select(choice => choice.Name),
+            question.Rubric.SelectMany(entry => entry.Grades).Select(grade => grade.Name));
+    }
+
     [Theory]
     [InlineData("LinkedStepsDemoShared", "Upload", new[] { "Title", "Student", "Supervisor", "UploadDeadline" })]
     [InlineData("LinkedStepsDemoIndividual", "Start", new[] { "Title", "Student", "Supervisor", "SharedThesis" })]

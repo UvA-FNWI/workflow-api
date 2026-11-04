@@ -313,7 +313,26 @@ public class WorkflowInstancesController(
             return BadRequest("InvalidImpersonationRole",
                 $"Role '{input.Role}' cannot be impersonated for workflow '{instance.WorkflowDefinition}'.");
 
-        var token = impersonationService.CreateToken(currentUser.UserName, instance.Id, normalizedRoleName.Name);
+        var importedIds = new List<string>();
+        if (modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps)
+        {
+            var context = await instanceService.ResolveContext(instance, ct);
+            foreach (var source in context.ImportedSteps.Values.OfType<ImportedStepContext>()
+                         .DistinctBy(source => source.Instance.Id))
+            {
+                if (!await rightsService.Can(source.Instance, [RoleAction.ImpersonateRoles],
+                        RightsEvaluationMode.RealUser))
+                    return Forbidden();
+                if (await rightsService.NormalizeImpersonationTargetRole(source.Instance,
+                        normalizedRoleName.Name, ct) == null)
+                    return BadRequest("InvalidImpersonationRole",
+                        $"Role '{normalizedRoleName.Name}' cannot be impersonated for imported workflow '{source.Definition.Name}'.");
+                importedIds.Add(source.Instance.Id);
+            }
+        }
+
+        var token = impersonationService.CreateToken(currentUser.UserName, instance.Id,
+            normalizedRoleName.Name, importedIds);
         return Ok(new StartImpersonationResultDto(
             instance.Id,
             normalizedRoleName,

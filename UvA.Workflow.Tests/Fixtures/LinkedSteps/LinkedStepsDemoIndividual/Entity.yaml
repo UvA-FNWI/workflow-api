@@ -24,6 +24,10 @@ properties:
     type: LinkedStepsDemoQuality!
     text: Individual product quality (demonstration rubric)
     control: Rubric
+    rubric:
+      - name: ProductQuality
+        description: Grade the individual product using the demonstration scale.
+        grades: [Insufficient, Sufficient, Good, Excellent]
     calculation:
       type: Average
       weight: 1
