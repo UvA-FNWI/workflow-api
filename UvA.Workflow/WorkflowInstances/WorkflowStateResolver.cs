@@ -39,15 +39,6 @@ public class WorkflowStateResolver(
             .Where(source => modelService.WorkflowDefinitions.ContainsKey(source.WorkflowDefinition))
             .ToDictionary(source => source.Id, modelService.CreateContext);
 
-        var batches = instances.Where(instance =>
-                modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps)
-            .GroupBy(instance => instance.WorkflowDefinition)
-            .Select(group => Batch(group.Key, group.Select(instance => contexts[instance.Id ?? ""]).ToArray()))
-            .Concat(sources.Values.GroupBy(source => source.WorkflowDefinition)
-                .Where(group => modelService.WorkflowDefinitions.ContainsKey(group.Key))
-                .Select(group => Batch(group.Key, group.Select(source => sourceContexts[source.Id]).ToArray())));
-        await contextEnricher.Enrich(batches, ct, replaceStep: false);
-
         foreach (var import in imports)
         {
             var definition = modelService.WorkflowDefinitions[import.Instance.WorkflowDefinition];
@@ -60,6 +51,15 @@ public class WorkflowStateResolver(
                     sourceContexts[source.Id]);
             contexts[import.Instance.Id ?? ""].ImportedSteps[import.Step.Name] = owner;
         }
+
+        var batches = instances.Where(instance =>
+                modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps)
+            .GroupBy(instance => instance.WorkflowDefinition)
+            .Select(group => Batch(group.Key, group.Select(instance => contexts[instance.Id ?? ""]).ToArray()))
+            .Concat(sources.Values.GroupBy(source => source.WorkflowDefinition)
+                .Where(group => modelService.WorkflowDefinitions.ContainsKey(group.Key))
+                .Select(group => Batch(group.Key, group.Select(source => sourceContexts[source.Id]).ToArray())));
+        await contextEnricher.Enrich(batches, ct, replaceStep: false);
 
         foreach (var instance in instances.Where(instance =>
                      modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps))

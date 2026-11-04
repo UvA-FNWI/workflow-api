@@ -108,14 +108,14 @@ public class WorkflowContextEnricher(
         {
             foreach (var context in state.Batch.Contexts)
             {
-                var config = state.Batch.WorkflowDefinition.AssessmentConfiguration;
-                config!.Enrich(context.Get("Course.GradingBasis") as string, context.Get("Course.GradeGap") as bool?);
+                var config = state.Batch.WorkflowDefinition.AssessmentConfiguration!
+                    .Enrich(context.Get("Course.GradingBasis") as string, context.Get("Course.GradeGap") as bool?);
                 var result = assessmentService.GetAssessmentResult(
                     state.Batch.WorkflowDefinition,
                     context,
                     config);
                 var dict = result.PartResults.ToDictionary(r => r.Name,
-                    object (r) => r.AllResults.ToDictionary(s => s.Name,
+                    object? (r) => r.AllResults.ToDictionary(s => s.Name,
                         object (s) =>
                         {
                             var questionResults = s.PageResults

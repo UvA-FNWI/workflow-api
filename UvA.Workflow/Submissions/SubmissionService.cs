@@ -41,7 +41,10 @@ public class SubmissionService(
             throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
                 "Submission already submitted");
 
-        var objectContext = modelService.CreateContext(instance);
+        var objectContext = await instanceService.ResolveContext(instance, ct);
+        await instanceService.Enrich(workflowDef, [objectContext], form.ActualForm.Lookups
+            .Concat(form.Pages.SelectMany(page => page.Questions).SelectMany(question => question.Conditions)
+                .SelectMany(condition => condition.Properties)), ct, replaceStep: false);
 
         var questionsToValidate = form.Pages
             .Where(p => p.Condition.IsMet(objectContext))

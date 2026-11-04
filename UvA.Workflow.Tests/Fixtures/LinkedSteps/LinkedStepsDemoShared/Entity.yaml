@@ -26,6 +26,8 @@ properties:
       type: Average
       weight: 1
 assessments:
+  gradingBasis: Decimal
+  gradeGap: false
   parts:
     - name: Assess
       title: Joint product

@@ -93,7 +93,7 @@ public class InstanceService(
         ObjectContext? context = null)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        context ??= modelService.CreateContext(instance);
+        context ??= await ResolveContext(instance, ct);
         var recipientLookups = MailBuilder.ResolveRecipientLookups(workflowDefinition, sendMail);
         await Enrich(workflowDefinition, [context], recipientLookups, ct, replaceStep: false);
         return mailBuilder.Build(instance, sendMail, modelService, context);

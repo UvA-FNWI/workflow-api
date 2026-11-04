@@ -1,6 +1,7 @@
 globalActions:
   - type: View
     roles: [Student, Supervisor, Coordinator, SystemAdmin]
+    forms: [UploadJoint, AssessJoint]
   - type: CreateInstance
     roles: [Coordinator, SystemAdmin]
   - type: ViewAdminTools

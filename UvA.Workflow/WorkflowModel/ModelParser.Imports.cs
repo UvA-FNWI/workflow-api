@@ -39,6 +39,15 @@ public partial class ModelParser
             if (definition.Forms.Any(form => form.Step == step.Name) ||
                 definition.AllActions.Any(action => action.Steps.Contains(step.Name)))
                 throw new Exception($"{prefix} cannot own local forms or actions.");
+
+            var assessment = definition.AssessmentConfiguration?.Parts.FirstOrDefault(part => part.Name == step.Name);
+            if (assessment == null) continue;
+            var sourceAssessment =
+                target.AssessmentConfiguration?.Parts.FirstOrDefault(part => part.Name == source.Name);
+            if (assessment.Sources.Count != 0 || sourceAssessment == null || sourceAssessment.Sources.Count == 0 ||
+                sourceAssessment.Sources.Any(part => target.Forms.All(form => form.Name != part.Name)))
+                throw new Exception(
+                    $"{prefix} assessment must use the source step's assessment part without local sources.");
         }
     }
 }

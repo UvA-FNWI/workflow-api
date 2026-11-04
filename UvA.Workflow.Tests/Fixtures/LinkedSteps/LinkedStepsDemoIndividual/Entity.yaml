@@ -20,12 +20,28 @@ properties:
   - name: LocalDocument
     type: File!
     text: Individual analysis PDF
-  - name: LocalApproved
-    type: Check!
-    text: Individual work approved
+  - name: LocalQuality
+    type: LinkedStepsDemoQuality!
+    text: Individual product quality (demonstration rubric)
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
   - name: Finished
     type: Check!
     text: Finish demonstration (does not publish a grade)
+assessments:
+  gradingBasis: Decimal
+  gradeGap: false
+  parts:
+    - name: SharedAssessment
+      title: Joint product (demo)
+      weight: 40
+    - name: IndividualWork
+      title: Individual product (demo)
+      weight: 60
+      sources:
+        - name: AssessLocal
 fields:
   - property: Title
   - currentStep: true

@@ -1,0 +1,13 @@
+values:
+  - name: Insufficient
+    text: Insufficient (demo)
+    value: 4
+  - name: Sufficient
+    text: Sufficient (demo)
+    value: 6
+  - name: Good
+    text: Good (demo)
+    value: 8
+  - name: Excellent
+    text: Excellent (demo)
+    value: 10

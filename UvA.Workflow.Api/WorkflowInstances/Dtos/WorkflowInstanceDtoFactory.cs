@@ -77,7 +77,7 @@ public class WorkflowInstanceDtoFactory(
         var fields = await CreateFields(workflowDefinition, instance, ct);
         var submissionDtos = await Task.WhenAll(submissions.Select(async s =>
         {
-            var submissionContext = modelService.CreateContext(instance);
+            var submissionContext = await instanceService.ResolveContext(instance, ct);
             await instanceService.Enrich(workflowDefinition, [submissionContext], s.Form.ActualForm.Lookups, ct,
                 replaceStep: false);
             return submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,

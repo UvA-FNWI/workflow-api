@@ -3,4 +3,5 @@ step: Finalise
 pages:
   - name: Finish
     elements:
+      - text: 'Final grade: {{ Assessment.FinalGrade }} (40% shared, 60% individual). These are demonstration weights.'
       - question: Finished

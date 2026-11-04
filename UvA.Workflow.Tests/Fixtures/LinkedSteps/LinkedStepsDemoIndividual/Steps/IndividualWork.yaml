@@ -1,10 +1,11 @@
 name: IndividualWork
 title: Individual work
+resultsType: AssessmentPartOverview
 mode: Alongside
 before: Finalise
 events:
   - name: RestartIndividual
-    suppresses: [UploadLocal, AssessLocal]
+    suppresses: [UploadLocal, AssessLocal, Finalise]
 actions:
   - type: Submit
     roles: [Student]

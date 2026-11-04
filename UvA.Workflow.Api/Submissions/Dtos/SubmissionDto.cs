@@ -28,7 +28,7 @@ public class SubmissionDtoFactory(
         WorkflowInstanceHistory? history = null, CancellationToken ct = default)
     {
         var displayNames = await ResolveDisplayNames(history?.Journal, ct);
-        var context = modelService.CreateContext(inst);
+        var context = await instanceService.ResolveContext(inst, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[inst.WorkflowDefinition];
         await instanceService.Enrich(workflowDefinition, [context], form.ActualForm.Lookups, ct, replaceStep: false);
 

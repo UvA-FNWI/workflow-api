@@ -1,8 +1,12 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using Moq;
+using UvA.Workflow.Api.Assessments;
+using UvA.Workflow.Api.Assessments.Dtos;
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Jobs;
@@ -28,8 +32,7 @@ public class LinkedStepWorkflowTests
         var repository = new Mock<IWorkflowInstanceRepository>();
         var users = new Mock<IUserService>();
         users.Setup(service => service.GetRolesOfCurrentUser()).ReturnsAsync(["Coordinator"]);
-        var resolver = new WorkflowStateResolver(repository.Object, model,
-            new WorkflowContextEnricher(repository.Object, model, Mock.Of<IAssessmentService>()));
+        var resolver = UnitTestsHelpers.CreateStateResolver(model, repository.Object);
         var rights = new RightsService(model, users.Object, repository.Object, resolver);
         var setup = model.GetForm(instance, "Setup");
 
@@ -51,7 +54,7 @@ public class LinkedStepWorkflowTests
     }
 
     [Fact]
-    public async Task SharedSubmissionAndAssessmentAreOwnedOnceWhileLocalResitsStayIndividual()
+    public async Task Demo_CombinesSharedAndIndividualAssessmentsThroughCompletionRestartAndUndo()
     {
         var model = new ModelService(UnitTestsHelpers.CreateModelParser());
         var repository = new Mock<IWorkflowInstanceRepository>();
@@ -86,7 +89,14 @@ public class LinkedStepWorkflowTests
         }).ToArray();
         repository.Setup(repo => repo.GetByIds(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([source]);
-        var enricher = new WorkflowContextEnricher(repository.Object, model, Mock.Of<IAssessmentService>());
+        repository.Setup(repo => repo.GetById(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string id, CancellationToken _) =>
+                hosts.Append(source).SingleOrDefault(instance => instance.Id == id));
+        var events = new Mock<IInstanceEventRepository>();
+        var workflows = new WorkflowInstanceService(model, repository.Object, Mock.Of<IInstanceJournalService>(),
+            events.Object, users.Object, Mock.Of<IUserRepository>());
+        var assessments = new AssessmentService(model, workflows, repository.Object);
+        var enricher = new WorkflowContextEnricher(repository.Object, model, assessments);
         var resolver = new WorkflowStateResolver(repository.Object, model, enricher);
         var rights = new RightsService(model, users.Object, repository.Object, resolver);
         var layouts = new Mock<IMailLayoutResolver>();
@@ -94,7 +104,6 @@ public class LinkedStepWorkflowTests
         var instances = new InstanceService(repository.Object, model, users.Object, rights,
             UnitTestsHelpers.CreateMailBuilder(layouts.Object), enricher, resolver);
         var logs = new List<InstanceEventLogEntry>();
-        var events = new Mock<IInstanceEventRepository>();
         events.Setup(repo => repo.AddOrUpdateEvent(It.IsAny<WorkflowInstance>(), It.IsAny<InstanceEvent>(),
                 It.IsAny<User>(), It.IsAny<CancellationToken>(), It.IsAny<string?>(), It.IsAny<OperationMetadata?>()))
             .Callback((WorkflowInstance instance, InstanceEvent evt, User actor, CancellationToken _,
@@ -135,6 +144,9 @@ public class LinkedStepWorkflowTests
         var jobs = new JobService(effects, model, jobsRepository.Object, repository.Object, Mock.Of<IUserRepository>(),
             NullLogger<JobService>.Instance, instances, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
         var submissions = new SubmissionService(model, instances, Mock.Of<IInstanceJournalService>(), jobs, effects);
+        var results = new AssessmentsController(workflows, users.Object, repository.Object, assessments, instances,
+            new AssessmentDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), model, assessments),
+            rights);
 
         var upload = model.GetForm(source, "UploadJoint");
         Assert.True(await rights.Can(source, RoleAction.Submit, upload.Name));
@@ -154,6 +166,20 @@ public class LinkedStepWorkflowTests
         Assert.Single(logs);
         Assert.Equal(source.Id, logs[0].WorkflowInstanceId);
 
+        var localQualities = new[] { "Sufficient", "Excellent", "Good", "Insufficient" };
+        for (var i = 0; i < hosts.Length; i++)
+        {
+            var host = hosts[i];
+            current = students[i];
+            host.Properties["LocalDocument"] = new BsonDocument
+                { ["ArtifactId"] = $"local-{i}", ["Name"] = "analysis.pdf", ["Length"] = 1 };
+            await Submit(host, "UploadLocal");
+            current = supervisor;
+            host.Properties["LocalQuality"] = localQualities[i];
+            await Submit(host, "AssessLocal");
+            Assert.Null((await ReadResults(host)).FinalGrade);
+        }
+
         current = supervisor;
         source.Properties["JointQuality"] = "Good";
         var assessment = model.GetForm(source, "AssessJoint");
@@ -161,8 +187,24 @@ public class LinkedStepWorkflowTests
         Assert.True((await submissions.SubmitSubmission(new SubmissionContext(source,
             FormSubmissionState.Resolve(source, assessment, model.WorkflowDefinitions[source.WorkflowDefinition]),
             assessment, assessment.Name), current, default)).Success);
-        foreach (var host in hosts)
-            host.Events["AssessLocal"] = new InstanceEvent { Id = "AssessLocal", Date = DateTime.UtcNow.AddDays(-1) };
+        var expectedGrades = new[] { 6.8f, 9.2f, 8f, 5.6f };
+        for (var i = 0; i < hosts.Length; i++)
+        {
+            current = students[i];
+            var dto = await ReadResults(hosts[i]);
+            Assert.Equal(expectedGrades[i], dto.FinalGrade!.Rounded);
+            Assert.Equal(new[] { "SharedAssessment", "IndividualWork" }, dto.Parts.Select(part => part.Id));
+            Assert.Equal(new decimal?[] { 40, 60 }, dto.Parts.Select(part => part.Percentage));
+            Assert.False(hosts[i].Properties.ContainsKey("JointQuality"));
+            Assert.True(await rights.Can(hosts[i], RoleAction.Submit, "Finalise"));
+        }
+
+        current = students[0];
+        hosts[0].Properties["Finished"] = true;
+        await Submit(hosts[0], "Finalise");
+        Assert.Null(model.GetCurrentStep(hosts[0], await resolver.Resolve(hosts[0], default)));
+
+        current = supervisor;
         await effects.AddEvent(hosts[0], "RestartIndividual", supervisor, default);
         var contexts = await resolver.Resolve(hosts, default);
         Assert.Equal("IndividualWork", model.GetCurrentStep(hosts[0], contexts[hosts[0].Id])?.Name);
@@ -170,7 +212,19 @@ public class LinkedStepWorkflowTests
             host => Assert.Equal("Finalise", model.GetCurrentStep(host, contexts[host.Id])?.Name));
         Assert.True(FormSubmissionState.Resolve(source, assessment,
             model.WorkflowDefinitions[source.WorkflowDefinition]).IsSubmitted);
+        Assert.Null((await ReadResults(hosts[0])).FinalGrade);
+        Assert.Equal(9.2f, (await ReadResults(hosts[1])).FinalGrade!.Rounded);
 
+        current = students[0];
+        await Submit(hosts[0], "UploadLocal");
+        current = supervisor;
+        hosts[0].Properties["LocalQuality"] = "Good";
+        await Submit(hosts[0], "AssessLocal");
+        Assert.Equal(8f, (await ReadResults(hosts[0])).FinalGrade!.Rounded);
+        current = students[0];
+        Assert.True(await rights.Can(hosts[0], RoleAction.Submit, "Finalise"));
+
+        current = supervisor;
         var operation = logs.Single(log => log.WorkflowInstanceId == source.Id && log.EventId == "AssessJoint")
             .OperationId!;
         await new UndoService(events.Object, jobsRepository.Object, repository.Object, instances, rights, model)
@@ -179,6 +233,24 @@ public class LinkedStepWorkflowTests
         Assert.All(hosts,
             host => Assert.Equal("SharedAssessment", model.GetCurrentStep(host, contexts[host.Id])?.Name));
         Assert.True(hosts[1].Events.ContainsKey("AssessLocal"));
+        foreach (var host in hosts)
+            Assert.Null((await ReadResults(host)).FinalGrade);
+
+        async Task Submit(WorkflowInstance instance, string name)
+        {
+            var form = model.GetForm(instance, name);
+            Assert.True(await rights.Can(instance, RoleAction.Submit, name));
+            var result = await submissions.SubmitSubmission(new SubmissionContext(instance,
+                FormSubmissionState.Resolve(instance, form, model.WorkflowDefinitions[instance.WorkflowDefinition]),
+                form, name), current, default);
+            Assert.True(result.Success, string.Join(", ", result.Errors.Select(error => error.QuestionName)));
+        }
+
+        async Task<AssessmentDto> ReadResults(WorkflowInstance instance)
+        {
+            var response = await results.GetAssessmentResults(instance.Id, default);
+            return Assert.IsType<AssessmentDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        }
     }
 
     private static WorkflowInstance Instance(string definition) => new()

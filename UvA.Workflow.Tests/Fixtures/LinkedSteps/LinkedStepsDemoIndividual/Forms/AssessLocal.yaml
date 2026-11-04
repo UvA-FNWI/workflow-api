@@ -1,6 +1,6 @@
 name: AssessLocal
 step: IndividualWork
 pages:
-  - name: Approval
+  - name: IndividualProduct
     elements:
-      - question: LocalApproved
+      - question: LocalQuality
