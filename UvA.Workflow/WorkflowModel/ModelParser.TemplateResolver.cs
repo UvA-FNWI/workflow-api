@@ -20,6 +20,21 @@ public partial class ModelParser
     }
 
     /// <summary>
+    /// Reads the templates from the common templates and the definition folder, returning a dictionary keyed by template name.
+    /// </summary>
+    /// <returns></returns>
+    private Dictionary<string, TTemplate> ReadTemplates<TTemplate>(
+        IEnumerable<TTemplate> commonTemplates, string definitionFolder)
+        where TTemplate : ITemplate
+    {
+        var templatesByName = commonTemplates.ToDictionary(template => template.Name);
+        foreach (var template in Read<TTemplate>(definitionFolder))
+            templatesByName[template.Name] = template;
+
+        return templatesByName;
+    }
+
+    /// <summary>
     /// Resolves the step templates for all of a definition's steps. Steps are resolved parent-first (based on
     /// which step's template declares them as a child — see <see cref="GetChildStepNames"/>), so that a
     /// parent's resolved template values are available to pass down to its children as inheritable fallbacks
@@ -100,7 +115,7 @@ public partial class ModelParser
 
         return step;
     }
-    
+
     /// <summary>
     /// Resolves the form template for every form in a definition that declares one. Unlike steps, forms have
     /// no parent/child hierarchy, so each form is resolved independently and inherits no values.
@@ -124,7 +139,7 @@ public partial class ModelParser
 
         return forms;
     }
-    
+
     /// <summary>
     /// Instantiates a template for a consuming step or form: resolves the parameter values, substitutes them
     /// into the template's source YAML and deserializes the result. The caller is responsible for merging
@@ -154,7 +169,7 @@ public partial class ModelParser
                 $"Failed to resolve template '{template.Name}' for '{consumer.Name}': {ex.Message}", ex);
         }
     }
-    
+
     /// <summary>
     /// Looks up the template a step or form refers to with <c>template:</c>.
     /// </summary>

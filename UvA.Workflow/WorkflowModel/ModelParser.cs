@@ -127,10 +127,10 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
 
-            var stepTemplatesByName = StepTemplates.ToDictionary(t => t.Name);
+            var stepTemplatesByName = ReadTemplates(StepTemplates, definition.SourceFolder);
             definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
 
-            var formTemplatesByName = FormTemplates.ToDictionary(t => t.Name);
+            var formTemplatesByName = ReadTemplates(FormTemplates, definition.SourceFolder);
             definition.Forms = ResolveFormTemplates(Read<Form>(definition.SourceFolder), formTemplatesByName,
                 definition.Name);
 
@@ -800,6 +800,8 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         folder ??= typeName switch
         {
+            nameof(StepTemplate) => "Templates/Steps",
+            nameof(FormTemplate) => "Templates/Forms",
             nameof(TemplateMessage) => "Emails",
             nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
