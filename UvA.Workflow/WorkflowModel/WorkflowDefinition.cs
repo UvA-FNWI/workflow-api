@@ -123,6 +123,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
+    [YamlIgnore] public bool HasImportedSteps => AllSteps.Any(step => step.Import != null);
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;

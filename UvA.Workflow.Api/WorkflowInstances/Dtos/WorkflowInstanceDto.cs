@@ -64,6 +64,17 @@ public record DeadlineDto(
     bool IsPassed,
     BilingualString? Message);
 
+public enum StepImportStatus
+{
+    Available,
+    Unavailable,
+    Restricted
+}
+
+public record SharedParticipantDto(string DisplayName);
+
+public record ImportedStepSourceDto(string InstanceId, string StepId, SharedParticipantDto[] Participants);
+
 public record StepDto(
     string Id,
     BilingualString Title,
@@ -79,7 +90,9 @@ public record StepDto(
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
     StepChildrenLayout ChildrenLayout = StepChildrenLayout.Combined,
     List<StepVersionDto>? Versions = null,
-    UndoCandidateDto? UndoCandidate = null);
+    UndoCandidateDto? UndoCandidate = null,
+    ImportedStepSourceDto? ImportedFrom = null,
+    StepImportStatus? ImportStatus = null);
 
 public record ActionDto(
     ActionType Type,

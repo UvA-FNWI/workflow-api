@@ -66,6 +66,31 @@ public class AnswersControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Answers_GetChoices_LoadsSharedDemoGroupDuringSetup()
+    {
+        var instance = new WorkflowInstanceBuilder().With(workflowDefinition: "LinkedStepsDemoIndividual",
+            currentStep: "Setup").Build();
+        var group = new WorkflowInstanceBuilder().With(workflowDefinition: "LinkedStepsDemoShared",
+            currentStep: "Upload").WithProperties(("Title", b => b.Value("Test title for group"))).Build();
+        MockInstance(instance);
+        MockEmptyEventLog(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser(["Coordinator"]);
+        _workflowInstanceRepoMock.Setup(repo => repo.GetByWorkflowDefinition("LinkedStepsDemoShared",
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([group]);
+        var controller = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService);
+
+        var result = await controller.GetChoices(instance.Id, "Setup", "SharedThesis", _ct);
+        var choices =
+            Assert.IsAssignableFrom<IEnumerable<ChoiceDto>>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var choice = Assert.Single(choices);
+        Assert.Equal(group.Id, choice.Name);
+        Assert.Equal("Test title for group", choice.Text.En);
+    }
+
+    [Fact]
     public async Task Answers_GetChoices_AllowWithViewRights()
     {
         var submissionId = "Start";

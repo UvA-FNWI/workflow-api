@@ -82,7 +82,9 @@ public class MigrationsControllerTests
         userService.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles ?? ["SystemAdmin"]);
         var rightsService = new RightsService(modelService, userService.Object,
-            Mock.Of<IWorkflowInstanceRepository>());
+            Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService,
+                Mock.Of<IWorkflowInstanceRepository>()));
         return new MigrationsController(migrationService, rightsService, NullLogger<MigrationsController>.Instance)
         {
             ControllerContext = new ControllerContext

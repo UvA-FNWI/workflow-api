@@ -1,0 +1,20 @@
+name: Overview
+columns:
+  - property: Student.DisplayName
+  - property: Title
+    link: true
+  - currentStep: true
+grouping:
+  groups:
+    - name: preparation
+      title: Preparation
+      steps: [Setup, Start]
+    - name: shared
+      title: Shared work
+      steps: [SharedUpload, SharedAssessment]
+    - name: individual
+      title: Individual work
+      steps: [IndividualWork, Finalise]
+    - name: completed
+      title: Completed
+      steps: ['null']

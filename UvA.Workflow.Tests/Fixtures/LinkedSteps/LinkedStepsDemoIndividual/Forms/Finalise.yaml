@@ -1,0 +1,6 @@
+name: Finalise
+step: Finalise
+pages:
+  - name: Finish
+    elements:
+      - question: Finished

@@ -66,7 +66,9 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         impersonationContext.Setup(s => s.GetImpersonatedRole(instance, It.IsAny<CancellationToken>()))
             .ReturnsAsync(impersonatedRole);
         var rightsService = new RightsService(
-            _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object, impersonationContext.Object);
+            _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService,
+                _workflowInstanceRepoMock.Object), impersonationContext.Object);
         var controller = new WorkflowInstancesController(
             _userServiceMock.Object,
             _workflowInstanceService,

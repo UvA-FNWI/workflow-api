@@ -41,7 +41,7 @@ public class WorkflowInstanceDtoFactory(
         var canImpersonate = realUserActions.Any(a => a.Type == RoleAction.ImpersonateRoles);
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
 
-        var context = modelService.CreateContext(instance);
+        var context = await instanceService.ResolveContext(instance, ct);
         var visibleCards = workflowDefinition.InfoCards
             .Where(card => card.Enabled && card.Type != null &&
                            (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
@@ -58,9 +58,10 @@ public class WorkflowInstanceDtoFactory(
         var displayNames = await submissionDtoFactory.ResolveDisplayNames(instanceHistory.Journal, ct);
         var stepVersionsMap = GetStepVersionsMap(instance, workflowDefinition.AllSteps, instanceHistory.EventLogs);
         var effectiveEventLogs = EventHistory.Project(instanceHistory.EventLogs);
-        var activeSteps = modelService.GetActiveSteps(instance).ToHashSet();
+        var activeSteps = modelService.GetActiveSteps(instance, context).ToHashSet();
+        var currentStep = modelService.GetCurrentStep(instance, context)?.Name;
         var steps = await Task.WhenAll(workflowDefinition.Steps
-            .Where(s => s.Condition.IsMet(context))
+            .Where(s => s.IsVisible(context))
             .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
                 effectiveEventLogs, ct)));
 
@@ -87,7 +88,7 @@ public class WorkflowInstanceDtoFactory(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
-            instance.CurrentStep,
+            currentStep,
             instance.ParentId,
             actions.Select(ActionDto.Create).ToArray(),
             fields,
@@ -107,9 +108,15 @@ public class WorkflowInstanceDtoFactory(
         CancellationToken ct)
     {
         var result = new List<FieldDto>();
-        var context = ObjectContext.Create(instance, modelService);
+        var context = await instanceService.ResolveContext(instance, ct);
+        var currentStep = modelService.GetCurrentStep(instance, context);
         await instanceService.Enrich(workflowDefinition, [context],
             workflowDefinition.Fields.SelectMany(f => f.Properties), ct);
+        if (currentStep?.Import != null &&
+            (context.ImportedSteps.GetValueOrDefault(currentStep.Name) is not { } owner ||
+             !await rightsService.Can(owner.Instance, RoleAction.View)))
+            context.Values["CurrentStep"] = new BilingualString("Shared step", "Gedeelde stap");
+
         foreach (var field in workflowDefinition.Fields)
         {
             if (!field.Condition.IsMet(context))
@@ -169,11 +176,13 @@ public class WorkflowInstanceDtoFactory(
         IReadOnlyList<InstanceEventLogEntry> effectiveEventLogs,
         CancellationToken ct)
     {
+        if (step.Import != null)
+            return await CreateImportedStepDto(step, instance, context, ct);
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var deadline = GetDeadline(step, context, activeSteps);
         var headerStatus = HasPassedDeadline(step, context, activeSteps)
             ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
-            : stepProgressResolver.ResolveHeader(step, instance);
+            : stepProgressResolver.ResolveHeader(step, instance, context);
 
         // A completed step's latest version is already shown as its live submission.
         // For an expired, unfinished step, retain every historical version.
@@ -187,7 +196,7 @@ public class WorkflowInstanceDtoFactory(
 
         var children = step.Children.Length != 0
             ? await Task.WhenAll(step.Children
-                .Where(s => s.Condition.IsMet(context))
+                .Where(s => s.IsVisible(context))
                 .Select(s => CreateStepDto(s, instance, stepVersionsMap, instanceHistory, context, activeSteps,
                     effectiveEventLogs, ct)))
             : null;
@@ -244,7 +253,7 @@ public class WorkflowInstanceDtoFactory(
             step.DisplayTitle,
             step.Icon,
             step.EndEvent,
-            step.GetEndDate(instance, workflowDef),
+            step.GetEndDate(instance, workflowDef, context),
             deadline,
             children,
             headerStatus,
@@ -256,6 +265,55 @@ public class WorkflowInstanceDtoFactory(
             versionDtos?.ToList(),
             undoCandidate
         );
+    }
+
+    private async Task<StepDto> CreateImportedStepDto(Step step, WorkflowInstance instance,
+        ObjectContext context, CancellationToken ct)
+    {
+        var owner = context.ImportedSteps.GetValueOrDefault(step.Name);
+        var canView = owner != null && await rightsService.Can(owner.Instance, RoleAction.View);
+        if (!canView)
+            return new StepDto(step.Name, new BilingualString("Shared step", "Gedeelde stap"), null, null,
+                step.GetEndDate(instance, modelService.WorkflowDefinitions[instance.WorkflowDefinition], context),
+                null, null, null, StepResultsType.Normal, false, false,
+                ImportStatus: owner == null ? StepImportStatus.Unavailable : StepImportStatus.Restricted);
+
+        var source = owner!;
+        var active = modelService.GetActiveSteps(source.Instance, source.Context).ToHashSet();
+        var forms = source.Definition.Forms.Where(form => form.Step == source.Step.Name ||
+                                                          form.Step == null && source.Step.Actions.Any(action =>
+                                                              action.Type == RoleAction.Submit &&
+                                                              action.AllForms.Contains(form.Name))).ToArray();
+        var hasSubmission = forms.Where(form => form.ActualForm.PropertyDefinitions.Any())
+            .Any(form => FormSubmissionState.Resolve(source.Instance, form, source.Definition).IsSubmitted);
+        var expectsSubmission = active.Contains(source.Step.Name) &&
+                                !source.Step.HasPassedHardDeadline(source.Context) &&
+                                source.Step.Actions.Where(action =>
+                                        action.Type == RoleAction.Submit && action.Condition.IsMet(source.Context))
+                                    .SelectMany(action => action.AllForms).Distinct()
+                                    .Select(name => modelService.GetForm(source.Instance, name))
+                                    .Any(form =>
+                                        !FormSubmissionState.Resolve(source.Instance, form, source.Definition)
+                                            .IsSubmitted);
+        var users = step.Import!.Participants
+            .SelectMany(property => source.Context.Get(property) switch
+            {
+                InstanceUser user => [user],
+                InstanceUser[] group => group,
+                _ => []
+            })
+            .OfType<InstanceUser>()
+            .DistinctBy(user => user.Id)
+            .Select(user => new SharedParticipantDto(user.DisplayName)).ToArray();
+        return new StepDto(step.Name, source.Step.DisplayTitle, source.Step.Icon, null,
+            source.Step.GetEndDate(source.Instance, source.Definition, source.Context),
+            GetDeadline(source.Step, source.Context, active), null,
+            HasPassedDeadline(source.Step, source.Context, active)
+                ? new StepHeaderStatusDto(StepHeaderPillType.Error, null)
+                : stepProgressResolver.ResolveHeader(source.Step, source.Instance, source.Context),
+            source.Step.ResultsType, expectsSubmission, hasSubmission,
+            ImportedFrom: new ImportedStepSourceDto(source.Instance.Id, source.Step.Name, users),
+            ImportStatus: StepImportStatus.Available);
     }
 
     private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)

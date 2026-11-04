@@ -1,0 +1,6 @@
+name: AssessLocal
+step: IndividualWork
+pages:
+  - name: Approval
+    elements:
+      - question: LocalApproved

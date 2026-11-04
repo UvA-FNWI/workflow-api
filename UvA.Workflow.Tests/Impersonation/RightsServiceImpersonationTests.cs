@@ -32,6 +32,7 @@ public class RightsServiceImpersonationTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext.Object);
         var instance = ImpersonationTestHelpers.CreateProjectInstance();
 
@@ -63,6 +64,7 @@ public class RightsServiceImpersonationTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext.Object);
         var instance = ImpersonationTestHelpers.CreateProjectInstance();
 
@@ -92,6 +94,7 @@ public class RightsServiceImpersonationTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext.Object);
         var instance = ImpersonationTestHelpers.CreateProjectInstance();
 

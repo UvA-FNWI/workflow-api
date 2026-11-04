@@ -152,6 +152,18 @@ public class Deadline
     public static implicit operator Deadline(string date) => new() { Date = date };
 }
 
+public class StepImport
+{
+    /// <summary>Single-valued reference property pointing to the owning instance.</summary>
+    public string Reference { get; set; } = null!;
+
+    /// <summary>Name of the step in the referenced workflow.</summary>
+    public string Step { get; set; } = null!;
+
+    /// <summary>User properties on the referenced workflow that supply participant names.</summary>
+    public string[] Participants { get; set; } = [];
+}
+
 public class Step : INamed, IDeclaredKeys
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
@@ -160,6 +172,9 @@ public class Step : INamed, IDeclaredKeys
     /// Internal name of the step
     /// </summary>
     public string Name { get; set; } = null!;
+
+    /// <summary>Displays a step owned by a referenced instance, retaining local ordering.</summary>
+    public StepImport? Import { get; set; }
 
     /// <summary>
     /// Localized title of the step as shown to user
@@ -261,8 +276,13 @@ public class Step : INamed, IDeclaredKeys
 
     public string? EndEvent => Ends?.Event?.Id;
 
-    public DateTime? GetEndDate(WorkflowInstance instance, WorkflowDefinition workflowDef)
+    public DateTime? GetEndDate(WorkflowInstance instance, WorkflowDefinition workflowDef,
+        ObjectContext? context = null)
     {
+        if (Import != null)
+            return context?.ImportedSteps.GetValueOrDefault(Name) is { } owner
+                ? owner.Step.GetEndDate(owner.Instance, owner.Definition, owner.Context)
+                : null;
         if (Ends?.Logical != null && Ends?.Logical?.Children.Length > 0 &&
             Ends.Logical.Children.All(c => c.Event != null))
         {
@@ -293,7 +313,7 @@ public class Step : INamed, IDeclaredKeys
 
         if (Children.Any())
         {
-            var dates = Children.Select(c => c.GetEndDate(instance, workflowDef)).ToArray();
+            var dates = Children.Select(c => c.GetEndDate(instance, workflowDef, context)).ToArray();
             if (dates.Any(d => d == null))
                 return null;
             return dates.Max();
@@ -305,15 +325,25 @@ public class Step : INamed, IDeclaredKeys
     public bool HasPassedHardDeadline(ObjectContext context)
         // Completed submissions remain available to subsequent steps. If rejection reopens
         // this step, HasEnded becomes false and its hard deadline applies again.
-        => (Deadline?.Type == DeadlineType.Hard && !HasEnded(context) && Deadline.HasPassed(context)) ||
-           ParentStep?.HasPassedHardDeadline(context) == true;
+        => Import != null
+            ? context.ImportedSteps.GetValueOrDefault(Name) is { } owner &&
+              owner.Step.HasPassedHardDeadline(owner.Context)
+            : (Deadline?.Type == DeadlineType.Hard && !HasEnded(context) && Deadline.HasPassed(context)) ||
+              ParentStep?.HasPassedHardDeadline(context) == true;
+
+    public bool IsVisible(ObjectContext context)
+        => Import != null
+            ? context.ImportedSteps.GetValueOrDefault(Name) is not { } owner || owner.Step.IsVisible(owner.Context)
+            : Condition.IsMet(context);
 
     public bool HasEnded(ObjectContext context)
     {
+        if (Import != null)
+            return context.ImportedSteps.GetValueOrDefault(Name) is { } owner && owner.Step.HasEnded(owner.Context);
         if (Ends != null)
             return Ends.IsMet(context);
         if (Children.Any())
-            return Children.Where(c => c.Condition.IsMet(context)).All(c => c.HasEnded(context));
+            return Children.Where(c => c.IsVisible(context)).All(c => c.HasEnded(context));
         return false;
     }
 }

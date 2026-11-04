@@ -1,0 +1,7 @@
+name: AssessJoint
+step: Assess
+title: Assess the joint product once
+pages:
+  - name: JointProduct
+    elements:
+      - question: JointQuality

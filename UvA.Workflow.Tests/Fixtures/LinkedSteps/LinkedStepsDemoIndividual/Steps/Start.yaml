@@ -1,0 +1,8 @@
+name: Start
+title: Start individual workflow
+actions:
+  - type: Submit
+    roles: [Student]
+    form: Start
+ends:
+  event: Start

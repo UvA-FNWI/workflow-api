@@ -1,0 +1,35 @@
+name: LinkedStepsDemoIndividual
+title: Individual thesis demo
+titlePlural: Individual thesis demos
+instanceTitle: '{{ Title }}'
+steps: [Setup, Start, IndividualWork, SharedUpload, SharedAssessment, Finalise]
+properties:
+  - name: Title
+    type: String!
+  - name: Student
+    type: User!
+  - name: Supervisor
+    type: User!
+  - name: SharedThesis
+    type: LinkedStepsDemoShared!
+    text: Shared thesis group
+    description: Select the shared group created for these students.
+  - name: Ready
+    type: Check!
+    text: Ready to start
+  - name: LocalDocument
+    type: File!
+    text: Individual analysis PDF
+  - name: LocalApproved
+    type: Check!
+    text: Individual work approved
+  - name: Finished
+    type: Check!
+    text: Finish demonstration (does not publish a grade)
+fields:
+  - property: Title
+  - currentStep: true
+infoCards:
+  - name: Progress
+    type: Progress
+    title: Your progress

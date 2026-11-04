@@ -1,0 +1,53 @@
+name: LinkedStepsDemoShared
+title: Shared thesis demo
+titlePlural: Shared thesis demos
+instanceTitle: '{{ Title }}'
+steps: [Setup, Upload, Assess]
+properties:
+  - name: Title
+    type: String!
+  - name: Student
+    type: '[User]!'
+    text: Group members
+    description: Select the three or four students who share the joint work.
+  - name: Supervisor
+    type: User!
+  - name: UploadDeadline
+    type: DateTime
+    default: addDays(now, 30)
+  - name: JointDocument
+    type: File!
+    text: Joint thesis PDF
+  - name: JointQuality
+    type: LinkedStepsDemoQuality!
+    text: Joint product quality (demonstration rubric)
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+assessments:
+  parts:
+    - name: Assess
+      title: Joint product
+      weight: 1
+      sources:
+        - name: AssessJoint
+fields:
+  - property: Title
+  - currentStep: true
+infoCards:
+  - name: Progress
+    type: Progress
+    title: Shared progress
+  - name: Participants
+    type: RelatedUsers
+    title: Participants
+    groups:
+      - name: students
+        title: Students
+        users:
+          - property: Student
+      - name: staff
+        title: Staff
+        users:
+          - property: Supervisor

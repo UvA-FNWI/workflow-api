@@ -1,0 +1,23 @@
+name: IndividualWork
+title: Individual work
+mode: Alongside
+before: Finalise
+events:
+  - name: RestartIndividual
+    suppresses: [UploadLocal, AssessLocal]
+actions:
+  - type: Submit
+    roles: [Student]
+    form: UploadLocal
+  - type: Submit
+    roles: [Supervisor]
+    form: AssessLocal
+    condition:
+      event: UploadLocal
+  - name: RestartIndividual
+    type: Execute
+    roles: [Coordinator, Supervisor]
+    persistent: true
+    label: Restart this student's individual work
+ends:
+  event: AssessLocal

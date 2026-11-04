@@ -8,6 +8,8 @@ using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Users;
+using UvA.Workflow.Assessments;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Helpers;
 
@@ -24,6 +26,9 @@ internal static class UnitTestsHelpers
 
     public static ModelParser CreateModelParser() => new(new FileSystemProvider(FixturesPath));
 
+
+    public static WorkflowStateResolver CreateStateResolver(ModelService model, IWorkflowInstanceRepository repository)
+        => new(repository, model, new WorkflowContextEnricher(repository, model, Mock.Of<IAssessmentService>()));
 
     public static readonly User AdminUser = new()
     {

@@ -1,0 +1,8 @@
+name: Finalise
+title: Finish demonstration
+actions:
+  - type: Submit
+    roles: [Student]
+    form: Finalise
+ends:
+  event: Finalise
