@@ -7,7 +7,8 @@ namespace UvA.Workflow.Api.Submissions.Dtos;
 // It finds new question types automatically, so they don't need JSON attributes here.
 public abstract record QuestionDto
 {
-    protected QuestionDto(PropertyDefinition property, WorkflowDefinition workflowDefinition)
+    protected QuestionDto(PropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
     {
         Id = $"{workflowDefinition.Name}_{property.Name}";
         Name = property.Name;
@@ -21,7 +22,9 @@ public abstract record QuestionDto
         LinkedTo = property.LinkedTo;
         // Inherited properties share one object across definitions; ParentType can point at a base
         // type without messages.enabled even on an instance of a derived type.
-        AllowMessages = workflowDefinition.AllowsMessages(property.Name);
+        // messagePath is the instance path (AssessmentSupervisor.Consent). messagesDefinition is the
+        // instance type when Id should stay on an embedded type.
+        AllowMessages = (messagesDefinition ?? workflowDefinition).AllowsMessages(messagePath ?? property.Name);
     }
 
     public string Id { get; init; }
@@ -37,21 +40,34 @@ public abstract record QuestionDto
     public bool AllowMessages { get; init; }
 
     public static QuestionDto Create(PropertyDefinition property, decimal totalWeight,
-        WorkflowDefinition workflowDefinition)
+        WorkflowDefinition workflowDefinition, string? messagePath = null,
+        WorkflowDefinition? messagesDefinition = null)
         => property switch
         {
-            StringPropertyDefinition text => new StringQuestionDto(text, workflowDefinition),
-            DatePropertyDefinition date => new DateQuestionDto(date, workflowDefinition),
-            DateTimePropertyDefinition dateTime => new DateTimeQuestionDto(dateTime, workflowDefinition),
-            IntPropertyDefinition integer => new IntQuestionDto(integer, totalWeight, workflowDefinition),
-            DoublePropertyDefinition number => new DoubleQuestionDto(number, totalWeight, workflowDefinition),
-            CheckPropertyDefinition check => new CheckQuestionDto(check, workflowDefinition),
-            CurrencyPropertyDefinition currency => new CurrencyQuestionDto(currency, totalWeight, workflowDefinition),
-            FilePropertyDefinition file => new FileQuestionDto(file, workflowDefinition),
-            UserPropertyDefinition user => new UserQuestionDto(user, workflowDefinition),
-            ChoicePropertyDefinition choice => new ChoiceQuestionDto(choice, totalWeight, workflowDefinition),
-            ReferencePropertyDefinition reference => new ReferenceQuestionDto(reference, workflowDefinition),
-            ObjectPropertyDefinition embedded => new ObjectQuestionDto(embedded, totalWeight, workflowDefinition),
+            StringPropertyDefinition text => new StringQuestionDto(text, workflowDefinition, messagePath,
+                messagesDefinition),
+            DatePropertyDefinition date => new DateQuestionDto(date, workflowDefinition, messagePath,
+                messagesDefinition),
+            DateTimePropertyDefinition dateTime => new DateTimeQuestionDto(dateTime, workflowDefinition, messagePath,
+                messagesDefinition),
+            IntPropertyDefinition integer => new IntQuestionDto(integer, totalWeight, workflowDefinition, messagePath,
+                messagesDefinition),
+            DoublePropertyDefinition number => new DoubleQuestionDto(number, totalWeight, workflowDefinition,
+                messagePath, messagesDefinition),
+            CheckPropertyDefinition check => new CheckQuestionDto(check, workflowDefinition, messagePath,
+                messagesDefinition),
+            CurrencyPropertyDefinition currency => new CurrencyQuestionDto(currency, totalWeight, workflowDefinition,
+                messagePath, messagesDefinition),
+            FilePropertyDefinition file => new FileQuestionDto(file, workflowDefinition, messagePath,
+                messagesDefinition),
+            UserPropertyDefinition user => new UserQuestionDto(user, workflowDefinition, messagePath,
+                messagesDefinition),
+            ChoicePropertyDefinition choice => new ChoiceQuestionDto(choice, totalWeight, workflowDefinition,
+                messagePath, messagesDefinition),
+            ReferencePropertyDefinition reference => new ReferenceQuestionDto(reference, workflowDefinition,
+                messagePath, messagesDefinition),
+            ObjectPropertyDefinition embedded => new ObjectQuestionDto(embedded, totalWeight, workflowDefinition,
+                messagePath, messagesDefinition),
             _ => throw new ArgumentException($"Unsupported property type: {property.GetType().Name}")
         };
 }
@@ -59,7 +75,9 @@ public abstract record QuestionDto
 public abstract record WeightedQuestionDto : QuestionDto
 {
     protected WeightedQuestionDto(WeightedPropertyDefinition property, decimal totalWeight,
-        WorkflowDefinition workflowDefinition) : base(property, workflowDefinition)
+        WorkflowDefinition workflowDefinition, string? messagePath = null,
+        WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
         Weight = property.Calculation?.Weight;
         Percentage = totalWeight == 0 || Weight == null ? null : Weight / totalWeight * 100;
@@ -71,8 +89,9 @@ public abstract record WeightedQuestionDto : QuestionDto
 
 public record StringQuestionDto : QuestionDto
 {
-    public StringQuestionDto(StringPropertyDefinition property, WorkflowDefinition workflowDefinition)
-        : base(property, workflowDefinition)
+    public StringQuestionDto(StringPropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
         Control = property.Control;
         MaxLength = property.Validation.GetAllValues().Select(v => v.MaxLength).FirstOrDefault(v => v != null);
@@ -86,24 +105,27 @@ public record StringQuestionDto : QuestionDto
 
 public record DateQuestionDto : QuestionDto
 {
-    public DateQuestionDto(DatePropertyDefinition property, WorkflowDefinition workflowDefinition)
-        : base(property, workflowDefinition)
+    public DateQuestionDto(DatePropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
     }
 }
 
 public record DateTimeQuestionDto : QuestionDto
 {
-    public DateTimeQuestionDto(DateTimePropertyDefinition property, WorkflowDefinition workflowDefinition)
-        : base(property, workflowDefinition)
+    public DateTimeQuestionDto(DateTimePropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
     }
 }
 
 public record IntQuestionDto : WeightedQuestionDto
 {
-    public IntQuestionDto(IntPropertyDefinition property, decimal totalWeight, WorkflowDefinition workflowDefinition)
-        : base(property, totalWeight, workflowDefinition)
+    public IntQuestionDto(IntPropertyDefinition property, decimal totalWeight, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, totalWeight, workflowDefinition, messagePath, messagesDefinition)
     {
     }
 }
@@ -111,15 +133,18 @@ public record IntQuestionDto : WeightedQuestionDto
 public record DoubleQuestionDto : WeightedQuestionDto
 {
     public DoubleQuestionDto(DoublePropertyDefinition property, decimal totalWeight,
-        WorkflowDefinition workflowDefinition) : base(property, totalWeight, workflowDefinition)
+        WorkflowDefinition workflowDefinition, string? messagePath = null,
+        WorkflowDefinition? messagesDefinition = null)
+        : base(property, totalWeight, workflowDefinition, messagePath, messagesDefinition)
     {
     }
 }
 
 public record CheckQuestionDto : QuestionDto
 {
-    public CheckQuestionDto(CheckPropertyDefinition property, WorkflowDefinition workflowDefinition)
-        : base(property, workflowDefinition)
+    public CheckQuestionDto(CheckPropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
     }
 }
@@ -127,15 +152,18 @@ public record CheckQuestionDto : QuestionDto
 public record CurrencyQuestionDto : WeightedQuestionDto
 {
     public CurrencyQuestionDto(CurrencyPropertyDefinition property, decimal totalWeight,
-        WorkflowDefinition workflowDefinition) : base(property, totalWeight, workflowDefinition)
+        WorkflowDefinition workflowDefinition, string? messagePath = null,
+        WorkflowDefinition? messagesDefinition = null)
+        : base(property, totalWeight, workflowDefinition, messagePath, messagesDefinition)
     {
     }
 }
 
 public record FileQuestionDto : QuestionDto
 {
-    public FileQuestionDto(FilePropertyDefinition property, WorkflowDefinition workflowDefinition) : base(property,
-        workflowDefinition)
+    public FileQuestionDto(FilePropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
         AllowedFileTypes = property.AllowedTypes;
         AllowedFileSize = property.MaximumSize;
@@ -147,8 +175,9 @@ public record FileQuestionDto : QuestionDto
 
 public record UserQuestionDto : QuestionDto
 {
-    public UserQuestionDto(UserPropertyDefinition property, WorkflowDefinition workflowDefinition)
-        : base(property, workflowDefinition)
+    public UserQuestionDto(UserPropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
         AllowsExternalUsers = property.AllowsExternalUsers == true;
     }
@@ -159,7 +188,9 @@ public record UserQuestionDto : QuestionDto
 public record ChoiceQuestionDto : WeightedQuestionDto
 {
     public ChoiceQuestionDto(ChoicePropertyDefinition property, decimal totalWeight,
-        WorkflowDefinition workflowDefinition) : base(property, totalWeight, workflowDefinition)
+        WorkflowDefinition workflowDefinition, string? messagePath = null,
+        WorkflowDefinition? messagesDefinition = null)
+        : base(property, totalWeight, workflowDefinition, messagePath, messagesDefinition)
     {
         Choices = (property.Values ?? []).Select(value => new ChoiceDto(
             value.Name, value.Text ?? value.Name, value.Description, value.Value)).ToArray();
@@ -176,8 +207,9 @@ public record ChoiceQuestionDto : WeightedQuestionDto
 
 public record ReferenceQuestionDto : QuestionDto
 {
-    public ReferenceQuestionDto(ReferencePropertyDefinition property, WorkflowDefinition workflowDefinition)
-        : base(property, workflowDefinition)
+    public ReferenceQuestionDto(ReferencePropertyDefinition property, WorkflowDefinition workflowDefinition,
+        string? messagePath = null, WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
         WorkflowDefinition = property.WorkflowDefinition?.Name;
         Control = property.Control;
@@ -190,12 +222,17 @@ public record ReferenceQuestionDto : QuestionDto
 public record ObjectQuestionDto : QuestionDto
 {
     public ObjectQuestionDto(ObjectPropertyDefinition property, decimal totalWeight,
-        WorkflowDefinition workflowDefinition) : base(property, workflowDefinition)
+        WorkflowDefinition workflowDefinition, string? messagePath = null,
+        WorkflowDefinition? messagesDefinition = null)
+        : base(property, workflowDefinition, messagePath, messagesDefinition)
     {
         WorkflowDefinition = property.WorkflowDefinition?.Name;
         Control = property.Control;
+        var prefix = messagePath ?? property.Name;
+        var root = messagesDefinition ?? workflowDefinition;
         SubProperties = property.WorkflowDefinition?.Properties
-            .Select(child => Create(child, totalWeight, property.WorkflowDefinition!)).ToArray();
+            .Select(child => Create(child, totalWeight, property.WorkflowDefinition!, $"{prefix}.{child.Name}", root))
+            .ToArray();
     }
 
     public string? WorkflowDefinition { get; init; }

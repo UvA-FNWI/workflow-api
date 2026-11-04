@@ -125,11 +125,25 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
             return false;
         if (string.IsNullOrEmpty(questionName))
             return true;
-        if (!Properties.TryGetValue(questionName, out var property))
-            return false;
-        if (property.Visibility == PropertyVisibility.Hidden)
-            return false;
-        return property.Messages != false;
+
+        // Field threads use the instance path (Title, or AssessmentSupervisor.Consent).
+        // Embedded types do not need their own messages.enabled.
+        var type = this;
+        var parts = questionName.Split('.');
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (string.IsNullOrEmpty(parts[i]) || !type.Properties.TryGetValue(parts[i], out var property))
+                return false;
+            if (property.Visibility == PropertyVisibility.Hidden || property.Messages == false)
+                return false;
+            if (i == parts.Length - 1)
+                return true;
+            if (property is not ObjectPropertyDefinition embedded || embedded.WorkflowDefinition == null)
+                return false;
+            type = embedded.WorkflowDefinition;
+        }
+
+        return false;
     }
 
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;

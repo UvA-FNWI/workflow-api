@@ -153,6 +153,102 @@ public class FormDtoTests
     }
 
     [Fact]
+    public void Create_AllowMessages_UsesEmbeddedInstancePath()
+    {
+        var assessment = new WorkflowDefinition { Name = "Assessment", IsEmbedded = true };
+        var consent = new StringPropertyDefinition { Name = "Consent", Type = "String", ParentType = assessment };
+        var hiddenNote = new StringPropertyDefinition
+        {
+            Name = "HiddenNote",
+            Type = "String",
+            ParentType = assessment,
+            Visibility = PropertyVisibility.Hidden
+        };
+        assessment.Properties = [consent, hiddenNote];
+
+        var project = new WorkflowDefinition
+        {
+            Name = "Project",
+            Messages = new MessagesSettings { Enabled = true }
+        };
+        var supervisorProperty = new ObjectPropertyDefinition
+        {
+            Name = "AssessmentSupervisor",
+            Type = "Assessment",
+            ParentType = project,
+            WorkflowDefinition = assessment
+        };
+        var reviewerProperty = new ObjectPropertyDefinition
+        {
+            Name = "AssessmentReviewer",
+            Type = "Assessment",
+            ParentType = project,
+            WorkflowDefinition = assessment
+        };
+        var courseType = new WorkflowDefinition { Name = "Context" };
+        courseType.Properties.Add(new StringPropertyDefinition
+        {
+            Name = "Name", Type = "String", ParentType = courseType
+        });
+        var course = new ReferencePropertyDefinition
+        {
+            Name = "Course",
+            Type = "Context",
+            ParentType = project,
+            WorkflowDefinition = courseType
+        };
+        project.Properties = [supervisorProperty, reviewerProperty, course];
+
+        var assessmentForm = new Form
+        {
+            Name = "Assessment",
+            WorkflowDefinition = assessment,
+            Pages =
+            [
+                new Page
+                {
+                    Name = "Consent",
+                    PageElements = [new PageElement { Question = "Consent", QuestionDefinition = consent }]
+                }
+            ]
+        };
+        var supervisorForm = new Form
+        {
+            Name = "AssessmentSupervisor",
+            PropertyName = "AssessmentSupervisor",
+            TargetForm = assessmentForm,
+            WorkflowDefinition = project
+        };
+        var reviewerForm = new Form
+        {
+            Name = "AssessmentReviewer",
+            PropertyName = "AssessmentReviewer",
+            TargetForm = assessmentForm,
+            WorkflowDefinition = project
+        };
+
+        var supervisor = FormDto.Create(supervisorForm, new ObjectContext([]));
+        var reviewer = FormDto.Create(reviewerForm, new ObjectContext([]));
+        var supervisorConsent = supervisor.Pages[0].Elements.Single().Question!;
+        var reviewerConsent = reviewer.Pages[0].Elements.Single().Question!;
+
+        Assert.Equal("Consent", supervisorConsent.Name);
+        Assert.Equal("Consent", reviewerConsent.Name);
+        Assert.Equal("AssessmentSupervisor", supervisor.PropertyName);
+        Assert.Equal("AssessmentReviewer", reviewer.PropertyName);
+        Assert.True(supervisorConsent.AllowMessages);
+        Assert.True(reviewerConsent.AllowMessages);
+        Assert.False(project.AllowsMessages("Consent"));
+        Assert.False(project.AllowsMessages("AssessmentSupervisor.HiddenNote"));
+        Assert.False(project.AllowsMessages("Course.Name"));
+
+        var nested = Assert.IsType<ObjectQuestionDto>(QuestionDto.Create(supervisorProperty, 0, project));
+        var nestedConsent = Assert.Single(nested.SubProperties!, question => question.Name == "Consent");
+        Assert.Equal("Assessment_Consent", nestedConsent.Id);
+        Assert.True(nestedConsent.AllowMessages);
+    }
+
+    [Fact]
     public void TextSettings_SerializeDirectlyOnQuestion()
     {
         var parent = new WorkflowDefinition { Name = "Project" };
