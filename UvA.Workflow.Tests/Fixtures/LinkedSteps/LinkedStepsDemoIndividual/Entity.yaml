@@ -1,22 +1,16 @@
 name: LinkedStepsDemoIndividual
 title: Individual thesis demo
 titlePlural: Individual thesis demos
-instanceTitle: '{{ Title }}'
-steps: [Setup, Start, IndividualWork, SharedUpload, SharedAssessment, Finalise]
+instanceTitle: '{{ Student.DisplayName }}'
+steps: [Setup, IndividualWork, SharedUpload, SharedAssessment, Finalise]
 properties:
-  - name: Title
-    type: String!
   - name: Student
-    type: User!
-  - name: Supervisor
     type: User!
   - name: SharedThesis
     type: LinkedStepsDemoShared!
+    inheritedRoles: [Supervisor]
     text: Shared thesis group
     description: Select the shared group created for these students.
-  - name: Ready
-    type: Check!
-    text: Ready to start
   - name: LocalDocument
     type: File!
     text: Individual analysis PDF
@@ -53,9 +47,6 @@ properties:
       - name: Grade
         description: Demonstration criterion 3. Select a numeric grade.
         grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
-  - name: Finished
-    type: Check!
-    text: Finish demonstration (does not publish a grade)
 assessments:
   gradingBasis: Decimal
   gradeGap: false
@@ -69,7 +60,7 @@ assessments:
       sources:
         - name: AssessLocal
 fields:
-  - property: Title
+  - property: Student.DisplayName
   - currentStep: true
 infoCards:
   - name: Progress

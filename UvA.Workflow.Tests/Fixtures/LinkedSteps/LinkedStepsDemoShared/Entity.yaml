@@ -12,9 +12,6 @@ properties:
     description: Select the three or four students who share the joint work.
   - name: Supervisor
     type: User!
-  - name: UploadDeadline
-    type: DateTime
-    default: addDays(now, 30)
   - name: JointDocument
     type: File!
     text: Joint thesis PDF

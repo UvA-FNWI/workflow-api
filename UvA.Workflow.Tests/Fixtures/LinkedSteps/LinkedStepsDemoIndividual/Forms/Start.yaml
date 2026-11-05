@@ -1,6 +1,0 @@
-name: Start
-step: Start
-pages:
-  - name: Ready
-    elements:
-      - question: Ready

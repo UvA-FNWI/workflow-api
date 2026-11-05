@@ -1,14 +1,13 @@
 name: Overview
 columns:
   - property: Student.DisplayName
-  - property: Title
     link: true
   - currentStep: true
 grouping:
   groups:
     - name: preparation
       title: Preparation
-      steps: [Setup, Start]
+      steps: [Setup]
     - name: shared
       title: Shared work
       steps: [SharedUpload, SharedAssessment]

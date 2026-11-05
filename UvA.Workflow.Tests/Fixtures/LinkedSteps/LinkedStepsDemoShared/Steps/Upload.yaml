@@ -2,9 +2,6 @@ name: Upload
 title: Joint thesis
 icon:
   type: upload-line
-deadline:
-  date: UploadDeadline
-  type: Hard
 actions:
   - type: Submit
     roles: [Student]

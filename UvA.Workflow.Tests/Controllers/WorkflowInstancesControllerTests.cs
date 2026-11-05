@@ -49,7 +49,7 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
     public async Task HistoricalImportingInstance_ReturnsExplicitUnsupportedError()
     {
         var instance = new WorkflowInstanceBuilder().WithWorkflowDefinition("LinkedStepsDemoIndividual")
-            .WithCurrentStep("Start").Build();
+            .WithCurrentStep("SharedUpload").Build();
         MockCurrentUser("SystemAdmin");
         MockInstance(instance);
 

@@ -12,6 +12,3 @@ globalActions:
   - type: Edit
     roles: [Coordinator]
     property: Supervisor
-  - type: Edit
-    roles: [Coordinator]
-    property: UploadDeadline

@@ -4,7 +4,5 @@ title: Configure demo
 pages:
   - name: Participants
     elements:
-      - question: Title
       - question: Student
-      - question: Supervisor
       - question: SharedThesis

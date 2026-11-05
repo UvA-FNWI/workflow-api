@@ -1,7 +1,7 @@
 globalActions:
   - type: View
     roles: [Student, Supervisor, Coordinator, SystemAdmin]
-    forms: [Start, UploadLocal, AssessLocal, Finalise]
+    forms: [UploadLocal, AssessLocal, Finalise]
   - type: CreateInstance
     roles: [Coordinator, SystemAdmin]
   - type: ViewAdminTools

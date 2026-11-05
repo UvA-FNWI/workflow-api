@@ -57,8 +57,8 @@ public class LinkedStepWorkflowTests
     }
 
     [Theory]
-    [InlineData("LinkedStepsDemoShared", "Upload", new[] { "Title", "Student", "Supervisor", "UploadDeadline" })]
-    [InlineData("LinkedStepsDemoIndividual", "Start", new[] { "Title", "Student", "Supervisor", "SharedThesis" })]
+    [InlineData("LinkedStepsDemoShared", "Upload", new[] { "Title", "Student", "Supervisor" })]
+    [InlineData("LinkedStepsDemoIndividual", "SharedUpload", new[] { "Student", "SharedThesis" })]
     public async Task Demo_CanBeConfiguredFromANewInstance(string definition, string nextStep, string[] fields)
     {
         var model = new ModelService(UnitTestsHelpers.CreateModelParser());
@@ -108,7 +108,8 @@ public class LinkedStepWorkflowTests
         source.Properties["Student"] =
             new BsonArray(students.Select(student => InstanceUser.FromUser(student).ToBsonDocument()));
         source.Properties["Supervisor"] = InstanceUser.FromUser(supervisor).ToBsonDocument();
-        source.Properties["UploadDeadline"] = new BsonDateTime(DateTime.UtcNow.AddDays(30));
+        // A deadline saved by the old demo must no longer restrict uploads.
+        source.Properties["UploadDeadline"] = new BsonDateTime(DateTime.UtcNow.AddDays(-1));
         source.Properties["JointDocument"] = new BsonDocument
             { ["ArtifactId"] = "shared-file", ["Name"] = "joint.pdf", ["Length"] = 1 };
         var hosts = students.Select(student =>
@@ -116,9 +117,7 @@ public class LinkedStepWorkflowTests
             var host = Instance("LinkedStepsDemoIndividual");
             host.Events["Setup"] = new InstanceEvent { Id = "Setup", Date = host.CreatedOn };
             host.Properties["Student"] = InstanceUser.FromUser(student).ToBsonDocument();
-            host.Properties["Supervisor"] = InstanceUser.FromUser(supervisor).ToBsonDocument();
             host.Properties["SharedThesis"] = source.Id;
-            host.Events["Start"] = new InstanceEvent { Id = "Start", Date = DateTime.UtcNow.AddDays(-2) };
             return host;
         }).ToArray();
         repository.Setup(repo => repo.GetByIds(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
@@ -126,6 +125,17 @@ public class LinkedStepWorkflowTests
         repository.Setup(repo => repo.GetById(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string id, CancellationToken _) =>
                 hosts.Append(source).SingleOrDefault(instance => instance.Id == id));
+        repository.Setup(repo => repo.GetAllById(
+                It.Is<string[]>(ids => ids.Contains(source.Id)), It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            [
+                new()
+                {
+                    ["_id"] = ObjectId.Parse(source.Id),
+                    ["Supervisor"] = source.Properties["Supervisor"]
+                }
+            ]);
         var events = new Mock<IInstanceEventRepository>();
         var workflows = new WorkflowInstanceService(model, repository.Object, Mock.Of<IInstanceJournalService>(),
             events.Object, users.Object, Mock.Of<IUserRepository>());
@@ -199,6 +209,9 @@ public class LinkedStepWorkflowTests
 
         Assert.Single(logs);
         Assert.Equal(source.Id, logs[0].WorkflowInstanceId);
+        Assert.Equal("Student 1", model.WorkflowDefinitions[hosts[0].WorkflowDefinition].InstanceTitleTemplate!
+            .Apply(await resolver.Resolve(hosts[0], default)));
+        Assert.False(await rights.Can(hosts[1], RoleAction.Submit, "UploadLocal"));
 
         var localGrades = new[]
         {
@@ -245,7 +258,6 @@ public class LinkedStepWorkflowTests
         }
 
         current = students[0];
-        hosts[0].Properties["Finished"] = true;
         await Submit(hosts[0], "Finalise");
         Assert.Null(model.GetCurrentStep(hosts[0], await resolver.Resolve(hosts[0], default)));
 
