@@ -17,9 +17,11 @@ public class StepProgressResolver(ModelService modelService)
     public static readonly BilingualTemplate CompletedText = BilingualTemplate.Create(new BilingualString(
         "Completed ({{ dateShort(LastEvent) }})", "Afgerond ({{ dateShort(LastEvent) }})"))!;
 
-    public StepHeaderStatusDto? ResolveHeader(Step step, WorkflowInstance instance, ObjectContext? context = null)
+    public StepHeaderStatusDto? ResolveHeader(Step step, WorkflowInstance instance)
+        => ResolveHeader(step, ObjectContext.Create(instance, modelService));
+
+    public StepHeaderStatusDto? ResolveHeader(Step step, ObjectContext context)
     {
-        context ??= ObjectContext.Create(instance, modelService);
         var configuration = ResolveMatchedProgress(step, context, p => p.Header != null)
                             ?? ResolveDefault(step, p => p.Header != null);
 

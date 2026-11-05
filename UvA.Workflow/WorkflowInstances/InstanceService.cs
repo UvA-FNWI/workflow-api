@@ -229,7 +229,7 @@ public class InstanceService(
             }
 
         // Executable actions
-        foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute))
+        foreach (var a in allowed.Where(a => a.Type == RoleAction.Execute && !string.IsNullOrWhiteSpace(a.Name)))
         {
             // Build mail message for actions that send mail
             var sendMail = a.OnAction.FirstOrDefault(t =>

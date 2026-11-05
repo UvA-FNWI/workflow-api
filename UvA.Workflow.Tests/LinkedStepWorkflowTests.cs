@@ -39,7 +39,7 @@ public class LinkedStepWorkflowTests
         foreach (var property in properties)
         {
             var question = Assert.IsType<ChoiceQuestionDto>(
-                QuestionDto.Create(property, 3, model.WorkflowDefinitions[definition]));
+                QuestionDto.Create(property, 3));
             Assert.True(question.IsRequired);
             Assert.Equal(ChoiceControl.Rubric, question.Control);
             Assert.NotNull(question.Rubric);

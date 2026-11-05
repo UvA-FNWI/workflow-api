@@ -25,7 +25,7 @@ public partial class ModelParser
                 })
                 throw new Exception($"{prefix} requires a single-valued reference property.");
 
-            if (import.Participants.Any(name =>
+            if (import.Participants == null || import.Participants.Any(name =>
                     string.IsNullOrWhiteSpace(name) ||
                     target.Properties.GetOrDefault(name) is not UserPropertyDefinition))
                 throw new Exception($"{prefix} participants must name User properties on '{target.Name}'.");
