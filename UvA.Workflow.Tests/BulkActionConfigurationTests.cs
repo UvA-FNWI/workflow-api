@@ -19,29 +19,69 @@ public class BulkActionConfigurationTests
     }
 
     [Theory]
-    [InlineData("DoesNotExist")]
-    [InlineData("SubmitStart")]
-    public void RejectsMissingOrFormActions(string actionName)
+    [InlineData("DoesNotExist", "action does not exist")]
+    [InlineData("SubmitStart", "only Execute actions are supported")]
+    public void RejectsMissingOrFormActions(string actionName, string reason)
     {
         var error = Assert.ThrowsAny<Exception>(() => Load(actionName));
-        Assert.Contains("bulk action", error.Message, StringComparison.OrdinalIgnoreCase);
+        AssertDiagnostic(error, actionName, reason);
+    }
+
+    [Theory]
+    [InlineData("sendMail")]
+    [InlineData("sendAccessMail")]
+    public void RejectsActionsRequiringComposedMail(string effect)
+    {
+        var files = Files("ManualMail");
+        files["Project/Actions.yaml"] += $$"""
+
+                                             - name: ManualMail
+                                               type: Execute
+                                               roles: [Coordinator]
+                                               onAction:
+                                                 - {{effect}}:
+                                                     sendAutomatically: false
+                                           """;
+        var error = Assert.ThrowsAny<Exception>(() => new ModelService(new ModelParser(new DictionaryProvider(files))));
+        AssertDiagnostic(error, "ManualMail", "sendAutomatically: true");
+    }
+
+    [Theory]
+    [InlineData("action: CoordinatorApproved", "action: ''", "action is required")]
+    [InlineData("label:\n      en: Approve proposals\n      nl: Voorstellen goedkeuren", "", "label is required")]
+    [InlineData("icon:\n      type: checkmark-line", "", "icon.type is required")]
+    [InlineData("type: checkmark-line", "type: ''", "icon.type is required")]
+    public void ReportsMissingButtonConfiguration(string original, string replacement, string reason)
+    {
+        var files = Files("CoordinatorApproved");
+        files["Project/Screens/Projects.yaml"] = files["Project/Screens/Projects.yaml"].Replace(original, replacement);
+
+        var error = Assert.ThrowsAny<Exception>(() => new ModelService(new ModelParser(new DictionaryProvider(files))));
+
+        AssertDiagnostic(error, original.StartsWith("action:") ? "" : "CoordinatorApproved", reason);
     }
 
     [Fact]
-    public void RejectsActionsRequiringComposedMail()
+    public void ReportsDuplicateButtonAction()
     {
-        var files = Files("ManualMail");
-        files["Project/Actions.yaml"] += """
+        var files = Files("CoordinatorApproved");
+        files["Project/Screens/Projects.yaml"] += """
 
-                                           - name: ManualMail
-                                             type: Execute
-                                             roles: [Coordinator]
-                                             onAction:
-                                               - sendMail:
-                                                   sendAutomatically: false
-                                         """;
+                                                    - action: CoordinatorApproved
+                                                      label: Approve again
+                                                      icon:
+                                                        type: checkmark-line
+                                                  """;
+
         var error = Assert.ThrowsAny<Exception>(() => new ModelService(new ModelParser(new DictionaryProvider(files))));
-        Assert.Contains("bulk action", error.Message, StringComparison.OrdinalIgnoreCase);
+
+        AssertDiagnostic(error, "CoordinatorApproved", "action is configured more than once");
+    }
+
+    private static void AssertDiagnostic(Exception error, string actionName, string reason)
+    {
+        Assert.Contains($"Invalid bulk action '{actionName}' on screen 'Projects' in 'Project'", error.Message);
+        Assert.Contains(reason, error.Message);
     }
 
     private static ModelService Load(string actionName)

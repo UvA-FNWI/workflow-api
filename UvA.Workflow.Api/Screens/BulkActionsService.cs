@@ -13,14 +13,14 @@ public class BulkActionsService(
 {
     public Task<BulkActionResultDto> Preview(string workflowDefinition, string screenName, string actionName,
         string[] instanceIds, CancellationToken ct)
-        => Process(workflowDefinition, screenName, actionName, instanceIds, null, ct);
+        => Process(workflowDefinition, screenName, actionName, instanceIds, preview: true, realUser: null, ct);
 
     public Task<BulkActionResultDto> Execute(string workflowDefinition, string screenName, string actionName,
         string[] instanceIds, User realUser, CancellationToken ct)
-        => Process(workflowDefinition, screenName, actionName, instanceIds, realUser, ct);
+        => Process(workflowDefinition, screenName, actionName, instanceIds, preview: false, realUser, ct);
 
     private async Task<BulkActionResultDto> Process(string workflowDefinition, string screenName, string actionName,
-        string[] instanceIds, User? realUser, CancellationToken ct)
+        string[] instanceIds, bool preview, User? realUser, CancellationToken ct)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var definition) ||
             definition.Screens.GetOrDefault(screenName) is not { } screen ||
@@ -51,9 +51,9 @@ public class BulkActionsService(
                 }
 
                 var status = BulkActionStatus.Eligible;
-                if (realUser != null)
+                if (!preview)
                 {
-                    var result = await actionExecutionService.Execute(instance, action, realUser, null, ct);
+                    var result = await actionExecutionService.Execute(instance, action, realUser!, null, ct);
                     status = result.Error == null ? BulkActionStatus.Succeeded : BulkActionStatus.Failed;
                 }
 

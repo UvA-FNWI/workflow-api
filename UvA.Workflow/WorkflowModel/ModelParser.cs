@@ -580,15 +580,27 @@ public partial class ModelParser
         foreach (var bulkAction in screen.BulkActions)
         {
             var actions = workflowDefinition.AllActions.Where(a => a.Name == bulkAction.Action).ToArray();
-            if (string.IsNullOrWhiteSpace(bulkAction.Action) || !actionNames.Add(bulkAction.Action) ||
-                bulkAction.Label == null || string.IsNullOrWhiteSpace(bulkAction.Icon?.Type) ||
-                actions.Length == 0 || actions.Any(a => a.Type != RoleAction.Execute ||
-                                                        a.OnAction.Any(e => e.SendMail?.SendAutomatically == false ||
-                                                                            e.SendAccessMail?.SendAutomatically ==
-                                                                            false)))
+            string? error = null;
+            if (string.IsNullOrWhiteSpace(bulkAction.Action))
+                error = "action is required.";
+            else if (!actionNames.Add(bulkAction.Action))
+                error = "action is configured more than once.";
+            else if (bulkAction.Label == null)
+                error = "label is required.";
+            else if (string.IsNullOrWhiteSpace(bulkAction.Icon?.Type))
+                error = "icon.type is required.";
+            else if (actions.Length == 0)
+                error = "action does not exist.";
+            else if (actions.Any(a => a.Type != RoleAction.Execute))
+                error = "only Execute actions are supported.";
+            else if (actions.Any(a => a.OnAction.Any(e => e.SendMail?.SendAutomatically == false ||
+                                                          e.SendAccessMail?.SendAutomatically == false)))
+                error =
+                    "sendMail and sendAccessMail must use sendAutomatically: true; composing mail is not supported.";
+
+            if (error != null)
                 throw new Exception($"Invalid bulk action '{bulkAction.Action}' on screen '{screen.Name}' in " +
-                                    $"'{workflowDefinition.Name}': use a unique existing Execute action requiring " +
-                                    "no additional input, with a label and icon.");
+                                    $"'{workflowDefinition.Name}': {error}");
         }
 
         if (screen.BulkEdit != null)
