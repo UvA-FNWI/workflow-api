@@ -30,13 +30,18 @@ public class SubmissionsController(
 
         if (version is not null)
         {
-            // Historical snapshots use normal view rights, are read-only and omit live answer-change history.
-            await rightsService.EnsureAuthorizedForAction(instance, RoleAction.View, form.Name);
+            // Historical values use current roles and snapshot conditions, with no editing or live change history.
+            var currentInstance = (await workflowInstanceService.GetSubmissionContext(instanceId, submissionId,
+                ct: ct)).Instance;
+            var historicalActions = await rightsService.GetAllowedHistoricalActions(currentInstance, instance,
+                RoleAction.View, RoleAction.ViewHidden);
+            if (!historicalActions.Any(a => a.Type == RoleAction.View && a.MatchesForm(form.Name)))
+                throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.View, form.Name);
             var context = modelService.CreateContext(instance);
             await instanceService.Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition],
                 [context], form.ActualForm.Lookups, ct, replaceStep: false);
             return Ok(submissionDtoFactory.Create(instance, form, submissionState,
-                modelService.GetQuestionStatus(instance, form, true), permissions: [], context: context));
+                modelService.GetQuestionStatus(instance, form, historicalActions), permissions: [], context: context));
         }
 
         // Live drafts require submit permissions; submitted forms require view permissions.
@@ -46,7 +51,7 @@ public class SubmissionsController(
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(instanceId, ct);
         var dto = await submissionDtoFactory.CreateAsync(instance, form, submissionState,
-            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray(),
+            await rightsService.GetQuestionStatus(instance, form), permissions.Select(p => p.Type).ToArray(),
             history, ct);
         return Ok(dto);
     }
@@ -73,7 +78,7 @@ public class SubmissionsController(
         var result = await submissionService.SubmitSubmission(context, realUser, ct);
         var history = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var submissionDto = await submissionDtoFactory.CreateAsync(instance, form, result.SubmissionState,
-            modelService.GetQuestionStatus(instance, form, true), permissions.Select(p => p.Type).ToArray(),
+            await rightsService.GetQuestionStatus(instance, form), permissions.Select(p => p.Type).ToArray(),
             history, ct);
 
         if (!result.Success)
@@ -192,7 +197,7 @@ public class SubmissionsController(
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var updatedSubmission = await submissionDtoFactory.CreateAsync(instance, form, submissionState,
-            modelService.GetQuestionStatus(instance, form, true),
+            await rightsService.GetQuestionStatus(instance, form),
             permissions.Select(p => p.Type).ToArray(), history, ct);
 
         return Ok(updatedSubmission);
