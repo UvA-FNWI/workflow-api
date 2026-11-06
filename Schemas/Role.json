@@ -231,7 +231,8 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
-        "ViewCorrespondence"
+        "ViewCorrespondence",
+        "ViewHistory"
       ]
     },
     "Condition": {
