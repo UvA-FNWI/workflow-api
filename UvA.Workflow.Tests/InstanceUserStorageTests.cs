@@ -324,7 +324,9 @@ public class InstanceUserStorageTests
             .ReturnsAsync([]);
         userService.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = userId, UserName = "jdoe" });
-        var rightsService = new RightsService(ModelService, userService.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var rightsService = new RightsService(ModelService, userService.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(ModelService,
+                Mock.Of<IWorkflowInstanceRepository>()));
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Supervisor", _ => new BsonDocument
@@ -350,7 +352,9 @@ public class InstanceUserStorageTests
             .ReturnsAsync([]);
         userService.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User { Id = userId, UserName = "jdoe" });
-        var rightsService = new RightsService(ModelService, userService.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var rightsService = new RightsService(ModelService, userService.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(ModelService,
+                Mock.Of<IWorkflowInstanceRepository>()));
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Student", _ => new BsonArray

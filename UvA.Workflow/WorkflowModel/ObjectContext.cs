@@ -15,6 +15,20 @@ public class ObjectContext(
 
     public Dictionary<Lookup, object?> Values { get; } = values;
 
+    public Dictionary<string, ImportedStepContext?> ImportedSteps { get; } = [];
+    public DateTime? WorkflowCompletionDate { get; set; }
+
+    /// <summary>Internal step name, retained when display enrichment replaces the expression value with a title.</summary>
+    public string? CurrentStep
+    {
+        get;
+        internal set
+        {
+            field = value;
+            Values["CurrentStep"] = value;
+        }
+    } = values.GetValueOrDefault("CurrentStep") as string;
+
     /// <summary>
     ///     Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
     ///     Kept apart from <see cref="Values" /> so value-set names cannot clash with properties or effect outputs.

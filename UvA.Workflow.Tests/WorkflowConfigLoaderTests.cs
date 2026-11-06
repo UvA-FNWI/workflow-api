@@ -123,7 +123,8 @@ public class WorkflowConfigLoaderTests
     {
         var controller = CreateVersionsController(CreateResolver(), new WorkflowSourceOptions
         {
-            WatchLocalChanges = watching, LocalPath = localPath
+            WatchLocalChanges = watching,
+            LocalPath = localPath
         });
 
         Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.NotFound>(controller.Events(CancellationToken.None));
@@ -134,7 +135,8 @@ public class WorkflowConfigLoaderTests
     {
         var controller = CreateVersionsController(CreateResolver(), new WorkflowSourceOptions
         {
-            WatchLocalChanges = true, LocalPath = FixturesRoot
+            WatchLocalChanges = true,
+            LocalPath = FixturesRoot
         });
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
 
@@ -708,7 +710,9 @@ public class WorkflowConfigLoaderTests
         userService.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(["SystemAdmin"]);
         var rightsService = new RightsService(new ModelService(UnitTestsHelpers.CreateModelParser()),
-            userService.Object, Mock.Of<IWorkflowInstanceRepository>());
+            userService.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(
+                new ModelService(UnitTestsHelpers.CreateModelParser()), Mock.Of<IWorkflowInstanceRepository>()));
         return new VersionsController(resolver,
             CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot }),
             rightsService, Options.Create(options ?? new WorkflowSourceOptions { LocalPath = FixturesRoot }),

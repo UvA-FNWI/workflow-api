@@ -97,7 +97,9 @@ public abstract class ControllerTestsBase
 
         // Services
         _modelService = new ModelService(_modelParser);
-        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService,
+                _workflowInstanceRepoMock.Object));
 
 
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
@@ -119,7 +121,9 @@ public abstract class ControllerTestsBase
             new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object,
                 _rightsService,
                 mailBuilder,
-                _assessmentService);
+                new WorkflowContextEnricher(_workflowInstanceRepoMock.Object, _modelService, _assessmentService),
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService,
+                    _workflowInstanceRepoMock.Object));
 
         _eventService =
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);

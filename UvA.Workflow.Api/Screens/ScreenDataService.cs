@@ -29,6 +29,7 @@ public class ScreenDataService(
 
         // Build projection based on screen columns
         var contexts = await LoadData(screen, workflowDefinition, ct);
+        var viewableSources = await StepProgressResolver.GetViewableSources(contexts, rightsService);
 
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
@@ -38,11 +39,11 @@ public class ScreenDataService(
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
         {
-            var groups = BuildGroups(definition, contexts, screen, columns);
+            var groups = BuildGroups(definition, contexts, screen, columns, viewableSources);
             return ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups, canCreateInstance);
         }
 
-        var rows = ProcessRows(definition, contexts, screen, columns);
+        var rows = ProcessRows(definition, contexts, screen, columns, viewableSources);
         return ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit,
             canCreateInstance: canCreateInstance);
     }
@@ -110,7 +111,8 @@ public class ScreenDataService(
         WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
         Screen screen,
-        ScreenColumnDto[] columns
+        ScreenColumnDto[] columns,
+        IReadOnlySet<string> viewableSources
     )
     {
         var rows = new List<ScreenRowDto>();
@@ -126,8 +128,8 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? StepProgressResolver.ResolveProgress(definition, column.GetValue(context) as string ?? "",
-                        context)
+                    ? StepProgressResolver.ResolveProgress(definition, context.CurrentStep,
+                        context, viewableSources: viewableSources)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -156,8 +158,20 @@ public class ScreenDataService(
         var authorizationFilter =
             await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
 
-        var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
+        List<ObjectContext> contexts;
+        if (definition.HasImportedSteps)
+        {
+            var instances = (await repository.GetByWorkflowDefinition(workflowDefinition,
+                authorizationFilter == null
+                    ? FilterDefinition<WorkflowInstance>.Empty
+                    : new BsonDocumentFilterDefinition<WorkflowInstance>(authorizationFilter), ct)).ToArray();
+            contexts = (await instanceService.ResolveContexts(instances, ct)).Values.ToList();
+        }
+        else
+        {
+            var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
+            contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
+        }
 
         // Add related properties as needed
         await instanceService.Enrich(definition,
@@ -175,7 +189,8 @@ public class ScreenDataService(
         WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
         Screen screen,
-        ScreenColumnDto[] columns)
+        ScreenColumnDto[] columns,
+        IReadOnlySet<string> viewableSources)
     {
         // Build step-to-group mapping from configuration
         var stepGroupMapping = BuildStepGroupMapping(screen.Grouping!);
@@ -185,7 +200,7 @@ public class ScreenDataService(
 
         foreach (var context in contexts)
         {
-            var stepValue = context.Get("CurrentStep")?.ToString() ?? EmptyStepId;
+            var stepValue = context.CurrentStep ?? EmptyStepId;
 
             // Only include rows that match a configured group
             string? groupName;
@@ -213,7 +228,8 @@ public class ScreenDataService(
             .Select(g => new ScreenGroupDto(
                 g.Name,
                 g.Title,
-                ProcessRows(definition, groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns)))
+                ProcessRows(definition, groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns,
+                    viewableSources)))
             .ToArray();
     }
 

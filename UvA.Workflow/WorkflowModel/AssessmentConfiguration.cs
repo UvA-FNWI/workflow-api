@@ -51,7 +51,7 @@ public class AssessmentConfiguration
 public class AssessmentPart : INamed
 {
     /// <summary>
-    /// Internal name of the assessment part
+    /// Internal name of the assessment part. Use an imported step's local name to resolve its source assessment.
     /// </summary>
     public string Name { get; set; } = null!;
 

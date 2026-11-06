@@ -66,6 +66,17 @@ public record DeadlineDto(
     bool IsPassed,
     BilingualString? Message);
 
+public enum StepImportStatus
+{
+    Available,
+    Unavailable,
+    Restricted
+}
+
+public record SharedParticipantDto(string DisplayName);
+
+public record ImportedStepSourceDto(string InstanceId, string StepId, SharedParticipantDto[] Participants);
+
 public record StepDto(
     string Id,
     BilingualString Title,
@@ -83,7 +94,9 @@ public record StepDto(
     StepVersionsDto? Versions = null,
     UndoCandidateDto? UndoCandidate = null,
     List<SubmissionDto>? Submissions = null,
-    bool IsAvailable = false);
+    bool IsAvailable = false,
+    ImportedStepSourceDto? ImportedFrom = null,
+    StepImportStatus? ImportStatus = null);
 
 public record ActionDto(
     ActionType Type,

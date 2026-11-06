@@ -123,7 +123,8 @@ public class ImportServiceTests
             modelService,
             userRepoMock.Object,
             userServiceMock.Object,
-            new RightsService(modelService, userServiceMock.Object, repoMock.Object));
+            new RightsService(modelService, userServiceMock.Object, repoMock.Object,
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repoMock.Object)));
 
         return (service, repoMock, userRepoMock, userServiceMock);
     }
@@ -489,7 +490,7 @@ public class ImportServiceTests
     }
 
     // ── ImportAsync ───────────────────────────────────────────────────────────
-// ── ImportAsync ───────────────────────────────────────────────────────────
+    // ── ImportAsync ───────────────────────────────────────────────────────────
 
     [Fact]
     public async Task ImportAsync_RowWithEmptyInstanceId_IsSkippedWithoutError()

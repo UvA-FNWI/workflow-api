@@ -1,0 +1,13 @@
+name: Finalise
+title: Finish demonstration
+resultsType: AssessmentFinalOverview
+actions:
+  - type: Submit
+    roles: [Student]
+    form: Finalise
+    condition:
+      value:
+        property: Assessment.FinalGrade
+        greaterThan: 0
+ends:
+  event: Finalise

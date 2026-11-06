@@ -52,7 +52,8 @@ public class ExternalUserEmailUpdateServiceTests
         modelService.WorkflowDefinitions[workflowDefinition.Name] = workflowDefinition;
 
         var userServiceMock = new Mock<IUserService>();
-        var rightsService = new RightsService(modelService, userServiceMock.Object, repoMock.Object);
+        var rightsService = new RightsService(modelService, userServiceMock.Object, repoMock.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repoMock.Object));
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(
             new Mock<IMailLayoutResolver>().Object, new Mock<IConfiguration>().Object);
         var journalServiceMock = new Mock<IInstanceJournalService>();
@@ -62,7 +63,9 @@ public class ExternalUserEmailUpdateServiceTests
                 Mock.Of<IUserRepository>());
         var assessmentService = new AssessmentService(modelService, workflowInstanceService, repoMock.Object);
         var instanceService = new InstanceService(
-            repoMock.Object, modelService, userServiceMock.Object, rightsService, mailBuilder, assessmentService);
+            repoMock.Object, modelService, userServiceMock.Object, rightsService, mailBuilder,
+            new WorkflowContextEnricher(repoMock.Object, modelService, assessmentService),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repoMock.Object));
 
         return new ExternalUserEmailUpdateService(null!, null!, modelService, instanceService);
     }
@@ -83,7 +86,8 @@ public class ExternalUserEmailUpdateServiceTests
         var property = new UserPropertyDefinition { Name = "Supervisor", Type = "User" };
         var form = new Form
         {
-            Name = "Proposal", Step = "Start",
+            Name = "Proposal",
+            Step = "Start",
             Pages =
             [
                 new Page
@@ -118,7 +122,9 @@ public class ExternalUserEmailUpdateServiceTests
         model.WorkflowDefinitions[definition.Name] = definition;
         var currentUser = new Mock<IUserService>();
         currentUser.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        var rights = new RightsService(model, currentUser.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var rights = new RightsService(model, currentUser.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model,
+                Mock.Of<IWorkflowInstanceRepository>()));
         var service = new ExternalUserEmailUpdateService(rights, null!, model, null!);
 
         var result = await service.PrepareAnswerReferenceUpdate(instance, CreateUser(userId), CancellationToken.None);

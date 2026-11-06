@@ -1,0 +1,11 @@
+name: Setup
+title: Configure demo
+actions:
+  - type: View
+    roles: [Coordinator, SystemAdmin]
+    form: Setup
+  - type: Submit
+    roles: [Coordinator, SystemAdmin]
+    form: Setup
+ends:
+  event: Setup

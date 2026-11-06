@@ -1,0 +1,68 @@
+name: LinkedStepsDemoIndividual
+title: Individual thesis demo
+titlePlural: Individual thesis demos
+instanceTitle: '{{ Student.DisplayName }}'
+steps: [Setup, IndividualWork, SharedUpload, SharedAssessment, Finalise]
+properties:
+  - name: Student
+    type: User!
+  - name: SharedThesis
+    type: LinkedStepsDemoShared!
+    inheritedRoles: [Supervisor]
+    text: Shared thesis group
+    description: Select the shared group created for these students.
+  - name: LocalDocument
+    type: File!
+    text: Individual analysis PDF
+  - name: LocalCriterion1
+    type: HalfGrade!
+    text: Individual criterion 1
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 1. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
+  - name: LocalCriterion2
+    type: HalfGrade!
+    text: Individual criterion 2
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 2. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
+  - name: LocalCriterion3
+    type: HalfGrade!
+    text: Individual criterion 3
+    control: Rubric
+    calculation:
+      type: Average
+      weight: 1
+    rubric:
+      - name: Grade
+        description: Demonstration criterion 3. Select a numeric grade.
+        grades: ["10", "9,5", "9", "8,5", "8", "7,5", "7", "6,5", "6", "5,5", "5", "4,5", "4", "3", "2", "1"]
+assessments:
+  gradingBasis: Decimal
+  gradeGap: false
+  parts:
+    - name: SharedAssessment
+      title: Joint product (demo)
+      weight: 40
+    - name: IndividualWork
+      title: Individual product (demo)
+      weight: 60
+      sources:
+        - name: AssessLocal
+fields:
+  - property: Student.DisplayName
+  - currentStep: true
+infoCards:
+  - name: Progress
+    type: Progress
+    title: Your progress

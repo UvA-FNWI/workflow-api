@@ -1,0 +1,7 @@
+name: UploadJoint
+step: Upload
+title: Upload the joint thesis once
+pages:
+  - name: Document
+    elements:
+      - question: JointDocument

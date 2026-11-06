@@ -24,7 +24,9 @@ public class SubmissionDtoFactoryChangeTests
     {
         var workflowInstanceRepoMock = new Mock<IWorkflowInstanceRepository>();
         var userServiceMock = new Mock<IUserService>();
-        var rightsService = new RightsService(modelService, userServiceMock.Object, workflowInstanceRepoMock.Object);
+        var rightsService = new RightsService(modelService, userServiceMock.Object, workflowInstanceRepoMock.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService,
+                workflowInstanceRepoMock.Object));
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder =
@@ -36,7 +38,10 @@ public class SubmissionDtoFactoryChangeTests
             new AssessmentService(modelService, workflowInstanceService, workflowInstanceRepoMock.Object);
 
         return new InstanceService(workflowInstanceRepoMock.Object, modelService, userServiceMock.Object,
-            rightsService, mailBuilder, assessmentService);
+            rightsService, mailBuilder,
+            new WorkflowContextEnricher(workflowInstanceRepoMock.Object, modelService, assessmentService),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService,
+                workflowInstanceRepoMock.Object));
     }
 
     [Fact]

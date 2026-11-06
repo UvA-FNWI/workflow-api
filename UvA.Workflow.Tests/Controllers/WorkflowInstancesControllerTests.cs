@@ -46,6 +46,21 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             .ReturnsAsync(entries.ToList());
 
     [Fact]
+    public async Task HistoricalImportingInstance_ReturnsExplicitUnsupportedError()
+    {
+        var instance = new WorkflowInstanceBuilder().WithWorkflowDefinition("LinkedStepsDemoIndividual")
+            .WithCurrentStep("SharedUpload").Build();
+        MockCurrentUser("SystemAdmin");
+        MockInstance(instance);
+
+        var result = await CreateController().GetById(instance.Id, version: 1, ct: _ct);
+
+        var error = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(400, error.StatusCode);
+        Assert.Equal("ImportedInstanceHistoryUnsupported", Assert.IsType<Error>(error.Value).ErrorCode);
+    }
+
+    [Fact]
     public async Task Undo_InvalidReason_ReturnsBadRequest()
     {
         var result = await CreateController().Undo("instance", new UndoRequest("operation", "  "), _ct);

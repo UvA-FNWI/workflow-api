@@ -108,6 +108,42 @@ public class InstanceServiceEnrichTests
             _ct), Times.Once);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Enrich_SecondPassAddsFieldsWithoutLosingEarlierReferenceValues(bool array)
+    {
+        var id = ObjectId.GenerateNewId();
+        var context = Context("Shared", id);
+        if (array) context.Values["Shared"] = new[] { id.ToString() };
+        _repository.Setup(repository => repository.GetAllById(It.IsAny<string[]>(),
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync((string[] _, Dictionary<string, string> projection, CancellationToken _) =>
+                new List<Dictionary<string, BsonValue>>
+                {
+                    projection.ContainsKey("Name")
+                        ? Result(id, ("Name", "First target"))
+                        : Result(id, ("Type", "New type"))
+                });
+
+        await _service.Enrich(_modelService.WorkflowDefinitions["SourceA"], [context],
+            [new PropertyLookup("Shared.Name")], _ct, replaceStep: false);
+        await _service.Enrich(_modelService.WorkflowDefinitions["SourceA"], [context],
+            [new PropertyLookup("Shared.Type")], _ct, replaceStep: false);
+
+        if (array)
+        {
+            Assert.Equal(new object[] { "First target" }, Assert.IsType<object[]>(context.Get("Shared.Name")));
+            Assert.Equal(new object[] { "New type" }, Assert.IsType<object[]>(context.Get("Shared.Type")));
+        }
+        else
+        {
+            Assert.Equal("First target", context.Get("Shared.Name"));
+            Assert.Equal("New type", context.Get("Shared.Type"));
+            Assert.Equal(id.ToString(), context.Get("Shared.Id"));
+        }
+    }
+
     private static ObjectContext Context(string property, ObjectId targetId)
         => new(new Dictionary<Lookup, object?>
         {
@@ -165,7 +201,8 @@ public class InstanceServiceEnrichTests
         Mock<IWorkflowInstanceRepository> repository)
     {
         var userService = Mock.Of<IUserService>();
-        var rightsService = new RightsService(modelService, userService, repository.Object);
+        var rightsService = new RightsService(modelService, userService, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
         var layoutResolver = new Mock<IMailLayoutResolver>();
         layoutResolver.Setup(resolver => resolver.Resolve(It.IsAny<string?>()))
             .Returns(Mock.Of<IMailLayout>());
@@ -176,6 +213,7 @@ public class InstanceServiceEnrichTests
             userService,
             rightsService,
             UnitTestsHelpers.CreateMailBuilder(layoutResolver.Object),
-            Mock.Of<IAssessmentService>());
+            new WorkflowContextEnricher(repository.Object, modelService, Mock.Of<IAssessmentService>()),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
     }
 }
