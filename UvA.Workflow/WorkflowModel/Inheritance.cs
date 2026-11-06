@@ -133,7 +133,17 @@ public partial class ModelParser
 
     private void ApplyInheritance(Form target, Form source)
     {
-        if (!target.Declared(s => s.Step)) target.Step = source.Step;
+        if (!target.Declared(f => f.Step)) target.Step = source.Step;
+        if (!target.Declared(f => f.Title)) target.Title = source.Title;
+        if (!target.Declared(f => f.Layout)) target.Layout = source.Layout;
+        if (!target.Declared(f => f.PropertyName)) target.PropertyName = source.PropertyName;
+        if (!target.Declared(f => f.TargetFormName)) target.TargetFormName = source.TargetFormName;
+        if (!target.Declared(f => f.OnSubmit)) target.OnSubmit = source.OnSubmit;
+        if (!target.Declared(f => f.OnSave)) target.OnSave = source.OnSave;
+        if (!target.Declared(f => f.EmitFormSubmitEvent))
+            target.EmitFormSubmitEvent = source.EmitFormSubmitEvent;
+        if (!target.Declared(f => f.SubmittedWhenEvents))
+            target.SubmittedWhenEvents = source.SubmittedWhenEvents;
 
         if (Cleared(target, f => f.Pages))
             return;

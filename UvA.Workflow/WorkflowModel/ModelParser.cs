@@ -45,6 +45,7 @@ public partial class ModelParser
     internal List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
     private List<StepTemplate> StepTemplates { get; }
+    private List<FormTemplate> FormTemplates { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
@@ -57,6 +58,7 @@ public partial class ModelParser
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
         StepTemplates = Read<StepTemplate>();
+        FormTemplates = Read<FormTemplate>();
 
         var parsed = folders
             .Select(folder =>
@@ -125,8 +127,12 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
 
-            var stepTemplatesByName = StepTemplates.ToDictionary(t => t.Name);
+            var stepTemplatesByName = ReadTemplates(StepTemplates, definition.SourceFolder);
             definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
+
+            var formTemplatesByName = ReadTemplates(FormTemplates, definition.SourceFolder);
+            definition.Forms = ResolveFormTemplates(Read<Form>(definition.SourceFolder), formTemplatesByName,
+                definition.Name);
 
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
@@ -759,7 +765,7 @@ public partial class ModelParser
             var obj = _deserializer.Deserialize<T>(content);
             if (obj is IDeclaredKeys tracked)
                 tracked.DeclaredKeys = ReadTopLevelKeys(content);
-            if (obj is StepTemplate template)
+            if (obj is ITemplate template)
                 template.RootFile = content;
             return obj;
         }
@@ -794,6 +800,8 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         folder ??= typeName switch
         {
+            nameof(StepTemplate) => "Templates/Steps",
+            nameof(FormTemplate) => "Templates/Forms",
             nameof(TemplateMessage) => "Emails",
             nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
