@@ -158,6 +158,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1013,6 +1020,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1159,6 +1173,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1316,6 +1337,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1498,6 +1526,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1644,6 +1679,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1801,6 +1843,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -1966,6 +2015,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2119,6 +2175,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2341,6 +2404,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2655,6 +2725,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
@@ -2846,6 +2923,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has messages.enabled, false excludes this field from field threads.\n            Null/true means the field is commentable."
         }
       }
     },
