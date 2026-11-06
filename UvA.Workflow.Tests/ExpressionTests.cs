@@ -129,6 +129,18 @@ public class ExpressionTests
     }
 
     [Fact]
+    public void ValueSets_ResolveAlongsideHistoricalEvaluationTime()
+    {
+        var evaluatedAt = new DateTime(2026, 1, 1);
+        var context = new ObjectContext([], new Dictionary<string, string[]> { ["Access"] = ["Read", "Write"] },
+            evaluatedAt);
+
+        Assert.Equal(evaluatedAt, context.Now);
+        Assert.Equal(evaluatedAt, ExpressionParser.Parse("now").Execute(context));
+        Assert.Equal(new[] { "Read", "Write" }, ExpressionParser.Parse("ValueSets.Access").Execute(context));
+    }
+
+    [Fact]
     public void ValueSets_DoNotClashWithValuesOfTheSameName()
     {
         // e.g. an access effect adds its output as "Access" while a value set is also called Access
@@ -158,7 +170,9 @@ public class ExpressionTests
     }
 
     private static ObjectContext RowsContext(object? rows)
-        => new(new Dictionary<Lookup, object?> { ["Rows"] = rows });
+    {
+        return new ObjectContext(new Dictionary<Lookup, object?> { ["Rows"] = rows });
+    }
 
     [Fact]
     public void Select_ScalarField_ReturnsValuePerRow()
