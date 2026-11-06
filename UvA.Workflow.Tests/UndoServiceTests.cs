@@ -212,8 +212,10 @@ public class UndoServiceTests : ControllerTestsBase
         Assert.Equal("First", instance.CurrentStep);
         Assert.Equal(At(1), instance.Events["Restored"].Date);
         Assert.Equal(At(4), instance.Events["SecondDone"].Date);
-        var restoredVersion = Assert.Single(new StepVersionService().GetStepVersions(instance, firstStep, logs));
-        Assert.Equal(At(1), restoredVersion.SubmittedAt);
+        var restoredVersion =
+            new StepVersionService(_modelService).GetStepVersions(instance, new WorkflowInstanceHistory(null, logs))[
+                firstStep.Name].Current!;
+        Assert.Null(restoredVersion.CompletionTimestamp);
 
         instance.RecordEvent("Restored", At(6));
         instance.RecordEvent("FirstDone", At(7));
