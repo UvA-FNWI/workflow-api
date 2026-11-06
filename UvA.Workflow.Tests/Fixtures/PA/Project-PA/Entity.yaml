@@ -15,7 +15,6 @@ fields:
     title: Student
   - property: WorkingTitle
     title: Working Title
-  - currentStep: true
 
 steps:
   - Start

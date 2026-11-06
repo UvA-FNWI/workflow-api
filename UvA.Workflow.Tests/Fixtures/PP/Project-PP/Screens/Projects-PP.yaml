@@ -17,7 +17,7 @@ columns:
     title:
       en: Second assessor
       nl: Tweede beoordelaar
-  - currentStep: true
+  - type: CurrentStep
     title:
       en: Progress
       nl: Voortgang

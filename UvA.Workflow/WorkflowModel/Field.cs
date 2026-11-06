@@ -26,15 +26,13 @@ public class Field
     public string? Default { get; set; }
 
     public BilingualString DisplayTitle =>
-        Title ?? PropertyDefinition?.ShortDisplayName ?? Event?.Name ?? (CurrentStep ? "Step" : "Field");
-
-    private string? ComputedProperty => CurrentStep ? "CurrentStep" : Property;
+        Title ?? PropertyDefinition?.ShortDisplayName ?? Event?.Name ?? "Field";
 
     private Template? _valueTemplate, _linkTemplate;
     public Template? ValueTemplate => _valueTemplate ??= Template.Create(Value);
     public Template? LinkTemplate => _linkTemplate ??= Template.Create(Href);
     private Expression? _propertyExpression;
-    public Expression? PropertyExpression => _propertyExpression ??= ExpressionParser.Parse(ComputedProperty);
+    public Expression? PropertyExpression => _propertyExpression ??= ExpressionParser.Parse(Property);
     public BilingualString? Title { get; set; } = null!;
     public bool? IsHighlighted { get; set; }
 
@@ -54,11 +52,6 @@ public class Field
     /// </summary>
     public string? EndDate { get; set; }
 
-    /// <summary>
-    /// If true, display the current step in this field
-    /// </summary>
-    public bool CurrentStep { get; set; }
-
     public Lookup[] Properties =>
     [
         .. PropertyExpression?.Properties ?? [],
@@ -68,9 +61,6 @@ public class Field
 
     public object? GetValue(ObjectContext context)
     {
-        if (CurrentStep)
-            return context.Values["CurrentStep"] ?? Default ?? "Draft";
-
         if (ValueTemplate != null)
             return ValueTemplate.Execute(context);
 

@@ -46,7 +46,7 @@ public class PersonalControllerTests : ControllerTestsBase
                 ("Examiner", property => property.Value(
                     UserDocument(userId, "Current Employee"))),
                 ("SecondReader", property => property.Value(
-                    UserDocument(ObjectId.GenerateNewId(), "Examiner Name"))))
+                    UserDocument(ObjectId.GenerateNewId(), "Second Reader Name"))))
             .Build();
         project.CreatedOn = createdOn;
 
@@ -94,7 +94,27 @@ public class PersonalControllerTests : ControllerTestsBase
         Assert.Equal(["Reviewer", "Supervisor"], projectRow.Roles);
         Assert.Equal("Student Name", projectRow.Student);
         Assert.Equal("Software Engineering", projectRow.Course);
-        Assert.Equal(["Examiner Name"], projectRow.Employees);
+        Assert.Collection(projectRow.Staff,
+            staff =>
+            {
+                Assert.Equal("Current Employee", staff.DisplayName);
+                Assert.Equal(
+                    [
+                        ("Supervisor", "Begeleider"),
+                        ("Examiner", "Examinator"),
+                        ("Second reviewer", "Tweede beoordelaar")
+                    ],
+                    staff.Roles.Select(role => (role.En, role.Nl)));
+                Assert.Null(staff.Organisation);
+            },
+            staff =>
+            {
+                Assert.Equal("Second Reader Name", staff.DisplayName);
+                Assert.Equal(
+                    [("Second reader", "Tweede lezer")],
+                    staff.Roles.Select(role => (role.En, role.Nl)));
+                Assert.Null(staff.Organisation);
+            });
 
         _workflowInstanceRepoMock.Verify(repository => repository.GetByFilter(
             It.IsAny<FilterDefinition<WorkflowInstance>>(),
@@ -248,6 +268,7 @@ public class PersonalControllerTests : ControllerTestsBase
     private static BsonDocument UserDocument(ObjectId id, string displayName) => new()
     {
         ["_id"] = id,
+        ["UserName"] = id.ToString(),
         ["DisplayName"] = displayName
     };
 

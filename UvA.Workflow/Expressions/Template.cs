@@ -8,6 +8,7 @@ namespace UvA.Workflow.Expressions;
 
 public record BilingualTemplate(Template En, Template Nl)
 {
+    [return: NotNullIfNotNull(nameof(source))]
     public static BilingualTemplate? Create(BilingualString? source)
         => source == null ? null : new BilingualTemplate(new Template(source.En), new Template(source.Nl));
 
