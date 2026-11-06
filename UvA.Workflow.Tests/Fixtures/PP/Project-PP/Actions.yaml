@@ -1,28 +1,28 @@
 globalActions:
-  - roles: [Student, Coordinator, Examiner, SecondReviewer, Supervisor, CoSupervisor]
+  - roles: [Student, Coordinator, Examiner, SecondAssessor, Supervisor, CoSupervisor]
     type: View
     forms: [Start, UploadFinalThesis]
   - roles: [Coordinator, Supervisor]
     type: View
     forms: [AssessmentSupervisor]
-  - roles: [Coordinator, CoSupervisor, SecondReviewer, Supervisor]
+  - roles: [Coordinator, CoSupervisor, SecondAssessor, Supervisor]
     type: View
     forms: [AssessmentPresentation]
   - type: View
     roles: [Supervisor]
-    forms: [AssessmentSecondReader]
+    forms: [AssessmentSecondAssessor]
     condition:
       event: AssessmentSupervisor
-  - roles: [SecondReviewer]
+  - roles: [SecondAssessor]
     forms: [AssessmentSupervisor]
     condition:
-      event: AssessmentSecondReader
-  - roles: [Coordinator, Supervisor, SecondReviewer]
+      event: AssessmentSecondAssessor
+  - roles: [Coordinator, Supervisor, SecondAssessor]
     type: View
     forms: [AssessmentCombined, FinalGrade, AssessmentPresentation]
-  - roles: [Coordinator, SecondReviewer]
+  - roles: [Coordinator, SecondAssessor]
     type: View
-    forms: [AssessmentSecondReader]
+    forms: [AssessmentSecondAssessor]
   - roles: [SystemAdmin]
     type: CreateInstance
     userProperty: Student
@@ -31,7 +31,7 @@ globalActions:
     forms: [Start]
   - roles: [Student]
     type: ViewResults
-    forms: [AssessmentSupervisor, AssessmentSecondReader, AssessmentCombined]
+    forms: [AssessmentSupervisor, AssessmentSecondAssessor, AssessmentCombined]
     condition:
       event: FinalGrade
   - roles: [Student]

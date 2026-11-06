@@ -199,6 +199,13 @@ public class ScreensControllerTests : ControllerTestsBase
         MockCurrentUser(roles);
         MockEmptyRelatedInstanceLookups();
 
+        _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
         _workflowInstanceRepoMock.Setup(r => r.GetAllByType(workflowDefinition,
                 It.IsAny<Dictionary<string, string>>(),
                 It.IsAny<BsonDocument?>(),

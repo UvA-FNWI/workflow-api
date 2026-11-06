@@ -1986,6 +1986,13 @@
           ],
           "description": "Determines if the propertyDefinition allows external users"
         },
+        "inheritRole": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Marks this property as an inheritable role, meaning that the users in this role will be inherited by child entities."
+        },
         "name": {
           "type": "string",
           "description": "Internal name of the propertyDefinition"
@@ -2466,13 +2473,6 @@
               "$ref": "#/definitions/ChoiceControl"
             }
           ]
-        },
-        "inheritedRoles": {
-          "type": "array",
-          "description": "Roles inherited from the referenced instance.",
-          "items": {
-            "type": "string"
-          }
         },
         "filter": {
           "description": "Condition used for filtering reference choices.",
