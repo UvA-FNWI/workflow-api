@@ -350,7 +350,7 @@ public class DeadlineTests
         Assert.Equal("Child", child.Id);
         Assert.True(child.HasSubmission);
         Assert.False(child.ExpectsSubmission);
-        Assert.Null(step.Versions);
+        Assert.NotNull(step.Versions);
         Assert.False(step.HasSubmission);
         Assert.False(step.ExpectsSubmission);
         Assert.True(step.Deadline!.IsPassed);
@@ -505,30 +505,25 @@ public class DeadlineTests
         definition.AllSteps.Single(step => step.Name == deadlineStepName).Deadline =
             new Deadline { Date = "=2000-01-01", Type = DeadlineType.Hard };
         var instance = Instance("Project");
-        instance.Properties["Subject"] = "Current draft";
+        instance.Properties["Subject"] = "Original proposal";
         instance.Id = "507f1f77bcf86cd799439011";
         var submittedAt = new DateTime(1999, 12, 30);
         var rejectedAt = new DateTime(1999, 12, 31);
         instance.Events.Add("Start", new() { Id = "Start", Date = submittedAt });
         instance.Events.Add("RejectSubject", new() { Id = "RejectSubject", Date = rejectedAt });
-        var history = new WorkflowInstanceHistory(new InstanceJournalEntry
+        var history = new WorkflowInstanceHistory(null,
+        [
+            new()
             {
-                InstanceId = instance.Id,
-                PropertyChanges =
-                    [PropertyChangeEntry.Create("Subject", "Original proposal", new User { UserName = "coordinator" })]
+                WorkflowInstanceId = instance.Id, EventId = "Start", Timestamp = submittedAt,
+                EventDate = submittedAt, Operation = EventLogOperation.Create
             },
-            [
-                new()
-                {
-                    WorkflowInstanceId = instance.Id, EventId = "Start", Timestamp = submittedAt,
-                    EventDate = submittedAt, Operation = EventLogOperation.Create
-                },
-                new()
-                {
-                    WorkflowInstanceId = instance.Id, EventId = "RejectSubject", Timestamp = rejectedAt,
-                    EventDate = rejectedAt, Operation = EventLogOperation.Create
-                }
-            ]);
+            new()
+            {
+                WorkflowInstanceId = instance.Id, EventId = "RejectSubject", Timestamp = rejectedAt,
+                EventDate = rejectedAt, Operation = EventLogOperation.Create
+            }
+        ]);
         var repository = new Mock<IWorkflowInstanceRepository>();
         repository.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
         repository.Setup(r => r.GetAllById(It.IsAny<string[]>(), It.IsAny<Dictionary<string, string>>(),
@@ -544,7 +539,7 @@ public class DeadlineTests
         Assert.False(subject.Children!.Single(step => step.Id == "Start").ExpectsSubmission);
         Assert.DoesNotContain(dto.Actions, action => action.Form == "Start");
         Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
-        var version = Assert.Single(expired.Versions!);
+        var version = Assert.Single(subject.Versions!.History);
         if (canView)
         {
             var submission = Assert.Single(version.Submissions, submission => submission.FormName == "Start");

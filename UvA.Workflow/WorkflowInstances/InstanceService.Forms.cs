@@ -9,13 +9,16 @@ public partial class InstanceService
         IEnumerable<PropertyDefinition>? questions = null)
     {
         var context = modelService.CreateContext(instance);
+        await Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition], [context],
+            GetFormLookups(form, questions), ct, replaceStep: false);
+        return context;
+    }
+
+    public static IEnumerable<Lookup> GetFormLookups(Form form, IEnumerable<PropertyDefinition>? questions = null)
+    {
         var lookups = form.ActualForm.Lookups.Concat((questions ?? form.ActualForm.PropertyDefinitions)
             .SelectMany(question => question.Conditions).SelectMany(condition => condition.Properties));
-        if (form.TargetForm != null)
-            lookups = lookups.SelectMany(ScopeLookup);
-        await Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition], [context], lookups, ct,
-            replaceStep: false);
-        return context;
+        return form.TargetForm != null ? lookups.SelectMany(ScopeLookup) : lookups;
 
         IEnumerable<Lookup> ScopeLookup(Lookup lookup) => lookup switch
         {

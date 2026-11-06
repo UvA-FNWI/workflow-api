@@ -78,6 +78,39 @@ public class PresenceAwareInheritanceTests
         Assert.Equal(["Assessment"], service.GetActiveSteps(instance));
     }
 
+    [Theory]
+    [InlineData(false, false, "Start", false)]
+    [InlineData(true, false, "Next", true)]
+    [InlineData(true, true, "Cancelled", false)]
+    public void AlongsideStep_AvailabilitySkipsPredecessorsWhoseConditionsAreNotMet(
+        bool started, bool cancelled, string expectedCurrentStep, bool contractIsActive)
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Project/Entity.yaml"] =
+                "name: Project\ntitlePlural: Projects\nsteps: [Start, Cancelled, Contract, Next, Assessment]",
+            ["Project/Steps/Start.yaml"] = "name: Start\nends:\n  event: Started",
+            ["Project/Steps/Cancelled.yaml"] = "name: Cancelled\ncondition:\n  event: Cancel",
+            ["Project/Steps/Contract.yaml"] = "name: Contract\nmode: Alongside\nbefore: Assessment",
+            ["Project/Steps/Next.yaml"] = "name: Next",
+            ["Project/Steps/Assessment.yaml"] = "name: Assessment"
+        }));
+        var service = new ModelService(parser);
+        var instance = new WorkflowInstance
+        {
+            WorkflowDefinition = "Project",
+            Properties = [],
+            Events = []
+        };
+        if (started)
+            instance.Events["Started"] = new InstanceEvent { Id = "Started", Date = DateTime.UtcNow };
+        if (cancelled)
+            instance.Events["Cancel"] = new InstanceEvent { Id = "Cancel", Date = DateTime.UtcNow };
+
+        Assert.Equal(expectedCurrentStep, service.FindOpenStep(instance)?.Name);
+        Assert.Equal(contractIsActive, service.GetActiveSteps(instance).Contains("Contract"));
+    }
+
     [Fact]
     public void Step_ExplicitDefaultsAndEmptyList_WinOverParent()
     {

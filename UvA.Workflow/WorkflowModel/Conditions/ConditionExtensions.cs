@@ -13,19 +13,6 @@ public static class ConditionExtensions
         }
 
         /// <summary>
-        /// Evaluates only event and logical conditions against a historical set of event IDs.
-        /// </summary>
-        public bool IsMet(IEnumerable<string>? eventIds)
-        {
-            if (condition == null)
-                return false;
-
-            var eventIdSet = eventIds?.ToHashSet() ?? [];
-            var result = condition.Part.IsMet(eventIdSet);
-            return condition.Not ? !result : result;
-        }
-
-        /// <summary>
         /// Recursively extracts all event IDs from a condition tree
         /// </summary>
         public IEnumerable<string> GetAllEventIds()

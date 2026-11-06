@@ -7,9 +7,12 @@ namespace UvA.Workflow.WorkflowModel;
 
 public partial class ObjectContext(
     Dictionary<Lookup, object?> values,
-    IReadOnlyDictionary<string, string[]>? valueSets = null)
+    IReadOnlyDictionary<string, string[]>? valueSets = null,
+    DateTime? evaluatedAt = null)
 {
     private static readonly IReadOnlyDictionary<string, string[]> NoValueSets = new Dictionary<string, string[]>();
+
+    public DateTime Now => evaluatedAt ?? DateTime.Now;
 
     public Dictionary<Lookup, object?> Values { get; } = values;
 
@@ -19,8 +22,8 @@ public partial class ObjectContext(
     private HashSet<string> UnavailableProperties { get; } = new();
 
     /// <summary>
-    /// Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
-    /// Kept apart from <see cref="Values"/> so value-set names cannot clash with properties or effect outputs.
+    ///     Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
+    ///     Kept apart from <see cref="Values" /> so value-set names cannot clash with properties or effect outputs.
     /// </summary>
     public IReadOnlyDictionary<string, string[]> ValueSets { get; } = valueSets ?? NoValueSets;
 
@@ -29,7 +32,7 @@ public partial class ObjectContext(
     public object? Get(Lookup path)
     {
         if (path == "now")
-            return DateTime.Now;
+            return Now;
         if (path is PropertyLookup { Parts: ["ValueSets", var valueSet] })
             return ValueSets.GetValueOrDefault(valueSet);
         if (Values.TryGetValue(path, out var res))
@@ -66,7 +69,7 @@ public partial class ObjectContext(
     {
         var entries = overrides.ToArray();
         var overridden = entries.Select(entry => entry.Key).ToHashSet();
-        var copy = new ObjectContext(new Dictionary<Lookup, object?>(Values), valueSets ?? ValueSets);
+        var copy = new ObjectContext(new Dictionary<Lookup, object?>(Values), valueSets ?? ValueSets, evaluatedAt);
         foreach (var (key, value) in entries)
             copy.Values[key] = value;
         foreach (var (key, value) in LoadedReferenceValues.Where(entry => !overridden.Contains(entry.Key)))
@@ -197,13 +200,13 @@ public partial class ObjectContext(
             dict.TryAdd(property.Name, null);
         AddEventInformation(dict, instance, workflowDef);
 
-        var context = new ObjectContext(dict, GetValueSets(workflowDef));
+        var context = new ObjectContext(dict, GetValueSets(workflowDef), instance.EvaluatedAt);
         context.ComputeProperties(workflowDef);
         return context;
     }
 
     /// <summary>
-    /// Collects the common and definition-local value sets that expressions can reference as <c>ValueSets.Name</c>.
+    ///     Collects the common and definition-local value sets that expressions can reference as <c>ValueSets.Name</c>.
     /// </summary>
     public static IReadOnlyDictionary<string, string[]> GetValueSets(WorkflowDefinition definition)
     {
@@ -243,11 +246,14 @@ public partial class ObjectContext(
     }
 
     public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)
-        => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
+    {
+        return GetValue(answer, propertyDefinition.DataType, propertyDefinition);
+    }
 
     // TODO: is there a better way to do this?
     private static IEnumerable GetTypedArray(BsonArray array, DataType type, PropertyDefinition? property)
-        => type switch
+    {
+        return type switch
         {
             DataType.User => array.Select(r => GetValue(r, type) as InstanceUser).ToArray(),
             DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
@@ -257,6 +263,7 @@ public partial class ObjectContext(
             DataType.Object => array.Select(r => GetObjectValue(r, property as ObjectPropertyDefinition)).ToArray(),
             _ => array.Select(r => GetValue(r, type)).ToArray()
         };
+    }
 
     public static object? GetValue(BsonValue? answer, DataType type, PropertyDefinition? question = null)
     {
