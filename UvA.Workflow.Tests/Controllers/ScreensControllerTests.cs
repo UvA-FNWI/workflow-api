@@ -38,6 +38,29 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Equal(workflowDefinition, screenDataDto.WorkflowDefinition.Name);
         Assert.Equal(2, screenDataDto.Rows.Length);
         Assert.Null(screenDataDto.Groups);
+        Assert.Empty(screenDataDto.BulkActions!);
+    }
+
+    [Fact]
+    public async Task Screens_GetScreenData_ReturnsConfiguredBulkButtonsInOrder()
+    {
+        var controller = BuildControllerWithRoles(["Coordinator"], "Project", "Projects");
+        _modelService.WorkflowDefinitions["Project"].Screens.Single(s => s.Name == "Projects").BulkActions =
+        [
+            new BulkAction
+            {
+                Action = "Second", Label = new BilingualString("Second", "Tweede"),
+                Icon = new Icon { Type = "checkmark-line" }
+            },
+            new BulkAction { Action = "First", Label = "First", Icon = new Icon { Type = "send-line" } }
+        ];
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var dto = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(["Second", "First"], dto.BulkActions!.Select(action => action.Action));
+        Assert.Equal("Tweede", dto.BulkActions![0].Label.Nl);
+        Assert.Equal("checkmark-line", dto.BulkActions![0].Icon.Type);
     }
 
     [Fact]

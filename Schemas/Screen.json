@@ -46,6 +46,13 @@
           "$ref": "#/definitions/BulkEditConfig"
         }
       ]
+    },
+    "bulkActions": {
+      "type": "array",
+      "description": "Ordered buttons referencing existing instance Execute actions",
+      "items": {
+        "$ref": "#/definitions/BulkAction"
+      }
     }
   },
   "definitions": {
@@ -535,6 +542,57 @@
           ]
         }
       }
+    },
+    "BulkAction": {
+      "title": "BulkAction",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "label",
+        "icon"
+      ],
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "icon": {
+          "$ref": "#/definitions/Icon"
+        }
+      }
+    },
+    "Icon": {
+      "title": "Icon",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/definitions/StatusColor"
+        }
+      }
+    },
+    "StatusColor": {
+      "type": "string",
+      "enum": [
+        "Red",
+        "Green"
+      ]
     }
   }
 }
