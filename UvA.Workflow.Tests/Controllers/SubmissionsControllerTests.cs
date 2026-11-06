@@ -47,7 +47,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 _modelService,
                 _submissionDtoFactory,
                 _rightsService,
-                new StepVersionService(),
+                new StepVersionService(_modelService),
                 new StepProgressResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
@@ -584,7 +584,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
         definition.Properties.Single(p => p.Name == "Title").DependentQuestions
             .Add(definition.Properties.Single(p => p.Name == "Description"));
         var controller = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
-            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService);
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService,
+            _workflowInstanceDtoFactory);
 
         var result = await controller.SaveAnswer(instance.Id, "Start", "Title",
             new SaveAnswerRequest(Value: JsonSerializer.SerializeToElement("Updated title")), _ct);
@@ -823,7 +824,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
             builder => builder.WithId("Start").AsCompleted());
         ConfigurePinnedSubmit();
         var answers = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
-            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService);
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService,
+            _workflowInstanceDtoFactory);
 
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(async () =>
         {

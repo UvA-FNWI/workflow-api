@@ -47,6 +47,10 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
 
         var instanceIdFilter = Builders<InstanceJournalEntry>.Filter.Eq(x => x.InstanceId, instanceId);
 
+        var lastEvent = await _eventLogCollection.Find(entry => entry.WorkflowInstanceId == instanceId)
+            .SortByDescending(entry => entry.Timestamp).FirstOrDefaultAsync(ct);
+        var lastEventAt = lastEvent?.Timestamp ?? DateTime.MinValue;
+
         var overwritten = new List<string>();
 
         foreach (var change in newChanges)
@@ -59,7 +63,9 @@ public class InstanceJournalService(IMongoDatabase db) : IInstanceJournalService
                     x => x.PropertyChanges,
                     pc => pc.Version == change.Version &&
                           pc.Path == change.Path &&
-                          pc.Timestamp >= cutoff
+                          pc.Timestamp >= cutoff &&
+                          // Preserve answers on either side of submissions, restarts and undo.
+                          pc.Timestamp > lastEventAt
                 );
 
             var updateExisting = Builders<InstanceJournalEntry>.Update
