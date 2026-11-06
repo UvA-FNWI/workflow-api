@@ -224,7 +224,8 @@ public class StepHeaderStatusTests
         Assert.NotNull(subject.HeaderStatus.Label);
         Assert.Equal(StepHeaderPillType.Info, subject.HeaderStatus!.Type);
         Assert.Contains("Wait for approval", subject.HeaderStatus.Label.En);
-        Assert.Null(subject.Versions);
+        Assert.NotNull(subject.Versions!.Current);
+        Assert.Empty(subject.Versions.History);
     }
 
     [Fact]
@@ -529,7 +530,7 @@ public class StepHeaderStatusTests
             modelService,
             submissionDtoFactory,
             rightsService,
-            new StepVersionService(),
+            new StepVersionService(modelService),
             new StepProgressResolver(modelService),
             workflowInstanceService,
             NullLogger<WorkflowInstanceDtoFactory>.Instance,

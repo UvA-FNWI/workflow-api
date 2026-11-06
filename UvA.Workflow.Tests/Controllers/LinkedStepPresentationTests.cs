@@ -35,6 +35,7 @@ public class LinkedStepPresentationTests
         Assert.Equal("Upload", imported.ImportedFrom.StepId);
         Assert.Equal("Student A", Assert.Single(imported.ImportedFrom.Participants).DisplayName);
         Assert.Equal(api.Core.Source.Events["Uploaded"].Date, imported.DateCompleted);
+        Assert.True(imported.IsAvailable);
         Assert.Null(imported.Versions);
         Assert.Null(imported.UndoCandidate);
         Assert.Empty(dto.Submissions);
@@ -256,7 +257,7 @@ internal sealed class LinkedStepApiSetup
         var undo = new UndoService(events.Object, Mock.Of<IJobRepository>(), Core.Repository.Object,
             Instances, Rights, Core.Model);
         Factory = new WorkflowInstanceDtoFactory(Instances, Core.Model, submissions, Rights,
-            new StepVersionService(), new StepProgressResolver(Core.Model), workflows,
+            new StepVersionService(Core.Model), new StepProgressResolver(Core.Model), workflows,
             NullLogger<WorkflowInstanceDtoFactory>.Instance, undo);
     }
 }

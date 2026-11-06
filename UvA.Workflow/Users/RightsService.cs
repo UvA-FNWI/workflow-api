@@ -244,6 +244,27 @@ public class RightsService(
     public Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
         => GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
 
+    /// <summary>
+    /// Resolves current roles and impersonation once, with view conditions evaluated per historical snapshot.
+    /// </summary>
+    public async Task<Dictionary<WorkflowInstance, Domain_Action[]>> GetAllowedHistoricalViewActions(
+        WorkflowInstance currentInstance, WorkflowInstance[] snapshots)
+    {
+        if (snapshots.Length == 0)
+            return [];
+
+        var roles = await GetRequestContextRoles(currentInstance);
+        var result = new Dictionary<WorkflowInstance, Domain_Action[]>();
+        foreach (var snapshot in snapshots.Distinct())
+        {
+            var context = await stateResolver.Resolve(snapshot, CancellationToken.None);
+            result[snapshot] = GetAllowedActions(snapshot, context,
+                modelService.GetActiveSteps(snapshot, context), roles, RoleAction.View);
+        }
+
+        return result;
+    }
+
     public async Task<Domain_Action[]> GetAllowedActions(
         WorkflowInstance instance,
         RightsEvaluationMode evaluationMode,

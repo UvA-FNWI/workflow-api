@@ -46,7 +46,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 _modelService,
                 _submissionDtoFactory,
                 _rightsService,
-                new StepVersionService(),
+                new StepVersionService(_modelService),
                 new StepProgressResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
@@ -685,7 +685,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
             builder => builder.WithId("Start").AsCompleted());
         ConfigurePinnedSubmit();
         var answers = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
-            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService);
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService,
+            _workflowInstanceDtoFactory);
 
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(async () =>
         {
