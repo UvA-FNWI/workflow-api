@@ -122,8 +122,7 @@ public class EffectService(
                     }
                 }
 
-                var recipientContext = new ObjectContext(context.Values.ToDictionary(v => v.Key, v => v.Value),
-                    context.ValueSets);
+                var recipientContext = context.WithValues([]);
                 recipientContext.Values.Add("AccessRecipient", accessRecipient);
                 recipientContext.Values.Add(effect.Name ?? "Access", new Dictionary<Lookup, object>
                 {
@@ -253,14 +252,15 @@ public class EffectService(
         CancellationToken ct)
     {
         var parts = setProperty.Property.Split('.');
+        modelService.EnsureWritable(instance, parts);
         var value = setProperty.ValueExpression.Execute(context);
         if (value is string text &&
             modelService.GetProperty(instance, parts)?.DataType is DataType.Date or DataType.DateTime)
             value = DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        instance.SetProperty(
-            value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value),
-            parts
-        );
+        var storedValue = value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value);
+        if (modelService.GetProperty(instance, parts) is { } property)
+            storedValue = BsonConversionTools.GetStoredValue(storedValue, property);
+        instance.SetProperty(storedValue, parts);
         await instanceService.SaveValue(instance, parts.Reverse().Skip(1).FirstOrDefault(), parts.Last(), ct);
     }
 
@@ -449,15 +449,9 @@ public class EffectService(
                 // Service config values (base URLs, tokens, etc.) come next.
                 // Workflow instance properties are available as a lower-priority fallback.
 
-                responseContext = new ObjectContext(
-                    context.Values
-                        .Concat(optionContext.Values)
-                        .Concat(body!.RootElement.EnumerateObject()
-                            .ToDictionary(Lookup (p) => p.Name, object? (p) => p.Value.ToString()))
-                        .GroupBy(p => p.Key)
-                        .ToDictionary(g => g.Key, g => g.Last().Value),
-                    context.ValueSets
-                );
+                responseContext = context.WithValues(optionContext.Values
+                    .Concat(body!.RootElement.EnumerateObject()
+                        .ToDictionary(Lookup (p) => p.Name, object? (p) => p.Value.ToString())));
             }
 
             context.Values.Add(effect.Name ?? operation.Name, operation.Outputs.ToDictionary(

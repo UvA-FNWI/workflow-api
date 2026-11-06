@@ -48,6 +48,8 @@ public class PropertySchemaTests
     [InlineData("File", ", \"maximumSize\": 1000")]
     [InlineData("[File]!", ", \"allowedTypes\": [\"zip\"], \"maximumSize\": 1000, \"prefix\": \"archive_\"")]
     [InlineData("String", ", \"control\": \"Email\"")]
+    [InlineData("Int", ", \"expression\": \"count(Parties)\"")]
+    [InlineData("[String]", ", \"expression\": \"unique(Names)\"")]
     [InlineData("User", ", \"allowsExternalUsers\": true")]
     [InlineData("Country", ", \"values\": [{\"name\": \"NL\"}], \"control\": \"Dropdown\"")]
     [InlineData("[Context]", ", \"inheritedRoles\": [\"Coordinator\"], \"control\": \"RadioList\"")]

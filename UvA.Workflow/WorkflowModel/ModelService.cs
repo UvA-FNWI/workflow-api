@@ -30,8 +30,11 @@ public class ModelService(ModelParser parser)
     /// Returns <c>null</c> if any part of the path cannot be resolved.
     /// </summary>
     public PropertyDefinition? GetProperty(WorkflowInstance instance, params string?[] parts)
+        => GetProperty(WorkflowDefinitions[instance.WorkflowDefinition], parts);
+
+    public PropertyDefinition? GetProperty(WorkflowDefinition definition, params string?[] parts)
     {
-        WorkflowDefinition? type = WorkflowDefinitions[instance.WorkflowDefinition];
+        WorkflowDefinition? type = definition;
         foreach (var part in parts.Take(parts.Length - 1).Where(p => p != null))
         {
             var prop = type!.Properties.GetOrDefault(part!);
@@ -55,14 +58,21 @@ public class ModelService(ModelParser parser)
     public ObjectContext CreateContext(WorkflowInstance instance)
         => ObjectContext.Create(instance, this);
 
-    public ObjectContext CreateContext(string workflowDefinition, Dictionary<string, BsonValue> rawData)
-        => ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData);
+    public ObjectContext CreateContext(string workflowDefinition, Dictionary<string, BsonValue> rawData,
+        IEnumerable<string>? projectedProperties = null)
+        => ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData, projectedProperties);
+
+    public void EnsureWritable(WorkflowInstance instance, params string[] path)
+    {
+        for (var length = 1; length <= path.Length; length++)
+            GetProperty(instance, path[..length])?.EnsureWritable();
+    }
 
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,
-        IEnumerable<PropertyDefinition>? questions = null)
+        IEnumerable<PropertyDefinition>? questions = null, ObjectContext? context = null)
     {
-        var context = form.GetContext(CreateContext(instance));
+        context = form.GetContext(context ?? CreateContext(instance));
         return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden)
@@ -91,9 +101,10 @@ public class ModelService(ModelParser parser)
                                           step.Condition.IsMet(context) && step.HasEnded(context)).ToArray();
     }
 
-    public string[] GetActiveSteps(WorkflowInstance instance)
+    public string[] GetActiveSteps(WorkflowInstance instance, ObjectContext? context = null)
     {
-        var (step, context) = ResolveCurrentStep(instance);
+        var (step, resolvedContext) = ResolveCurrentStep(instance, context);
+        context = resolvedContext;
         context ??= CreateContext(instance);
         var walk = WorkflowDefinitions[instance.WorkflowDefinition].WalkSteps.ToList();
         var alongside = walk
@@ -113,15 +124,21 @@ public class ModelService(ModelParser parser)
     }
 
     /// <summary>
-    /// Returns CurrentStep when it resolves; otherwise returns the first open step.
+    /// Refreshes reference-backed step rules from a supplied context; otherwise uses CurrentStep when it resolves.
     /// </summary>
-    public Step? GetCurrentStep(WorkflowInstance instance) => ResolveCurrentStep(instance).Step;
+    public Step? GetCurrentStep(WorkflowInstance instance, ObjectContext? context = null)
+        => ResolveCurrentStep(instance, context).Step;
 
     private (Step? Step, ObjectContext? Context) ResolveCurrentStep(WorkflowInstance instance,
         ObjectContext? context = null)
     {
         var workflowDefinition = WorkflowDefinitions[instance.WorkflowDefinition];
-        if (!string.IsNullOrEmpty(instance.CurrentStep) &&
+        var refreshStep = context != null && workflowDefinition.GetSourceLookups(workflowDefinition.AllSteps
+                .SelectMany(step => (step.Condition?.Properties ?? []).Concat(step.Ends?.Properties ?? [])))
+            .OfType<PropertyLookup>()
+            .Any(lookup => lookup.Parts.Length > 1 &&
+                           workflowDefinition.Properties.GetOrDefault(lookup.Parts[0]) is ReferencePropertyDefinition);
+        if (!refreshStep && !string.IsNullOrEmpty(instance.CurrentStep) &&
             workflowDefinition.AllSteps.GetOrDefault(instance.CurrentStep) is { } currentStep)
             return (currentStep, context);
 

@@ -1,7 +1,24 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Tools;
 
 public static class BsonConversionTools
 {
+    /// <summary>Copies an embedded value using only its declared stored properties.</summary>
+    public static BsonValue GetStoredValue(BsonValue value, PropertyDefinition property)
+    {
+        if (property is not ObjectPropertyDefinition { WorkflowDefinition: { } definition })
+            return value;
+        if (value is BsonArray array)
+            return new BsonArray(array.Select(item => GetStoredValue(item, property)));
+        if (value is not BsonDocument document)
+            return value;
+
+        return new BsonDocument(definition.Properties
+            .Where(child => !child.IsComputed && document.Contains(child.Name))
+            .Select(child => new BsonElement(child.Name, GetStoredValue(document[child.Name], child))));
+    }
+
     /// <summary>
     /// Converts basic BSON types to their corresponding .NET objects.
     /// This handles primitive types and basic collections but not domain-specific types.

@@ -15,6 +15,7 @@ public abstract record QuestionDto
         Type = property.DataType;
         IsRequired = property.IsRequired;
         IsArray = property.IsArray;
+        IsComputed = property.IsComputed;
         Description = property.Description;
         ShortText = property.ShortDisplayName;
         HideInResults = property.HideInResults;
@@ -27,6 +28,7 @@ public abstract record QuestionDto
     public DataType Type { get; }
     public bool IsRequired { get; init; }
     public bool IsArray { get; init; }
+    public bool IsComputed { get; init; }
     public BilingualString? Description { get; init; }
     public BilingualString? ShortText { get; init; }
     public bool HideInResults { get; init; }

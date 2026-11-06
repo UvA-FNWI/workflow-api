@@ -45,8 +45,8 @@ public class AssessmentsController(
             contexts.AddRange(context);
         }
 
-        var dto = assessmentDtoFactory.Create(instance, contexts, assessmentConfig,
-            allowedForms: submissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray());
+        var dto = await assessmentDtoFactory.Create(instance, contexts, assessmentConfig,
+            allowedForms: submissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray(), ct: ct);
         return Ok(dto);
     }
 
@@ -73,14 +73,14 @@ public class AssessmentsController(
             await rightsService.EnsureAuthorizedForAction(instance, [RoleAction.View, RoleAction.ViewResults]);
             var allowedSubmissions = (await instanceService.GetAllowedSubmissions(instance, ct, true)).ToList();
             var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, allowedSubmissions, ct);
-            return Ok(assessmentDtoFactory.Create(instance, contexts,
+            return Ok(await assessmentDtoFactory.Create(instance, contexts,
                 new AssessmentConfiguration { Parts = [matchingPart] },
-                allowedForms: allowedSubmissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray()));
+                allowedForms: allowedSubmissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray(), ct: ct));
         }
 
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
-        var dto = assessmentDtoFactory.Create(instance, [context], assessmentConfig);
+        var dto = await assessmentDtoFactory.Create(instance, [context], assessmentConfig, ct: ct);
         return Ok(dto);
     }
 
@@ -120,7 +120,7 @@ public class AssessmentsController(
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
 
-        var dto = assessmentDtoFactory.CreateSourceResults(context, pageName);
+        var dto = await assessmentDtoFactory.CreateSourceResults(context, pageName, ct);
         return Ok(dto);
     }
 }

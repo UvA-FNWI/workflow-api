@@ -30,8 +30,7 @@ public class AnswersController(
             RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
         return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
-            modelService.GetQuestionStatus(context.Instance, context.Form, true),
-            permissions.Select(permission => permission.Type).ToArray(), history, ct));
+            permissions: permissions.Select(permission => permission.Type).ToArray(), history: history, ct: ct));
     }
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
@@ -41,6 +40,7 @@ public class AnswersController(
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
+        modelService.EnsureWritable(context.Instance, context.PathParts);
 
         var externalUserInput = input.ExternalUser is { } eu
             ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization, eu.UserId)
@@ -57,8 +57,7 @@ public class AnswersController(
             var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
             var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
                 context.SubmissionState,
-                modelService.GetQuestionStatus(context.Instance, context.Form, true),
-                permissions.Select(p => p.Type).ToArray(), history, ct);
+                permissions: permissions.Select(p => p.Type).ToArray(), history: history, ct: ct);
             WorkflowInstanceDto? updatedInstance = null;
             if (await rightsService.Can(context.Instance, RoleAction.View))
             {

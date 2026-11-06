@@ -78,6 +78,13 @@
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
         },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
+        },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
           "oneOf": [
@@ -933,6 +940,13 @@
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
         },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
+        },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
           "oneOf": [
@@ -1078,6 +1092,13 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
+        },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
         },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
@@ -1235,6 +1256,13 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
+        },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
         },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
@@ -1418,6 +1446,13 @@
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
         },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
+        },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
           "oneOf": [
@@ -1563,6 +1598,13 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
+        },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
         },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
@@ -1720,6 +1762,13 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
+        },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
         },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
@@ -1886,6 +1935,13 @@
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
         },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
+        },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
           "oneOf": [
@@ -2038,6 +2094,13 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
+        },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
         },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
@@ -2260,6 +2323,13 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
+        },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
         },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
@@ -2575,6 +2645,13 @@
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
         },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
+        },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",
           "oneOf": [
@@ -2765,6 +2842,13 @@
             "string"
           ],
           "description": "Expression used to initialize this property when an instance is created without a value."
+        },
+        "expression": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Expression for a read-only computed value. Computed values are not stored on the instance."
         },
         "description": {
           "description": "Localized extended description text for the propertyDefinition.",

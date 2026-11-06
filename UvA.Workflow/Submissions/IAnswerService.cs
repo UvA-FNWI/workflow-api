@@ -13,6 +13,9 @@ public interface IAnswerService
     Task<QuestionContext> GetQuestionContext(
         string instanceId, string submissionId, string questionName, CancellationToken ct);
 
+    Task SaveProperty(WorkflowInstance instance, string[] pathParts, JsonElement? value,
+        bool shouldLog, CancellationToken ct);
+
     Task SavePropertyValue(
         WorkflowInstance instance,
         string[] pathParts,

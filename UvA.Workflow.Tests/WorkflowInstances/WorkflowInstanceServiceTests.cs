@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -46,6 +47,18 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
+    public async Task Create_RejectsExplicitComputedProperty()
+    {
+        _modelService.WorkflowDefinitions["Project"].Properties.Single(property => property.Name == "Title")
+            .Expression = "=Computed";
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            _service.Create("Project", null, _ct,
+                initialProperties: new Dictionary<string, BsonValue> { ["Title"] = "Injected" }));
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        _repository.Verify(repository => repository.Create(It.IsAny<WorkflowInstance>(), _ct), Times.Never);
+    }
+
+    [Fact]
     public async Task Create_AppliesDefaultToMissingProperty()
     {
         _modelService.WorkflowDefinitions["Project"].Properties
@@ -66,6 +79,29 @@ public class WorkflowInstanceServiceTests
             initialProperties: new Dictionary<string, BsonValue> { ["Title"] = BsonNull.Value });
 
         Assert.True(created.Properties["Title"].IsBsonNull);
+    }
+
+    [Fact]
+    public async Task Create_AppliesDefaultBeforeComputingRequiredDependentProperty()
+    {
+        var model = DerivedPropertyTests.Parse("""
+                                               name: Project
+                                               properties:
+                                                 - name: Display
+                                                   type: String!
+                                                   expression: Title
+                                                 - name: Title
+                                                   type: String
+                                                   default: =Untitled
+                                               """);
+        var service = new WorkflowInstanceService(model, _repository.Object, _journal.Object,
+            Mock.Of<IInstanceEventRepository>(), Mock.Of<IUserService>(), _userRepository.Object);
+
+        var created = await service.Create("Project", null, _ct);
+
+        Assert.Equal("Untitled", created.Properties["Title"].AsString);
+        Assert.Equal("Untitled", model.CreateContext(created).Get("Display"));
+        Assert.False(created.Properties.ContainsKey("Display"));
     }
 
     [Fact]
@@ -94,6 +130,46 @@ public class WorkflowInstanceServiceTests
             initialProperties: new Dictionary<string, BsonValue> { ["Course"] = courseId });
 
         Assert.Equal(endDate, created.Properties["EndDate"].ToLocalTime());
+    }
+
+    [Theory]
+    [InlineData("TargetName")]
+    [InlineData("DisplayName")]
+    public async Task Create_AppliesDefaultFromReferenceBackedComputedProperty(string expression)
+    {
+        var model = DerivedPropertyTests.Parse($"""
+                                                name: Project
+                                                properties:
+                                                  - name: Target
+                                                    type: Target
+                                                  - name: TargetName
+                                                    type: String!
+                                                    expression: Target.Name
+                                                  - name: DisplayName
+                                                    type: String!
+                                                    expression: TargetName
+                                                  - name: Label
+                                                    type: String
+                                                    default: {expression}
+                                                """, new()
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+        });
+        var targetId = ObjectId.GenerateNewId().ToString();
+        _repository.Setup(repository => repository.GetById(targetId, _ct)).ReturnsAsync(new WorkflowInstance
+        {
+            Id = targetId, WorkflowDefinition = "Target", Properties = new() { ["Name"] = "Example" }, Events = []
+        });
+        var service = new WorkflowInstanceService(model, _repository.Object, _journal.Object,
+            Mock.Of<IInstanceEventRepository>(), Mock.Of<IUserService>(), _userRepository.Object);
+
+        var created = await service.Create("Project", null, _ct,
+            initialProperties: new() { ["Target"] = targetId });
+
+        Assert.Equal("Example", created.Properties["Label"].AsString);
+        Assert.False(created.Properties.ContainsKey("TargetName"));
+        Assert.False(created.Properties.ContainsKey("DisplayName"));
+        _repository.Verify(repository => repository.Create(created, _ct), Times.Once);
     }
 
     [Fact]

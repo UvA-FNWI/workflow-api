@@ -53,7 +53,7 @@ public class WorkflowInstancesControllerImpersonationTests
             rightsService,
             null!,
             repository,
-            null!,
+            new InstanceService(repository, modelService, userService, rightsService, null!, null!),
             null!,
             null!,
             modelService,
