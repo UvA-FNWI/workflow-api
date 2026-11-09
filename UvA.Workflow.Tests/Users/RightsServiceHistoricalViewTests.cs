@@ -14,6 +14,30 @@ namespace UvA.Workflow.Tests.Users;
 public class RightsServiceHistoricalViewTests : ControllerTestsBase
 {
     [Theory]
+    [InlineData("=2000-01-01", false)]
+    [InlineData("=2999-01-01", true)]
+    public async Task HistoricalView_AppliesHardDeadlinesToHiddenPropertyGrants(string date, bool permitted)
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var grant = new DomainAction
+        {
+            Type = RoleAction.ViewHidden, Form = "Start", PropertyDefinition = "Title", Steps = ["Start"]
+        };
+        definition.Roles.Add(new Role { Name = "HistoryViewer", Actions = [grant] });
+        definition.AllSteps.Single(step => step.Name == "Start").Deadline =
+            new Deadline { Type = DeadlineType.Hard, Date = date };
+        MockCurrentUser("HistoryViewer");
+        MockEmptyRelatedInstanceLookups();
+        var current = ImpersonationTestHelpers.CreateProjectInstance();
+        var snapshot = ImpersonationTestHelpers.CreateProjectInstance(current.Id);
+        snapshot.CurrentStep = "Start";
+
+        var actions = (await _rightsService.GetAllowedHistoricalViewActions(current, [snapshot]))[snapshot];
+
+        Assert.Equal(permitted, actions.Contains(grant));
+    }
+
+    [Theory]
     [InlineData(true, false, false)]
     [InlineData(false, true, false)]
     [InlineData(true, false, true)]

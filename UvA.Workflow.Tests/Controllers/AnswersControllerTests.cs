@@ -88,9 +88,9 @@ public class AnswersControllerTests : ControllerTestsBase
         var answer = Assert.Single(submission.Answers, a => a.QuestionName == "Subject");
         Assert.Equal(!hidden, answer.IsVisible);
         Assert.Equal(hidden ? null : "Updated subject", answer.Value?.GetString());
-        var editableAnswer = Assert.Single(response.Submission.Answers, a => a.QuestionName == "Subject");
-        Assert.True(editableAnswer.IsVisible);
-        Assert.Equal("Updated subject", editableAnswer.Value?.GetString());
+        var savedAnswer = Assert.Single(response.Submission.Answers, a => a.QuestionName == "Subject");
+        Assert.Equal(!hidden, savedAnswer.IsVisible);
+        Assert.Equal(hidden ? null : "Updated subject", savedAnswer.Value?.GetString());
     }
 
     [Fact]
@@ -469,6 +469,24 @@ public class AnswersControllerTests : ControllerTestsBase
         var error = Assert.IsType<Error>(objectResult.Value);
         Assert.Equal(expectedCode, error.ErrorCode);
         Assert.Equal(expectedMessage, error.Message);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Answers_HiddenReference_DeniesChoiceReadsWithoutPropertyGrant(bool currentChoices)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Start", "SubjectFeedback");
+        _modelService.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == "Course").Visibility =
+            PropertyVisibility.Hidden;
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(async () =>
+        {
+            if (currentChoices)
+                await controller.GetCurrentChoices(instance.Id, "Start", "Course", _ct);
+            else
+                await controller.GetChoices(instance.Id, "Start", "Course", _ct);
+        });
     }
 
     private (AnswersController Controller, WorkflowInstance Instance) BuildControllerWithRoles(

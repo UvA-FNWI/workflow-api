@@ -255,6 +255,19 @@ public class RightsService(
     public Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
         => GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
 
+    public async Task<Domain_Action[]> GetAllowedHistoricalActions(
+        WorkflowInstance currentInstance, WorkflowInstance snapshot, params RoleAction[] actions)
+    {
+        var definition = modelService.WorkflowDefinitions[currentInstance.WorkflowDefinition];
+        var currentContext = await ContextLoader.CreateContext(modelService, workflowInstanceRepository,
+            currentInstance, definition.PermissionAndStepLookups, default);
+        var roles = await GetRequestContextRoles(currentInstance, currentContext);
+        var snapshotContext = await ContextLoader.CreateContext(modelService, workflowInstanceRepository,
+            snapshot, definition.PermissionAndStepLookups, default);
+        return GetAllowedActions(snapshot, snapshotContext,
+            GetAllowedActions(snapshot, snapshotContext, roles, actions));
+    }
+
     /// <summary>
     /// Resolves current roles and impersonation once, with view conditions evaluated per historical snapshot.
     /// </summary>
@@ -274,7 +287,8 @@ public class RightsService(
         foreach (var context in contexts.Values)
             context.ComputeProperties(definition);
         return contexts.ToDictionary(entry => entry.Key,
-            entry => GetAllowedActions(entry.Key, entry.Value, roles, RoleAction.View));
+            entry => GetAllowedActions(entry.Key, entry.Value,
+                GetAllowedActions(entry.Key, entry.Value, roles, RoleAction.View, RoleAction.ViewHidden)));
     }
 
     public async Task<Domain_Action[]> GetAllowedActions(
@@ -331,6 +345,11 @@ public class RightsService(
 
     public Task<bool> Can(WorkflowInstance instance, RoleAction action, string? form = null)
         => Can(instance, [action], RightsEvaluationMode.RequestContext, form);
+
+    public async Task<Dictionary<string, QuestionStatus>> GetQuestionStatus(WorkflowInstance instance, Form form,
+        IEnumerable<PropertyDefinition>? questions = null, ObjectContext? context = null)
+        => modelService.GetQuestionStatus(instance, form,
+            await GetAllowedActions(instance, RoleAction.ViewHidden), questions, context);
 
     public async Task<bool> Can(
         WorkflowInstance instance,

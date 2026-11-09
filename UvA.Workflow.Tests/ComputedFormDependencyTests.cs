@@ -21,6 +21,27 @@ public class ComputedFormDependencyTests
         Assert.Equal(["Included"], Assert.IsType<string[]>(status["Choice"].Choices));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QuestionStatus_CombinesLoadedComputedConditionsWithPropertyGrants(bool granted)
+    {
+        var (model, service, instance, form) = Create();
+        var definition = model.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.Properties.Single(p => p.Name == "Detail").Visibility = PropertyVisibility.Hidden;
+        definition.Properties.Single(p => p.Name == "Validated").Visibility = PropertyVisibility.Hidden;
+        UvA.Workflow.WorkflowModel.Action[] grants = granted
+            ? [new() { Type = RoleAction.ViewHidden, Form = form.Name, PropertyDefinition = "Detail" }]
+            : [];
+        var context = await service.CreateFormContext(instance, form, CancellationToken.None);
+
+        var status = model.GetQuestionStatus(instance, form, grants, context: context);
+
+        Assert.Equal(granted, status["Detail"].IsVisible);
+        Assert.False(status["Validated"].IsVisible);
+        Assert.Equal(["Included"], status["Choice"].Choices);
+    }
+
     [Fact]
     public async Task SubmissionDto_ResolvesComputedPageConditions()
     {

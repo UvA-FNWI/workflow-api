@@ -141,8 +141,8 @@ public class AnswerService(
         var questionsToUpdate = question.DependentQuestions.Append(question).Distinct().ToArray();
 
         // Check if user can view hidden fields
-        var canViewHidden = await rightsService.Can(instance, RoleAction.ViewHidden, form.Name);
-        var updates = await instanceService.GetQuestionStatus(instance, form, canViewHidden, ct, questionsToUpdate);
+        var objectContext = await instanceService.CreateFormContext(instance, form, ct, questionsToUpdate);
+        var updates = await rightsService.GetQuestionStatus(instance, form, questionsToUpdate, objectContext);
 
         // Build response
         return Answer.Create(instance, form, updates);

@@ -36,4 +36,11 @@ public partial class InstanceService
         var context = await CreateFormContext(instance, form, ct, questions);
         return modelService.GetQuestionStatus(instance, form, canViewHidden, questions, context);
     }
+
+    public async Task<Dictionary<string, QuestionStatus>> GetQuestionStatus(WorkflowInstance instance, Form form,
+        CancellationToken ct, IEnumerable<PropertyDefinition>? questions = null)
+    {
+        var context = await CreateFormContext(instance, form, ct, questions);
+        return await rightsService.GetQuestionStatus(instance, form, questions, context);
+    }
 }

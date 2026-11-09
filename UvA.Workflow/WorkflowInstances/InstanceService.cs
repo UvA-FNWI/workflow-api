@@ -388,7 +388,6 @@ public partial class InstanceService(
                 : [a])
             .Distinct()
             .ToDictionary(f => f, f => modelService.GetForm(instance, f));
-        var hiddenForms = allowedHidden.SelectMany(a => a.AllForms).Distinct().ToList();
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
@@ -404,7 +403,8 @@ public partial class InstanceService(
             .OrderBy(x => workflowDef.Forms.FindIndex(f => f.Name == x.Form.Name))
             .ThenBy(x => x.State.DateSubmitted);
         return await Task.WhenAll(submissions.Select(async x => new AllowedSubmission(x.State, x.Form,
-            await GetQuestionStatus(instance, x.Form, hiddenForms.Contains(x.Form.Name), ct),
+            modelService.GetQuestionStatus(instance, x.Form, allowedHidden,
+                context: await CreateFormContext(instance, x.Form, ct)),
             allowed.Any(a => a.Type == RoleAction.View && a.MatchesForm(x.Form.Name)))));
     }
 

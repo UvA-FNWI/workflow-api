@@ -30,7 +30,8 @@ public class AnswersController(
             RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
         return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
-            permissions: permissions.Select(permission => permission.Type).ToArray(), history: history, ct: ct));
+            await instanceService.GetQuestionStatus(context.Instance, context.Form, ct),
+            permissions.Select(permission => permission.Type).ToArray(), history, ct));
     }
 
     [HttpPost("{instanceId}/{submissionId}/{questionName}")]
@@ -57,7 +58,8 @@ public class AnswersController(
             var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
             var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
                 context.SubmissionState,
-                permissions: permissions.Select(p => p.Type).ToArray(), history: history, ct: ct);
+                await instanceService.GetQuestionStatus(context.Instance, context.Form, ct),
+                permissions.Select(p => p.Type).ToArray(), history, ct);
             WorkflowInstanceDto? updatedInstance = null;
             if (await rightsService.Can(context.Instance, RoleAction.View))
             {
@@ -104,7 +106,7 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedForAction(context, RoleAction.View);
+        await EnsureAuthorizedToView(context);
 
         if (context.PropertyDefinition is not ReferencePropertyDefinition reference)
             return NotFound();
@@ -124,7 +126,7 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedForAction(context, RoleAction.View);
+        await EnsureAuthorizedToView(context);
 
         var value = modelService.CreateContext(context.Instance).Get(questionName);
         var ids = value switch
@@ -145,6 +147,16 @@ public class AnswersController(
             null,
             null)
         ));
+    }
+
+    private async Task EnsureAuthorizedToView(QuestionContext context)
+    {
+        await EnsureAuthorizedForAction(context, RoleAction.View);
+        if (context.PropertyDefinition.Visibility == PropertyVisibility.Hidden &&
+            !(await instanceService.GetQuestionStatus(context.Instance, context.Form, default,
+                    [context.PropertyDefinition]))
+                [context.PropertyDefinition.Name].IsVisible)
+            throw new ForbiddenWorkflowActionException(context.Instance.Id, RoleAction.ViewHidden, context.Form.Name);
     }
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
