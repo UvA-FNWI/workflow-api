@@ -131,7 +131,7 @@ public partial class ModelParser
             definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
 
             var formTemplatesByName = ReadTemplates(FormTemplates, definition.SourceFolder);
-            definition.Forms = ResolveFormTemplates(Read<Form>(definition.SourceFolder), formTemplatesByName,
+            definition.Forms = ResolveFormTemplates(definition.Forms, formTemplatesByName,
                 definition.Name);
 
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();

@@ -147,8 +147,9 @@ public partial class ModelParser
 
         if (Cleared(target, f => f.Pages))
             return;
-        foreach (var sourcePage in source.Pages.Where(p => !target.Pages.Contains(p.Name)))
-            target.Pages.Insert(0, sourcePage.Clone());
+
+        var inheritedPages = source.Pages.Where(p => !target.Pages.Contains(p.Name)).Select(p => p.Clone()).ToList();
+        target.Pages.InsertRange(0, inheritedPages);
     }
 
     private void ApplyInheritance(Step target, Step source)
