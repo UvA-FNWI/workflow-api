@@ -196,6 +196,9 @@ public partial class ModelParser
         else if (target.BulkEdit != null && source.BulkEdit != null)
             ApplyInheritance(target.BulkEdit, source.BulkEdit);
 
+        if (!Cleared(target, s => s.BulkActions))
+            target.BulkActions = MergeBulkActions(target.BulkActions, source.BulkActions);
+
         if (source.Grouping != null)
         {
             target.Grouping = MergeGrouping(
@@ -228,6 +231,20 @@ public partial class ModelParser
                 .Distinct()
                 .ToArray();
         }
+    }
+
+    // Child bulk actions replace inherited ones with the same action in place; new ones are appended.
+    private static BulkAction[] MergeBulkActions(BulkAction[] target, BulkAction[] source)
+    {
+        var result = source.Select(action => action.Clone()).ToList();
+        foreach (var action in target)
+        {
+            var index = result.FindIndex(inherited => inherited.Action == action.Action);
+            if (index < 0) result.Add(action);
+            else result[index] = action;
+        }
+
+        return result.ToArray();
     }
 
     private static Column[] MergeColumns(Column[] target, Column[] source)

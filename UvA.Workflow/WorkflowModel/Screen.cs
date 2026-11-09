@@ -49,6 +49,7 @@ public class Screen : INamed, IDeclaredKeys
                 }).ToArray()
             },
         BulkEdit = BulkEdit?.Clone(),
+        BulkActions = BulkActions.Select(action => action.Clone()).ToArray(),
         DeclaredKeys = [.. DeclaredKeys]
     };
 }
@@ -58,6 +59,8 @@ public class BulkAction
     [Required] public string Action { get; set; } = null!;
     [Required] public BilingualString Label { get; set; } = null!;
     [Required] public Icon Icon { get; set; } = null!;
+
+    public BulkAction Clone() => (BulkAction)MemberwiseClone();
 }
 
 /// <summary>
