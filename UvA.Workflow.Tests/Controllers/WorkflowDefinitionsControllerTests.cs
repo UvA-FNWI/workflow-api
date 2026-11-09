@@ -192,7 +192,7 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task BuildAuthorizationFilter_AllowsNonCyclicReferenceBetweenCourses()
+    public async Task BuildAuthorizationFilter_FollowsLongReferenceChainBetweenCourses()
     {
         MockCurrentUser();
 
@@ -204,8 +204,29 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
             WorkflowDefinition = courseDefinition
         });
 
-        var courseAId = ObjectId.GenerateNewId();
-        var courseBId = ObjectId.GenerateNewId();
+        var userId = ObjectId.Parse(UnitTestsHelpers.AdminUser.Id);
+        var courseA = ObjectId.GenerateNewId();
+        var courseB = ObjectId.GenerateNewId();
+        var courseC = ObjectId.GenerateNewId();
+        var courseD = ObjectId.GenerateNewId();
+
+        // Project -> Course A -> Course B -> Course C -> Course D; the user only coordinates Course D.
+        var relatedCourses = new Dictionary<ObjectId, ObjectId?>
+        {
+            [courseA] = courseB,
+            [courseB] = courseC,
+            [courseC] = courseD,
+            [courseD] = null
+        };
+
+        bool Matches(ObjectId courseId, BsonDocument filter) => filter.Elements.All(element => element.Name switch
+        {
+            "$or" => element.Value.AsBsonArray.Any(f => Matches(courseId, f.AsBsonDocument)),
+            "Properties.Coordinator._id" => courseId == courseD && element.Value.AsObjectId == userId,
+            "Properties.RelatedCourse" => relatedCourses[courseId] is { } related &&
+                                          element.Value["$in"].AsBsonArray.Contains(related.ToString()),
+            _ => false
+        });
 
         _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
                 It.IsAny<string>(),
@@ -213,21 +234,13 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
                 It.IsAny<BsonDocument?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((string definition, Dictionary<string, string> _, BsonDocument? filter,
-                CancellationToken _) =>
-            {
-                if (definition != "Course" || filter == null)
-                    return [];
-
-                var json = filter.ToJson();
-                if (json.Contains("Properties.RelatedCourse") &&
-                    json.Contains("Properties.Coordinator._id"))
-                    return [new Dictionary<string, BsonValue> { ["_id"] = courseAId }];
-
-                if (filter.Contains("Properties.Coordinator._id"))
-                    return [new Dictionary<string, BsonValue> { ["_id"] = courseBId }];
-
-                return [];
-            });
+                    CancellationToken _) =>
+                definition != "Course" || filter == null
+                    ? []
+                    : relatedCourses.Keys
+                        .Where(id => Matches(id, filter))
+                        .Select(id => new Dictionary<string, BsonValue> { ["_id"] = id })
+                        .ToList());
 
         var authorization = new InstanceAuthorizationFilterService(
             _rightsService, _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
@@ -235,8 +248,139 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
         var filter = await authorization.BuildAuthorizationFilter("Project", RoleAction.View, _ct);
 
         Assert.NotNull(filter);
-        Assert.Contains(courseAId.ToString(), filter.ToJson());
+        var json = filter.ToJson();
+        Assert.All(new[] { courseA, courseB, courseC, courseD }, id => Assert.Contains(id.ToString(), json));
     }
+
+    [Fact]
+    public async Task BuildAuthorizationFilter_FollowsCourseProgrammeCourseSpecialisationProgrammeChain()
+    {
+        var chain = SetUpCourseProgrammeChain(sameCourses: false, sameProgrammes: false);
+
+        var json = await BuildProjectViewFilterJson();
+
+        Assert.Contains(chain.Course1.ToString(), json);
+        Assert.Contains(chain.Course2.ToString(), json);
+        Assert.DoesNotContain(chain.UnrelatedCourse.ToString(), json);
+    }
+
+    [Fact]
+    public async Task BuildAuthorizationFilter_TerminatesAndKeepsAccess_WhenChainLoopsBackToSameCourse()
+    {
+        // Course 1 -> Programme 1 -> Course 1
+        var chain = SetUpCourseProgrammeChain(sameCourses: true, sameProgrammes: false);
+
+        var json = await BuildProjectViewFilterJson();
+
+        Assert.Contains(chain.Course1.ToString(), json);
+        Assert.DoesNotContain(chain.UnrelatedCourse.ToString(), json);
+    }
+
+    [Fact]
+    public async Task BuildAuthorizationFilter_TerminatesAndKeepsAccess_WhenChainLoopsBackToSameProgramme()
+    {
+        // Programme 1 -> Course 2 -> Specialisation -> Programme 1
+        var chain = SetUpCourseProgrammeChain(sameCourses: false, sameProgrammes: true);
+
+        var json = await BuildProjectViewFilterJson();
+
+        Assert.Contains(chain.Course1.ToString(), json);
+        Assert.Contains(chain.Course2.ToString(), json);
+        Assert.DoesNotContain(chain.UnrelatedCourse.ToString(), json);
+    }
+
+    private record CourseProgrammeChain(ObjectId Course1, ObjectId Course2, ObjectId UnrelatedCourse);
+
+    /// <summary>
+    /// Builds Course 1 -> Programme 1 -> Course 2 -> Specialisation -> Programme 2 -> Faculty,
+    /// where the current user is LocalAdmin of the Faculty. Optionally collapses the two courses
+    /// or the two programmes into one instance to create a reference cycle.
+    /// </summary>
+    private CourseProgrammeChain SetUpCourseProgrammeChain(bool sameCourses, bool sameProgrammes)
+    {
+        MockCurrentUser();
+
+        // Course -> Programme already exists in the fixtures; add the remaining links of the chain.
+        AddReferenceProperty("Programme", "Course", "Course");
+        AddReferenceProperty("Course", "Specialisation", "Specialisation");
+        AddReferenceProperty("Specialisation", "Programme", "Programme");
+
+        var userId = ObjectId.Parse(UnitTestsHelpers.AdminUser.Id);
+        var course1 = ObjectId.GenerateNewId();
+        var course2 = sameCourses ? course1 : ObjectId.GenerateNewId();
+        var programme1 = ObjectId.GenerateNewId();
+        var programme2 = sameProgrammes ? programme1 : ObjectId.GenerateNewId();
+        var specialisation = ObjectId.GenerateNewId();
+        var faculty = ObjectId.GenerateNewId();
+        var unrelatedCourse = ObjectId.GenerateNewId();
+        var unrelatedProgramme = ObjectId.GenerateNewId();
+
+        var definitions = new Dictionary<ObjectId, string>
+        {
+            [course1] = "Course",
+            [course2] = "Course",
+            [programme1] = "Programme",
+            [programme2] = "Programme",
+            [specialisation] = "Specialisation",
+            [faculty] = "Faculty",
+            [unrelatedCourse] = "Course",
+            [unrelatedProgramme] = "Programme"
+        };
+
+        var references = new (ObjectId From, string Property, ObjectId To)[]
+        {
+            (course1, "Programme", programme1),
+            (programme1, "Course", course2),
+            (course2, "Specialisation", specialisation),
+            (specialisation, "Programme", programme2),
+            (programme2, "Faculty", faculty),
+            (unrelatedCourse, "Programme", unrelatedProgramme)
+        };
+
+        bool Matches(ObjectId id, BsonDocument filter) => filter.Elements.All(element => element.Name switch
+        {
+            "$or" => element.Value.AsBsonArray.Any(f => Matches(id, f.AsBsonDocument)),
+            "Properties.LocalAdmin._id" => id == faculty && element.Value.AsObjectId == userId,
+            _ => references.Any(r => r.From == id
+                                     && element.Name == $"Properties.{r.Property}"
+                                     && element.Value["$in"].AsBsonArray.Contains(r.To.ToString()))
+        });
+
+        _workflowInstanceRepoMock.Setup(r => r.GetAllByType(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<BsonDocument?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string definition, Dictionary<string, string> _, BsonDocument? filter,
+                    CancellationToken _) =>
+                filter == null
+                    ? []
+                    : definitions
+                        .Where(d => d.Value == definition && Matches(d.Key, filter))
+                        .Select(d => new Dictionary<string, BsonValue> { ["_id"] = d.Key })
+                        .ToList());
+
+        return new CourseProgrammeChain(course1, course2, unrelatedCourse);
+    }
+
+    private async Task<string> BuildProjectViewFilterJson()
+    {
+        var authorization = new InstanceAuthorizationFilterService(
+            _rightsService, _modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+
+        var filter = await authorization.BuildAuthorizationFilter("Project", RoleAction.View, _ct);
+
+        Assert.NotNull(filter);
+        return filter.ToJson();
+    }
+
+    private void AddReferenceProperty(string definition, string propertyName, string referencedDefinition) =>
+        _modelService.WorkflowDefinitions[definition].Properties.Add(new ReferencePropertyDefinition
+        {
+            Name = propertyName,
+            Type = referencedDefinition,
+            WorkflowDefinition = _modelService.WorkflowDefinitions[referencedDefinition]
+        });
 
     [Fact]
     public async Task BuildAuthorizationFilter_DoesNotThrowOrHang_ForCyclicReferenceBetweenCourses()

@@ -184,69 +184,87 @@ public class InstanceAuthorizationFilterService(
         return filters;
     }
 
-    private Task<string[]> GetInstanceIdsForRole(
-        WorkflowDefinition definition,
-        string role,
-        User user,
-        CancellationToken ct)
-        => GetInstanceIdsForRole(definition, role, user, depth: 0, ct);
-
     private async Task<string[]> GetInstanceIdsForRole(
         WorkflowDefinition definition,
         string role,
         User user,
-        int depth,
         CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
+        var definitions = new Dictionary<string, WorkflowDefinition>();
 
-        if (depth > modelService.WorkflowDefinitions.Count)
-            return []; // Prevent infinite recursion in case of cyclic references
-
-        var filters = new List<BsonDocument>();
-
-        var roleProperty = definition.Properties.OfType<UserPropertyDefinition>().FirstOrDefault(p =>
-            p.Name == role && p.InheritRole == true);
-
-        if (roleProperty != null)
+        void CollectDefinitions(WorkflowDefinition current)
         {
-            filters.Add(new BsonDocument(
-                $"Properties.{roleProperty.Name}._id",
-                new ObjectId(user.Id)));
-        }
+            if (!definitions.TryAdd(current.Name, current))
+                return;
 
-        var referenceProperties = definition.Properties.OfType<ReferencePropertyDefinition>()
-            .Where(p => p.WorkflowDefinition != null)
-            .ToArray();
-
-        foreach (var property in referenceProperties)
-        {
-            if (property.WorkflowDefinition is not { } referencedDefinition)
-                continue;
-
-            var referencedIds = await GetInstanceIdsForRole(
-                referencedDefinition,
-                role,
-                user,
-                depth + 1,
-                ct);
-
-            if (referencedIds.Length > 0)
+            foreach (var property in current.Properties
+                         .OfType<ReferencePropertyDefinition>())
             {
-                filters.Add(new BsonDocument(
-                    $"Properties.{property.Name}",
-                    new BsonDocument("$in", new BsonArray(referencedIds))));
+                if (property.WorkflowDefinition is { } target)
+                    CollectDefinitions(target);
             }
         }
 
-        if (filters.Count == 0)
-            return [];
+        CollectDefinitions(definition);
 
-        var filter = filters.Count == 1
-            ? filters[0]
-            : new BsonDocument("$or", new BsonArray(filters));
+        var matchingIds = definitions.Keys.ToDictionary(
+            name => name,
+            _ => new HashSet<string>());
 
-        return await GetMatchingInstanceIds(definition, filter, ct);
+        bool changed;
+        do
+        {
+            changed = false;
+
+            foreach (var current in definitions.Values)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var filters = new List<BsonDocument>();
+
+                var roleProperty = current.Properties
+                    .OfType<UserPropertyDefinition>()
+                    .FirstOrDefault(p => p.Name == role && p.InheritRole == true);
+
+                if (roleProperty != null)
+                {
+                    filters.Add(new BsonDocument(
+                        $"Properties.{roleProperty.Name}._id",
+                        new ObjectId(user.Id)));
+                }
+
+                foreach (var property in current.Properties
+                             .OfType<ReferencePropertyDefinition>())
+                {
+                    if (property.WorkflowDefinition is not { } target)
+                        continue;
+
+                    var referencedIds = matchingIds[target.Name];
+                    if (referencedIds.Count == 0)
+                        continue;
+
+                    filters.Add(new BsonDocument(
+                        $"Properties.{property.Name}",
+                        new BsonDocument("$in", new BsonArray(referencedIds))));
+                }
+
+                if (filters.Count == 0)
+                    continue;
+
+                var filter = filters.Count == 1
+                    ? filters[0]
+                    : new BsonDocument("$or", new BsonArray(filters));
+
+                var foundIds = await GetMatchingInstanceIds(current, filter, ct);
+                var ids = matchingIds[current.Name];
+                var previousCount = ids.Count;
+
+                ids.UnionWith(foundIds);
+                changed |= ids.Count != previousCount;
+            }
+        } while (changed);
+
+        return matchingIds[definition.Name].ToArray();
     }
 
     private async Task<string[]> GetMatchingInstanceIds(
