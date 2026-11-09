@@ -583,6 +583,33 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        var actionNames = new HashSet<string>();
+        foreach (var bulkAction in screen.BulkActions)
+        {
+            var actions = workflowDefinition.AllActions.Where(a => a.Name == bulkAction.Action).ToArray();
+            string? error = null;
+            if (string.IsNullOrWhiteSpace(bulkAction.Action))
+                error = "action is required.";
+            else if (!actionNames.Add(bulkAction.Action))
+                error = "action is configured more than once.";
+            else if (bulkAction.Label == null)
+                error = "label is required.";
+            else if (string.IsNullOrWhiteSpace(bulkAction.Icon?.Type))
+                error = "icon.type is required.";
+            else if (actions.Length == 0)
+                error = "action does not exist.";
+            else if (actions.Any(a => a.Type != RoleAction.Execute))
+                error = "only Execute actions are supported.";
+            else if (actions.Any(a => a.OnAction.Any(e => e.SendMail?.SendAutomatically == false ||
+                                                          e.SendAccessMail?.SendAutomatically == false)))
+                error =
+                    "sendMail and sendAccessMail must use sendAutomatically: true; composing mail is not supported.";
+
+            if (error != null)
+                throw new Exception($"Invalid bulk action '{bulkAction.Action}' on screen '{screen.Name}' in " +
+                                    $"'{workflowDefinition.Name}': {error}");
+        }
+
         screen.Columns = screen.Columns.OrderBy(column => column.Order ?? 0).ToArray();
 
         var duplicateColumn = screen.Columns.Where(column => column.Name != null)

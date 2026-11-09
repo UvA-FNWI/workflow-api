@@ -9,7 +9,8 @@ public record ScreenDataDto(
     bool IsBulkEditEnabled,
     ScreenColumnDto[] Columns,
     ScreenRowDto[] Rows,
-    ScreenGroupDto[]? Groups = null)
+    ScreenGroupDto[]? Groups = null,
+    BulkAction[]? BulkActions = null)
 {
     public static ScreenDataDto Create(Screen screen, WorkflowDefinition definition, ScreenColumnDto[] columns,
         ScreenRowDto[] rows, bool canBulkEdit,
@@ -22,7 +23,8 @@ public record ScreenDataDto(
             screen.BulkEdit != null && canBulkEdit,
             columns,
             rows,
-            groups);
+            groups,
+            screen.BulkActions);
     }
 }
 

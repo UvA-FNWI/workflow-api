@@ -76,7 +76,8 @@ public class WorkflowInstanceDtoFactory(
             stepVersionsMap = [];
         }
 
-        var currentVersionPermissions = (await rightsService.GetAllowedActions(instance, RoleAction.View))
+        var currentVersionPermissions =
+            (await rightsService.GetAllowedActions(instance, RoleAction.View, RoleAction.ViewHidden))
             .Concat(permissions.Where(action => action.Type == RoleAction.Edit)).ToArray();
         var versionContexts = stepVersionsMap.Values
             .SelectMany(versions => versions.Current == null
@@ -345,7 +346,7 @@ public class WorkflowInstanceDtoFactory(
                 [new InstanceEvent { Id = member.EventId, Date = member.DateSubmitted }],
                 member.DateSubmitted);
             var dto = submissionDtoFactory.Create(snapshot, form, submissionState,
-                modelService.GetQuestionStatus(snapshot, form, false),
+                modelService.GetQuestionStatus(snapshot, form, permissions),
                 editActions.Where(a => a.MatchesForm(form.Name)).Select(a => a.Type).ToArray(),
                 historical ? null : answerHistory, displayNames, context);
             submissions.Add(dto with { Form = dto.Form with { Step = member.Step } });

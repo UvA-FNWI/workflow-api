@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace UvA.Workflow.WorkflowModel;
 
 public class Screen : INamed, IDeclaredKeys
@@ -22,6 +24,11 @@ public class Screen : INamed, IDeclaredKeys
     /// </summary>
     public BulkEditConfig? BulkEdit { get; set; }
 
+    /// <summary>
+    /// Ordered buttons referencing existing instance Execute actions
+    /// </summary>
+    public BulkAction[] BulkActions { get; set; } = [];
+
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 
     public Screen Clone() => new()
@@ -44,6 +51,13 @@ public class Screen : INamed, IDeclaredKeys
         BulkEdit = BulkEdit?.Clone(),
         DeclaredKeys = [.. DeclaredKeys]
     };
+}
+
+public class BulkAction
+{
+    [Required] public string Action { get; set; } = null!;
+    [Required] public BilingualString Label { get; set; } = null!;
+    [Required] public Icon Icon { get; set; } = null!;
 }
 
 /// <summary>
