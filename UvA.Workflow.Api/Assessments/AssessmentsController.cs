@@ -46,6 +46,7 @@ public class AssessmentsController(
         }
 
         var dto = assessmentDtoFactory.Create(instance, contexts, assessmentConfig,
+            await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden),
             allowedForms: submissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray());
         return Ok(dto);
     }
@@ -75,12 +76,14 @@ public class AssessmentsController(
             var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, allowedSubmissions, ct);
             return Ok(assessmentDtoFactory.Create(instance, contexts,
                 new AssessmentConfiguration { Parts = [matchingPart] },
+                await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden),
                 allowedForms: allowedSubmissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray()));
         }
 
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
-        var dto = assessmentDtoFactory.Create(instance, [context], assessmentConfig);
+        var dto = assessmentDtoFactory.Create(instance, [context], assessmentConfig,
+            await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden));
         return Ok(dto);
     }
 
@@ -120,7 +123,8 @@ public class AssessmentsController(
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
 
-        var dto = assessmentDtoFactory.CreateSourceResults(context, pageName);
+        var dto = assessmentDtoFactory.CreateSourceResults(context,
+            await rightsService.GetAllowedActions(context.Instance, RoleAction.ViewHidden), pageName);
         return Ok(dto);
     }
 }
