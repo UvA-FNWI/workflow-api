@@ -17,9 +17,9 @@ public record Answer(
 )
 {
     public static Answer[] Create(WorkflowInstance inst, Form form,
-        Dictionary<string, QuestionStatus> questions)
+        Dictionary<string, QuestionStatus> questions, string? sourceProperty = null)
         => questions.Select(e => e.Value.IsVisible
-            ? Create(form, e.Key, inst.GetProperty(form.PropertyName, e.Key),
+            ? Create(form, e.Key, inst.GetProperty(sourceProperty ?? form.PropertyName, e.Key),
                     validationError: e.Value.ValidationError)
                 with
                 {

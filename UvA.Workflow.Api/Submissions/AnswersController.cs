@@ -1,6 +1,7 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowInstances;
@@ -14,7 +15,8 @@ public class AnswersController(
     InstanceService instanceService,
     ModelService modelService,
     IWorkflowInstanceRepository workflowInstanceRepository,
-    WorkflowInstanceService workflowInstanceService) : ApiControllerBase
+    WorkflowInstanceService workflowInstanceService,
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory) : ApiControllerBase
 {
     [HttpDelete("{instanceId}/{submissionId}")]
     public async Task<ActionResult<SubmissionDto>> ClearAnswers(string instanceId, string submissionId,
@@ -28,7 +30,7 @@ public class AnswersController(
             RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
         return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
-            modelService.GetQuestionStatus(context.Instance, context.Form, true),
+            await rightsService.GetQuestionStatus(context.Instance, context.Form),
             permissions.Select(permission => permission.Type).ToArray(), history, ct));
     }
 
@@ -55,9 +57,16 @@ public class AnswersController(
             var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
             var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
                 context.SubmissionState,
-                modelService.GetQuestionStatus(context.Instance, context.Form, true),
+                await rightsService.GetQuestionStatus(context.Instance, context.Form),
                 permissions.Select(p => p.Type).ToArray(), history, ct);
-            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission,
+            WorkflowInstanceDto? updatedInstance = null;
+            if (await rightsService.Can(context.Instance, RoleAction.View))
+            {
+                await instanceService.UpdateCurrentStep(context.Instance, ct);
+                updatedInstance = await workflowInstanceDtoFactory.Create(context.Instance, ct);
+            }
+
+            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, updatedInstance,
                 User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }
         catch (ExternalUserCreationException ex)
@@ -96,7 +105,7 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedForAction(context, RoleAction.View);
+        await EnsureAuthorizedToView(context);
 
         if (context.PropertyDefinition is not ReferencePropertyDefinition reference)
             return NotFound();
@@ -116,7 +125,7 @@ public class AnswersController(
         string questionName, CancellationToken ct)
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
-        await EnsureAuthorizedForAction(context, RoleAction.View);
+        await EnsureAuthorizedToView(context);
 
         var value = modelService.CreateContext(context.Instance).Get(questionName);
         var ids = value switch
@@ -137,6 +146,15 @@ public class AnswersController(
             null,
             null)
         ));
+    }
+
+    private async Task EnsureAuthorizedToView(QuestionContext context)
+    {
+        await EnsureAuthorizedForAction(context, RoleAction.View);
+        if (context.PropertyDefinition.Visibility == PropertyVisibility.Hidden &&
+            !(await rightsService.GetQuestionStatus(context.Instance, context.Form, [context.PropertyDefinition]))
+                [context.PropertyDefinition.Name].IsVisible)
+            throw new ForbiddenWorkflowActionException(context.Instance.Id, RoleAction.ViewHidden, context.Form.Name);
     }
 
     private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
