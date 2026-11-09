@@ -61,11 +61,26 @@ public class ModelService(ModelParser parser)
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,
         IEnumerable<PropertyDefinition>? questions = null)
+        => GetQuestionStatus(instance, form, _ => canViewHidden, questions);
+
+    public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
+        IEnumerable<Action> allowedHidden,
+        IEnumerable<PropertyDefinition>? questions = null)
+    {
+        var actions = allowedHidden.Where(a => a.Type == RoleAction.ViewHidden &&
+                                               (a.MatchesForm(form.Name) || a.AllForms.Length == 0 &&
+                                                   a.PropertyDefinition != null)).ToArray();
+        return GetQuestionStatus(instance, form,
+            q => actions.Any(a => a.PropertyDefinition == null || a.PropertyDefinition == q.Name), questions);
+    }
+
+    private Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
+        Func<PropertyDefinition, bool> canViewHidden, IEnumerable<PropertyDefinition>? questions)
     {
         var context = form.GetContext(CreateContext(instance));
         return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
-                q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden)
+                q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden(q))
                                            && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
                 instance.GetProperty(form.PropertyName, q.Name) is null
                     ? null
@@ -163,7 +178,7 @@ public class ModelService(ModelParser parser)
 
         for (var i = walk.IndexOf(step) - 1; i >= 0; i--)
         {
-            if (walk[i].IsAlongside)
+            if (walk[i].IsAlongside || !walk[i].Condition.IsMet(context))
                 continue;
             return walk[i].HasEnded(context);
         }

@@ -309,6 +309,28 @@ public class RightsService(
     public Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
         => GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
 
+    public async Task<Domain_Action[]> GetAllowedHistoricalActions(
+        WorkflowInstance currentInstance, WorkflowInstance snapshot, params RoleAction[] actions)
+    {
+        var roles = await GetRequestContextRoles(currentInstance);
+        return GetAllowedActions(snapshot, modelService.CreateContext(snapshot),
+            GetAllowedActions(snapshot, roles, actions));
+    }
+
+    /// <summary>
+    /// Resolves current roles and impersonation once, with view conditions evaluated per historical snapshot.
+    /// </summary>
+    public async Task<Dictionary<WorkflowInstance, Domain_Action[]>> GetAllowedHistoricalViewActions(
+        WorkflowInstance currentInstance, WorkflowInstance[] snapshots)
+    {
+        if (snapshots.Length == 0)
+            return [];
+
+        var roles = await GetRequestContextRoles(currentInstance);
+        return snapshots.Distinct().ToDictionary(snapshot => snapshot,
+            snapshot => GetAllowedActions(snapshot, roles, RoleAction.View, RoleAction.ViewHidden));
+    }
+
     public async Task<Domain_Action[]> GetAllowedActions(
         WorkflowInstance instance,
         RightsEvaluationMode evaluationMode,
@@ -354,6 +376,11 @@ public class RightsService(
 
     public Task<bool> Can(WorkflowInstance instance, RoleAction action, string? form = null)
         => Can(instance, [action], RightsEvaluationMode.RequestContext, form);
+
+    public async Task<Dictionary<string, QuestionStatus>> GetQuestionStatus(WorkflowInstance instance, Form form,
+        IEnumerable<PropertyDefinition>? questions = null)
+        => modelService.GetQuestionStatus(instance, form,
+            await GetAllowedActions(instance, RoleAction.ViewHidden), questions);
 
     public async Task<bool> Can(
         WorkflowInstance instance,
