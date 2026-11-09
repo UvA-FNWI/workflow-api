@@ -44,6 +44,11 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public string? InheritsFrom { get; set; }
 
     /// <summary>
+    /// Show this definition instead of its descendants in the overviews.
+    /// </summary>
+    public bool GroupChildScreens { get; set; }
+
+    /// <summary>
     /// Template for the title of an instance
     /// </summary>
     public string? InstanceTitle { get; set; }
