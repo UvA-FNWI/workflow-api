@@ -56,14 +56,14 @@ public class SubmissionService(
             .Where(q => q.IsRequired
                         && (q.DataType == DataType.Check
                             ? instance.GetProperty(form.PropertyName, q.Name) != BsonBoolean.True
-                            : !HasAnswer(q.Name))
+                            : !HasAnswer(instance, form.PropertyName, q.Name))
                         && q.Condition.IsMet(objectContext))
             .Select(q => new InvalidQuestion(q.Name, new BilingualString("Required field", "Verplicht veld")))
             .ToArray();
 
         // Validate field validation rules
         var invalid = questionsToValidate
-            .Where(q => HasAnswer(q.Name) && !q.Validation.IsMet(objectContext))
+            .Where(q => HasAnswer(instance, form.PropertyName, q.Name) && !q.Validation.IsMet(objectContext))
             .Select(q => new InvalidQuestion(
                 q.Name,
                 q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde")
@@ -96,7 +96,8 @@ public class SubmissionService(
         await instanceService.UpdateCurrentStep(instance, ct);
         await instanceJournalService.IncrementVersion(instance.Id, ct);
         return new SubmissionResult(true, [], finalSubmissionState, result);
-
-        bool HasAnswer(string name) => instance.GetProperty(form.PropertyName, name) is { IsBsonNull: false };
     }
+
+    private static bool HasAnswer(WorkflowInstance instance, string? propertyName, string questionName) =>
+        instance.GetProperty(propertyName, questionName) is { IsBsonNull: false };
 }

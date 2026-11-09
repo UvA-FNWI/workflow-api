@@ -258,6 +258,7 @@ public class EffectService(
             modelService.GetProperty(instance, parts)?.DataType is DataType.Date or DataType.DateTime)
             value = DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         var storedValue = value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value);
+        // Copied embedded objects include computed descendants that must not be persisted.
         if (modelService.GetProperty(instance, parts) is { } property)
             storedValue = BsonConversionTools.GetStoredValue(storedValue, property);
         instance.SetProperty(storedValue, parts);

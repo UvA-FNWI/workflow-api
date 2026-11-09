@@ -375,6 +375,7 @@ public class WorkflowInstancesController(
                 var row = i.Where(entry => entry.Key == "_id" || requestedProperties.Contains(entry.Key)).ToDictionary(
                     k => k.Key == "_id" ? "Id" : k.Key,
                     v => BsonConversionTools.ConvertBasicBsonValue(v.Value));
+                // Use the evaluated context for these fields, e.g. PartyCount = count(PartiesInvolved) has no stored value.
                 foreach (var property in requestedProperties.Where(property =>
                              property.Contains('.') ||
                              modelService.GetProperty(entity, property.Split('.')) is { IsComputed: true } or

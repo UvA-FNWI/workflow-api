@@ -24,24 +24,24 @@ public class SubmissionDtoFactory(
 
     public async Task<SubmissionDto> CreateAsync(WorkflowInstance inst, Form form,
         FormSubmissionState submissionState,
-        Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null,
+        Dictionary<string, QuestionStatus>? questionStatuses = null, RoleAction[]? permissions = null,
         WorkflowInstanceHistory? history = null, CancellationToken ct = default)
     {
         var displayNames = await ResolveDisplayNames(history?.Journal, ct);
         var context = await instanceService.CreateFormContext(inst, form, ct);
-        shownQuestionIds ??= modelService.GetQuestionStatus(inst, form, true, context: context);
+        questionStatuses ??= modelService.GetQuestionStatus(inst, form, true, context: context);
 
-        return Create(inst, form, submissionState, shownQuestionIds, permissions, history, displayNames, context);
+        return Create(inst, form, submissionState, questionStatuses, permissions, history, displayNames, context);
     }
 
     public SubmissionDto Create(WorkflowInstance inst, Form form, FormSubmissionState submissionState,
-        Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null,
+        Dictionary<string, QuestionStatus>? questionStatuses = null, RoleAction[]? permissions = null,
         WorkflowInstanceHistory? history = null, IReadOnlyDictionary<string, string>? displayNames = null,
         ObjectContext? context = null)
     {
         context ??= modelService.CreateContext(inst);
 
-        var answers = shownQuestionIds == null ? [] : Answer.Create(inst, form, shownQuestionIds);
+        var answers = questionStatuses == null ? [] : Answer.Create(inst, form, questionStatuses);
         return new(form.Name,
             form.Name,
             inst.Id,

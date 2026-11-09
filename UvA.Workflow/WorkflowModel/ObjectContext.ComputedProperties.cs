@@ -10,16 +10,14 @@ public partial class ObjectContext
     /// <summary>Rebuilds computed values after source data has been loaded or enriched.</summary>
     public void ComputeProperties(WorkflowDefinition definition)
     {
+        // The parser orders computed properties after their dependencies, so each can be cleared and rebuilt together.
         foreach (var property in definition.ComputedProperties)
         {
             Values.Remove(property.Name);
             LoadedReferenceValues.Remove(property.Name);
             UnresolvedReferences.Remove(property.Name);
             UnavailableProperties.Remove(property.Name);
-        }
 
-        foreach (var property in definition.ComputedProperties)
-        {
             var expression = property.ComputedExpression!;
             if (expression.Properties.Any(IsInputUnavailable))
             {
@@ -67,6 +65,7 @@ public partial class ObjectContext
         }
     }
 
+    /// <summary>Validates an expression result and gives list properties the typed arrays expected by context consumers.</summary>
     private static object? ConvertComputedValue(object? value, PropertyDefinition property)
     {
         if (value == null)
@@ -94,6 +93,7 @@ public partial class ObjectContext
         };
     }
 
+    /// <summary>Checks the declared scalar type and choice values, applying supported numeric and reference conversions.</summary>
     private static object ConvertComputedScalar(object value, PropertyDefinition property)
     {
         return property.DataType switch

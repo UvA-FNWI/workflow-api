@@ -68,6 +68,7 @@ public class ModelService(ModelParser parser)
             GetProperty(instance, path[..length])?.EnsureWritable();
     }
 
+    /// <summary>Returns visibility, validation errors, and available choices keyed by question name.</summary>
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         bool canViewHidden,
         IEnumerable<PropertyDefinition>? questions = null, ObjectContext? context = null)

@@ -64,6 +64,7 @@ public partial class ObjectContext(
         return res;
     }
 
+    /// <summary>Copies the context with overridden values, discarding their previous reference and availability state.</summary>
     public ObjectContext WithValues(IEnumerable<KeyValuePair<Lookup, object?>> overrides,
         IReadOnlyDictionary<string, string[]>? valueSets = null)
     {
@@ -79,6 +80,7 @@ public partial class ObjectContext(
         return copy;
     }
 
+    /// <summary>Scopes a context to a nested object's properties and value sets, preserving unavailable inputs.</summary>
     internal ObjectContext WithPropertyValues(string path, WorkflowDefinition definition)
     {
         var overrides = definition.Properties.ToDictionary(
@@ -90,6 +92,7 @@ public partial class ObjectContext(
         return scoped;
     }
 
+    /// <summary>Rejects inputs that depend on referenced instances that could not be loaded.</summary>
     internal void EnsureInputsAvailable(IEnumerable<Lookup> lookups)
     {
         foreach (var lookup in lookups)
@@ -98,6 +101,7 @@ public partial class ObjectContext(
                     $"Input '{lookup}' is unavailable because a referenced workflow instance could not be loaded");
     }
 
+    /// <summary>Checks whether a lookup or one of its arguments depends on an unresolved reference.</summary>
     private bool IsInputUnavailable(Lookup lookup) => lookup switch
     {
         PropertyLookup property => UnavailableProperties.Contains(property.Parts[0]) ||
@@ -106,6 +110,7 @@ public partial class ObjectContext(
         _ => false
     };
 
+    /// <summary>Replaces collection reference IDs with loaded objects so expressions can select their fields.</summary>
     internal object? ResolveReferenceItems(object? value, IEnumerable<Lookup> sources)
     {
         if (value is not IEnumerable items || value is string)
@@ -127,6 +132,7 @@ public partial class ObjectContext(
                 .ToArray();
     }
 
+    /// <summary>Builds a projected context and computes properties whose source values have been loaded.</summary>
     public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData,
         IEnumerable<string>? projectedProperties = null)
     {
@@ -176,6 +182,7 @@ public partial class ObjectContext(
         return context;
     }
 
+    /// <summary>Builds an instance context, leaving computed values pending until their required sources are loaded.</summary>
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService,
         IReadOnlySet<string>? pendingProperties = null)
     {
@@ -288,6 +295,7 @@ public partial class ObjectContext(
         };
     }
 
+    /// <summary>Reads an embedded object and computes its definition's derived properties without changing stored data.</summary>
     private static Dictionary<string, object?>? GetObjectValue(BsonValue value, ObjectPropertyDefinition? property)
     {
         if (value.IsBsonNull) return null;

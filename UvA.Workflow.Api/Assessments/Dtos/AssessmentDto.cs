@@ -151,13 +151,13 @@ public class AssessmentDtoFactory(
     {
         var form = sourceResult.Form;
 
-        var shownQuestionIds = modelService.GetQuestionStatus(instance, form, true, context: context);
+        var questionStatuses = modelService.GetQuestionStatus(instance, form, true, context: context);
         var questionNamesOnPage = form.ActualForm.Pages
             .Where(p => string.IsNullOrEmpty(pageName) || p.Name == pageName)
             .SelectMany(p => p.Questions)
             .Select(q => q.Name);
 
-        var answers = Answer.Create(instance, form, shownQuestionIds)
+        var answers = Answer.Create(instance, form, questionStatuses)
             .Where(a => questionNamesOnPage.Contains(a.QuestionName))
             .Select(a => _answerDtoFactory.Create(a))
             .ToArray();

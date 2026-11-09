@@ -60,6 +60,29 @@ public class DerivedPropertyTests
         Assert.Equal(99, instance.Properties["Count"].AsInt32);
     }
 
+    [Fact]
+    public void ComputeProperties_UpdatesDependenciesAndClearsResultsWhenSourceBecomesUnavailable()
+    {
+        var model = Parse();
+        var definition = model.WorkflowDefinitions["Project"];
+        var context = model.CreateContext(Instance());
+        Assert.True(Assert.IsType<bool>(context.Get("HasParties")));
+
+        context.Values["Parties"] = null;
+        context.ComputeProperties(definition);
+
+        Assert.Equal(0, context.Get("Count"));
+        Assert.Empty(Assert.IsType<string[]>(context.Get("Countries")));
+        Assert.False(Assert.IsType<bool>(context.Get("HasParties")));
+
+        context.Values.Remove("Parties");
+        context.ComputeProperties(definition);
+
+        Assert.False(context.Values.ContainsKey("Count"));
+        Assert.False(context.Values.ContainsKey("Countries"));
+        Assert.False(context.Values.ContainsKey("HasParties"));
+    }
+
     [Theory]
     [InlineData("Int", "=text")]
     [InlineData("Int", "2.5")]

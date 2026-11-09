@@ -56,7 +56,7 @@ public class AnswerService(
         return new QuestionContext(instance, submissionState, form, question);
     }
 
-    /// <summary>Prototype entry point for validating, converting, and saving a property input.</summary>
+    /// <summary>Validates, converts, and saves a property input.</summary>
     public async Task SaveProperty(WorkflowInstance instance, string[] pathParts, JsonElement? value,
         bool shouldLog, CancellationToken ct)
     {
