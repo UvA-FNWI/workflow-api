@@ -1984,18 +1984,18 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "maximumDiscrepancy",
-        "inflectionPoint",
         "label"
       ],
       "properties": {
         "maximumDiscrepancy": {
           "type": "number",
-          "description": "Show a warning if the discrepancy between the scores is larger than or equal to this value"
+          "description": "Show a warning if the discrepancy between the scores is larger than or equal to this value",
+          "default": 0
         },
         "inflectionPoint": {
           "type": "number",
-          "description": "Show a warning if one of the grades is above this and another below"
+          "description": "Show a warning if one of the grades is above this and another below",
+          "default": 0
         },
         "label": {
           "oneOf": [
