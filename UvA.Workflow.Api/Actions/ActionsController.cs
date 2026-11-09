@@ -1,9 +1,6 @@
 using UvA.Workflow.Api.Actions.Dtos;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
-using UvA.Workflow.Events;
-using UvA.Workflow.Jobs;
-using UvA.Workflow.Notifications;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Actions;
@@ -12,11 +9,8 @@ public class ActionsController(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IUserService userService,
     RightsService rightsService,
-    EffectService effectService,
-    JobService jobService,
-    WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
-    InstanceService instanceService,
-    ModelService modelService
+    ActionExecutionService actionExecutionService,
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory
 ) : ApiControllerBase
 {
     [HttpPost]
@@ -54,14 +48,7 @@ public class ActionsController(
                 if (action == null)
                     return Forbidden();
 
-                var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-                var operation = OperationMetadata.CreateForAction(action, definition);
-
-                // Always log execute events implicitly
-                await effectService.AddEvent(instance, input.Name, realUser, ct, operation?.Id, operation);
-
-                result = await jobService.CreateAndRunJob(instance, action, realUser, input.JobInput, ct, operation);
-                await instanceService.UpdateCurrentStep(instance, ct);
+                result = await actionExecutionService.Execute(instance, action, realUser, input.JobInput, ct);
                 break;
         }
 

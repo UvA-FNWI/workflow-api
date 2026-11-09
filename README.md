@@ -169,3 +169,36 @@ Preview configurations do not run migrations. You can view migration results on 
 The solution is split between core behavior, the API layer, and optional integration modules. For detailed guidance on where new code belongs, read [docs/architecture/project-boundaries.md](docs/architecture/project-boundaries.md).
 
 Before opening a pull request, check [CONTRIBUTING.md](CONTRIBUTING.md) for the short contributor checklist.
+
+## Screen bulk actions
+
+Screens can explicitly offer named `Execute` actions for selected instances:
+
+```yaml
+bulkActions:
+  - action: ApproveProposal
+    label:
+      en: Approve proposals
+      nl: Voorstellen goedkeuren
+    icon:
+      type: checkmark-line
+```
+
+The action must already exist in the workflow and require no additional input.
+Form submissions and actions requiring composed mail are not supported. Buttons
+follow configuration order. Omit `bulkActions` to leave selection disabled.
+
+Bulk preview and execution each check the user's current view and action rights
+for every instance. Execution preserves normal events, properties, emails,
+external calls, operation attribution, and scheduled effects. Individual toasts,
+confetti, and redirects are not displayed. Do not configure actions whose purpose
+is navigation, such as opening a report. A form-based approval needs an equivalent
+Execute action before it can be configured here.
+
+POST `Screens/{workflowDefinition}/{screenName}/BulkActions/{actionName}/Preview`
+accepts `{ "instanceIds": ["..."] }` and returns per-instance `Eligible`,
+`Unavailable`, or `Failed` statuses. POST the same route without `/Preview` runs
+the action and returns `Succeeded`, `Unavailable`, or `Failed`. Duplicate IDs run
+once. Failures do not roll back already-applied effects or stop other instances;
+clients must not automatically retry an uncertain result. Delayed jobs are
+scheduled normally and may fail after the immediate bulk result is shown.
