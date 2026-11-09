@@ -221,7 +221,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
         var factory = CreateFactory(versions.Object);
 
         int RoleReads() => _workflowInstanceRepoMock.Invocations.Count(call =>
-            call.Method.Name == nameof(IWorkflowInstanceRepository.GetAllById));
+            call.Method.Name == nameof(IWorkflowInstanceRepository.GetByIds));
 
         await factory.Create(instance, CancellationToken.None);
         var baselineReads = RoleReads();
