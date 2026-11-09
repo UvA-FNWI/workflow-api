@@ -17,7 +17,7 @@ columns:
     title:
       en: Supervisor
       nl: Begeleider
-  - currentStep: true
+  - type: CurrentStep
     title:
       en: Progress
       nl: Voortgang

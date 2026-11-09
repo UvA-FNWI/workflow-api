@@ -13,7 +13,7 @@ columns:
     title:
       en: Student
       nl: Student
-  - currentStep: true
+  - type: CurrentStep
     filterType: Pick
     default: Draft
 

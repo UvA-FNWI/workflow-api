@@ -42,7 +42,7 @@ columns:
   - title:
       en: Progress
       nl: Voortgang
-    currentStep: true
+    type: CurrentStep
     filterType: Pick
     default: Draft
 

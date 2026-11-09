@@ -189,6 +189,45 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
+    public void ScreenBulkActions_MergeByAction_ButExplicitEmptyClears()
+    {
+        const string bulkAction = "  - action: {0}\n    label: {1}\n    icon:\n      type: {2}\n";
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Common/Roles/Reviewer.yaml"] = "name: Reviewer",
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps:\n  - Approval",
+            ["Base/Steps/Approval.yaml"] =
+                "name: Approval\nactions:\n  - name: Approve\n    type: Execute\n    roles: [Reviewer]" +
+                "\n  - name: Reject\n    type: Execute\n    roles: [Reviewer]",
+            ["Base/Screens/List.yaml"] = "name: List\nbulkActions:\n" +
+                                         string.Format(bulkAction, "Approve", "Approve", "checkmark-line"),
+            ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
+            ["Omit/Screens/List.yaml"] = "name: List",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Merge/Screens/List.yaml"] = "name: List\nbulkActions:\n" +
+                                          string.Format(bulkAction, "Reject", "Reject", "close-line") +
+                                          string.Format(bulkAction, "Approve", "Child approve", "send-line"),
+            ["Clear/Entity.yaml"] = "name: Clear\ntitlePlural: Cs\ninheritsFrom: Base",
+            ["Clear/Screens/List.yaml"] = "name: List\nbulkActions: []",
+            ["Absent/Entity.yaml"] = "name: Absent\ntitlePlural: As\ninheritsFrom: Base"
+        }));
+
+        BulkAction[] BulkActionsOf(string definition) =>
+            parser.WorkflowDefinitions[definition].Screens.Get("List").BulkActions;
+
+        Assert.Equal(["Approve"], BulkActionsOf("Omit").Select(a => a.Action));
+        Assert.Equal(["Approve"], BulkActionsOf("Absent").Select(a => a.Action));
+
+        var merged = BulkActionsOf("Merge");
+        Assert.Equal(["Approve", "Reject"], merged.Select(a => a.Action));
+        Assert.Equal("Child approve", merged[0].Label.En);
+        Assert.Equal("send-line", merged[0].Icon.Type);
+
+        Assert.Empty(BulkActionsOf("Clear"));
+        Assert.Equal("Approve", BulkActionsOf("Base").Single().Label.En);
+    }
+
+    [Fact]
     public void ApplyInheritance_ChildPageWithSameName_IsNotOverwrittenByParent()
     {
         var parser = new ModelParser(new DictionaryProvider(new()

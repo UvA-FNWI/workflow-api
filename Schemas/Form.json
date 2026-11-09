@@ -91,6 +91,17 @@
       "items": {
         "$ref": "#/definitions/Effect"
       }
+    },
+    "confirmation": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Optional confirmation dialog to show when the form is submitted",
+          "$ref": "#/definitions/FormConfirmation"
+        }
+      ]
     }
   },
   "definitions": {
@@ -937,6 +948,37 @@
         "role": {
           "type": "string",
           "description": "Name of the workflow role/property that holds the target user or users"
+        }
+      }
+    },
+    "FormConfirmation": {
+      "title": "FormConfirmation",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "text"
+      ],
+      "properties": {
+        "title": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         }
       }
     }

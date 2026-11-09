@@ -41,7 +41,7 @@ public record ScreenColumnDto(
     DisplayType DisplayType,
     SortDirection? DefaultSort,
     bool Link,
-    bool IsCurrentStep,
+    ColumnType ColumnType,
     DataType DataType)
 {
     public static ScreenColumnDto Create(Column column, int id)
@@ -55,17 +55,20 @@ public record ScreenColumnDto(
             column.DisplayType,
             column.DefaultSort,
             column.Link,
-            column.CurrentStep,
+            column.Type,
             dataType);
     }
 
     private static DataType GetDataType(Column column)
     {
+        if (column.Type == ColumnType.RelatedUsers)
+            return DataType.User;
+
         // Value templates are always text
         if (column.ValueTemplate != null)
             return DataType.String;
 
-        if (column.CurrentStep)
+        if (column.Type == ColumnType.CurrentStep)
             return DataType.Object;
 
         // Event columns are DateTime
@@ -90,3 +93,10 @@ public record ScreenRowDto(
         return new ScreenRowDto(id, values);
     }
 }
+
+public record ScreenRelatedUserDto(
+    string UserName,
+    string DisplayName,
+    BilingualString[] Roles,
+    string? Organisation
+);

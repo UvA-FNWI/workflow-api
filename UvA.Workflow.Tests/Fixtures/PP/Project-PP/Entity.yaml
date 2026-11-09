@@ -10,7 +10,6 @@ fields:
     title: Student
   - property: Title
     title: Title
-  - currentStep: true
     
 steps:
 #  - Start
