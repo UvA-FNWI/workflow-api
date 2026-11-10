@@ -94,6 +94,40 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Screens_GetScreenData_GroupsByComputedWorkflowStoppedBeforeStep()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.StopWhen = new Condition { Value = new Value { Property = "EC", Equal = "42" } };
+        var grouping = definition.Screens.Single(screen => screen.Name == "Projects").Grouping!;
+        grouping.Groups =
+        [
+            .. grouping.Groups,
+            new StepGroup
+            {
+                Name = "stopped",
+                Title = "Stopped",
+                Condition = new Condition
+                {
+                    Value = new Value { Property = ContextKeys.WorkflowStopped, Equal = "true" }
+                }
+            }
+        ];
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue> { ["_id"] = "stopped", ["CurrentStep"] = "Start", ["EC"] = 42 },
+            new Dictionary<string, BsonValue> { ["_id"] = "running", ["CurrentStep"] = "Start", ["EC"] = 30 }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var groups = Assert.IsType<ScreenGroupDto[]>(response.Groups);
+        Assert.Equal("stopped", Assert.Single(groups.Single(group => group.Name == "stopped").Rows).Id);
+        Assert.Equal("running", Assert.Single(groups.Single(group => group.Name == "approve-subject").Rows).Id);
+        Assert.Equal(2, groups.Sum(group => group.Rows.Length));
+    }
+
+    [Fact]
     public async Task Screens_GetScreenData_UsesConditionalProgressForActiveEvent()
     {
         var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);

@@ -602,6 +602,9 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        foreach (var group in screen.Grouping?.Groups ?? [])
+            PreProcess(group.Condition);
+
         var actionNames = new HashSet<string>();
         foreach (var bulkAction in screen.BulkActions)
         {
