@@ -536,6 +536,25 @@ public class ExpressionTests
     }
 
     [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, false, null)]
+    public void Latest_ReturnsLaterDateAndIgnoresNull(bool hasFirst, bool hasSecond, bool? expectSecond)
+    {
+        var first = new DateTime(2026, 9, 1);
+        var second = new DateTime(2026, 9, 7);
+        var exp = ExpressionParser.Parse("latest(First, Second)");
+        var context = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["First"] = hasFirst ? first : null,
+            ["Second"] = hasSecond ? second : null
+        });
+
+        Assert.Equal(expectSecond switch { true => second, false => first, null => (DateTime?)null },
+            exp.Execute(context));
+    }
+
+    [Theory]
     [InlineData("2026-03-16T12:34:56+01:00", 1)]
     [InlineData("2026-03-16T11:34:56Z", 0)]
     [InlineData("2026-03-16T07:34:56-04:00", -4)]

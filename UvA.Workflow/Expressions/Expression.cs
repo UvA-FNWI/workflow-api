@@ -57,6 +57,8 @@ public record Expression
             => d?.ToString(f, CultureInfo.InvariantCulture)),
         ["dateLong"] = new Function<DateTime?, string?>(d => d?.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture)),
         ["dateShort"] = new Function<DateTime?, string?>(d => d?.ToString("dd/MM", CultureInfo.InvariantCulture)),
+        ["latest"] = new Function<DateTime?, DateTime?, DateTime?>((a, b)
+            => a == null ? b : b == null ? a : a > b ? a : b),
         ["if"] = new Function<bool, object?, object?, object?>((b, t1, t2) => b ? t1 : t2),
         ["contains"] = new Function<IEnumerable<object>, object, bool>((a, o) => a?.Contains(o) == true),
         ["count"] = new Function<object, int>(value => value switch
