@@ -95,6 +95,21 @@
       "items": {
         "$ref": "#/definitions/Effect"
       }
+    },
+    "template": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Name of a form template (file under Common/FormTemplates) to resolve this form from"
+    },
+    "values": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "description": "Values for the template's parameters",
+      "additionalProperties": {}
     }
   },
   "definitions": {
