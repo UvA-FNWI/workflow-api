@@ -14,9 +14,9 @@ actions:
   - roles: [Supervisor]
     type: Edit
     form: AssessmentSupervisor
-  - roles: [SecondReviewer]
+  - roles: [SecondAssessor]
     type: Edit
-    form: AssessmentSecondReader
+    form: AssessmentSecondAssessor
 
 children:
   - AssessmentIndividual

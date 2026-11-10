@@ -53,7 +53,7 @@ public class HiddenAssessmentTests : ControllerTestsBase
         foreach (var result in results)
         {
             var permitted = result.Id == "AssessmentSupervisor" ? firstReader
-                : result.Id == "AssessmentSecondReader" ? secondReader
+                : result.Id == "AssessmentSecondAssessor" ? secondReader
                 : endpoint == "single" ? firstReader : firstReader && secondReader;
             var grade = Assert.Single(result.Answers, a => a.QuestionName == "ProblemStatement");
             Assert.Equal(permitted, grade.IsVisible);
@@ -179,7 +179,7 @@ public class HiddenAssessmentTests : ControllerTestsBase
         var viewer = new Role
         {
             Name = "HiddenViewer",
-            Actions = [new() { Type = RoleAction.View, Forms = ["AssessmentSupervisor", "AssessmentSecondReader"] }]
+            Actions = [new() { Type = RoleAction.View, Forms = ["AssessmentSupervisor", "AssessmentSecondAssessor"] }]
         };
         if (firstReader)
             viewer.Actions.Add(new()
@@ -189,7 +189,7 @@ public class HiddenAssessmentTests : ControllerTestsBase
         if (secondReader)
             viewer.Actions.Add(new()
             {
-                Type = RoleAction.ViewHidden, Form = "AssessmentSecondReader", PropertyDefinition = "ProblemStatement"
+                Type = RoleAction.ViewHidden, Form = "AssessmentSecondAssessor", PropertyDefinition = "ProblemStatement"
             });
         definition.Roles.Add(viewer);
         var instance = new WorkflowInstanceBuilder()
@@ -199,12 +199,12 @@ public class HiddenAssessmentTests : ControllerTestsBase
                 {
                     ["ProblemStatement"] = "8", ["TheoreticalFramework"] = "9", ["Methods"] = "7"
                 }),
-                ("AssessmentSecondReader", _ => new BsonDocument
+                ("AssessmentSecondAssessor", _ => new BsonDocument
                 {
                     ["ProblemStatement"] = "6", ["TheoreticalFramework"] = "7", ["Methods"] = "5"
                 }))
             .WithEvent("AssessmentSupervisor", DateTime.UtcNow)
-            .WithEvent("AssessmentSecondReader", DateTime.UtcNow)
+            .WithEvent("AssessmentSecondAssessor", DateTime.UtcNow)
             .Build();
         MockCurrentUser("HiddenViewer");
         MockInstance(instance);

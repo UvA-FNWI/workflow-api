@@ -152,7 +152,7 @@ public class Deadline
     public static implicit operator Deadline(string date) => new() { Date = date };
 }
 
-public class Step : INamed, IDeclaredKeys
+public class Step : INamed, IDeclaredKeys, ITemplateConsumer
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 

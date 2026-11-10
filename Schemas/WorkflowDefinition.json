@@ -56,6 +56,10 @@
       ],
       "description": "Name of the entity type this type inherits from"
     },
+    "groupChildScreens": {
+      "type": "boolean",
+      "description": "Show this definition instead of its descendants in the overviews."
+    },
     "instanceTitle": {
       "type": [
         "null",

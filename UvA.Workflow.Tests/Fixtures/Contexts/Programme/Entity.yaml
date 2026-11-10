@@ -1,0 +1,22 @@
+name: Programme
+inheritsFrom: Context
+titlePlural: Programmes
+
+properties:
+  - name: Faculty
+    type: Faculty!
+  
+  - name: Specialisation
+    type: Specialisation
+
+  - name: ConfidentialAdviser
+    type: User!
+    text:
+      en: Confidential adviser
+      nl: Vertrouwenspersoon
+
+  - name: StudyAdviser
+    type: User!
+    text:
+      en: Study adviser
+      nl: Studieadviseur
