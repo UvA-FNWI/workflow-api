@@ -14,14 +14,13 @@ public class UndoService(
 {
     public async Task<InstanceEventLogEntry?> GetCandidate(
         WorkflowInstance instance,
-        string? topLevelStep,
+        string topLevelStep,
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
-        var candidate = topLevelStep == null
-            ? EventHistory.LatestGlobalOperation(eventLogs)
-            : EventHistory.LatestOperations(eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
-                .GetValueOrDefault(topLevelStep);
-        return candidate?.OperationMetadata != null && await IsAuthorized(instance, candidate.OperationMetadata)
+        var candidate = EventHistory.LatestOperations(
+            eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition]).GetValueOrDefault(topLevelStep);
+        return candidate?.OperationMetadata is { Step: { } step } operation &&
+               await IsAuthorized(instance, operation, step)
             ? candidate
             : null;
     }
@@ -39,15 +38,14 @@ public class UndoService(
 
         var eventLogs = await eventRepository.GetEventLogEntriesForInstance(instance.Id, ct);
         var operation = eventLogs.FirstOrDefault(log => log.OperationMetadata?.Id == operationId)?.OperationMetadata;
-        if (operation == null)
+        if (operation is not { Step: { } step })
             throw new UndoCandidateChangedException();
-        if (!await IsAuthorized(instance, operation))
+        if (!await IsAuthorized(instance, operation, step))
             throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Undo, operation.Source);
 
-        var isCandidate = operation.Step == null
-            ? EventHistory.LatestGlobalOperation(eventLogs)?.OperationMetadata?.Id == operationId
-            : EventHistory.LatestOperations(eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
-                .Values.Any(log => log.OperationMetadata?.Id == operationId);
+        var isCandidate = EventHistory.LatestOperations(
+                eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
+            .Values.Any(log => log.OperationMetadata?.Id == operationId);
         if (!isCandidate)
             throw new UndoCandidateChangedException();
 
@@ -84,15 +82,9 @@ public class UndoService(
         return instance;
     }
 
-    private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation)
+    private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation, string step)
     {
-        if (operation.Step == null)
-            return operation.Type == OperationType.ExecuteAction &&
-                   (await rightsService.GetAllowedActions(instance, RoleAction.Undo))
-                   .Any(action => OperationMetadata.IsGlobalUndoGrant(action, operation.Source));
-
-        var allowed = await rightsService.GetAllowedActionsForStep(
-            instance, operation.Step, RoleAction.Undo);
+        var allowed = await rightsService.GetAllowedActionsForStep(instance, step, RoleAction.Undo);
         return allowed.Any(action => operation.Type switch
         {
             OperationType.FormSubmission =>

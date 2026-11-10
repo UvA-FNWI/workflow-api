@@ -605,8 +605,7 @@ public partial class ModelParser
         var actionNames = new HashSet<string>();
         foreach (var bulkAction in screen.BulkActions)
         {
-            var namedActions = workflowDefinition.AllActions.Where(a => a.Name == bulkAction.Action).ToArray();
-            var actions = namedActions.Where(a => a.Type == RoleAction.Execute).ToArray();
+            var actions = workflowDefinition.AllActions.Where(a => a.Name == bulkAction.Action).ToArray();
             string? error = null;
             if (string.IsNullOrWhiteSpace(bulkAction.Action))
                 error = "action is required.";
@@ -616,9 +615,9 @@ public partial class ModelParser
                 error = "label is required.";
             else if (string.IsNullOrWhiteSpace(bulkAction.Icon?.Type))
                 error = "icon.type is required.";
-            else if (namedActions.Length == 0)
-                error = "action does not exist.";
             else if (actions.Length == 0)
+                error = "action does not exist.";
+            else if (actions.Any(a => a.Type != RoleAction.Execute))
                 error = "only Execute actions are supported.";
             else if (actions.Any(a => a.OnAction.Any(e => e.SendMail?.SendAutomatically == false ||
                                                           e.SendAccessMail?.SendAutomatically == false)))

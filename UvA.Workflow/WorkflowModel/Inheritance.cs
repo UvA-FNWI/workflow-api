@@ -127,9 +127,8 @@ public partial class ModelParser
 
     private static List<Action> MergeActions(List<Action> target, List<Action> source)
     {
-        var targetNames = target.Where(a => a.Name != null).Select(a => (a.Name, a.Type == RoleAction.Undo))
-            .ToHashSet();
-        return source.Where(a => a.Name == null || !targetNames.Contains((a.Name, a.Type == RoleAction.Undo)))
+        var targetNames = target.Select(a => a.Name).Where(n => n != null).ToHashSet();
+        return source.Where(a => a.Name == null || !targetNames.Contains(a.Name))
             .Select(a => a.Clone()).Concat(target).ToList();
     }
 

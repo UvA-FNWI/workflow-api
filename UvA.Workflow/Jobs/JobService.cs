@@ -161,7 +161,7 @@ public class JobService(
         var effects = job.SourceType switch
         {
             JobSource.Action => modelService.WorkflowDefinitions[instance.WorkflowDefinition]
-                .AllActions.Single(a => a.Type == RoleAction.Execute && a.Name == job.SourceName).OnAction,
+                .AllActions.Single(a => a.Name == job.SourceName).OnAction,
             JobSource.Submit => modelService.WorkflowDefinitions[instance.WorkflowDefinition]
                 .Forms.Single(f => f.Name == job.SourceName).OnSubmit,
             _ => throw new NotImplementedException()

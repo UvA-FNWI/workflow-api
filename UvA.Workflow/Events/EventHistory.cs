@@ -37,10 +37,6 @@ public static class EventHistory
                 group => group.Key,
                 group => group.Last().Log);
 
-    internal static InstanceEventLogEntry? LatestGlobalOperation(IEnumerable<InstanceEventLogEntry> eventLogs)
-        => Project(eventLogs).LastOrDefault(log =>
-            log.OperationMetadata is { Type: OperationType.ExecuteAction, Step: null });
-
     private static Step? GetTopLevelStep(WorkflowDefinition workflowDefinition, string stepName)
     {
         var step = workflowDefinition.AllSteps.SingleOrDefault(candidate => candidate.Name == stepName);

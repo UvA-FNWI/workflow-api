@@ -10,7 +10,6 @@ using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
-using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -220,7 +219,6 @@ public class JobsControllerTests : ControllerTestsBase
         const string eventId = "DelayedEffect";
         var effect = new Effect { Event = eventId };
         action.OnAction = [effect];
-        definition.GlobalActions.Add(new Action { Type = RoleAction.Undo, Name = job.SourceName });
         job.Steps = [new JobStep { Identifier = effect.Identifier }];
         _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, _ct)).ReturnsAsync(job);
         _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
