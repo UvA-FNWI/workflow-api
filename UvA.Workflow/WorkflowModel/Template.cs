@@ -1,12 +1,31 @@
 using UvA.Workflow.WorkflowModel;
 
-public class StepTemplate : Step
+public interface ITemplate : INamed
 {
-    [YamlMember(Alias = "params")] public List<StepTemplateParameter> Parameters { get; set; } = [];
+    List<TemplateParameter> Parameters { get; }
+    string RootFile { get; set; }
+}
+
+public interface ITemplateConsumer : INamed, IDeclaredKeys
+{
+    string? TemplateKey { get; }
+    Dictionary<string, object>? TemplateValues { get; }
+    Dictionary<string, object>? ResolvedTemplateValues { get; set; }
+}
+
+public class StepTemplate : Step, ITemplate
+{
+    [YamlMember(Alias = "params")] public List<TemplateParameter> Parameters { get; set; } = [];
     [YamlIgnore] public string RootFile { get; set; } = null!;
 }
 
-public class StepTemplateParameter : INamed
+public class FormTemplate : Form, ITemplate
+{
+    [YamlMember(Alias = "params")] public List<TemplateParameter> Parameters { get; set; } = [];
+    [YamlIgnore] public string RootFile { get; set; } = null!;
+}
+
+public class TemplateParameter : INamed
 {
     public string Name { get; set; } = null!;
     public string Type { get; set; } = null!;

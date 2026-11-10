@@ -222,6 +222,23 @@ public class PresenceAwareInheritanceTests
     }
 
     [Fact]
+    public void ApplyInheritance_MultipleInheritedPages_PreserveParentOrder()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] =
+                "name: Edit\npages:\n  - name: First\n    elements:\n      - question: Foo\n  - name: Second\n    elements: []\n  - name: Third\n    elements: []",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: Own\n    elements: []"
+        }));
+
+        var mergedForm = parser.WorkflowDefinitions["Merge"].Forms.Get("Edit");
+
+        Assert.Equal(["First", "Second", "Third", "Own"], mergedForm.Pages.Select(p => p.Name));
+    }
+
+    [Fact]
     public void ApplyInheritance_ChildWithExplicitlyEmptyPages_DoesNotInheritParentPages()
     {
         var parser = new ModelParser(new DictionaryProvider(new()
