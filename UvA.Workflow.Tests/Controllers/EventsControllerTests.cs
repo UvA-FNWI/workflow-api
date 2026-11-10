@@ -8,6 +8,7 @@ using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -38,6 +39,20 @@ public class EventsControllerTests : ControllerTestsBase
         // Act and Assert
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
             controller.DeleteEvent(instance.Id, eventName, _ct));
+    }
+
+    [Fact]
+    public async Task Events_DeleteEvent_RejectsDeletingTheStoppingEvent()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Stop");
+        instance.RecordEvent("Stop");
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].StopWhen = new Condition { Event = "Stop" };
+
+        var result = await controller.DeleteEvent(instance.Id, "Stop", _ct);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
+        _eventRepoMock.Verify(r => r.DeleteEvent(instance, It.IsAny<InstanceEvent>(), It.IsAny<User>(), _ct),
+            Times.Never);
     }
 
     [Fact]
@@ -87,7 +102,7 @@ public class EventsControllerTests : ControllerTestsBase
 
         var controller =
             new EventsController(_workflowInstanceRepoMock.Object, _userServiceMock.Object, _rightsService,
-                _eventService);
+                _modelService, _eventService);
 
         return (controller, instance);
     }

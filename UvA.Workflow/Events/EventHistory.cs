@@ -25,17 +25,21 @@ public static class EventHistory
         IEnumerable<InstanceEventLogEntry> eventLogs,
         WorkflowDefinition workflowDefinition)
         => Project(eventLogs)
-            .Where(log => log.OperationMetadata != null)
+            .Where(log => log.OperationMetadata?.Step != null)
             .Select(log => new
             {
                 Log = log,
-                TopLevelStep = GetTopLevelStep(workflowDefinition, log.OperationMetadata!.Step)
+                TopLevelStep = GetTopLevelStep(workflowDefinition, log.OperationMetadata!.Step!)
             })
             .Where(item => item.TopLevelStep != null)
             .GroupBy(item => item.TopLevelStep!.Name)
             .ToDictionary(
                 group => group.Key,
                 group => group.Last().Log);
+
+    internal static InstanceEventLogEntry? LatestGlobalOperation(IEnumerable<InstanceEventLogEntry> eventLogs)
+        => Project(eventLogs).LastOrDefault(log =>
+            log.OperationMetadata is { Type: OperationType.ExecuteAction, Step: null });
 
     private static Step? GetTopLevelStep(WorkflowDefinition workflowDefinition, string stepName)
     {

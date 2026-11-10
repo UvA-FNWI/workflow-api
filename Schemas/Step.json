@@ -678,6 +678,10 @@
             }
           ]
         },
+        "allowWhenStopped": {
+          "type": "boolean",
+          "description": "Allows this action while the workflow is stopped. Roles and action conditions still apply."
+        },
         "onAction": {
           "type": "array",
           "description": "List of effects to run for an Execute action",

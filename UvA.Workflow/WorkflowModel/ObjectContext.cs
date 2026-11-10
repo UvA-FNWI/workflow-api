@@ -1,6 +1,7 @@
 using System.Collections;
 using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -9,6 +10,8 @@ public class ObjectContext(
     IReadOnlyDictionary<string, string[]>? valueSets = null,
     DateTime? evaluatedAt = null)
 {
+    public const string WorkflowStoppedKey = "WorkflowStopped";
+
     private static readonly IReadOnlyDictionary<string, string[]> NoValueSets = new Dictionary<string, string[]>();
 
     public DateTime Now => evaluatedAt ?? DateTime.Now;
@@ -40,6 +43,8 @@ public class ObjectContext(
 
         return res;
     }
+
+    public bool WorkflowStopped => Get(WorkflowStoppedKey) is true;
 
     private static object? GetPart(object? value, string part)
         => value switch
@@ -91,7 +96,7 @@ public class ObjectContext(
             dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
 
-        return new ObjectContext(dict, GetValueSets(workflowDefinition));
+        return CreateWithWorkflowStopped(dict, workflowDefinition);
     }
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
@@ -111,7 +116,15 @@ public class ObjectContext(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
 
-        return new ObjectContext(dict, GetValueSets(workflowDef), instance.EvaluatedAt);
+        return CreateWithWorkflowStopped(dict, workflowDef, instance.EvaluatedAt);
+    }
+
+    private static ObjectContext CreateWithWorkflowStopped(Dictionary<Lookup, object?> values,
+        WorkflowDefinition definition, DateTime? evaluatedAt = null)
+    {
+        var context = new ObjectContext(values, GetValueSets(definition), evaluatedAt);
+        values[WorkflowStoppedKey] = definition.StopWhen?.IsMet(context) == true;
+        return context;
     }
 
     /// <summary>

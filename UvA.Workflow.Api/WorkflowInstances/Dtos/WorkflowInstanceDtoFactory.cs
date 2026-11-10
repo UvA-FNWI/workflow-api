@@ -146,6 +146,7 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = await CreateFields(workflowDefinition, instance, ct);
+        var undoCandidate = await undoService.GetCandidate(instance, null, effectiveHistory.EventLogs);
         return new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(modelService.CreateContext(instance)),
@@ -163,7 +164,9 @@ public class WorkflowInstanceDtoFactory(
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            infoCards
+            infoCards,
+            context.WorkflowStopped,
+            CreateUndoCandidateDto(instance, workflowDefinition, undoCandidate)
         );
     }
 
@@ -246,29 +249,9 @@ public class WorkflowInstanceDtoFactory(
             .Distinct()
             .Select(formName => modelService.GetForm(instance, formName))
             .Any(form => !FormSubmissionState.Resolve(instance, form, workflowDef).IsSubmitted);
-        UndoCandidateDto? undoCandidate = null;
-        if (step.ParentStep == null &&
-            await undoService.GetCandidate(instance, step.Name, effectiveEventLogs)
-                is { OperationMetadata: { } operation } root)
-        {
-            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == operation.Step);
-            var form = operation.Type == OperationType.FormSubmission
-                ? modelService.TryGetForm(instance, operation.Source)
-                : null;
-            var sourceTitle = operation.Type switch
-            {
-                OperationType.FormSubmission =>
-                    form?.Title ?? form?.ActualForm.Title ?? form?.ActualForm.Name ?? operation.Source,
-                OperationType.ExecuteAction => candidateStep?.Actions.FirstOrDefault(action =>
-                    action.Type == RoleAction.Execute && action.Name == operation.Source)?.Label ?? operation.Source,
-                _ => operation.Source
-            };
-            undoCandidate = new UndoCandidateDto(operation.Type,
-                candidateStep?.DisplayTitle ?? operation.Step,
-                sourceTitle,
-                root.Timestamp,
-                operation.Id);
-        }
+        var undoCandidate = step.ParentStep == null
+            ? await undoService.GetCandidate(instance, step.Name, effectiveEventLogs)
+            : null;
 
         var isAvailable =
             activeSteps.Contains(step.Name) || step.HasEnded(context) ||
@@ -296,10 +279,33 @@ public class WorkflowInstanceDtoFactory(
             step.HierarchyMode,
             step.ChildrenLayout,
             versionDtos,
-            undoCandidate,
+            CreateUndoCandidateDto(instance, workflowDef, undoCandidate),
             displayedSubmissions,
             isAvailable
         );
+    }
+
+    private UndoCandidateDto? CreateUndoCandidateDto(WorkflowInstance instance, WorkflowDefinition workflowDefinition,
+        InstanceEventLogEntry? candidate)
+    {
+        if (candidate?.OperationMetadata is not { } operation)
+            return null;
+
+        var step = workflowDefinition.AllSteps.FirstOrDefault(step => step.Name == operation.Step);
+        var actions = operation.Step == null ? workflowDefinition.GlobalActions : step?.Actions;
+        var form = operation.Type == OperationType.FormSubmission
+            ? modelService.TryGetForm(instance, operation.Source)
+            : null;
+        var sourceTitle = operation.Type switch
+        {
+            OperationType.FormSubmission =>
+                form?.Title ?? form?.ActualForm.Title ?? form?.ActualForm.Name ?? operation.Source,
+            OperationType.ExecuteAction => actions?.FirstOrDefault(action =>
+                action.Type == RoleAction.Execute && action.Name == operation.Source)?.Label ?? operation.Source,
+            _ => operation.Source
+        };
+        var stepTitle = operation.Step == null ? workflowDefinition.DisplayTitle : step?.DisplayTitle ?? operation.Step;
+        return new UndoCandidateDto(operation.Type, stepTitle, sourceTitle, candidate.Timestamp, operation.Id);
     }
 
     private static DeadlineDto? GetDeadline(Step step, ObjectContext context, HashSet<string> activeSteps)

@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -116,6 +117,41 @@ public class ScreensControllerTests : ControllerTestsBase
         var progress = Assert.IsType<ProgressInformationDto>(row.Values[progressColumn.Id]);
         Assert.Equal("Revising proposal", progress.Text.En);
         Assert.Equal(StatusColor.Red, progress.Color);
+    }
+
+    [Fact]
+    public async Task Screens_GetScreenData_UsesComputedWorkflowStoppedInProgress()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.StopWhen = new Condition { Value = new Value { Property = "EC", Equal = "42" } };
+        definition.AllSteps.Single(step => step.Name == "Start").Progress.Add(new ProgressInformation
+        {
+            Condition = new Condition
+            {
+                Value = new Value { Property = ObjectContext.WorkflowStoppedKey, Equal = "true" }
+            },
+            Text = "Paused",
+            Color = StatusColor.Red
+        });
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue> { ["CurrentStep"] = "Start", ["EC"] = 42 },
+            new Dictionary<string, BsonValue> { ["CurrentStep"] = "Start", ["EC"] = 30 }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var column = response.Columns.Single(column => column.IsCurrentStep);
+        var groups = Assert.IsType<ScreenGroupDto[]>(response.Groups);
+        Assert.Collection(groups.Single(group => group.Name == "approve-subject").Rows,
+            row => Assert.Equal("Paused", Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En),
+            row => Assert.Equal("Writing proposal",
+                Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En));
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
+            It.Is<Dictionary<string, string>>(projection =>
+                projection["EC"] == "$Properties.EC" && !projection.ContainsKey(ObjectContext.WorkflowStoppedKey)),
+            It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

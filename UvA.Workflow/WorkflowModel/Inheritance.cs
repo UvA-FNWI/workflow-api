@@ -95,6 +95,7 @@ public partial class ModelParser
         if (!target.Declared(d => d.Title)) target.Title = source.Title;
         if (!target.Declared(d => d.TitlePlural)) target.TitlePlural = source.TitlePlural;
         if (!target.Declared(d => d.InstanceTitle)) target.InstanceTitle = source.InstanceTitle;
+        if (!target.Declared(d => d.StopWhen)) target.StopWhen = source.StopWhen;
         if (!target.Declared(d => d.IsEmbedded)) target.IsEmbedded = source.IsEmbedded;
         if (!target.Declared(d => d.IsAlwaysVisible)) target.IsAlwaysVisible = source.IsAlwaysVisible;
         if (!target.Declared(d => d.AssessmentConfiguration))
@@ -126,8 +127,9 @@ public partial class ModelParser
 
     private static List<Action> MergeActions(List<Action> target, List<Action> source)
     {
-        var targetNames = target.Select(a => a.Name).Where(n => n != null).ToHashSet();
-        return source.Where(a => a.Name == null || !targetNames.Contains(a.Name))
+        var targetNames = target.Where(a => a.Name != null).Select(a => (a.Name, a.Type == RoleAction.Undo))
+            .ToHashSet();
+        return source.Where(a => a.Name == null || !targetNames.Contains((a.Name, a.Type == RoleAction.Undo)))
             .Select(a => a.Clone()).Concat(target).ToList();
     }
 

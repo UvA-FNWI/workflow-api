@@ -46,8 +46,7 @@ public class JobsController(
             return UserNotFound;
 
         var copy = CopyJobForRerun(job, user.Id);
-        await jobsRepository.Add(copy, ct);
-        await jobService.RunJob(copy, ct);
+        await jobService.RunNewJob(copy, ct);
 
         return Ok(await ToDto(copy, ct));
     }
@@ -59,7 +58,6 @@ public class JobsController(
         SourceName = job.SourceName,
         StartOn = DateTime.Now,
         CreatedBy = createdBy,
-        Status = JobStatus.Pending,
         Steps = job.Steps.Select(s => new JobStep
         {
             Identifier = s.Identifier,

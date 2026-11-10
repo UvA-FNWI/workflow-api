@@ -1,5 +1,6 @@
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Migrations;
+using UvA.Workflow.WorkflowModel.Conditions;
 using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -71,6 +72,11 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public List<Action> GlobalActions { get; set; } = [];
 
     public IEnumerable<Action> AllActions => GlobalActions.Concat(AllSteps.SelectMany(s => s.Actions));
+
+    /// <summary>
+    /// Condition that computes WorkflowStopped from events and values on the instance.
+    /// </summary>
+    public Condition? StopWhen { get; set; }
 
     /// <summary>
     /// List of roles for this entity type. Loaded from the Roles folder of the entity type definition.

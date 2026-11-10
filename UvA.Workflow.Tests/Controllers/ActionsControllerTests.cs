@@ -11,12 +11,14 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Tests.Controllers;
@@ -156,6 +158,97 @@ public class ActionsControllerTests : ControllerTestsBase
         //Assert
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(403, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task Actions_StoppedWorkflow_OnlyAllowsConfiguredRecovery()
+    {
+        const string actionName = "StopProject";
+        const string cancelledEvent = "ProjectCancelled";
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Subject");
+        await _instanceService.UpdateCurrentStep(instance, _ct);
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.StopWhen = new Condition
+        {
+            Logical = new Logical
+            {
+                Operator = LogicalOperator.Or,
+                Children = [new Condition { Event = "Pause" }, new Condition { Event = cancelledEvent }]
+            }
+        };
+        definition.Events.Add(new EventDefinition { Name = "Resume", Suppresses = ["Pause"] });
+        var pause = new DomainAction { Type = RoleAction.Execute, Name = "Pause" };
+        var resume = new DomainAction { Type = RoleAction.Execute, Name = "Resume", AllowWhenStopped = true };
+        var execute = new DomainAction
+        {
+            Type = RoleAction.Execute, Name = actionName, Label = "Stop project", AllowWhenStopped = true,
+            OnAction = [new Effect { Event = cancelledEvent }]
+        };
+        var undo = new DomainAction { Type = RoleAction.Undo, Name = actionName, AllowWhenStopped = true };
+        definition.GlobalActions.AddRange([pause, resume, execute, undo]);
+        definition.Roles.Single(role => role.Name == "Coordinator").Actions.AddRange([pause, resume, execute, undo]);
+        definition.Roles.Add(new Role
+        {
+            Name = "BroadUndoer",
+            Actions = [new DomainAction { Type = RoleAction.Undo, AllowWhenStopped = true }]
+        });
+
+        var eventLogs = new List<InstanceEventLogEntry>();
+        _eventRepoMock.Setup(r => r.GetEventLogEntriesForInstance(instance.Id, _ct)).ReturnsAsync(eventLogs);
+        _eventRepoMock.Setup(r => r.AddOrUpdateEvent(instance, It.IsAny<InstanceEvent>(), UnitTestsHelpers.AdminUser,
+                _ct, It.IsAny<string?>(), It.IsAny<OperationMetadata?>()))
+            .Callback<WorkflowInstance, InstanceEvent, User, CancellationToken, string?, OperationMetadata?>((_, ev, _,
+                _, id, operation) => eventLogs.Add(new InstanceEventLogEntry
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                EventId = ev.Id,
+                EventDate = ev.Date,
+                Timestamp = ev.Date!.Value,
+                Operation = EventLogOperation.Create,
+                OperationId = id,
+                OperationMetadata = operation
+            }))
+            .Returns(Task.CompletedTask);
+        _eventRepoMock.Setup(r => r.AddUndoEntry(instance.Id, It.IsAny<string>(), UnitTestsHelpers.AdminUser,
+                "because", _ct))
+            .Callback<string, string, User, string, CancellationToken>((_, id, _, _, _) =>
+                eventLogs.Add(new InstanceEventLogEntry { Operation = EventLogOperation.Undo, OperationId = id }))
+            .Returns(Task.CompletedTask);
+
+        var pauseInput = new ExecuteActionInputDto(ActionType.Execute, instance.Id, "Pause");
+        Assert.IsType<OkObjectResult>((await controller.ExecuteAction(pauseInput, _ct)).Result);
+        var blocked = await controller.ExecuteAction(pauseInput, _ct);
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(blocked.Result).StatusCode);
+
+        var result = await controller.ExecuteAction(
+            new ExecuteActionInputDto(ActionType.Execute, instance.Id, actionName), _ct);
+        var payload = Assert.IsType<ExecuteActionPayloadDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var stopped = Assert.IsType<WorkflowInstanceDto>(payload.Instance);
+        Assert.True(stopped.WorkflowStopped);
+        var candidate = Assert.IsType<UndoCandidateDto>(stopped.UndoCandidate);
+        Assert.Equal("Stop project", candidate.SourceTitle.En);
+        Assert.All(eventLogs.Where(log => log.OperationId == candidate.OperationId),
+            log => Assert.Null(log.OperationMetadata!.Step));
+        Assert.All(stopped.Steps, step => Assert.Null(step.UndoCandidate));
+
+        MockCurrentUser("BroadUndoer");
+        Assert.Null((await _workflowInstanceDtoFactory.Create(instance, _ct)).UndoCandidate);
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            _undoService.Undo(instance, candidate.OperationId, "because", UnitTestsHelpers.AdminUser, _ct));
+
+        MockCurrentUser("Coordinator");
+        await _undoService.Undo(instance, candidate.OperationId, "because", UnitTestsHelpers.AdminUser, _ct);
+        var restored = await _workflowInstanceDtoFactory.Create(instance, _ct);
+        Assert.True(restored.WorkflowStopped);
+        Assert.Null(restored.UndoCandidate);
+        Assert.Equal(stopped.CurrentStep, restored.CurrentStep);
+        Assert.DoesNotContain(cancelledEvent, instance.Events.Keys);
+
+        var resumed = await controller.ExecuteAction(new ExecuteActionInputDto(ActionType.Execute, instance.Id,
+            "Resume"), _ct);
+        var resumedPayload =
+            Assert.IsType<ExecuteActionPayloadDto>(Assert.IsType<OkObjectResult>(resumed.Result).Value);
+        Assert.False(Assert.IsType<WorkflowInstanceDto>(resumedPayload.Instance).WorkflowStopped);
     }
 
     [Fact]

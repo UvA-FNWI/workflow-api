@@ -58,7 +58,7 @@ public class ScreenDataService(
     private Dictionary<string, string> BuildProjection(
         Column[] columns,
         string workflowDefinition,
-        IEnumerable<Lookup> progressLookups)
+        IEnumerable<Lookup> additionalLookups)
     {
         if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
             throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
@@ -73,7 +73,7 @@ public class ScreenDataService(
                 AddLookupToProjection(projection, prop, entity);
         }
 
-        foreach (var lookup in progressLookups)
+        foreach (var lookup in additionalLookups)
             AddLookupToProjection(projection, lookup, entity);
 
         return projection;
@@ -85,8 +85,8 @@ public class ScreenDataService(
         {
             case PropertyLookup propertyLookup:
                 var propertyName = propertyLookup.Property.Split('.')[0];
-                // ObjectContext computes LastEvent from Events, which LoadData always projects.
-                if (propertyName == "LastEvent")
+                // These values are computed by ObjectContext from the projected data.
+                if (propertyName is "LastEvent" or ObjectContext.WorkflowStoppedKey)
                     break;
 
                 var mongoPath = entity.GetKey(propertyName);
@@ -166,7 +166,8 @@ public class ScreenDataService(
                 ? definition.ProgressLookups.ToArray()
                 : [];
 
-            var projection = BuildProjection(screen.Columns, definition.Name, progressLookups);
+            var projection = BuildProjection(screen.Columns, definition.Name,
+                progressLookups.Concat(definition.StopWhen?.Properties ?? []));
             projection.TryAdd("CurrentStep", "$CurrentStep");
             projection.TryAdd("Events", "$Events");
             projection.TryAdd("CreateDate", "$CreatedOn");

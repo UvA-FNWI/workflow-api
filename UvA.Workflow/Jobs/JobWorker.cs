@@ -35,8 +35,9 @@ public class JobWorker(
             try
             {
                 await jobService.RunJob(job, ct);
-                logger.LogInformation("[{WorkerGroup}], Completed job {JobId}", workerOptions.Value.WorkerGroup,
-                    job.Id);
+                if (job.Status == JobStatus.Completed)
+                    logger.LogInformation("[{WorkerGroup}], Completed job {JobId}", workerOptions.Value.WorkerGroup,
+                        job.Id);
             }
             catch (Exception ex)
             {

@@ -8,6 +8,7 @@ public class EventsController(
     IWorkflowInstanceRepository workflowRepository,
     IUserService userService,
     RightsService rightsService,
+    ModelService modelService,
     IInstanceEventService eventService)
     : ApiControllerBase
 {
@@ -28,6 +29,8 @@ public class EventsController(
             return WorkflowInstanceNotFound;
 
         await rightsService.EnsureAuthorizedForAction(instance, RoleAction.ViewAdminTools);
+        if (modelService.IsWorkflowStopped(instance))
+            return Forbidden();
 
         await eventService.DeleteEvent(instance, eventName, realUser, ct);
         return Ok();

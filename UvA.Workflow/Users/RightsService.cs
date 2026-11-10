@@ -244,8 +244,9 @@ public class RightsService(
         return roles
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
-                .Where(a => (a.Condition == null || a.Condition.IsMet(context))
-                            && actions.Contains(a.Type)
+                .Where(a => actions.Contains(a.Type)
+                            && (!context.WorkflowStopped || a.AllowWhenStopped || IsReadPermission(a.Type))
+                            && (a.Condition == null || a.Condition.IsMet(context))
                             && (a.Steps.Length == 0 || modelService
                                 .GetAvailableStepsForAction(instance, a, activeSteps, context).Length > 0)
                             && (a.WorkflowDefinition == null || a.WorkflowDefinition == instance.WorkflowDefinition)
@@ -253,6 +254,11 @@ public class RightsService(
             .Distinct()
             .ToArray();
     }
+
+    private static bool IsReadPermission(RoleAction action)
+        => action is RoleAction.View or RoleAction.ViewHidden or RoleAction.ViewUsers or RoleAction.ViewStates
+            or RoleAction.ViewResults or RoleAction.ViewCorrespondence or RoleAction.ViewAnswerMessages
+            or RoleAction.ViewAdminTools or RoleAction.ImpersonateRoles;
 
     private async Task<Domain_Action[]> GetAllowedActionsForRealUser(WorkflowInstance instance,
         params RoleAction[] actions)

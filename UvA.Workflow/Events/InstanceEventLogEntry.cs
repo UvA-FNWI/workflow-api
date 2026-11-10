@@ -31,7 +31,7 @@ public record OperationMetadata
 
     [BsonRepresentation(BsonType.String)] public OperationType Type { get; init; }
     public string Source { get; init; } = null!;
-    public string Step { get; init; } = null!;
+    [BsonIgnoreIfNull] public string? Step { get; init; }
 
     public static OperationMetadata? CreateForSubmission(Form form, WorkflowDefinition workflowDefinition)
         => Create(OperationType.FormSubmission, form.Name,
@@ -44,9 +44,23 @@ public record OperationMetadata
 
     public static OperationMetadata? CreateForAction(WorkflowModel.Action action,
         WorkflowDefinition workflowDefinition)
-        => action.Name == null || workflowDefinition.GlobalActions.Contains(action)
-            ? null
-            : Create(OperationType.ExecuteAction, action.Name, action.Steps, workflowDefinition);
+    {
+        if (action.Name == null)
+            return null;
+        if (!workflowDefinition.GlobalActions.Contains(action))
+            return Create(OperationType.ExecuteAction, action.Name, action.Steps, workflowDefinition);
+        if (action.Steps.Length != 0)
+            return null;
+
+        var grants = workflowDefinition.GlobalActions.Concat(workflowDefinition.Roles.SelectMany(role => role.Actions));
+        return grants.Any(grant => IsGlobalUndoGrant(grant, action.Name))
+            ? new OperationMetadata { Type = OperationType.ExecuteAction, Source = action.Name }
+            : null;
+    }
+
+    internal static bool IsGlobalUndoGrant(WorkflowModel.Action action, string source)
+        => action.Type == RoleAction.Undo && action.Steps.Length == 0 && action.AllForms.Length == 0 &&
+           action.Name == source;
 
     private static OperationMetadata? Create(OperationType type, string source, IEnumerable<string?> owningSteps,
         WorkflowDefinition workflowDefinition)

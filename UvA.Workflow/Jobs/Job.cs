@@ -54,6 +54,8 @@ public class Job
 
     public DateTime? ClaimedUntil { get; set; }
 
+    [BsonIgnoreIfNull] public DateTime? DeferredUntil { get; set; }
+
     [BsonIgnoreIfNull]
     [BsonRepresentation(BsonType.ObjectId)]
     public string? OperationId { get; set; }

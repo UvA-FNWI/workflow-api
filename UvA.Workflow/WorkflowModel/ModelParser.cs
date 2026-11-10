@@ -406,6 +406,8 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        PreProcess(workflowDefinition.StopWhen);
+        ValidateStopWhen(workflowDefinition);
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
 
@@ -436,6 +438,22 @@ public partial class ModelParser
         ValidateValueSetsPrefix(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
+    }
+
+    private static void ValidateStopWhen(WorkflowDefinition definition)
+    {
+        if (definition.Properties.Contains(ObjectContext.WorkflowStoppedKey))
+            throw new Exception(
+                $"Definition '{definition.Name}': property name '{ObjectContext.WorkflowStoppedKey}' is reserved.");
+
+        foreach (var lookup in definition.StopWhen?.Properties ?? [])
+        {
+            if (lookup is PropertyLookup { Property: ObjectContext.WorkflowStoppedKey })
+                throw new Exception($"Definition '{definition.Name}': stopWhen cannot refer to WorkflowStopped.");
+            if (lookup is ComplexLookup || lookup is PropertyLookup { Parts: [var root, _, ..] } &&
+                definition.Properties.GetOrDefault(root)?.DataType == DataType.Reference)
+                throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.");
+        }
     }
 
     /// <summary>
@@ -592,7 +610,8 @@ public partial class ModelParser
         var actionNames = new HashSet<string>();
         foreach (var bulkAction in screen.BulkActions)
         {
-            var actions = workflowDefinition.AllActions.Where(a => a.Name == bulkAction.Action).ToArray();
+            var namedActions = workflowDefinition.AllActions.Where(a => a.Name == bulkAction.Action).ToArray();
+            var actions = namedActions.Where(a => a.Type == RoleAction.Execute).ToArray();
             string? error = null;
             if (string.IsNullOrWhiteSpace(bulkAction.Action))
                 error = "action is required.";
@@ -602,9 +621,9 @@ public partial class ModelParser
                 error = "label is required.";
             else if (string.IsNullOrWhiteSpace(bulkAction.Icon?.Type))
                 error = "icon.type is required.";
-            else if (actions.Length == 0)
+            else if (namedActions.Length == 0)
                 error = "action does not exist.";
-            else if (actions.Any(a => a.Type != RoleAction.Execute))
+            else if (actions.Length == 0)
                 error = "only Execute actions are supported.";
             else if (actions.Any(a => a.OnAction.Any(e => e.SendMail?.SendAutomatically == false ||
                                                           e.SendAccessMail?.SendAutomatically == false)))

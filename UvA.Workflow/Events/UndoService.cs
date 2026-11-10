@@ -14,11 +14,13 @@ public class UndoService(
 {
     public async Task<InstanceEventLogEntry?> GetCandidate(
         WorkflowInstance instance,
-        string topLevelStep,
+        string? topLevelStep,
         IEnumerable<InstanceEventLogEntry> eventLogs)
     {
-        var candidate = EventHistory.LatestOperations(
-            eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition]).GetValueOrDefault(topLevelStep);
+        var candidate = topLevelStep == null
+            ? EventHistory.LatestGlobalOperation(eventLogs)
+            : EventHistory.LatestOperations(eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
+                .GetValueOrDefault(topLevelStep);
         return candidate?.OperationMetadata != null && await IsAuthorized(instance, candidate.OperationMetadata)
             ? candidate
             : null;
@@ -42,10 +44,10 @@ public class UndoService(
         if (!await IsAuthorized(instance, operation))
             throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Undo, operation.Source);
 
-        var isCandidate = EventHistory.LatestOperations(
-                eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
-            .Values
-            .Any(log => log.OperationMetadata?.Id == operationId);
+        var isCandidate = operation.Step == null
+            ? EventHistory.LatestGlobalOperation(eventLogs)?.OperationMetadata?.Id == operationId
+            : EventHistory.LatestOperations(eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
+                .Values.Any(log => log.OperationMetadata?.Id == operationId);
         if (!isCandidate)
             throw new UndoCandidateChangedException();
 
@@ -84,6 +86,11 @@ public class UndoService(
 
     private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation)
     {
+        if (operation.Step == null)
+            return operation.Type == OperationType.ExecuteAction &&
+                   (await rightsService.GetAllowedActions(instance, RoleAction.Undo))
+                   .Any(action => OperationMetadata.IsGlobalUndoGrant(action, operation.Source));
+
         var allowed = await rightsService.GetAllowedActionsForStep(
             instance, operation.Step, RoleAction.Undo);
         return allowed.Any(action => operation.Type switch
