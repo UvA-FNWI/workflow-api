@@ -245,8 +245,8 @@ public class InstanceService(
             {
                 foreach (var context in state.Batch.Contexts)
                 {
-                    if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
-                        context.Values["CurrentStep"] =
+                    if (context.Values.TryGetValue(ContextKeys.CurrentStep, out var i) && i is string stepName)
+                        context.Values[ContextKeys.CurrentStep] =
                             state.Batch.WorkflowDefinition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? stepName;
                 }
             }
@@ -374,7 +374,7 @@ public class InstanceService(
                     t => ObjectContext.GetValue(r.GetValueOrDefault(t), entity.GetDataType(t),
                         entity.Properties.FirstOrDefault(p => p.Name == t))
                 );
-            dict["Id"] = r["_id"].ToString();
+            dict[ContextKeys.Id] = r["_id"].ToString();
             return new ObjectContext(dict, ObjectContext.GetValueSets(entity));
         });
     }

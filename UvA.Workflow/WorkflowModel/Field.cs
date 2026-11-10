@@ -28,7 +28,7 @@ public class Field
     public BilingualString DisplayTitle =>
         Title ?? PropertyDefinition?.ShortDisplayName ?? Event?.Name ?? (CurrentStep ? "Step" : "Field");
 
-    private string? ComputedProperty => CurrentStep ? "CurrentStep" : Property;
+    private string? ComputedProperty => CurrentStep ? ContextKeys.CurrentStep : Property;
 
     private Template? _valueTemplate, _linkTemplate;
     public Template? ValueTemplate => _valueTemplate ??= Template.Create(Value);
@@ -69,7 +69,7 @@ public class Field
     public object? GetValue(ObjectContext context)
     {
         if (CurrentStep)
-            return context.Values["CurrentStep"] ?? Default ?? "Draft";
+            return context.Values[ContextKeys.CurrentStep] ?? Default ?? "Draft";
 
         if (ValueTemplate != null)
             return ValueTemplate.Execute(context);

@@ -42,7 +42,7 @@ public class StepProgressResolver(ModelService modelService)
         var currentStep = workflowDefinition.AllSteps.Find(step => step.Name == internalName);
 
         if (currentStep == null)
-            return context.Get("LastEvent") is DateTime
+            return context.Get(ContextKeys.LastEvent) is DateTime
                 ? new ProgressInformationDto(CompletedText.Apply(context), StatusColor.Green)
                 : Completed;
 

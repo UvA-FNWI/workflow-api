@@ -128,7 +128,7 @@ public class ScreensControllerTests : ControllerTestsBase
         {
             Condition = new Condition
             {
-                Value = new Value { Property = ObjectContext.WorkflowStoppedKey, Equal = "true" }
+                Value = new Value { Property = ContextKeys.WorkflowStopped, Equal = "true" }
             },
             Text = "Paused",
             Color = StatusColor.Red
@@ -150,7 +150,7 @@ public class ScreensControllerTests : ControllerTestsBase
                 Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En));
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
             It.Is<Dictionary<string, string>>(projection =>
-                projection["EC"] == "$Properties.EC" && !projection.ContainsKey(ObjectContext.WorkflowStoppedKey)),
+                projection["EC"] == "$Properties.EC" && !projection.ContainsKey(ContextKeys.WorkflowStopped)),
             It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 

@@ -64,11 +64,17 @@ public class ValueSetExpressionTests
     }
 
     [Theory]
-    [InlineData("Base")]
-    [InlineData("Child")]
-    public void PropertyNamedValueSets_IsRejected(string declaredIn)
+    [InlineData("Base", "Id")]
+    [InlineData("Base", "CurrentStep")]
+    [InlineData("Base", "CreateDate")]
+    [InlineData("Base", "LastEvent")]
+    [InlineData("Base", "WorkflowStopped")]
+    [InlineData("Base", "now")]
+    [InlineData("Base", "ValueSets")]
+    [InlineData("Child", "ValueSets")]
+    public void PropertyNamedReservedContextKey_IsRejected(string declaredIn, string name)
     {
-        const string property = "\nproperties:\n  - name: ValueSets\n    type: String";
+        var property = $"\nproperties:\n  - name: {name}\n    type: String";
         var error = Assert.Throws<Exception>(() => new ModelParser(new DictionaryProvider(new()
         {
             ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases" + (declaredIn == "Base" ? property : ""),
@@ -76,7 +82,7 @@ public class ValueSetExpressionTests
                                     (declaredIn == "Child" ? property : "")
         })));
 
-        Assert.Contains("'ValueSets' is reserved", error.Message);
+        Assert.Contains($"'{name}' is reserved", error.Message);
         Assert.Contains($"'{declaredIn}'", error.Message);
     }
 }

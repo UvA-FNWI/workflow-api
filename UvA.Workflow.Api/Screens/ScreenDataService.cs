@@ -68,7 +68,7 @@ public class ScreenDataService(
         foreach (var column in columns)
         {
             if (column.CurrentStep)
-                projection["CurrentStep"] = "$CurrentStep";
+                projection[ContextKeys.CurrentStep] = entity.GetKey(ContextKeys.CurrentStep);
             foreach (var prop in column.Properties)
                 AddLookupToProjection(projection, prop, entity);
         }
@@ -86,7 +86,7 @@ public class ScreenDataService(
             case PropertyLookup propertyLookup:
                 var propertyName = propertyLookup.Property.Split('.')[0];
                 // These values are computed by ObjectContext from the projected data.
-                if (propertyName is "LastEvent" or ObjectContext.WorkflowStoppedKey)
+                if (ContextKeys.IsComputed(propertyName))
                     break;
 
                 var mongoPath = entity.GetKey(propertyName);
@@ -168,9 +168,9 @@ public class ScreenDataService(
 
             var projection = BuildProjection(screen.Columns, definition.Name,
                 progressLookups.Concat(definition.StopWhen?.Properties ?? []));
-            projection.TryAdd("CurrentStep", "$CurrentStep");
+            projection.TryAdd(ContextKeys.CurrentStep, definition.GetKey(ContextKeys.CurrentStep));
             projection.TryAdd("Events", "$Events");
-            projection.TryAdd("CreateDate", "$CreatedOn");
+            projection.TryAdd(ContextKeys.CreateDate, definition.GetKey(ContextKeys.CreateDate));
 
             var authorizationFilter =
                 await instanceAuthorizationFilterService.BuildAuthorizationFilter(
@@ -221,7 +221,7 @@ public class ScreenDataService(
 
         foreach (var context in contexts)
         {
-            var stepValue = context.Get("CurrentStep")?.ToString() ?? EmptyStepId;
+            var stepValue = context.Get(ContextKeys.CurrentStep)?.ToString() ?? EmptyStepId;
 
             // Only include rows that match a configured group
             string? groupName;

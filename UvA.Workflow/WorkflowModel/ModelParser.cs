@@ -406,6 +406,7 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        ValidateReservedPropertyNames(workflowDefinition);
         PreProcess(workflowDefinition.StopWhen);
         ValidateStopWhen(workflowDefinition);
         foreach (var role in workflowDefinition.Roles)
@@ -435,35 +436,29 @@ public partial class ModelParser
 
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
-        ValidateValueSetsPrefix(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
 
     private static void ValidateStopWhen(WorkflowDefinition definition)
     {
-        if (definition.Properties.Contains(ObjectContext.WorkflowStoppedKey))
-            throw new Exception(
-                $"Definition '{definition.Name}': property name '{ObjectContext.WorkflowStoppedKey}' is reserved.");
-
         foreach (var lookup in definition.StopWhen?.Properties ?? [])
         {
-            if (lookup is PropertyLookup { Property: ObjectContext.WorkflowStoppedKey })
-                throw new Exception($"Definition '{definition.Name}': stopWhen cannot refer to WorkflowStopped.");
+            if (lookup is PropertyLookup { Property: ContextKeys.WorkflowStopped })
+                throw new Exception(
+                    $"Definition '{definition.Name}': stopWhen cannot refer to {ContextKeys.WorkflowStopped}.");
             if (lookup is ComplexLookup || lookup is PropertyLookup { Parts: [var root, _, ..] } &&
                 definition.Properties.GetOrDefault(root)?.DataType == DataType.Reference)
                 throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.");
         }
     }
 
-    /// <summary>
-    /// Expressions reference value sets as <c>ValueSets.Name</c>, so a property called ValueSets would be unreachable
-    /// </summary>
-    private static void ValidateValueSetsPrefix(WorkflowDefinition workflowDefinition)
+    private static void ValidateReservedPropertyNames(WorkflowDefinition definition)
     {
-        if (workflowDefinition.Properties.Contains("ValueSets"))
+        var reservedName = ContextKeys.Reserved.FirstOrDefault(name => definition.Properties.Contains(name));
+        if (reservedName != null)
             throw new Exception(
-                $"Definition '{workflowDefinition.Name}': property name 'ValueSets' is reserved for value set references.");
+                $"Definition '{definition.Name}': property name '{reservedName}' is reserved.");
     }
 
     private static void ValidateReservedEventNames(WorkflowDefinition definition)
