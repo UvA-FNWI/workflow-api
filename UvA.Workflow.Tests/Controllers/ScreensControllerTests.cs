@@ -128,6 +128,51 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Screens_GetScreenData_ReturnsProgressOverrideInValues()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var progressColumn = definition.Screens.Single(screen => screen.Name == "Projects")
+            .Columns.Single(column => column.CurrentStep);
+        progressColumn.Overrides =
+        [
+            new ColumnDisplayOverride
+            {
+                Condition = new Condition { Event = new EventCondition { Id = "RejectSubject" } },
+                Text = new BilingualString(
+                    "Paused ({{ dateShort(RejectSubjectEvent) }})",
+                    "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }})"),
+                Color = StatusColor.Red
+            }
+        ];
+        var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["Events"] = new BsonDocument("RejectSubject", new BsonDocument("Date", rejectedAt))
+            },
+            new Dictionary<string, BsonValue> { ["CurrentStep"] = "Start" }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var column = Assert.Single(response.Columns, column => column.IsCurrentStep);
+        var rows = response.Groups!.Single(group => group.Name == "approve-subject").Rows;
+        Assert.Collection(rows, row =>
+            {
+                var progress = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
+                Assert.Equal("Paused (01/08)", progress.Text.En);
+                Assert.Equal("Gepauzeerd (01/08)", progress.Text.Nl);
+                Assert.Equal(StatusColor.Red, progress.Color);
+                Assert.Null(row.Display);
+            },
+            row => Assert.Equal("Writing proposal",
+                Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En));
+    }
+
+    [Fact]
     public async Task Screens_GetScreenData_ReturnsConfiguredBulkButtonsInOrder()
     {
         var controller = BuildControllerWithRoles(["Coordinator"], "Project", "Projects");

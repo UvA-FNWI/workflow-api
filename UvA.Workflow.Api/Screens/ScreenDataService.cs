@@ -127,13 +127,17 @@ public class ScreenDataService(
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                var value = columns[i].IsCurrentStep
-                    ? StepProgressResolver.ResolveProgress(definition, column.GetValue(context) as string ?? "",
-                        context)
-                    : column.GetValue(context);
-                processedValues[columnId] = value;
-
                 var rule = column.Overrides.FirstOrDefault(rule => rule.Condition.IsMet(context));
+                if (columns[i].IsCurrentStep)
+                {
+                    processedValues[columnId] = rule != null
+                        ? new ProgressInformationDto(rule.TextTemplate.Apply(context), rule.Color)
+                        : StepProgressResolver.ResolveProgress(definition, column.GetValue(context) as string ?? "",
+                            context);
+                    continue;
+                }
+
+                processedValues[columnId] = column.GetValue(context);
                 if (rule != null)
                     (display ??= [])[columnId] = new ScreenCellDisplayDto(rule.TextTemplate.Apply(context), rule.Color);
             }
