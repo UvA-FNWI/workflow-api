@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using UvA.Workflow.Expressions;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -120,24 +119,6 @@ public class Column : Field
     /// If true, this column becomes a link to the instance 
     /// </summary>
     public bool Link { get; set; }
-
-    /// <summary>
-    /// Display overrides in priority order. The first matching condition supplies the cell text and color.
-    /// </summary>
-    public ColumnDisplayOverride[] Overrides { get; set; } = [];
-
-    [YamlIgnore] public IEnumerable<Lookup> Lookups => Properties.Concat(Overrides.SelectMany(rule => rule.Lookups));
-}
-
-public class ColumnDisplayOverride
-{
-    [Required] public Condition Condition { get; set; } = null!;
-    [Required] public BilingualString Text { get; set; } = null!;
-    public StatusColor? Color { get; set; }
-
-    [YamlIgnore] public BilingualTemplate TextTemplate => field ??= BilingualTemplate.Create(Text)!;
-
-    [YamlIgnore] public IEnumerable<Lookup> Lookups => Condition.Properties.Concat(TextTemplate.Properties);
 }
 
 public class BulkEditConfig

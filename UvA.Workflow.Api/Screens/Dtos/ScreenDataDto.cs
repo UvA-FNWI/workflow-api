@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using SortDirection = UvA.Workflow.WorkflowModel.SortDirection;
 
@@ -84,8 +83,4 @@ public record ScreenColumnDto(
 
 public record ScreenRowDto(
     string Id,
-    Dictionary<int, object?> Values,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    Dictionary<int, ScreenCellDisplayDto>? Display = null);
-
-public record ScreenCellDisplayDto(BilingualString Text, StatusColor? Color);
+    Dictionary<int, object?> Values);

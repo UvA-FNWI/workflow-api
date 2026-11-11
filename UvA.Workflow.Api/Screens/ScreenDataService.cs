@@ -70,7 +70,7 @@ public class ScreenDataService(
         {
             if (column.CurrentStep)
                 projection[ContextKeys.CurrentStep] = entity.GetKey(ContextKeys.CurrentStep);
-            foreach (var prop in column.Lookups)
+            foreach (var prop in column.Properties)
                 AddLookupToProjection(projection, prop, entity);
         }
 
@@ -124,29 +124,19 @@ public class ScreenDataService(
                 ? modelService.WorkflowDefinitions[type]
                 : definition;
             var processedValues = new Dictionary<int, object?>();
-            Dictionary<int, ScreenCellDisplayDto>? display = null;
 
             // Process each column and use its ID as the key
             for (int i = 0; i < screen.Columns.Length; i++)
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                var rule = column.Overrides.FirstOrDefault(rule => rule.Condition.IsMet(context));
-                if (columns[i].IsCurrentStep)
-                {
-                    processedValues[columnId] = rule != null
-                        ? new ProgressInformationDto(rule.TextTemplate.Apply(context), rule.Color)
-                        : StepProgressResolver.ResolveProgress(progressDefinition,
-                            column.GetValue(context) as string ?? "", context);
-                    continue;
-                }
-
-                processedValues[columnId] = column.GetValue(context);
-                if (rule != null)
-                    (display ??= [])[columnId] = new ScreenCellDisplayDto(rule.TextTemplate.Apply(context), rule.Color);
+                var value = column.GetValue(context);
+                processedValues[columnId] = columns[i].IsCurrentStep
+                    ? StepProgressResolver.ResolveProgress(progressDefinition, value as string ?? "", context)
+                    : value;
             }
 
-            rows.Add(new ScreenRowDto(id, processedValues, display));
+            rows.Add(new ScreenRowDto(id, processedValues));
         }
 
         return rows.ToArray();
@@ -203,7 +193,7 @@ public class ScreenDataService(
             await instanceService.Enrich(
                 definition,
                 rows,
-                screen.Columns.SelectMany(column => column.Lookups).Concat(additionalLookups),
+                screen.Columns.SelectMany(column => column.Properties).Concat(additionalLookups),
                 ct,
                 false);
 
