@@ -21,12 +21,12 @@ public class Effect
     /// <summary>
     /// Send an email
     /// </summary>
-    public SendMessage? SendMail { get; set; }
+    public Email? SendMail { get; set; }
 
     /// <summary>
     /// Prepare login access and send one personalized email per recipient
     /// </summary>
-    public SendMessage? SendAccessMail { get; set; }
+    public Email? SendAccessMail { get; set; }
 
     /// <summary>
     /// Show confetti
@@ -186,7 +186,7 @@ public class Http
     public Template UrlTemplate => _urlTemplate ??= new Template(Url);
 }
 
-public class TemplateMessage : SendMessage, INamed
+public class NamedEmail : Email, INamed
 {
     public string Name { get; set; } = null!;
 }
@@ -204,7 +204,7 @@ public class Recipients : List<string>
     public static bool ResolvesToAddress(string entry) => entry.Contains('@') || Template.Create(entry).HasExpressions;
 }
 
-public class SendMessage
+public class Email
 {
     /// <summary>Recipients: each entry is a property lookup (User or [User]), a literal email address, or a template.</summary>
     public Recipients? To { get; set; }
@@ -217,7 +217,7 @@ public class SendMessage
 
     public BilingualString? Subject { get; set; }
     public BilingualString? Body { get; set; }
-    [YamlMember(Alias = "template")] public string? TemplateKey { get; set; }
+    [YamlMember(Alias = "email")] public string? TemplateKey { get; set; }
     [YamlMember(Alias = "layout")] public string? Layout { get; set; }
     [YamlMember(Alias = "buttons")] public SendMessageButton[] Buttons { get; set; } = [];
     public bool SendAsMail { get; set; }

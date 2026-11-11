@@ -176,7 +176,7 @@ public partial class ModelParser
             target.Actions = MergeActions(target.Actions, source.Actions);
     }
 
-    private void ApplyInheritance(SendMessage target, SendMessage source)
+    private void ApplyInheritance(Email target, Email source)
     {
     }
 

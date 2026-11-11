@@ -15,7 +15,7 @@ public class MailBuilder(
 {
     public MailMessage Build(
         WorkflowInstance instance,
-        SendMessage sendMail,
+        Email sendMail,
         ModelService modelService,
         ObjectContext context)
     {
@@ -112,10 +112,10 @@ public class MailBuilder(
 
     /// Recipient lookups after applying template defaults, so callers can enrich referenced properties.
     public static IEnumerable<Lookup> ResolveRecipientLookups(WorkflowDefinition workflowDefinition,
-        SendMessage sendMail)
+        Email sendMail)
         => ResolveMessageContents(workflowDefinition, sendMail).RecipientLookups;
 
-    private static SendMessage ResolveMessageContents(WorkflowDefinition workflowDefinition, SendMessage sendMail)
+    private static Email ResolveMessageContents(WorkflowDefinition workflowDefinition, Email sendMail)
     {
         if (string.IsNullOrWhiteSpace(sendMail.TemplateKey))
             return sendMail;
@@ -134,9 +134,9 @@ public class MailBuilder(
     }
 
     /// Inline values override template defaults.
-    private static SendMessage Merge(SendMessage template, SendMessage inline)
+    private static Email Merge(Email template, Email inline)
     {
-        return new SendMessage
+        return new Email
         {
             TemplateKey = inline.TemplateKey ?? template.TemplateKey,
 

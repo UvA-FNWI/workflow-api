@@ -184,7 +184,7 @@ public class EffectService(
         }
     }
 
-    private async Task SendMail(WorkflowInstance instance, SendMessage sendMail, User user, CancellationToken ct,
+    private async Task SendMail(WorkflowInstance instance, Email sendMail, User user, CancellationToken ct,
         MailMessage? mail = null, string? jobId = null, ObjectContext? context = null)
     {
         if (mail == null && !sendMail.SendAutomatically)

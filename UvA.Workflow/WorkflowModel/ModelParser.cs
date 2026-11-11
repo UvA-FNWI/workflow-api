@@ -135,7 +135,7 @@ public partial class ModelParser
                 definition.Name);
 
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
-            definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
+            definition.Emails = Read<NamedEmail>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
             definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
 
@@ -829,7 +829,7 @@ public partial class ModelParser
         {
             nameof(StepTemplate) => "Templates/Steps",
             nameof(FormTemplate) => "Templates/Forms",
-            nameof(TemplateMessage) => "Emails",
+            nameof(NamedEmail) => "Emails",
             nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"

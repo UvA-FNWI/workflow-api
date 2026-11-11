@@ -25,6 +25,21 @@ public class FormTemplate : Form, ITemplate
     [YamlIgnore] public string RootFile { get; set; } = null!;
 }
 
+public class EmailTemplate : NamedEmail, ITemplate
+{
+    [YamlMember(Alias = "params")] public List<TemplateParameter> Parameters { get; set; } = [];
+
+    [YamlMember(Alias = "blocks")] public EmailContentBlock[] ContentBlocks { get; set; } = [];
+
+    [YamlIgnore] public string RootFile { get; set; } = null!;
+}
+
+public class EmailContentBlock : INamed
+{
+    public string Name { get; set; } = null!;
+    public BilingualString Content { get; set; } = null!;
+}
+
 public class TemplateParameter : INamed
 {
     public string Name { get; set; } = null!;

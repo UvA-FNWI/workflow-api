@@ -90,7 +90,7 @@ public class EffectServiceMailLoggingTests
 
         var effect = new Effect
         {
-            SendMail = new SendMessage()
+            SendMail = new Email()
         };
 
         await _effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, user,
@@ -133,7 +133,7 @@ public class EffectServiceMailLoggingTests
 
         var effect = new Effect
         {
-            SendMail = new SendMessage { TemplateKey = "DecisionMail" }
+            SendMail = new Email { TemplateKey = "DecisionMail" }
         };
 
         await _effectService.RunEffect(new Job { Input = new JobInput(mail) }, instance, effect, CreateUser(),
