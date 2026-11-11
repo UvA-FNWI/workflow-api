@@ -119,9 +119,10 @@ public class ScreenDataService(
         foreach (var context in contexts)
         {
             var id = context.Id!;
-            var stopWhen = definition.GroupChildScreens && context.Get("Type") is string type
-                ? modelService.WorkflowDefinitions[type].StopWhen
-                : definition.StopWhen;
+            var progressDefinition = context.WorkflowStopped && definition.GroupChildScreens &&
+                                     context.Get("Type") is string type
+                ? modelService.WorkflowDefinitions[type]
+                : definition;
             var processedValues = new Dictionary<int, object?>();
             Dictionary<int, ScreenCellDisplayDto>? display = null;
 
@@ -135,9 +136,8 @@ public class ScreenDataService(
                 {
                     processedValues[columnId] = rule != null
                         ? new ProgressInformationDto(rule.TextTemplate.Apply(context), rule.Color)
-                        : StepProgressResolver.ResolveStopMessage(stopWhen, context)
-                          ?? StepProgressResolver.ResolveProgress(definition, column.GetValue(context) as string ?? "",
-                              context);
+                        : StepProgressResolver.ResolveProgress(progressDefinition,
+                            column.GetValue(context) as string ?? "", context);
                     continue;
                 }
 

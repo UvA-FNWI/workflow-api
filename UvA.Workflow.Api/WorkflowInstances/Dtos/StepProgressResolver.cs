@@ -42,6 +42,9 @@ public class StepProgressResolver(ModelService modelService)
         string? internalName,
         ObjectContext context)
     {
+        if (context.WorkflowStopped)
+            return ResolveStoppedProgress(workflowDefinition.StopWhen, context);
+
         var currentStep = workflowDefinition.AllSteps.Find(step => step.Name == internalName);
 
         if (currentStep == null)
@@ -58,36 +61,19 @@ public class StepProgressResolver(ModelService modelService)
         return new ProgressInformationDto(displayText, progress?.Color);
     }
 
-    internal static ProgressInformationDto ResolvePersonalProgress(
-        WorkflowDefinition workflowDefinition,
-        string? internalName,
-        ObjectContext context)
+    private static ProgressInformationDto ResolveStoppedProgress(Condition? stopWhen, ObjectContext context)
     {
-        if (!context.WorkflowStopped)
-            return ResolveProgress(workflowDefinition, internalName, context);
+        var message = stopWhen?.Message;
+        if (message == null && stopWhen?.Part is Logical { Operator: LogicalOperator.Or } alternatives)
+            message = alternatives.Children.FirstOrDefault(condition => condition.IsMet(context))?.Message;
 
-        var stopWhen = workflowDefinition.StopWhen;
-        if (ResolveStopMessage(stopWhen, context) is { } progress)
-            return progress;
+        if (BilingualTemplate.Create(message) is { } template)
+            return new ProgressInformationDto(template.Apply(context), StatusColor.Red);
 
         if (GetStopEventDate(stopWhen, context) is not { } date)
             return StoppedProgress;
 
         return StoppedProgress with { Text = StoppedProgress.Text + FormattableString.Invariant($" ({date:dd/MM})") };
-    }
-
-    internal static ProgressInformationDto? ResolveStopMessage(Condition? stopWhen, ObjectContext context)
-    {
-        if (!context.WorkflowStopped || stopWhen == null)
-            return null;
-
-        var message = stopWhen.Message;
-        if (message == null && stopWhen.Part is Logical { Operator: LogicalOperator.Or } alternatives)
-            message = alternatives.Children.FirstOrDefault(condition => condition.IsMet(context))?.Message;
-
-        return BilingualTemplate.Create(message) is { } template
-            ? new ProgressInformationDto(template.Apply(context), StatusColor.Red)
-            : null;
     }
 
     private static DateTime? GetStopEventDate(Condition? condition, ObjectContext context)

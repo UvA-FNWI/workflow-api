@@ -128,18 +128,21 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData(false, "Paused (01/08)", "Gepauzeerd (01/08)")]
-    [InlineData(true, "On hold (01/08)", "In de wacht (01/08)")]
-    public async Task Screens_GetScreenData_ReturnsStopMessageWithColumnOverrideTakingPrecedence(
-        bool hasColumnOverride, string english, string dutch)
+    [InlineData(true, false, "Paused (01/08)", "Gepauzeerd (01/08)")]
+    [InlineData(true, true, "On hold (01/08)", "In de wacht (01/08)")]
+    [InlineData(false, false, "Stopped (01/08)", "Gestopt (01/08)")]
+    public async Task Screens_GetScreenData_ReturnsDatedStoppedProgressWithColumnOverrideTakingPrecedence(
+        bool hasStopMessage, bool hasColumnOverride, string english, string dutch)
     {
         var definition = _modelService.WorkflowDefinitions["Project"];
         definition.StopWhen = new Condition
         {
             Event = "RejectSubject",
-            Message = new BilingualString(
-                "Paused ({{ dateShort(RejectSubjectEvent) }})",
-                "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }})")
+            Message = hasStopMessage
+                ? new BilingualString(
+                    "Paused ({{ dateShort(RejectSubjectEvent) }})",
+                    "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }})")
+                : null
         };
         var progressColumn = definition.Screens.Single(screen => screen.Name == "Projects")
             .Columns.Single(column => column.CurrentStep);
@@ -323,7 +326,13 @@ public class ScreensControllerTests : ControllerTestsBase
         var column = response.Columns.Single(column => column.IsCurrentStep);
         var groups = Assert.IsType<ScreenGroupDto[]>(response.Groups);
         Assert.Collection(groups.Single(group => group.Name == "approve-subject").Rows,
-            row => Assert.Equal("Paused", Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En),
+            row =>
+            {
+                var progress = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
+                Assert.Equal("Stopped", progress.Text.En);
+                Assert.Equal("Gestopt", progress.Text.Nl);
+                Assert.Equal(StatusColor.Red, progress.Color);
+            },
             row => Assert.Equal("Writing proposal",
                 Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En));
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",

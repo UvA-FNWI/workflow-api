@@ -122,7 +122,7 @@ public class PersonalInstanceService(
             definition.DisplayTitle,
             definition.InstanceTitleTemplate?.Apply(context),
             instance.CurrentStep,
-            StepProgressResolver.ResolvePersonalProgress(definition, instance.CurrentStep, context),
+            StepProgressResolver.ResolveProgress(definition, instance.CurrentStep, context),
             instance.CreatedOn,
             roles,
             student,
