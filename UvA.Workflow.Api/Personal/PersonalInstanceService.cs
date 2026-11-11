@@ -14,9 +14,6 @@ public class PersonalInstanceService(
         new PropertyLookup("Course.Name")
     ];
 
-    private static readonly ProgressInformationDto StoppedProgress =
-        new(new BilingualString("Stopped", "Gestopt"), StatusColor.Red);
-
     public async Task<PersonalInstancesDto> GetInstances(User user, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var userId))
@@ -125,9 +122,7 @@ public class PersonalInstanceService(
             definition.DisplayTitle,
             definition.InstanceTitleTemplate?.Apply(context),
             instance.CurrentStep,
-            context.WorkflowStopped
-                ? StoppedProgress
-                : StepProgressResolver.ResolveProgress(definition, instance.CurrentStep, context),
+            StepProgressResolver.ResolvePersonalProgress(definition, instance.CurrentStep, context),
             instance.CreatedOn,
             roles,
             student,

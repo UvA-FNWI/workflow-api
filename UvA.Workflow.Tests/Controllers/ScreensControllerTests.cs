@@ -127,23 +127,37 @@ public class ScreensControllerTests : ControllerTestsBase
             It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task Screens_GetScreenData_ReturnsProgressOverrideInValues()
+    [Theory]
+    [InlineData(false, "Paused (01/08)", "Gepauzeerd (01/08)")]
+    [InlineData(true, "On hold (01/08)", "In de wacht (01/08)")]
+    public async Task Screens_GetScreenData_ReturnsStopMessageWithColumnOverrideTakingPrecedence(
+        bool hasColumnOverride, string english, string dutch)
     {
         var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.StopWhen = new Condition
+        {
+            Event = "RejectSubject",
+            Message = new BilingualString(
+                "Paused ({{ dateShort(RejectSubjectEvent) }})",
+                "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }})")
+        };
         var progressColumn = definition.Screens.Single(screen => screen.Name == "Projects")
             .Columns.Single(column => column.CurrentStep);
-        progressColumn.Overrides =
-        [
-            new ColumnDisplayOverride
-            {
-                Condition = new Condition { Event = new EventCondition { Id = "RejectSubject" } },
-                Text = new BilingualString(
-                    "Paused ({{ dateShort(RejectSubjectEvent) }})",
-                    "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }})"),
-                Color = StatusColor.Red
-            }
-        ];
+        if (hasColumnOverride)
+        {
+            progressColumn.Overrides =
+            [
+                new ColumnDisplayOverride
+                {
+                    Condition = new Condition { Event = "RejectSubject" },
+                    Text = new BilingualString(
+                        "On hold ({{ dateShort(RejectSubjectEvent) }})",
+                        "In de wacht ({{ dateShort(RejectSubjectEvent) }})"),
+                    Color = StatusColor.Red
+                }
+            ];
+        }
+
         var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
         var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
         [
@@ -163,8 +177,8 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Collection(rows, row =>
             {
                 var progress = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
-                Assert.Equal("Paused (01/08)", progress.Text.En);
-                Assert.Equal("Gepauzeerd (01/08)", progress.Text.Nl);
+                Assert.Equal(english, progress.Text.En);
+                Assert.Equal(dutch, progress.Text.Nl);
                 Assert.Equal(StatusColor.Red, progress.Color);
                 Assert.Null(row.Display);
             },

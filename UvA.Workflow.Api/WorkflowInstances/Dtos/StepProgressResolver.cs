@@ -17,6 +17,9 @@ public class StepProgressResolver(ModelService modelService)
     public static readonly BilingualTemplate CompletedText = BilingualTemplate.Create(new BilingualString(
         "Completed ({{ dateShort(LastEvent) }})", "Afgerond ({{ dateShort(LastEvent) }})"))!;
 
+    private static readonly ProgressInformationDto StoppedProgress =
+        new(new BilingualString("Stopped", "Gestopt"), StatusColor.Red);
+
     public StepHeaderStatusDto? ResolveHeader(Step step, WorkflowInstance instance)
         => ResolveHeader(step, ObjectContext.Create(instance, modelService));
 
@@ -53,6 +56,51 @@ public class StepProgressResolver(ModelService modelService)
         var displayText = progress?.ProgressTextTemplate?.Apply(context)
                           ?? currentStep.DisplayTitle;
         return new ProgressInformationDto(displayText, progress?.Color);
+    }
+
+    internal static ProgressInformationDto ResolvePersonalProgress(
+        WorkflowDefinition workflowDefinition,
+        string? internalName,
+        ObjectContext context)
+    {
+        if (!context.WorkflowStopped)
+            return ResolveProgress(workflowDefinition, internalName, context);
+
+        var stopWhen = workflowDefinition.StopWhen;
+        if (ResolveStopMessage(stopWhen, context) is { } progress)
+            return progress;
+
+        if (GetStopEventDate(stopWhen, context) is not { } date)
+            return StoppedProgress;
+
+        return StoppedProgress with { Text = StoppedProgress.Text + FormattableString.Invariant($" ({date:dd/MM})") };
+    }
+
+    internal static ProgressInformationDto? ResolveStopMessage(Condition? stopWhen, ObjectContext context)
+    {
+        if (!context.WorkflowStopped || stopWhen == null)
+            return null;
+
+        var message = stopWhen.Message;
+        if (message == null && stopWhen.Part is Logical { Operator: LogicalOperator.Or } alternatives)
+            message = alternatives.Children.FirstOrDefault(condition => condition.IsMet(context))?.Message;
+
+        return BilingualTemplate.Create(message) is { } template
+            ? new ProgressInformationDto(template.Apply(context), StatusColor.Red)
+            : null;
+    }
+
+    private static DateTime? GetStopEventDate(Condition? condition, ObjectContext context)
+    {
+        if (condition == null || condition.Not || !condition.IsMet(context))
+            return null;
+
+        return condition.Part switch
+        {
+            EventCondition evt => context.Get(evt.Id + "Event") as DateTime?,
+            Logical logical => logical.Children.Max(child => GetStopEventDate(child, context)),
+            _ => null
+        };
     }
 
     public static ProgressInformation? ResolveMatchedProgress(Step step, ObjectContext context,
