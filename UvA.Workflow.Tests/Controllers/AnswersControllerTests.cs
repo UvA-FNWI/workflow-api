@@ -269,6 +269,22 @@ public class AnswersControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Answers_ClearAnswers_AllowsSubmitPermissionAfterRepeatableFormSubmission()
+    {
+        const string formName = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], formName);
+        instance.Events[formName].Date = DateTime.UtcNow.AddMinutes(-1);
+        _modelService.GetForm(instance, formName).Repeatable = true;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Single(role => role.Name == "Student")
+            .Actions = [new() { Type = RoleAction.Submit, Form = formName }];
+
+        var result = await controller.ClearAnswers(instance.Id, formName, _ct);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.True(instance.Properties["Title"].IsBsonNull);
+    }
+
+    [Fact]
     public async Task Answers_ClearAnswers_ThrowsForbiddenWithoutEditRights()
     {
         var (controller, instance) = BuildControllerWithRoles(["HasNoRights"], "Start");
