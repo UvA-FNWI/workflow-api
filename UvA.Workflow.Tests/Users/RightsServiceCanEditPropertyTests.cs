@@ -99,7 +99,7 @@ public class RightsServiceCanEditPropertyTests
         // Student has property-level edit rights explicitly on SecondReader.
         var (sut, instance) = Build(["Student"]);
 
-        var result = await sut.CanEditProperty(instance, "SecondReader");
+        var result = await sut.CanEditProperty(instance, "SecondAssessor");
 
         Assert.True(result);
     }

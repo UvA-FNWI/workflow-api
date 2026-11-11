@@ -114,11 +114,17 @@ public class RightsServiceHistoricalViewTests : ControllerTestsBase
             new BsonDocument
                 { ["_id"] = oldCourse, ["Coordinator"] = assignedNow ? new BsonArray() : new BsonArray { user } }
         };
-        _workflowInstanceRepoMock.Setup(repository => repository.GetAllById(
-                It.IsAny<string[]>(), It.IsAny<Dictionary<string, string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string[] ids, Dictionary<string, string> _, CancellationToken _) =>
+        _workflowInstanceRepoMock.Setup(repository => repository.GetByIds(
+                It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) =>
                 courses.Where(course => ids.Contains(course["_id"].AsString))
-                    .Select(course => course.ToDictionary(element => element.Name, element => element.Value)).ToList());
+                    .Select(course => new WorkflowInstance
+                    {
+                        Id = course["_id"].AsString,
+                        WorkflowDefinition = "Course",
+                        Properties = new Dictionary<string, BsonValue> { ["Coordinator"] = course["Coordinator"] },
+                        Events = []
+                    }).ToList());
 
         var actions = (await _rightsService.GetAllowedHistoricalViewActions(current, [snapshot]))[snapshot];
 

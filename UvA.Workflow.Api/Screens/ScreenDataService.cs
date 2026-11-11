@@ -28,7 +28,7 @@ public class ScreenDataService(
         var canCreateInstance = await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
 
         // Build projection based on screen columns
-        var contexts = await LoadData(screen, workflowDefinition, ct);
+        var contexts = await LoadData(screen, definition, ct);
         var viewableSources = await StepProgressResolver.GetViewableSources(contexts, rightsService);
 
         // Process the data and apply templates/expressions
@@ -119,6 +119,9 @@ public class ScreenDataService(
 
         foreach (var context in contexts)
         {
+            var rowDefinition = definition.GroupChildScreens
+                ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
+                : definition;
             var id = context.Id!;
             var processedValues = new Dictionary<int, object?>();
 
@@ -128,7 +131,7 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? StepProgressResolver.ResolveProgress(definition, context.CurrentStep,
+                    ? StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep,
                         context, viewableSources: viewableSources)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
@@ -140,42 +143,73 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
-    private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
+    private async Task<List<ObjectContext>> LoadData(Screen screen, WorkflowDefinition workflowDefinition,
+        CancellationToken ct)
     {
-        var definition = modelService.WorkflowDefinitions[workflowDefinition];
-        var hasProgressColumn = screen.Columns.Any(column => column.CurrentStep);
-        var progressLookups = hasProgressColumn
-            ? definition.ProgressLookups.ToArray()
-            : [];
-
-        // Build projection based on screen columns, always including CurrentStep for grouping
-        var projection = BuildProjection(screen.Columns, workflowDefinition, progressLookups);
-        projection.TryAdd("CurrentStep", "$CurrentStep");
-        projection.TryAdd("Events", "$Events");
-        projection.TryAdd("CreateDate", "$CreatedOn");
-
-        // Build authorization filter to restrict instances to those the user can view
-        var authorizationFilter =
-            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
-
-        List<ObjectContext> contexts;
-        if (definition.HasImportedSteps)
+        var definitions = modelService.WorkflowDefinitions.Values.Where(definition =>
         {
-            var instances = (await repository.GetByWorkflowDefinition(workflowDefinition,
-                authorizationFilter == null
-                    ? FilterDefinition<WorkflowInstance>.Empty
-                    : new BsonDocumentFilterDefinition<WorkflowInstance>(authorizationFilter), ct)).ToArray();
-            contexts = (await instanceService.ResolveContexts(instances, ct)).Values.ToList();
-        }
-        else
-        {
-            var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-            contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
-        }
+            if (!workflowDefinition.GroupChildScreens)
+                return definition == workflowDefinition;
 
-        // Add related properties as needed
-        await instanceService.Enrich(definition,
-            contexts, screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups), ct, false);
+            if (definition.IsEmbedded)
+                return false;
+
+            for (var current = definition; current != null; current = current.Parent)
+            {
+                if (ReferenceEquals(current, workflowDefinition))
+                    return true;
+            }
+
+            return false;
+        });
+
+        var contexts = new List<ObjectContext>();
+
+        foreach (var definition in definitions)
+        {
+            var progressLookups = screen.Columns.Any(column => column.CurrentStep)
+                ? definition.ProgressLookups.ToArray()
+                : [];
+
+            var projection = BuildProjection(screen.Columns, definition.Name, progressLookups);
+            projection.TryAdd("CurrentStep", "$CurrentStep");
+            projection.TryAdd("Events", "$Events");
+            projection.TryAdd("CreateDate", "$CreatedOn");
+
+            var authorizationFilter =
+                await instanceAuthorizationFilterService.BuildAuthorizationFilter(
+                    definition.Name, RoleAction.View, ct);
+
+            List<ObjectContext> rows;
+            if (definition.HasImportedSteps)
+            {
+                var instances = (await repository.GetByWorkflowDefinition(definition.Name,
+                    authorizationFilter == null
+                        ? FilterDefinition<WorkflowInstance>.Empty
+                        : new BsonDocumentFilterDefinition<WorkflowInstance>(authorizationFilter), ct)).ToArray();
+                rows = (await instanceService.ResolveContexts(instances, ct)).Values.ToList();
+            }
+            else
+            {
+                var rawData = await repository.GetAllByType(definition.Name, projection, authorizationFilter, ct);
+                rows = rawData.Select(row => modelService.CreateContext(definition.Name, row)).ToList();
+            }
+
+            await instanceService.Enrich(
+                definition,
+                rows,
+                screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups),
+                ct,
+                false);
+
+            if (workflowDefinition.GroupChildScreens)
+            {
+                foreach (var row in rows)
+                    row.Values["Type"] = definition.Name;
+            }
+
+            contexts.AddRange(rows);
+        }
 
         return contexts;
     }
@@ -200,13 +234,16 @@ public class ScreenDataService(
 
         foreach (var context in contexts)
         {
+            var rowDefinition = definition.GroupChildScreens
+                ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
+                : definition;
             var stepValue = context.CurrentStep ?? EmptyStepId;
 
             // Only include rows that match a configured group
             string? groupName;
             while (!stepGroupMapping.TryGetValue(stepValue, out groupName))
             {
-                stepValue = definition.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
+                stepValue = rowDefinition.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
                 if (stepValue == null)
                     break;
             }

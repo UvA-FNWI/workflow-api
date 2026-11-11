@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace UvA.Workflow.WorkflowModel;
 
 /// <summary>
@@ -71,9 +73,31 @@ public class AssessmentPart : INamed
     public decimal MaximumDiscrepancy { get; set; }
 
     /// <summary>
+    /// Warnings to be shown if there are discrepancies in the grades
+    /// </summary>
+    public AssessmentWarning[] Warnings { get; set; } = [];
+
+    /// <summary>
     /// The assessor sources that contribute to this part
     /// </summary>
     public List<AssessmentSource> Sources { get; set; } = [];
+}
+
+public class AssessmentWarning
+{
+    /// <summary>
+    /// Show a warning if the discrepancy between the scores is larger than or equal to this value
+    /// </summary>
+    [DefaultValue(0)]
+    public decimal MaximumDiscrepancy { get; set; }
+
+    /// <summary>
+    /// Show a warning if one of the grades is above this and another below
+    /// </summary>
+    [DefaultValue(0)]
+    public decimal InflectionPoint { get; set; }
+
+    public BilingualString Label { get; set; } = null!;
 }
 
 /// <summary>

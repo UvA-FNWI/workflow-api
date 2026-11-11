@@ -3,6 +3,7 @@ using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
+using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Api.Assessments;
 
@@ -65,7 +66,9 @@ public class AssessmentsController(
 
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
-        var dto = assessmentDtoFactory.Create(instance, [context], assessmentConfig);
+        var dto = assessmentDtoFactory.Create(instance, [context], assessmentConfig,
+            new Dictionary<string, DomainAction[]>
+                { [instance.Id] = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden) });
         return Ok(dto);
     }
 
@@ -82,9 +85,12 @@ public class AssessmentsController(
                 : (Instance: instance, Part: part));
         var contexts = new List<SubmissionContext>();
         var allowedForms = new HashSet<(string InstanceId, string Form)>();
+        var allowedHidden = new Dictionary<string, DomainAction[]>();
         foreach (var group in parts?.GroupBy(part => part.Instance.Id) ?? [])
         {
             var sourceInstance = group.First().Instance;
+            allowedHidden[sourceInstance.Id] =
+                await rightsService.GetAllowedActions(sourceInstance, RoleAction.ViewHidden);
             var sourceNames = group.SelectMany(part => part.Part.Sources).Select(source => source.Name).ToHashSet();
             if (sourceInstance.Id != instance.Id)
                 foreach (var name in sourceNames)
@@ -100,7 +106,7 @@ public class AssessmentsController(
             }
         }
 
-        return assessmentDtoFactory.Create(instance, contexts, config,
+        return assessmentDtoFactory.Create(instance, contexts, config, allowedHidden,
             allowedForms: allowedForms, resolvedContext: context);
     }
 
@@ -116,7 +122,8 @@ public class AssessmentsController(
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
 
-        var dto = assessmentDtoFactory.CreateSourceResults(context, pageName);
+        var dto = assessmentDtoFactory.CreateSourceResults(context,
+            await rightsService.GetAllowedActions(context.Instance, RoleAction.ViewHidden), pageName);
         return Ok(dto);
     }
 }

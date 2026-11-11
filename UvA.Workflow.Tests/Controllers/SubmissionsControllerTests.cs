@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Infrastructure;
@@ -492,7 +493,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         instance.Properties.Remove("Course");
         var courses = new[] { "Course A", "Course B" }
             .Select(name => new WorkflowInstanceBuilder()
-                .With(workflowDefinition: "Context", currentStep: "Start")
+                .With(workflowDefinition: "Course", currentStep: "Start")
                 .WithProperties(("Name", b => b.Value(name)))
                 .Build())
             .ToList();
@@ -526,7 +527,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
     private void MockContextChoices(List<WorkflowInstance> choices) =>
         _workflowInstanceRepoMock
             .Setup(r => r.GetByWorkflowDefinition(
-                "Context",
+                "Course",
                 It.IsAny<FilterDefinition<WorkflowInstance>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(choices);
@@ -539,6 +540,144 @@ public class SubmissionsControllerTests : ControllerTestsBase
         page.PageElements = [.. page.PageElements, new PageElement { Question = prop.Name, QuestionDefinition = prop }];
     }
 
+    [Theory]
+    [InlineData("Start", "Title", true, false)]
+    [InlineData("Start", "Description", false, true)]
+    [InlineData("Start", null, true, true)]
+    [InlineData("<All>", "Title", true, false)]
+    [InlineData("<All>", null, true, true)]
+    [InlineData(null, "Title", true, false)]
+    [InlineData(null, null, false, false)]
+    [InlineData("OtherForm", "Title", false, false)]
+    public async Task Submissions_HiddenProperties_RespectPropertyAndFormScope(
+        string? grantedForm, string? grantedProperty, bool titleVisible, bool descriptionVisible)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"],
+            b => b.WithId("Start").AsCompleted(DateTime.UtcNow), "Start",
+            ("Title", _ => "Private title"), ("EC", _ => 6));
+        ConfigureHiddenProperties(grantedForm, grantedProperty);
+        instance.Properties["Description"] = new ArtifactInfo("private-file", "private.pdf").ToBsonDocument();
+
+        foreach (var version in new int?[] { null, 0 })
+        {
+            var result = await controller.GetSubmission(instance.Id, "Start", version, _ct);
+            var dto = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+            AssertHiddenAnswer(dto, "Title", titleVisible);
+            AssertHiddenAnswer(dto, "Description", descriptionVisible);
+            Assert.Equal(6, dto.Answers.Single(a => a.QuestionName == "EC").Value?.GetInt32());
+        }
+
+        var summary = (await _instanceService.GetAllowedSubmissions(instance, _ct))
+            .Single(s => s.Form.Name == "Start");
+        Assert.Equal(titleVisible, summary.QuestionStatus["Title"].IsVisible);
+        Assert.Equal(descriptionVisible, summary.QuestionStatus["Description"].IsVisible);
+    }
+
+    [Fact]
+    public async Task Submissions_HiddenProperties_SaveResponseDoesNotRevealOtherHiddenAnswers()
+    {
+        var (_, instance) = BuildControllerWithRoles(["Coordinator"],
+            b => b.WithId("Start").AsCompleted(DateTime.UtcNow), "Start",
+            ("Title", _ => "Private title"), ("EC", _ => 6));
+        ConfigureHiddenProperties("Start", "Title");
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.Properties.Single(p => p.Name == "Title").DependentQuestions
+            .Add(definition.Properties.Single(p => p.Name == "Description"));
+        var controller = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService,
+            _workflowInstanceDtoFactory);
+
+        var result = await controller.SaveAnswer(instance.Id, "Start", "Title",
+            new SaveAnswerRequest(Value: JsonSerializer.SerializeToElement("Updated title")), _ct);
+
+        var response = Assert.IsType<SaveAnswerResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        AssertHiddenAnswer(response.Submission, "Title", true);
+        AssertHiddenAnswer(response.Submission, "Description", false);
+        var update = Assert.Single(response.Answers, a => a.QuestionName == "Description");
+        Assert.False(update.IsVisible);
+        Assert.Null(update.Value);
+    }
+
+    [Theory]
+    [InlineData(true, false, true, false, true)]
+    [InlineData(false, true, true, true, false)]
+    [InlineData(true, true, false, true, false)]
+    public async Task Submissions_HistoricalHiddenRightsUseCurrentRolesAndSnapshotConditions(
+        bool assignedNow, bool assignedThen, bool releasedThen, bool releasedNow, bool visible)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"],
+            b => b.WithId("Start").AsCompleted(DateTime.UtcNow.AddMinutes(-10)), "Start",
+            ("Title", _ => releasedNow ? "Released" : "Private"), ("EC", _ => 6));
+        var user = InstanceUser.FromUser(UnitTestsHelpers.AdminUser).ToBsonDocument();
+        instance.Properties["Supervisor"] = assignedNow ? user : BsonNull.Value;
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.Properties.Single(p => p.Name == "EC").Visibility = PropertyVisibility.Hidden;
+        definition.Roles.Single(r => r.Name == "Supervisor").Actions.Add(new()
+        {
+            Type = RoleAction.ViewHidden, Form = "Start", PropertyDefinition = "EC",
+            Condition = new() { Value = new() { Property = "Title", Equal = "=Released" } }
+        });
+        _instanceJournalServiceMock.Setup(s => s.GetInstanceJournal(instance.Id, false, _ct))
+            .ReturnsAsync(new InstanceJournalEntry
+            {
+                InstanceId = instance.Id, CurrentVersion = 1,
+                PropertyChanges =
+                [
+                    PropertyChangeEntry.Create("Supervisor", assignedThen ? user : BsonNull.Value,
+                        UnitTestsHelpers.AdminUser),
+                    PropertyChangeEntry.Create("Title", releasedThen ? "Released" : "Private",
+                        UnitTestsHelpers.AdminUser)
+                ]
+            });
+        _workflowInstanceRepoMock.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BsonSerializer.Deserialize<WorkflowInstance>(instance.ToBsonDocument()));
+
+        var result = await controller.GetSubmission(instance.Id, "Start", version: 0, _ct);
+
+        var dto = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var grade = dto.Answers.Single(a => a.QuestionName == "EC");
+        Assert.Equal(visible, grade.IsVisible);
+        Assert.Equal(visible ? 6 : (int?)null, grade.Value?.GetInt32());
+        Assert.Null(grade.Changes);
+        Assert.Empty(dto.Permissions);
+    }
+
+    [Fact]
+    public async Task Submissions_HistoricalViewRequiresViewBeyondTheHiddenPropertyGrant()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"],
+            b => b.WithId("Start").AsCompleted(DateTime.UtcNow));
+        ConfigureHiddenProperties("Start", "Title");
+        foreach (var role in _modelService.WorkflowDefinitions["Project"].Roles)
+            role.Actions.RemoveAll(a => a.Type == RoleAction.View);
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+            controller.GetSubmission(instance.Id, "Start", version: 0, _ct));
+    }
+
+    private void ConfigureHiddenProperties(string? form, string? property)
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        foreach (var name in new[] { "Title", "Description" })
+            definition.Properties.Single(p => p.Name == name).Visibility = PropertyVisibility.Hidden;
+        definition.Roles.Single(r => r.Name == "Coordinator").Actions.Add(new()
+        {
+            Type = RoleAction.ViewHidden, Form = form, PropertyDefinition = property
+        });
+    }
+
+    private static void AssertHiddenAnswer(SubmissionDto dto, string question, bool visible)
+    {
+        var answer = dto.Answers.Single(a => a.QuestionName == question);
+        Assert.Equal(visible, answer.IsVisible);
+        if (visible) return;
+        Assert.Null(answer.Value);
+        Assert.Null(answer.Files);
+        Assert.Null(answer.Changes);
+        Assert.Null(answer.ValidationError);
+        Assert.Null(answer.VisibleChoices);
+    }
+
     private (SubmissionsController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string submissionId, string stepName = "Start",
         params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
@@ -549,7 +688,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
         params (string name, Func<PropertyBuilder, BsonValue> builder)[] props)
     {
         var courseInstance = new WorkflowInstanceBuilder()
-            .With("Context", "Start")
+            .With("Course", "Start")
             .WithProperties(
                 ("Name", _ => "CourseTitle"),
                 ("ExternalId", _ => "DummyId"),

@@ -8,7 +8,6 @@ properties:
     type: User!
   - name: SharedThesis
     type: LinkedStepsDemoShared!
-    inheritedRoles: [Supervisor]
     text: Shared thesis group
     description: Select the shared group created for these students.
   - name: LocalDocument

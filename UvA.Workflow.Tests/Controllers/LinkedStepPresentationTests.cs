@@ -111,6 +111,33 @@ public class LinkedStepPresentationTests
     }
 
     [Fact]
+    public async Task ParentOverview_UsesTheChildDefinitionsImportedProgress()
+    {
+        var api = new LinkedStepApiSetup();
+        var child = api.Core.Model.WorkflowDefinitions["Individual"];
+        var parent = new WorkflowDefinition
+        {
+            Name = "Parent", GroupChildScreens = true, Screens = child.Screens, Roles = child.Roles,
+            AllSteps = []
+        };
+        child.Parent = parent;
+        api.Core.Model.WorkflowDefinitions.Add(parent.Name, parent);
+        api.Core.Repository.Setup(repo => repo.GetByWorkflowDefinition("Individual",
+                It.IsAny<MongoDB.Driver.FilterDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([api.Core.Student]);
+        var screens = new ScreenDataService(api.Core.Model, api.Instances, api.Core.Repository.Object,
+            new InstanceAuthorizationFilterService(api.Rights, api.Core.Model, api.Users.Object,
+                api.Core.Repository.Object), api.Rights);
+
+        var data = await screens.GetScreenData("Overview", "Parent", default);
+
+        var row = Assert.Single(Assert.Single(data.Groups!, group => group.Rows.Length > 0).Rows);
+        var progress = Assert.IsType<ProgressInformationDto>(Assert.Single(row.Values).Value);
+        Assert.Equal("Joint upload", progress.Text.En);
+        Assert.Equal("Before", api.Core.Student.CurrentStep);
+    }
+
+    [Fact]
     public async Task CompletedProgress_DoesNotUseAnEarlierLocalEventDate()
     {
         var api = new LinkedStepApiSetup(finalImport: true);

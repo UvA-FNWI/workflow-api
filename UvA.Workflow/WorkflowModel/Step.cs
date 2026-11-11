@@ -164,7 +164,7 @@ public class StepImport
     public string[] Participants { get; set; } = [];
 }
 
-public class Step : INamed, IDeclaredKeys
+public class Step : INamed, IDeclaredKeys, ITemplateConsumer
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 

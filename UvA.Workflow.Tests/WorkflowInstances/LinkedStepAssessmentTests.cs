@@ -213,6 +213,45 @@ public class LinkedStepAssessmentTests
         Assert.Equal(8m, Assert.Single(dto.Parts[1].SourceResults).WeightedAverage);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Results_HiddenGradesUseTheirOwnersPermissions(bool sharedGrant, bool localGrant)
+    {
+        var setup = new LinkedStepAssessmentSetup();
+        foreach (var (name, granted) in new[] { ("Shared", sharedGrant), ("Individual", localGrant) })
+        {
+            var definition = setup.Core.Model.WorkflowDefinitions[name];
+            definition.Properties.Single(property => property.Name == "Grade").Visibility = PropertyVisibility.Hidden;
+            if (granted)
+                definition.Roles.Single(role => role.Name == "Registered").Actions.Add(new()
+                {
+                    Type = RoleAction.ViewHidden, Form = "AssessForm", PropertyDefinition = "Grade"
+                });
+        }
+
+        foreach (var partName in new[] { "all", "SharedAssessment", "IndividualAssessment" })
+        {
+            var response = partName == "all"
+                ? await setup.Controller.GetAssessmentResults(setup.Core.Student.Id, default)
+                : await setup.Controller.GetSubmissionResults(setup.Core.Student.Id, partName, default, combine: true);
+            var dto = Assert.IsType<AssessmentDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
+            foreach (var part in dto.Parts)
+            {
+                var visible = part.Id == "SharedAssessment" ? sharedGrant : localGrant;
+                foreach (var result in part.SourceResults.Append(part.Combined!))
+                {
+                    var answer = Assert.Single(result.Answers);
+                    Assert.Equal(visible, answer.IsVisible);
+                    Assert.Equal(visible, answer.Value.HasValue);
+                    Assert.Equal(visible, result.PageResults.SelectMany(page => page.QuestionResults).Any());
+                }
+            }
+        }
+    }
+
     [Fact]
     public async Task Results_RequirePermissionToViewTheSharedResults()
     {

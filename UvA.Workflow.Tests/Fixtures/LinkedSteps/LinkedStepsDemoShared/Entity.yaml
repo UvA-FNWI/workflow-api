@@ -12,6 +12,7 @@ properties:
     description: Select the three or four students who share the joint work.
   - name: Supervisor
     type: User!
+    inheritRole: true
   - name: JointDocument
     type: File!
     text: Joint thesis PDF

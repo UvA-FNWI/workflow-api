@@ -39,41 +39,54 @@ public class WorkflowContextEnricher(
             return new EnrichmentState(batch, lookups, hasAssessment);
         }).ToArray();
 
-        var referenceEnrichments = states
-            .SelectMany(GetReferenceEnrichments)
+        var pendingBatches = states
+            .Select(state => state.Batch with { Lookups = state.Lookups })
             .ToArray();
 
-        // Work out which referenced instances and values are needed. All workflow types are stored together,
-        // so they can be loaded in one database call even when the source instances have different types.
-        var targetGroups = referenceEnrichments
-            .GroupBy(enrichment => enrichment.TargetDefinition.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var referenceIds = targetGroups
-            .SelectMany(targetGroup => targetGroup
-                .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
-                    GetReferenceIds(context.Get(enrichment.ReferenceProperty)))))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        if (referenceIds.Length > 0)
+        while (pendingBatches.Length > 0)
         {
-            var projectedProperties = targetGroups
-                .SelectMany(targetGroup => targetGroup.SelectMany(enrichment => enrichment.ProjectedProperties))
+            var targetGroups = pendingBatches
+                .SelectMany(GetReferenceEnrichments)
+                .GroupBy(enrichment => enrichment.TargetDefinition.Name,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            var referenceIds = targetGroups
+                .SelectMany(group => group)
+                .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
+                    GetReferenceIds(context.Get(enrichment.ReferenceProperty), enrichment.ProjectedProperties)))
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
-            var results = await workflowInstanceRepository.GetAllById(
-                referenceIds,
-                projectedProperties.ToDictionary(property => property, property => $"$Properties.{property}"),
-                ct);
-            var resultsById = results.ToDictionary(result => result["_id"].ToString()!);
 
-            // Interpret each result using its own workflow definition, then add it to the instances that use it.
+            var resultsById = new Dictionary<string, Dictionary<string, BsonValue>>();
+
+            if (referenceIds.Length > 0)
+            {
+                var projection = targetGroups
+                    .SelectMany(group => group)
+                    .SelectMany(enrichment => enrichment.ProjectedProperties)
+                    .Select(property => property.Split('.')[0])
+                    .Distinct(StringComparer.Ordinal)
+                    .ToDictionary(property => property, property => $"$Properties.{property}");
+
+                var results = await workflowInstanceRepository.GetAllById(
+                    referenceIds, projection, ct);
+
+                resultsById = results.ToDictionary(result => result["_id"].ToString()!);
+            }
+
+            var nextBatches = new List<EnrichmentBatch>();
+
             foreach (var targetGroup in targetGroups)
             {
                 var targetDefinition = targetGroup.First().TargetDefinition;
+
                 var targetIds = targetGroup
                     .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
-                        GetReferenceIds(context.Get(enrichment.ReferenceProperty))))
-                    .Distinct(StringComparer.Ordinal);
+                        GetReferenceIds(context.Get(enrichment.ReferenceProperty), enrichment.ProjectedProperties)))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+
                 var resultContexts = targetIds
                     .Where(resultsById.ContainsKey)
                     .ToDictionary(
@@ -91,7 +104,7 @@ public class WorkflowContextEnricher(
                                 string reference => resultContexts.GetValueOrDefault(reference),
                                 string[] references => references
                                     .Select(resultContexts.GetValueOrDefault)
-                                    .Where(result => result != null)
+                                    .OfType<Dictionary<Lookup, object?>>()
                                     .ToArray(),
                                 Dictionary<Lookup, object?> reference => MergeReference(reference, resultContexts),
                                 Dictionary<Lookup, object?>[] references => references
@@ -100,7 +113,35 @@ public class WorkflowContextEnricher(
                             };
                     }
                 }
+
+                var remainingLookups = targetGroup
+                    .SelectMany(enrichment => enrichment.ProjectedProperties)
+                    .Where(property => property.Contains('.'))
+                    .Select(property => new PropertyLookup(property))
+                    .Distinct()
+                    .ToArray();
+
+                if (remainingLookups.Length == 0)
+                    continue;
+
+                // Both newly loaded and previously loaded references are dictionaries now.
+                var loadedContexts = targetGroup
+                    .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
+                        GetLoadedReferences(context.Get(enrichment.ReferenceProperty))))
+                    .Distinct()
+                    .Select(values => new ObjectContext(values))
+                    .ToArray();
+
+                if (loadedContexts.Length > 0)
+                {
+                    nextBatches.Add(new EnrichmentBatch(
+                        targetDefinition,
+                        loadedContexts,
+                        remainingLookups));
+                }
             }
+
+            pendingBatches = nextBatches.ToArray();
         }
 
         // Calculate assessment values using the settings of the original workflow instances.
@@ -149,10 +190,10 @@ public class WorkflowContextEnricher(
     /// Groups values that belong to the same referenced instance. For example, <c>Course.Name</c> and
     /// <c>Course.Type</c> can be loaded together for each course.
     /// </summary>
-    private static IEnumerable<ReferenceEnrichment> GetReferenceEnrichments(EnrichmentState state)
+    private static IEnumerable<ReferenceEnrichment> GetReferenceEnrichments(EnrichmentBatch batch)
     {
-        var workflowDefinition = state.Batch.WorkflowDefinition;
-        var referenceProperties = state.Lookups
+        var workflowDefinition = batch.WorkflowDefinition;
+        var referenceProperties = batch.Lookups
             .OfType<PropertyLookup>()
             .Distinct()
             .Where(property => property.Parts.Length > 1)
@@ -169,20 +210,31 @@ public class WorkflowContextEnricher(
 
             yield return new ReferenceEnrichment(
                 targetDefinition,
-                state.Batch.Contexts,
+                batch.Contexts,
                 referenceProperty.Key,
-                referenceProperty.Select(property => property.Parts[1]).Distinct().ToArray());
+                referenceProperty.Select(property => string.Join('.', property.Parts.Skip(1))).Distinct().ToArray());
         }
     }
 
     /// <summary>Returns the IDs stored in a single reference or a list of references.</summary>
-    private static IEnumerable<string> GetReferenceIds(object? value)
+    private static IEnumerable<string> GetReferenceIds(object? value, string[] projectedProperties)
         => value switch
         {
             string reference => [reference],
             string[] references => references,
-            Dictionary<Lookup, object?> reference when reference.GetValueOrDefault("Id") is string id => [id],
-            Dictionary<Lookup, object?>[] references => references.SelectMany(GetReferenceIds),
+            Dictionary<Lookup, object?> reference when
+                projectedProperties.Any(property => !reference.ContainsKey(property.Split('.')[0])) &&
+                reference.GetValueOrDefault("Id") is string id => [id],
+            Dictionary<Lookup, object?>[] references => references.SelectMany(reference =>
+                GetReferenceIds(reference, projectedProperties)),
+            _ => []
+        };
+
+    private static IEnumerable<Dictionary<Lookup, object?>> GetLoadedReferences(object? value)
+        => value switch
+        {
+            Dictionary<Lookup, object?> values => [values],
+            Dictionary<Lookup, object?>[] values => values,
             _ => []
         };
 

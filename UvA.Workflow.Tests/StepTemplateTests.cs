@@ -67,23 +67,23 @@ public class StepTemplateTests
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
-            ["Common/StepTemplates/Parent.yaml"] = """
-                                                   name: Parent
-                                                   params:
-                                                     - name: caption
-                                                       type: LocalString!
-                                                   children: ["${prefix}_Submit"]
-                                                   """,
-            ["Common/StepTemplates/Submit.yaml"] = """
-                                                   name: Submit
-                                                   params:
-                                                     - name: caption
-                                                       type: LocalString!
-                                                   progress:
-                                                     - text:
-                                                         en: Working on ${caption.en}
-                                                         nl: Werkt aan ${caption.nl}
-                                                   """,
+            ["Common/Templates/Steps/Parent.yaml"] = """
+                                                     name: Parent
+                                                     params:
+                                                       - name: caption
+                                                         type: LocalString!
+                                                     children: ["${prefix}_Submit"]
+                                                     """,
+            ["Common/Templates/Steps/Submit.yaml"] = """
+                                                     name: Submit
+                                                     params:
+                                                       - name: caption
+                                                         type: LocalString!
+                                                     progress:
+                                                       - text:
+                                                           en: Working on ${caption.en}
+                                                           nl: Werkt aan ${caption.nl}
+                                                     """,
             ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start]",
             ["Project/Steps/Start.yaml"] =
                 $"name: Start\ntemplate: Parent\nvalues:\n  {prefixKey}: {prefix}\n  caption:\n    en: Proposal\n    nl: Voorstel\n"
@@ -107,20 +107,20 @@ public class StepTemplateTests
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
-            ["Common/StepTemplates/Product.yaml"] = """
-                                                    name: Product
-                                                    params:
-                                                      - name: caption
-                                                        type: LocalString!
-                                                    progress:
-                                                      - text:
-                                                          en: Working on ${caption.en}
-                                                          nl: Werkt aan ${caption.nl}
-                                                        header:
-                                                          label:
-                                                            en: Review ${caption.en}
-                                                            nl: Review ${caption.nl}
-                                                    """,
+            ["Common/Templates/Steps/Product.yaml"] = """
+                                                      name: Product
+                                                      params:
+                                                        - name: caption
+                                                          type: LocalString!
+                                                      progress:
+                                                        - text:
+                                                            en: Working on ${caption.en}
+                                                            nl: Werkt aan ${caption.nl}
+                                                          header:
+                                                            label:
+                                                              en: Review ${caption.en}
+                                                              nl: Review ${caption.nl}
+                                                      """,
             ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start]",
             ["Project/Steps/Start.yaml"] = "name: Start\ntemplate: Product\nvalues:\n  " + value
         }));
@@ -129,7 +129,7 @@ public class StepTemplateTests
         Assert.Equal(nl, progress[0].Text!.Nl);
         Assert.Equal("Review " + en["Working on ".Length..], progress[0].Header!.Label!.En);
         Assert.Equal("Review " + nl["Werkt aan ".Length..], progress[0].Header!.Label!.Nl);
-        Assert.Equal(DataType.LocalString, new StepTemplateParameter { Type = "LocalString!" }.DataType);
+        Assert.Equal(DataType.LocalString, new TemplateParameter { Type = "LocalString!" }.DataType);
     }
 
     [Fact]
@@ -304,7 +304,7 @@ public class StepTemplateTests
     {
         var files = new Dictionary<string, string>
         {
-            ["Common/StepTemplates/Product.yaml"] = template,
+            ["Common/Templates/Steps/Product.yaml"] = template,
             ["Common/Roles/Coordinator.yaml"] = "name: Coordinator",
             ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start, FinalAssessment]",
             ["Project/Steps/Start.yaml"] = "name: Start\ntemplate: Product\n" + consumer,
@@ -326,14 +326,14 @@ public class StepTemplateTests
     private static ModelParser Parse(string values)
         => new(new DictionaryProvider(new()
         {
-            ["Common/StepTemplates/Product.yaml"] = """
-                                                    name: Product
-                                                    params:
-                                                      - name: caption
-                                                        type: String!
-                                                    progress:
-                                                      - text: Working on ${caption}
-                                                    """,
+            ["Common/Templates/Steps/Product.yaml"] = """
+                                                      name: Product
+                                                      params:
+                                                        - name: caption
+                                                          type: String!
+                                                      progress:
+                                                        - text: Working on ${caption}
+                                                      """,
             ["Project/Entity.yaml"] = "name: Project\ntitlePlural: Projects\nsteps: [Start]",
             ["Project/Steps/Start.yaml"] = "name: Start\ntemplate: Product\n" + values
         }));
