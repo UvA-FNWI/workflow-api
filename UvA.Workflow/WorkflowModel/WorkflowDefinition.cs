@@ -131,6 +131,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public List<NamedEmail> Emails { get; set; } = null!;
+    [YamlIgnore] public List<EmailContentBlock> EmailBlocks { get; set; } = null!;
     [YamlIgnore] public List<ConfiguredMigration> Migrations { get; set; } = [];
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 

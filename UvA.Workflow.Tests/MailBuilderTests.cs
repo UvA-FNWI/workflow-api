@@ -342,7 +342,7 @@ public class MailBuilderTests
 
         var sendMail = new Email
         {
-            TemplateKey = "SubjectSubmitted",
+            EmailKey = "SubjectSubmitted",
             To = "Supervisor"
         };
 
@@ -374,7 +374,7 @@ public class MailBuilderTests
 
         var sendMail = new Email
         {
-            TemplateKey = "SubjectSubmitted",
+            EmailKey = "SubjectSubmitted",
             To = "override@uva.nl",
             Subject = new BilingualString("Overridden: {{ Title }}", ""),
             Body = new BilingualString("**custom body**", ""),
@@ -416,7 +416,7 @@ public class MailBuilderTests
 
         var sendMail = new Email
         {
-            TemplateKey = "DoesNotExist"
+            EmailKey = "DoesNotExist"
         };
 
         var ex = Assert.Throws<InvalidOperationException>(() => Build(builder, instance, sendMail));
@@ -436,7 +436,7 @@ public class MailBuilderTests
 
         var sendMail = new Email
         {
-            TemplateKey = "FinalVersionSubmitted",
+            EmailKey = "FinalVersionSubmitted",
             To = "test_address@invalid.invalid"
         };
 
@@ -468,7 +468,7 @@ public class MailBuilderTests
 
         var sendMail = new Email
         {
-            TemplateKey = "AssessmentRequestAssessor",
+            EmailKey = "AssessmentRequestAssessor",
             To = "SecondAssessor"
         };
 

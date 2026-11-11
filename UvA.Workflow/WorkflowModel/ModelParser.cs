@@ -46,6 +46,8 @@ public partial class ModelParser
     private List<Condition> NamedConditions { get; }
     private List<StepTemplate> StepTemplates { get; }
     private List<FormTemplate> FormTemplates { get; }
+    private List<EmailTemplate> EmailTemplates { get; }
+    private List<EmailContentBlock> NamedEmailBlocks { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
@@ -59,6 +61,8 @@ public partial class ModelParser
         NamedConditions = Read<Condition>();
         StepTemplates = Read<StepTemplate>();
         FormTemplates = Read<FormTemplate>();
+        EmailTemplates = Read<EmailTemplate>();
+        NamedEmailBlocks = Read<EmailContentBlock>();
 
         var parsed = folders
             .Select(folder =>
@@ -127,12 +131,16 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
 
-            var stepTemplatesByName = ReadTemplates(StepTemplates, definition.SourceFolder);
+            var stepTemplatesByName = ReadTemplates(StepTemplates, definition);
             definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
 
-            var formTemplatesByName = ReadTemplates(FormTemplates, definition.SourceFolder);
+            var formTemplatesByName = ReadTemplates(FormTemplates, definition);
             definition.Forms = ResolveFormTemplates(definition.Forms, formTemplatesByName,
                 definition.Name);
+
+            definition.EmailBlocks = Read<EmailContentBlock>(definition.SourceFolder);
+            var emailTemplatesByName = ReadTemplates(EmailTemplates, definition);
+            definition.Emails = ResolveEmailTemplates(definition.Emails, emailTemplatesByName, definition.Name);
 
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<NamedEmail>(definition.SourceFolder);
@@ -829,6 +837,8 @@ public partial class ModelParser
         {
             nameof(StepTemplate) => "Templates/Steps",
             nameof(FormTemplate) => "Templates/Forms",
+            nameof(EmailTemplate) => "Templates/Emails",
+            nameof(EmailContentBlock) => "Templates/EmailBlocks",
             nameof(NamedEmail) => "Emails",
             nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",

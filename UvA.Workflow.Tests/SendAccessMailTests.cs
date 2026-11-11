@@ -148,7 +148,7 @@ public class SendAccessMailTests : ControllerTestsBase
                                    to: Supervisor
                                  """);
 
-        Assert.Equal("SupervisorWelcome", effect.SendAccessMail!.TemplateKey);
+        Assert.Equal("SupervisorWelcome", effect.SendAccessMail!.EmailKey);
         Assert.Equal("Supervisor", Assert.Single(effect.SendAccessMail.To!));
     }
 

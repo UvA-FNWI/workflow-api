@@ -37,7 +37,7 @@ public class EmailTemplate : NamedEmail, ITemplate
 public class EmailContentBlock : INamed
 {
     public string Name { get; set; } = null!;
-    public BilingualString Content { get; set; } = null!;
+    public BilingualString? Content { get; set; }
 }
 
 public class TemplateParameter : INamed

@@ -117,17 +117,17 @@ public class MailBuilder(
 
     private static Email ResolveMessageContents(WorkflowDefinition workflowDefinition, Email sendMail)
     {
-        if (string.IsNullOrWhiteSpace(sendMail.TemplateKey))
+        if (string.IsNullOrWhiteSpace(sendMail.EmailKey))
             return sendMail;
 
         var template = workflowDefinition.Emails
-            .FirstOrDefault(e => string.Equals(e.Name, sendMail.TemplateKey, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(e => string.Equals(e.Name, sendMail.EmailKey, StringComparison.OrdinalIgnoreCase));
 
         if (template == null)
         {
             var known = string.Join(", ", workflowDefinition.Emails.Select(m => m.Name).OrderBy(n => n));
             throw new InvalidOperationException(
-                $"Mail template '{sendMail.TemplateKey}' not found in '{workflowDefinition.Name}'. Known templates: {known}");
+                $"Mail template '{sendMail.EmailKey}' not found in '{workflowDefinition.Name}'. Known templates: {known}");
         }
 
         return Merge(template, sendMail);
@@ -138,7 +138,7 @@ public class MailBuilder(
     {
         return new Email
         {
-            TemplateKey = inline.TemplateKey ?? template.TemplateKey,
+            EmailKey = inline.EmailKey ?? template.EmailKey,
 
             To = inline.To ?? template.To,
             Cc = inline.Cc ?? template.Cc,

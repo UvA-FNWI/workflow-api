@@ -103,8 +103,8 @@ public class Effect
     {
         { ServiceCall: not null } => $"{ServiceCall.Service}:{ServiceCall.Operation}",
         { SetProperty: not null } => $"Set:{SetProperty.Property}",
-        { SendMail: not null } => $"Mail:{SendMail.TemplateKey}",
-        { SendAccessMail: not null } => $"AccessMail:{SendAccessMail.TemplateKey}",
+        { SendMail: not null } => $"Mail:{SendMail.EmailKey}",
+        { SendAccessMail: not null } => $"AccessMail:{SendAccessMail.EmailKey}",
         { Event: not null } => $"Event:{Event}",
         { UndoEvent: not null } => $"Undo:{UndoEvent}",
         { ShowConfetti: not null } => "ShowConfetti",
@@ -186,9 +186,30 @@ public class Http
     public Template UrlTemplate => _urlTemplate ??= new Template(Url);
 }
 
-public class NamedEmail : Email, INamed
+public class NamedEmail : Email, INamed, ITemplateConsumer, IDeclaredKeys
 {
     public string Name { get; set; } = null!;
+
+    [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
+
+    /// <summary>
+    /// Name of an email template (Templates/Emails) to resolve this email from
+    /// </summary>
+    [YamlMember(Alias = "template")]
+    public string? TemplateKey { get; set; }
+
+    /// <summary>
+    /// Parameter values passed to the resolved template
+    /// </summary>
+    [YamlMember(Alias = "values")]
+    public Dictionary<string, object>? TemplateValues { get; set; }
+
+    /// <summary>
+    /// The fully resolved template parameter values (including inherited/default values) after template
+    /// resolution. Used to let child emails inherit values from their parent step by parameter name.
+    /// </summary>
+    [YamlIgnore]
+    public Dictionary<string, object>? ResolvedTemplateValues { get; set; }
 }
 
 /// <summary>
@@ -217,7 +238,7 @@ public class Email
 
     public BilingualString? Subject { get; set; }
     public BilingualString? Body { get; set; }
-    [YamlMember(Alias = "email")] public string? TemplateKey { get; set; }
+    [YamlMember(Alias = "email")] public string? EmailKey { get; set; }
     [YamlMember(Alias = "layout")] public string? Layout { get; set; }
     [YamlMember(Alias = "buttons")] public SendMessageButton[] Buttons { get; set; } = [];
     public bool SendAsMail { get; set; }
