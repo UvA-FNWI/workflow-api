@@ -10,3 +10,5 @@ actions:
   - type: Submit
   - type: Execute
   - type: ViewCorrespondence
+  - type: AddMessages
+  - type: ViewMessages

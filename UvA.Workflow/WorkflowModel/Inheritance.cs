@@ -99,6 +99,8 @@ public partial class ModelParser
         if (!target.Declared(d => d.IsAlwaysVisible)) target.IsAlwaysVisible = source.IsAlwaysVisible;
         if (!target.Declared(d => d.AssessmentConfiguration))
             target.AssessmentConfiguration = source.AssessmentConfiguration;
+        if (!target.Declared(d => d.Messages))
+            target.Messages = source.Messages;
 
         if (!Cleared(target, d => d.Fields))
         {

@@ -131,6 +131,12 @@ public abstract class PropertyDefinition : INamed
     /// The name of another property this property is linked to.
     /// </summary>
     public string? LinkedTo { get; set; }
+
+    /// <summary>
+    /// When the entity has messages.enabled, false excludes this field from field threads.
+    /// Null/true means the field is commentable.
+    /// </summary>
+    public bool? Messages { get; set; }
 }
 
 /// <summary>Property with a numeric value that can contribute to assessment calculations.</summary>
