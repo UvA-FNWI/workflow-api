@@ -62,7 +62,9 @@ public class JobsController(
         {
             Identifier = s.Identifier,
             Status = JobStatus.Pending,
-            Outputs = s.Outputs?.ToDictionary(output => output.Key, output => output.Value)
+            Outputs = job.Status == JobStatus.Completed
+                ? null
+                : s.Outputs?.ToDictionary(output => output.Key, output => output.Value)
         }).ToList(),
         Input = job.Input,
         IsSynchronous = job.IsSynchronous,

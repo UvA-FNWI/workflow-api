@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Jobs;
 using UvA.Workflow.Api.Jobs.Dtos;
 using UvA.Workflow.Jobs;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
@@ -200,6 +202,83 @@ public class JobsControllerTests : ControllerTestsBase
         _jobRepositoryMock.Verify(r =>
             r.Add(It.Is<Job>(j => j.Id != job.Id && j.CreatedBy == UnitTestsHelpers.AdminUser.Id),
                 It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(JobStatus.Completed, new[] { "first@example.nl", "second@example.nl" })]
+    [InlineData(JobStatus.Failed, new[] { "second@example.nl" })]
+    public async Task Jobs_Run_ResendsAccessMailForCompletedJobsAndResumesFailedJobs(
+        JobStatus status, string[] expectedRecipients)
+    {
+        var workflow = _modelService.WorkflowDefinitions["Project"];
+        workflow.Properties.Single(p => p.Name == "Supervisor").Type = "[User]!";
+        var recipients = new[]
+        {
+            new InstanceUser
+            {
+                Id = ObjectId.GenerateNewId().ToString(), Email = "first@example.nl",
+                UserName = "1234567", DisplayName = "First"
+            },
+            new InstanceUser
+            {
+                Id = ObjectId.GenerateNewId().ToString(), Email = "second@example.nl",
+                UserName = "1234568", DisplayName = "Second"
+            }
+        };
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "ApprovalCoordinator", id: InstanceId)
+            .WithProperties(("Supervisor", p => p.Array(recipients.Select(r => r.ToBsonDocument()).ToArray())))
+            .Build();
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockEmptyEventLog(instance);
+        _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        _loginMethodClassifierMock.Setup(c => c.Classify(It.IsAny<string>())).Returns("Uva");
+
+        var effect = new Effect
+        {
+            SendAccessMail = new SendMessage { To = "Supervisor", Subject = "Access", Body = "Welcome" }
+        };
+        workflow.AllActions.Single(a => a.Name == "CoordinatorApproved").OnAction = [effect];
+        var completedRecipients = status == JobStatus.Completed
+            ? new[] { "first@example.nl", "second@example.nl" }
+            : new[] { "first@example.nl" };
+        var job = CreateJob();
+        job.Status = status;
+        job.Steps =
+        [
+            new JobStep
+            {
+                Identifier = effect.Identifier,
+                Status = status,
+                Outputs = new Dictionary<string, object> { ["CompletedRecipients"] = completedRecipients }
+            }
+        ];
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, _ct)).ReturnsAsync(job);
+        _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), _ct))
+            .Callback<Job, CancellationToken>((copy, _) => copy.Id = ObjectId.GenerateNewId().ToString())
+            .Returns(Task.CompletedTask);
+
+        var sent = new List<MailMessage>();
+        _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), _ct))
+            .Callback<MailMessage, CancellationToken>((mail, _) => sent.Add(mail))
+            .ReturnsAsync((MailMessage mail, CancellationToken _) => new MailDispatchResult(mail.To, [], []));
+        var logged = new List<MailLogEntry>();
+        _mailLogRepositoryMock.Setup(r => r.Log(It.IsAny<MailLogEntry>(), _ct))
+            .Callback<MailLogEntry, CancellationToken>((entry, _) => logged.Add(entry))
+            .Returns(Task.CompletedTask);
+
+        var result = await BuildController(["Api"]).Run(InstanceId, job.Id, _ct);
+
+        var rerun = Assert.IsType<JobDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(JobStatus.Completed, rerun.Status);
+        Assert.Equal(expectedRecipients, sent.Select(mail => Assert.Single(mail.To).MailAddress));
+        Assert.Equal(expectedRecipients, logged.Select(entry => Assert.Single(entry.To).MailAddress));
+        Assert.All(logged, entry => Assert.Equal(rerun.Id, entry.JobId));
+        Assert.NotEqual(job.Id, rerun.Id);
+        Assert.Equal(status, job.Status);
+        Assert.Equal(completedRecipients, Assert.IsType<string[]>(job.Steps[0].Outputs!["CompletedRecipients"]));
     }
 
     [Fact]
