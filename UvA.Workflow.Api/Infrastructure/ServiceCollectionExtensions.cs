@@ -50,6 +50,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<PersonalInstanceService>();
         services.AddScoped<ScreenDataService>();
+        services.AddScoped<BulkActionsService>();
         services.AddScoped<InstanceAuthorizationFilterService>();
         services.AddScoped<RoleImpersonationService>();
         services.AddScoped<IImpersonationContextService>(sp => sp.GetRequiredService<RoleImpersonationService>());

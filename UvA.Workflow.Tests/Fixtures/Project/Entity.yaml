@@ -37,7 +37,7 @@ infoCards:
           - property: PracticalSupervisor
           - property: Examiner
           - property: Reviewer
-          - property: SecondReader
+          - property: SecondAssessor
       - name: support
         title:
           en: Other involved staff

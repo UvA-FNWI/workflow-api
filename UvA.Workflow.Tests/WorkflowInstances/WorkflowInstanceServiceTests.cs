@@ -85,7 +85,7 @@ public class WorkflowInstanceServiceTests
         _repository.Setup(repository => repository.GetById(courseId, _ct)).ReturnsAsync(new WorkflowInstance
         {
             Id = courseId,
-            WorkflowDefinition = "Context",
+            WorkflowDefinition = "Course",
             Properties = new Dictionary<string, BsonValue> { ["EndDate"] = endDate },
             Events = []
         });

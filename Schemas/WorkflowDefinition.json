@@ -56,6 +56,10 @@
       ],
       "description": "Name of the entity type this type inherits from"
     },
+    "groupChildScreens": {
+      "type": "boolean",
+      "description": "Show this definition instead of its descendants in the overviews."
+    },
     "instanceTitle": {
       "type": [
         "null",
@@ -1978,12 +1982,49 @@
           "type": "number",
           "description": "Show a warning if the discrepancy between the scores is larger than or equal to this value"
         },
+        "warnings": {
+          "type": "array",
+          "description": "Warnings to be shown if there are discrepancies in the grades",
+          "items": {
+            "$ref": "#/definitions/AssessmentWarning"
+          }
+        },
         "sources": {
           "type": "array",
           "description": "The assessor sources that contribute to this part",
           "items": {
             "$ref": "#/definitions/AssessmentSource"
           }
+        }
+      }
+    },
+    "AssessmentWarning": {
+      "title": "AssessmentWarning",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label"
+      ],
+      "properties": {
+        "maximumDiscrepancy": {
+          "type": "number",
+          "description": "Show a warning if the discrepancy between the scores is larger than or equal to this value",
+          "default": 0
+        },
+        "inflectionPoint": {
+          "type": "number",
+          "description": "Show a warning if one of the grades is above this and another below",
+          "default": 0
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         }
       }
     },
