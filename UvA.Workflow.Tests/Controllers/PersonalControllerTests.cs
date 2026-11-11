@@ -5,11 +5,13 @@ using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Personal.Dtos;
+using UvA.Workflow.Events;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -87,6 +89,7 @@ public class PersonalControllerTests : ControllerTestsBase
         Assert.Equal("Project", projectRow.WorkflowDefinition);
         Assert.Equal("Personal project", projectRow.Title);
         Assert.Equal("Upload", projectRow.CurrentStep);
+        Assert.False(projectRow.WorkflowStopped);
         Assert.Equal("Final version", projectRow.Progress.Text.En);
         Assert.Equal("Eindversie", projectRow.Progress.Text.Nl);
         Assert.Equal(StatusColor.Green, projectRow.Progress.Color);
@@ -110,6 +113,47 @@ public class PersonalControllerTests : ControllerTestsBase
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Supervisor._id", userId);
         AssertDirectPropertyFilter(renderedFilter, "Project", "Properties.Reviewer._id", userId);
         AssertDefinitionIsExcluded(renderedFilter, "Context");
+    }
+
+    [Theory]
+    [InlineData("Upload")]
+    [InlineData(null)]
+    public async Task GetInstances_ReturnsComputedStoppedProgressUntilRecovery(string? currentStep)
+    {
+        var userId = ObjectId.Parse(UnitTestsHelpers.AdminUser.Id);
+        var stoppedAt = new DateTime(2026, 7, 27, 12, 0, 0, DateTimeKind.Utc);
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.StopWhen = new Condition { Event = "Stop" };
+        definition.Events.Add(new EventDefinition { Name = "Continue", Suppresses = ["Stop"] });
+
+        var project = new WorkflowInstanceBuilder()
+            .WithWorkflowDefinition("Project")
+            .WithCurrentStep("Upload")
+            .WithEvent("Stop", stoppedAt)
+            .WithProperties(("Supervisor", property => property.Value(UserDocument(userId, "Employee"))))
+            .Build();
+        project.CurrentStep = currentStep;
+        _workflowInstanceRepoMock
+            .Setup(repository => repository.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([project]);
+
+        var stopped =
+            Assert.Single((await personalInstanceService.GetInstances(UnitTestsHelpers.AdminUser, _ct)).Instances);
+        Assert.True(stopped.WorkflowStopped);
+        Assert.Equal(currentStep, stopped.CurrentStep);
+        Assert.Equal("Stopped", stopped.Progress.Text.En);
+        Assert.Equal("Gestopt", stopped.Progress.Text.Nl);
+        Assert.Equal(StatusColor.Red, stopped.Progress.Color);
+
+        project.Events["Continue"] = new InstanceEvent { Id = "Continue", Date = stoppedAt.AddDays(1) };
+
+        var recovered =
+            Assert.Single((await personalInstanceService.GetInstances(UnitTestsHelpers.AdminUser, _ct)).Instances);
+        Assert.False(recovered.WorkflowStopped);
+        Assert.Equal(currentStep, recovered.CurrentStep);
+        Assert.Equal(StatusColor.Green, recovered.Progress.Color);
     }
 
     [Fact]
