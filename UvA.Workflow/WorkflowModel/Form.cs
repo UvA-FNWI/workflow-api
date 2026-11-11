@@ -78,7 +78,7 @@ public class Page : INamed
     }
 }
 
-public class Form : INamed, IDeclaredKeys
+public class Form : INamed, IDeclaredKeys, ITemplateConsumer
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 
@@ -153,6 +153,24 @@ public class Form : INamed, IDeclaredKeys
     /// Effect to run when a change is made in the form
     /// </summary>
     public Effect[] OnSave { get; set; } = [];
+
+    /// <summary>
+    /// Name of a form template (file under Common/FormTemplates) to resolve this form from
+    /// </summary>
+    [YamlMember(Alias = "template")]
+    public string? TemplateKey { get; set; }
+
+    /// <summary>
+    /// Values for the template's parameters
+    /// </summary>
+    [YamlMember(Alias = "values")]
+    public Dictionary<string, object>? TemplateValues { get; set; }
+
+    /// <summary>
+    /// Values used to resolve the template, including defaults. Set during parsing.
+    /// </summary>
+    [YamlIgnore]
+    public Dictionary<string, object>? ResolvedTemplateValues { get; set; }
 
     public IEnumerable<PropertyDefinition> PropertyDefinitions =>
         Pages.SelectMany(p => p.Questions)

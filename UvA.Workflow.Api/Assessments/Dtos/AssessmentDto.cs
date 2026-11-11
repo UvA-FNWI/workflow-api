@@ -26,8 +26,12 @@ public record AssessmentPartDto(
     SourceResultDto[] SourceResults,
     SourceResultDto? Combined,
     decimal? Percentage,
-    bool ShowDiscrepancyWarning,
+    AssessmentWarningDto[] Warnings,
     FormDto? Form
+);
+
+public record AssessmentWarningDto(
+    BilingualString Label
 );
 
 public record SourceResultDto(
@@ -109,10 +113,7 @@ public class AssessmentDtoFactory(
                         sourceForms: part.SourceResults.Select(s => s.Form))
                     : null,
                 RoundToTwo(part.PartPercentage),
-                partConfig.MaximumDiscrepancy > 0 && sourceResultDtos.Any(s1 => s1.WeightedAverage != null
-                    && sourceResultDtos.Any(s2 =>
-                        s2.WeightedAverage != null && Math.Abs(s2.WeightedAverage.Value - s1.WeightedAverage.Value) >=
-                        partConfig.MaximumDiscrepancy)),
+                partConfig.Warnings.Select(w => ToDto(w, sourceResultDtos)).OfType<AssessmentWarningDto>().ToArray(),
                 part.SourceResults.Count > 0
                     ? FormDto.Create(part.SourceResults[0].Form,
                         formContexts[part.SourceResults[0].Form])
@@ -137,6 +138,20 @@ public class AssessmentDtoFactory(
         return new AssessmentDto(instance.Id, parts.ToArray(), new FinalGrade(result.FinalGradeUnrounded,
             finalGradeLabel == null ? result.FinalGradeRounded : null,
             finalGradeLabel));
+    }
+
+    private static AssessmentWarningDto? ToDto(AssessmentWarning warning, SourceResultDto[] results)
+    {
+        var show = warning.MaximumDiscrepancy > 0 && results.Any(s1 => s1.WeightedAverage != null
+                                                                       && results.Any(s2 =>
+                                                                           s2.WeightedAverage != null &&
+                                                                           Math.Abs(s2.WeightedAverage.Value -
+                                                                               s1.WeightedAverage.Value) >=
+                                                                           warning.MaximumDiscrepancy));
+        show = show || (warning.InflectionPoint != 0
+                        && results.Any(s1 => s1.WeightedAverage < warning.InflectionPoint)
+                        && results.Any(s1 => s1.WeightedAverage > warning.InflectionPoint));
+        return show ? new AssessmentWarningDto(warning.Label) : null;
     }
 
     public async Task<SourceResultDto> CreateSourceResults(SubmissionContext context,

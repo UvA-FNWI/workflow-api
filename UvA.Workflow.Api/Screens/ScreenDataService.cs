@@ -28,7 +28,7 @@ public class ScreenDataService(
         var canCreateInstance = await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
 
         // Build projection based on screen columns
-        var contexts = await LoadData(screen, workflowDefinition, ct);
+        var contexts = await LoadData(screen, definition, ct);
 
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
@@ -87,31 +87,66 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
-    private async Task<List<ObjectContext>> LoadData(Screen screen, string workflowDefinition, CancellationToken ct)
+    private async Task<List<ObjectContext>> LoadData(Screen screen, WorkflowDefinition workflowDefinition,
+        CancellationToken ct)
     {
-        var definition = modelService.WorkflowDefinitions[workflowDefinition];
-        var hasProgressColumn = screen.Columns.Any(column => column.CurrentStep);
-        var progressLookups = hasProgressColumn
-            ? definition.ProgressLookups.ToArray()
-            : [];
+        var definitions = modelService.WorkflowDefinitions.Values.Where(definition =>
+        {
+            if (!workflowDefinition.GroupChildScreens)
+                return definition == workflowDefinition;
 
-        // Build projection based on screen columns, always including CurrentStep for grouping
-        var lookups = screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups).ToArray();
-        var projection = definition.GetProjection(lookups);
-        projection.TryAdd("CurrentStep", "$CurrentStep");
-        projection.TryAdd("Events", "$Events");
-        projection.TryAdd("CreateDate", "$CreatedOn");
+            if (definition.IsEmbedded)
+                return false;
 
-        // Build authorization filter to restrict instances to those the user can view
-        var authorizationFilter =
-            await instanceAuthorizationFilterService.BuildAuthorizationFilter(workflowDefinition, RoleAction.View, ct);
+            for (var current = definition; current != null; current = current.Parent)
+            {
+                if (ReferenceEquals(current, workflowDefinition))
+                    return true;
+            }
 
-        var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-        var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row, projection.Keys))
-            .ToList();
+            return false;
+        });
 
-        // Add related properties as needed
-        await instanceService.Enrich(definition, contexts, lookups, ct, false);
+        var contexts = new List<ObjectContext>();
+
+        foreach (var definition in definitions)
+        {
+            var progressLookups = screen.Columns.Any(column => column.CurrentStep)
+                ? definition.ProgressLookups.ToArray()
+                : [];
+
+            var lookups = screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups).ToArray();
+            var projection = definition.GetProjection(lookups);
+            projection.TryAdd("CurrentStep", "$CurrentStep");
+            projection.TryAdd("Events", "$Events");
+            projection.TryAdd("CreateDate", "$CreatedOn");
+
+            var authorizationFilter =
+                await instanceAuthorizationFilterService.BuildAuthorizationFilter(
+                    definition.Name, RoleAction.View, ct);
+
+            var rawData = await repository.GetAllByType(
+                definition.Name, projection, authorizationFilter, ct);
+
+            var rows = rawData
+                .Select(row => modelService.CreateContext(definition.Name, row, projection.Keys))
+                .ToList();
+
+            await instanceService.Enrich(
+                definition,
+                rows,
+                lookups,
+                ct,
+                false);
+
+            if (workflowDefinition.GroupChildScreens)
+            {
+                foreach (var row in rows)
+                    row.Values["Type"] = definition.Name;
+            }
+
+            contexts.AddRange(rows);
+        }
 
         return contexts;
     }

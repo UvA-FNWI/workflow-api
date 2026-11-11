@@ -209,6 +209,45 @@ public class WorkflowInstancesController(
         return NoContent();
     }
 
+    [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
+    [HttpPatch("{id}/Properties")]
+    public async Task<ActionResult> SaveProperties(string id, [FromBody] Dictionary<string, JsonElement> input,
+        CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        var changes = new List<(string[] Parts, PropertyDefinition Property, BsonValue Value)>();
+
+        foreach (var (path, value) in input)
+        {
+            var parts = path.Split('.');
+            if (parts.Length > 2)
+                return BadRequest("PropertyPathTooDeep",
+                    $"Cannot edit '{path}': only properties nested at most one level deep can be saved.");
+
+            var property = modelService.GetProperty(instance, parts);
+            if (property == null)
+                return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
+
+            if (!await rightsService.CanEditProperty(instance, path))
+                return Forbidden();
+
+            var newValue = await answerConversionService.ConvertToValue(value, property, ct);
+
+            changes.Add((parts, property, newValue));
+        }
+
+        foreach (var change in changes)
+        {
+            await answerService.SavePropertyValue(instance, change.Parts, change.Property, change.Value,
+                shouldLog: true, ct);
+        }
+
+        return NoContent();
+    }
+
     [HttpGet("{id}/Impersonation/Roles")]
     public async Task<ActionResult<IEnumerable<ImpersonationRoleDto>>> GetImpersonationRoles(string id,
         CancellationToken ct)

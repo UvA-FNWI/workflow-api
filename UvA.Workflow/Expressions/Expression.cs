@@ -130,6 +130,7 @@ public record Expression
         ["max"] = new Function<IEnumerable, object?>(list => FindExtreme(list, "max", 1)),
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
         ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
+        ["not"] = new Function<bool, bool>(a => !a),
         ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
     };
 

@@ -43,26 +43,23 @@ public partial class ObjectContext(
             : Values.GetValueOrDefault(parts[0]);
         foreach (var part in parts.Skip(1))
         {
-            if (res is null)
-                return null;
-            var type = res.GetType();
-            if (res is Dictionary<Lookup, object> dict)
-                res = dict.GetValueOrDefault(part);
-            else if (res is Dictionary<string, object> stringDict)
-                res = stringDict.GetValueOrDefault(part);
-            else if (res is Dictionary<Lookup, object>[] dicts)
-                res = dicts.Select(d => d.GetValueOrDefault(part)).ToArray();
-            else if (res is Dictionary<string, object>[] stringDicts)
-                res = stringDicts.Select(d => d.GetValueOrDefault(part)).ToArray();
-            else if (type.IsArray)
-                res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s))
-                    .ToArray();
-            else
-                res = res.GetType().GetProperty(part)?.GetValue(res);
+            res = GetPart(res, part);
         }
 
         return res;
     }
+
+    private static object? GetPart(object? value, string part)
+        => value switch
+        {
+            null => null,
+            Dictionary<Lookup, object?> dict => dict.GetValueOrDefault(part),
+            Dictionary<string, object?> dict => dict.GetValueOrDefault(part),
+            Array array => array.Cast<object?>()
+                .Select(item => GetPart(item, part))
+                .ToArray(),
+            _ => value.GetType().GetProperty(part)?.GetValue(value)
+        };
 
     /// <summary>Copies the context with overridden values, discarding their previous reference and availability state.</summary>
     public ObjectContext WithValues(IEnumerable<KeyValuePair<Lookup, object?>> overrides,
@@ -172,7 +169,7 @@ public partial class ObjectContext(
 
             AddEventInformation(dict, instance, workflowDefinition);
         }
-        else if (!dict.ContainsKey("LastEvent") && dict.ContainsKey("CreateDate"))
+        else if (dict.GetValueOrDefault("LastEvent") == null && dict.ContainsKey("CreateDate"))
         {
             dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
         }
