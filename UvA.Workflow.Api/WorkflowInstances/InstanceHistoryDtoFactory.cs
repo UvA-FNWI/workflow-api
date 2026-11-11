@@ -81,7 +81,7 @@ public class InstanceHistoryDtoFactory(
                 Question = question,
                 Path = form.PropertyName == null ? question.Name : $"{form.PropertyName}.{question.Name}"
             }))
-            .Where(item => changedPaths.Contains(item.Path))
+            .Where(item => changedPaths.Contains(item.Path) || changedPaths.Contains(item.Question.Name))
             .SelectMany(item => AnswerChangeHistory.For(
                     journal,
                     item.Question.Name,
@@ -89,7 +89,8 @@ public class InstanceHistoryDtoFactory(
                     FormSubmissionState.GetSubmissionEventIds(item.Form),
                     history.EventLogs,
                     workflowDefinition,
-                    instance.GetProperty(item.Form.PropertyName, item.Question.Name))
+                    instance.GetProperty(item.Form.PropertyName, item.Question.Name),
+                    includeUndoneSubmissions: true)
                 .SelectMany(group => group.Changes
                     // ChangedBy is null for the "submitted value" row; only real edits are history entries.
                     .Where(change => change.ChangedBy != null)
