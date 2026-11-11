@@ -70,7 +70,7 @@ public class ScreenDataService(
         {
             if (column.CurrentStep)
                 projection[ContextKeys.CurrentStep] = entity.GetKey(ContextKeys.CurrentStep);
-            foreach (var prop in column.Properties)
+            foreach (var prop in column.Lookups)
                 AddLookupToProjection(projection, prop, entity);
         }
 
@@ -120,6 +120,7 @@ public class ScreenDataService(
         {
             var id = context.Id!;
             var processedValues = new Dictionary<int, object?>();
+            Dictionary<int, ScreenCellDisplayDto>? display = null;
 
             // Process each column and use its ID as the key
             for (int i = 0; i < screen.Columns.Length; i++)
@@ -131,9 +132,13 @@ public class ScreenDataService(
                         context)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
+
+                var rule = column.Overrides.FirstOrDefault(rule => rule.Condition.IsMet(context));
+                if (rule != null)
+                    (display ??= [])[columnId] = new ScreenCellDisplayDto(rule.TextTemplate.Apply(context), rule.Color);
             }
 
-            rows.Add(ScreenRowDto.Create(id, processedValues));
+            rows.Add(new ScreenRowDto(id, processedValues, display));
         }
 
         return rows.ToArray();
@@ -190,7 +195,7 @@ public class ScreenDataService(
             await instanceService.Enrich(
                 definition,
                 rows,
-                screen.Columns.SelectMany(column => column.Properties).Concat(additionalLookups),
+                screen.Columns.SelectMany(column => column.Lookups).Concat(additionalLookups),
                 ct,
                 false);
 

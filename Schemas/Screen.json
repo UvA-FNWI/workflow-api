@@ -84,6 +84,13 @@
           "type": "boolean",
           "description": "If true, this column becomes a link to the instance"
         },
+        "overrides": {
+          "type": "array",
+          "description": "Display overrides in priority order. The first matching condition supplies the cell text and color.",
+          "items": {
+            "$ref": "#/definitions/ColumnDisplayOverride"
+          }
+        },
         "property": {
           "type": [
             "null",
@@ -185,20 +192,44 @@
         "Descending"
       ]
     },
-    "BilingualString": {
-      "title": "BilingualString",
+    "ColumnDisplayOverride": {
+      "title": "ColumnDisplayOverride",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "en",
-        "nl"
+        "condition",
+        "text"
       ],
       "properties": {
-        "en": {
-          "type": "string"
+        "condition": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
         },
-        "nl": {
-          "type": "string"
+        "text": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "color": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/StatusColor"
+            }
+          ]
         }
       }
     },
@@ -437,6 +468,30 @@
         }
       }
     },
+    "BilingualString": {
+      "title": "BilingualString",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "en",
+        "nl"
+      ],
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "nl": {
+          "type": "string"
+        }
+      }
+    },
+    "StatusColor": {
+      "type": "string",
+      "enum": [
+        "Red",
+        "Green"
+      ]
+    },
     "ScreenGrouping": {
       "title": "ScreenGrouping",
       "type": "object",
@@ -600,13 +655,6 @@
           "$ref": "#/definitions/StatusColor"
         }
       }
-    },
-    "StatusColor": {
-      "type": "string",
-      "enum": [
-        "Red",
-        "Green"
-      ]
     }
   }
 }

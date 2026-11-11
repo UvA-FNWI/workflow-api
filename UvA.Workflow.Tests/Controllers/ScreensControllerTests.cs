@@ -43,6 +43,91 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Screens_GetScreenData_UsesFirstMatchingColumnDisplayOverrideAndPreservesValues()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Scores/Entity.yaml"] = """
+                                     name: Scores
+                                     properties:
+                                       - name: Score
+                                         type: Int
+                                       - name: Review
+                                         type: Review
+                                     """,
+            ["Review/Entity.yaml"] = """
+                                     name: Review
+                                     properties:
+                                       - name: Confirmed
+                                         type: Check
+                                       - name: Label
+                                         type: String
+                                     """,
+            ["Scores/Conditions/HasConfirmedReview.yaml"] = """
+                                                            name: HasConfirmedReview
+                                                            value:
+                                                              property: Review.Confirmed
+                                                              equal: true
+                                                            """,
+            ["Scores/Screens/Overview.yaml"] = """
+                                               name: Overview
+                                               columns:
+                                                 - property: Score
+                                                   overrides:
+                                                     - condition:
+                                                         name: HasConfirmedReview
+                                                       text:
+                                                         en: Reviewed {{ Review.Label }}
+                                                         nl: Beoordeeld {{ Review.Label }}
+                                                       color: Green
+                                                     - condition:
+                                                         name: HasConfirmedReview
+                                                       text: Second match
+                                                       color: Red
+                                               """
+        }));
+        foreach (var definition in parser.WorkflowDefinitions)
+            _modelService.WorkflowDefinitions.Add(definition.Key, definition.Value);
+
+        var controller = BuildControllerWithRoles(["Student"], "Scores", "Overview",
+        [
+            new Dictionary<string, BsonValue> { ["_id"] = "matched", ["Score"] = 10, ["Review"] = "review" },
+            new Dictionary<string, BsonValue> { ["_id"] = "unmatched", ["Score"] = 20 }
+        ]);
+        _workflowInstanceRepoMock.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids => ids.SequenceEqual(new[] { "review" })),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.ContainsKey("Confirmed") && projection.ContainsKey("Label")),
+                _ct))
+            .ReturnsAsync([
+                new Dictionary<string, BsonValue>
+                {
+                    ["_id"] = "review", ["Confirmed"] = true, ["Label"] = "A"
+                }
+            ]);
+
+        var result = await controller.GetScreenData("Scores", "Overview", _ct);
+
+        var dto = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var column = Assert.Single(dto.Columns);
+        Assert.Equal(DataType.Int, column.DataType);
+        var matched = Assert.Single(dto.Rows, row => row.Id == "matched");
+        var unmatched = Assert.Single(dto.Rows, row => row.Id == "unmatched");
+        Assert.Equal(10, Assert.IsType<int>(matched.Values[column.Id]));
+        Assert.Equal(20, Assert.IsType<int>(unmatched.Values[column.Id]));
+        var display = Assert.Single(matched.Display!);
+        Assert.Equal(column.Id, display.Key);
+        Assert.Equal("Reviewed A", display.Value.Text.En);
+        Assert.Equal("Beoordeeld A", display.Value.Text.Nl);
+        Assert.Equal(StatusColor.Green, display.Value.Color);
+        Assert.Null(unmatched.Display);
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Scores",
+            It.Is<Dictionary<string, string>>(projection =>
+                projection.ContainsKey("Review") && projection["Review"] == "$Properties.Review"),
+            It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Screens_GetScreenData_ReturnsConfiguredBulkButtonsInOrder()
     {
         var controller = BuildControllerWithRoles(["Coordinator"], "Project", "Projects");

@@ -645,6 +645,15 @@ public partial class ModelParser
 
         foreach (var col in screen.Columns)
         {
+            foreach (var rule in col.Overrides)
+            {
+                if (rule.Condition == null || rule.Text == null)
+                    throw new Exception($"Column display overrides on screen '{screen.Name}' in " +
+                                        $"'{workflowDefinition.Name}' require condition and text.");
+
+                PreProcess(rule.Condition);
+            }
+
             if (col.Property != null)
             {
                 col.PropertyDefinition = workflowDefinition.Properties.GetOrDefault(col.Property.Split('.')[0]);
