@@ -157,9 +157,14 @@ public class AnswersController(
             throw new ForbiddenWorkflowActionException(context.Instance.Id, RoleAction.ViewHidden, context.Form.Name);
     }
 
-    private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
+    private async Task EnsureAuthorizedToEdit(QuestionContext context)
+    {
         await EnsureAuthorizedForAction(context,
             context.Form.Repeatable || !context.SubmissionState.IsSubmitted ? RoleAction.Submit : RoleAction.Edit);
+
+        if (!context.Form.ActualForm.PropertyDefinitions.Contains(context.PropertyDefinition))
+            throw new EntityNotFoundException("Question", context.PropertyDefinition.Name);
+    }
 
     private async Task EnsureAuthorizedToEdit(SubmissionContext context) =>
         await rightsService.EnsureAuthorizedForAction(context.Instance,
