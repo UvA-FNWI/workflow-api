@@ -140,6 +140,7 @@ public partial class ModelParser
         if (!target.Declared(f => f.TargetFormName)) target.TargetFormName = source.TargetFormName;
         if (!target.Declared(f => f.OnSubmit)) target.OnSubmit = source.OnSubmit;
         if (!target.Declared(f => f.OnSave)) target.OnSave = source.OnSave;
+        if (!target.Declared(f => f.Repeatable)) target.Repeatable = source.Repeatable;
         if (!target.Declared(f => f.EmitFormSubmitEvent))
             target.EmitFormSubmitEvent = source.EmitFormSubmitEvent;
         if (!target.Declared(f => f.SubmittedWhenEvents))
