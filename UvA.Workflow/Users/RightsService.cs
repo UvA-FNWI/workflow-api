@@ -24,6 +24,19 @@ public class RightsService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IImpersonationContextService? impersonationContextService = null)
 {
+    private static readonly HashSet<RoleAction> AllowedByDefaultWhenStopped =
+    [
+        RoleAction.View,
+        RoleAction.ViewHidden,
+        RoleAction.ViewUsers,
+        RoleAction.ViewStates,
+        RoleAction.ViewResults,
+        RoleAction.ViewCorrespondence,
+        RoleAction.ViewAnswerMessages,
+        RoleAction.ViewAdminTools,
+        RoleAction.ImpersonateRoles
+    ];
+
     private readonly IImpersonationContextService _impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
@@ -245,7 +258,8 @@ public class RightsService(
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
                 .Where(a => actions.Contains(a.Type)
-                            && (!context.WorkflowStopped || a.AllowWhenStopped || IsReadPermission(a.Type))
+                            && (!context.WorkflowStopped || a.AllowWhenStopped ||
+                                AllowedByDefaultWhenStopped.Contains(a.Type))
                             && (a.Condition == null || a.Condition.IsMet(context))
                             && (a.Steps.Length == 0 || modelService
                                 .GetAvailableStepsForAction(instance, a, activeSteps, context).Length > 0)
@@ -254,11 +268,6 @@ public class RightsService(
             .Distinct()
             .ToArray();
     }
-
-    private static bool IsReadPermission(RoleAction action)
-        => action is RoleAction.View or RoleAction.ViewHidden or RoleAction.ViewUsers or RoleAction.ViewStates
-            or RoleAction.ViewResults or RoleAction.ViewCorrespondence or RoleAction.ViewAnswerMessages
-            or RoleAction.ViewAdminTools or RoleAction.ImpersonateRoles;
 
     private async Task<Domain_Action[]> GetAllowedActionsForRealUser(WorkflowInstance instance,
         params RoleAction[] actions)
