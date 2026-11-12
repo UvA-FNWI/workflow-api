@@ -32,9 +32,9 @@ public partial class ModelParser
 
             var source = target.AllSteps.FirstOrDefault(s => s.Name == import.Step);
             if (source == null || !target.Steps.Contains(source) || source.ParentStep != null ||
-                source.Children.Length != 0 || source.Mode != StepMode.Normal ||
+                source.Mode != StepMode.Normal ||
                 target.AllSteps.Any(s => s.Import != null))
-                throw new Exception($"{prefix} must target an ordinary top-level leaf step without chained imports.");
+                throw new Exception($"{prefix} must target an ordinary top-level step without chained imports.");
 
             if (definition.Forms.Any(form => form.Step == step.Name) ||
                 definition.AllActions.Any(action => action.Steps.Contains(step.Name)))

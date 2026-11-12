@@ -333,7 +333,11 @@ public class Step : INamed, IDeclaredKeys, ITemplateConsumer
 
         if (Children.Any())
         {
-            var dates = Children.Select(c => c.GetEndDate(instance, workflowDef, context)).ToArray();
+            var dates = Children.Where(child => child.Mode != StepMode.Optional &&
+                                                (context == null || child.IsVisible(context)))
+                .Select(c => c.GetEndDate(instance, workflowDef, context)).ToArray();
+            if (dates.Length == 0)
+                return null;
             if (dates.Any(d => d == null))
                 return null;
             return dates.Max();
@@ -363,7 +367,8 @@ public class Step : INamed, IDeclaredKeys, ITemplateConsumer
         if (Ends != null)
             return Ends.IsMet(context);
         if (Children.Any())
-            return Children.Where(c => c.IsVisible(context)).All(c => c.HasEnded(context));
+            return Children.Where(c => c.Mode != StepMode.Optional && c.IsVisible(context))
+                .All(c => c.HasEnded(context));
         return false;
     }
 }

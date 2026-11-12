@@ -324,21 +324,24 @@ public class WorkflowInstanceDtoFactory(
 
         var source = owner!;
         var active = modelService.GetActiveSteps(source.Instance, source.Context).ToHashSet();
-        var forms = source.Definition.Forms.Where(form => form.Step == source.Step.Name ||
-                                                          form.Step == null && source.Step.Actions.Any(action =>
-                                                              action.Type == RoleAction.Submit &&
-                                                              action.AllForms.Contains(form.Name))).ToArray();
+        var descendants = Descendants(source.Step, source.Context).ToArray();
+        var stepNames = descendants.Select(child => child.Name).ToHashSet();
+        var forms = source.Definition.Forms.Where(form => form.Step != null && stepNames.Contains(form.Step) ||
+                                                          form.Step == null && descendants.Any(child =>
+                                                              child.Actions.Any(action =>
+                                                                  action.Type == RoleAction.Submit &&
+                                                                  action.AllForms.Contains(form.Name)))).ToArray();
         var hasSubmission = forms.Where(form => form.ActualForm.PropertyDefinitions.Any())
             .Any(form => FormSubmissionState.Resolve(source.Instance, form, source.Definition).IsSubmitted);
-        var expectsSubmission = active.Contains(source.Step.Name) &&
-                                !source.Step.HasPassedHardDeadline(source.Context) &&
-                                source.Step.Actions.Where(action =>
-                                        action.Type == RoleAction.Submit && action.Condition.IsMet(source.Context))
-                                    .SelectMany(action => action.AllForms).Distinct()
-                                    .Select(name => modelService.GetForm(source.Instance, name))
-                                    .Any(form =>
-                                        !FormSubmissionState.Resolve(source.Instance, form, source.Definition)
-                                            .IsSubmitted);
+        var expectsSubmission = descendants.Where(child => active.Contains(child.Name) &&
+                                                           !child.HasPassedHardDeadline(source.Context))
+            .SelectMany(child => child.Actions).Where(action =>
+                action.Type == RoleAction.Submit && action.Condition.IsMet(source.Context))
+            .SelectMany(action => action.AllForms).Distinct()
+            .Select(name => modelService.GetForm(source.Instance, name))
+            .Any(form =>
+                !FormSubmissionState.Resolve(source.Instance, form, source.Definition)
+                    .IsSubmitted);
         var users = step.Import!.Participants
             .SelectMany(property => source.Context.Get(property) switch
             {
