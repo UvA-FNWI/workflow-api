@@ -660,6 +660,12 @@ public partial class ModelParser
             throw new Exception(
                 $"Email '{email.Name}' in '{workflowDefinition.Name}' removes block '{removed.Name}' but does not inherit it");
 
+        var positioned = email.ContentBlocks.FirstOrDefault(b => b.After != null);
+        if (positioned != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' places block '{positioned.Name}' " +
+                $"after '{positioned.After}' but does not inherit it");
+
         var contents = email.ContentBlocks
             .Select(b => b.Content ?? ResolveNamedBlock(b.Name, email, workflowDefinition)).ToList();
         email.Body = new BilingualString(
@@ -674,7 +680,8 @@ public partial class ModelParser
                     ?? NamedEmailBlocks.FirstOrDefault(b => b.Name == name)
                     ?? throw new Exception(
                         $"Email block '{name}' used in '{email.Name}' of '{definition.Name}' not found");
-        return block.Content!;
+        return block.Content ?? throw new Exception(
+            $"Email block '{name}' used in '{email.Name}' of '{definition.Name}' has no content");
     }
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)

@@ -161,16 +161,27 @@ public partial class ModelParser
             throw new Exception(
                 $"Definition '{definitionName}' declares duplicate email(s): {string.Join(", ", duplicateNames)}");
 
+        foreach (var email in emails)
+            ValidateUniqueBlockNames(email.ContentBlocks, $"Email '{email.Name}' in '{definitionName}'");
+
         foreach (var email in emails.Where(e => !string.IsNullOrWhiteSpace(e.TemplateKey)))
         {
             var template = GetTemplate(email, emailTemplatesByName, definitionName);
             var resolved = Instantiate(template, email, null, out var substituted);
+            ValidateUniqueBlockNames(resolved.ContentBlocks, $"Email template '{template.Name}'");
 
             ApplyInheritance(email, resolved);
             email.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
         }
 
         return emails;
+    }
+
+    private static void ValidateUniqueBlockNames(EmailContentBlock[] blocks, string owner)
+    {
+        var duplicateNames = blocks.GroupBy(b => b.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateNames.Count > 0)
+            throw new Exception($"{owner} declares duplicate content block(s): {string.Join(", ", duplicateNames)}");
     }
 
     /// <summary>

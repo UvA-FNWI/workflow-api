@@ -178,6 +178,10 @@ public partial class ModelParser
 
     private void ApplyInheritance(NamedEmail target, NamedEmail source)
     {
+        if (target.Declared(e => e.Body) && source.ContentBlocks.Length > 0)
+            throw new Exception(
+                $"Email '{target.Name}' declares a body, but the email it inherits from uses content blocks");
+
         if (!target.Declared(e => e.Subject)) target.Subject = source.Subject;
         if (!target.Declared(e => e.Body)) target.Body = source.Body;
         if (!target.Declared(e => e.Layout)) target.Layout = source.Layout;
@@ -233,6 +237,7 @@ public partial class ModelParser
             if (afterIndex < 0)
                 throw new Exception(
                     $"Email '{target.Name}' places content block '{block.Name}' after '{block.After}', which does not exist");
+            block.After = null; // Prevents repeated insertion if the same block is inherited multiple times
             result.Insert(afterIndex + 1, block);
         }
 
