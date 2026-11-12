@@ -27,12 +27,16 @@ public class SubmissionDtoFactory(
         Dictionary<string, QuestionStatus>? shownQuestionIds = null, RoleAction[]? permissions = null,
         WorkflowInstanceHistory? history = null, CancellationToken ct = default)
     {
+        if (form.Repeatable)
+            history = null;
+
         var displayNames = await ResolveDisplayNames(history?.Journal, ct);
         var context = modelService.CreateContext(inst);
         var workflowDefinition = modelService.WorkflowDefinitions[inst.WorkflowDefinition];
         await instanceService.Enrich(workflowDefinition, [context], form.ActualForm.Lookups, ct, replaceStep: false);
 
-        return Create(inst, form, submissionState, shownQuestionIds, permissions, history, displayNames, context);
+        var dto = Create(inst, form, submissionState, shownQuestionIds, permissions, history, displayNames, context);
+        return form.Repeatable ? dto with { DateSubmitted = null } : dto;
     }
 
     public SubmissionDto Create(WorkflowInstance inst, Form form, FormSubmissionState submissionState,

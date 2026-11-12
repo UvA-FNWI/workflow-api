@@ -110,6 +110,28 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.Equal("Updated subject", instance.Properties["Subject"].AsString);
     }
 
+    [Theory]
+    [InlineData(false, false, RoleAction.Submit)]
+    [InlineData(true, true, RoleAction.Submit)]
+    [InlineData(false, true, RoleAction.Edit)]
+    public async Task Answers_SaveAnswer_RejectsPropertiesOutsideForm(bool repeatable, bool submitted,
+        RoleAction permission)
+    {
+        const string formName = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], formName);
+        instance.Events[formName].Date = submitted ? DateTime.UtcNow.AddMinutes(-1) : null;
+        _modelService.GetForm(instance, formName).Repeatable = repeatable;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Single(role => role.Name == "Student")
+            .Actions = [new() { Type = permission, Form = formName }];
+
+        var error = await Assert.ThrowsAsync<EntityNotFoundException>(() => controller.SaveAnswer(instance.Id, formName,
+            "CanBePublished", new SaveAnswerRequest(JsonSerializer.SerializeToElement(true)), _ct));
+
+        Assert.Equal("QuestionNotFound", error.Code);
+        _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(instance.Id,
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Never);
+    }
+
     [Fact]
     public async Task Answers_GetChoices_AllowWithViewRights()
     {
@@ -266,6 +288,22 @@ public class AnswersControllerTests : ControllerTestsBase
         _artifactServiceMock.Verify(service => service.TryDeleteArtifact(artifactId, _ct), Times.Once);
         _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_AllowsSubmitPermissionAfterRepeatableFormSubmission()
+    {
+        const string formName = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], formName);
+        instance.Events[formName].Date = DateTime.UtcNow.AddMinutes(-1);
+        _modelService.GetForm(instance, formName).Repeatable = true;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Single(role => role.Name == "Student")
+            .Actions = [new() { Type = RoleAction.Submit, Form = formName }];
+
+        var result = await controller.ClearAnswers(instance.Id, formName, _ct);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.True(instance.Properties["Title"].IsBsonNull);
     }
 
     [Fact]
