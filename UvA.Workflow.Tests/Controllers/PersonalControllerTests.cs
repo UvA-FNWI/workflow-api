@@ -5,24 +5,32 @@ using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Personal.Dtos;
+using UvA.Workflow.Api.Users;
 using UvA.Workflow.Tests.Builders;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests.Controllers;
 
 public class PersonalControllerTests : ControllerTestsBase
 {
     private readonly PersonalInstanceService personalInstanceService;
+    private readonly PersonalController controller;
 
     public PersonalControllerTests()
     {
         personalInstanceService = new PersonalInstanceService(
             _modelService,
             _instanceService,
+            _workflowInstanceRepoMock.Object,
+            _rightsService);
+        var searchAccess = new PeopleSearchAccess(_userServiceMock.Object, _rightsService, _modelService,
             _workflowInstanceRepoMock.Object);
+        controller = new PersonalController(_userServiceMock.Object, personalInstanceService,
+            _userRepoMock.Object, searchAccess);
     }
 
     [Fact]
@@ -72,7 +80,6 @@ public class PersonalControllerTests : ControllerTestsBase
             ]);
         MockCurrentUser();
 
-        var controller = new PersonalController(_userServiceMock.Object, personalInstanceService);
         var result = await controller.GetInstances(_ct);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
@@ -235,14 +242,68 @@ public class PersonalControllerTests : ControllerTestsBase
         _userServiceMock
             .Setup(service => service.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
-        var controller = new PersonalController(_userServiceMock.Object, personalInstanceService);
-
         var result = await controller.GetInstances(_ct);
 
         Assert.IsType<UnauthorizedResult>(result.Result);
         _workflowInstanceRepoMock.Verify(repository => repository.GetByFilter(
             It.IsAny<FilterDefinition<WorkflowInstance>>(),
             It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetPerson_OnlyReturnsInstancesVisibleToTheViewer(bool includeVisibleInstance)
+    {
+        MockCurrentUser("Coordinator");
+        _modelService.WorkflowDefinitions["Project"].Roles.Single(role => role.Name == "Coordinator")
+            .Actions.RemoveAll(action => action.Type == RoleAction.View);
+
+        var personId = ObjectId.GenerateNewId();
+        var person = new User
+        {
+            Id = personId.ToString(), DisplayName = "Practical Supervisor",
+            Email = "supervisor@example.org", UserName = "supervisor"
+        };
+        var linkedPerson = new BsonArray { UserDocument(personId, person.DisplayName) };
+        var hidden = new WorkflowInstanceBuilder().With("Project", "Start")
+            .WithProperties(("PracticalSupervisor", property => property.Value(linkedPerson)))
+            .Build();
+        var visible = new WorkflowInstanceBuilder().With("Project", "Start")
+            .WithProperties(
+                ("PracticalSupervisor", property => property.Value(linkedPerson)),
+                ("Supervisor", property => property.Value(
+                    UserDocument(ObjectId.Parse(UnitTestsHelpers.AdminUser.Id), "Viewer"))))
+            .Build();
+        _userRepoMock.Setup(repository => repository.GetById(person.Id, _ct)).ReturnsAsync(person);
+        _workflowInstanceRepoMock.Setup(repository => repository.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), _ct))
+            .ReturnsAsync(includeVisibleInstance ? [hidden, visible] : [hidden]);
+
+        var result = await controller.GetPerson(person.Id, _ct);
+
+        if (!includeVisibleInstance)
+        {
+            Assert.Equal(404, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+            return;
+        }
+
+        var response = Assert.IsType<PersonalPersonDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(person.Id, response.Person.Id);
+        var instance = Assert.Single(response.Instances);
+        Assert.Equal(visible.Id, instance.Id);
+        Assert.Equal(["PracticalSupervisor"], instance.Roles);
+    }
+
+    [Fact]
+    public async Task GetPerson_WithoutAdminPermission_ReturnsForbiddenBeforeLookingUpThePerson()
+    {
+        MockCurrentUser();
+
+        var result = await controller.GetPerson(ObjectId.GenerateNewId().ToString(), _ct);
+
+        Assert.Equal(403, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+        _userRepoMock.Verify(repository => repository.GetById(It.IsAny<string>(), _ct), Times.Never);
     }
 
     private static BsonDocument UserDocument(ObjectId id, string displayName) => new()

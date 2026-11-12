@@ -393,12 +393,12 @@ public class RightsService(
     }
 
     private async Task<bool> Can(RoleAction action)
-    {
-        var globalUserRoles = (await GetGlobalUserRoles())
-            .Select(gur => modelService.Roles.GetValueOrDefault(gur))
-            .ToArray();
-        return globalUserRoles.Any(r => r != null && r.Actions.Any(a => a.Type == action));
-    }
+        => Can(await userService.GetRolesOfCurrentUser(), action);
+
+    public bool Can(IEnumerable<string> roles, RoleAction action)
+        => roles.Append("Registered")
+            .Select(role => modelService.Roles.GetValueOrDefault(role))
+            .Any(role => role != null && role.Actions.Any(a => a.Type == action));
 
     public Task EnsureAuthorizedForAction(WorkflowInstance instance, RoleAction action, string? form = null)
         => EnsureAuthorizedForAction(instance, [action], RightsEvaluationMode.RequestContext, form);

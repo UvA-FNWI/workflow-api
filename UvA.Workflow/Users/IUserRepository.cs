@@ -18,5 +18,6 @@ public interface IUserRepository
     Task<User?> GetByEmailAndProvider(string email, string providerKey, CancellationToken ct);
     Task<IEnumerable<User>> SearchByQuery(string query, CancellationToken ct);
     Task<IEnumerable<User>> SearchByQueryAndProvider(string query, string providerKey, CancellationToken ct);
+    IAsyncEnumerable<User> SearchByPrefix(string query, CancellationToken ct);
     Task<IEnumerable<User>> GetByIds(IReadOnlyList<string> ids, CancellationToken ct);
 }

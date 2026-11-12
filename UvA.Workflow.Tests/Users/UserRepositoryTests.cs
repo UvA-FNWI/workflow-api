@@ -49,6 +49,34 @@ public class UserRepositoryTests
     }
 
     [Fact]
+    public async Task SearchByPrefix_EscapesTheNormalizedPrefix()
+    {
+        var collectionMock = new Mock<IMongoCollection<User>>();
+        var databaseMock = new Mock<IMongoDatabase>();
+        var asyncCursorMock = new Mock<IAsyncCursor<User>>();
+        FilterDefinition<User>? capturedFilter = null;
+        asyncCursorMock.Setup(cursor => cursor.MoveNextAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        collectionMock.Setup(collection => collection.FindAsync(
+                It.IsAny<FilterDefinition<User>>(),
+                It.IsAny<FindOptions<User, User>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<FilterDefinition<User>, FindOptions<User, User>, CancellationToken>((filter, _, _) =>
+                capturedFilter = filter)
+            .ReturnsAsync(asyncCursorMock.Object);
+        databaseMock.Setup(database => database.GetCollection<User>("users", It.IsAny<MongoCollectionSettings>()))
+            .Returns(collectionMock.Object);
+        var repository = new UserRepository(databaseMock.Object);
+
+        await repository.SearchByPrefix("  a.b+  ", CancellationToken.None).ToArrayAsync();
+
+        var searchConditions = RenderFilter(capturedFilter!)["$or"].AsBsonArray;
+        var regex = searchConditions[0].AsBsonDocument["SearchTerms"].AsBsonRegularExpression;
+        Assert.Equal(@"^A\.B\+", regex.Pattern);
+        Assert.Empty(regex.Options);
+        Assert.Equal(BsonNull.Value, searchConditions[1].AsBsonDocument["SearchTerms"]);
+    }
+
+    [Fact]
     public async Task Update_UsesObjectIdFilter()
     {
         var collectionMock = new Mock<IMongoCollection<User>>();
@@ -90,6 +118,7 @@ public class UserRepositoryTests
 
         Assert.Equal(BsonType.ObjectId, renderedFilter["_id"].BsonType);
         Assert.Equal(new ObjectId(user.Id), renderedFilter["_id"].AsObjectId);
+        Assert.Equal(["EXTERNAL USER", "USER", "EDUID-123", "EXTERNAL@EXAMPLE.ORG"], user.SearchTerms!);
     }
 
     [Fact]

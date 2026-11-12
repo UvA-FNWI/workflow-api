@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.WorkflowModel;
 
@@ -9,6 +10,12 @@ public record PersonalRoleDto(
 );
 
 public record PersonalInstancesDto(
+    PersonalRoleDto[] Roles,
+    PersonalInstanceDto[] Instances
+);
+
+public record PersonalPersonDto(
+    PersonDto Person,
     PersonalRoleDto[] Roles,
     PersonalInstanceDto[] Instances
 );

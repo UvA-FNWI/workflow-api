@@ -38,7 +38,8 @@ public class UsersController(
     /// Returns the currently authenticated user.
     /// </summary>
     [HttpGet("Me")]
-    public async Task<ActionResult<UserDto>> GetLoggedInUser(CancellationToken ct)
+    public async Task<ActionResult<UserDto>> GetLoggedInUser([FromServices] PeopleSearchAccess searchAccess,
+        CancellationToken ct)
     {
         var user = await userService.GetCurrentUser(ct);
         if (user == null)
@@ -48,7 +49,8 @@ public class UsersController(
         // name arrives from DataNose via GetRolesForUser; see DataNoseDirectoryKeys.
         var roles = await userService.GetRolesOfCurrentUser(ct);
         var isSuperAdmin = roles.Contains(DataNoseDirectoryKeys.SuperAdminRoleName, StringComparer.OrdinalIgnoreCase);
-        return Ok(UserDto.Create(user, isSuperAdmin));
+        var canSearchPeople = await searchAccess.CanSearch(user, roles, ct);
+        return Ok(UserDto.Create(user, isSuperAdmin, canSearchPeople));
     }
 
     [HttpPost]
@@ -158,6 +160,17 @@ public class UsersController(
     {
         var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
         return Ok(searchResults.Select(UserSearchResultDto.Create));
+    }
+
+    [HttpGet("Search")]
+    public async Task<ActionResult<PeopleSearchDto>> Search(string? query,
+        [FromServices] PeopleSearchService searchService,
+        [FromServices] PeopleSearchAccess searchAccess, CancellationToken ct)
+    {
+        if (!await searchAccess.CanSearch(ct))
+            return Forbidden();
+
+        return Ok(await searchService.Search(query, ct));
     }
 
     /// <summary>

@@ -7,7 +7,8 @@ namespace UvA.Workflow.Api.Personal;
 public class PersonalInstanceService(
     ModelService modelService,
     InstanceService instanceService,
-    IWorkflowInstanceRepository workflowInstanceRepository)
+    IWorkflowInstanceRepository workflowInstanceRepository,
+    RightsService rightsService)
 {
     private static readonly Lookup[] PersonalOverviewLookups =
     [
@@ -19,15 +20,42 @@ public class PersonalInstanceService(
         if (!ObjectId.TryParse(user.Id, out var userId))
             return new PersonalInstancesDto([], []);
 
-        var definitions = modelService.WorkflowDefinitions.Values
-            .Where(definition => GetVisibleUserProperties(definition).Any())
-            .ToArray();
-
-        if (definitions.Length == 0)
+        var userFilter = LinkedUserInstances.BuildFilter(modelService.WorkflowDefinitions.Values, [userId],
+            GetVisibleUserProperties);
+        if (userFilter == null)
             return new PersonalInstancesDto([], []);
 
-        var userFilter = BuildUserFilter(definitions, userId);
-        var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
+        var instances = await workflowInstanceRepository.GetByFilter(userFilter, ct);
+        return await CreateOverview(user, instances, GetVisibleUserProperties, ct);
+    }
+
+    public async Task<PersonalInstancesDto> GetPersonInstances(User person, CancellationToken ct)
+    {
+        if (!ObjectId.TryParse(person.Id, out var personId))
+            return new PersonalInstancesDto([], []);
+
+        var filter = LinkedUserInstances.BuildFilter(modelService.WorkflowDefinitions.Values, [personId]);
+        if (filter == null)
+            return new PersonalInstancesDto([], []);
+
+        var instances = await workflowInstanceRepository.GetByFilter(filter, ct);
+        var visibleInstances = new List<WorkflowInstance>();
+        foreach (var instance in instances)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (await rightsService.Can(instance, RoleAction.View))
+                visibleInstances.Add(instance);
+        }
+
+        return await CreateOverview(person, visibleInstances, LinkedUserInstances.GetUserProperties, ct);
+    }
+
+    private async Task<PersonalInstancesDto> CreateOverview(
+        User user,
+        IEnumerable<WorkflowInstance> instances,
+        Func<WorkflowDefinition, IEnumerable<PropertyDefinition>> getLinkedProperties,
+        CancellationToken ct)
+    {
         var instanceContexts = instances
             .Select(instance => new PersonalInstanceContext(instance, modelService.CreateContext(instance)))
             .ToArray();
@@ -35,7 +63,7 @@ public class PersonalInstanceService(
         await Enrich(instanceContexts, ct);
 
         var instanceDtos = instanceContexts
-            .Select(item => CreateDto(item.Instance, item.Context, user))
+            .Select(item => CreateDto(item.Instance, item.Context, user, getLinkedProperties))
             .Where(dto => dto.Roles.Length > 0)
             .OrderByDescending(dto => dto.CreatedOn)
             .ThenByDescending(dto => dto.Id)
@@ -62,45 +90,23 @@ public class PersonalInstanceService(
         return new PersonalInstancesDto(roles, instanceDtos);
     }
 
-    private static FilterDefinition<WorkflowInstance> BuildUserFilter(
-        IEnumerable<WorkflowDefinition> definitions,
-        ObjectId userId)
-    {
-        var filterBuilder = Builders<WorkflowInstance>.Filter;
-        var definitionFilters = definitions.Select(definition =>
-        {
-            var userPropertyFilters = GetVisibleUserProperties(definition)
-                .Select(property => filterBuilder.Eq($"Properties.{property.Name}._id", userId));
-
-            return filterBuilder.And(
-                filterBuilder.Eq(instance => instance.WorkflowDefinition, definition.Name),
-                filterBuilder.Or(userPropertyFilters));
-        });
-
-        return filterBuilder.Or(definitionFilters);
-    }
-
     private PersonalInstanceDto CreateDto(
         WorkflowInstance instance,
         ObjectContext context,
-        User user)
+        User user,
+        Func<WorkflowDefinition, IEnumerable<PropertyDefinition>> getLinkedProperties)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var usersByRole = GetUserProperties(definition)
+        var usersByRole = LinkedUserInstances.GetUserProperties(definition)
             .ToDictionary(
                 property => property.Name,
                 property => GetUsers(context.Get(property.Name)).ToArray(),
                 StringComparer.OrdinalIgnoreCase);
 
-        var visibleRoleNames = GetVisibleUserProperties(definition)
-            .Select(property => property.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var roles = usersByRole
-            .Where(entry => visibleRoleNames.Contains(entry.Key) && entry.Value.Any(instanceUser =>
+        var roles = getLinkedProperties(definition)
+            .Where(property => usersByRole[property.Name].Any(instanceUser =>
                 string.Equals(instanceUser.Id, user.Id, StringComparison.Ordinal)))
-            .Select(entry => entry.Key)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(property => property.Name)
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var student = usersByRole.GetValueOrDefault("Student")
@@ -154,11 +160,6 @@ public class PersonalInstanceService(
         await instanceService.Enrich(batches, ct, replaceStep: false);
     }
 
-    private static IEnumerable<PropertyDefinition> GetUserProperties(WorkflowDefinition definition)
-        => definition.Properties
-            .Where(property => property.DataType == DataType.User)
-            .DistinctBy(property => property.Name, StringComparer.OrdinalIgnoreCase);
-
     private static IEnumerable<PropertyDefinition> GetVisibleUserProperties(WorkflowDefinition definition)
     {
         var rolesWithViewAccess = definition.GlobalActions
@@ -166,7 +167,7 @@ public class PersonalInstanceService(
             .SelectMany(action => action.Roles)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return GetUserProperties(definition)
+        return LinkedUserInstances.GetUserProperties(definition)
             .Where(property => rolesWithViewAccess.Contains(property.Name));
     }
 

@@ -13,6 +13,7 @@ using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -23,6 +24,7 @@ public class UsersControllerTests : ControllerTestsBase
 
     private readonly AnswerService _answerService;
     private readonly ExternalUserEmailUpdateService _externalUserEmailUpdateService;
+    private readonly PeopleSearchAccess _peopleSearchAccess;
 
     public UsersControllerTests()
     {
@@ -42,6 +44,8 @@ public class UsersControllerTests : ControllerTestsBase
             _answerService,
             _modelService,
             _instanceService);
+        _peopleSearchAccess = new PeopleSearchAccess(_userServiceMock.Object, _rightsService, _modelService,
+            _workflowInstanceRepoMock.Object);
     }
 
     [Theory]
@@ -54,7 +58,7 @@ public class UsersControllerTests : ControllerTestsBase
         // Arrange
         var controller = BuildControllerWithRoles([role]);
         // Act
-        var result = await controller.GetLoggedInUser(_ct);
+        var result = await controller.GetLoggedInUser(_peopleSearchAccess, _ct);
         //Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var userDto = Assert.IsType<UserDto>(okResult.Value);
@@ -75,12 +79,107 @@ public class UsersControllerTests : ControllerTestsBase
         // Arrange
         var controller = BuildControllerWithRoles([role]);
         // Act
-        var result = await controller.GetLoggedInUser(_ct);
+        var result = await controller.GetLoggedInUser(_peopleSearchAccess, _ct);
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var userDto = Assert.IsType<UserDto>(okResult.Value);
         Assert.Equal(expectedIsSuperAdmin, userDto.IsSuperAdmin);
     }
+
+    [Fact]
+    public async Task Users_Search_RejectsNonAdminBeforeSearching()
+    {
+        var controller = BuildControllerWithRoles(["Student"]);
+
+        var result = await controller.Search("example", null!, _peopleSearchAccess, _ct);
+
+        var response = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        _userRepoMock.Verify(repository => repository.SearchByPrefix(It.IsAny<string>(), _ct), Times.Never);
+    }
+
+    [Fact]
+    public async Task Users_Search_ReturnsOnlyPeopleLinkedToVisibleInstances()
+    {
+        var controller = BuildControllerWithRoles(["Coordinator"]);
+        _modelService.WorkflowDefinitions["Project"].Roles.Single(role => role.Name == "Coordinator").Actions
+            .RemoveAll(action => action.Type == RoleAction.View);
+
+        var visible = SearchUser("visible");
+        var hidden = SearchUser("hidden");
+        var unlinked = SearchUser("unlinked");
+        _userRepoMock.Setup(repository => repository.SearchByPrefix("example", _ct))
+            .Returns(new[] { hidden, unlinked, visible }.ToAsyncEnumerable());
+        _workflowInstanceRepoMock.Setup(repository => repository.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), _ct))
+            .ReturnsAsync([
+                new WorkflowInstanceBuilder().With("Project", "Start")
+                    .WithProperties(("PracticalSupervisor", property => property.Value(
+                        new BsonArray { InstanceUser.FromUser(hidden).ToBsonDocument() })))
+                    .Build(),
+                new WorkflowInstanceBuilder().With("Project", "Start")
+                    .WithProperties(
+                        ("PracticalSupervisor", property => property.Value(
+                            new BsonArray { InstanceUser.FromUser(visible).ToBsonDocument() })),
+                        ("Supervisor", property => property.Value(
+                            InstanceUser.FromUser(UnitTestsHelpers.AdminUser).ToBsonDocument())))
+                    .Build()
+            ]);
+
+        var search = new PeopleSearchService(_userRepoMock.Object, _workflowInstanceRepoMock.Object,
+            _modelService, _rightsService);
+        var result = await controller.Search("  example ", search, _peopleSearchAccess, _ct);
+
+        var response = Assert.IsType<PeopleSearchDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(PersonDto.Create(visible), Assert.Single(response.People));
+        Assert.False(response.HasMore);
+
+        var me = await controller.GetLoggedInUser(_peopleSearchAccess, _ct);
+        Assert.True(Assert.IsType<UserDto>(Assert.IsType<OkObjectResult>(me.Result).Value).CanSearchPeople);
+    }
+
+    [Fact]
+    public async Task Users_Search_SupportsCoordinatorsAssignedThroughCourses()
+    {
+        var controller = BuildControllerWithRoles([]);
+        var course = new WorkflowInstanceBuilder().With("Course", "")
+            .WithProperties(("Coordinator", property => property.Value(
+                new BsonArray { InstanceUser.FromUser(UnitTestsHelpers.AdminUser).ToBsonDocument() })))
+            .Build();
+        var person = SearchUser("supervisor");
+        var project = new WorkflowInstanceBuilder().With("Project", "Start")
+            .WithProperties(
+                ("Course", property => property.Value(course.Id)),
+                ("Supervisor", property => property.Value(InstanceUser.FromUser(person).ToBsonDocument())))
+            .Build();
+        _workflowInstanceRepoMock.Setup(repository => repository.GetByIds(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(course.Id)), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([course]);
+        _workflowInstanceRepoMock.SetupSequence(repository => repository.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), _ct))
+            .ReturnsAsync([course])
+            .ReturnsAsync([course])
+            .ReturnsAsync([project]);
+        _userRepoMock.Setup(repository => repository.SearchByPrefix("supervisor", _ct))
+            .Returns(new[] { person }.ToAsyncEnumerable());
+
+        var me = await controller.GetLoggedInUser(_peopleSearchAccess, _ct);
+        var search = new PeopleSearchService(_userRepoMock.Object, _workflowInstanceRepoMock.Object,
+            _modelService, _rightsService);
+        var result = await controller.Search("supervisor", search, _peopleSearchAccess, _ct);
+
+        Assert.True(Assert.IsType<UserDto>(Assert.IsType<OkObjectResult>(me.Result).Value).CanSearchPeople);
+        var response = Assert.IsType<PeopleSearchDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(PersonDto.Create(person), Assert.Single(response.People));
+    }
+
+    private static User SearchUser(string userName) => new()
+    {
+        Id = ObjectId.GenerateNewId().ToString(),
+        UserName = userName,
+        DisplayName = $"Example {userName}",
+        Email = $"{userName}@example.org"
+    };
 
     [Theory]
     [InlineData("Student")]
@@ -538,7 +637,7 @@ public class UsersControllerTests : ControllerTestsBase
             _externalUserEmailUpdateService,
             Mock.Of<ILogger<UsersController>>());
 
-        var result = await controller.GetLoggedInUser(_ct);
+        var result = await controller.GetLoggedInUser(_peopleSearchAccess, _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);

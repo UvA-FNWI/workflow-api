@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace UvA.Workflow.Persistence.Mongo;
@@ -12,6 +13,7 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 
     public async Task Create(User user, CancellationToken ct)
     {
+        user.SearchTerms = UserSearchTerms.Create(user);
         await _collection.InsertOneAsync(user, cancellationToken: ct);
     }
 
@@ -29,6 +31,7 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         if (!ObjectId.TryParse(user.Id, out var objectId))
             throw new ArgumentException("Invalid user ID", nameof(user.Id));
 
+        user.SearchTerms = UserSearchTerms.Create(user);
         var filter = Builders<User>.Filter.Eq("_id", objectId);
         var result = await _collection.ReplaceOneAsync(filter, user, cancellationToken: ct);
 
@@ -73,6 +76,30 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
     public async Task<IEnumerable<User>> SearchByQueryAndProvider(string query, string providerKey,
         CancellationToken ct)
         => await SearchByQuery(query, providerKey, ct);
+
+    public async IAsyncEnumerable<User> SearchByPrefix(string query, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var normalized = UserSearchTerms.Normalize(query);
+        if (normalized.Length == 0)
+            yield break;
+
+        var prefix = new BsonRegularExpression($"^{Regex.Escape(normalized)}");
+        var builder = Builders<User>.Filter;
+        // Older deployments can still replace a user without search terms during a rollout.
+        var filter = builder.Regex("SearchTerms", prefix) | builder.Eq(user => user.SearchTerms, null);
+        using var users = await _collection.Find(filter)
+            .SortBy(user => user.DisplayName)
+            .ThenBy(user => user.UserName)
+            .ThenBy(user => user.Id)
+            .ToCursorAsync(ct);
+        while (await users.MoveNextAsync(ct))
+        {
+            foreach (var user in users.Current)
+                if (user.SearchTerms != null ||
+                    UserSearchTerms.Create(user).Any(term => term.StartsWith(normalized, StringComparison.Ordinal)))
+                    yield return user;
+        }
+    }
 
     private async Task<IEnumerable<User>> SearchByQuery(string query, string? providerKey, CancellationToken ct)
     {
