@@ -250,9 +250,9 @@ public class WorkflowInstanceDtoFactory(
         UndoCandidateDto? undoCandidate = null;
         if (step.ParentStep == null &&
             await undoService.GetCandidate(instance, step.Name, effectiveEventLogs)
-                is { OperationMetadata: { Step: { } stepName } operation } candidate)
+                is { OperationMetadata: { } operation } root)
         {
-            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == stepName);
+            var candidateStep = workflowDef.AllSteps.FirstOrDefault(s => s.Name == operation.Step);
             var form = operation.Type == OperationType.FormSubmission
                 ? modelService.TryGetForm(instance, operation.Source)
                 : null;
@@ -265,9 +265,9 @@ public class WorkflowInstanceDtoFactory(
                 _ => operation.Source
             };
             undoCandidate = new UndoCandidateDto(operation.Type,
-                candidateStep?.DisplayTitle ?? stepName,
+                candidateStep?.DisplayTitle ?? operation.Step,
                 sourceTitle,
-                candidate.Timestamp,
+                root.Timestamp,
                 operation.Id);
         }
 

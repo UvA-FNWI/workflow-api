@@ -31,10 +31,7 @@ public record OperationMetadata
 
     [BsonRepresentation(BsonType.String)] public OperationType Type { get; init; }
     public string Source { get; init; } = null!;
-
-    /// <summary>Owning step. May be absent on older project-level operations.</summary>
-    [BsonIgnoreIfNull]
-    public string? Step { get; init; }
+    public string Step { get; init; } = null!;
 
     public static OperationMetadata? CreateForSubmission(Form form, WorkflowDefinition workflowDefinition)
         => Create(OperationType.FormSubmission, form.Name,

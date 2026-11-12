@@ -25,11 +25,11 @@ public static class EventHistory
         IEnumerable<InstanceEventLogEntry> eventLogs,
         WorkflowDefinition workflowDefinition)
         => Project(eventLogs)
-            .Where(log => log.OperationMetadata?.Step != null)
+            .Where(log => log.OperationMetadata != null)
             .Select(log => new
             {
                 Log = log,
-                TopLevelStep = GetTopLevelStep(workflowDefinition, log.OperationMetadata!.Step!)
+                TopLevelStep = GetTopLevelStep(workflowDefinition, log.OperationMetadata!.Step)
             })
             .Where(item => item.TopLevelStep != null)
             .GroupBy(item => item.TopLevelStep!.Name)

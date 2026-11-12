@@ -19,8 +19,7 @@ public class UndoService(
     {
         var candidate = EventHistory.LatestOperations(
             eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition]).GetValueOrDefault(topLevelStep);
-        return candidate?.OperationMetadata is { Step: { } step } operation &&
-               await IsAuthorized(instance, operation, step)
+        return candidate?.OperationMetadata != null && await IsAuthorized(instance, candidate.OperationMetadata)
             ? candidate
             : null;
     }
@@ -38,14 +37,15 @@ public class UndoService(
 
         var eventLogs = await eventRepository.GetEventLogEntriesForInstance(instance.Id, ct);
         var operation = eventLogs.FirstOrDefault(log => log.OperationMetadata?.Id == operationId)?.OperationMetadata;
-        if (operation is not { Step: { } step })
+        if (operation == null)
             throw new UndoCandidateChangedException();
-        if (!await IsAuthorized(instance, operation, step))
+        if (!await IsAuthorized(instance, operation))
             throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Undo, operation.Source);
 
         var isCandidate = EventHistory.LatestOperations(
                 eventLogs, modelService.WorkflowDefinitions[instance.WorkflowDefinition])
-            .Values.Any(log => log.OperationMetadata?.Id == operationId);
+            .Values
+            .Any(log => log.OperationMetadata?.Id == operationId);
         if (!isCandidate)
             throw new UndoCandidateChangedException();
 
@@ -82,9 +82,10 @@ public class UndoService(
         return instance;
     }
 
-    private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation, string step)
+    private async Task<bool> IsAuthorized(WorkflowInstance instance, OperationMetadata operation)
     {
-        var allowed = await rightsService.GetAllowedActionsForStep(instance, step, RoleAction.Undo);
+        var allowed = await rightsService.GetAllowedActionsForStep(
+            instance, operation.Step, RoleAction.Undo);
         return allowed.Any(action => operation.Type switch
         {
             OperationType.FormSubmission =>
