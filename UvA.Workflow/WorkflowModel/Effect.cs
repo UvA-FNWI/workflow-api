@@ -206,10 +206,18 @@ public class NamedEmail : Email, INamed, ITemplateConsumer, IDeclaredKeys
 
     /// <summary>
     /// The fully resolved template parameter values (including inherited/default values) after template
-    /// resolution. Used to let child emails inherit values from their parent step by parameter name.
+    /// resolution. Used to let child emails inherit values from their parent step by parameter name
     /// </summary>
     [YamlIgnore]
     public Dictionary<string, object>? ResolvedTemplateValues { get; set; }
+
+    public NamedEmail Clone()
+    {
+        var clone = (NamedEmail)MemberwiseClone();
+        clone.DeclaredKeys = [.. DeclaredKeys];
+        clone.ContentBlocks = [.. ContentBlocks];
+        return clone;
+    }
 }
 
 /// <summary>
@@ -238,6 +246,7 @@ public class Email
 
     public BilingualString? Subject { get; set; }
     public BilingualString? Body { get; set; }
+    [YamlMember(Alias = "blocks")] public EmailContentBlock[] ContentBlocks { get; set; } = [];
     [YamlMember(Alias = "email")] public string? EmailKey { get; set; }
     [YamlMember(Alias = "layout")] public string? Layout { get; set; }
     [YamlMember(Alias = "buttons")] public SendMessageButton[] Buttons { get; set; } = [];

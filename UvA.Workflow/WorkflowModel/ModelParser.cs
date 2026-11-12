@@ -138,12 +138,12 @@ public partial class ModelParser
             definition.Forms = ResolveFormTemplates(definition.Forms, formTemplatesByName,
                 definition.Name);
 
+            definition.Emails = Read<NamedEmail>(definition.SourceFolder);
             definition.EmailBlocks = Read<EmailContentBlock>(definition.SourceFolder);
             var emailTemplatesByName = ReadTemplates(EmailTemplates, definition);
             definition.Emails = ResolveEmailTemplates(definition.Emails, emailTemplatesByName, definition.Name);
 
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
-            definition.Emails = Read<NamedEmail>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
             definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
 
@@ -434,6 +434,8 @@ public partial class ModelParser
             PreProcess(field, workflowDefinition);
         foreach (var card in workflowDefinition.InfoCards)
             PreProcess(card, workflowDefinition);
+        foreach (var email in workflowDefinition.Emails)
+            PreProcess(email, workflowDefinition);
         if (workflowDefinition.InfoCards.Count(card => card.Enabled && card.Type == InfoCardType.User) > 1)
             throw new Exception($"Definition '{workflowDefinition.Name}' has more than one enabled User info card.");
         foreach (var form in workflowDefinition.Forms)
@@ -644,6 +646,30 @@ public partial class ModelParser
                     col.Event = workflowDefinition.Events.FirstOrDefault(e => e.Name == col.Property[..^5]);
             }
         }
+    }
+
+    private void PreProcess(NamedEmail email, WorkflowDefinition workflowDefinition)
+    {
+        if (email.ContentBlocks.Length == 0) return;
+        if (email.Body != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' has both body and content blocks");
+
+        var contents = email.ContentBlocks
+            .Select(b => b.Content ?? ResolveNamedBlock(b.Name, email, workflowDefinition)).ToList();
+        email.Body = new BilingualString(
+            string.Join("\n\n", contents.Select(c => c.En)),
+            string.Join("\n\n", contents.Select(c => c.Nl)));
+    }
+
+    private BilingualString ResolveNamedBlock(string name, NamedEmail email, WorkflowDefinition definition)
+    {
+        var block = GetInheritanceChain(definition).AsEnumerable().Reverse()
+                        .SelectMany(d => d.EmailBlocks).FirstOrDefault(b => b.Name == name)
+                    ?? NamedEmailBlocks.FirstOrDefault(b => b.Name == name)
+                    ?? throw new Exception(
+                        $"Email block '{name}' used in '{email.Name}' of '{definition.Name}' not found");
+        return block.Content!;
     }
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)

@@ -29,8 +29,6 @@ public class EmailTemplate : NamedEmail, ITemplate
 {
     [YamlMember(Alias = "params")] public List<TemplateParameter> Parameters { get; set; } = [];
 
-    [YamlMember(Alias = "blocks")] public EmailContentBlock[] ContentBlocks { get; set; } = [];
-
     [YamlIgnore] public string RootFile { get; set; } = null!;
 }
 

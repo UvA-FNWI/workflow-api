@@ -46,7 +46,7 @@ public partial class ModelParser
         {
             if (target.Emails.TryGetValue(sourceMessage.Name, out var targetMessage))
                 ApplyInheritance(targetMessage, sourceMessage);
-            else target.Emails.Add(sourceMessage);
+            else target.Emails.Add(sourceMessage.Clone());
         }
 
         // Reset-parent processing mutates event definitions, so inherited events cannot be shared.
@@ -176,8 +176,32 @@ public partial class ModelParser
             target.Actions = MergeActions(target.Actions, source.Actions);
     }
 
-    private void ApplyInheritance(Email target, Email source)
+    private void ApplyInheritance(NamedEmail target, NamedEmail source)
     {
+        if (!target.Declared(e => e.Subject)) target.Subject = source.Subject;
+        if (!target.Declared(e => e.Body)) target.Body = source.Body;
+        if (!target.Declared(e => e.Layout)) target.Layout = source.Layout;
+        if (!target.Declared(e => e.To)) target.To = source.To;
+        if (!target.Declared(e => e.Cc)) target.Cc = source.Cc;
+        if (!target.Declared(e => e.Bcc)) target.Bcc = source.Bcc;
+        if (!target.Declared(e => e.Buttons)) target.Buttons = source.Buttons;
+        if (!target.Declared(e => e.Attachments)) target.Attachments = source.Attachments;
+        if (!target.Declared(e => e.SendAsMail)) target.SendAsMail = source.SendAsMail;
+        if (!target.Declared(e => e.SendAutomatically)) target.SendAutomatically = source.SendAutomatically;
+        target.ResolvedTemplateValues ??= source.ResolvedTemplateValues;
+
+        if (!Cleared(target, e => e.ContentBlocks))
+        {
+            var result = source.ContentBlocks.ToList();
+            foreach (var block in target.ContentBlocks)
+            {
+                var index = result.FindIndex(inherited => inherited.Name == block.Name);
+                if (index < 0) result.Add(block);
+                else result[index] = block;
+            }
+
+            target.ContentBlocks = result.ToArray();
+        }
     }
 
     private void ApplyInheritance(Role target, Role source)

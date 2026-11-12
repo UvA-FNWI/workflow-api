@@ -271,8 +271,9 @@ public partial class ModelParser
         {
             if (value is BilingualString localized)
             {
-                replacements[$"{name}.en"] = localized.En;
+                replacements[$"{name}.en"] = localized.ForLanguage("en");
                 replacements[$"{name}.nl"] = localized.ForLanguage("nl");
+                replacements[name] = localized;
             }
             else
                 replacements[name] = value;
@@ -280,6 +281,10 @@ public partial class ModelParser
 
         var yaml = new YamlStream();
         yaml.Load(new StringReader(rawYaml));
+        var languageByNode = yaml.Documents[0].AllNodes.OfType<YamlMappingNode>()
+            .SelectMany(m => m.Children)
+            .Where(c => c.Key is YamlScalarNode { Value: "en" or "nl" })
+            .ToDictionary(c => c.Value, c => ((YamlScalarNode)c.Key).Value!, ReferenceEqualityComparer.Instance);
         foreach (var scalar in yaml.Documents[0].AllNodes.OfType<YamlScalarNode>())
         {
             if (scalar.Value is null || !TokenPattern().IsMatch(scalar.Value))
@@ -290,6 +295,12 @@ public partial class ModelParser
                 var name = match.Groups[1].Value;
                 if (!replacements.TryGetValue(name, out var value))
                     throw new ArgumentException($"Missing template value '{name}' for template '{templateName}'");
+                if (value is BilingualString bilingual)
+                    return languageByNode.TryGetValue(scalar, out var language)
+                        ? bilingual.ForLanguage(language)
+                        : throw new ArgumentException(
+                            $"Template '{templateName}' uses bilingual value '${{{name}}}' outside an 'en'/'nl' key; " +
+                            $"use '${{{name}.en}}' or '${{{name}.nl}}'");
                 return value?.ToString() ?? "";
             });
             scalar.Style = ScalarStyle.DoubleQuoted;
