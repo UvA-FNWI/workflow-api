@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Core;
@@ -295,7 +296,8 @@ public partial class ModelParser
         var languageByNode = yaml.Documents[0].AllNodes.OfType<YamlMappingNode>()
             .SelectMany(m => m.Children)
             .Where(c => c.Key is YamlScalarNode { Value: "en" or "nl" })
-            .ToDictionary(c => c.Value, c => ((YamlScalarNode)c.Key).Value!, ReferenceEqualityComparer.Instance);
+            .ToDictionary(c => c.Value, c => ((YamlScalarNode)c.Key).Value!,
+                (IEqualityComparer<YamlNode>)ReferenceEqualityComparer.Instance);
         foreach (var scalar in yaml.Documents[0].AllNodes.OfType<YamlScalarNode>())
         {
             if (scalar.Value is null || !TokenPattern().IsMatch(scalar.Value))
