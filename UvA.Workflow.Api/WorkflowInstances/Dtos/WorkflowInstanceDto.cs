@@ -21,6 +21,7 @@ public record WorkflowInstanceDto(
     string? CurrentStep,
     string? ParentId,
     ActionDto[] Actions,
+    ActionDto[] PinnedActions,
     FieldDto[] Fields,
     StepDto[] Steps,
     SubmissionDto[] Submissions,
@@ -36,10 +37,11 @@ public record FieldDto(string? Key, BilingualString Title, object? Value, bool I
 public record StepVersionDto
 {
     public int VersionNumber { get; init; }
-    public List<string> EventIds { get; init; } = [];
-    public DateTime SubmittedAt { get; init; }
+    public DateTime? CompletionTimestamp { get; init; }
     public List<SubmissionDto> Submissions { get; init; } = [];
 }
+
+public record StepVersionsDto(StepVersionDto? Current, List<StepVersionDto> History);
 
 public record StepHeaderStatusDto(
     StepHeaderPillType Type,
@@ -78,8 +80,10 @@ public record StepDto(
     bool HasSubmission,
     StepHierarchyMode HierarchyMode = StepHierarchyMode.Sequential,
     StepChildrenLayout ChildrenLayout = StepChildrenLayout.Combined,
-    List<StepVersionDto>? Versions = null,
-    UndoCandidateDto? UndoCandidate = null);
+    StepVersionsDto? Versions = null,
+    UndoCandidateDto? UndoCandidate = null,
+    List<SubmissionDto>? Submissions = null,
+    bool IsAvailable = false);
 
 public record ActionDto(
     ActionType Type,

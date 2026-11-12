@@ -347,8 +347,10 @@ public class ImportServiceTests
         Assert.Equal("Supervisor", error.Column);
     }
 
-    [Fact]
-    public async Task ImportAsync_UserProperty_ResolvesFromExternalDirectory_WhenNotInRepository()
+    [Theory]
+    [InlineData("ext.user@uva.nl")]
+    [InlineData(" \text.user@uva.nl \t")]
+    public async Task ImportAsync_UserProperty_ResolvesFromExternalDirectory_WhenNotInRepository(string rawEmail)
     {
         const string email = "ext.user@uva.nl";
         BsonValue? capturedValue = null;
@@ -395,7 +397,7 @@ public class ImportServiceTests
             });
 
         await service.ImportAsync("TestDef", "Overview",
-            [new ImportConfirmRow(instance.Id, new Dictionary<string, string> { ["Supervisor"] = email })],
+            [new ImportConfirmRow(instance.Id, new Dictionary<string, string> { ["Supervisor"] = rawEmail })],
             CancellationToken.None);
 
         var doc = Assert.IsType<BsonDocument>(capturedValue);
@@ -405,26 +407,40 @@ public class ImportServiceTests
     }
 
 
-    [Fact]
-    public async Task PreviewAsync_UserHasNoEditRights_ProducesNotAllowedErrorOnIdentifierColumn()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task PreviewAsync_UnavailableInstance_ReturnsOnlyInputAndEntryNotFound(bool exists,
+        bool duplicateMapping)
     {
-        // globalRoles: [] → user only gets the implicit "Registered" role which has no Edit action
         var (service, repo, _, _) = CreateService(DefaultPreviewYaml, [],
             MakeParser(new Dictionary<string, string> { ["A"] = "S001", ["B"] = "My Thesis" }));
-        SetupRepo(repo, BasicInstance());
+        SetupRepo(repo, exists
+            ? [BasicInstance(extraProperties: ("OwnerName", b => b.Value("Private name")))]
+            : []);
 
         var result = await service.PreviewAsync("TestDef", "Overview", Stream.Null, "text/csv",
-            DefaultMappings, CancellationToken.None);
+            duplicateMapping ? [.. DefaultMappings, new("B", "Title")] : DefaultMappings,
+            CancellationToken.None);
 
-        var error = Assert.Single(Assert.Single(result.Rows).ValidationErrors);
-        Assert.Equal("NotAllowed", error.Code);
+        var row = Assert.Single(result.Rows);
+        Assert.Empty(row.InstanceId);
+        Assert.Equal(2, row.Values.Count);
+        Assert.Equal("S001", row.Values["StudentNumber"]);
+        Assert.Equal("My Thesis", row.Values["Title"]);
+        var error = Assert.Single(row.ValidationErrors);
+        Assert.Equal("EntryNotFound", error.Code);
         Assert.Equal("StudentNumber", error.Column);
     }
 
-    [Fact]
-    public async Task PreviewAsync_SpecificPropertyNotEditableForUser_ProducesNotAllowedOnThatPropertyOnly()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PreviewAsync_SpecificPropertyNotEditableForUser_DoesNotExposeInstance(bool duplicateMapping)
     {
-        // Edit action scoped to Title only → EC should get NotAllowed, Title should not
+        // Editing Title does not grant access to import EC on this instance.
         var yaml = new Dictionary<string, string>(DefaultPreviewYaml)
         {
             ["TestDef/Actions.yaml"] = """
@@ -436,14 +452,19 @@ public class ImportServiceTests
         };
         var (service, repo, _, _) = CreateService(yaml, ["Admin"],
             MakeParser(new Dictionary<string, string> { ["A"] = "S001", ["B"] = "My Thesis", ["C"] = "6" }));
-        SetupRepo(repo, BasicInstance());
+        SetupRepo(repo, BasicInstance(extraProperties: ("OwnerName", b => b.Value("Private name"))));
+
+        ColumnMapping[] mappings = [new("A", "StudentNumber"), new("B", "Title"), new("C", "EC")];
+        if (duplicateMapping) mappings = [.. mappings, new("C", "EC")];
 
         var result = await service.PreviewAsync("TestDef", "Overview", Stream.Null, "text/csv",
-            [new("A", "StudentNumber"), new("B", "Title"), new("C", "EC")], CancellationToken.None);
+            mappings, CancellationToken.None);
 
         var error = Assert.Single(Assert.Single(result.Rows).ValidationErrors);
-        Assert.Equal("NotAllowed", error.Code);
-        Assert.Equal("EC", error.Column);
+        Assert.Equal("EntryNotFound", error.Code);
+        Assert.Equal("StudentNumber", error.Column);
+        Assert.Empty(Assert.Single(result.Rows).InstanceId);
+        Assert.DoesNotContain("OwnerName", Assert.Single(result.Rows).Values.Keys);
     }
 
     [Fact]
@@ -595,6 +616,43 @@ public class ImportServiceTests
     }
 
     [Fact]
+    public async Task ImportAsync_PropertyOutsideScreenAllowlist_RejectsBeforeWritingAnyProperty()
+    {
+        var yaml = new Dictionary<string, string>(DefaultPreviewYaml)
+        {
+            ["TestDef/Screens/Overview.yaml"] = DefaultPreviewYaml["TestDef/Screens/Overview.yaml"]
+                .Replace("    - EC\n", "")
+        };
+        var answers = new Mock<IAnswerService>(MockBehavior.Strict);
+        var (service, repo, _, _) = CreateService(yaml, ["Admin"], answerService: answers.Object);
+        var instance = BasicInstance();
+        repo.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() => service.ImportAsync("TestDef", "Overview",
+            [new(instance.Id, new() { ["Title"] = "Allowed", ["EC"] = "6" })], CancellationToken.None));
+
+        answers.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ImportAsync_InstanceFromAnotherEditableWorkflow_IsRejectedWithoutWriting()
+    {
+        var yaml = new Dictionary<string, string>(DefaultPreviewYaml);
+        foreach (var (path, content) in DefaultPreviewYaml.Where(p => p.Key.StartsWith("TestDef/")))
+            yaml[path.Replace("TestDef/", "OtherDef/")] = content.Replace("TestDef", "OtherDef");
+        var answers = new Mock<IAnswerService>(MockBehavior.Strict);
+        var (service, repo, _, _) = CreateService(yaml, ["Admin"], answerService: answers.Object);
+        var instance = new WorkflowInstanceBuilder().WithWorkflowDefinition("OtherDef").WithCurrentStep("Start")
+            .Build();
+        repo.Setup(r => r.GetById(instance.Id, It.IsAny<CancellationToken>())).ReturnsAsync(instance);
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() => service.ImportAsync("TestDef", "Overview",
+            [new(instance.Id, new() { ["Title"] = "Wrong workflow" })], CancellationToken.None));
+
+        answers.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task ImportAsync_IdentifierAndReadOnlyProperties_AreNeverPassedToSavePropertyValue()
     {
         var answerMock = new Mock<IAnswerService>();
@@ -682,8 +740,10 @@ public class ImportServiceTests
             /*shouldLog*/ true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task ImportAsync_UserProperty_ResolvesEmailAndSavesNonNullBsonDocument()
+    [Theory]
+    [InlineData("john@example.com")]
+    [InlineData(" \tjohn@example.com \t")]
+    public async Task ImportAsync_UserProperty_ResolvesEmailAndSavesNonNullBsonDocument(string rawEmail)
     {
         BsonValue? capturedValue = null;
         var answerMock = new Mock<IAnswerService>();
@@ -723,7 +783,7 @@ public class ImportServiceTests
             [
                 new ImportConfirmRow(instance.Id, new Dictionary<string, string>
                 {
-                    ["Supervisor"] = "john@example.com"
+                    ["Supervisor"] = rawEmail
                 })
             ],
             CancellationToken.None);

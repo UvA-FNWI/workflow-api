@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -253,6 +254,9 @@ public class EffectService(
     {
         var parts = setProperty.Property.Split('.');
         var value = setProperty.ValueExpression.Execute(context);
+        if (value is string text &&
+            modelService.GetProperty(instance, parts)?.DataType is DataType.Date or DataType.DateTime)
+            value = DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         instance.SetProperty(
             value is InstanceUser iu ? iu.ToBsonDocument() : BsonValue.Create(value),
             parts

@@ -19,6 +19,9 @@ public class WorkflowInstance
 
     public DateTime CreatedOn { get; set; }
 
+    // Historical evaluation uses its own clock without changing persisted instance state.
+    internal DateTime? EvaluatedAt { get; set; }
+
     // public List<LogEntry> LogEntries { get; set; } = [];
     public Dictionary<string, BsonValue> Properties { get; set; } = null!;
     public Dictionary<string, InstanceEvent> Events { get; set; } = null!;

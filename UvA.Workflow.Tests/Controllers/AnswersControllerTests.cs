@@ -43,7 +43,7 @@ public class AnswersControllerTests : ControllerTestsBase
                 _modelService,
                 _submissionDtoFactory,
                 _rightsService,
-                new StepVersionService(),
+                new StepVersionService(_modelService),
                 new StepProgressResolver(_modelService),
                 _workflowInstanceService,
                 _loggerFactory.CreateLogger<WorkflowInstanceDtoFactory>(),
@@ -63,6 +63,51 @@ public class AnswersControllerTests : ControllerTestsBase
             _instanceJournalServiceMock.Object,
             _userServiceMock.Object,
             _externalUserServiceMock.Object);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Answers_SaveAnswer_ReturnsUpdatedInstanceDisplayData(bool hidden)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student", "Coordinator"], "Start");
+        instance.Events["Start"].Date = DateTime.UtcNow.AddMinutes(-1);
+        if (hidden)
+            _modelService.GetForm(instance, "Start").PropertyDefinitions.Single(p => p.Name == "Subject")
+                .Visibility = UvA.Workflow.WorkflowModel.PropertyVisibility.Hidden;
+
+        var result = await controller.SaveAnswer(instance.Id, "Start", "Subject",
+            new SaveAnswerRequest(JsonSerializer.SerializeToElement("Updated subject")), _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
+        Assert.NotNull(response.UpdatedInstance);
+        Assert.Equal(instance.Id, response.UpdatedInstance.Id);
+        var submission = Assert.Single(response.UpdatedInstance.Submissions, s => s.Id == "Start");
+        var answer = Assert.Single(submission.Answers, a => a.QuestionName == "Subject");
+        Assert.Equal(!hidden, answer.IsVisible);
+        Assert.Equal(hidden ? null : "Updated subject", answer.Value?.GetString());
+        var savedAnswer = Assert.Single(response.Submission.Answers, a => a.QuestionName == "Subject");
+        Assert.Equal(!hidden, savedAnswer.IsVisible);
+        Assert.Equal(hidden ? null : "Updated subject", savedAnswer.Value?.GetString());
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_WithoutInstanceViewRights_DoesNotReturnInstanceData()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        foreach (var role in definition.Roles)
+            role.Actions.RemoveAll(a => a.Type == RoleAction.View);
+        Assert.False(await _rightsService.Can(instance, RoleAction.View));
+
+        var result = await controller.SaveAnswer(instance.Id, "Start", "Subject",
+            new SaveAnswerRequest(JsonSerializer.SerializeToElement("Updated subject")), _ct);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
+        Assert.Null(response.UpdatedInstance);
+        Assert.Equal("Updated subject", instance.Properties["Subject"].AsString);
     }
 
     [Fact]
@@ -352,6 +397,24 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.Equal(expectedMessage, error.Message);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Answers_HiddenReference_DeniesChoiceReadsWithoutPropertyGrant(bool currentChoices)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Start", "SubjectFeedback");
+        _modelService.WorkflowDefinitions["Project"].Properties.Single(p => p.Name == "Course").Visibility =
+            PropertyVisibility.Hidden;
+
+        await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(async () =>
+        {
+            if (currentChoices)
+                await controller.GetCurrentChoices(instance.Id, "Start", "Course", _ct);
+            else
+                await controller.GetChoices(instance.Id, "Start", "Course", _ct);
+        });
+    }
+
     private (AnswersController Controller, WorkflowInstance Instance) BuildControllerWithRoles(
         string[] roles, string submissionId, string stepName = "Start")
     {
@@ -374,7 +437,8 @@ public class AnswersControllerTests : ControllerTestsBase
                 _instanceService,
                 _modelService,
                 _workflowInstanceRepoMock.Object,
-                _workflowInstanceService);
+                _workflowInstanceService,
+                _workflowInstanceDtoFactory);
 
         return (controller, instance);
     }

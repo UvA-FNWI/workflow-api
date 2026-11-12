@@ -6,15 +6,18 @@ namespace UvA.Workflow.WorkflowModel;
 
 public class ObjectContext(
     Dictionary<Lookup, object?> values,
-    IReadOnlyDictionary<string, string[]>? valueSets = null)
+    IReadOnlyDictionary<string, string[]>? valueSets = null,
+    DateTime? evaluatedAt = null)
 {
     private static readonly IReadOnlyDictionary<string, string[]> NoValueSets = new Dictionary<string, string[]>();
+
+    public DateTime Now => evaluatedAt ?? DateTime.Now;
 
     public Dictionary<Lookup, object?> Values { get; } = values;
 
     /// <summary>
-    /// Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
-    /// Kept apart from <see cref="Values"/> so value-set names cannot clash with properties or effect outputs.
+    ///     Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
+    ///     Kept apart from <see cref="Values" /> so value-set names cannot clash with properties or effect outputs.
     /// </summary>
     public IReadOnlyDictionary<string, string[]> ValueSets { get; } = valueSets ?? NoValueSets;
 
@@ -23,7 +26,7 @@ public class ObjectContext(
     public object? Get(Lookup path)
     {
         if (path == "now")
-            return DateTime.Now;
+            return Now;
         if (path is PropertyLookup { Parts: ["ValueSets", var valueSet] })
             return ValueSets.GetValueOrDefault(valueSet);
         if (Values.TryGetValue(path, out var res))
@@ -32,26 +35,23 @@ public class ObjectContext(
         res = Values.GetValueOrDefault(parts[0]);
         foreach (var part in parts.Skip(1))
         {
-            if (res is null)
-                return null;
-            var type = res.GetType();
-            if (res is Dictionary<Lookup, object> dict)
-                res = dict.GetValueOrDefault(part);
-            else if (res is Dictionary<string, object> stringDict)
-                res = stringDict.GetValueOrDefault(part);
-            else if (res is Dictionary<Lookup, object>[] dicts)
-                res = dicts.Select(d => d.GetValueOrDefault(part)).ToArray();
-            else if (res is Dictionary<string, object>[] stringDicts)
-                res = stringDicts.Select(d => d.GetValueOrDefault(part)).ToArray();
-            else if (type.IsArray)
-                res = ((IEnumerable)res).Cast<object>().Select(s => s.GetType().GetProperty(part)?.GetValue(s))
-                    .ToArray();
-            else
-                res = res.GetType().GetProperty(part)?.GetValue(res);
+            res = GetPart(res, part);
         }
 
         return res;
     }
+
+    private static object? GetPart(object? value, string part)
+        => value switch
+        {
+            null => null,
+            Dictionary<Lookup, object?> dict => dict.GetValueOrDefault(part),
+            Dictionary<string, object?> dict => dict.GetValueOrDefault(part),
+            Array array => array.Cast<object?>()
+                .Select(item => GetPart(item, part))
+                .ToArray(),
+            _ => value.GetType().GetProperty(part)?.GetValue(value)
+        };
 
     public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData)
     {
@@ -101,10 +101,7 @@ public class ObjectContext(
         {
             // Only add property values that are present in the workflow definition
             var propertyDefinition = modelService.GetProperty(instance, k);
-            if (propertyDefinition != null)
-            {
-                dict.Add(k, GetValue(v, propertyDefinition));
-            }
+            if (propertyDefinition != null) dict.Add(k, GetValue(v, propertyDefinition));
         }
 
         dict.Add("Id", instance.Id);
@@ -114,11 +111,11 @@ public class ObjectContext(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
 
-        return new ObjectContext(dict, GetValueSets(workflowDef));
+        return new ObjectContext(dict, GetValueSets(workflowDef), instance.EvaluatedAt);
     }
 
     /// <summary>
-    /// Collects the common and definition-local value sets that expressions can reference as <c>ValueSets.Name</c>.
+    ///     Collects the common and definition-local value sets that expressions can reference as <c>ValueSets.Name</c>.
     /// </summary>
     public static IReadOnlyDictionary<string, string[]> GetValueSets(WorkflowDefinition definition)
     {
@@ -152,11 +149,14 @@ public class ObjectContext(
     }
 
     public static object? GetValue(BsonValue? answer, PropertyDefinition propertyDefinition)
-        => GetValue(answer, propertyDefinition.DataType, propertyDefinition);
+    {
+        return GetValue(answer, propertyDefinition.DataType, propertyDefinition);
+    }
 
     // TODO: is there a better way to do this?
     private static IEnumerable GetTypedArray(BsonArray array, DataType type)
-        => type switch
+    {
+        return type switch
         {
             DataType.User => array.Select(r => GetValue(r, type) as InstanceUser).ToArray(),
             DataType.Currency => array.Select(r => GetValue(r, type) as CurrencyAmount).ToArray(),
@@ -166,6 +166,7 @@ public class ObjectContext(
             DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
             _ => array.Select(r => GetValue(r, type)).ToArray()
         };
+    }
 
     public static object? GetValue(BsonValue? answer, DataType type, PropertyDefinition? question = null)
     {

@@ -92,6 +92,52 @@ actions:
 
 For `Undo`, use `form` to scope form submissions or `name` to scope executable actions; `steps` can limit either operation type.
 
+### Hidden answers
+
+Set `visibility: Hidden` on a property to hide its answer from roles without a
+matching `ViewHidden` grant. For example, in the assessment entity:
+
+```yaml
+properties:
+  - name: PreliminaryGrade
+    type: Double!
+    visibility: Hidden
+```
+
+In the parent workflow's actions, grant access to that property for selected roles:
+
+```yaml
+actions:
+  - type: ViewHidden
+    roles: [Reader, Supervisor]
+    forms: [AssessmentFirstReader, AssessmentSecondReader]
+    propertyDefinition: PreliminaryGrade
+```
+
+Students can keep their normal `View` access to those forms while the preliminary
+grade remains hidden. Readers who enter the grade also need the `ViewHidden` grant.
+Other hidden properties in the same form require their own grants.
+
+Omit `propertyDefinition` to reveal all hidden answers in the specified forms.
+Use `form: <All>` to target every form. A property-only grant without `form` or
+`forms` applies to that property name across the workflow's forms; include forms
+to distinguish answers in different assessments. `ViewHidden` supplements normal
+form access and does not grant `View`, `Submit`, or `Edit` permissions.
+
+Hidden answers have `isVisible: false` and no value, files, choices, validation
+message, or change history. The same rule applies to historical summaries and
+individual numeric assessment results. Historical access uses the viewer's current
+roles and role preview, with permission conditions evaluated against the snapshot.
+A combined hidden answer requires access
+to the property in every contributing form. For `results.type: Source`, the answer
+and its file references come from the configured source property, using a grant
+on a form that targets that property. Numeric rows always require access to the
+actual contributing forms, independently of source-answer access.
+Internal calculations and aggregate grades are
+unchanged. This controls form answer output; explicitly configured templates,
+overview fields, exports, and other uses of the property need their own access
+configuration.
+
 ### Persistent step actions
 
 Set `persistent: true` to keep an action available during and after its linked step.
