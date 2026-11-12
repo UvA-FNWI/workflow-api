@@ -144,7 +144,7 @@ public class SendAccessMailTests : ControllerTestsBase
             .Build()
             .Deserialize<Effect>("""
                                  sendAccessMail:
-                                   template: SupervisorWelcome
+                                   email: SupervisorWelcome
                                    to: Supervisor
                                  """);
 

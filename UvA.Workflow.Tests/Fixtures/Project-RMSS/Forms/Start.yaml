@@ -62,5 +62,5 @@ onSubmit:
       inputs:
         SubmissionId: TurnitinId
   - sendMail:
-      template: AssessmentRequestSupervisor
+      email: AssessmentRequestSupervisor
       to: Supervisor
