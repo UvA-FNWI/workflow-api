@@ -1,5 +1,5 @@
 name: UploadJoint
-step: Upload
+step: UploadDocument
 title: Upload the joint thesis once
 pages:
   - name: Document

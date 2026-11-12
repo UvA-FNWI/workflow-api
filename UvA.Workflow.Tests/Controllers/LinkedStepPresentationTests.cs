@@ -20,6 +20,103 @@ namespace UvA.Workflow.Tests.Controllers;
 
 public class LinkedStepPresentationTests
 {
+    [Theory]
+    [InlineData("Sequential", true)]
+    [InlineData("Parallel", true)]
+    [InlineData("Sequential", false)]
+    public async Task Instance_GroupRendersFromTheSourceWithItsChildActionsAndSubmissions(
+        string hierarchyMode, bool explicitFormStep)
+    {
+        var files = GroupedSubmissionFiles(hierarchyMode);
+        if (!explicitFormStep)
+            files["Shared/Forms/Uploaded.yaml"] = files["Shared/Forms/Uploaded.yaml"]
+                .Replace("step: UploadDocument\n", "");
+        var api = new LinkedStepApiSetup(files: files);
+
+        var host = await api.Factory.Create(api.Core.Student, default);
+        var imported = host.Steps.Single(step => step.Id == "SharedUpload");
+        Assert.Equal(api.Core.Source.Id, imported.ImportedFrom!.InstanceId);
+        Assert.Equal("Upload", imported.ImportedFrom.StepId);
+        Assert.True(imported.ExpectsSubmission);
+        Assert.False(imported.HasSubmission);
+        Assert.Null(imported.Children);
+        Assert.Empty(host.Actions);
+        Assert.Empty(host.Submissions);
+
+        var source = await api.Factory.Create(api.Core.Source, default);
+        var parent = source.Steps.Single(step => step.Id == "Upload");
+        Assert.Equal(StepChildrenLayout.CollapsibleRows, parent.ChildrenLayout);
+        Assert.Equal(["UploadDocument", "ReviewDocument"], parent.Children!.Select(child => child.Id));
+        Assert.Equal(["UploadDocument"], Assert.Single(source.Actions).Steps);
+        Assert.True(await api.Rights.Can(api.Core.Source, RoleAction.Submit, "Uploaded"));
+        Assert.False(await api.Rights.Can(api.Core.Student, RoleAction.Submit, "Uploaded"));
+
+        api.Core.Source.Properties["DocumentText"] = "Joint document";
+        api.Core.Complete("Uploaded", 20);
+        host = await api.Factory.Create(api.Core.Student, default);
+        Assert.True(host.Steps.Single(step => step.Id == "SharedUpload").HasSubmission);
+        source = await api.Factory.Create(api.Core.Source, default);
+        var submission = Assert.Single(source.Submissions);
+        Assert.Equal("UploadDocument", submission.Form.Step);
+        Assert.Empty(host.Submissions);
+        Assert.False(api.Core.Student.Properties.ContainsKey("DocumentText"));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task Instance_GroupDoesNotExpectSubmissionFromSkippedOrExpiredChildren(
+        bool visible, bool expired)
+    {
+        var files = GroupedSubmissionFiles();
+        files["Shared/Entity.yaml"] += "\n  - name: Visible\n    type: Check";
+        files["Shared/Steps/UploadDocument.yaml"] +=
+            "\ncondition:\n  value:\n    property: Visible\n    equal: true";
+        if (expired)
+            files["Shared/Steps/UploadDocument.yaml"] +=
+                "\ndeadline:\n  date: '=2000-01-01'\n  type: Hard";
+        var api = new LinkedStepApiSetup(files: files);
+        api.Core.Source.Properties["Visible"] = visible;
+
+        var dto = await api.Factory.Create(api.Core.Student, default);
+
+        Assert.False(dto.Steps.Single(step => step.Id == "SharedUpload").ExpectsSubmission);
+    }
+
+    [Theory]
+    [InlineData(false, false, StepImportStatus.Restricted)]
+    [InlineData(true, true, StepImportStatus.Unavailable)]
+    public async Task Instance_UnavailableGroupDoesNotExposeItsSourceChildren(
+        bool sourceAccess, bool missing, StepImportStatus status)
+    {
+        var api = new LinkedStepApiSetup(sourceAccess: sourceAccess,
+            files: LinkedStepConfigurationTests.GroupedFiles());
+        if (missing) api.Core.Sources.Clear();
+
+        var host = await api.Factory.Create(api.Core.Student, default);
+        var imported = host.Steps.Single(step => step.Id == "SharedUpload");
+
+        Assert.Equal(status, imported.ImportStatus);
+        Assert.Equal("Shared step", imported.Title.En);
+        Assert.Null(imported.ImportedFrom);
+        Assert.Null(imported.Children);
+        Assert.Empty(host.Actions);
+        Assert.Empty(host.Submissions);
+    }
+
+    private static Dictionary<string, string> GroupedSubmissionFiles(string hierarchyMode = "Sequential")
+    {
+        var files = LinkedStepConfigurationTests.GroupedFiles(hierarchyMode);
+        files["Shared/Entity.yaml"] += "\n  - name: DocumentText\n    type: String";
+        files["Shared/Steps/UploadDocument.yaml"] +=
+            "\nactions:\n  - type: Submit\n    roles: [Student]\n    form: Uploaded";
+        files["Shared/Forms/Uploaded.yaml"] =
+            "name: Uploaded\nstep: UploadDocument\npages:\n  - name: Document\n    elements:\n      - question: DocumentText";
+        files["Shared/Actions.yaml"] =
+            "globalActions:\n  - type: View\n    roles: [Registered, Student]\n    form: Uploaded";
+        return files;
+    }
+
     [Fact]
     public async Task Instance_ProjectsSourceMetadataWithoutTakingOwnershipOfSubmissions()
     {
@@ -228,9 +325,10 @@ internal sealed class LinkedStepApiSetup
     public InstanceService Instances { get; }
     public WorkflowInstanceDtoFactory Factory { get; }
 
-    public LinkedStepApiSetup(bool sourceAccess = true, bool finalImport = false, string[]? participants = null)
+    public LinkedStepApiSetup(bool sourceAccess = true, bool finalImport = false, string[]? participants = null,
+        Dictionary<string, string>? files = null)
     {
-        var files = LinkedStepConfigurationTests.Files();
+        files ??= LinkedStepConfigurationTests.Files();
         if (participants != null)
         {
             files["Shared/Entity.yaml"] +=
@@ -242,7 +340,7 @@ internal sealed class LinkedStepApiSetup
         files["Common/Roles/Registered.yaml"] = "name: Registered";
         files["Common/Roles/Student.yaml"] = "name: Student";
         files["Individual/Actions.yaml"] = "globalActions:\n  - type: View\n    roles: [Registered, Student]";
-        if (sourceAccess) files["Shared/Actions.yaml"] = files["Individual/Actions.yaml"];
+        if (sourceAccess) files.TryAdd("Shared/Actions.yaml", files["Individual/Actions.yaml"]);
         files["Individual/Screens/Overview.yaml"] = """
                                                     name: Overview
                                                     columns:

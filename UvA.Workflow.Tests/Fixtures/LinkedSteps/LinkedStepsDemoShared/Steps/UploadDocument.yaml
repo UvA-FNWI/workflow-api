@@ -1,0 +1,11 @@
+name: UploadDocument
+title: Upload joint thesis
+actions:
+  - type: Submit
+    roles: [Student]
+    form: UploadJoint
+  - type: Undo
+    roles: [Coordinator, Supervisor]
+    form: UploadJoint
+ends:
+  event: UploadJoint

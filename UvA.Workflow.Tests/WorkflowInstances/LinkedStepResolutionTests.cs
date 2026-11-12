@@ -9,6 +9,75 @@ namespace UvA.Workflow.Tests.WorkflowInstances;
 
 public class LinkedStepResolutionTests
 {
+    [Theory]
+    [InlineData("Sequential")]
+    [InlineData("Parallel")]
+    public async Task Resolve_GroupWaitsForAllChildrenAndReopensAfterSourceUndo(string hierarchyMode)
+    {
+        var setup = new LinkedStepTestSetup(LinkedStepConfigurationTests.GroupedFiles(hierarchyMode));
+
+        Assert.Equal("SharedUpload", (await setup.Resolver.Resolve(setup.Student, default)).CurrentStep);
+        setup.Complete("Uploaded", 20);
+        Assert.Equal("SharedUpload", (await setup.Resolver.Resolve(setup.Student, default)).CurrentStep);
+
+        setup.Complete("Reviewed", 21);
+        var context = await setup.Resolver.Resolve(setup.Student, default);
+        Assert.Equal("SharedAssessment", context.CurrentStep);
+        Assert.Equal(new DateTime(2026, 6, 21, 11, 0, 0, DateTimeKind.Utc),
+            setup.Model.WorkflowDefinitions["Individual"].Steps[1]
+                .GetEndDate(setup.Student, setup.Model.WorkflowDefinitions["Individual"], context));
+
+        setup.Source.Events.Remove("Reviewed");
+        Assert.Equal("SharedUpload", (await setup.Resolver.Resolve(setup.Student, default)).CurrentStep);
+        Assert.Single(setup.Student.Events);
+        Assert.Empty(setup.Student.Properties.Keys.Except(["SharedThesis"]));
+    }
+
+    [Fact]
+    public async Task Resolve_GroupUsesNestedAndConditionalSourceChildren()
+    {
+        var files = LinkedStepConfigurationTests.GroupedFiles();
+        files["Shared/Entity.yaml"] += "\n  - name: NeedsReview\n    type: Check";
+        files["Shared/Steps/UploadDocument.yaml"] = "name: UploadDocument\nchildren: [Document]";
+        files["Shared/Steps/Document.yaml"] = "name: Document\nends:\n  event: Uploaded";
+        files["Shared/Steps/ReviewDocument.yaml"] +=
+            "\ncondition:\n  value:\n    property: NeedsReview\n    equal: true";
+        var setup = new LinkedStepTestSetup(files);
+        setup.Source.Properties["NeedsReview"] = false;
+        setup.Complete("Uploaded", 20);
+
+        var context = await setup.Resolver.Resolve(setup.Student, default);
+        Assert.Equal("SharedAssessment", context.CurrentStep);
+        Assert.Equal(new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc),
+            setup.Model.WorkflowDefinitions["Individual"].Steps[1]
+                .GetEndDate(setup.Student, setup.Model.WorkflowDefinitions["Individual"], context));
+
+        setup.Source.Properties["NeedsReview"] = true;
+        Assert.Equal("SharedUpload", (await setup.Resolver.Resolve(setup.Student, default)).CurrentStep);
+        setup.Complete("Reviewed", 21);
+        Assert.Equal("SharedAssessment", (await setup.Resolver.Resolve(setup.Student, default)).CurrentStep);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Resolve_GroupCompletionDoesNotWaitForOptionalChildren(bool optionalCompleted)
+    {
+        var files = LinkedStepConfigurationTests.GroupedFiles();
+        files["Shared/Steps/ReviewDocument.yaml"] += "\nmode: Optional";
+        var setup = new LinkedStepTestSetup(files);
+        setup.Complete("Uploaded", 20);
+        if (optionalCompleted) setup.Complete("Reviewed", 21);
+
+        var context = await setup.Resolver.Resolve(setup.Student, default);
+
+        Assert.Equal("Assess", setup.Model.FindOpenStep(setup.Source)?.Name);
+        Assert.Equal("SharedAssessment", context.CurrentStep);
+        Assert.Equal(new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc),
+            setup.Model.WorkflowDefinitions["Individual"].Steps[1]
+                .GetEndDate(setup.Student, setup.Model.WorkflowDefinitions["Individual"], context));
+    }
+
     [Fact]
     public async Task Resolve_UsesSharedCompletionInsteadOfAStaleLocalStep()
     {

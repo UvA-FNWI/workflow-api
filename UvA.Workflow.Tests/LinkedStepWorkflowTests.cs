@@ -57,7 +57,7 @@ public class LinkedStepWorkflowTests
     }
 
     [Theory]
-    [InlineData("LinkedStepsDemoShared", "Upload", new[] { "Title", "Student", "Supervisor" })]
+    [InlineData("LinkedStepsDemoShared", "UploadDocument", new[] { "Title", "Student", "Supervisor" })]
     [InlineData("LinkedStepsDemoIndividual", "SharedUpload", new[] { "Student", "SharedThesis" })]
     public async Task Demo_CanBeConfiguredFromANewInstance(string definition, string nextStep, string[] fields)
     {
@@ -199,6 +199,11 @@ public class LinkedStepWorkflowTests
             upload, upload.Name), current, default);
         Assert.True(submitted.Success);
         foreach (var host in hosts)
+            Assert.Equal("SharedUpload", (await resolver.Resolve(host, default)).CurrentStep);
+        Assert.Equal("ConfirmUpload", model.GetCurrentStep(source)?.Name);
+
+        await Submit(source, "ConfirmJointUpload");
+        foreach (var host in hosts)
         {
             var context = await resolver.Resolve(host, default);
             Assert.Equal("SharedAssessment", model.GetCurrentStep(host, context)?.Name);
@@ -207,10 +212,22 @@ public class LinkedStepWorkflowTests
             Assert.False(host.Events.ContainsKey("UploadJoint"));
         }
 
-        Assert.Single(logs);
-        Assert.Equal(source.Id, logs[0].WorkflowInstanceId);
+        Assert.Equal(2, logs.Count);
+        Assert.All(logs, log => Assert.Equal(source.Id, log.WorkflowInstanceId));
         Assert.Equal("Student 1", model.WorkflowDefinitions[hosts[0].WorkflowDefinition].InstanceTitleTemplate!
             .Apply(await resolver.Resolve(hosts[0], default)));
+
+        current = supervisor;
+        var confirmationOperation = logs
+            .Single(log => log.WorkflowInstanceId == source.Id && log.EventId == "ConfirmJointUpload")
+            .OperationId!;
+        await new UndoService(events.Object, jobsRepository.Object, repository.Object, instances, rights, model)
+            .Undo(source, confirmationOperation, "Recheck joint upload confirmation", supervisor, default);
+        var reopenedContexts = await resolver.Resolve(hosts, default);
+        Assert.All(hosts,
+            host => Assert.Equal("SharedUpload", model.GetCurrentStep(host, reopenedContexts[host.Id])?.Name));
+        current = students[0];
+        await Submit(source, "ConfirmJointUpload");
         Assert.False(await rights.Can(hosts[1], RoleAction.Submit, "UploadLocal"));
 
         var localGrades = new[]

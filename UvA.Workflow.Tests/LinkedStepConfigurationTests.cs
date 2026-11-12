@@ -20,6 +20,16 @@ public class LinkedStepConfigurationTests
         ["Individual/Steps/After.yaml"] = "name: After\nends:\n  event: Finished"
     };
 
+    internal static Dictionary<string, string> GroupedFiles(string hierarchyMode = "Sequential")
+    {
+        var files = Files();
+        files["Shared/Steps/Upload.yaml"] =
+            $"name: Upload\ntitle: Joint upload\nhierarchyMode: {hierarchyMode}\nchildrenLayout: CollapsibleRows\nchildren: [UploadDocument, ReviewDocument]";
+        files["Shared/Steps/UploadDocument.yaml"] = "name: UploadDocument\nends:\n  event: Uploaded";
+        files["Shared/Steps/ReviewDocument.yaml"] = "name: ReviewDocument\nends:\n  event: Reviewed";
+        return files;
+    }
+
     [Fact]
     public void Import_CanReferToAnOrdinaryStepInAnotherDefinition()
     {
@@ -68,14 +78,33 @@ public class LinkedStepConfigurationTests
     }
 
     [Fact]
-    public void Import_RejectsArrayReferencesAndGroupedSources()
+    public void Import_RejectsArrayReferences()
     {
         var files = Files();
         files["Individual/Entity.yaml"] = files["Individual/Entity.yaml"].Replace("Shared!", "'[Shared]!'");
         Assert.Contains("single-valued reference",
             Assert.ThrowsAny<Exception>(() => new ModelParser(new DictionaryProvider(files))).Message);
-        files = Files();
-        files["Shared/Steps/Upload.yaml"] += "\nchildren: [Assess]";
+    }
+
+    [Theory]
+    [InlineData("Sequential")]
+    [InlineData("Parallel")]
+    public void Import_CanReferToAGroupedSource(string hierarchyMode)
+    {
+        var model = new ModelParser(new DictionaryProvider(GroupedFiles(hierarchyMode)));
+
+        Assert.Equal(["UploadDocument", "ReviewDocument"],
+            model.WorkflowDefinitions["Shared"].Steps[0].Children.Select(step => step.Name));
+        Assert.Empty(model.WorkflowDefinitions["Individual"].Steps[1].Children);
+    }
+
+    [Fact]
+    public void Import_StillRejectsAnIndividualChildSource()
+    {
+        var files = GroupedFiles();
+        files["Individual/Steps/SharedUpload.yaml"] =
+            files["Individual/Steps/SharedUpload.yaml"].Replace("step: Upload", "step: UploadDocument");
+
         Assert.ThrowsAny<Exception>(() => new ModelParser(new DictionaryProvider(files)));
     }
 
