@@ -655,6 +655,11 @@ public partial class ModelParser
             throw new Exception(
                 $"Email '{email.Name}' in '{workflowDefinition.Name}' has both body and content blocks");
 
+        var removed = email.ContentBlocks.FirstOrDefault(b => b.Remove == true);
+        if (removed != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' removes block '{removed.Name}' but does not inherit it");
+
         var contents = email.ContentBlocks
             .Select(b => b.Content ?? ResolveNamedBlock(b.Name, email, workflowDefinition)).ToList();
         email.Body = new BilingualString(

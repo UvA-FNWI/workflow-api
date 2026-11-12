@@ -36,6 +36,16 @@ public class EmailContentBlock : INamed
 {
     public string Name { get; set; } = null!;
     public BilingualString? Content { get; set; }
+
+    /// <summary>
+    /// If true, this block will be removed from the inherited email.
+    /// </summary>
+    public bool? Remove { get; set; }
+
+    /// <summary>
+    /// Name of another block to insert this block after.
+    /// </summary>
+    public string? After { get; set; }
 }
 
 public class TemplateParameter : INamed

@@ -191,17 +191,52 @@ public partial class ModelParser
         target.ResolvedTemplateValues ??= source.ResolvedTemplateValues;
 
         if (!Cleared(target, e => e.ContentBlocks))
+            target.ContentBlocks = MergeContentBlocks(target, source);
+    }
+
+    private static EmailContentBlock[] MergeContentBlocks(NamedEmail target, NamedEmail source)
+    {
+        var result = source.ContentBlocks.ToList();
+        foreach (var block in target.ContentBlocks)
         {
-            var result = source.ContentBlocks.ToList();
-            foreach (var block in target.ContentBlocks)
+            var index = result.FindIndex(inherited => inherited.Name == block.Name);
+
+            if (block.Remove == true)
             {
-                var index = result.FindIndex(inherited => inherited.Name == block.Name);
-                if (index < 0) result.Add(block);
-                else result[index] = block;
+                if (index < 0)
+                    throw new Exception(
+                        $"Email '{target.Name}' removes content block '{block.Name}', which does not exist in the source.");
+                result.RemoveAt(index);
+                continue;
             }
 
-            target.ContentBlocks = result.ToArray();
+            if (index >= 0)
+            {
+                // Allows moving an inherited block without repeating its contents
+                block.Content ??= result[index].Content;
+                if (block.After == null)
+                {
+                    result[index] = block;
+                    continue;
+                }
+
+                result.RemoveAt(index);
+            }
+
+            if (block.After == null)
+            {
+                result.Add(block);
+                continue;
+            }
+
+            var afterIndex = result.FindIndex(inherited => inherited.Name == block.After);
+            if (afterIndex < 0)
+                throw new Exception(
+                    $"Email '{target.Name}' places content block '{block.Name}' after '{block.After}', which does not exist");
+            result.Insert(afterIndex + 1, block);
         }
+
+        return result.ToArray();
     }
 
     private void ApplyInheritance(Role target, Role source)
