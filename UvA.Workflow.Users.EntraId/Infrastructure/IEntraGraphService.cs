@@ -13,7 +13,21 @@ public interface IEntraGraphService
     /// nobody, more than one user, or a user without that property.
     /// </summary>
     Task<EntraUserInfo?> GetUserBySamAccountNameAsync(string samAccountName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Broad SAM lookup for access-mail login classification (any user type, no employee-only filter).
+    /// Returns null when Graph is unavailable, nobody matches, or the match is ambiguous.
+    /// </summary>
+    Task<EntraLoginIdentity?> GetLoginIdentityBySamAccountNameAsync(string samAccountName,
+        CancellationToken ct = default);
 }
+
+/// <summary>Directory fields used to choose SurfConext vs eduID in access mails.</summary>
+public record EntraLoginIdentity(
+    bool AccountEnabled,
+    string UserType,
+    string? AccountState,
+    string? PrimaryAffiliation);
 
 public record EntraUserInfo(
     string UserPrincipalName,

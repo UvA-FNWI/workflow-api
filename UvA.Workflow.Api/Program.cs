@@ -64,9 +64,6 @@ var userProvider = Environment.GetEnvironmentVariable("USERPROVIDER") ?? config[
 if (EntraDirectoryKeys.IsSelected(userProvider))
 {
     builder.Services.AddWorkflowEntraIdUsers(builder.Configuration);
-    // Access mails classify a SurfConext uid by its shape. Entra mode does not register
-    // the DataNose directory, but the uid shape is unchanged, so the classifier stays.
-    builder.Services.AddSingleton<ILoginMethodClassifier, DataNoseLoginMethodClassifier>();
 }
 else
     builder.Services.AddWorkflowDataNoseUsers(builder.Configuration);

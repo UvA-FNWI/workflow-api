@@ -233,7 +233,7 @@ public class JobsControllerTests : ControllerTestsBase
         MockEmptyEventLog(instance);
         _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
             .ReturnsAsync(UnitTestsHelpers.AdminUser);
-        _loginMethodClassifierMock.Setup(c => c.Classify(It.IsAny<string>())).Returns("Uva");
+        _loginMethodClassifierMock.Setup(c => c.ClassifyAsync(It.IsAny<string>(), _ct)).ReturnsAsync("Uva");
 
         var effect = new Effect
         {

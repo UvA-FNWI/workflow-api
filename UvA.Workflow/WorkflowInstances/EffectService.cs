@@ -101,9 +101,17 @@ public class EffectService(
             {
                 var email = recipient.Email.Trim() ?? string.Empty;
                 _ = new System.Net.Mail.MailAddress(email);
-                var classifiedLoginMethod = loginMethodClassifiers?
-                    .Select(c => c.Classify(recipient.UserName))
-                    .FirstOrDefault(m => m != null);
+                string? classifiedLoginMethod = null;
+                if (loginMethodClassifiers != null)
+                {
+                    foreach (var classifier in loginMethodClassifiers)
+                    {
+                        classifiedLoginMethod = await classifier.ClassifyAsync(recipient.UserName, ct);
+                        if (classifiedLoginMethod != null)
+                            break;
+                    }
+                }
+
                 var loginMethod = classifiedLoginMethod;
                 var accessRecipient = recipient;
                 string? invitationUrl = null;

@@ -210,6 +210,119 @@ internal class EntraGraphService(
         }
     }
 
+    public async Task<EntraLoginIdentity?> GetLoginIdentityBySamAccountNameAsync(string samAccountName,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(samAccountName))
+            return null;
+
+        var sam = samAccountName.Trim().Replace("'", "''", StringComparison.Ordinal);
+        var filter = Uri.EscapeDataString($"onPremisesSamAccountName eq '{sam}'");
+        var url =
+            $"https://graph.microsoft.com/v1.0/users?$filter={filter}&$select={UserSelect}&$count=true";
+
+        var tasks = tokens.TenantIds
+            .Select(tenantId => GetDocumentAsync(tenantId, url, ct, "login-identity"))
+            .ToArray();
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            foreach (var task in tasks)
+                DisposeWhenDone(task);
+            throw;
+        }
+
+        var docs = tasks.Select(task => task.Result).ToArray();
+        try
+        {
+            if (docs.All(doc => doc == null))
+                return null;
+
+            var matches = new List<EntraLoginIdentity>();
+            var ambiguous = false;
+            foreach (var doc in docs)
+            {
+                if (doc == null)
+                    continue;
+
+                var identities = ReadLoginIdentities(doc)
+                    .Where(identity => identity != null)
+                    .ToArray();
+                var count = ReadCount(doc.RootElement, identities.Length);
+                var hasNextPage = doc.RootElement.TryGetProperty("@odata.nextLink", out _);
+                if (count == 1 && identities.Length == 1 && !hasNextPage)
+                {
+                    matches.Add(identities[0]!);
+                    continue;
+                }
+
+                if (count > 1 || identities.Length > 1 || hasNextPage)
+                    ambiguous = true;
+            }
+
+            if (ambiguous || matches.Count != 1)
+            {
+                if (ambiguous || matches.Count > 1)
+                    logger.LogWarning(
+                        "Entra login identity lookup matched {Count} users for SAM; treating as unknown",
+                        Math.Max(matches.Count, ambiguous ? 2 : 0));
+                return null;
+            }
+
+            return matches[0];
+        }
+        finally
+        {
+            foreach (var doc in docs)
+                doc?.Dispose();
+        }
+    }
+
+    private static EntraLoginIdentity?[] ReadLoginIdentities(JsonDocument doc)
+    {
+        if (!doc.RootElement.TryGetProperty("value", out var valueElement) ||
+            valueElement.ValueKind != JsonValueKind.Array)
+            return [];
+
+        return valueElement.EnumerateArray()
+            .Select(TryReadLoginIdentity)
+            .ToArray();
+    }
+
+    internal static EntraLoginIdentity? TryReadLoginIdentity(JsonElement user)
+    {
+        if (!user.TryGetProperty("onPremisesSamAccountName", out var samElement) ||
+            samElement.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(samElement.GetString()))
+            return null;
+
+        var enabled = user.TryGetProperty("accountEnabled", out var enabledElement) &&
+                      enabledElement.ValueKind == JsonValueKind.True;
+        var userType = user.TryGetProperty("userType", out var userTypeElement) &&
+                       userTypeElement.ValueKind == JsonValueKind.String
+            ? userTypeElement.GetString()!.Trim()
+            : "";
+
+        string? accountState = null;
+        string? affiliation = null;
+        if (user.TryGetProperty("onPremisesExtensionAttributes", out var ext) &&
+            ext.ValueKind == JsonValueKind.Object)
+        {
+            accountState = ReadExtensionAttribute(ext, "extensionAttribute2");
+            affiliation = ReadExtensionAttribute(ext, "extensionAttribute4");
+        }
+
+        return new EntraLoginIdentity(enabled, userType, accountState, affiliation);
+    }
+
+    private static string? ReadExtensionAttribute(JsonElement ext, string name)
+        => ext.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()?.Trim()
+            : null;
+
     private async Task<JsonDocument?> GetDocumentAsync(string tenantId, string url, CancellationToken ct,
         string operation)
     {

@@ -44,6 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEntraGraphService, EntraGraphService>();
         services.AddScoped<IUserDirectory, EntraUserDirectory>();
         services.AddScoped<IUserSearchSource, EntraUserSearchSource>();
+        services.AddScoped<ILoginMethodClassifier, EntraLoginMethodClassifier>();
 
         return services;
     }
