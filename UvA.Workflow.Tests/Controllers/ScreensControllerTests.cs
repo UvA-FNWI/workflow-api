@@ -43,27 +43,39 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData(true, "Paused (01/08)", "Gepauzeerd (01/08)")]
-    [InlineData(false, "Stopped (01/08)", "Gestopt (01/08)")]
+    [InlineData(true, false, "Paused (01/08), 42 EC", "Gepauzeerd (01/08), 42 EC")]
+    [InlineData(true, true, "Paused (01/08), 42 EC", "Gepauzeerd (01/08), 42 EC")]
+    [InlineData(false, false, "Stopped (01/08)", "Gestopt (01/08)")]
     public async Task Screens_GetScreenData_ReturnsDatedStoppedProgress(
-        bool hasStopMessage, string english, string dutch)
+        bool hasStopMessage, bool messageOnBranch, string english, string dutch)
     {
         var definition = _modelService.WorkflowDefinitions["Project"];
-        definition.StopWhen = new Condition
+        var stopCondition = new Condition
         {
             Event = "RejectSubject",
             Message = hasStopMessage
                 ? new BilingualString(
-                    "Paused ({{ dateShort(RejectSubjectEvent) }})",
-                    "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }})")
+                    "Paused ({{ dateShort(RejectSubjectEvent) }}), {{ EC }} EC",
+                    "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }}), {{ EC }} EC")
                 : null
         };
+        definition.StopWhen = messageOnBranch
+            ? new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.Or,
+                    Children = [new Condition { Event = "Start" }, stopCondition]
+                }
+            }
+            : stopCondition;
         var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
         var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
         [
             new Dictionary<string, BsonValue>
             {
                 ["CurrentStep"] = "Start",
+                ["EC"] = 42,
                 ["Events"] = new BsonDocument("RejectSubject", new BsonDocument("Date", rejectedAt))
             },
             new Dictionary<string, BsonValue> { ["CurrentStep"] = "Start" }
@@ -83,6 +95,10 @@ public class ScreensControllerTests : ControllerTestsBase
             },
             row => Assert.Equal("Writing proposal",
                 Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En));
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
+            It.Is<Dictionary<string, string>>(projection =>
+                projection.GetValueOrDefault("EC") == (hasStopMessage ? "$Properties.EC" : null)),
+            It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

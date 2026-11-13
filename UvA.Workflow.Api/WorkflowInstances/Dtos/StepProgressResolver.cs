@@ -63,11 +63,11 @@ public class StepProgressResolver(ModelService modelService)
 
     private static ProgressInformationDto ResolveStoppedProgress(Condition? stopWhen, ObjectContext context)
     {
-        var message = stopWhen?.Message;
-        if (message == null && stopWhen?.Part is Logical { Operator: LogicalOperator.Or } alternatives)
-            message = alternatives.Children.FirstOrDefault(condition => condition.IsMet(context))?.Message;
+        var template = stopWhen?.MessageTemplate;
+        if (template == null && stopWhen?.Part is Logical { Operator: LogicalOperator.Or } logical)
+            template = logical.Children.FirstOrDefault(branch => branch.IsMet(context))?.MessageTemplate;
 
-        if (BilingualTemplate.Create(message) is { } template)
+        if (template != null)
             return new ProgressInformationDto(template.Apply(context), StatusColor.Red);
 
         if (GetStopEventDate(stopWhen, context) is not { } date)

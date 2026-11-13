@@ -144,6 +144,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public IEnumerable<Lookup> ProgressLookups => AllSteps
         .SelectMany(step => step.Progress)
         .SelectMany(progress => progress.Lookups)
+        .Concat(StopWhen?.MessageLookups ?? [])
         .Distinct();
 
     private static IEnumerable<Step> GetWalkSteps(Step s) =>
