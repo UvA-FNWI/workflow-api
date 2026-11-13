@@ -25,7 +25,7 @@ public class PeopleSearchAccess(
 
         // A coordinator or local admin can be assigned through a user property on an instance.
         // The role can also apply to instances that reference the assignment through inheritance.
-        var filter = LinkedUserInstances.BuildFilter(modelService.WorkflowDefinitions.Values, [userId],
+        var filter = LinkedUserInstances.BuildDirectAssignmentFilter(modelService.WorkflowDefinitions.Values, [userId],
             definition => LinkedUserInstances.GetUserProperties(definition).Where(property =>
                 definition.Roles.GetOrDefault(property.Name)?.Actions.Any(action =>
                     action.Type == RoleAction.ViewAdminTools) == true));

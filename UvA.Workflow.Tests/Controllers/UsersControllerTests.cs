@@ -5,6 +5,7 @@ using Moq;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Users;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Organizations;
@@ -25,6 +26,7 @@ public class UsersControllerTests : ControllerTestsBase
     private readonly AnswerService _answerService;
     private readonly ExternalUserEmailUpdateService _externalUserEmailUpdateService;
     private readonly PeopleSearchAccess _peopleSearchAccess;
+    private readonly PeopleSearchService _peopleSearchService;
 
     public UsersControllerTests()
     {
@@ -46,6 +48,8 @@ public class UsersControllerTests : ControllerTestsBase
             _instanceService);
         _peopleSearchAccess = new PeopleSearchAccess(_userServiceMock.Object, _rightsService, _modelService,
             _workflowInstanceRepoMock.Object);
+        _peopleSearchService = new PeopleSearchService(_userRepoMock.Object,
+            new LinkedUserInstances(_workflowInstanceRepoMock.Object, _modelService, _rightsService));
     }
 
     [Theory]
@@ -126,9 +130,7 @@ public class UsersControllerTests : ControllerTestsBase
                     .Build()
             ]);
 
-        var search = new PeopleSearchService(_userRepoMock.Object, _workflowInstanceRepoMock.Object,
-            _modelService, _rightsService);
-        var result = await controller.Search("  example ", search, _peopleSearchAccess, _ct);
+        var result = await controller.Search("  example ", _peopleSearchService, _peopleSearchAccess, _ct);
 
         var response = Assert.IsType<PeopleSearchDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal(PersonDto.Create(visible), Assert.Single(response.People));
@@ -157,9 +159,7 @@ public class UsersControllerTests : ControllerTestsBase
                 It.IsAny<FilterDefinition<WorkflowInstance>>(), _ct))
             .ReturnsAsync([instance]);
 
-        var search = new PeopleSearchService(_userRepoMock.Object, _workflowInstanceRepoMock.Object,
-            _modelService, _rightsService);
-        var result = await controller.Search("example", search, _peopleSearchAccess, _ct);
+        var result = await controller.Search("example", _peopleSearchService, _peopleSearchAccess, _ct);
 
         var response = Assert.IsType<PeopleSearchDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal(visible.Take(50).Select(PersonDto.Create), response.People);
@@ -192,9 +192,7 @@ public class UsersControllerTests : ControllerTestsBase
             .Returns(new[] { person }.ToAsyncEnumerable());
 
         var me = await controller.GetLoggedInUser(_peopleSearchAccess, _ct);
-        var search = new PeopleSearchService(_userRepoMock.Object, _workflowInstanceRepoMock.Object,
-            _modelService, _rightsService);
-        var result = await controller.Search("supervisor", search, _peopleSearchAccess, _ct);
+        var result = await controller.Search("supervisor", _peopleSearchService, _peopleSearchAccess, _ct);
 
         Assert.True(Assert.IsType<UserDto>(Assert.IsType<OkObjectResult>(me.Result).Value).CanSearchPeople);
         var response = Assert.IsType<PeopleSearchDto>(Assert.IsType<OkObjectResult>(result.Result).Value);

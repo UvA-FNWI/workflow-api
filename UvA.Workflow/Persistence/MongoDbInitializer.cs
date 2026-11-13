@@ -17,24 +17,21 @@ public class MongoDbInitializer(IMongoDatabase database)
         var users = database.GetCollection<User>("users");
         var filter = Builders<User>.Filter;
         var update = Builders<User>.Update;
-        using var cursor = await users.Find(FilterDefinition<User>.Empty, new FindOptions { BatchSize = 500 })
+        var missingTerms = filter.Eq(user => user.SearchTerms, null);
+        using var cursor = await users.Find(missingTerms, new FindOptions { BatchSize = 500 })
             .SortBy(user => user.Id).ToCursorAsync(ct);
         while (await cursor.MoveNextAsync(ct))
         {
             var updates = new List<WriteModel<User>>();
             foreach (var user in cursor.Current)
             {
-                var terms = UserSearchTerms.Create(user);
-                if (user.SearchTerms?.SequenceEqual(terms) == true)
-                    continue;
-
-                // Only write derived terms while the user fields still match the version we read.
+                // Recheck that the terms are missing and the source fields have not changed.
                 updates.Add(new UpdateOneModel<User>(
-                    filter.Eq(candidate => candidate.Id, user.Id) &
+                    missingTerms & filter.Eq(candidate => candidate.Id, user.Id) &
                     filter.Eq(candidate => candidate.DisplayName, user.DisplayName) &
                     filter.Eq(candidate => candidate.UserName, user.UserName) &
                     filter.Eq(candidate => candidate.Email, user.Email),
-                    update.Set(candidate => candidate.SearchTerms, terms)));
+                    update.Set(candidate => candidate.SearchTerms, UserSearchTerms.Create(user))));
             }
 
             if (updates.Count > 0)

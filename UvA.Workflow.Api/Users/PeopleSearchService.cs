@@ -5,9 +5,7 @@ namespace UvA.Workflow.Api.Users;
 
 public class PeopleSearchService(
     IUserRepository userRepository,
-    IWorkflowInstanceRepository workflowInstanceRepository,
-    ModelService modelService,
-    RightsService rightsService)
+    LinkedUserInstances linkedUserInstances)
 {
     private const int ResultLimit = 50;
 
@@ -35,27 +33,12 @@ public class PeopleSearchService(
             if (ObjectId.TryParse(user.Id, out var id))
                 candidates.Add((user, id));
 
-        var definitions = modelService.WorkflowDefinitions;
-        var remainingIds = candidates.Select(candidate => candidate.Id).ToHashSet();
-        var filter = LinkedUserInstances.BuildFilter(definitions.Values, remainingIds);
-        if (filter == null)
-            return [];
-
-        foreach (var instance in await workflowInstanceRepository.GetByFilter(filter, ct))
-        {
-            ct.ThrowIfCancellationRequested();
-            var linkedIds = LinkedUserInstances.GetUserIds(instance, definitions[instance.WorkflowDefinition])
-                .Where(remainingIds.Contains).ToArray();
-            if (linkedIds.Length == 0 || !await rightsService.Can(instance, RoleAction.View))
-                continue;
-
-            remainingIds.ExceptWith(linkedIds);
-            if (remainingIds.Count == 0)
-                break;
-        }
+        var matches = await linkedUserInstances.FindVisibleLinks(
+            candidates.Select(candidate => candidate.Id).ToArray(), ct, stopWhenAllUsersFound: true);
+        var visibleIds = matches.SelectMany(match => match.Users).Select(link => link.Id).ToHashSet();
 
         return candidates
-            .Where(candidate => !remainingIds.Contains(candidate.Id))
+            .Where(candidate => visibleIds.Contains(candidate.Id))
             .Select(candidate => PersonDto.Create(candidate.User));
     }
 }
