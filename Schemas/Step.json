@@ -751,7 +751,8 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
-        "ViewCorrespondence"
+        "ViewCorrespondence",
+        "ViewHistory"
       ]
     },
     "Effect": {
@@ -1205,6 +1206,20 @@
         "name": {
           "type": "string",
           "description": "Name of the event"
+        },
+        "label": {
+          "description": "Localized label describing the event",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         },
         "suppresses": {
           "type": [

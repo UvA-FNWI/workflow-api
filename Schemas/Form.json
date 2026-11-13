@@ -71,6 +71,10 @@
         "$ref": "#/definitions/Effect"
       }
     },
+    "repeatable": {
+      "type": "boolean",
+      "description": "Allows the form to be submitted again."
+    },
     "emitFormSubmitEvent": {
       "type": "boolean",
       "description": "Whether submitting the form should emit the form-name event."
