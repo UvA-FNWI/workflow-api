@@ -8,7 +8,11 @@ public interface IEntraGraphService
 {
     Task<IReadOnlyList<EntraUserInfo>> SearchUsersAsync(string query, CancellationToken ct = default);
 
-    Task<EntraUserInfo?> GetUserByUpnAsync(string upn, CancellationToken ct = default);
+    /// <summary>
+    /// Exact lookup on <c>onPremisesSamAccountName</c>. Returns null when Graph returns
+    /// nobody, more than one user, or a user without that property.
+    /// </summary>
+    Task<EntraUserInfo?> GetUserBySamAccountNameAsync(string samAccountName, CancellationToken ct = default);
 }
 
 public record EntraUserInfo(
@@ -16,4 +20,4 @@ public record EntraUserInfo(
     string DisplayName,
     string Mail,
     string? SamAccountName = null,
-    string? MailNickname = null);
+    string? Organization = null);

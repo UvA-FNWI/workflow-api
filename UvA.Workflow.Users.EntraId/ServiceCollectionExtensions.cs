@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Http.Resilience;
-using Microsoft.Identity.Client;
 using UvA.Workflow.Users.EntraId.Infrastructure;
 
 namespace UvA.Workflow.Users.EntraId;
 
 public static class ServiceCollectionExtensions
 {
+    public const string HttpClientName = "EntraGraph";
+
     /// <summary>
     /// Registers an app-only Graph client, an <see cref="IUserDirectory"/>, and an
     /// <see cref="IUserSearchSource"/> for the people picker. Incoming user tokens stay on
@@ -13,36 +14,33 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddWorkflowEntraIdUsers(this IServiceCollection services, IConfiguration config)
     {
-        services.Configure<EntraGraphOptions>(config.GetSection(EntraGraphOptions.Section));
-        services.AddSingleton(sp =>
-        {
-            var options = sp.GetRequiredService<IOptions<EntraGraphOptions>>().Value;
-            options.Validate();
-            return options;
-        });
+        var section = config.GetSection(EntraGraphOptions.Section);
+        var bound = section.Get<EntraGraphOptions>() ?? new EntraGraphOptions();
+        bound.BindTenants(section);
+        bound.Validate();
 
-        services.AddHttpClient("EntraGraph", (provider, client) =>
+        services.AddOptions<EntraGraphOptions>()
+            .Bind(section)
+            .PostConfigure(options => options.BindTenants(section))
+            .ValidateOnStart();
+        services.Configure<SystemAdminBootstrapOptions>(config.GetSection(SystemAdminBootstrapOptions.Section));
+        services.AddSingleton<IValidateOptions<EntraGraphOptions>, EntraGraphOptionsValidator>();
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<EntraGraphOptions>>().Value);
+
+        services.AddHttpClient(HttpClientName, client =>
             {
-                var graphOptions = provider.GetRequiredService<EntraGraphOptions>();
-                client.Timeout = TimeSpan.FromSeconds(graphOptions.RequestTimeoutSeconds);
+                // The resilience handler owns the deadlines. A finite HttpClient.Timeout
+                // would cancel the call before retries finish.
+                client.Timeout = Timeout.InfiniteTimeSpan;
             })
             .AddStandardResilienceHandler(resilience =>
             {
                 resilience.Retry.MaxRetryAttempts = 2;
-                resilience.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
-                resilience.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
+                resilience.AttemptTimeout.Timeout = TimeSpan.FromSeconds(EntraGraphOptions.AttemptTimeoutSeconds);
+                resilience.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(bound.RequestTimeoutSeconds);
             });
 
-        services.AddSingleton<IConfidentialClientApplication>(provider =>
-        {
-            var options = provider.GetRequiredService<EntraGraphOptions>();
-            return ConfidentialClientApplicationBuilder
-                .Create(options.ClientId)
-                .WithClientSecret(options.ClientSecret)
-                .WithAuthority(options.Authority)
-                .Build();
-        });
-
+        services.AddSingleton<IEntraAccessTokenSource, MsalEntraAccessTokenSource>();
         services.AddSingleton<IEntraGraphService, EntraGraphService>();
         services.AddScoped<IUserDirectory, EntraUserDirectory>();
         services.AddScoped<IUserSearchSource, EntraUserSearchSource>();

@@ -1,25 +1,26 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Microsoft.Identity.Client;
 
 namespace UvA.Workflow.Users.EntraId.Infrastructure;
 
 internal class EntraGraphService(
-    IConfidentialClientApplication confidentialClientApplication,
+    IEntraAccessTokenSource tokens,
     IHttpClientFactory httpClientFactory,
-    IMemoryCache cache,
     ILogger<EntraGraphService> logger) : IEntraGraphService
 {
-    private static readonly string[] AppOnlyScopes = ["https://graph.microsoft.com/.default"];
-    private static readonly TimeSpan TokenRefreshBuffer = TimeSpan.FromMinutes(5);
-
     private const string UserSelect =
-        "displayName,userPrincipalName,mail,onPremisesSamAccountName,mailNickname";
+        "displayName,userPrincipalName,mail,accountEnabled,userType,onPremisesSamAccountName,onPremisesExtensionAttributes";
 
-    private const string TokenCacheKey = "entra:token:app-only";
+    public const int MaxResults = 10;
 
-    private readonly SemaphoreSlim _tokenLock = new(1, 1);
-    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("EntraGraph");
+    /// <summary>
+    /// Medewerkers only: a Member, the account is enabled, extensionAttribute2 is "valid", and
+    /// extensionAttribute4 (eduPersonPrimaryAffiliation) is "employee". Guests are Members of
+    /// the other tenant and also carry extensionAttribute4 "employee", so userType is what
+    /// keeps them out. Their UPN contains "#EXT#", which Graph will not filter on.
+    /// </summary>
+    public const string EligibleUserFilter =
+        "accountEnabled eq true and userType eq 'Member' and onPremisesExtensionAttributes/extensionAttribute2 eq 'valid' and onPremisesExtensionAttributes/extensionAttribute4 eq 'employee'";
 
     public async Task<IReadOnlyList<EntraUserInfo>> SearchUsersAsync(string query, CancellationToken ct = default)
     {
@@ -30,100 +31,285 @@ internal class EntraGraphService(
         if (term.Length < 2)
             return [];
 
-        var token = await GetAccessTokenAsync(ct);
         var search = Uri.EscapeDataString(
             $"\"displayName:{term}\" OR \"mail:{term}\" OR \"userPrincipalName:{term}\"");
+        var eligible = Uri.EscapeDataString(EligibleUserFilter);
+        var searchUrl =
+            $"https://graph.microsoft.com/v1.0/users?$search={search}&$filter={eligible}&$select={UserSelect}&$count=true&$top={MaxResults}";
+
+        // A SAM prefix search is a second query per tenant. Names (anything with a space) and
+        // very short terms stay on the name search only, so typing a name does not scan account names.
+        string? samUrl = null;
+        if (term.Length >= 4 && !term.Any(char.IsWhiteSpace))
+        {
+            var sam = term.Replace("'", "''", StringComparison.Ordinal);
+            var samFilter = Uri.EscapeDataString(
+                $"startsWith(onPremisesSamAccountName,'{sam}') and {EligibleUserFilter}");
+            samUrl =
+                $"https://graph.microsoft.com/v1.0/users?$filter={samFilter}&$select={UserSelect}&$count=true&$top={MaxResults}";
+        }
+
+        var tasks = new List<Task<JsonDocument?>>();
+        foreach (var tenantId in tokens.TenantIds)
+        {
+            tasks.Add(GetDocumentAsync(tenantId, searchUrl, ct, "search"));
+            if (samUrl != null)
+                tasks.Add(GetDocumentAsync(tenantId, samUrl, ct, "sam-search"));
+        }
+
+        return await MergeQueries(tasks);
+    }
+
+    /// <summary>
+    /// After a cancellation the other query may still be running; its document is disposed
+    /// once it completes.
+    /// </summary>
+    internal static void DisposeWhenDone(Task<JsonDocument?> task)
+    {
+        if (task.IsCompleted)
+        {
+            if (task.IsCompletedSuccessfully)
+                task.Result?.Dispose();
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static t => t.Result?.Dispose(),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private async Task<IReadOnlyList<EntraUserInfo>> MergeQueries(IReadOnlyList<Task<JsonDocument?>> tasks)
+    {
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            foreach (var task in tasks)
+                DisposeWhenDone(task);
+            throw;
+        }
+
+        var docs = new List<JsonDocument?>();
+        try
+        {
+            foreach (var task in tasks)
+                docs.Add(await task);
+            if (docs.All(doc => doc == null))
+                throw new DirectoryUnavailableException();
+
+            return Merge(docs);
+        }
+        finally
+        {
+            foreach (var doc in docs)
+                doc?.Dispose();
+        }
+    }
+
+    private static EntraUserInfo[] Merge(IEnumerable<JsonDocument?> docs)
+    {
+        var merged = new List<EntraUserInfo>();
+        var indexByUpn = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var doc in docs)
+            Add(doc);
+        return merged.ToArray();
+
+        void Add(JsonDocument? doc)
+        {
+            if (doc == null)
+                return;
+
+            foreach (var user in ReadUsers(doc, eligibleOnly: true))
+            {
+                if (!indexByUpn.TryGetValue(user.UserPrincipalName, out var index))
+                {
+                    indexByUpn[user.UserPrincipalName] = merged.Count;
+                    merged.Add(user);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(merged[index].SamAccountName) &&
+                    !string.IsNullOrWhiteSpace(user.SamAccountName))
+                    merged[index] = user;
+            }
+        }
+    }
+
+    public async Task<EntraUserInfo?> GetUserBySamAccountNameAsync(string samAccountName,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(samAccountName))
+            return null;
+
+        var sam = samAccountName.Trim().Replace("'", "''", StringComparison.Ordinal);
+        var filter = Uri.EscapeDataString($"onPremisesSamAccountName eq '{sam}' and userType eq 'Member'");
         var url =
-            $"https://graph.microsoft.com/v1.0/users?$search={search}&$select={UserSelect}&$count=true&$top=25";
+            $"https://graph.microsoft.com/v1.0/users?$filter={filter}&$select={UserSelect}&$count=true";
+
+        var tasks = tokens.TenantIds
+            .Select(tenantId => GetDocumentAsync(tenantId, url, ct, "sam-lookup"))
+            .ToArray();
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            foreach (var task in tasks)
+                DisposeWhenDone(task);
+            throw;
+        }
+
+        var docs = tasks.Select(task => task.Result).ToArray();
+        try
+        {
+            if (docs.All(doc => doc == null))
+                throw new DirectoryUnavailableException();
+
+            var matches = new List<EntraUserInfo>();
+            var ambiguous = false;
+            foreach (var doc in docs)
+            {
+                if (doc == null)
+                    continue;
+
+                var users = ReadUsers(doc, membersOnly: true)
+                    .Where(user => user.SamAccountName != null)
+                    .ToArray();
+                var count = ReadCount(doc.RootElement, users.Length);
+                var hasNextPage = doc.RootElement.TryGetProperty("@odata.nextLink", out _);
+                if (count == 1 && users.Length == 1 && !hasNextPage)
+                {
+                    matches.Add(users[0]);
+                    continue;
+                }
+
+                if (count > 1 || users.Length > 1 || hasNextPage)
+                    ambiguous = true;
+            }
+
+            if (ambiguous || matches.Count != 1)
+            {
+                if (ambiguous || matches.Count > 1)
+                    logger.LogWarning(
+                        "Entra SAM lookup matched {Count} users; returning none",
+                        Math.Max(matches.Count, ambiguous ? 2 : 0));
+                return null;
+            }
+
+            return matches[0];
+        }
+        finally
+        {
+            foreach (var doc in docs)
+                doc?.Dispose();
+        }
+    }
+
+    private async Task<JsonDocument?> GetDocumentAsync(string tenantId, string url, CancellationToken ct,
+        string operation)
+    {
+        string token;
+        try
+        {
+            token = await tokens.GetAccessTokenAsync(tenantId, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Entra Graph token request failed during {Operation}", operation);
+            return null;
+        }
 
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            request.Headers.Add("ConsistencyLevel", "eventual");
+            request.Headers.TryAddWithoutValidation("ConsistencyLevel", "eventual");
 
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            var httpClient = httpClientFactory.CreateClient(ServiceCollectionExtensions.HttpClientName);
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
             if (!response.IsSuccessStatusCode)
             {
-                var errorContent = await response.Content.ReadAsStringAsync(ct);
-                logger.LogWarning("Failed to search Entra users - HTTP {Status} - {Error}",
-                    response.StatusCode, errorContent);
-                return [];
+                var requestId = response.Headers.TryGetValues("request-id", out var values)
+                    ? string.Join(",", values)
+                    : "none";
+                var status = (int)response.StatusCode;
+                // 4xx other than 408/429 means Graph rejected the query or the permission, not an outage.
+                var rejected = status is >= 400 and < 500 and not 408 and not 429;
+                logger.Log(rejected ? LogLevel.Error : LogLevel.Warning,
+                    "Entra Graph {Operation} failed with HTTP {Status}. Request id {RequestId}",
+                    operation, status, requestId);
+                return null;
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-            if (!doc.RootElement.TryGetProperty("value", out var valueElement))
-                return [];
-
-            return valueElement.EnumerateArray()
-                .Select(TryReadUser)
-                .OfType<EntraUserInfo>()
-                .ToArray();
+            return await JsonDocument.ParseAsync(stream, cancellationToken: ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Exception while searching Entra users for '{Query}'", term);
+            logger.LogError(ex, "Entra Graph {Operation} failed", operation);
+            return null;
+        }
+    }
+
+    private static EntraUserInfo[] ReadUsers(JsonDocument doc, bool eligibleOnly = false, bool membersOnly = false)
+    {
+        if (!doc.RootElement.TryGetProperty("value", out var valueElement) ||
+            valueElement.ValueKind != JsonValueKind.Array)
             return [];
-        }
+
+        return valueElement.EnumerateArray()
+            .Select(user => TryReadUser(user, eligibleOnly, membersOnly))
+            .OfType<EntraUserInfo>()
+            .ToArray();
     }
 
-    public async Task<EntraUserInfo?> GetUserByUpnAsync(string upn, CancellationToken ct = default)
+    private static int ReadCount(JsonElement root, int fallback)
     {
-        if (string.IsNullOrWhiteSpace(upn))
-            return null;
-
-        var token = await GetAccessTokenAsync(ct);
-        var escapedUpn = upn.Replace("'", "''", StringComparison.Ordinal);
-        var filter = Uri.EscapeDataString($"userPrincipalName eq '{escapedUpn}'");
-        var url = $"https://graph.microsoft.com/v1.0/users?$filter={filter}&$select={UserSelect}";
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(ct);
-            logger.LogWarning("Failed to read Entra user '{Upn}' - HTTP {Status} - {Error}",
-                upn, response.StatusCode, errorContent);
-            return null;
-        }
-
-        await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-        if (!doc.RootElement.TryGetProperty("value", out var valueElement))
-            return null;
-
-        return valueElement.EnumerateArray().Select(TryReadUser).OfType<EntraUserInfo>().FirstOrDefault();
+        if (!root.TryGetProperty("@odata.count", out var countElement))
+            return fallback;
+        if (countElement.TryGetInt32(out var count))
+            return count;
+        if (countElement.TryGetInt64(out var longCount) && longCount <= int.MaxValue)
+            return (int)longCount;
+        return fallback;
     }
 
-    private async Task<string> GetAccessTokenAsync(CancellationToken ct)
+    private static bool IsEligible(JsonElement user)
     {
-        if (cache.TryGetValue<(string Token, DateTimeOffset ExpiresOn)>(TokenCacheKey, out var cached)
-            && cached.ExpiresOn > DateTimeOffset.UtcNow.Add(TokenRefreshBuffer))
-            return cached.Token;
+        if (!user.TryGetProperty("accountEnabled", out var enabled) || enabled.ValueKind != JsonValueKind.True)
+            return false;
+        if (!IsMember(user))
+            return false;
+        if (!user.TryGetProperty("onPremisesExtensionAttributes", out var ext) ||
+            ext.ValueKind != JsonValueKind.Object)
+            return false;
 
-        await _tokenLock.WaitAsync(ct);
-        try
-        {
-            if (cache.TryGetValue<(string Token, DateTimeOffset ExpiresOn)>(TokenCacheKey, out cached)
-                && cached.ExpiresOn > DateTimeOffset.UtcNow.Add(TokenRefreshBuffer))
-                return cached.Token;
-
-            var result = await confidentialClientApplication.AcquireTokenForClient(AppOnlyScopes).ExecuteAsync(ct);
-            cache.Set(TokenCacheKey, (result.AccessToken, result.ExpiresOn),
-                result.ExpiresOn - DateTimeOffset.UtcNow - TimeSpan.FromMinutes(1));
-            return result.AccessToken;
-        }
-        finally
-        {
-            _tokenLock.Release();
-        }
+        return AttributeEquals(ext, "extensionAttribute2", "valid")
+               && AttributeEquals(ext, "extensionAttribute4", "employee");
     }
 
-    private static EntraUserInfo? TryReadUser(JsonElement user)
+    private static bool IsMember(JsonElement user)
+        => user.TryGetProperty("userType", out var userType)
+           && userType.ValueKind == JsonValueKind.String
+           && string.Equals(userType.GetString()?.Trim(), "Member", StringComparison.OrdinalIgnoreCase);
+
+    private static bool AttributeEquals(JsonElement ext, string name, string expected)
+        => ext.TryGetProperty(name, out var value)
+           && value.ValueKind == JsonValueKind.String
+           && string.Equals(value.GetString()?.Trim(), expected, StringComparison.OrdinalIgnoreCase);
+
+    private static EntraUserInfo? TryReadUser(JsonElement user, bool eligibleOnly = false, bool membersOnly = false)
     {
+        if (eligibleOnly && !IsEligible(user))
+            return null;
+        if (membersOnly && !IsMember(user))
+            return null;
+
         var upn = user.TryGetProperty("userPrincipalName", out var upnElement) ? upnElement.GetString() : null;
         var displayName = user.TryGetProperty("displayName", out var displayNameElement)
             ? displayNameElement.GetString()
@@ -133,15 +319,39 @@ internal class EntraGraphService(
 
         var mail = user.TryGetProperty("mail", out var mailElement) ? mailElement.GetString() : null;
         var sam = user.TryGetProperty("onPremisesSamAccountName", out var samElement) ? samElement.GetString() : null;
-        var nickname = user.TryGetProperty("mailNickname", out var nicknameElement)
-            ? nicknameElement.GetString()
-            : null;
 
         return new EntraUserInfo(
             upn,
             displayName,
             string.IsNullOrWhiteSpace(mail) ? upn : mail,
-            string.IsNullOrWhiteSpace(sam) ? null : sam,
-            string.IsNullOrWhiteSpace(nickname) ? null : nickname);
+            string.IsNullOrWhiteSpace(sam) ? null : sam.Trim(),
+            ReadOrganization(user));
+    }
+
+    /// <summary>
+    /// Institute and department come from extensionAttribute5, 6 and 7. Values are stored
+    /// wrapped in semicolons (for example <c>;FNWI;</c>), so those are removed. The result is
+    /// "institute | department | sub-department", using only the attributes that have a value.
+    /// </summary>
+    internal static string? ReadOrganization(JsonElement user)
+    {
+        if (!user.TryGetProperty("onPremisesExtensionAttributes", out var ext) ||
+            ext.ValueKind != JsonValueKind.Object)
+            return null;
+
+        var parts = new List<string>();
+        foreach (var name in new[] { "extensionAttribute5", "extensionAttribute6", "extensionAttribute7" })
+        {
+            if (!ext.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
+                continue;
+
+            var cleaned = string.Join(", ", (value.GetString() ?? string.Empty)
+                .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+            if (cleaned.Length > 0)
+                parts.Add(cleaned);
+        }
+
+        return parts.Count == 0 ? null : string.Join(" | ", parts);
     }
 }
