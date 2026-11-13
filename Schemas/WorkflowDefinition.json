@@ -626,7 +626,7 @@
             },
             {
               "description": "Send an email",
-              "$ref": "#/definitions/SendMessage"
+              "$ref": "#/definitions/Email"
             }
           ]
         },
@@ -637,7 +637,7 @@
             },
             {
               "description": "Prepare login access and send one personalized email per recipient",
-              "$ref": "#/definitions/SendMessage"
+              "$ref": "#/definitions/Email"
             }
           ]
         },
@@ -737,8 +737,8 @@
         }
       }
     },
-    "SendMessage": {
-      "title": "SendMessage",
+    "Email": {
+      "title": "Email",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -819,7 +819,13 @@
             }
           ]
         },
-        "template": {
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EmailContentBlock"
+          }
+        },
+        "email": {
           "type": [
             "null",
             "string"
@@ -848,6 +854,46 @@
           "items": {
             "$ref": "#/definitions/Attachment"
           }
+        }
+      }
+    },
+    "EmailContentBlock": {
+      "title": "EmailContentBlock",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "content": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "remove": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If true, this block will be removed from the inherited email."
+        },
+        "after": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Name of another block to insert this block after."
         }
       }
     },

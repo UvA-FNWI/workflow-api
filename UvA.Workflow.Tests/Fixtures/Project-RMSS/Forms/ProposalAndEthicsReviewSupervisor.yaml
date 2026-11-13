@@ -47,7 +47,7 @@ onSubmit:
               property: SupervisorProposalAndEthicsReview.EthicsSufficient
               equal: =Pass
     sendMail:
-      template: ProposalApprovedStudent
+      email: ProposalApprovedStudent
       to: Student
     
     # If both assessments are done and either one has a rejection, create the ProposalReturnedForRevision event.
@@ -72,7 +72,7 @@ onSubmit:
                     equal: =Fail
     event: ProposalReturnedForRevision
     sendMail:
-      template: ProposalRejectedStudent
+      email: ProposalRejectedStudent
       to: Student
 
   # Rejection mail to Coordinator
@@ -96,5 +96,5 @@ onSubmit:
                     property: SupervisorProposalAndEthicsReview.EthicsSufficient
                     equal: =Fail
     sendMail:
-      template: ProposalRejectedCoordinator
+      email: ProposalRejectedCoordinator
       to: Course.Coordinator

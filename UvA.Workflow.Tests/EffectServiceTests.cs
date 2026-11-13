@@ -118,7 +118,7 @@ public class EffectServiceTests : ControllerTestsBase
             InstanceId = instance.Id,
             Input = new JobInput(new MailMessage("Test", "Test"))
         };
-        var effect = new Effect { SendMail = new SendMessage { SendAutomatically = true } };
+        var effect = new Effect { SendMail = new Email { SendAutomatically = true } };
         var context = _modelService.CreateContext(instance);
 
         // Pass AdminUser — exactly what the fixed call sites now supply.

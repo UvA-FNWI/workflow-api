@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Core;
@@ -24,14 +25,27 @@ public partial class ModelParser
     /// </summary>
     /// <returns></returns>
     private Dictionary<string, TTemplate> ReadTemplates<TTemplate>(
-        IEnumerable<TTemplate> commonTemplates, string definitionFolder)
-        where TTemplate : ITemplate
+        IEnumerable<TTemplate> commonTemplates, WorkflowDefinition definition) where TTemplate : ITemplate
     {
         var templatesByName = commonTemplates.ToDictionary(template => template.Name);
-        foreach (var template in Read<TTemplate>(definitionFolder))
+        foreach (var ancestor in GetInheritanceChain(definition))
+        foreach (var template in Read<TTemplate>(ancestor.SourceFolder))
             templatesByName[template.Name] = template;
 
         return templatesByName;
+    }
+
+    /// <summary>
+    /// Resolves the templates for a definition and its ancestors. Root ancestor first, the definition itself last.
+    /// </summary>
+    /// <param name="definition"></param>
+    /// <returns></returns>
+    private List<WorkflowDefinition> GetInheritanceChain(WorkflowDefinition definition)
+    {
+        var chain = new List<WorkflowDefinition> { definition };
+        for (var current = definition; current.InheritsFrom != null;)
+            chain.Insert(0, current = WorkflowDefinitions[current.InheritsFrom]);
+        return chain;
     }
 
     /// <summary>
@@ -140,6 +154,37 @@ public partial class ModelParser
         return forms;
     }
 
+    private List<NamedEmail> ResolveEmailTemplates(List<NamedEmail> emails,
+        Dictionary<string, EmailTemplate> emailTemplatesByName, string definitionName)
+    {
+        var duplicateNames = emails.GroupBy(e => e.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateNames.Count > 0)
+            throw new Exception(
+                $"Definition '{definitionName}' declares duplicate email(s): {string.Join(", ", duplicateNames)}");
+
+        foreach (var email in emails)
+            ValidateUniqueBlockNames(email.ContentBlocks, $"Email '{email.Name}' in '{definitionName}'");
+
+        foreach (var email in emails.Where(e => !string.IsNullOrWhiteSpace(e.TemplateKey)))
+        {
+            var template = GetTemplate(email, emailTemplatesByName, definitionName);
+            var resolved = Instantiate(template, email, null, out var substituted);
+            ValidateUniqueBlockNames(resolved.ContentBlocks, $"Email template '{template.Name}'");
+
+            ApplyInheritance(email, resolved);
+            email.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+        }
+
+        return emails;
+    }
+
+    private static void ValidateUniqueBlockNames(EmailContentBlock[] blocks, string owner)
+    {
+        var duplicateNames = blocks.GroupBy(b => b.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateNames.Count > 0)
+            throw new Exception($"{owner} declares duplicate content block(s): {string.Join(", ", duplicateNames)}");
+    }
+
     /// <summary>
     /// Instantiates a template for a consuming step or form: resolves the parameter values, substitutes them
     /// into the template's source YAML and deserializes the result. The caller is responsible for merging
@@ -238,8 +283,9 @@ public partial class ModelParser
         {
             if (value is BilingualString localized)
             {
-                replacements[$"{name}.en"] = localized.En;
+                replacements[$"{name}.en"] = localized.ForLanguage("en");
                 replacements[$"{name}.nl"] = localized.ForLanguage("nl");
+                replacements[name] = localized;
             }
             else
                 replacements[name] = value;
@@ -247,6 +293,11 @@ public partial class ModelParser
 
         var yaml = new YamlStream();
         yaml.Load(new StringReader(rawYaml));
+        var languageByNode = yaml.Documents[0].AllNodes.OfType<YamlMappingNode>()
+            .SelectMany(m => m.Children)
+            .Where(c => c.Key is YamlScalarNode { Value: "en" or "nl" })
+            .ToDictionary(c => c.Value, c => ((YamlScalarNode)c.Key).Value!,
+                (IEqualityComparer<YamlNode>)ReferenceEqualityComparer.Instance);
         foreach (var scalar in yaml.Documents[0].AllNodes.OfType<YamlScalarNode>())
         {
             if (scalar.Value is null || !TokenPattern().IsMatch(scalar.Value))
@@ -257,6 +308,12 @@ public partial class ModelParser
                 var name = match.Groups[1].Value;
                 if (!replacements.TryGetValue(name, out var value))
                     throw new ArgumentException($"Missing template value '{name}' for template '{templateName}'");
+                if (value is BilingualString bilingual)
+                    return languageByNode.TryGetValue(scalar, out var language)
+                        ? bilingual.ForLanguage(language)
+                        : throw new ArgumentException(
+                            $"Template '{templateName}' uses bilingual value '${{{name}}}' outside an 'en'/'nl' key; " +
+                            $"use '${{{name}.en}}' or '${{{name}.nl}}'");
                 return value?.ToString() ?? "";
             });
             scalar.Style = ScalarStyle.DoubleQuoted;

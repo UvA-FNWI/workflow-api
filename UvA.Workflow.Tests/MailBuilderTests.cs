@@ -39,7 +39,7 @@ public class MailBuilderTests
             layout, resolver);
     }
 
-    private MailMessage Build(MailBuilder builder, WorkflowInstance instance, SendMessage sendMail)
+    private MailMessage Build(MailBuilder builder, WorkflowInstance instance, Email sendMail)
         => builder.Build(instance, sendMail, _modelService, _modelService.CreateContext(instance));
 
     [Theory]
@@ -53,7 +53,7 @@ public class MailBuilderTests
             .Build();
         var context = _modelService.CreateContext(instance);
         context.Values["InvitationUrl"] = invitationUrl;
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Buttons =
@@ -81,7 +81,7 @@ public class MailBuilderTests
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Title", b => b.Value("My Thesis")))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("Thesis: {{ Title }}", ""),
@@ -100,7 +100,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
@@ -120,7 +120,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
@@ -141,7 +141,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "fixed@uva.nl",
             Subject = new BilingualString("Subject", ""),
@@ -169,7 +169,7 @@ public class MailBuilderTests
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Supervisor", _ => userDoc))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "Supervisor",
             Subject = new BilingualString("Subject", ""),
@@ -201,7 +201,7 @@ public class MailBuilderTests
                 ("Supervisor", _ => userDoc),
                 ("Title", b => b.Value("Mijn scriptie")))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "Supervisor",
             Subject = new BilingualString("Thesis: {{ Title }}", "Scriptie: {{ Title }}"),
@@ -241,7 +241,7 @@ public class MailBuilderTests
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Supervisor", _ => userDoc))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "Supervisor",
             Subject = new BilingualString("English subject", ""),
@@ -260,7 +260,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
@@ -290,7 +290,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
@@ -310,7 +310,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("Link: {{ FrontendBaseUrl }}", ""),
@@ -340,9 +340,9 @@ public class MailBuilderTests
             .WithProperties(("Supervisor", _ => supervisorDoc))
             .Build();
 
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
-            TemplateKey = "SubjectSubmitted",
+            EmailKey = "SubjectSubmitted",
             To = "Supervisor"
         };
 
@@ -372,9 +372,9 @@ public class MailBuilderTests
             .WithProperties(("Title", b => b.Value("Custom Title")))
             .Build();
 
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
-            TemplateKey = "SubjectSubmitted",
+            EmailKey = "SubjectSubmitted",
             To = "override@uva.nl",
             Subject = new BilingualString("Overridden: {{ Title }}", ""),
             Body = new BilingualString("**custom body**", ""),
@@ -414,9 +414,9 @@ public class MailBuilderTests
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
 
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
-            TemplateKey = "DoesNotExist"
+            EmailKey = "DoesNotExist"
         };
 
         var ex = Assert.Throws<InvalidOperationException>(() => Build(builder, instance, sendMail));
@@ -434,9 +434,9 @@ public class MailBuilderTests
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
 
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
-            TemplateKey = "FinalVersionSubmitted",
+            EmailKey = "FinalVersionSubmitted",
             To = "test_address@invalid.invalid"
         };
 
@@ -466,9 +466,9 @@ public class MailBuilderTests
             .WithProperties(("SecondAssessor", _ => reviewerDoc))
             .Build();
 
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
-            TemplateKey = "AssessmentRequestAssessor",
+            EmailKey = "AssessmentRequestAssessor",
             To = "SecondAssessor"
         };
 
@@ -486,7 +486,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("My Subject", ""),
@@ -524,7 +524,7 @@ public class MailBuilderTests
                 UserDoc("Bob", "bob@uva.nl", "nl")
             }))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "Coordinator",
             Subject = new BilingualString("English subject", "Nederlands onderwerp"),
@@ -548,7 +548,7 @@ public class MailBuilderTests
                 UserDoc("Bob", "bob@uva.nl", "en")
             }))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "Coordinator",
             Subject = new BilingualString("English subject", "Nederlands onderwerp"),
@@ -572,7 +572,7 @@ public class MailBuilderTests
                 UserDoc("Bob", "bob@uva.nl")
             }))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "Coordinator",
             Subject = new BilingualString("Subject", ""),
@@ -598,7 +598,7 @@ public class MailBuilderTests
                 }),
                 ("Impersonator", _ => new MongoDB.Bson.BsonArray { UserDoc("Carol", "carol@uva.nl") }))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = new Recipients { "Coordinator", "extra@uva.nl" },
             Cc = "Impersonator",
@@ -623,7 +623,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "student@uva.nl",
             Subject = new BilingualString("Subject", ""),
@@ -648,7 +648,7 @@ public class MailBuilderTests
                 UserDoc("Bob", "bob@uva.nl")
             }))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             // Alice appears both as a resolved user and as a literal address
             To = new Recipients { "Coordinator", "ALICE@uva.nl" },
@@ -668,7 +668,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             Bcc = "archive@uva.nl",
             Subject = new BilingualString("Subject", ""),
@@ -689,7 +689,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             Subject = new BilingualString("Subject", ""),
             Body = new BilingualString("", "")
@@ -709,7 +709,7 @@ public class MailBuilderTests
             .With(workflowDefinition: "Project", currentStep: "Start")
             .WithProperties(("Title", b => b.Value("contact@uva.nl")))
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "{{ Title }}",
             Subject = new BilingualString("Subject", ""),
@@ -730,7 +730,7 @@ public class MailBuilderTests
         var instance = new WorkflowInstanceBuilder()
             .With(workflowDefinition: "Project", currentStep: "Start")
             .Build();
-        var sendMail = new SendMessage
+        var sendMail = new Email
         {
             To = "{{ Title }}",
             Subject = new BilingualString("Subject", ""),

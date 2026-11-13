@@ -184,7 +184,7 @@ public class Step : INamed, IDeclaredKeys, ITemplateConsumer
     public BilingualString DisplayTitle => Title ?? Name;
 
     /// <summary>
-    /// Name of a step template (folder under Common/StepTemplates) to resolve this step from
+    /// Name of a step template (Templates/Steps) to resolve this step from
     /// </summary>
     [YamlMember(Alias = "template")]
     public string? TemplateKey { get; set; }

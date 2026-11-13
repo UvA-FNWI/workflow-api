@@ -315,7 +315,7 @@ public class InstanceService(
         string[] ProjectedProperties);
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
-    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
+    public async Task<MailMessage> BuildMail(WorkflowInstance instance, Email sendMail, CancellationToken ct,
         ObjectContext? context = null)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
