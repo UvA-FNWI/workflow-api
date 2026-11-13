@@ -14,6 +14,23 @@ data:
   GraphMail__ClientSecret: "{{ .Values.graph.clientSecret }}"
   GraphMail__OverrideRecipient: "{{ .Values.graph.overrideRecipient }}"
   GraphMail__SenderId: "{{ .Values.graph.senderId }}"
+  {{- if .Values.userProvider }}
+  UserProvider: "{{ .Values.userProvider }}"
+  {{- end }}
+  {{- if (.Values.entraId).clientId }}
+  EntraId__ClientId: "{{ (.Values.entraId).clientId }}"
+  {{- with (.Values.entraId).authority }}
+  EntraId__Authority: "{{ . }}"
+  {{- end }}
+  {{- range $i, $tenant := (.Values.entraId).tenants }}
+  {{- if $tenant }}
+  EntraId__Tenants__{{ $i }}__TenantId: "{{ $tenant }}"
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if (.Values.systemAdmin).bootstrapUids }}
+  SystemAdmin__BootstrapUids: "{{ (.Values.systemAdmin).bootstrapUids }}"
+  {{- end }}
   
   AllowedOrigins: "{{ .Values.allowedOrigins }}"
   FrontendBaseUrl: "{{ .Values.frontendBaseUrl }}"
