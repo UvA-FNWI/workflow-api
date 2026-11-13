@@ -32,6 +32,19 @@ graph:
   tenantId: tenantId
   clientId: clientId
   senderId: no-reply-milestones@uva.nl
+
+# "entra" uses Entra ID for the people picker and login organization; empty keeps DataNose.
+# With "entra", also add the Key Vault secret for EntraId__ClientSecret to azure.secrets.
+userProvider: ""
+entraId:
+  clientId: ""
+  authority: ""
+  # Extra tenant ids for the same app registration. The authority tenant is already included.
+  tenants: []
+
+# Comma-separated SurfConext uids that get SystemAdmin in Entra mode.
+systemAdmin:
+  bootstrapUids: ""
   
 surfConext:
   baseUrl: https://connect.test.surfconext.nl

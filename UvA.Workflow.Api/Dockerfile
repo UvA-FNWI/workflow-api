@@ -18,6 +18,7 @@ COPY ["UvA.Workflow.SchemaGenerator/UvA.Workflow.SchemaGenerator.csproj", "UvA.W
 COPY ["UvA.Workflow.Validator/UvA.Workflow.Validator.csproj", "UvA.Workflow.Validator/"]
 COPY ["UvA.Workflow.Users.DataNose/UvA.Workflow.Users.DataNose.csproj", "UvA.Workflow.Users.DataNose/"]
 COPY ["UvA.Workflow.Users.EduId/UvA.Workflow.Users.EduId.csproj", "UvA.Workflow.Users.EduId/"]
+COPY ["UvA.Workflow.Users.EntraId/UvA.Workflow.Users.EntraId.csproj", "UvA.Workflow.Users.EntraId/"]
 COPY ["UvA.Workflow.ImportExport/UvA.Workflow.ImportExport.csproj", "UvA.Workflow.ImportExport/"]
 RUN dotnet restore "UvA.Workflow.slnx"
 COPY . .

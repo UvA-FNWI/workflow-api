@@ -66,6 +66,7 @@ Project destinations:
 - `UvA.Workflow.Notifications.Graph`
 - `UvA.Workflow.Users.DataNose`
 - `UvA.Workflow.Users.EduId`
+- `UvA.Workflow.Users.EntraId`
 - `UvA.Workflow.Api.Authentication`
 
 These modules may depend on `UvA.Workflow` and, where needed, `UvA.Workflow.Api`. They must not push provider-specific concepts back into `UvA.Workflow`.
@@ -122,3 +123,4 @@ Before adding a new file, answer these questions:
 - Graph mail: `UvA.Workflow.Notifications.Graph`
 - DataNose users: `UvA.Workflow.Users.DataNose`
 - EduId users/invites: `UvA.Workflow.Users.EduId`
+- Entra directory lookup: `UvA.Workflow.Users.EntraId`

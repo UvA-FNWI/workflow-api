@@ -92,7 +92,7 @@ public class SurfConextAuthenticationHandler : AuthenticationHandler<SurfConextO
         }
         else
         {
-            var organization = await userService.GetOrganizationForUser(uid);
+            var organization = await userService.GetOrganizationForUser(uid, Context.RequestAborted);
             await userService.AddOrUpdateUser(
                 uid,
                 resp.FullName,
