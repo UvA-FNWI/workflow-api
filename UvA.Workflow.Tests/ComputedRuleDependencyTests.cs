@@ -82,6 +82,22 @@ public class ComputedRuleDependencyTests
         Assert.Equal(savedStep, instance.CurrentStep);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InstanceResponse_EvaluatesHistoryPermissionWithComputedReferenceInputs(bool blocked)
+    {
+        var (model, repository, instance, target) = Create();
+        target["Blocked"] = blocked;
+        var role = model.WorkflowDefinitions["Project"].Roles.Single(r => r.Name == "Registered");
+        role.Actions.Single(action => action.Type == RoleAction.Edit).Type = RoleAction.ViewHistory;
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, repository);
+
+        var dto = await factory.Create(instance, default);
+
+        Assert.Equal(!blocked, dto.Permissions.Contains(RoleAction.ViewHistory));
+    }
+
     [Fact]
     public async Task MissingReference_DoesNotGrantNegatedPermission()
     {

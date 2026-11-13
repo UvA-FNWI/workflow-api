@@ -29,7 +29,8 @@ public static class AnswerChangeHistory
         IEnumerable<string> submissionEventIds,
         IEnumerable<InstanceEventLogEntry> eventLogs,
         WorkflowDefinition workflowDefinition,
-        BsonValue? currentValue)
+        BsonValue? currentValue,
+        bool includeUndoneSubmissions = false)
     {
         var nestedPath = formPropertyName == null ? null : $"{formPropertyName}.{questionName}";
         var edits = journal
@@ -37,12 +38,19 @@ public static class AnswerChangeHistory
             .OrderBy(change => change.Timestamp)
             .ToArray();
         var logs = eventLogs.ToArray();
-        var effectiveLogs = EventHistory.Project(logs);
+        var activeLogs = EventHistory.Project(logs);
+        var effectiveLogs = includeUndoneSubmissions
+            ? logs.OrderBy(log => log.Timestamp).ThenBy(log => log.Id).ToArray()
+            : activeLogs;
         var submitIds = submissionEventIds.ToHashSet();
-        var submits = effectiveLogs
+        var submitLogs = effectiveLogs
             .Where(log => submitIds.Contains(log.EventId) &&
                           log.Operation is EventLogOperation.Create or EventLogOperation.Update)
-            .Select(log => log.EventDate ?? log.Timestamp)
+            .ToArray();
+        var submits = submitLogs.Select(log => log.EventDate ?? log.Timestamp).ToArray();
+        // Undone submissions don't count, so they take the number of the next active submission.
+        var versionNumbers = submitLogs
+            .Select((_, index) => submitLogs.Take(index).Count(activeLogs.Contains) + 1)
             .ToArray();
 
         var postSubmitEdits = new List<(int VersionNumber, AnswerChange Change)>();
@@ -74,7 +82,7 @@ public static class AnswerChangeHistory
         // starts with its newest edits and ends with its submitted value.
         return submits
             .Select((submittedAt, index) => new AnswerChangeGroup(
-                index + 1,
+                versionNumbers[index],
                 postSubmitEdits
                     .Where(edit => edit.VersionNumber == index + 1)
                     .Select(edit => edit.Change)

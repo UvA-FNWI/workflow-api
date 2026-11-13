@@ -37,7 +37,7 @@ public class SubmissionService(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
         // Check if already submitted
-        if (submissionState.IsSubmitted)
+        if (submissionState.IsSubmitted && !form.Repeatable)
             throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
                 "Submission already submitted");
 

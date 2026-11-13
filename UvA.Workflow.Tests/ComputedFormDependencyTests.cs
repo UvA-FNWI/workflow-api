@@ -42,16 +42,21 @@ public class ComputedFormDependencyTests
         Assert.Equal(["Included"], status["Choice"].Choices);
     }
 
-    [Fact]
-    public async Task SubmissionDto_ResolvesComputedPageConditions()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SubmissionDto_ResolvesComputedPageConditions(bool repeatable)
     {
         var (model, service, instance, form) = Create();
+        form.Repeatable = repeatable;
         var factory = new SubmissionDtoFactory(null!, model, service);
-        var state = FormSubmissionState.Resolve(instance, form, model.WorkflowDefinitions[instance.WorkflowDefinition]);
+        var submitted = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
+        var state = new FormSubmissionState([form.Name], [], submitted);
 
         var dto = await factory.CreateAsync(instance, form, state);
 
         Assert.True(dto.Form.Pages[1].IsActive);
+        Assert.Equal(repeatable ? (DateTime?)null : submitted, dto.DateSubmitted);
     }
 
     [Fact]

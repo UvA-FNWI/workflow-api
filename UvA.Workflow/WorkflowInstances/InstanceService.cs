@@ -313,7 +313,7 @@ public partial class InstanceService(
             .SelectMany(a => a.AllForms
                 .SelectMany(name => name == Domain_Action.All ? workflowDef.Forms.Select(f => f.Name) : [name])
                 .Select(name => new { Action = a, Form = modelService.GetForm(instance, name) }))
-            .Where(f => !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
+            .Where(f => f.Form.Repeatable || !FormSubmissionState.Resolve(instance, f.Form, workflowDef).IsSubmitted)
             .Distinct()
             .Select(f => new AllowedAction(f.Action, f.Form, DisplaySteps: GetDisplaySteps(f.Action, f.Form)))
         );
@@ -394,6 +394,7 @@ public partial class InstanceService(
         var submissions = forms
             .Values
             .Distinct()
+            .Where(form => !form.Repeatable)
             .Select(form => new
             {
                 Form = form,

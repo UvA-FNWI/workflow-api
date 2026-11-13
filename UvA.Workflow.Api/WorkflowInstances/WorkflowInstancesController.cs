@@ -24,7 +24,8 @@ public class WorkflowInstancesController(
     RoleImpersonationService impersonationService,
     IEduIdUserService eduIdUserService,
     UndoService undoService,
-    IMailLogRepository mailLogRepository
+    IMailLogRepository mailLogRepository,
+    InstanceHistoryDtoFactory instanceHistoryDtoFactory
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -571,6 +572,22 @@ public class WorkflowInstancesController(
 
         var entries = await mailLogRepository.GetByInstance(id, ct);
         return Ok(entries.Select(CorrespondenceDto.From).ToList());
+    }
+
+    [HttpGet("{id}/History")]
+    public async Task<ActionResult<IReadOnlyList<InstanceHistoryItemDto>>> GetInstanceHistory(string id,
+        CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, RoleAction.ViewHistory))
+            return Forbidden();
+
+        var history = await instanceHistoryDtoFactory.Create(instance, ct);
+
+        return Ok(history);
     }
 
     private object? GetResponseValue(WorkflowDefinition definition, ObjectContext context, string path)

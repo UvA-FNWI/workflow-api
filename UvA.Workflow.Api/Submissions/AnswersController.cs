@@ -41,7 +41,6 @@ public class AnswersController(
     {
         var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
         await EnsureAuthorizedToEdit(context);
-        modelService.EnsureWritable(context.Instance, context.PathParts);
 
         var externalUserInput = input.ExternalUser is { } eu
             ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization, eu.UserId)
@@ -159,13 +158,19 @@ public class AnswersController(
             throw new ForbiddenWorkflowActionException(context.Instance.Id, RoleAction.ViewHidden, context.Form.Name);
     }
 
-    private async Task EnsureAuthorizedToEdit(QuestionContext context) =>
+    private async Task EnsureAuthorizedToEdit(QuestionContext context)
+    {
         await EnsureAuthorizedForAction(context,
-            context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit);
+            context.Form.Repeatable || !context.SubmissionState.IsSubmitted ? RoleAction.Submit : RoleAction.Edit);
+
+        modelService.EnsureWritable(context.Instance, context.PathParts);
+        if (!context.Form.ActualForm.PropertyDefinitions.Contains(context.PropertyDefinition))
+            throw new EntityNotFoundException("Question", context.PropertyDefinition.Name);
+    }
 
     private async Task EnsureAuthorizedToEdit(SubmissionContext context) =>
         await rightsService.EnsureAuthorizedForAction(context.Instance,
-            [context.SubmissionState.IsSubmitted ? RoleAction.Edit : RoleAction.Submit],
+            [context.Form.Repeatable || !context.SubmissionState.IsSubmitted ? RoleAction.Submit : RoleAction.Edit],
             RightsEvaluationMode.RequestContext, context.Form.Name);
 
     private async Task EnsureAuthorizedForAction(QuestionContext context, RoleAction action) =>

@@ -205,6 +205,22 @@ public class PresenceAwareInheritanceTests
         Assert.Empty(page.PageElements);
     }
 
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("\nrepeatable: false", false)]
+    public void Repeatable_IsInheritedUnlessExplicitlyOverridden(string childSettings, bool expected)
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\nrepeatable: true",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit" + childSettings
+        }));
+
+        Assert.Equal(expected, parser.WorkflowDefinitions["Child"].Forms.Get("Edit").Repeatable);
+    }
+
     [Fact]
     public void ApplyInheritance_ChildPageWithNewName_IsInsertedBeforeIt()
     {
