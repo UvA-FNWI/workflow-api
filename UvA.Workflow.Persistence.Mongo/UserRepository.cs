@@ -11,10 +11,10 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 {
     private readonly IMongoCollection<User> _collection = database.GetCollection<User>("users");
 
-    public async Task Create(User user, CancellationToken ct)
+    public Task Create(User user, CancellationToken ct)
     {
         user.SearchTerms = UserSearchTerms.Create(user);
-        await _collection.InsertOneAsync(user, cancellationToken: ct);
+        return _collection.InsertOneAsync(user, cancellationToken: ct);
     }
 
     public async Task<User?> GetById(string id, CancellationToken ct)
@@ -83,10 +83,10 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         if (normalized.Length == 0)
             yield break;
 
-        var prefix = new BsonRegularExpression($"^{Regex.Escape(normalized)}");
         var builder = Builders<User>.Filter;
-        // Older deployments can still replace a user without search terms during a rollout.
-        var filter = builder.Regex("SearchTerms", prefix) | builder.Eq(user => user.SearchTerms, null);
+        var prefix = new BsonRegularExpression($"^{Regex.Escape(normalized)}");
+        // Older API versions can still write users without search terms.
+        var filter = builder.Regex(user => user.SearchTerms, prefix) | builder.Eq(user => user.SearchTerms, null);
         using var users = await _collection.Find(filter)
             .SortBy(user => user.DisplayName)
             .ThenBy(user => user.UserName)

@@ -328,13 +328,14 @@ public class PersonalControllerTests : ControllerTestsBase
         string userPath,
         ObjectId userId)
     {
+        var expectedMatch = new BsonDocument("$in", new BsonArray { userId });
         var found = filter["$or"].AsBsonArray
             .Select(branch => branch.AsBsonDocument)
             .Any(branch =>
                 Descendants(branch).Any(condition =>
                     condition.GetValue("WorkflowDefinition", BsonNull.Value) == workflowDefinition) &&
                 Descendants(branch).Any(condition =>
-                    condition.GetValue(userPath, BsonNull.Value) == userId));
+                    condition.GetValue(userPath, BsonNull.Value) == expectedMatch));
 
         Assert.True(found, $"No query branch found for {workflowDefinition}.{userPath}");
     }

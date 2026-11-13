@@ -20,10 +20,7 @@ public class PeopleSearchService(
         var people = new List<PersonDto>();
         await foreach (var users in userRepository.SearchByPrefix(term, ct).Chunk(ResultLimit).WithCancellation(ct))
         {
-            var visibleIds = await GetVisibleLinkedIds(users, ct);
-            people.AddRange(users
-                .Where(user => ObjectId.TryParse(user.Id, out var id) && visibleIds.Contains(id))
-                .Select(PersonDto.Create));
+            people.AddRange(await GetVisiblePeople(users, ct));
             if (people.Count > ResultLimit)
                 break;
         }
@@ -31,18 +28,18 @@ public class PeopleSearchService(
         return new PeopleSearchDto(people.Take(ResultLimit).ToArray(), people.Count > ResultLimit);
     }
 
-    private async Task<HashSet<ObjectId>> GetVisibleLinkedIds(User[] users, CancellationToken ct)
+    private async Task<IEnumerable<PersonDto>> GetVisiblePeople(User[] users, CancellationToken ct)
     {
-        var remainingIds = new HashSet<ObjectId>();
+        var candidates = new List<(User User, ObjectId Id)>();
         foreach (var user in users)
             if (ObjectId.TryParse(user.Id, out var id))
-                remainingIds.Add(id);
+                candidates.Add((user, id));
 
         var definitions = modelService.WorkflowDefinitions;
+        var remainingIds = candidates.Select(candidate => candidate.Id).ToHashSet();
         var filter = LinkedUserInstances.BuildFilter(definitions.Values, remainingIds);
-        var visibleIds = new HashSet<ObjectId>();
         if (filter == null)
-            return visibleIds;
+            return [];
 
         foreach (var instance in await workflowInstanceRepository.GetByFilter(filter, ct))
         {
@@ -52,12 +49,13 @@ public class PeopleSearchService(
             if (linkedIds.Length == 0 || !await rightsService.Can(instance, RoleAction.View))
                 continue;
 
-            visibleIds.UnionWith(linkedIds);
             remainingIds.ExceptWith(linkedIds);
             if (remainingIds.Count == 0)
                 break;
         }
 
-        return visibleIds;
+        return candidates
+            .Where(candidate => !remainingIds.Contains(candidate.Id))
+            .Select(candidate => PersonDto.Create(candidate.User));
     }
 }

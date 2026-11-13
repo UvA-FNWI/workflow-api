@@ -3,7 +3,7 @@ using Organization = UvA.Workflow.Organizations.Organization;
 
 namespace UvA.Workflow.Persistence;
 
-public class MongoDbIndexInitializer(IMongoDatabase database)
+public class MongoDbInitializer(IMongoDatabase database)
 {
     public async Task EnsureIndexes(CancellationToken ct = default)
     {
@@ -12,24 +12,42 @@ public class MongoDbIndexInitializer(IMongoDatabase database)
         await UserSearchIndex(ct);
     }
 
+    public async Task BackfillUserSearchTerms(CancellationToken ct = default)
+    {
+        var users = database.GetCollection<User>("users");
+        var filter = Builders<User>.Filter;
+        var update = Builders<User>.Update;
+        using var cursor = await users.Find(FilterDefinition<User>.Empty, new FindOptions { BatchSize = 500 })
+            .SortBy(user => user.Id).ToCursorAsync(ct);
+        while (await cursor.MoveNextAsync(ct))
+        {
+            var updates = new List<WriteModel<User>>();
+            foreach (var user in cursor.Current)
+            {
+                var terms = UserSearchTerms.Create(user);
+                if (user.SearchTerms?.SequenceEqual(terms) == true)
+                    continue;
+
+                // Only write derived terms while the user fields still match the version we read.
+                updates.Add(new UpdateOneModel<User>(
+                    filter.Eq(candidate => candidate.Id, user.Id) &
+                    filter.Eq(candidate => candidate.DisplayName, user.DisplayName) &
+                    filter.Eq(candidate => candidate.UserName, user.UserName) &
+                    filter.Eq(candidate => candidate.Email, user.Email),
+                    update.Set(candidate => candidate.SearchTerms, terms)));
+            }
+
+            if (updates.Count > 0)
+                await users.BulkWriteAsync(updates, new BulkWriteOptions { IsOrdered = false }, ct);
+        }
+    }
+
     private async Task UserSearchIndex(CancellationToken ct)
     {
-        var collection = database.GetCollection<User>("users");
-        var options = new CreateIndexOptions { Name = "users_search_terms" };
-        await CreateOrUpdateIndexAsync(collection,
-            new CreateIndexModel<User>(Builders<User>.IndexKeys.Ascending(user => user.SearchTerms), options), ct);
-
-        var missingTerms = Builders<User>.Filter.Eq(user => user.SearchTerms, null);
-        using var users = await collection.Find(missingTerms, new FindOptions { BatchSize = 500 }).ToCursorAsync(ct);
-        while (await users.MoveNextAsync(ct))
-        {
-            var updates = users.Current.Select(user => new UpdateOneModel<User>(
-                    Builders<User>.Filter.Eq(candidate => candidate.Id, user.Id) & missingTerms,
-                    Builders<User>.Update.Set(candidate => candidate.SearchTerms, UserSearchTerms.Create(user))))
-                .ToArray();
-            if (updates.Length > 0)
-                await collection.BulkWriteAsync(updates, new BulkWriteOptions { IsOrdered = false }, ct);
-        }
+        var users = database.GetCollection<User>("users");
+        var index = new CreateIndexModel<User>(Builders<User>.IndexKeys.Ascending(user => user.SearchTerms),
+            new CreateIndexOptions { Name = "users_search_terms" });
+        await CreateOrUpdateIndexAsync(users, index, ct);
     }
 
     private async Task MigrationIndexes(CancellationToken ct)

@@ -16,14 +16,11 @@ internal static class LinkedUserInstances
 
         var selectProperties = getProperties ?? GetUserProperties;
         var builder = Builders<WorkflowInstance>.Filter;
-        var singleUserId = userIds.Count == 1 ? userIds.Single() : (ObjectId?)null;
         var filters = new List<FilterDefinition<WorkflowInstance>>();
         foreach (var definition in definitions)
         {
             var roleFilters = selectProperties(definition)
-                .Select(property => singleUserId is { } id
-                    ? builder.Eq($"Properties.{property.Name}._id", id)
-                    : builder.In($"Properties.{property.Name}._id", userIds))
+                .Select(property => builder.In($"Properties.{property.Name}._id", userIds))
                 .ToArray();
             if (roleFilters.Length > 0)
                 filters.Add(builder.Eq(instance => instance.WorkflowDefinition, definition.Name) &

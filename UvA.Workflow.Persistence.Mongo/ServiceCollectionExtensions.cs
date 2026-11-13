@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
             return client.GetDatabase(options.Database);
         });
 
-        services.AddScoped<MongoDbIndexInitializer>();
+        services.AddScoped<MongoDbInitializer>();
         services.AddScoped<IWorkflowInstanceRepository, WorkflowInstanceRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();

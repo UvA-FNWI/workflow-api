@@ -1,15 +1,15 @@
-namespace UvA.Workflow.Persistence;
+namespace UvA.Workflow.Users;
 
 public static class UserSearchTerms
 {
-    public static string Normalize(string value) => string.Join(' ', SplitWords(value)).ToUpperInvariant();
+    public static string Normalize(string? value) => string.Join(' ', SplitWords(value)).ToLowerInvariant();
 
     public static string[] Create(User user)
     {
         var name = SplitWords(user.DisplayName);
-        // Starting at each name word lets people search by surname or full name.
+        // Start at each word so surname and multi-word prefixes can match.
         return Enumerable.Range(0, name.Length)
-            .Select(index => string.Join(' ', name[index..]).ToUpperInvariant())
+            .Select(index => string.Join(' ', name[index..]).ToLowerInvariant())
             .Append(Normalize(user.UserName))
             .Append(Normalize(user.Email))
             .Where(term => term.Length > 0)

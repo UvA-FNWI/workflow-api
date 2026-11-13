@@ -71,7 +71,7 @@ public class UserRepositoryTests
 
         var searchConditions = RenderFilter(capturedFilter!)["$or"].AsBsonArray;
         var regex = searchConditions[0].AsBsonDocument["SearchTerms"].AsBsonRegularExpression;
-        Assert.Equal(@"^A\.B\+", regex.Pattern);
+        Assert.Equal(@"^a\.b\+", regex.Pattern);
         Assert.Empty(regex.Options);
         Assert.Equal(BsonNull.Value, searchConditions[1].AsBsonDocument["SearchTerms"]);
     }
@@ -100,7 +100,7 @@ public class UserRepositoryTests
         {
             Id = ObjectId.GenerateNewId().ToString(),
             UserName = "eduid-123",
-            DisplayName = "External User",
+            DisplayName = "External\tVan  User",
             Email = "external@example.org"
         };
 
@@ -118,7 +118,7 @@ public class UserRepositoryTests
 
         Assert.Equal(BsonType.ObjectId, renderedFilter["_id"].BsonType);
         Assert.Equal(new ObjectId(user.Id), renderedFilter["_id"].AsObjectId);
-        Assert.Equal(["EXTERNAL USER", "USER", "EDUID-123", "EXTERNAL@EXAMPLE.ORG"], user.SearchTerms!);
+        Assert.Equal(["external van user", "van user", "user", "eduid-123", "external@example.org"], user.SearchTerms!);
     }
 
     [Fact]

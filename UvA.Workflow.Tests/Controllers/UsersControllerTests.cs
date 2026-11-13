@@ -138,6 +138,34 @@ public class UsersControllerTests : ControllerTestsBase
         Assert.True(Assert.IsType<UserDto>(Assert.IsType<OkObjectResult>(me.Result).Value).CanSearchPeople);
     }
 
+    [Theory]
+    [InlineData(50)]
+    [InlineData(51)]
+    public async Task Users_Search_CountsOnlyVisiblePeopleTowardsResultLimit(int visibleCount)
+    {
+        var controller = BuildControllerWithRoles(["Coordinator"]);
+        var visible = Enumerable.Range(0, visibleCount).Select(index => SearchUser($"person-{index:D2}")).ToArray();
+        var candidates = visible.Prepend(SearchUser("unlinked"));
+        _userRepoMock.Setup(repository => repository.SearchByPrefix("example", _ct))
+            .Returns(candidates.ToAsyncEnumerable());
+
+        var linkedUsers = new BsonArray(visible.Reverse().Select(user => InstanceUser.FromUser(user).ToBsonDocument()));
+        var instance = new WorkflowInstanceBuilder().With("Project", "Start")
+            .WithProperties(("PracticalSupervisor", property => property.Value(linkedUsers)))
+            .Build();
+        _workflowInstanceRepoMock.Setup(repository => repository.GetByFilter(
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), _ct))
+            .ReturnsAsync([instance]);
+
+        var search = new PeopleSearchService(_userRepoMock.Object, _workflowInstanceRepoMock.Object,
+            _modelService, _rightsService);
+        var result = await controller.Search("example", search, _peopleSearchAccess, _ct);
+
+        var response = Assert.IsType<PeopleSearchDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(visible.Take(50).Select(PersonDto.Create), response.People);
+        Assert.Equal(visibleCount > 50, response.HasMore);
+    }
+
     [Fact]
     public async Task Users_Search_SupportsCoordinatorsAssignedThroughCourses()
     {
