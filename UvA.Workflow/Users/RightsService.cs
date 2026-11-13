@@ -24,6 +24,19 @@ public class RightsService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     IImpersonationContextService? impersonationContextService = null)
 {
+    private static readonly HashSet<RoleAction> AllowedByDefaultWhenStopped =
+    [
+        RoleAction.View,
+        RoleAction.ViewHidden,
+        RoleAction.ViewUsers,
+        RoleAction.ViewStates,
+        RoleAction.ViewResults,
+        RoleAction.ViewCorrespondence,
+        RoleAction.ViewAnswerMessages,
+        RoleAction.ViewAdminTools,
+        RoleAction.ImpersonateRoles
+    ];
+
     private readonly IImpersonationContextService _impersonationContextService =
         impersonationContextService ?? new NoImpersonationContextService();
 
@@ -244,8 +257,10 @@ public class RightsService(
         return roles
             .Where(r => r != null)
             .SelectMany(r => r!.Actions
-                .Where(a => (a.Condition == null || a.Condition.IsMet(context))
-                            && actions.Contains(a.Type)
+                .Where(a => actions.Contains(a.Type)
+                            && (!context.WorkflowStopped || a.AllowWhenStopped ||
+                                AllowedByDefaultWhenStopped.Contains(a.Type))
+                            && (a.Condition == null || a.Condition.IsMet(context))
                             && (a.Steps.Length == 0 || modelService
                                 .GetAvailableStepsForAction(instance, a, activeSteps, context).Length > 0)
                             && (a.WorkflowDefinition == null || a.WorkflowDefinition == instance.WorkflowDefinition)

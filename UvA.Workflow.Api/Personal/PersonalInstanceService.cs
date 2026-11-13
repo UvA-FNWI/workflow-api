@@ -127,7 +127,8 @@ public class PersonalInstanceService(
             roles,
             student,
             context.Get("Course.Name") as string,
-            employees
+            employees,
+            context.WorkflowStopped
         );
     }
 

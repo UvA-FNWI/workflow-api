@@ -55,6 +55,8 @@ public class ModelService(ModelParser parser)
     public ObjectContext CreateContext(WorkflowInstance instance)
         => ObjectContext.Create(instance, this);
 
+    public bool IsWorkflowStopped(WorkflowInstance instance) => CreateContext(instance).WorkflowStopped;
+
     public ObjectContext CreateContext(string workflowDefinition, Dictionary<string, BsonValue> rawData)
         => ObjectContext.Create(WorkflowDefinitions[workflowDefinition], rawData);
 

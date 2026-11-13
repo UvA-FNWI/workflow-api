@@ -17,6 +17,7 @@ using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Tests.Controllers;
@@ -156,6 +157,66 @@ public class ActionsControllerTests : ControllerTestsBase
         //Assert
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(403, objectResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task Actions_StoppedWorkflow_OnlyAllowsConfiguredRecovery()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Subject");
+        await _instanceService.UpdateCurrentStep(instance, _ct);
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.StopWhen = new Condition
+        {
+            Logical = new Logical
+            {
+                Operator = LogicalOperator.Or,
+                Children = [new Condition { Event = "Pause" }, new Condition { Event = "Cancel" }]
+            }
+        };
+        definition.Events.AddRange([
+            new EventDefinition { Name = "Resume", Suppresses = ["Pause"] },
+            new EventDefinition { Name = "Reopen", Suppresses = ["Cancel"] }
+        ]);
+        var pause = new DomainAction { Type = RoleAction.Execute, Name = "Pause" };
+        var resume = new DomainAction { Type = RoleAction.Execute, Name = "Resume", AllowWhenStopped = true };
+        var cancel = new DomainAction { Type = RoleAction.Execute, Name = "Cancel", AllowWhenStopped = true };
+        var reopen = new DomainAction
+        {
+            Type = RoleAction.Execute, Name = "Reopen", AllowWhenStopped = true,
+            Condition = new Condition { Event = "Cancel" }
+        };
+        definition.GlobalActions.AddRange([pause, resume, cancel, reopen]);
+        definition.Roles.Single(role => role.Name == "Coordinator").Actions.AddRange([pause, resume, cancel]);
+        definition.Roles.Single(role => role.Name == "LocalAdmin").Actions.Add(reopen);
+
+        Assert.True((await Execute("Pause")).WorkflowStopped);
+        await AssertForbidden("Pause");
+        var cancelled = await Execute("Cancel");
+        Assert.True(cancelled.WorkflowStopped);
+        await AssertForbidden("Reopen");
+
+        MockCurrentUser("LocalAdmin");
+        var reopened = await Execute("Reopen");
+        Assert.True(reopened.WorkflowStopped);
+        Assert.Equal(cancelled.CurrentStep, reopened.CurrentStep);
+        Assert.False(reopen.Condition.IsMet(_modelService.CreateContext(instance)));
+        MockCurrentUser("Coordinator");
+        Assert.False((await Execute("Resume")).WorkflowStopped);
+
+        async Task<WorkflowInstanceDto> Execute(string name)
+        {
+            var result =
+                await controller.ExecuteAction(new ExecuteActionInputDto(ActionType.Execute, instance.Id, name), _ct);
+            var payload = Assert.IsType<ExecuteActionPayloadDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+            return Assert.IsType<WorkflowInstanceDto>(payload.Instance);
+        }
+
+        async Task AssertForbidden(string name)
+        {
+            var result =
+                await controller.ExecuteAction(new ExecuteActionInputDto(ActionType.Execute, instance.Id, name), _ct);
+            Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+        }
     }
 
     [Fact]

@@ -81,6 +81,11 @@ public class Action
     public Condition? Condition { get; set; }
 
     /// <summary>
+    /// Allows this action while the workflow is stopped. Roles and action conditions still apply.
+    /// </summary>
+    public bool AllowWhenStopped { get; set; }
+
+    /// <summary>
     /// List of effects to run for an Execute action
     /// </summary>
     public Effect[] OnAction { get; set; } = [];

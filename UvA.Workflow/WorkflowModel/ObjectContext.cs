@@ -1,6 +1,7 @@
 using System.Collections;
 using UvA.Workflow.Events;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -21,13 +22,13 @@ public class ObjectContext(
     /// </summary>
     public IReadOnlyDictionary<string, string[]> ValueSets { get; } = valueSets ?? NoValueSets;
 
-    public string? Id => Values.GetValueOrDefault("Id")?.ToString();
+    public string? Id => Values.GetValueOrDefault(ContextKeys.Id)?.ToString();
 
     public object? Get(Lookup path)
     {
-        if (path == "now")
+        if (path == ContextKeys.Now)
             return Now;
-        if (path is PropertyLookup { Parts: ["ValueSets", var valueSet] })
+        if (path is PropertyLookup { Parts: [ContextKeys.ValueSets, var valueSet] })
             return ValueSets.GetValueOrDefault(valueSet);
         if (Values.TryGetValue(path, out var res))
             return res;
@@ -40,6 +41,8 @@ public class ObjectContext(
 
         return res;
     }
+
+    public bool WorkflowStopped => Get(ContextKeys.WorkflowStopped) is true;
 
     private static object? GetPart(object? value, string part)
         => value switch
@@ -56,7 +59,7 @@ public class ObjectContext(
     public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData)
     {
         var dict = rawData.ToDictionary(
-            Lookup (t) => new PropertyLookup(t.Key == "_id" ? "Id" : t.Key),
+            Lookup (t) => new PropertyLookup(t.Key == "_id" ? ContextKeys.Id : t.Key),
             t =>
             {
                 var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
@@ -78,7 +81,7 @@ public class ObjectContext(
                 });
             var instance = new WorkflowInstance
             {
-                Id = dict.GetValueOrDefault("Id")?.ToString() ?? string.Empty,
+                Id = dict.GetValueOrDefault(ContextKeys.Id)?.ToString() ?? string.Empty,
                 WorkflowDefinition = workflowDefinition.Name,
                 Properties = [],
                 Events = events
@@ -86,12 +89,12 @@ public class ObjectContext(
 
             AddEventInformation(dict, instance, workflowDefinition);
         }
-        else if (dict.GetValueOrDefault("LastEvent") == null)
+        else if (dict.GetValueOrDefault(ContextKeys.LastEvent) == null)
         {
-            dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
+            dict[ContextKeys.LastEvent] = dict.GetValueOrDefault(ContextKeys.CreateDate);
         }
 
-        return new ObjectContext(dict, GetValueSets(workflowDefinition));
+        return CreateWithWorkflowStopped(dict, workflowDefinition);
     }
 
     public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
@@ -104,14 +107,22 @@ public class ObjectContext(
             if (propertyDefinition != null) dict.Add(k, GetValue(v, propertyDefinition));
         }
 
-        dict.Add("Id", instance.Id);
-        dict.Add("CurrentStep", instance.CurrentStep);
-        dict.Add("CreateDate", instance.CreatedOn.ToLocalTime());
+        dict.Add(ContextKeys.Id, instance.Id);
+        dict.Add(ContextKeys.CurrentStep, instance.CurrentStep);
+        dict.Add(ContextKeys.CreateDate, instance.CreatedOn.ToLocalTime());
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         AddEventInformation(dict, instance, workflowDef);
 
-        return new ObjectContext(dict, GetValueSets(workflowDef), instance.EvaluatedAt);
+        return CreateWithWorkflowStopped(dict, workflowDef, instance.EvaluatedAt);
+    }
+
+    private static ObjectContext CreateWithWorkflowStopped(Dictionary<Lookup, object?> values,
+        WorkflowDefinition definition, DateTime? evaluatedAt = null)
+    {
+        var context = new ObjectContext(values, GetValueSets(definition), evaluatedAt);
+        values[ContextKeys.WorkflowStopped] = definition.StopWhen?.IsMet(context) == true;
+        return context;
     }
 
     /// <summary>
@@ -130,8 +141,8 @@ public class ObjectContext(
         WorkflowInstance instance,
         WorkflowDefinition workflowDefinition)
     {
-        dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
-                            ?? dict.GetValueOrDefault("CreateDate");
+        dict[ContextKeys.LastEvent] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
+                                      ?? dict.GetValueOrDefault(ContextKeys.CreateDate);
 
         foreach (var ev in instance.Events.Values)
         {

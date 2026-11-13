@@ -245,8 +245,8 @@ public class InstanceService(
             {
                 foreach (var context in state.Batch.Contexts)
                 {
-                    if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
-                        context.Values["CurrentStep"] =
+                    if (context.Values.TryGetValue(ContextKeys.CurrentStep, out var i) && i is string stepName)
+                        context.Values[ContextKeys.CurrentStep] =
                             state.Batch.WorkflowDefinition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? stepName;
                 }
             }
@@ -329,6 +329,8 @@ public class InstanceService(
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var context = modelService.CreateContext(instance);
+        if (context.WorkflowStopped)
+            return;
         await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         var targetStep = modelService.FindOpenStep(instance, context)?.Name;
 
@@ -372,7 +374,7 @@ public class InstanceService(
                     t => ObjectContext.GetValue(r.GetValueOrDefault(t), entity.GetDataType(t),
                         entity.Properties.FirstOrDefault(p => p.Name == t))
                 );
-            dict["Id"] = r["_id"].ToString();
+            dict[ContextKeys.Id] = r["_id"].ToString();
             return new ObjectContext(dict, ObjectContext.GetValueSets(entity));
         });
     }

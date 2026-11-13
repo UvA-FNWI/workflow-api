@@ -163,7 +163,8 @@ public class WorkflowInstanceDtoFactory(
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            infoCards
+            infoCards,
+            context.WorkflowStopped
         );
     }
 
@@ -182,7 +183,7 @@ public class WorkflowInstanceDtoFactory(
             var obj = field.GetValue(context);
             if (obj is object[] arr && arr.Length == 1)
                 obj = arr[0];
-            var key = field.CurrentStep ? "CurrentStep" : field.Property;
+            var key = field.CurrentStep ? ContextKeys.CurrentStep : field.Property;
             result.Add(new FieldDto(key, field.DisplayTitle, obj, field.IsHighlighted ?? false, field.Order));
         }
 

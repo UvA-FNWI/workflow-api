@@ -11,6 +11,7 @@ using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -278,6 +279,57 @@ public class JobsControllerTests : ControllerTestsBase
         Assert.NotEqual(job.Id, rerun.Id);
         Assert.Equal(status, job.Status);
         Assert.Equal(completedRecipients, Assert.IsType<string[]>(job.Steps[0].Outputs!["CompletedRecipients"]));
+    }
+
+    [Fact]
+    public async Task Jobs_RunWhileStopped_DefersEffectsUntilWorkflowReopens()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "ApprovalCoordinator", id: InstanceId)
+            .Build();
+        instance.RecordEvent("Pause");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.StopWhen = new Condition { Event = "Pause" };
+        var job = CreateJob();
+        var action = definition.AllActions.Single(action => action.Name == job.SourceName);
+        const string eventId = "DelayedEffect";
+        var effect = new Effect { Event = eventId };
+        action.OnAction = [effect];
+        job.Steps = [new JobStep { Identifier = effect.Identifier }];
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, _ct)).ReturnsAsync(job);
+        _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+
+        Job copy = null!;
+        DateTime startOn = default;
+        _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), _ct))
+            .Callback<Job, CancellationToken>((value, _) =>
+            {
+                Assert.Equal(JobStatus.Running, value.Status);
+                Assert.True(value.ClaimedUntil > DateTime.UtcNow);
+                copy = value;
+                startOn = value.StartOn;
+            })
+            .Returns(Task.CompletedTask);
+
+        var controller = BuildController(["Api"]);
+        await controller.Run(InstanceId, job.Id, _ct);
+
+        Assert.Equal(JobStatus.Pending, copy.Status);
+        Assert.Null(copy.ClaimedUntil);
+        Assert.True(copy.DeferredUntil > DateTime.UtcNow);
+        Assert.Equal(startOn, copy.StartOn);
+        Assert.DoesNotContain(eventId, instance.Events.Keys);
+
+        instance.Events.Remove("Pause");
+        await _jobService.RunJob(copy, _ct);
+
+        Assert.Equal(JobStatus.Completed, copy.Status);
+        Assert.Null(copy.DeferredUntil);
+        Assert.Contains(eventId, instance.Events.Keys);
     }
 
     [Fact]

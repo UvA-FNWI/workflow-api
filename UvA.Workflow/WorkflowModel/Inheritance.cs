@@ -95,6 +95,7 @@ public partial class ModelParser
         if (!target.Declared(d => d.Title)) target.Title = source.Title;
         if (!target.Declared(d => d.TitlePlural)) target.TitlePlural = source.TitlePlural;
         if (!target.Declared(d => d.InstanceTitle)) target.InstanceTitle = source.InstanceTitle;
+        if (!target.Declared(d => d.StopWhen)) target.StopWhen = source.StopWhen;
         if (!target.Declared(d => d.IsEmbedded)) target.IsEmbedded = source.IsEmbedded;
         if (!target.Declared(d => d.IsAlwaysVisible)) target.IsAlwaysVisible = source.IsAlwaysVisible;
         if (!target.Declared(d => d.AssessmentConfiguration))

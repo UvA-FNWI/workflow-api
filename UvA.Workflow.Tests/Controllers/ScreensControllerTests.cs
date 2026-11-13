@@ -5,6 +5,7 @@ using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Tests.Controllers.Helpers;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -39,6 +40,65 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Equal(2, screenDataDto.Rows.Length);
         Assert.Null(screenDataDto.Groups);
         Assert.Empty(screenDataDto.BulkActions!);
+    }
+
+    [Theory]
+    [InlineData(true, false, "Paused (01/08), 42 EC", "Gepauzeerd (01/08), 42 EC")]
+    [InlineData(true, true, "Paused (01/08), 42 EC", "Gepauzeerd (01/08), 42 EC")]
+    [InlineData(false, false, "Stopped (01/08)", "Gestopt (01/08)")]
+    public async Task Screens_GetScreenData_ReturnsDatedStoppedProgress(
+        bool hasStopMessage, bool messageOnBranch, string english, string dutch)
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        var stopCondition = new Condition
+        {
+            Event = "RejectSubject",
+            Message = hasStopMessage
+                ? new BilingualString(
+                    "Paused ({{ dateShort(RejectSubjectEvent) }}), {{ EC }} EC",
+                    "Gepauzeerd ({{ dateShort(RejectSubjectEvent) }}), {{ EC }} EC")
+                : null
+        };
+        definition.StopWhen = messageOnBranch
+            ? new Condition
+            {
+                Logical = new Logical
+                {
+                    Operator = LogicalOperator.Or,
+                    Children = [new Condition { Event = "Start" }, stopCondition]
+                }
+            }
+            : stopCondition;
+        var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue>
+            {
+                ["CurrentStep"] = "Start",
+                ["EC"] = 42,
+                ["Events"] = new BsonDocument("RejectSubject", new BsonDocument("Date", rejectedAt))
+            },
+            new Dictionary<string, BsonValue> { ["CurrentStep"] = "Start" }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var column = Assert.Single(response.Columns, column => column.IsCurrentStep);
+        var rows = response.Groups!.Single(group => group.Name == "approve-subject").Rows;
+        Assert.Collection(rows, row =>
+            {
+                var progress = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
+                Assert.Equal(english, progress.Text.En);
+                Assert.Equal(dutch, progress.Text.Nl);
+                Assert.Equal(StatusColor.Red, progress.Color);
+            },
+            row => Assert.Equal("Writing proposal",
+                Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En));
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
+            It.Is<Dictionary<string, string>>(projection =>
+                projection.GetValueOrDefault("EC") == (hasStopMessage ? "$Properties.EC" : null)),
+            It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -90,6 +150,52 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Contains(groups, g => g.Name == "completed");
         // Both mocked instances are in the "Start" step, which maps to the approve-subject group
         Assert.Equal(2, groups.Single(g => g.Name == "approve-subject").Rows.Length);
+    }
+
+    [Fact]
+    public async Task Screens_GetScreenData_GroupsByComputedWorkflowStoppedBeforeStep()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.StopWhen = new Condition { Value = new Value { Property = "EC", Equal = "42" } };
+        var grouping = definition.Screens.Single(screen => screen.Name == "Projects").Grouping!;
+        grouping.Groups =
+        [
+            .. grouping.Groups,
+            new StepGroup
+            {
+                Name = "stopped",
+                Title = "Stopped",
+                Condition = new Condition
+                {
+                    Value = new Value { Property = ContextKeys.WorkflowStopped, Equal = "true" }
+                }
+            }
+        ];
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Projects",
+        [
+            new Dictionary<string, BsonValue> { ["_id"] = "stopped", ["CurrentStep"] = "Start", ["EC"] = 42 },
+            new Dictionary<string, BsonValue> { ["_id"] = "running", ["CurrentStep"] = "Start", ["EC"] = 30 }
+        ]);
+
+        var result = await controller.GetScreenData("Project", "Projects", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var groups = Assert.IsType<ScreenGroupDto[]>(response.Groups);
+        var stopped = Assert.Single(groups.Single(group => group.Name == "stopped").Rows);
+        Assert.Equal("stopped", stopped.Id);
+        Assert.Equal("running", Assert.Single(groups.Single(group => group.Name == "approve-subject").Rows).Id);
+        Assert.Equal(2, groups.Sum(group => group.Rows.Length));
+
+        var progressColumn = Assert.Single(response.Columns, column => column.IsCurrentStep);
+        var progress = Assert.IsType<ProgressInformationDto>(stopped.Values[progressColumn.Id]);
+        Assert.Equal("Stopped", progress.Text.En);
+        Assert.Equal("Gestopt", progress.Text.Nl);
+        Assert.Equal(StatusColor.Red, progress.Color);
+
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
+            It.Is<Dictionary<string, string>>(projection =>
+                projection["EC"] == "$Properties.EC" && !projection.ContainsKey(ContextKeys.WorkflowStopped)),
+            It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

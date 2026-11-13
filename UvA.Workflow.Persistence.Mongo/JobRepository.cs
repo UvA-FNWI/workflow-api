@@ -34,7 +34,9 @@ public class JobRepository(IMongoDatabase database, IOptions<WorkerOptions> work
         var correctGroup = f.Eq(j => j.WorkerGroup, workerOptions.Value.WorkerGroup);
         var hasStarted = f.Lte(j => j.StartOn, now);
 
-        var pending = f.Eq(j => j.Status, JobStatus.Pending);
+        var pending = f.And(
+            f.Eq(j => j.Status, JobStatus.Pending),
+            f.Or(f.Eq(j => j.DeferredUntil, null), f.Lte(j => j.DeferredUntil, now)));
         var expiredRunning = f.And(
             f.Eq(j => j.Status, JobStatus.Running),
             f.Lt(j => j.ClaimedUntil, now)
