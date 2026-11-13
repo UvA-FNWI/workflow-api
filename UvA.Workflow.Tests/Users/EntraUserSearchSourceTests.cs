@@ -12,7 +12,7 @@ public class EntraUserSearchSourceTests
         var graph = new Mock<IEntraGraphService>();
         graph.Setup(g => g.SearchUsersAsync("emp", It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new EntraUserInfo("Emp.One@uva.nl", "Emp One", "emp1@uva.nl", "emp1", "emp1")
+                new EntraUserInfo("Emp.One@uva.nl", "Emp One", "emp1@uva.nl", "emp1")
             ]);
         var source = new EntraUserSearchSource(graph.Object);
 
@@ -25,26 +25,27 @@ public class EntraUserSearchSourceTests
     }
 
     [Fact]
-    public async Task FindUsers_FallsBackToUpnLocalPart_WhenSamAccountNameMissing()
+    public async Task FindUsers_KeepsMixedCaseSamAccountName()
+    {
+        var graph = new Mock<IEntraGraphService>();
+        graph.Setup(g => g.SearchUsersAsync("Emp", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new EntraUserInfo("Emp.One@uva.nl", "Emp One", "emp1@uva.nl", " Emp1 ")
+            ]);
+        var source = new EntraUserSearchSource(graph.Object);
+
+        var result = Assert.Single(await source.FindUsers("Emp", CancellationToken.None));
+
+        Assert.Equal("Emp1", result.UserName);
+    }
+
+    [Fact]
+    public async Task FindUsers_OmitsUser_WhenSamAccountNameMissing()
     {
         var graph = new Mock<IEntraGraphService>();
         graph.Setup(g => g.SearchUsersAsync("one", It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new EntraUserInfo("emp1@uva.nl", "Emp One", "emp1@uva.nl")
-            ]);
-        var source = new EntraUserSearchSource(graph.Object);
-
-        var result = Assert.Single(await source.FindUsers("one", CancellationToken.None));
-
-        Assert.Equal("emp1", result.UserName);
-    }
-
-    [Fact]
-    public async Task FindUsers_KeepsGuestUpn_WhenExtAccount()
-    {
-        var graph = new Mock<IEntraGraphService>();
-        graph.Setup(g => g.SearchUsersAsync("guest", It.IsAny<CancellationToken>()))
-            .ReturnsAsync([
+                new EntraUserInfo("emp1@uva.nl", "Emp One", "emp1@uva.nl"),
                 new EntraUserInfo(
                     "user_gmail.com#EXT#@tenant.onmicrosoft.com",
                     "Guest",
@@ -52,10 +53,39 @@ public class EntraUserSearchSourceTests
             ]);
         var source = new EntraUserSearchSource(graph.Object);
 
-        var result = Assert.Single(await source.FindUsers("guest", CancellationToken.None));
+        Assert.Empty(await source.FindUsers("one", CancellationToken.None));
+    }
 
-        Assert.Equal("user_gmail.com#EXT#@tenant.onmicrosoft.com", result.UserName);
-        Assert.Equal("user@gmail.com", result.Email);
+    [Fact]
+    public async Task FindUsers_OmitsSamAccountName_WhenMoreThanOneUserHasIt()
+    {
+        var graph = new Mock<IEntraGraphService>();
+        graph.Setup(g => g.SearchUsersAsync("emp", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new EntraUserInfo("a@uva.nl", "A", "a@uva.nl", "Emp1"),
+                new EntraUserInfo("b@uva.nl", "B", "b@uva.nl", "emp1"),
+                new EntraUserInfo("c@uva.nl", "C", "c@uva.nl", "other1")
+            ]);
+        var source = new EntraUserSearchSource(graph.Object);
+
+        var result = Assert.Single(await source.FindUsers("emp", CancellationToken.None));
+
+        Assert.Equal("other1", result.UserName);
+    }
+
+    [Fact]
+    public async Task FindUsers_SetsTheOrganization_WhenGraphReturnsOne()
+    {
+        var graph = new Mock<IEntraGraphService>();
+        graph.Setup(g => g.SearchUsersAsync("emp", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new EntraUserInfo("Emp.One@uva.nl", "Emp One", "emp1@uva.nl", "emp1", "FNWI | Dir&Dnst/FNW")
+            ]);
+        var source = new EntraUserSearchSource(graph.Object);
+
+        var result = Assert.Single(await source.FindUsers("emp", CancellationToken.None));
+
+        Assert.Equal("FNWI | Dir&Dnst/FNW", result.Organization?.Name);
     }
 
     [Fact]
