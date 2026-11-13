@@ -211,7 +211,7 @@ public class HiddenAssessmentTests : ControllerTestsBase
         MockEmptyEventLog(instance);
         MockEmptyRelatedInstanceLookups();
         var factory = new AssessmentDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config),
-            _modelService, _assessmentService);
+            _modelService, _assessmentService, _instanceService);
         var controller = new AssessmentsController(_workflowInstanceService, _userServiceMock.Object,
             _workflowInstanceRepoMock.Object, _assessmentService, _instanceService, factory, _rightsService);
 

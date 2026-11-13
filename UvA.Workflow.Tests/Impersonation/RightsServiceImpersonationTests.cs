@@ -177,7 +177,7 @@ public class RightsServiceImpersonationTests
             instance, [RoleAction.View], RightsEvaluationMode.RealUser));
 
         Assert.Contains(
-            rightsService.GetImpersonationTargetRoles(instance),
+            await rightsService.GetImpersonationTargetRoles(instance),
             role => role.Name == roleName);
         Assert.Equal(new[] { roleName }, await rightsService.GetViewerRoles(instance));
         Assert.True(await rightsService.Can(instance, RoleAction.View));
@@ -210,7 +210,7 @@ public class RightsServiceImpersonationTests
             modelService, userService.Object, repository.Object, impersonationContext.Object);
 
         Assert.Contains(
-            rightsService.GetImpersonationTargetRoles(instance),
+            await rightsService.GetImpersonationTargetRoles(instance),
             role => role.Name == "Supervisor");
         Assert.Equal(new[] { "Supervisor" }, await rightsService.GetViewerRoles(instance));
         Assert.True(await rightsService.Can(instance, RoleAction.View));

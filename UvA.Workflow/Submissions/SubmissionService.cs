@@ -41,11 +41,13 @@ public class SubmissionService(
             throw new InvalidWorkflowStateException(instance.Id, "SubmissionsAlreadySubmitted",
                 "Submission already submitted");
 
-        var objectContext = modelService.CreateContext(instance);
+        var objectContext = form.GetContext(await instanceService.CreateFormContext(instance, form, ct));
 
-        var questionsToValidate = form.Pages
+        var questionsToValidate = form.ActualForm.Pages
+            .Where(p => form.TargetForm == null || p.Sources == null || p.Sources.Contains(form.PropertyName!))
             .Where(p => p.Condition.IsMet(objectContext))
             .SelectMany(p => p.Questions)
+            .Where(q => q.Sources == null || q.Sources.Contains(form.PropertyName!))
             .Distinct()
             .ToArray();
 
@@ -53,15 +55,15 @@ public class SubmissionService(
         var missing = questionsToValidate
             .Where(q => q.IsRequired
                         && (q.DataType == DataType.Check
-                            ? instance.GetProperty(q.Name) != BsonBoolean.True
-                            : !instance.HasAnswer(q.Name))
+                            ? instance.GetProperty(form.PropertyName, q.Name) != BsonBoolean.True
+                            : !HasAnswer(instance, form.PropertyName, q.Name))
                         && q.Condition.IsMet(objectContext))
             .Select(q => new InvalidQuestion(q.Name, new BilingualString("Required field", "Verplicht veld")))
             .ToArray();
 
         // Validate field validation rules
         var invalid = questionsToValidate
-            .Where(q => instance.HasAnswer(q.Name) && !q.Validation.IsMet(objectContext))
+            .Where(q => HasAnswer(instance, form.PropertyName, q.Name) && !q.Validation.IsMet(objectContext))
             .Select(q => new InvalidQuestion(
                 q.Name,
                 q.Validation!.Message ?? new BilingualString("Invalid value", "Ongeldige waarde")
@@ -95,4 +97,7 @@ public class SubmissionService(
         await instanceJournalService.IncrementVersion(instance.Id, ct);
         return new SubmissionResult(true, [], finalSubmissionState, result);
     }
+
+    private static bool HasAnswer(WorkflowInstance instance, string? propertyName, string questionName) =>
+        instance.GetProperty(propertyName, questionName) is { IsBsonNull: false };
 }

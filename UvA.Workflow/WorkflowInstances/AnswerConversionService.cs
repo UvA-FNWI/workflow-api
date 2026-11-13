@@ -31,6 +31,7 @@ public class AnswerConversionService(
     public async Task<BsonValue> ConvertToValue(JsonElement? element, PropertyDefinition propertyDefinition,
         CancellationToken ct)
     {
+        propertyDefinition.EnsureWritable();
         if (element == null)
             return BsonNull.Value;
 

@@ -45,9 +45,9 @@ public class AssessmentsController(
             contexts.AddRange(context);
         }
 
-        var dto = assessmentDtoFactory.Create(instance, contexts, assessmentConfig,
+        var dto = await assessmentDtoFactory.Create(instance, contexts, assessmentConfig,
             await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden),
-            allowedForms: submissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray());
+            allowedForms: submissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray(), ct: ct);
         return Ok(dto);
     }
 
@@ -74,16 +74,16 @@ public class AssessmentsController(
             await rightsService.EnsureAuthorizedForAction(instance, [RoleAction.View, RoleAction.ViewResults]);
             var allowedSubmissions = (await instanceService.GetAllowedSubmissions(instance, ct, true)).ToList();
             var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, allowedSubmissions, ct);
-            return Ok(assessmentDtoFactory.Create(instance, contexts,
+            return Ok(await assessmentDtoFactory.Create(instance, contexts,
                 new AssessmentConfiguration { Parts = [matchingPart] },
                 await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden),
-                allowedForms: allowedSubmissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray()));
+                allowedForms: allowedSubmissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray(), ct: ct));
         }
 
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
-        var dto = assessmentDtoFactory.Create(instance, [context], assessmentConfig,
-            await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden));
+        var dto = await assessmentDtoFactory.Create(instance, [context], assessmentConfig,
+            await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden), ct: ct);
         return Ok(dto);
     }
 
@@ -123,8 +123,8 @@ public class AssessmentsController(
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
 
-        var dto = assessmentDtoFactory.CreateSourceResults(context,
-            await rightsService.GetAllowedActions(context.Instance, RoleAction.ViewHidden), pageName);
+        var dto = await assessmentDtoFactory.CreateSourceResults(context,
+            await rightsService.GetAllowedActions(context.Instance, RoleAction.ViewHidden), pageName, ct);
         return Ok(dto);
     }
 }

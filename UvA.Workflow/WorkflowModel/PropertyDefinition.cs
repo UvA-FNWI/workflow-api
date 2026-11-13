@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -72,6 +73,21 @@ public abstract class PropertyDefinition : INamed
     public string? Default { get; set; }
 
     public Expression? DefaultExpression => ExpressionParser.Parse(Default);
+
+    /// <summary>
+    /// Expression for a read-only computed value. Computed values are not stored on the instance.
+    /// </summary>
+    public string? Expression { get; set; }
+
+    [YamlIgnore] public bool IsComputed => Expression != null;
+    [YamlIgnore] public Expression? ComputedExpression => ExpressionParser.Parse(Expression);
+
+    public void EnsureWritable()
+    {
+        if (IsComputed)
+            throw new InvalidWorkflowStateException("", "ComputedPropertyReadOnly",
+                $"Computed property '{Name}' is read-only");
+    }
 
     /// <summary>
     /// Localized extended description text for the propertyDefinition.
