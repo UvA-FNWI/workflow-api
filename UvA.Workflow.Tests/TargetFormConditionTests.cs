@@ -2,11 +2,40 @@ using MongoDB.Bson;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests;
 
 public class TargetFormConditionTests
 {
+    [Theory]
+    [InlineData(false, new[] { "Extra" }, true)]
+    [InlineData(true, new[] { "Extra" }, true)]
+    [InlineData(false, new[] { "Other" }, false)]
+    [InlineData(true, new[] { "Other" }, false)]
+    [InlineData(false, new[] { "Extra", "Other" }, false)]
+    [InlineData(true, new[] { "Extra", "Other" }, false)]
+    [InlineData(false, new string[0], false)]
+    [InlineData(true, new string[0], false)]
+    public void MultiSelectEquality_UsesTypedFormAnswers(bool targetForm, string[] flags, bool visible)
+    {
+        var (model, instance, form) = Create(targetForm, true);
+        var answers = targetForm ? instance.Properties["Assessment"].AsBsonDocument : null;
+        if (answers != null)
+            answers["Flags"] = new BsonArray(flags);
+        else
+            instance.Properties["Flags"] = new BsonArray(flags);
+        var condition = new Condition { Value = new Value { Property = "Flags", Equal = "=Extra" } };
+        form.ActualForm.WorkflowDefinition.Properties.Get("ExtraQuestion").Condition = condition;
+        form.ActualForm.Pages[1].Condition = condition;
+
+        var status = model.GetQuestionStatus(instance, form, true);
+        var dto = FormDto.Create(form, model.CreateContext(instance));
+
+        Assert.Equal(visible, status["ExtraQuestion"].IsVisible);
+        Assert.Equal(visible, dto.Pages[1].IsActive);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
@@ -67,6 +96,11 @@ public class TargetFormConditionTests
                                           type: Assessment
                                         - name: ShowExtraQuestion
                                           type: Check
+                                        - name: Flags
+                                          type: '[Choice]'
+                                          values:
+                                            - name: Extra
+                                            - name: Other
                                       """,
             ["Project/Forms/Review.yaml"] = """
                                             name: Review
@@ -79,6 +113,11 @@ public class TargetFormConditionTests
                                          properties:
                                            - name: ShowExtraQuestion
                                              type: Check
+                                           - name: Flags
+                                             type: '[Choice]'
+                                             values:
+                                               - name: Extra
+                                               - name: Other
                                            - name: ExtraQuestion
                                              type: String
                                              condition: &showExtra
@@ -122,7 +161,10 @@ public class TargetFormConditionTests
             Events = [],
             WorkflowDefinition = targetForm ? "Project" : "Assessment",
             Properties = targetForm
-                ? new() { ["Assessment"] = answers, ["ShowExtraQuestion"] = !showExtra }
+                ? new()
+                {
+                    ["Assessment"] = answers, ["ShowExtraQuestion"] = !showExtra, ["Flags"] = new BsonArray { "Extra" }
+                }
                 : answers.ToDictionary(e => e.Name, e => e.Value)
         };
         return (model, instance, model.GetForm(instance, targetForm ? "Review" : "Edit"));
