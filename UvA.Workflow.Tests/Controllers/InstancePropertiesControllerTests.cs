@@ -311,6 +311,41 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task AssignRelatedUser_RejectsDuplicateArrayUser()
+    {
+        var userId = ObjectId.GenerateNewId();
+        var user = new User
+        {
+            Id = userId.ToString(),
+            UserName = "supervisor",
+            DisplayName = "Supervisor",
+            Email = "supervisor@example.com"
+        };
+        _userServiceMock.Setup(service => service.GetUser(user.UserName, _ct)).ReturnsAsync(user);
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("PracticalSupervisor", _ => new BsonArray
+            {
+                new BsonDocument("_id", userId)
+            }))
+            .Build();
+        var (controller, _) = Build("Student", instance: instance);
+        var input = new AssignRelatedUserRequest(JsonSerializer.SerializeToElement(new
+        {
+            user.UserName,
+            user.DisplayName,
+            user.Email
+        }));
+
+        var result = await controller.AssignRelatedUser(instance.Id, "PracticalSupervisor", input, _ct);
+
+        Assert.Equal(400, Assert.IsType<ObjectResult>(result).StatusCode);
+        Assert.Equal(userId, Assert.Single(instance.GetProperty("PracticalSupervisor")!.AsBsonArray)
+            .AsBsonDocument["_id"].AsObjectId);
+        Assert.Empty(_loggedChanges);
+    }
+
+    [Fact]
     public async Task RemoveRelatedUser_RemovesOnlyTheRequestedUser()
     {
         var keepId = ObjectId.GenerateNewId();
@@ -332,5 +367,65 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         Assert.Equal(keepId, Assert.Single(instance.GetProperty("PracticalSupervisor")!.AsBsonArray)
             .AsBsonDocument["_id"].AsObjectId);
         Assert.Equal("PracticalSupervisor", Assert.Single(_loggedChanges).Path);
+    }
+
+    [Fact]
+    public async Task RemoveRelatedUser_DuplicateSameId_RemovesAllEntriesAndSetsNull()
+    {
+        var duplicateId = ObjectId.GenerateNewId();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("PracticalSupervisor", _ => new BsonArray
+            {
+                new BsonDocument("_id", duplicateId),
+                new BsonDocument("_id", duplicateId)
+            }))
+            .Build();
+        var (controller, _) = Build("Student", instance: instance);
+
+        var result = await controller.RemoveRelatedUser(
+            instance.Id, "PracticalSupervisor", duplicateId.ToString(), _ct);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Equal(BsonNull.Value, instance.GetProperty("PracticalSupervisor"));
+    }
+
+    [Fact]
+    public async Task AssignRelatedUser_AfterDuplicateRemoval_CanAssignAgain()
+    {
+        var duplicateId = ObjectId.GenerateNewId();
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Start")
+            .WithProperties(("PracticalSupervisor", _ => new BsonArray
+            {
+                new BsonDocument("_id", duplicateId),
+                new BsonDocument("_id", duplicateId)
+            }))
+            .Build();
+        var (controller, _) = Build("Student", instance: instance);
+
+        await controller.RemoveRelatedUser(
+            instance.Id, "PracticalSupervisor", duplicateId.ToString(), _ct);
+
+        var replacement = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "replacement",
+            DisplayName = "Replacement",
+            Email = "replacement@example.com"
+        };
+        _userServiceMock.Setup(service => service.GetUser(replacement.UserName, _ct)).ReturnsAsync(replacement);
+        var input = new AssignRelatedUserRequest(JsonSerializer.SerializeToElement(new
+        {
+            replacement.UserName,
+            replacement.DisplayName,
+            replacement.Email
+        }));
+
+        var result = await controller.AssignRelatedUser(instance.Id, "PracticalSupervisor", input, _ct);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Equal(replacement.Id,
+            Assert.Single(instance.GetProperty("PracticalSupervisor")!.AsBsonArray).AsBsonDocument["_id"].ToString());
     }
 }
