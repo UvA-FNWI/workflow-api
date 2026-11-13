@@ -435,9 +435,14 @@ public class EffectService(
         }
 
 
-        if (operation.Outputs.Any())
+        if (operation.Outputs.Any() || operation.SelectOne != null)
         {
-            var body = await result.Content.ReadFromJsonAsync<JsonDocument>(ct);
+            using var body = await result.Content.ReadFromJsonAsync<JsonDocument>(ct);
+            var response = operation.SelectOne == null
+                ? body!.RootElement
+                : ServiceResponseSelector.Select(body!.RootElement, operation.SelectOne, requestContext);
+
+            if (!operation.Outputs.Any()) return;
 
             ObjectContext? responseContext = null;
             if (operation.Outputs.Any(o => o.Template != null))
@@ -452,7 +457,7 @@ public class EffectService(
                 responseContext = new ObjectContext(
                     context.Values
                         .Concat(optionContext.Values)
-                        .Concat(body!.RootElement.EnumerateObject()
+                        .Concat(response.EnumerateObject()
                             .ToDictionary(Lookup (p) => p.Name, object? (p) => p.Value.ToString()))
                         .GroupBy(p => p.Key)
                         .ToDictionary(g => g.Key, g => g.Last().Value),
@@ -464,7 +469,7 @@ public class EffectService(
                 Lookup (o) => o.Name,
                 object (o) => o.Template != null
                     ? Template.Create(o.Template).Apply(responseContext!)
-                    : body?.RootElement.GetProperty(o.Path!).ToString()!)
+                    : response.GetProperty(o.Path!).ToString())
             );
         }
     }
