@@ -3,6 +3,7 @@ using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
+using DomainAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Api.Assessments;
 
@@ -31,24 +32,7 @@ public class AssessmentsController(
 
         var assessmentConfig = await assessmentService.GetEnrichedAssessmentConfig(instance, ct);
 
-        var submissions = (await instanceService.GetAllowedSubmissions(instance, ct, true)).ToList();
-        var contexts = new List<SubmissionContext>();
-        foreach (var form in submissions.Select(s => s.Form))
-        {
-            if (form == null)
-                throw new EntityNotFoundException("Form", $"instanceId:{instanceId},submission:{form}");
-
-            if (assessmentConfig?.Parts.SelectMany(p => p.Sources).Any(s => s.Name == form.Name) != true)
-                continue;
-
-            var context = await assessmentService.ResolveAssessmentContexts(instance, form.Name, ct);
-            contexts.AddRange(context);
-        }
-
-        var dto = assessmentDtoFactory.Create(instance, contexts, assessmentConfig,
-            await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden),
-            allowedForms: submissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray());
-        return Ok(dto);
+        return Ok(await CreateResults(instance, assessmentConfig, ct));
     }
 
     [HttpGet("{instanceId}/{submissionId}")]
@@ -72,43 +56,58 @@ public class AssessmentsController(
         if (matchingPart != null)
         {
             await rightsService.EnsureAuthorizedForAction(instance, [RoleAction.View, RoleAction.ViewResults]);
-            var allowedSubmissions = (await instanceService.GetAllowedSubmissions(instance, ct, true)).ToList();
-            var contexts = await LoadSubmittedSourceContexts(instance, matchingPart, allowedSubmissions, ct);
-            return Ok(assessmentDtoFactory.Create(instance, contexts,
-                new AssessmentConfiguration { Parts = [matchingPart] },
-                await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden),
-                allowedForms: allowedSubmissions.Where(s => s.CanView).Select(s => s.Form.Name).ToArray()));
+            return Ok(await CreateResults(instance, new AssessmentConfiguration
+            {
+                Parts = [matchingPart],
+                GradingBasis = assessmentConfig!.GradingBasis,
+                GradeGap = assessmentConfig.GradeGap
+            }, ct));
         }
 
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
         var dto = assessmentDtoFactory.Create(instance, [context], assessmentConfig,
-            await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden));
+            new Dictionary<string, DomainAction[]>
+                { [instance.Id] = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden) });
         return Ok(dto);
     }
 
-    /// <summary>
-    /// Returns SubmissionContexts for all sources in the given part that have already
-    /// been submitted. Sources not yet submitted are silently skipped
-    /// </summary>
-    private async Task<SubmissionContext[]> LoadSubmittedSourceContexts(
+    private async Task<AssessmentDto> CreateResults(
         WorkflowInstance instance,
-        AssessmentPart part,
-        IEnumerable<InstanceService.AllowedSubmission> allowedSubmissions,
+        AssessmentConfiguration? config,
         CancellationToken ct)
     {
-        // Find out which forms have been submitted for this instance
-        var submittedFormNames = allowedSubmissions.Select(s => s.Form.Name).ToHashSet();
+        var context = await instanceService.ResolveContext(instance, ct);
+        var parts = config?.Parts.Select(part =>
+            context.ImportedSteps.GetValueOrDefault(part.Name) is { } owner
+                ? (Instance: owner.Instance, Part: owner.Definition.AssessmentConfiguration!.Parts
+                    .Single(source => source.Name == owner.Step.Name))
+                : (Instance: instance, Part: part));
+        var contexts = new List<SubmissionContext>();
+        var allowedForms = new HashSet<(string InstanceId, string Form)>();
+        var allowedHidden = new Dictionary<string, DomainAction[]>();
+        foreach (var group in parts?.GroupBy(part => part.Instance.Id) ?? [])
+        {
+            var sourceInstance = group.First().Instance;
+            allowedHidden[sourceInstance.Id] =
+                await rightsService.GetAllowedActions(sourceInstance, RoleAction.ViewHidden);
+            var sourceNames = group.SelectMany(part => part.Part.Sources).Select(source => source.Name).ToHashSet();
+            if (sourceInstance.Id != instance.Id)
+                foreach (var name in sourceNames)
+                    await rightsService.EnsureAuthorizedForAction(sourceInstance,
+                        [RoleAction.View, RoleAction.ViewResults], RightsEvaluationMode.RequestContext, name);
 
-        // Only fetch contexts for sources that have already been submitted
-        var submittedSources = part.Sources
-            .Where(source => submittedFormNames.Contains(source.Name))
-            .ToList();
+            var submissions = await instanceService.GetAllowedSubmissions(sourceInstance, ct, true);
+            foreach (var submission in submissions.Where(submission => sourceNames.Contains(submission.Form.Name)))
+            {
+                contexts.AddRange(await assessmentService.ResolveAssessmentContexts(sourceInstance,
+                    submission.Form.Name, ct));
+                if (submission.CanView) allowedForms.Add((sourceInstance.Id, submission.Form.Name));
+            }
+        }
 
-        return await Task.WhenAll(
-            submittedSources.Select(source =>
-                workflowInstanceService.GetSubmissionContext(instance.Id, source.Name, null, ct))
-        );
+        return assessmentDtoFactory.Create(instance, contexts, config, allowedHidden,
+            allowedForms: allowedForms, resolvedContext: context);
     }
 
     [HttpGet("{instanceId}/{submissionId}/{pageName}")]

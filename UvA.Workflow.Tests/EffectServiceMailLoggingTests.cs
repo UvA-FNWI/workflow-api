@@ -28,7 +28,8 @@ public class EffectServiceMailLoggingTests
 
         var instanceRepository = new Mock<IWorkflowInstanceRepository>();
         var userService = new Mock<IUserService>();
-        var rightsService = new RightsService(_modelService, userService.Object, instanceRepository.Object);
+        var rightsService = new RightsService(_modelService, userService.Object, instanceRepository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService, instanceRepository.Object));
         var assessmentService = new Mock<IAssessmentService>();
 
         var configuration = new Mock<IConfiguration>();
@@ -37,7 +38,9 @@ public class EffectServiceMailLoggingTests
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, configuration.Object);
 
         var instanceService = new InstanceService(instanceRepository.Object, _modelService, userService.Object,
-            rightsService, mailBuilder, assessmentService.Object);
+            rightsService, mailBuilder,
+            new WorkflowContextEnricher(instanceRepository.Object, _modelService, assessmentService.Object),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService, instanceRepository.Object));
 
         _effectService = new EffectService(
             instanceService,

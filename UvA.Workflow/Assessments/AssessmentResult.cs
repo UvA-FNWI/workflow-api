@@ -6,8 +6,8 @@ namespace UvA.Workflow.Assessments;
 public class AssessmentResult
 {
     public List<AssessmentPartResult> PartResults { get; set; } = [];
-    public decimal FinalGradeUnrounded { get; set; }
-    public float FinalGradeRounded { get; set; }
+    public decimal? FinalGradeUnrounded { get; set; }
+    public float? FinalGradeRounded { get; set; }
     public AssessmentConfiguration AssessmentConfiguration { get; set; } = null!;
 }
 
@@ -22,6 +22,8 @@ public class AssessmentPartResult : INamed
     public List<SourceResult> SourceResults { get; set; } = [];
 
     public AssessmentPart PartConfig { get; set; } = null!;
+
+    public ImportedStepContext? Owner { get; set; }
 
     public IEnumerable<SourceResult> AllResults => [.. SourceResults, Combined];
 }

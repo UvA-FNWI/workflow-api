@@ -31,7 +31,8 @@ public class RightsServiceInheritedRolesTests
                 _requests.Add(requestedIds);
                 return _referencedInstances.Where(i => requestedIds.Contains(i.Id)).ToArray();
             });
-        _sut = new RightsService(_model, _users.Object, _repository.Object);
+        _sut = new RightsService(_model, _users.Object, _repository.Object,
+            UnitTestsHelpers.CreateStateResolver(_model, _repository.Object));
     }
 
     [Fact]

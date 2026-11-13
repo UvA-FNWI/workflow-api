@@ -1,0 +1,6 @@
+name: Upload
+title: Joint thesis
+icon:
+  type: upload-line
+childrenLayout: CollapsibleRows
+children: [UploadDocument, ConfirmUpload]

@@ -146,6 +146,7 @@ public class RightsServiceHistoricalViewTests : ControllerTestsBase
             .ReturnsAsync((WorkflowInstance instance, CancellationToken _) =>
                 ReferenceEquals(instance, current) ? role : null);
         var rights = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UnitTestsHelpers.CreateStateResolver(_modelService, _workflowInstanceRepoMock.Object),
             impersonation.Object);
 
         var actions = (await rights.GetAllowedHistoricalViewActions(current, [snapshot]))[snapshot];

@@ -6,8 +6,12 @@ using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Infrastructure.S3;
 using UvA.Workflow.Jobs;
+using UvA.Workflow.Journaling;
+using UvA.Workflow.Events;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Users;
+using UvA.Workflow.Assessments;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests.Helpers;
 
@@ -24,6 +28,14 @@ internal static class UnitTestsHelpers
 
     public static ModelParser CreateModelParser() => new(new FileSystemProvider(FixturesPath));
 
+
+    public static WorkflowStateResolver CreateStateResolver(ModelService model, IWorkflowInstanceRepository repository)
+    {
+        var workflows = new WorkflowInstanceService(model, repository, Mock.Of<IInstanceJournalService>(),
+            Mock.Of<IInstanceEventRepository>(), Mock.Of<IUserService>(), Mock.Of<IUserRepository>());
+        return new WorkflowStateResolver(repository, model,
+            new WorkflowContextEnricher(repository, model, new AssessmentService(model, workflows, repository)));
+    }
 
     public static readonly User AdminUser = new()
     {

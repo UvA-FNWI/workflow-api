@@ -1943,7 +1943,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Internal name of the assessment part"
+          "description": "Internal name of the assessment part. Use an imported step's local name to resolve its source assessment."
         },
         "title": {
           "description": "Localized title of the assessment part",

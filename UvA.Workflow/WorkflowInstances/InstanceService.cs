@@ -1,5 +1,4 @@
 using System.Text.Json;
-using UvA.Workflow.Assessments;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
@@ -8,25 +7,14 @@ using Domain_Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-/// <summary>
-/// A group of workflow instances that need extra values before their text and conditions can be evaluated.
-/// Groups can be handled together so shared values only have to be loaded once.
-/// </summary>
-/// <param name="WorkflowDefinition">Describes the properties available on these instances.</param>
-/// <param name="Contexts">Contains the instance values and receives the loaded values.</param>
-/// <param name="Lookups">The values used by text, conditions, or the response.</param>
-public sealed record EnrichmentBatch(
-    WorkflowDefinition WorkflowDefinition,
-    ICollection<ObjectContext> Contexts,
-    IEnumerable<Lookup> Lookups);
-
 public class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     IUserService userService,
     RightsService rightsService,
     MailBuilder mailBuilder,
-    IAssessmentService assessmentService
+    WorkflowContextEnricher contextEnricher,
+    WorkflowStateResolver stateResolver
 )
 {
     public Dictionary<string, JsonElement?> GetPropertyValues(WorkflowInstance instance)
@@ -90,236 +78,22 @@ public class InstanceService(
     /// Whether to replace internal step names with their display titles.
     /// </param>
     /// <returns>A task that completes when all requested values have been added.</returns>
-    public async Task Enrich(
-        IEnumerable<EnrichmentBatch> batches,
-        CancellationToken ct,
-        bool replaceStep = true)
-    {
-        // Assessments need some course settings in addition to the values requested by the caller.
-        var states = batches.Select(batch =>
-        {
-            var lookups = batch.Lookups.ToList();
-            var hasAssessment = lookups.Any(lookup =>
-                                    lookup is PropertyLookup property && property.Parts[0] == "Assessment")
-                                && batch.WorkflowDefinition.AssessmentConfiguration != null;
-            if (hasAssessment)
-                lookups.AddRange(
-                    new PropertyLookup("Course.GradingBasis"),
-                    new PropertyLookup("Course.GradeGap"));
-            return new EnrichmentState(batch, lookups, hasAssessment);
-        }).ToArray();
+    public Task Enrich(IEnumerable<EnrichmentBatch> batches, CancellationToken ct, bool replaceStep = true)
+        => contextEnricher.Enrich(batches, ct, replaceStep);
 
-        var pendingBatches = states
-            .Select(state => state.Batch with { Lookups = state.Lookups })
-            .ToArray();
+    public Task<ObjectContext> ResolveContext(WorkflowInstance instance, CancellationToken ct)
+        => stateResolver.Resolve(instance, ct);
 
-        while (pendingBatches.Length > 0)
-        {
-            var targetGroups = pendingBatches
-                .SelectMany(GetReferenceEnrichments)
-                .GroupBy(enrichment => enrichment.TargetDefinition.Name,
-                    StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            var referenceIds = targetGroups
-                .SelectMany(group => group)
-                .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
-                    GetReferenceIds(context.Get(enrichment.ReferenceProperty))))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-
-            var resultsById = new Dictionary<string, Dictionary<string, BsonValue>>();
-
-            if (referenceIds.Length > 0)
-            {
-                var projection = targetGroups
-                    .SelectMany(group => group)
-                    .SelectMany(enrichment => enrichment.ProjectedProperties)
-                    .Select(property => property.Split('.')[0])
-                    .Distinct(StringComparer.Ordinal)
-                    .ToDictionary(property => property, property => $"$Properties.{property}");
-
-                var results = await workflowInstanceRepository.GetAllById(
-                    referenceIds, projection, ct);
-
-                resultsById = results.ToDictionary(result => result["_id"].ToString()!);
-            }
-
-            var nextBatches = new List<EnrichmentBatch>();
-
-            foreach (var targetGroup in targetGroups)
-            {
-                var targetDefinition = targetGroup.First().TargetDefinition;
-
-                var targetIds = targetGroup
-                    .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
-                        GetReferenceIds(context.Get(enrichment.ReferenceProperty))))
-                    .Distinct(StringComparer.Ordinal)
-                    .ToArray();
-
-                var resultContexts = targetIds
-                    .Where(resultsById.ContainsKey)
-                    .ToDictionary(
-                        id => id,
-                        id => modelService.CreateContext(targetDefinition.Name, resultsById[id]),
-                        StringComparer.Ordinal);
-
-                foreach (var enrichment in targetGroup)
-                {
-                    foreach (var context in enrichment.Contexts)
-                    {
-                        context.Values[enrichment.ReferenceProperty] =
-                            context.Get(enrichment.ReferenceProperty) switch
-                            {
-                                string reference => resultContexts.GetValueOrDefault(reference)?.Values,
-                                string[] references => references
-                                    .Select(resultContexts.GetValueOrDefault)
-                                    .OfType<ObjectContext>()
-                                    .Select(result => result.Values)
-                                    .ToArray(),
-                                var value => value
-                            };
-                    }
-                }
-
-                var remainingLookups = targetGroup
-                    .SelectMany(enrichment => enrichment.ProjectedProperties)
-                    .Where(property => property.Contains('.'))
-                    .Select(property => new PropertyLookup(property))
-                    .Distinct()
-                    .ToArray();
-
-                if (remainingLookups.Length == 0)
-                    continue;
-
-                // Both newly loaded and previously loaded references are dictionaries now.
-                var loadedContexts = targetGroup
-                    .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
-                        GetLoadedReferences(context.Get(enrichment.ReferenceProperty))))
-                    .Distinct()
-                    .Select(values => new ObjectContext(values))
-                    .ToArray();
-
-                if (loadedContexts.Length > 0)
-                {
-                    nextBatches.Add(new EnrichmentBatch(
-                        targetDefinition,
-                        loadedContexts,
-                        remainingLookups));
-                }
-            }
-
-            pendingBatches = nextBatches.ToArray();
-        }
-
-        // Calculate assessment values using the settings of the original workflow instances.
-        foreach (var state in states.Where(state => state.HasAssessment))
-        {
-            foreach (var context in state.Batch.Contexts)
-            {
-                var config = state.Batch.WorkflowDefinition.AssessmentConfiguration;
-                config!.Enrich(context.Get("Course.GradingBasis") as string, context.Get("Course.GradeGap") as bool?);
-                var result = assessmentService.GetAssessmentResult(
-                    state.Batch.WorkflowDefinition,
-                    context,
-                    config);
-                var dict = result.PartResults.ToDictionary(r => r.Name,
-                    object (r) => r.AllResults.ToDictionary(s => s.Name,
-                        object (s) =>
-                        {
-                            var questionResults = s.PageResults
-                                .SelectMany(p => p.QuestionResults)
-                                .ToDictionary(q => q.Name, object (q) => q.Answer);
-                            questionResults.Add("WeightedAverage", s.WeightedAverage);
-                            return questionResults;
-                        }));
-                dict["FinalGrade"] = result.FinalGradeRounded;
-                context.Values["Assessment"] = dict;
-            }
-        }
-
-        // Replace internal step names using the titles from the original workflow definition.
-        if (replaceStep)
-        {
-            foreach (var state in states)
-            {
-                foreach (var context in state.Batch.Contexts)
-                {
-                    if (context.Values.TryGetValue("CurrentStep", out var i) && i is string stepName)
-                        context.Values["CurrentStep"] =
-                            state.Batch.WorkflowDefinition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? stepName;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Groups values that belong to the same referenced instance. For example, <c>Course.Name</c> and
-    /// <c>Course.Type</c> can be loaded together for each course.
-    /// </summary>
-    private static IEnumerable<ReferenceEnrichment> GetReferenceEnrichments(EnrichmentBatch batch)
-    {
-        var workflowDefinition = batch.WorkflowDefinition;
-        var referenceProperties = batch.Lookups
-            .OfType<PropertyLookup>()
-            .Distinct()
-            .Where(property => property.Parts.Length > 1)
-            .Where(property =>
-                workflowDefinition.Properties.GetOrDefault(property.Parts[0])?.DataType == DataType.Reference)
-            .GroupBy(property => property.Parts[0]);
-
-        foreach (var referenceProperty in referenceProperties)
-        {
-            var targetDefinition = (workflowDefinition.Properties
-                .GetOrDefault(referenceProperty.Key) as ReferencePropertyDefinition)?.WorkflowDefinition;
-            if (targetDefinition == null)
-                continue;
-
-            yield return new ReferenceEnrichment(
-                targetDefinition,
-                batch.Contexts,
-                referenceProperty.Key,
-                referenceProperty
-                    .Select(property => string.Join('.', property.Parts.Skip(1)))
-                    .Distinct()
-                    .ToArray());
-        }
-    }
-
-    /// <summary>Returns the IDs stored in a single reference or a list of references.</summary>
-    private static IEnumerable<string> GetReferenceIds(object? value)
-        => value switch
-        {
-            string reference => [reference],
-            string[] references => references,
-            _ => []
-        };
-
-    private static IEnumerable<Dictionary<Lookup, object?>> GetLoadedReferences(object? value)
-        => value switch
-        {
-            Dictionary<Lookup, object?> values => [values],
-            Dictionary<Lookup, object?>[] values => values,
-            _ => []
-        };
-
-    private sealed record EnrichmentState(
-        EnrichmentBatch Batch,
-        List<Lookup> Lookups,
-        bool HasAssessment);
-
-    private sealed record ReferenceEnrichment(
-        WorkflowDefinition TargetDefinition,
-        ICollection<ObjectContext> Contexts,
-        string ReferenceProperty,
-        string[] ProjectedProperties);
+    public Task<IReadOnlyDictionary<string, ObjectContext>> ResolveContexts(
+        IReadOnlyCollection<WorkflowInstance> instances, CancellationToken ct)
+        => stateResolver.Resolve(instances, ct);
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
     public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
         ObjectContext? context = null)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        context ??= modelService.CreateContext(instance);
+        context ??= await ResolveContext(instance, ct);
         var recipientLookups = MailBuilder.ResolveRecipientLookups(workflowDefinition, sendMail);
         await Enrich(workflowDefinition, [context], recipientLookups, ct, replaceStep: false);
         return mailBuilder.Build(instance, sendMail, modelService, context);
@@ -328,8 +102,9 @@ public class InstanceService(
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
-        await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
+        var context = await stateResolver.Resolve(instance, ct);
+        if (!workflowDefinition.HasImportedSteps)
+            await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         var targetStep = modelService.FindOpenStep(instance, context)?.Name;
 
         if (instance.CurrentStep != targetStep)
@@ -422,8 +197,8 @@ public class InstanceService(
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var allowed = await rightsService.GetAllowedActions(instance,
             RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
-        var activeSteps = modelService.GetActiveSteps(instance);
-        var context = modelService.CreateContext(instance);
+        var context = await stateResolver.Resolve(instance, ct);
+        var activeSteps = modelService.GetActiveSteps(instance, context);
 
         // Submittable forms
         actions.AddRange(allowed
@@ -458,7 +233,7 @@ public class InstanceService(
         {
             // Build mail message for actions that send mail
             var sendMail = a.OnAction.FirstOrDefault(t =>
-                t.SendMail != null && t.Condition.IsMet(modelService.CreateContext(instance)))?.SendMail;
+                t.SendMail != null && t.Condition.IsMet(context))?.SendMail;
 
             MailMessage? mail = null;
             if (sendMail is not null)

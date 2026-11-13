@@ -225,6 +225,7 @@ public partial class ModelParser
         GlobalRoles.ForEach(r => PreProcess(r));
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+        WorkflowDefinitions.Values.ForEach(ValidateImports);
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)

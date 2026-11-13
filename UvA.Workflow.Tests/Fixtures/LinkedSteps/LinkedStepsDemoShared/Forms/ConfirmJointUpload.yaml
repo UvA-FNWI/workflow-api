@@ -1,0 +1,8 @@
+name: ConfirmJointUpload
+step: ConfirmUpload
+title: Confirm joint upload
+layout: Modal
+pages:
+  - name: Confirmation
+    elements:
+      - text: Confirm that the joint thesis document is ready for assessment. This completes the shared upload for every linked individual project.

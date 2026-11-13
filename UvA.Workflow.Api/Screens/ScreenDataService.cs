@@ -29,6 +29,7 @@ public class ScreenDataService(
 
         // Build projection based on screen columns
         var contexts = await LoadData(screen, definition, ct);
+        var viewableSources = await StepProgressResolver.GetViewableSources(contexts, rightsService);
 
         // Process the data and apply templates/expressions
         var columns = screen.Columns.Select(ScreenColumnDto.Create).ToArray();
@@ -38,11 +39,11 @@ public class ScreenDataService(
         // When the screen is grouped, return groups instead of a flat row list
         if (screen.Grouping != null)
         {
-            var groups = BuildGroups(definition, contexts, screen, columns);
+            var groups = BuildGroups(definition, contexts, screen, columns, viewableSources);
             return ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups, canCreateInstance);
         }
 
-        var rows = ProcessRows(definition, contexts, screen, columns);
+        var rows = ProcessRows(definition, contexts, screen, columns, viewableSources);
         return ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit,
             canCreateInstance: canCreateInstance);
     }
@@ -110,13 +111,17 @@ public class ScreenDataService(
         WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
         Screen screen,
-        ScreenColumnDto[] columns
+        ScreenColumnDto[] columns,
+        IReadOnlySet<string> viewableSources
     )
     {
         var rows = new List<ScreenRowDto>();
 
         foreach (var context in contexts)
         {
+            var rowDefinition = definition.GroupChildScreens
+                ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
+                : definition;
             var id = context.Id!;
             var processedValues = new Dictionary<int, object?>();
 
@@ -126,8 +131,8 @@ public class ScreenDataService(
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
                 var value = columns[i].IsCurrentStep
-                    ? StepProgressResolver.ResolveProgress(definition, column.GetValue(context) as string ?? "",
-                        context)
+                    ? StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep,
+                        context, viewableSources: viewableSources)
                     : column.GetValue(context);
                 processedValues[columnId] = value;
             }
@@ -175,12 +180,20 @@ public class ScreenDataService(
                 await instanceAuthorizationFilterService.BuildAuthorizationFilter(
                     definition.Name, RoleAction.View, ct);
 
-            var rawData = await repository.GetAllByType(
-                definition.Name, projection, authorizationFilter, ct);
-
-            var rows = rawData
-                .Select(row => modelService.CreateContext(definition.Name, row))
-                .ToList();
+            List<ObjectContext> rows;
+            if (definition.HasImportedSteps)
+            {
+                var instances = (await repository.GetByWorkflowDefinition(definition.Name,
+                    authorizationFilter == null
+                        ? FilterDefinition<WorkflowInstance>.Empty
+                        : new BsonDocumentFilterDefinition<WorkflowInstance>(authorizationFilter), ct)).ToArray();
+                rows = (await instanceService.ResolveContexts(instances, ct)).Values.ToList();
+            }
+            else
+            {
+                var rawData = await repository.GetAllByType(definition.Name, projection, authorizationFilter, ct);
+                rows = rawData.Select(row => modelService.CreateContext(definition.Name, row)).ToList();
+            }
 
             await instanceService.Enrich(
                 definition,
@@ -210,7 +223,8 @@ public class ScreenDataService(
         WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
         Screen screen,
-        ScreenColumnDto[] columns)
+        ScreenColumnDto[] columns,
+        IReadOnlySet<string> viewableSources)
     {
         // Build step-to-group mapping from configuration
         var stepGroupMapping = BuildStepGroupMapping(screen.Grouping!);
@@ -220,13 +234,16 @@ public class ScreenDataService(
 
         foreach (var context in contexts)
         {
-            var stepValue = context.Get("CurrentStep")?.ToString() ?? EmptyStepId;
+            var rowDefinition = definition.GroupChildScreens
+                ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
+                : definition;
+            var stepValue = context.CurrentStep ?? EmptyStepId;
 
             // Only include rows that match a configured group
             string? groupName;
             while (!stepGroupMapping.TryGetValue(stepValue, out groupName))
             {
-                stepValue = definition.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
+                stepValue = rowDefinition.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
                 if (stepValue == null)
                     break;
             }
@@ -248,7 +265,8 @@ public class ScreenDataService(
             .Select(g => new ScreenGroupDto(
                 g.Name,
                 g.Title,
-                ProcessRows(definition, groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns)))
+                ProcessRows(definition, groupedContexts.TryGetValue(g.Name, out var ctx) ? ctx : [], screen, columns,
+                    viewableSources)))
             .ToArray();
     }
 

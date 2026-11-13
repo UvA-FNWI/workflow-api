@@ -1,0 +1,8 @@
+name: AssessLocal
+step: IndividualWork
+pages:
+  - name: IndividualProduct
+    elements:
+      - question: LocalCriterion1
+      - question: LocalCriterion2
+      - question: LocalCriterion3
