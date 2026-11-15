@@ -44,9 +44,9 @@ public class SubmissionsController(
                 modelService.GetQuestionStatus(instance, form, historicalActions), permissions: [], context: context));
         }
 
-        // Live drafts require submit permissions; submitted forms require view permissions.
+        // Unsubmitted and repeatable forms use the live submit permissions.
         await rightsService.EnsureAuthorizedForAction(instance,
-            submissionState.DateSubmitted == null ? RoleAction.Submit : RoleAction.View, form.Name);
+            form.Repeatable || submissionState.DateSubmitted == null ? RoleAction.Submit : RoleAction.View, form.Name);
         var permissions =
             await rightsService.GetAllowedActionsForForm(instance, form, RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(instanceId, ct);

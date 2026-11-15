@@ -139,6 +139,11 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     public Effect[] OnSubmit { get; set; } = [];
 
     /// <summary>
+    /// Allows the form to be submitted again.
+    /// </summary>
+    public bool Repeatable { get; set; }
+
+    /// <summary>
     /// Whether submitting the form should emit the form-name event.
     /// </summary>
     public bool EmitFormSubmitEvent { get; set; } = true;

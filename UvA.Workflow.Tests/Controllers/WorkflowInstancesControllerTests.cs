@@ -32,7 +32,8 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             null!,
             null!,
             undoService!,
-            _mailLogRepositoryMock.Object);
+            _mailLogRepositoryMock.Object,
+            null!);
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)
         => _workflowInstanceRepoMock

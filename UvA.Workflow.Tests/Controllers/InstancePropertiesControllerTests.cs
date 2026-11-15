@@ -82,6 +82,7 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
             null!,
             _eduIdUserServiceMock.Object,
             _undoService,
+            null!,
             null!);
 
         return (controller, instance);

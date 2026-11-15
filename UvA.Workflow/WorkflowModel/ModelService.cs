@@ -82,7 +82,7 @@ public class ModelService(ModelParser parser)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden(q))
                                            && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
-                instance.GetProperty(form.PropertyName, q.Name) is null
+                instance.GetProperty(form.PropertyName, q.Name) is null or BsonNull
                     ? null
                     : q.GetValidationError(context),
                 (q as ChoicePropertyDefinition)?.Values?.Where(v => v.Condition.IsMet(context))

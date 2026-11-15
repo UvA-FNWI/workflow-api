@@ -184,6 +184,11 @@ public class EventDefinition : INamed
     public string Name { get; set; } = null!;
 
     /// <summary>
+    /// Localized label describing the event
+    /// </summary>
+    public BilingualString? Label { get; set; }
+
+    /// <summary>
     /// List of event names that are suppressed when this event occurs. Only the most recent event will be suppressed.
     /// </summary>
     public List<string>? Suppresses { get; set; }
@@ -196,6 +201,7 @@ public class EventDefinition : INamed
     public EventDefinition Clone() => new()
     {
         Name = Name,
+        Label = Label,
         Suppresses = Suppresses == null ? null : [.. Suppresses],
         ResetParentStep = ResetParentStep
     };
