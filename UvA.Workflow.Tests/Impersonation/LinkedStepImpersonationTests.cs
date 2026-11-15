@@ -90,7 +90,7 @@ public class LinkedStepImpersonationTests
             var instances = new InstanceService(Core.Repository.Object, Core.Model, Users.Object, Rights,
                 null!, Core.Enricher, Core.Resolver);
             Controller = new WorkflowInstancesController(Users.Object, null!, Rights, null!, Core.Repository.Object,
-                instances, null!, null!, Core.Model, Impersonation, null!, null!, null!);
+                instances, null!, null!, Core.Model, Impersonation, null!, null!, null!, null!);
         }
     }
 }
