@@ -564,7 +564,8 @@ public class WorkflowInstancesController(
                 return NoContent();
 
             var remaining = new BsonArray(users.Where(user => !IsRequestedUser(user)));
-            newValue = remaining.Count == 0 ? BsonNull.Value : remaining;
+            // Keep an empty array so a later $push assign works (Mongo rejects $push on null).
+            newValue = remaining.Count == 0 ? new BsonArray() : remaining;
         }
         else
         {

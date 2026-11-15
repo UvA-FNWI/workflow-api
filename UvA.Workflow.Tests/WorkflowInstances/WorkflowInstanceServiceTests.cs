@@ -189,6 +189,31 @@ public class WorkflowInstanceServiceTests
     }
 
     [Fact]
+    public async Task AppendPropertyValue_UsesSet_WhenPropertyIsNullInMongo()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "Upload")
+            .WithProperties(("PracticalSupervisor", _ => BsonNull.Value))
+            .Build();
+        var newUser = new BsonDocument("_id", ObjectId.GenerateNewId());
+        UpdateDefinition<WorkflowInstance>? capturedUpdate = null;
+        _repository
+            .Setup(repository => repository.UpdateFields(instance.Id, It.IsAny<UpdateDefinition<WorkflowInstance>>(),
+                _ct))
+            .Callback<string, UpdateDefinition<WorkflowInstance>, CancellationToken>((_, update, _) =>
+                capturedUpdate = update)
+            .Returns(Task.CompletedTask);
+
+        await _service.AppendPropertyValue(instance, ["PracticalSupervisor"], newUser, _ct);
+
+        Assert.Equal(newUser, Assert.Single(instance.Properties["PracticalSupervisor"].AsBsonArray));
+        Assert.NotNull(capturedUpdate);
+        var rendered = capturedUpdate.Render(new RenderArgs<WorkflowInstance>(
+            BsonSerializer.LookupSerializer<WorkflowInstance>(), BsonSerializer.SerializerRegistry));
+        Assert.True(rendered.AsBsonDocument.Contains("$set"));
+    }
+
+    [Fact]
     public async Task AppendPropertyValue_Journal_RecordsRealAdmin_WhenImpersonating()
     {
         var userService = new Mock<IUserService>();
