@@ -24,6 +24,8 @@ public static class WorkflowServiceCollectionExtensions
 
         services.AddScoped<WorkflowInstanceService>();
         services.AddScoped<InstanceService>();
+        services.AddScoped<WorkflowContextEnricher>();
+        services.AddScoped<WorkflowStateResolver>();
         services.AddScoped<IInstanceEventService, InstanceEventService>();
         services.AddScoped<IStepVersionService, StepVersionService>();
         services.AddScoped<IAssessmentService, AssessmentService>();

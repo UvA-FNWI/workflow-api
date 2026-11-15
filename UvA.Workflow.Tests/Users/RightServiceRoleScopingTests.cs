@@ -30,7 +30,8 @@ public class RightsServiceRoleScopingTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        return new RightsService(modelService, userService.Object, repository.Object);
+        return new RightsService(modelService, userService.Object, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
     }
 
     private static WorkflowInstance CreateInstance(string workflowDefinition) => new()

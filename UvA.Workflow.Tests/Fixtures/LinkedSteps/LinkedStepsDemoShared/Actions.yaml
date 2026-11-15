@@ -1,0 +1,14 @@
+globalActions:
+  - type: View
+    roles: [Student, Supervisor, Coordinator, SystemAdmin]
+    forms: [UploadJoint, AssessJoint]
+  - type: CreateInstance
+    roles: [Coordinator, SystemAdmin]
+  - type: ViewAdminTools
+    roles: [Coordinator]
+  - type: Edit
+    roles: [Coordinator]
+    property: Student
+  - type: Edit
+    roles: [Coordinator]
+    property: Supervisor

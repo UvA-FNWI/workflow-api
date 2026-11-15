@@ -31,6 +31,7 @@ public class RightsServiceCanEditPropertyTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext?.Object);
 
         return (rightsService, ImpersonationTestHelpers.CreateProjectInstance());
