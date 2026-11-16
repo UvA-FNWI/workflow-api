@@ -189,8 +189,11 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
             return context;
 
         var values = new Dictionary<Lookup, object?>(context.Values);
+        var embeddedAnswers = context.Get(PropertyName!) as Dictionary<string, object?>;
         foreach (var property in ActualForm.WorkflowDefinition.Properties)
-            values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
+            values[property.Name] = embeddedAnswers != null
+                ? ObjectContext.GetValue(BsonValue.Create(embeddedAnswers.GetValueOrDefault(property.Name)), property)
+                : context.Get($"{PropertyName}.{property.Name}");
         return new ObjectContext(values);
     }
 
