@@ -107,7 +107,9 @@ public class DeadlineTests
         var userService = new Mock<IUserService>();
         userService.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
-        var rightsService = new RightsService(modelService, userService.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var rightsService = new RightsService(modelService, userService.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService,
+                Mock.Of<IWorkflowInstanceRepository>()));
 
         var actions = await rightsService.GetAllowedActions(instance, [RoleAction.Execute]);
 
@@ -292,7 +294,8 @@ public class DeadlineTests
         var context = await service.GetSubmissionContext(instance.Id, "Closed", null, CancellationToken.None);
         var user = new Mock<IUserService>();
         user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        var rights = new RightsService(modelService, user.Object, repository.Object);
+        var rights = new RightsService(modelService, user.Object, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
         await rights.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
         await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
             rights.EnsureAuthorizedForAction(context.Instance, RoleAction.Submit, context.Form.Name));
@@ -398,7 +401,8 @@ public class DeadlineTests
             Assert.Null(startDto.Deadline!.Message);
             Assert.True(startDto.Deadline!.IsPassed);
             Assert.DoesNotContain(dto.Submissions, submission => submission.FormName == "Start");
-            var rights = new RightsService(modelService, user.Object, repository.Object);
+            var rights = new RightsService(modelService, user.Object, repository.Object,
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
             Assert.True(await rights.Can(instance, RoleAction.View, "Start"));
             Assert.False(await rights.Can(instance, RoleAction.Submit, "Start"));
         }
@@ -568,7 +572,9 @@ public class DeadlineTests
         ];
         var user = new Mock<IUserService>();
         user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model,
+                Mock.Of<IWorkflowInstanceRepository>()));
         var instance = Instance("Hard");
 
         var actions =
@@ -598,7 +604,9 @@ public class DeadlineTests
         ];
         var user = new Mock<IUserService>();
         user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model,
+                Mock.Of<IWorkflowInstanceRepository>()));
 
         var actions = await rights.GetAllowedActions(instance, RoleAction.Execute, RoleAction.View);
 
@@ -625,14 +633,18 @@ public class DeadlineTests
         var role = model.WorkflowDefinitions.First().Value.Roles.Get("Registered");
         role.Actions = requested.Select(type => new WorkflowModel.Action
         {
-            Type = type, Form = "Closed", Steps = [step]
+            Type = type,
+            Form = "Closed",
+            Steps = [step]
         }).ToList();
         var user = new Mock<IUserService>();
         user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model,
+                Mock.Of<IWorkflowInstanceRepository>()));
 
         var actions = await rights.GetAllowedActions(instance, mode, requested);
-        var perRole = rights.GetAllowedActionsPerTargetRole(instance, requested).SelectMany(r => r.Actions);
+        var perRole = (await rights.GetAllowedActionsPerTargetRole(instance, requested)).SelectMany(r => r.Actions);
 
         if (active)
         {
@@ -669,6 +681,8 @@ public class DeadlineTests
         impersonation.Setup(i => i.GetImpersonatedRole(It.IsAny<WorkflowInstance>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("HistoricalReader");
         var rights = new RightsService(model, user.Object, Mock.Of<IWorkflowInstanceRepository>(),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model,
+                Mock.Of<IWorkflowInstanceRepository>()),
             impersonation.Object);
         var instance = Instance("Hard");
 
@@ -724,7 +738,8 @@ public class DeadlineTests
         var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, repository);
         var user = new Mock<IUserService>();
         user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        var rights = new RightsService(model, user.Object, repository.Object);
+        var rights = new RightsService(model, user.Object, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object));
 
         var dto = await factory.Create(instance, CancellationToken.None);
         var deadline = dto.Steps.Single(s => s.Id == "Step").Deadline!;

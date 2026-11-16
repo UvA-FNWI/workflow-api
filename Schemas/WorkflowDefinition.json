@@ -163,6 +163,20 @@
           "type": "string",
           "description": "Name of the event"
         },
+        "label": {
+          "description": "Localized label describing the event",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
         "suppresses": {
           "type": [
             "array",
@@ -340,7 +354,8 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
-        "ViewCorrespondence"
+        "ViewCorrespondence",
+        "ViewHistory"
       ]
     },
     "Condition": {
@@ -1943,7 +1958,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Internal name of the assessment part"
+          "description": "Internal name of the assessment part. Use an imported step's local name to resolve its source assessment."
         },
         "title": {
           "description": "Localized title of the assessment part",

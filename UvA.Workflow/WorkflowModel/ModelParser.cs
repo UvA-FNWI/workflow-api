@@ -225,6 +225,7 @@ public partial class ModelParser
         GlobalRoles.ForEach(r => PreProcess(r));
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+        WorkflowDefinitions.Values.ForEach(ValidateImports);
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)
@@ -532,6 +533,7 @@ public partial class ModelParser
                     existing.Suppresses = ev.Suppresses;
                 if (ev.ResetParentStep)
                     existing.ResetParentStep = true;
+                existing.Label ??= ev.Label;
             }
             else
             {

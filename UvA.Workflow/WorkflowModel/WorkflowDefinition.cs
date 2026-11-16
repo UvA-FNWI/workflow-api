@@ -128,6 +128,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
+    [YamlIgnore] public bool HasImportedSteps => AllSteps.Any(step => step.Import != null);
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
     [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
@@ -183,6 +184,11 @@ public class EventDefinition : INamed
     public string Name { get; set; } = null!;
 
     /// <summary>
+    /// Localized label describing the event
+    /// </summary>
+    public BilingualString? Label { get; set; }
+
+    /// <summary>
     /// List of event names that are suppressed when this event occurs. Only the most recent event will be suppressed.
     /// </summary>
     public List<string>? Suppresses { get; set; }
@@ -195,6 +201,7 @@ public class EventDefinition : INamed
     public EventDefinition Clone() => new()
     {
         Name = Name,
+        Label = Label,
         Suppresses = Suppresses == null ? null : [.. Suppresses],
         ResetParentStep = ResetParentStep
     };

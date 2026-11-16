@@ -22,7 +22,8 @@ public class PersonalControllerTests : ControllerTestsBase
         personalInstanceService = new PersonalInstanceService(
             _modelService,
             _instanceService,
-            _workflowInstanceRepoMock.Object);
+            _workflowInstanceRepoMock.Object,
+            _rightsService);
     }
 
     [Fact]

@@ -21,7 +21,8 @@ public enum RoleAction
     CreateRelatedInstance,
     ImpersonateRoles,
     ViewResults,
-    ViewCorrespondence
+    ViewCorrespondence,
+    ViewHistory
 }
 
 public class Action
