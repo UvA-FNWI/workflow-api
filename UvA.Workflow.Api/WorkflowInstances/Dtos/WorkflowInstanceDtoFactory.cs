@@ -46,6 +46,16 @@ public class WorkflowInstanceDtoFactory(
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
 
         var context = modelService.CreateContext(instance);
+        BilingualString? stopMessage = null;
+        if (context.WorkflowStopped)
+        {
+            var stopContext = new ObjectContext(new(context.Values), context.ValueSets, context.Now);
+            await instanceService.Enrich(workflowDefinition, [stopContext],
+                workflowDefinition.StopWhen?.MessageLookups ?? [], ct, replaceStep: false);
+            stopMessage = StepProgressResolver.ResolveProgress(workflowDefinition, instance.CurrentStep, stopContext)
+                .Text;
+        }
+
         var visibleCards = workflowDefinition.InfoCards
             .Where(card => card.Enabled && card.Type != null &&
                            (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
@@ -164,7 +174,8 @@ public class WorkflowInstanceDtoFactory(
             canImpersonate,
             viewerRoles,
             infoCards,
-            context.WorkflowStopped
+            context.WorkflowStopped,
+            stopMessage
         );
     }
 

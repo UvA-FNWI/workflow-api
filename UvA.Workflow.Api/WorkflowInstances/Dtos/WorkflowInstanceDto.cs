@@ -30,7 +30,8 @@ public record WorkflowInstanceDto(
     bool CanImpersonate,
     string[] ViewerRoles,
     InfoCardDto[] InfoCards,
-    bool WorkflowStopped = false
+    bool WorkflowStopped = false,
+    BilingualString? StopMessage = null
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);

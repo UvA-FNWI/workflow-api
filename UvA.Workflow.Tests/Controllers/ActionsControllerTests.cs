@@ -165,12 +165,17 @@ public class ActionsControllerTests : ControllerTestsBase
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Subject");
         await _instanceService.UpdateCurrentStep(instance, _ct);
         var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.InfoCards = [];
         definition.StopWhen = new Condition
         {
             Logical = new Logical
             {
                 Operator = LogicalOperator.Or,
-                Children = [new Condition { Event = "Pause" }, new Condition { Event = "Cancel" }]
+                Children =
+                [
+                    new Condition { Event = "Cancel", Message = new BilingualString("Cancelled", "Geannuleerd") },
+                    new Condition { Event = "Pause", Message = new BilingualString("Paused", "Gepauzeerd") }
+                ]
             }
         };
         definition.Events.AddRange([
@@ -189,19 +194,26 @@ public class ActionsControllerTests : ControllerTestsBase
         definition.Roles.Single(role => role.Name == "Coordinator").Actions.AddRange([pause, resume, cancel]);
         definition.Roles.Single(role => role.Name == "LocalAdmin").Actions.Add(reopen);
 
-        Assert.True((await Execute("Pause")).WorkflowStopped);
+        var paused = await Execute("Pause");
+        Assert.True(paused.WorkflowStopped);
+        Assert.Equal("Paused", paused.StopMessage?.En);
+        Assert.Equal("Gepauzeerd", paused.StopMessage?.Nl);
         await AssertForbidden("Pause");
         var cancelled = await Execute("Cancel");
         Assert.True(cancelled.WorkflowStopped);
+        Assert.Equal("Cancelled", cancelled.StopMessage?.En);
         await AssertForbidden("Reopen");
 
         MockCurrentUser("LocalAdmin");
         var reopened = await Execute("Reopen");
         Assert.True(reopened.WorkflowStopped);
+        Assert.Equal("Paused", reopened.StopMessage?.En);
         Assert.Equal(cancelled.CurrentStep, reopened.CurrentStep);
         Assert.False(reopen.Condition.IsMet(_modelService.CreateContext(instance)));
         MockCurrentUser("Coordinator");
-        Assert.False((await Execute("Resume")).WorkflowStopped);
+        var resumed = await Execute("Resume");
+        Assert.False(resumed.WorkflowStopped);
+        Assert.Null(resumed.StopMessage);
 
         async Task<WorkflowInstanceDto> Execute(string name)
         {
