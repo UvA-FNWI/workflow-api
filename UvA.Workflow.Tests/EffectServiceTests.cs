@@ -1,3 +1,8 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Jobs;
@@ -9,6 +14,65 @@ namespace UvA.Workflow.Tests;
 
 public class EffectServiceTests : ControllerTestsBase
 {
+    [Theory]
+    [InlineData("{\"results\":[]}")]
+    [InlineData("{\"results\":[{\"id\":42},{\"id\":42}]}")]
+    [InlineData("{\"results\":{}}")]
+    public async Task ServiceCall_SelectOneWithoutOutputs_RejectsInvalidSelection(string response)
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(() => RunSelectionCall(response));
+    }
+
+    [Fact]
+    public async Task ServiceCall_SelectOneWithoutOutputs_AcceptsOneMatchWithoutPublishingOutputs()
+    {
+        var context = await RunSelectionCall("{\"results\":[{\"id\":99},{\"id\":42}]}");
+
+        Assert.Null(context.Get("Find"));
+    }
+
+    [Fact]
+    public async Task ServiceCall_WithoutSelectionOrOutputs_AcceptsAnEmptyResponse()
+    {
+        await RunSelectionCall("", selectOne: false);
+    }
+
+    private async Task<ObjectContext> RunSelectionCall(string response, bool selectOne = true)
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        await using var server = builder.Build();
+        server.MapGet("/results", () => Results.Text(response, "application/json"));
+        await server.StartAsync();
+
+        var configuration = new ConfigurationBuilder().Build();
+        _configurationMock.Setup(c => c.GetSection("Services")).Returns(configuration.GetSection("Services"));
+        _modelService.Services.Add(new Service
+        {
+            Name = "SelectionTest",
+            BaseUrl = server.Urls.Single(),
+            Operations =
+            [
+                new ServiceOperation
+                {
+                    Name = "Find",
+                    Url = "/results",
+                    SelectOne = selectOne
+                        ? new ServiceResponseSelection { CollectionPath = "results", Match = new() { ["id"] = "42" } }
+                        : null
+                }
+            ]
+        });
+        var instance = new WorkflowInstanceBuilder().With(workflowDefinition: "Project", currentStep: "Start").Build();
+        var context = _modelService.CreateContext(instance);
+        var effect = new Effect { ServiceCall = new ServiceCall { Service = "SelectionTest", Operation = "Find" } };
+
+        await _effectService.RunEffect(new Job(), instance, effect, UnitTestsHelpers.AdminUser, context, _ct);
+
+        return context;
+    }
+
     [Theory]
     [InlineData("Date", "=2027-01-08", 0)]
     [InlineData("DateTime", "=2027-01-08 17:00", 17)]
