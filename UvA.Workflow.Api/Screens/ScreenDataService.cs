@@ -124,10 +124,6 @@ public class ScreenDataService(
                 ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
                 : definition;
             var id = context.Id!;
-            var progressDefinition = context.WorkflowStopped && definition.GroupChildScreens &&
-                                     context.Get("Type") is string type
-                ? modelService.WorkflowDefinitions[type]
-                : definition;
             var processedValues = new Dictionary<int, object?>();
 
             // Process each column and use its ID as the key
@@ -135,10 +131,10 @@ public class ScreenDataService(
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                var value = column.GetValue(context);
                 processedValues[columnId] = columns[i].IsCurrentStep
-                    ? StepProgressResolver.ResolveProgress(progressDefinition, value as string ?? "", context)
-                    : value;
+                    ? StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep,
+                        context, viewableSources: viewableSources)
+                    : column.GetValue(context);
             }
 
             rows.Add(new ScreenRowDto(id, processedValues));
