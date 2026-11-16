@@ -142,8 +142,8 @@ public class ComputedRuleDependencyTests
 
         Assert.False(await rights.Can(instance, RoleAction.Edit));
         var context = await new InstanceService(repository.Object, model, null!, null!, null!,
-            new WorkflowContextEnricher(repository.Object, model, null!),
-            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object))
+                new WorkflowContextEnricher(repository.Object, model, null!),
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object))
             .CreateContext(instance, model.WorkflowDefinitions["Project"].PermissionAndStepLookups);
         Assert.True(context.Get("MatchesTarget") as bool?);
         Assert.False(context.Get("AliasBlocked") as bool?);
@@ -296,8 +296,8 @@ public class ComputedRuleDependencyTests
         var rights = CreateRights(model, repository);
         Assert.Equal(!blocked, await rights.Can(instance, RoleAction.Edit));
         var context = await new InstanceService(repository.Object, model, null!, null!, null!,
-            new WorkflowContextEnricher(repository.Object, model, null!),
-            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object))
+                new WorkflowContextEnricher(repository.Object, model, null!),
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object))
             .CreateContext(instance, model.WorkflowDefinitions["Project"].PermissionAndStepLookups);
         Assert.True(context.Get("HasSecond") as bool?);
     }

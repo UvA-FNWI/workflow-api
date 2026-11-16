@@ -76,7 +76,8 @@ public class WorkflowStateResolver(
         {
             var definition = modelService.WorkflowDefinitions[name];
             return new EnrichmentBatch(definition, items,
-                definition.PermissionAndStepLookups.Concat(definition.Steps.SelectMany(step => step.Lookups)).Concat(definition.ProgressLookups)
+                definition.PermissionAndStepLookups.Concat(definition.Steps.SelectMany(step => step.Lookups))
+                    .Concat(definition.ProgressLookups)
                     .Concat(definition.AllActions.SelectMany(action => action.Condition?.Properties ?? [])));
         }
     }

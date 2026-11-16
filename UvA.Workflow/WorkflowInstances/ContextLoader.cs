@@ -80,7 +80,8 @@ internal static class ContextLoader
                         };
                         if (GetReferenceIds(source, enrichment.Projection.Keys).Any())
                         {
-                            if (GetReferenceIds(source, enrichment.Projection.Keys).Any(id => !resultsById.ContainsKey(id)))
+                            if (GetReferenceIds(source, enrichment.Projection.Keys)
+                                .Any(id => !resultsById.ContainsKey(id)))
                                 context.UnresolvedReferences.Add(enrichment.ReferenceProperty);
                             else
                                 context.UnresolvedReferences.Remove(enrichment.ReferenceProperty);

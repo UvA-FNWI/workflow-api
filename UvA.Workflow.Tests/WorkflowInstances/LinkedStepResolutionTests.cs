@@ -190,7 +190,8 @@ public class LinkedStepResolutionTests
     public async Task Resolve_ComputesImportedSourceConditionsAndPreservesThemInDisplayCopies()
     {
         var files = LinkedStepConfigurationTests.Files();
-        files["Shared/Entity.yaml"] += "\n  - name: NeedsUpload\n    type: Check\n    expression: Enabled\n  - name: Enabled\n    type: Check";
+        files["Shared/Entity.yaml"] +=
+            "\n  - name: NeedsUpload\n    type: Check\n    expression: Enabled\n  - name: Enabled\n    type: Check";
         files["Shared/Steps/Upload.yaml"] += "\ncondition:\n  value:\n    property: NeedsUpload\n    equal: true";
         var setup = new LinkedStepTestSetup(files);
         setup.Source.Properties["Enabled"] = false;

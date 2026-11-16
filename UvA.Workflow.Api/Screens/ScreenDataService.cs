@@ -142,7 +142,8 @@ public class ScreenDataService(
             else
             {
                 var rawData = await repository.GetAllByType(definition.Name, projection, authorizationFilter, ct);
-                rows = rawData.Select(row => modelService.CreateContext(definition.Name, row, projection.Keys)).ToList();
+                rows = rawData.Select(row => modelService.CreateContext(definition.Name, row, projection.Keys))
+                    .ToList();
             }
 
             await instanceService.Enrich(

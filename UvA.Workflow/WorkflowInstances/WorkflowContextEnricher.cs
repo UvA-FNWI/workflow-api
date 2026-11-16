@@ -92,5 +92,4 @@ public class WorkflowContextEnricher(
         EnrichmentBatch Batch,
         List<Lookup> Lookups,
         bool HasAssessment);
-
 }

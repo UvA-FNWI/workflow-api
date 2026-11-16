@@ -322,7 +322,8 @@ public class RightsService(
         if (snapshots.Length == 0)
             return [];
 
-        var roles = await GetRequestContextRoles(currentInstance, await stateResolver.Resolve(currentInstance, CancellationToken.None));
+        var roles = await GetRequestContextRoles(currentInstance,
+            await stateResolver.Resolve(currentInstance, CancellationToken.None));
         var result = new Dictionary<WorkflowInstance, Domain_Action[]>();
         foreach (var snapshot in snapshots.Distinct())
         {
