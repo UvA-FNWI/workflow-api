@@ -16,7 +16,7 @@ public class DataNoseLoginMethodClassifier : ILoginMethodClassifier
             return "Uva";
         // 8 alphanumeric chars starting with a letter: UvA employee (UvAnetID).
         // Anything with @ is excluded by the alphanumeric check, so emails are not treated as employees.
-        if (uid.Length == 8
+        if (uid.Length <= 8
             && char.IsLetter(uid[0])
             && uid.All(char.IsLetterOrDigit))
             return "Uva";
