@@ -1,0 +1,5 @@
+name: SharedUpload
+import:
+  reference: SharedThesis
+  step: Upload
+  participants: [Student]

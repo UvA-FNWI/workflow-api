@@ -123,7 +123,9 @@ public class ContextLoadingTests
         var repository = new Mock<IWorkflowInstanceRepository>();
         repository.Setup(r => r.GetAllById(It.IsAny<string[]>(),
             It.IsAny<Dictionary<string, string>>(), default)).ReturnsAsync([]);
-        var service = new InstanceService(repository.Object, model, null!, null!, null!, null!);
+        var service = new InstanceService(repository.Object, model, null!, null!, null!,
+            new WorkflowContextEnricher(repository.Object, model, null!),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object));
         var instance = new WorkflowInstance
         {
             WorkflowDefinition = "Project", Properties = new() { ["Target"] = "missing" }, Events = []
@@ -153,7 +155,9 @@ public class ContextLoadingTests
         repository.Setup(r => r.GetAllById(It.IsAny<string[]>(),
                 It.IsAny<Dictionary<string, string>>(), default))
             .ReturnsAsync([new() { ["_id"] = "target", ["Name"] = "Organisation name" }]);
-        var service = new InstanceService(repository.Object, model, null!, null!, null!, null!);
+        var service = new InstanceService(repository.Object, model, null!, null!, null!,
+            new WorkflowContextEnricher(repository.Object, model, null!),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object));
         return (model, repository, service);
     }
 }

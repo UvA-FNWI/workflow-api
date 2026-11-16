@@ -21,19 +21,42 @@ public class AssessmentService(
         if (assessmentConfig == null) return new AssessmentResult { PartResults = partResults };
 
         decimal totalPartWeight = assessmentConfig.Parts.Sum(p => p.Weight);
+        var hasImportedParts = assessmentConfig.Parts.Any(part =>
+            definition.AllSteps.Any(step => step.Name == part.Name && step.Import != null));
+        var complete = true;
 
-        foreach (var partConfig in assessmentConfig.Parts)
+        foreach (var configuredPart in assessmentConfig.Parts)
         {
+            var imported = definition.AllSteps.Any(step => step.Name == configuredPart.Name && step.Import != null);
+            var owner = imported ? context.ImportedSteps.GetValueOrDefault(configuredPart.Name) : null;
+            var sourcePart = owner?.Definition.AssessmentConfiguration?.Parts
+                .FirstOrDefault(part => part.Name == owner.Step.Name);
+            var partConfig = sourcePart == null
+                ? configuredPart
+                : new AssessmentPart
+                {
+                    Name = configuredPart.Name,
+                    Title = configuredPart.Title ?? sourcePart.Title,
+                    Weight = configuredPart.Weight,
+                    MaximumDiscrepancy = sourcePart.MaximumDiscrepancy,
+                    Sources = sourcePart.Sources
+                };
+            var partContext = owner?.Context ?? context;
+            var partDefinition = owner?.Definition ?? definition;
             var forms = partConfig.Sources
-                .Where(source => formNames == null || formNames.Contains(source.Name))
-                .Select(source => definition.Forms.FirstOrDefault(c => c.Name == source.Name))
+                .Where(source => imported ? owner != null : formNames == null || formNames.Contains(source.Name))
+                .Select(source => partDefinition.Forms.FirstOrDefault(c => c.Name == source.Name))
                 .Where(f => f != null)
                 .Cast<Form>()
+                .Where(form => !hasImportedParts || FormSubmissionState.GetSubmissionEventIds(form)
+                    .Any(id => partContext.Get(id + "Event") is DateTime))
                 .ToList();
-
             var sourceResults = forms
-                .Select(c => AssessmentHelpers.CalculateSourceResult(c, context, pageName))
+                .Select(c => AssessmentHelpers.CalculateSourceResult(c, partContext, pageName))
                 .ToList();
+            // The grade helpers treat zero results as missing when averaging.
+            complete &= partConfig.Sources.Count > 0 && sourceResults.Count == partConfig.Sources.Count &&
+                        sourceResults.All(source => source.WeightedAverage != 0);
 
             var result = new AssessmentPartResult
             {
@@ -43,7 +66,8 @@ public class AssessmentService(
                 PartPercentage = totalPartWeight > 0
                     ? partConfig.Weight / totalPartWeight * 100
                     : 0,
-                PartConfig = partConfig
+                PartConfig = partConfig,
+                Owner = owner
             };
             partResults.Add(result);
         }
@@ -54,8 +78,8 @@ public class AssessmentService(
         return new AssessmentResult
         {
             PartResults = partResults,
-            FinalGradeRounded = calculatedFinalGradeRounded,
-            FinalGradeUnrounded = calculatedFinalGradeUnrounded,
+            FinalGradeRounded = !hasImportedParts || complete ? calculatedFinalGradeRounded : null,
+            FinalGradeUnrounded = !hasImportedParts || complete ? calculatedFinalGradeUnrounded : null,
             AssessmentConfiguration = assessmentConfig
         };
     }

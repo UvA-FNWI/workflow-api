@@ -31,7 +31,7 @@ internal static class ContextLoader
             var referenceIds = targetGroups
                 .SelectMany(group => group)
                 .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
-                    GetReferenceIds(GetReferenceValue(context, enrichment))))
+                    GetReferenceIds(GetReferenceValue(context, enrichment), enrichment.Projection.Keys)))
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
             var resultsById = new Dictionary<string, Dictionary<string, BsonValue>>();
@@ -51,7 +51,7 @@ internal static class ContextLoader
                 var targetDefinition = targetGroup.First().TargetDefinition;
                 var targetIds = targetGroup
                     .SelectMany(enrichment => enrichment.Contexts.SelectMany(context =>
-                        GetReferenceIds(GetReferenceValue(context, enrichment))))
+                        GetReferenceIds(GetReferenceValue(context, enrichment), enrichment.Projection.Keys)))
                     .Distinct(StringComparer.Ordinal);
                 var resultContexts = targetIds
                     .Where(resultsById.ContainsKey)
@@ -73,11 +73,14 @@ internal static class ContextLoader
                                 .Select(resultContexts.GetValueOrDefault)
                                 .Where(result => result != null)
                                 .ToArray(),
+                            Dictionary<Lookup, object?> reference => MergeReference(reference, resultContexts),
+                            Dictionary<Lookup, object?>[] references => references
+                                .Select(reference => MergeReference(reference, resultContexts)).ToArray(),
                             var value => value
                         };
-                        if (GetReferenceIds(source).Any())
+                        if (GetReferenceIds(source, enrichment.Projection.Keys).Any())
                         {
-                            if (GetReferenceIds(source).Any(id => !resultsById.ContainsKey(id)))
+                            if (GetReferenceIds(source, enrichment.Projection.Keys).Any(id => !resultsById.ContainsKey(id)))
                                 context.UnresolvedReferences.Add(enrichment.ReferenceProperty);
                             else
                                 context.UnresolvedReferences.Remove(enrichment.ReferenceProperty);
@@ -151,19 +154,22 @@ internal static class ContextLoader
 
     private static object? GetReferenceValue(ObjectContext context, ReferenceRequest request)
     {
-        if (context.LoadedReferenceValues.TryGetValue(request.ReferenceProperty, out var loaded)
-            && GetLoadedReferences(loaded).All(values => request.Projection.Keys.All(key =>
-                values.ContainsKey(key == "_id" ? "Id" : key))))
+        if (context.LoadedReferenceValues.TryGetValue(request.ReferenceProperty, out var loaded))
             return loaded;
         return context.Get(request.ReferenceProperty);
     }
 
     /// <summary>Returns the IDs stored in a single reference or a list of references.</summary>
-    private static IEnumerable<string> GetReferenceIds(object? value)
+    private static IEnumerable<string> GetReferenceIds(object? value, IEnumerable<string> projectedProperties)
         => value switch
         {
             string reference => [reference],
             string[] references => references,
+            Dictionary<Lookup, object?> reference when
+                projectedProperties.Any(property => !reference.ContainsKey(property == "_id" ? "Id" : property)) &&
+                reference.GetValueOrDefault("Id") is string id => [id],
+            Dictionary<Lookup, object?>[] references => references.SelectMany(reference =>
+                GetReferenceIds(reference, projectedProperties)),
             _ => []
         };
 
@@ -174,6 +180,15 @@ internal static class ContextLoader
             Dictionary<Lookup, object?>[] values => values,
             _ => []
         };
+
+    private static Dictionary<Lookup, object?> MergeReference(Dictionary<Lookup, object?> reference,
+        Dictionary<string, Dictionary<Lookup, object?>> results)
+    {
+        if (reference.GetValueOrDefault("Id") is string id && results.TryGetValue(id, out var additionalValues))
+            foreach (var (key, value) in additionalValues)
+                reference.TryAdd(key, value);
+        return reference;
+    }
 
     private sealed record ReferenceRequest(
         WorkflowDefinition TargetDefinition,

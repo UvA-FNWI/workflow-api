@@ -36,7 +36,9 @@ public class ComputedRuleDependencyTests
         var (model, repository, instance, target) = Create();
         target["Ready"] = ready;
         target["Finished"] = finished;
-        var service = new InstanceService(repository.Object, model, null!, null!, null!, null!);
+        var service = new InstanceService(repository.Object, model, null!, null!, null!,
+            new WorkflowContextEnricher(repository.Object, model, null!),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object));
 
         await service.UpdateCurrentStep(instance, default);
 
@@ -139,7 +141,9 @@ public class ComputedRuleDependencyTests
         var rights = CreateRights(model, repository);
 
         Assert.False(await rights.Can(instance, RoleAction.Edit));
-        var context = await new InstanceService(repository.Object, model, null!, null!, null!, null!)
+        var context = await new InstanceService(repository.Object, model, null!, null!, null!,
+            new WorkflowContextEnricher(repository.Object, model, null!),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object))
             .CreateContext(instance, model.WorkflowDefinitions["Project"].PermissionAndStepLookups);
         Assert.True(context.Get("MatchesTarget") as bool?);
         Assert.False(context.Get("AliasBlocked") as bool?);
@@ -291,7 +295,9 @@ public class ComputedRuleDependencyTests
 
         var rights = CreateRights(model, repository);
         Assert.Equal(!blocked, await rights.Can(instance, RoleAction.Edit));
-        var context = await new InstanceService(repository.Object, model, null!, null!, null!, null!)
+        var context = await new InstanceService(repository.Object, model, null!, null!, null!,
+            new WorkflowContextEnricher(repository.Object, model, null!),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object))
             .CreateContext(instance, model.WorkflowDefinitions["Project"].PermissionAndStepLookups);
         Assert.True(context.Get("HasSecond") as bool?);
     }
@@ -350,7 +356,8 @@ public class ComputedRuleDependencyTests
     {
         var user = new Mock<IUserService>();
         user.Setup(u => u.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        return new RightsService(model, user.Object, repository.Object);
+        return new RightsService(model, user.Object, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object));
     }
 
     private static (ModelService, Mock<IWorkflowInstanceRepository>, WorkflowInstance,

@@ -81,7 +81,7 @@ public partial class ModelParser
         var permissionLookups = definition.PermissionAndStepLookups.ToArray();
         try
         {
-            definition.ValidateReadLookups(permissionLookups, allowAssessment: false);
+            definition.ValidateReadLookups(permissionLookups, allowAssessment: definition.HasImportedSteps);
         }
         catch (Exception exception)
         {

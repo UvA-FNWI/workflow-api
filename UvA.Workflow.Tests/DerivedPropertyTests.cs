@@ -413,7 +413,9 @@ public class DerivedPropertyTests
         });
         var users = new Mock<IUserService>();
         users.Setup(user => user.GetRolesOfCurrentUser(default)).ReturnsAsync([]);
-        var rights = new RightsService(model, users.Object, Mock.Of<IWorkflowInstanceRepository>());
+        var repository = Mock.Of<IWorkflowInstanceRepository>();
+        var rights = new RightsService(model, users.Object, repository,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository));
         var instance = new WorkflowInstance
         {
             WorkflowDefinition = "Project", Properties = new() { ["Blocked"] = blocked }, Events = []

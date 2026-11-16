@@ -159,7 +159,9 @@ public class ComputedFormDependencyTests
                     ["IncludesChoice"] = true, ["ShowsPage"] = true
                 }
             ]);
-        var service = new InstanceService(repository.Object, model, null!, null!, null!, null!);
+        var service = new InstanceService(repository.Object, model, null!, null!, null!,
+            new WorkflowContextEnricher(repository.Object, model, null!),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object));
         var answers = new BsonDocument { ["Target"] = targetId, ["Validated"] = "Answer" };
         var instance = new WorkflowInstance
         {

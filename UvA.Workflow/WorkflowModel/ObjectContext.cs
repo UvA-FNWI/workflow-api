@@ -20,6 +20,19 @@ public partial class ObjectContext(
     internal Dictionary<Lookup, object?> LoadedReferenceValues { get; } = new();
     internal HashSet<string> UnresolvedReferences { get; } = new();
     private HashSet<string> UnavailableProperties { get; } = new();
+    public Dictionary<string, ImportedStepContext?> ImportedSteps { get; } = [];
+    public DateTime? WorkflowCompletionDate { get; set; }
+
+    /// <summary>Internal step name, retained when display enrichment replaces the expression value with a title.</summary>
+    public string? CurrentStep
+    {
+        get;
+        internal set
+        {
+            field = value;
+            Values["CurrentStep"] = value;
+        }
+    } = values.GetValueOrDefault("CurrentStep") as string;
 
     /// <summary>
     ///     Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
@@ -74,6 +87,9 @@ public partial class ObjectContext(
             copy.LoadedReferenceValues[key] = value;
         copy.UnresolvedReferences.UnionWith(UnresolvedReferences.Where(name => !overridden.Contains((Lookup)name)));
         copy.UnavailableProperties.UnionWith(UnavailableProperties.Where(name => !overridden.Contains((Lookup)name)));
+        foreach (var (name, owner) in ImportedSteps)
+            copy.ImportedSteps[name] = owner;
+        copy.WorkflowCompletionDate = WorkflowCompletionDate;
         return copy;
     }
 

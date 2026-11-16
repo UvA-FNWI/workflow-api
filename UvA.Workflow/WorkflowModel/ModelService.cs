@@ -115,7 +115,7 @@ public class ModelService(ModelParser parser)
         var definition = WorkflowDefinitions[instance.WorkflowDefinition];
         return action.Steps.Where(name => activeSteps.Contains(name) ||
                                           definition.AllSteps.GetOrDefault(name) is { } step &&
-                                          step.Condition.IsMet(context) && step.HasEnded(context)).ToArray();
+                                          step.IsVisible(context) && step.HasEnded(context)).ToArray();
     }
 
     public string[] GetActiveSteps(WorkflowInstance instance, ObjectContext? context = null)
@@ -155,7 +155,7 @@ public class ModelService(ModelParser parser)
             .OfType<PropertyLookup>()
             .Any(lookup => lookup.Parts.Length > 1 &&
                            workflowDefinition.Properties.GetOrDefault(lookup.Parts[0]) is ReferencePropertyDefinition);
-        if (!refreshStep && !string.IsNullOrEmpty(instance.CurrentStep) &&
+        if (!workflowDefinition.HasImportedSteps && !refreshStep && !string.IsNullOrEmpty(instance.CurrentStep) &&
             workflowDefinition.AllSteps.GetOrDefault(instance.CurrentStep) is { } currentStep)
             return (currentStep, context);
 
@@ -169,12 +169,12 @@ public class ModelService(ModelParser parser)
         context ??= CreateContext(instance);
         var walk = workflowDefinition.WalkSteps.ToList();
         var unfinishedAlongside = walk
-            .Where(step => step.IsAlongside && step.Condition.IsMet(context) && !step.HasEnded(context))
+            .Where(step => step.IsAlongside && step.IsVisible(context) && !step.HasEnded(context))
             .ToList();
 
         foreach (var step in walk)
         {
-            if (step.IsAlongside || !step.Condition.IsMet(context) || step.HasEnded(context))
+            if (step.IsAlongside || !step.IsVisible(context) || step.HasEnded(context))
                 continue;
 
             var blocker = unfinishedAlongside.FirstOrDefault(a => a.Before == step.Name);
@@ -184,15 +184,26 @@ public class ModelService(ModelParser parser)
         return unfinishedAlongside.FirstOrDefault(step => step.BlocksWorkflow);
     }
 
+    public DateTime? GetCompletionDate(WorkflowInstance instance, ObjectContext context)
+    {
+        var definition = WorkflowDefinitions[instance.WorkflowDefinition];
+        var steps = definition.WalkSteps.Where(step => step.Mode != StepMode.Optional && step.IsVisible(context))
+            .ToArray();
+        if (steps.Length == 0 || steps.Any(step => !step.HasEnded(context)))
+            return null;
+        var dates = steps.Select(step => step.GetEndDate(instance, definition, context)).ToArray();
+        return dates.Any(date => date == null) ? null : dates.Max();
+    }
+
     private static IEnumerable<string> OpenDescendantNames(Step step, ObjectContext context) =>
         step.Children
-            .Where(s => s.Condition.IsMet(context) && !s.HasEnded(context))
+            .Where(s => s.IsVisible(context) && !s.HasEnded(context))
             .Take(step.HierarchyMode == StepHierarchyMode.Sequential ? 1 : int.MaxValue)
             .SelectMany(s => OpenDescendantNames(s, context).Prepend(s.Name));
 
     private static bool IsAvailableAlongside(Step step, List<Step> walk, ObjectContext context)
     {
-        if (!step.IsAlongside || !step.Condition.IsMet(context) || step.HasEnded(context))
+        if (!step.IsAlongside || !step.IsVisible(context) || step.HasEnded(context))
             return false;
 
         for (var i = walk.IndexOf(step) - 1; i >= 0; i--)

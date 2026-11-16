@@ -60,45 +60,45 @@ public class AssessmentDtoFactory(
         WorkflowInstance instance,
         IEnumerable<SubmissionContext> contexts,
         AssessmentConfiguration? assessmentConfig,
-        IEnumerable<DomainAction> allowedHidden,
+        IReadOnlyDictionary<string, DomainAction[]> allowedHiddenByInstance,
         string? pageName = null,
-        string[]? allowedForms = null,
-        CancellationToken ct = default)
+        IReadOnlySet<(string InstanceId, string Form)>? allowedForms = null,
+        ObjectContext? resolvedContext = null, CancellationToken ct = default)
     {
         var contextList = contexts.ToList();
         var parts = new List<AssessmentPartDto>();
-        var context = modelService.CreateContext(instance);
+        var context = resolvedContext ?? modelService.CreateContext(instance);
 
         var result = assessmentService.GetAssessmentResult(
             modelService.WorkflowDefinitions[instance.WorkflowDefinition],
             context,
             assessmentConfig,
-            contextList.Select(c => c.Form.Name).ToList(),
+            contextList.Where(c => c.Instance.Id == instance.Id).Select(c => c.Form.Name).ToList(),
             pageName
         );
-        var formContexts = new Dictionary<Form, ObjectContext>();
-        var resultForms = result.PartResults.SelectMany(part => part.AllResults)
-            .Select(source => source.Form).OfType<Form>().Distinct().ToArray();
-        var sourceProperties = resultForms.SelectMany(form => form.ActualForm.PropertyDefinitions)
-            .Select(question => question.Results?.Source).OfType<string>().ToHashSet();
-        foreach (var form in resultForms.Concat(modelService.WorkflowDefinitions[instance.WorkflowDefinition].Forms
-                         .Where(form => form.PropertyName != null && sourceProperties.Contains(form.PropertyName)))
-                     .Distinct())
-            formContexts[form] = await instanceService.CreateFormContext(instance, form, ct);
-
         foreach (var part in result.PartResults)
         {
             var partConfig = part.PartConfig;
+            var owner = part.Owner?.Instance ?? instance;
+            var definition = modelService.WorkflowDefinitions[owner.WorkflowDefinition];
+            var resultForms = part.AllResults.Select(source => source.Form).OfType<Form>().Distinct().ToArray();
+            var sourceProperties = resultForms.SelectMany(form => form.ActualForm.PropertyDefinitions)
+                .Select(question => question.Results?.Source).OfType<string>().ToHashSet();
+            var formContexts = new Dictionary<Form, ObjectContext>();
+            foreach (var form in resultForms.Concat(definition.Forms.Where(form =>
+                         form.PropertyName != null && sourceProperties.Contains(form.PropertyName))).Distinct())
+                formContexts[form] = await instanceService.CreateFormContext(owner, form, ct);
+            var allowedHidden = allowedHiddenByInstance.GetValueOrDefault(owner.Id) ?? [];
             decimal totalSourceWeight = partConfig.Sources.Sum(s => s.Weight);
             var sourceResultDtos = part.SourceResults
-                .Where(c => allowedForms == null || allowedForms.Contains(c.Name))
+                .Where(c => allowedForms == null || allowedForms.Contains((owner.Id, c.Name)))
                 .Select(sourceResult =>
                 {
                     var sourceConfig = partConfig.Sources.FirstOrDefault(s => s.Name == sourceResult.Name);
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(instance, sourceResult, pageName, allowedHidden, formContexts,
+                    return MapToSourceResultDto(owner, sourceResult, pageName, allowedHidden, formContexts,
                         sourcePercentage,
                         sourceConfig?.Title);
                 })
@@ -109,7 +109,7 @@ public class AssessmentDtoFactory(
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
                 part.SourceResults.Count > 0
-                    ? MapToSourceResultDto(instance, part.Combined, null, allowedHidden, formContexts,
+                    ? MapToSourceResultDto(owner, part.Combined, null, allowedHidden, formContexts,
                         sourceForms: part.SourceResults.Select(s => s.Form))
                     : null,
                 RoundToTwo(part.PartPercentage),
@@ -123,8 +123,9 @@ public class AssessmentDtoFactory(
 
         if (assessmentConfig == null) return new AssessmentDto(instance.Id, parts.ToArray(), null);
 
-        bool isGradingComplete = assessmentConfig.Parts
-            .All(p => p.Sources.All(s => contextList.Any(c => c.Form.Name == s.Name)));
+        bool isGradingComplete = result.FinalGradeRounded != null && result.PartResults
+            .All(p => p.PartConfig.Sources.All(s => contextList.Any(c =>
+                c.Instance.Id == (p.Owner?.Instance.Id ?? instance.Id) && c.Form.Name == s.Name)));
 
         if (!isGradingComplete)
             return new AssessmentDto(instance.Id, parts.ToArray(), null);

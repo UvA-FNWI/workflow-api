@@ -8,7 +8,9 @@ public partial class InstanceService
     public async Task<ObjectContext> CreateFormContext(WorkflowInstance instance, Form form, CancellationToken ct,
         IEnumerable<PropertyDefinition>? questions = null)
     {
-        var context = modelService.CreateContext(instance);
+        var context = modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps
+            ? await stateResolver.Resolve(instance, ct)
+            : modelService.CreateContext(instance);
         await Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition], [context],
             GetFormLookups(form, questions), ct, replaceStep: false);
         return context;

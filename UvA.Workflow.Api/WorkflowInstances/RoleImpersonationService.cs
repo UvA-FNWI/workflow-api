@@ -8,6 +8,7 @@ public static class RoleImpersonationConstants
     public const string TokenType = "workflow-impersonation";
     public const string UserClaim = "user";
     public const string InstanceClaim = "instance";
+    public const string ImportedInstanceClaim = "importedInstance";
     public const string RoleClaim = "role";
 }
 
@@ -17,7 +18,8 @@ public record RoleImpersonationTokenClaims(
     string UserName,
     string InstanceId,
     string RoleName,
-    DateTime ExpiresAtUtc);
+    DateTime ExpiresAtUtc,
+    string[] ImportedInstanceIds);
 
 public class RoleImpersonationService(
     IConfiguration config,
@@ -29,13 +31,15 @@ public class RoleImpersonationService(
 
     private readonly ImpersonationTokenCodec _codec = new(config);
 
-    public RoleImpersonationToken CreateToken(string userName, string instanceId, string roleName)
+    public RoleImpersonationToken CreateToken(string userName, string instanceId, string roleName,
+        IReadOnlyCollection<string>? importedInstanceIds = null)
     {
         var claims = new Dictionary<string, object>
         {
             [RoleImpersonationConstants.UserClaim] = userName,
             [RoleImpersonationConstants.InstanceClaim] = instanceId,
-            [RoleImpersonationConstants.RoleClaim] = roleName
+            [RoleImpersonationConstants.RoleClaim] = roleName,
+            [RoleImpersonationConstants.ImportedInstanceClaim] = importedInstanceIds?.ToArray() ?? []
         };
 
         var (token, expiresAtUtc) = _codec.Encode(RoleImpersonationConstants.TokenType, claims, TokenLifetime);
@@ -58,7 +62,8 @@ public class RoleImpersonationService(
             string.IsNullOrWhiteSpace(roleName))
             return null;
 
-        return new RoleImpersonationTokenClaims(userName, instanceId, roleName, decoded.ExpiresAtUtc);
+        return new RoleImpersonationTokenClaims(userName, instanceId, roleName, decoded.ExpiresAtUtc,
+            principal.FindAll(RoleImpersonationConstants.ImportedInstanceClaim).Select(claim => claim.Value).ToArray());
     }
 
     public async Task<string?> GetImpersonatedRole(WorkflowInstance instance, CancellationToken ct = default)
@@ -79,7 +84,8 @@ public class RoleImpersonationService(
         if (!string.Equals(user.UserName, impersonationClaims.UserName, StringComparison.Ordinal))
             return null;
 
-        if (!string.Equals(instance.Id, impersonationClaims.InstanceId, StringComparison.Ordinal))
+        if (!string.Equals(instance.Id, impersonationClaims.InstanceId, StringComparison.Ordinal) &&
+            !impersonationClaims.ImportedInstanceIds.Contains(instance.Id, StringComparer.Ordinal))
             return null;
 
         return impersonationClaims.RoleName;
