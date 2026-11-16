@@ -35,6 +35,7 @@ public class HiddenPropertyRightsTests : ControllerTestsBase
             .ReturnsAsync((WorkflowInstance instance, CancellationToken _) =>
                 ReferenceEquals(instance, current) ? role : null);
         var rights = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UnitTestsHelpers.CreateStateResolver(_modelService, _workflowInstanceRepoMock.Object),
             impersonation.Object);
 
         var actions =
@@ -106,6 +107,7 @@ public class HiddenPropertyRightsTests : ControllerTestsBase
         impersonation.Setup(s => s.GetImpersonatedRole(instance, It.IsAny<CancellationToken>()))
             .ReturnsAsync(impersonatedRole);
         var rights = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UnitTestsHelpers.CreateStateResolver(_modelService, _workflowInstanceRepoMock.Object),
             impersonation.Object);
 
         var status = await rights.GetQuestionStatus(instance, _modelService.GetForm(instance, "Start"));

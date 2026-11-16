@@ -200,6 +200,98 @@ public class AnswerChangeHistoryTests
             });
     }
 
+    [Fact]
+    public void For_EditThenSubmissionUndone_KeepsEditWhenIncludingUndoneSubmissions()
+    {
+        var submitted = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+        var edited = submitted.AddMinutes(1);
+        var undone = submitted.AddMinutes(2);
+
+        var submit = Submit(submitted);
+        submit.OperationId = "submit-op";
+        var undo = EventLog("ReviewSubmitted", undone, EventLogOperation.Undo);
+        undo.OperationId = "submit-op";
+
+        InstanceEventLogEntry[] logs = [submit, undo];
+        PropertyChangeEntry[] journal = [Change("Credits", 6, Alice, edited)];
+
+        var withoutUndone = AnswerChangeHistory.For(
+            journal, "Credits", null, ["ReviewSubmitted"], logs, WorkflowDefinition(), 12);
+
+        var withUndone = AnswerChangeHistory.For(
+            journal, "Credits", null, ["ReviewSubmitted"], logs, WorkflowDefinition(), 12,
+            includeUndoneSubmissions: true);
+
+        Assert.Empty(withoutUndone);
+
+        var version1 = Assert.Single(withUndone);
+        Assert.Equal(1, version1.VersionNumber);
+        Assert.Collection(version1.Changes,
+            edit =>
+            {
+                Assert.Equal(12, edit.Value);
+                Assert.Equal(edited, edit.ChangedAt);
+                Assert.Equal("alice", edit.ChangedBy);
+            },
+            baseline =>
+            {
+                Assert.Equal(6, baseline.Value);
+                Assert.Equal(submitted, baseline.ChangedAt);
+                Assert.Null(baseline.ChangedBy);
+            });
+    }
+
+    [Fact]
+    public void For_ResubmitAfterUndo_KeepsSameVersionNumberAsNormalView()
+    {
+        var submitted = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+        var editedOnUndone = submitted.AddMinutes(1);
+        var undone = submitted.AddMinutes(2);
+        var resubmitted = submitted.AddMinutes(3);
+        var editedOnResubmit = submitted.AddMinutes(4);
+
+        var submit = Submit(submitted);
+        submit.OperationId = "submit-op";
+        var undo = EventLog("ReviewSubmitted", undone, EventLogOperation.Undo);
+        undo.OperationId = "submit-op";
+
+        InstanceEventLogEntry[] logs = [submit, undo, Submit(resubmitted, EventLogOperation.Update)];
+        PropertyChangeEntry[] journal =
+        [
+            Change("Credits", 6, Alice, editedOnUndone),
+            Change("Credits", 12, Bob, editedOnResubmit)
+        ];
+
+        var normalView = AnswerChangeHistory.For(
+            journal, "Credits", null, ["ReviewSubmitted"], logs, WorkflowDefinition(), 15);
+
+        var historyView = AnswerChangeHistory.For(
+            journal, "Credits", null, ["ReviewSubmitted"], logs, WorkflowDefinition(), 15,
+            includeUndoneSubmissions: true);
+
+        // Normal view: only the resubmission exists, as version 1.
+        var normalVersion = Assert.Single(normalView);
+        Assert.Equal(1, normalVersion.VersionNumber);
+
+        // History view: the resubmission stays version 1, and the undone
+        // submission also shows as version 1 instead of pushing it to 2.
+        Assert.Collection(historyView,
+            resubmission =>
+            {
+                Assert.Equal(1, resubmission.VersionNumber);
+                Assert.Collection(resubmission.Changes,
+                    edit => Assert.Equal(editedOnResubmit, edit.ChangedAt),
+                    baseline => Assert.Equal(resubmitted, baseline.ChangedAt));
+            },
+            undoneSubmission =>
+            {
+                Assert.Equal(1, undoneSubmission.VersionNumber);
+                Assert.Collection(undoneSubmission.Changes,
+                    edit => Assert.Equal(editedOnUndone, edit.ChangedAt),
+                    baseline => Assert.Equal(submitted, baseline.ChangedAt));
+            });
+    }
+
     private static InstanceEventLogEntry Submit(DateTime submittedAt,
         EventLogOperation type = EventLogOperation.Create)
         => EventLog("ReviewSubmitted", submittedAt, type);

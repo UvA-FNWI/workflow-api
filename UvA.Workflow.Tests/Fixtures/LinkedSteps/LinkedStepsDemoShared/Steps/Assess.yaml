@@ -1,0 +1,14 @@
+name: Assess
+title: Joint assessment
+icon:
+  type: law-balance-line
+resultsType: AssessmentPartOverview
+actions:
+  - type: Submit
+    roles: [Supervisor]
+    form: AssessJoint
+  - type: Undo
+    roles: [Coordinator, Supervisor]
+    form: AssessJoint
+ends:
+  event: AssessJoint

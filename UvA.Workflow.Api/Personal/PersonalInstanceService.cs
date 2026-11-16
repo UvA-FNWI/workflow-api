@@ -7,7 +7,8 @@ namespace UvA.Workflow.Api.Personal;
 public class PersonalInstanceService(
     ModelService modelService,
     InstanceService instanceService,
-    IWorkflowInstanceRepository workflowInstanceRepository)
+    IWorkflowInstanceRepository workflowInstanceRepository,
+    RightsService rightsService)
 {
     private static readonly Lookup[] PersonalOverviewLookups =
     [
@@ -28,14 +29,16 @@ public class PersonalInstanceService(
 
         var userFilter = BuildUserFilter(definitions, userId);
         var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
+        var contexts = await instanceService.ResolveContexts(instances, ct);
         var instanceContexts = instances
-            .Select(instance => new PersonalInstanceContext(instance, modelService.CreateContext(instance)))
+            .Select(instance => new PersonalInstanceContext(instance, contexts[instance.Id]))
             .ToArray();
 
         await Enrich(instanceContexts, ct);
+        var viewableSources = await StepProgressResolver.GetViewableSources(contexts.Values, rightsService);
 
         var instanceDtos = instanceContexts
-            .Select(item => CreateDto(item.Instance, item.Context, user))
+            .Select(item => CreateDto(item.Instance, item.Context, user, viewableSources))
             .Where(dto => dto.Roles.Length > 0)
             .OrderByDescending(dto => dto.CreatedOn)
             .ThenByDescending(dto => dto.Id)
@@ -83,7 +86,8 @@ public class PersonalInstanceService(
     private PersonalInstanceDto CreateDto(
         WorkflowInstance instance,
         ObjectContext context,
-        User user)
+        User user,
+        IReadOnlySet<string> viewableSources)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var usersByRole = GetUserProperties(definition)
@@ -121,8 +125,9 @@ public class PersonalInstanceService(
             instance.WorkflowDefinition,
             definition.DisplayTitle,
             definition.InstanceTitleTemplate?.Apply(context),
-            instance.CurrentStep,
-            StepProgressResolver.ResolveProgress(definition, instance.CurrentStep, context),
+            context.CurrentStep,
+            StepProgressResolver.ResolveProgress(definition, context.CurrentStep, context,
+                viewableSources: viewableSources),
             instance.CreatedOn,
             roles,
             student,

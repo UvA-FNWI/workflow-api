@@ -32,7 +32,8 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
             null!,
             null!,
             undoService!,
-            _mailLogRepositoryMock.Object);
+            _mailLogRepositoryMock.Object,
+            null!);
 
     private void MockInstances(params Dictionary<string, BsonValue>[] rows)
         => _workflowInstanceRepoMock
@@ -44,6 +45,21 @@ public class WorkflowInstancesControllerTests : ControllerTestsBase
         => _mailLogRepositoryMock
             .Setup(r => r.GetByInstance(instanceId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(entries.ToList());
+
+    [Fact]
+    public async Task HistoricalImportingInstance_ReturnsExplicitUnsupportedError()
+    {
+        var instance = new WorkflowInstanceBuilder().WithWorkflowDefinition("LinkedStepsDemoIndividual")
+            .WithCurrentStep("SharedUpload").Build();
+        MockCurrentUser("SystemAdmin");
+        MockInstance(instance);
+
+        var result = await CreateController().GetById(instance.Id, version: 1, ct: _ct);
+
+        var error = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(400, error.StatusCode);
+        Assert.Equal("ImportedInstanceHistoryUnsupported", Assert.IsType<Error>(error.Value).ErrorCode);
+    }
 
     [Fact]
     public async Task Undo_InvalidReason_ReturnsBadRequest()

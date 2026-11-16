@@ -24,7 +24,8 @@ public class WorkflowInstancesController(
     RoleImpersonationService impersonationService,
     IEduIdUserService eduIdUserService,
     UndoService undoService,
-    IMailLogRepository mailLogRepository
+    IMailLogRepository mailLogRepository,
+    InstanceHistoryDtoFactory instanceHistoryDtoFactory
 ) : ApiControllerBase
 {
     [Authorize(AuthenticationSchemes = WorkflowAuthenticationDefaults.AnyScheme)]
@@ -74,6 +75,18 @@ public class WorkflowInstancesController(
     public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id, [FromQuery] int? version = null,
         CancellationToken ct = default)
     {
+        if (version != null)
+        {
+            var current = await repository.GetById(id, ct);
+            if (current == null) return WorkflowInstanceNotFound;
+            if (modelService.WorkflowDefinitions[current.WorkflowDefinition].HasImportedSteps)
+            {
+                if (!await rightsService.Can(current, RoleAction.View)) return Forbidden();
+                return BadRequest("ImportedInstanceHistoryUnsupported",
+                    "Whole-instance history is unavailable for workflows with imported steps.");
+            }
+        }
+
         var instance = version is null
             ? await repository.GetById(id, ct)
             : await workflowInstanceService.GetAsOfVersion(id, version.Value, ct);
@@ -262,7 +275,7 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
-        var roles = rightsService.GetImpersonationTargetRoles(instance)
+        var roles = (await rightsService.GetImpersonationTargetRoles(instance, ct))
             .Select(ImpersonationRoleDto.Create)
             .ToArray();
 
@@ -282,13 +295,13 @@ public class WorkflowInstancesController(
             return Forbidden();
 
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var perRole = rightsService.GetAllowedActionsPerTargetRole(instance,
+        var perRole = await rightsService.GetAllowedActionsPerTargetRole(instance,
             RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
             RoleAction.Undo, RoleAction.View);
 
-        var currentStepName = modelService.GetCurrentStep(instance)?.Name;
-        var activeSteps = modelService.GetActiveSteps(instance);
-        var context = modelService.CreateContext(instance);
+        var context = await instanceService.ResolveContext(instance, ct);
+        var currentStepName = modelService.GetCurrentStep(instance, context)?.Name;
+        var activeSteps = modelService.GetActiveSteps(instance, context);
         var actionSteps = perRole.SelectMany(r => r.Actions)
             .Distinct()
             .ToDictionary(a => a, a => modelService.GetAvailableStepsForAction(instance, a, activeSteps, context));
@@ -335,12 +348,31 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
-        var normalizedRoleName = rightsService.NormalizeImpersonationTargetRole(instance, input.Role);
+        var normalizedRoleName = await rightsService.NormalizeImpersonationTargetRole(instance, input.Role);
         if (normalizedRoleName == null)
             return BadRequest("InvalidImpersonationRole",
                 $"Role '{input.Role}' cannot be impersonated for workflow '{instance.WorkflowDefinition}'.");
 
-        var token = impersonationService.CreateToken(currentUser.UserName, instance.Id, normalizedRoleName.Name);
+        var importedIds = new List<string>();
+        if (modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps)
+        {
+            var context = await instanceService.ResolveContext(instance, ct);
+            foreach (var source in context.ImportedSteps.Values.OfType<ImportedStepContext>()
+                         .DistinctBy(source => source.Instance.Id))
+            {
+                if (!await rightsService.Can(source.Instance, [RoleAction.ImpersonateRoles],
+                        RightsEvaluationMode.RealUser))
+                    return Forbidden();
+                if (await rightsService.NormalizeImpersonationTargetRole(source.Instance,
+                        normalizedRoleName.Name, ct) == null)
+                    return BadRequest("InvalidImpersonationRole",
+                        $"Role '{normalizedRoleName.Name}' cannot be impersonated for imported workflow '{source.Definition.Name}'.");
+                importedIds.Add(source.Instance.Id);
+            }
+        }
+
+        var token = impersonationService.CreateToken(currentUser.UserName, instance.Id,
+            normalizedRoleName.Name, importedIds);
         return Ok(new StartImpersonationResultDto(
             instance.Id,
             normalizedRoleName,
@@ -558,6 +590,22 @@ public class WorkflowInstancesController(
 
         var entries = await mailLogRepository.GetByInstance(id, ct);
         return Ok(entries.Select(CorrespondenceDto.From).ToList());
+    }
+
+    [HttpGet("{id}/History")]
+    public async Task<ActionResult<IReadOnlyList<InstanceHistoryItemDto>>> GetInstanceHistory(string id,
+        CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.Can(instance, RoleAction.ViewHistory))
+            return Forbidden();
+
+        var history = await instanceHistoryDtoFactory.Create(instance, ct);
+
+        return Ok(history);
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)
