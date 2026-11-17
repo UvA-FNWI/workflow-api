@@ -1,0 +1,21 @@
+name: Overview
+columns:
+  - property: Title
+    link: true
+  - property: Student.DisplayName
+  - property: Supervisor.DisplayName
+  - currentStep: true
+grouping:
+  groups:
+    - name: setup
+      title: Configure demo
+      steps: [Setup]
+    - name: upload
+      title: Joint thesis
+      steps: [Upload]
+    - name: assessment
+      title: Joint assessment
+      steps: [Assess]
+    - name: completed
+      title: Completed
+      steps: ['null']

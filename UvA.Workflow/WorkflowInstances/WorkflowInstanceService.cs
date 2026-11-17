@@ -70,8 +70,12 @@ public class WorkflowInstanceService(
                 throw new ArgumentException("CreatedBy is required when UserProperty is set", nameof(createdBy));
             var user = InstanceUser.FromUser(createdBy).ToBsonDocument();
             var property = modelService.WorkflowDefinitions[workflowDefinition].Properties.Get(userProperty);
+            property.EnsureWritable();
             instance.Properties[userProperty] = property.IsArray ? new BsonArray { user } : user;
         }
+
+        foreach (var name in instance.Properties.Keys)
+            modelService.WorkflowDefinitions[workflowDefinition].Properties.GetOrDefault(name)?.EnsureWritable();
 
         await ApplyDefaults(instance, ct);
 
@@ -88,8 +92,11 @@ public class WorkflowInstanceService(
         if (properties.Length == 0)
             return;
 
-        var context = modelService.CreateContext(instance);
+        // Defaults are pending inputs until assigned, rather than null sources for computed properties.
+        var context = ObjectContext.Create(instance, modelService,
+            properties.Select(property => property.Name).ToHashSet());
         await EnrichDefaultReferences(definition, properties, context, ct);
+        context.ComputeProperties(definition);
         foreach (var property in properties)
             instance.Properties[property.Name] = await ConvertDefault(
                 property, property.DefaultExpression!.Execute(context), ct);
@@ -98,8 +105,8 @@ public class WorkflowInstanceService(
     private async Task EnrichDefaultReferences(WorkflowDefinition definition, PropertyDefinition[] properties,
         ObjectContext context, CancellationToken ct)
     {
-        var referenceRoots = properties
-            .SelectMany(property => property.DefaultExpression!.Properties)
+        var referenceRoots = definition.GetSourceLookups(properties
+                .SelectMany(property => property.DefaultExpression!.Properties))
             .OfType<PropertyLookup>()
             .Where(lookup => lookup.Parts.Length > 1)
             .Select(lookup => lookup.Parts[0])
@@ -206,12 +213,17 @@ public class WorkflowInstanceService(
         return workflowInstance;
     }
 
-    public WorkflowInstance GetAsOfTimestamp(
+    public async Task<WorkflowInstance> GetAsOfTimestamp(
         WorkflowInstance instance,
         DateTime timestamp,
-        WorkflowInstanceHistory history)
+        WorkflowInstanceHistory history,
+        CancellationToken ct = default)
     {
-        return history.GetInstanceAt(instance, timestamp, modelService);
+        var snapshot = history.GetInstanceAt(instance, timestamp, modelService);
+        var context = await ContextLoader.CreateContext(modelService, repository, snapshot,
+            modelService.WorkflowDefinitions[snapshot.WorkflowDefinition].PermissionAndStepLookups, ct);
+        snapshot.CurrentStep = modelService.FindOpenStep(snapshot, context)?.Name;
+        return snapshot;
     }
 
     public async Task<WorkflowInstanceHistory> GetInstanceHistory(string instanceId, CancellationToken ct)
@@ -242,6 +254,7 @@ public class WorkflowInstanceService(
     public async Task AppendPropertyValue(WorkflowInstance instance, string[] pathParts, BsonValue newValue,
         CancellationToken ct)
     {
+        modelService.EnsureWritable(instance, pathParts);
         var user = await userService.GetCurrentUser(ct);
         if (user == null)
             throw new InvalidOperationException("User not logged in");

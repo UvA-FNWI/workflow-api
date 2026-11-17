@@ -1,0 +1,11 @@
+name: ConfirmUpload
+title: Confirm joint upload
+actions:
+  - type: Submit
+    roles: [Student]
+    form: ConfirmJointUpload
+  - type: Undo
+    roles: [Coordinator, Supervisor]
+    form: ConfirmJointUpload
+ends:
+  event: ConfirmJointUpload

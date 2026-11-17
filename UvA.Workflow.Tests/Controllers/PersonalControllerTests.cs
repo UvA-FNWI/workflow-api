@@ -22,7 +22,8 @@ public class PersonalControllerTests : ControllerTestsBase
         personalInstanceService = new PersonalInstanceService(
             _modelService,
             _instanceService,
-            _workflowInstanceRepoMock.Object);
+            _workflowInstanceRepoMock.Object,
+            _rightsService);
     }
 
     [Fact]
@@ -148,7 +149,7 @@ public class PersonalControllerTests : ControllerTestsBase
                 It.Is<Dictionary<string, string>>(projection =>
                     projection.Count == 2 &&
                     projection["Name"] == "$Properties.Name" &&
-                    projection["Type"] == "$Properties.Type"),
+                    projection["Type"] == "$Type"),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new Dictionary<string, BsonValue>

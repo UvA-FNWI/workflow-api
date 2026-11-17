@@ -17,6 +17,7 @@ using UvA.Workflow.Persistence;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.Tools;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
@@ -108,6 +109,127 @@ public class AnswersControllerTests : ControllerTestsBase
         var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
         Assert.Null(response.UpdatedInstance);
         Assert.Equal("Updated subject", instance.Properties["Subject"].AsString);
+    }
+
+    [Theory]
+    [InlineData(false, false, RoleAction.Submit)]
+    [InlineData(true, true, RoleAction.Submit)]
+    [InlineData(false, true, RoleAction.Edit)]
+    public async Task Answers_SaveAnswer_RejectsPropertiesOutsideForm(bool repeatable, bool submitted,
+        RoleAction permission)
+    {
+        const string formName = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], formName);
+        instance.Events[formName].Date = submitted ? DateTime.UtcNow.AddMinutes(-1) : null;
+        _modelService.GetForm(instance, formName).Repeatable = repeatable;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Single(role => role.Name == "Student")
+            .Actions = [new() { Type = permission, Form = formName }];
+
+        var error = await Assert.ThrowsAsync<EntityNotFoundException>(() => controller.SaveAnswer(instance.Id, formName,
+            "CanBePublished", new SaveAnswerRequest(JsonSerializer.SerializeToElement(true)), _ct));
+
+        Assert.Equal("QuestionNotFound", error.Code);
+        _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(instance.Id,
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Never);
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_RejectsComputedPropertyWithoutChangingStorageOrHistory()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var property = new IntPropertyDefinition { Name = "Computed", Type = "Int", Expression = "1" };
+        _modelService.WorkflowDefinitions["Project"].Properties.Add(property);
+
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() => controller.SaveAnswer(
+            instance.Id, "Start", "Computed", new SaveAnswerRequest(JsonSerializer.SerializeToElement(2)), _ct));
+
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey("Computed"));
+        _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(It.IsAny<string>(),
+            It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _instanceJournalServiceMock.Verify(journal => journal.LogPropertyChange(It.IsAny<string>(),
+            It.IsAny<PropertyChangeEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SavePropertyValue_RejectsComputedPropertyBeforeMutation()
+    {
+        var instance = DerivedPropertyTests.Instance();
+        var property = DerivedPropertyTests.Parse().WorkflowDefinitions["Project"].Properties.Get("Count");
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            _answerService.SavePropertyValue(instance, ["Count"], property, 3, true, _ct));
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey("Count"));
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_RejectsComputedParentBeforeCreatingExternalUser()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Source\n    type: Party\n  - name: Alias\n    type: Party\n    expression: Source",
+            new()
+            {
+                ["Party/Entity.yaml"] =
+                    "name: Party\nisEmbedded: true\nproperties:\n  - name: Contact\n    type: User\n    allowsExternalUsers: true"
+            });
+        _modelService.WorkflowDefinitions["Project"].Properties
+            .AddRange(model.WorkflowDefinitions["Project"].Properties);
+        _modelService.GetForm(instance, "Start").PropertyName = "Alias";
+        _externalUserServiceMock.Setup(service => service.CreateOrUpdateExternalUser(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), _ct))
+            .ReturnsAsync(new UserSearchResult("external@example.org", "External User", "external@example.org",
+                UserSearchSources.Repository, "eduid"));
+
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() => controller.SaveAnswer(
+            instance.Id, "Start", "Contact",
+            new SaveAnswerRequest(null, ExternalUser: new ExternalUserDto("External User", "external@example.org")),
+            _ct));
+
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+        Assert.False(instance.Properties.ContainsKey("Alias"));
+        _externalUserServiceMock.Verify(service => service.CreateOrUpdateExternalUser(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), _ct), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConvertToValue_RejectsComputedFieldsInEmbeddedInput()
+    {
+        var definition = DerivedPropertyTests.Parse().WorkflowDefinitions["Project"];
+        var property = new ObjectPropertyDefinition
+        {
+            Name = "Nested", Type = "Project", WorkflowDefinition = definition
+        };
+        var input = JsonSerializer.SerializeToElement(new { Count = 99 });
+        var exception = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            _answerConversionService.ConvertToValue(input, property, _ct));
+        Assert.Equal("ComputedPropertyReadOnly", exception.Code);
+    }
+
+    [Fact]
+    public async Task Answers_GetChoices_LoadsSharedDemoGroupDuringSetup()
+    {
+        var instance = new WorkflowInstanceBuilder().With(workflowDefinition: "LinkedStepsDemoIndividual",
+            currentStep: "Setup").Build();
+        var group = new WorkflowInstanceBuilder().With(workflowDefinition: "LinkedStepsDemoShared",
+            currentStep: "Upload").WithProperties(("Title", b => b.Value("Test title for group"))).Build();
+        MockInstance(instance);
+        MockEmptyEventLog(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockCurrentUser(["Coordinator"]);
+        _workflowInstanceRepoMock.Setup(repo => repo.GetByWorkflowDefinition("LinkedStepsDemoShared",
+                It.IsAny<FilterDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([group]);
+        var controller = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService,
+            _workflowInstanceDtoFactory);
+
+        var result = await controller.GetChoices(instance.Id, "Setup", "SharedThesis", _ct);
+        var choices =
+            Assert.IsAssignableFrom<IEnumerable<ChoiceDto>>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var choice = Assert.Single(choices);
+        Assert.Equal(group.Id, choice.Name);
+        Assert.Equal("Test title for group", choice.Text.En);
     }
 
     [Fact]
@@ -266,6 +388,22 @@ public class AnswersControllerTests : ControllerTestsBase
         _artifactServiceMock.Verify(service => service.TryDeleteArtifact(artifactId, _ct), Times.Once);
         _workflowInstanceRepoMock.Verify(repository => repository.UpdateFields(instance.Id,
             It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct), Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task Answers_ClearAnswers_AllowsSubmitPermissionAfterRepeatableFormSubmission()
+    {
+        const string formName = "Start";
+        var (controller, instance) = BuildControllerWithRoles(["Student"], formName);
+        instance.Events[formName].Date = DateTime.UtcNow.AddMinutes(-1);
+        _modelService.GetForm(instance, formName).Repeatable = true;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Single(role => role.Name == "Student")
+            .Actions = [new() { Type = RoleAction.Submit, Form = formName }];
+
+        var result = await controller.ClearAnswers(instance.Id, formName, _ct);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.True(instance.Properties["Title"].IsBsonNull);
     }
 
     [Fact]
