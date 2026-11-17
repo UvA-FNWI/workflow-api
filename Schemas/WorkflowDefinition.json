@@ -355,7 +355,8 @@
         "ImpersonateRoles",
         "ViewResults",
         "ViewCorrespondence",
-        "ViewHistory"
+        "ViewHistory",
+        "Preview"
       ]
     },
     "Condition": {

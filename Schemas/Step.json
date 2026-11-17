@@ -789,7 +789,8 @@
         "ImpersonateRoles",
         "ViewResults",
         "ViewCorrespondence",
-        "ViewHistory"
+        "ViewHistory",
+        "Preview"
       ]
     },
     "Effect": {

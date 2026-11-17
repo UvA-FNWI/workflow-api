@@ -302,6 +302,18 @@ public class RightsService(
     public Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
         => GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
 
+    public async Task<Form[]> GetPreviewableForms(WorkflowInstance instance, CancellationToken ct = default)
+    {
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        if (!definition.GlobalActions.Any(action => action.Type == RoleAction.Preview))
+            return [];
+        var context = await ContextLoader.CreateContext(modelService, workflowInstanceRepository, instance,
+            definition.PermissionAndStepLookups, ct);
+        var actions = await GetAllowedActions(instance, context, RightsEvaluationMode.RequestContext,
+            RoleAction.Preview);
+        return definition.Forms.Where(form => actions.Any(action => action.MatchesForm(form.Name))).ToArray();
+    }
+
     public async Task<Domain_Action[]> GetAllowedHistoricalActions(
         WorkflowInstance currentInstance, WorkflowInstance snapshot, params RoleAction[] actions)
     {

@@ -30,7 +30,10 @@ public record WorkflowInstanceDto(
     bool CanImpersonate,
     string[] ViewerRoles,
     InfoCardDto[] InfoCards
-);
+)
+{
+    public PreviewableFormDto[] PreviewableForms { get; init; } = [];
+}
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
 
