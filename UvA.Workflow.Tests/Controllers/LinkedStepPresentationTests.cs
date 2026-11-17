@@ -274,7 +274,7 @@ public class LinkedStepPresentationTests
     public async Task CurrentStepField_OnlyShowsTheSourceTitleWhenTheViewerCanAccessIt(bool canView, string title)
     {
         var api = new LinkedStepApiSetup(sourceAccess: canView);
-        api.Core.Model.WorkflowDefinitions["Individual"].Fields = [new Field { CurrentStep = true }];
+        api.Core.Model.WorkflowDefinitions["Individual"].Fields = [new Field { Property = "CurrentStep" }];
         api.Core.Complete("Uploaded", 20);
 
         var dto = await api.Factory.Create(api.Core.Student, default);
@@ -344,7 +344,7 @@ internal sealed class LinkedStepApiSetup
         files["Individual/Screens/Overview.yaml"] = """
                                                     name: Overview
                                                     columns:
-                                                      - currentStep: true
+                                                      - type: CurrentStep
                                                     grouping:
                                                       groups:
                                                         - name: shared

@@ -103,7 +103,7 @@ public class PersonalControllerTests : ControllerTestsBase
                     [
                         ("Supervisor", "Begeleider"),
                         ("Examiner", "Examinator"),
-                        ("Second reviewer", "Tweede beoordelaar")
+                        ("Reviewer", "Beoordelaar")
                     ],
                     staff.Roles.Select(role => (role.En, role.Nl)));
                 Assert.Null(staff.Organisation);
@@ -112,7 +112,7 @@ public class PersonalControllerTests : ControllerTestsBase
             {
                 Assert.Equal("Second Assessor Name", staff.DisplayName);
                 Assert.Equal(
-                    [("Second reader", "Tweede lezer")],
+                    [("Second assessor", "Tweede beoordelaar")],
                     staff.Roles.Select(role => (role.En, role.Nl)));
                 Assert.Null(staff.Organisation);
             });

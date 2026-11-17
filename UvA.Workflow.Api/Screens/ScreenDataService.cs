@@ -207,11 +207,16 @@ public class ScreenDataService(
         foreach (var definition in definitions)
         {
             var hasProgressColumn = screen.Columns.Any(column => column.Type == ColumnType.CurrentStep);
-            var progressLookups == hasProgressColumn
+            var progressLookups = hasProgressColumn
                 ? definition.ProgressLookups.ToArray()
                 : [];
 
-            var lookups = screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups).ToArray();
+            var relatedUserLookups = screen.Columns.Any(c => c.Type == ColumnType.RelatedUsers)
+                ? GetDefaultRelatedUsers(definition).Select(u => (Lookup)new PropertyLookup(u.Property)).ToArray()
+                : [];
+
+            var lookups = screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups)
+                .Concat(relatedUserLookups).ToArray();
             var projection = definition.GetProjection(lookups);
             projection.TryAdd("CurrentStep", "$CurrentStep");
             projection.TryAdd("Events", "$Events");
@@ -232,16 +237,14 @@ public class ScreenDataService(
             }
             else
             {
-                var rawData = await repository.GetAllByType(workflowDefinition, projection, authorizationFilter, ct);
-                var contexts = rawData.Select(row => modelService.CreateContext(workflowDefinition, row)).ToList();
-                var relatedUserLookups = screen.Columns.Any(c => c.Type == ColumnType.RelatedUsers)
-                    ? GetDefaultRelatedUsers(definition).Select(u => (Lookup)new PropertyLookup(u.Property)).ToArray()
-                    : [];
+                var rawData = await repository.GetAllByType(definition.Name, projection, authorizationFilter, ct);
+                rows = rawData.Select(row => modelService.CreateContext(definition.Name, row, projection.Keys))
+                    .ToList();
             }
 
             // Add related properties as needed
             await instanceService.Enrich(definition,
-                contexts,
+                rows,
                 screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups).Concat(relatedUserLookups),
                 ct, false);
 
