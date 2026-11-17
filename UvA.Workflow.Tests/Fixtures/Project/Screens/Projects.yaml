@@ -12,7 +12,7 @@ bulkEdit:
     - StartDate
     - EndDate
     - EC
-    - SecondReader
+    - SecondAssessor
     - PracticalSupervisor
     - Report
     - Course

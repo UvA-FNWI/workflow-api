@@ -1,6 +1,7 @@
 using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Assessments;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Tools;
@@ -20,6 +21,245 @@ public class InstanceServiceEnrichTests
     {
         _modelService = CreateModelService();
         _service = CreateInstanceService(_modelService, _repository);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Enrich_PartialReferenceDoesNotEvaluateUnloadedComputedSource(bool array)
+    {
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: '" +
+                                               (array ? "[Target]" : "Target") + "'\n  - name: Display\n    type: " +
+                                               (array ? "'[String]'" : "String!") + "\n    expression: Target.Name",
+            new()
+            {
+                ["Target/Entity.yaml"] =
+                    "name: Target\nproperties:\n  - name: Name\n    type: String\n  - name: Code\n    type: String"
+            });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = array ? new BsonArray { id } : id });
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 1 && projection.ContainsKey("Code")), _ct))
+            .ReturnsAsync([new() { ["_id"] = id, ["Code"] = "A1" }]);
+
+        await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+            ["Target.Code"], _ct, false);
+
+        Assert.False(context.Values.ContainsKey("Display"));
+        Assert.Equal("A1", array ? Assert.IsType<object[]>(context.Get("Target.Code"))[0] : context.Get("Target.Code"));
+    }
+
+    [Theory]
+    [InlineData("select(Targets, =Name)")]
+    [InlineData("select(except(Targets, Excluded), =Name)")]
+    public async Task Enrich_SelectLoadsLiteralReferenceFieldBeforeComputing(string expression)
+    {
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Targets\n    type: '[Target]'\n  - name: Excluded\n    type: '[Target]'\n  - name: Names\n    type: '[String]'\n    expression: " +
+            expression, new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new()
+        {
+            ["Targets"] = new BsonArray { id }, ["Excluded"] = new BsonArray()
+        });
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("Name")), _ct))
+            .ReturnsAsync([new() { ["_id"] = id, ["Name"] = "Target name" }]);
+        Assert.False(context.Values.ContainsKey("Names"));
+
+        await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+            ["Names"], _ct, false);
+
+        Assert.Equal(["Target name"], Assert.IsType<string[]>(context.Get("Names")));
+    }
+
+    [Fact]
+    public void Context_SelectFromEmptyReferenceListReturnsEmptyArray()
+    {
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Targets\n    type: '[Target]'\n  - name: Names\n    type: '[String]'\n    expression: select(Targets, =Name)",
+            new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
+
+        var context = model.CreateContext("Project", new() { ["Targets"] = new BsonArray() });
+
+        Assert.Empty(Assert.IsType<string[]>(context.Get("Names")));
+    }
+
+    [Fact]
+    public async Task Enrich_ProjectedNullStillValidatesRequiredComputedProperty()
+    {
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Target\n    type: Target\n  - name: Display\n    type: String!\n    expression: Target.Name",
+            new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = id });
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("Name")), _ct))
+            .ReturnsAsync([new() { ["_id"] = id }]);
+
+        var error = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+                ["Display"], _ct, false));
+
+        Assert.Contains("A value is required", error.Message);
+    }
+
+    [Theory]
+    [InlineData("count(Target.Values)", false, 2)]
+    [InlineData("Target.Total", false, 2)]
+    [InlineData("count(Target.Values)", true, 0)]
+    [InlineData("Target.Total", true, 0)]
+    public async Task Enrich_LoadsComputedSourcesThroughReferences(string expression, bool missing, int expected)
+    {
+        var model = new ModelService(new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Source/Entity.yaml"] =
+                "name: Source\nproperties:\n  - name: Target\n    type: Target\n  - name: Total\n    type: Int\n    expression: " +
+                expression,
+            ["Target/Entity.yaml"] =
+                "name: Target\nproperties:\n  - name: Values\n    type: '[String]'\n  - name: Total\n    type: Int\n    expression: count(Values)"
+        })));
+        var targetId = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Source", new Dictionary<string, BsonValue> { ["Target"] = targetId });
+        var service = CreateInstanceService(model, _repository);
+        _repository.Setup(repository => repository.GetAllById(new[] { targetId },
+                It.Is<Dictionary<string, string>>(projection => projection.Count == 1 &&
+                                                                projection["Values"] == "$Properties.Values"), _ct))
+            .ReturnsAsync([
+                missing
+                    ? new() { ["_id"] = targetId }
+                    : new() { ["_id"] = targetId, ["Values"] = new BsonArray { "A", "B" } }
+            ]);
+
+        await service.Enrich(model.WorkflowDefinitions["Source"], [context], ["Total"], _ct, false);
+
+        Assert.Equal(expected, context.Get("Total"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Enrich_ComputedReferenceAliasKeepsDottedFields(bool array)
+    {
+        var type = array ? "'[Target]'" : "Target";
+        var model = DerivedPropertyTests.Parse(
+            $"name: Project\nproperties:\n  - name: Source\n    type: {type}\n  - name: Alias\n    type: {type}\n    expression: Source",
+            new()
+            {
+                ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+            });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Source"] = array ? new BsonArray { id } : id });
+        var service = CreateInstanceService(model, _repository);
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("Name")), _ct))
+            .ReturnsAsync([new() { ["_id"] = id, ["Name"] = "Target name" }]);
+
+        await service.Enrich(model.WorkflowDefinitions["Project"], [context], ["Alias.Name"], _ct, false);
+
+        if (array)
+            Assert.Equal("Target name", Assert.IsType<object[]>(context.Get("Alias.Name"))[0]);
+        else
+            Assert.Equal("Target name", context.Get("Alias.Name"));
+    }
+
+    [Theory]
+    [InlineData(false, "Target")]
+    [InlineData(true, "Target")]
+    [InlineData(false, "Alias")]
+    [InlineData(true, "Alias")]
+    public async Task Enrich_ComputedStringReferenceIdsRemainStable(bool array, string expression)
+    {
+        var referenceType = array ? "[Target]" : "Target";
+        var stringType = array ? "[String]" : "String";
+        var model = DerivedPropertyTests.Parse($"""
+                                                name: Project
+                                                properties:
+                                                  - name: Target
+                                                    type: '{referenceType}'
+                                                  - name: Alias
+                                                    type: '{referenceType}'
+                                                    expression: Target
+                                                  - name: TargetIds
+                                                    type: '{stringType}'
+                                                    expression: {expression}
+                                                """, new()
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+        });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = array ? new BsonArray { id } : id });
+        var before = context.Get("TargetIds");
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync([new() { ["_id"] = id, ["Name"] = "Target name" }]);
+
+        await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+            ["TargetIds", "Alias.Name"], _ct, false);
+
+        if (array)
+        {
+            Assert.Equal(new[] { id }, Assert.IsType<string[]>(before));
+            Assert.Equal(new[] { id }, Assert.IsType<string[]>(context.Get("TargetIds")));
+            Assert.Equal("Target name", Assert.IsType<object[]>(context.Get("Alias.Name"))[0]);
+        }
+        else
+        {
+            Assert.Equal(id, before);
+            Assert.Equal(id, context.Get("TargetIds"));
+            Assert.Equal("Target name", context.Get("Alias.Name"));
+        }
+    }
+
+    [Theory]
+    [InlineData("if(ApprovedEventActive, =done, =pending)", "done")]
+    [InlineData("dateLong(ApprovedEvent)", "15-10-2026")]
+    [InlineData("dateLong(CreateDate)", "14-10-2026")]
+    [InlineData("dateLong(LastEvent)", "15-10-2026")]
+    [InlineData("CurrentStep", "Review")]
+    public async Task Enrich_ProjectsBuiltInSourcesOfReferencedComputedProperty(string expression, string expected)
+    {
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
+        {
+            ["Target/Entity.yaml"] =
+                "name: Target\nevents:\n  - name: Approved\nproperties:\n  - name: Display\n    type: String\n    expression: " +
+                expression
+        });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = id });
+        var target = new BsonDocument
+        {
+            ["_id"] = id,
+            ["CreatedOn"] = new DateTime(2026, 10, 14, 12, 0, 0, DateTimeKind.Utc),
+            ["CurrentStep"] = "Review",
+            ["Events"] = new BsonDocument("Approved", new BsonDocument("Date",
+                new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc)))
+        };
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync((string[] _, Dictionary<string, string> projection, CancellationToken _) =>
+            {
+                var row = projection.ToDictionary(entry => entry.Key,
+                    entry => BsonConversionTools.NavigateNestedBsonValue(target, entry.Value[1..].Split('.'))
+                             ?? BsonNull.Value);
+                row["_id"] = id;
+                return [row];
+            });
+
+        await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+            ["Target.Display"], _ct, false);
+
+        Assert.Equal(expected, context.Get("Target.Display"));
     }
 
     [Fact]
@@ -108,11 +348,345 @@ public class InstanceServiceEnrichTests
             _ct), Times.Once);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Enrich_SecondPassAddsFieldsWithoutLosingEarlierReferenceValues(bool array)
+    {
+        var id = ObjectId.GenerateNewId();
+        var context = Context("Shared", id);
+        if (array) context.Values["Shared"] = new[] { id.ToString() };
+        _repository.Setup(repository => repository.GetAllById(It.IsAny<string[]>(),
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync((string[] _, Dictionary<string, string> projection, CancellationToken _) =>
+                new List<Dictionary<string, BsonValue>>
+                {
+                    projection.ContainsKey("Name")
+                        ? Result(id, ("Name", "First target"))
+                        : Result(id, ("Type", "New type"))
+                });
+
+        await _service.Enrich(_modelService.WorkflowDefinitions["SourceA"], [context],
+            [new PropertyLookup("Shared.Name")], _ct, replaceStep: false);
+        await _service.Enrich(_modelService.WorkflowDefinitions["SourceA"], [context],
+            [new PropertyLookup("Shared.Type")], _ct, replaceStep: false);
+
+        if (array)
+        {
+            Assert.Equal(new object[] { "First target" }, Assert.IsType<object[]>(context.Get("Shared.Name")));
+            Assert.Equal(new object[] { "New type" }, Assert.IsType<object[]>(context.Get("Shared.Type")));
+        }
+        else
+        {
+            Assert.Equal("First target", context.Get("Shared.Name"));
+            Assert.Equal("New type", context.Get("Shared.Type"));
+            Assert.Equal(id.ToString(), context.Get("Shared.Id"));
+        }
+    }
+
+    [Theory]
+    [InlineData(1, false, false)]
+    [InlineData(2, false, true)]
+    [InlineData(2, true, false)]
+    [InlineData(1, true, true)]
+    public async Task Enrich_NestedReferences_ResolvesRequestedDepth(
+        int depth,
+        bool alreadyLoaded,
+        bool referenceArray)
+    {
+        var targetId = ObjectId.GenerateNewId();
+        var targetIdString = targetId.ToString();
+
+        object reference = referenceArray
+            ? new[] { targetIdString }
+            : targetIdString;
+
+        if (alreadyLoaded)
+        {
+            var loadedValues = new Dictionary<Lookup, object?>
+            {
+                ["Id"] = targetIdString,
+                ["Parent"] = targetIdString
+            };
+
+            reference = referenceArray
+                ? new[] { loadedValues }
+                : loadedValues;
+        }
+
+        var firstContext = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Shared"] = reference
+        });
+        var secondContext = new ObjectContext(new Dictionary<Lookup, object?>
+        {
+            ["Shared"] = reference
+        });
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetIdString),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 1 &&
+                    projection.ContainsKey("Parent") &&
+                    projection["Parent"] == "$Properties.Parent"),
+                _ct))
+            .ReturnsAsync([Result(targetId, ("Parent", targetIdString))]);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetIdString),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.Count == 1 &&
+                    projection.ContainsKey("Name") &&
+                    projection["Name"] == "$Properties.Name"),
+                _ct))
+            .ReturnsAsync([Result(targetId, ("Name", "Advisor"))]);
+
+        var lookup = "Shared."
+                     + string.Concat(Enumerable.Repeat("Parent.", depth))
+                     + "Name";
+
+        EnrichmentBatch[] batches =
+        [
+            new(_modelService.WorkflowDefinitions["SourceA"],
+                [firstContext], [new PropertyLookup(lookup)]),
+            new(_modelService.WorkflowDefinitions["SourceB"],
+                [secondContext], [new PropertyLookup(lookup)])
+        ];
+
+        await _service.Enrich(batches, _ct, replaceStep: false);
+
+        foreach (var context in new[] { firstContext, secondContext })
+        {
+            if (referenceArray)
+            {
+                Assert.Equal(
+                    new object?[] { "Advisor" },
+                    Assert.IsType<object[]>(context.Get(lookup)));
+            }
+            else
+            {
+                Assert.Equal("Advisor", context.Get(lookup));
+            }
+        }
+
+        var expectedQueries = alreadyLoaded ? depth : depth + 1;
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Exactly(expectedQueries));
+
+        // Reusing the fully enriched contexts must not trigger more queries.
+        await _service.Enrich(batches, _ct, replaceStep: false);
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Exactly(expectedQueries));
+
+        foreach (var context in new[] { firstContext, secondContext })
+        {
+            if (referenceArray)
+            {
+                Assert.Equal(
+                    new object?[] { "Advisor" },
+                    Assert.IsType<object[]>(context.Get(lookup)));
+            }
+            else
+            {
+                Assert.Equal("Advisor", context.Get(lookup));
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Enrich_NestedComputedFieldPreservesSourceReferenceIds(bool array)
+    {
+        var model = DerivedPropertyTests.Parse(
+            "name: Project\nproperties:\n  - name: Target\n    type: '" + (array ? "[Target]" : "Target") + "'",
+            new()
+            {
+                ["Target/Entity.yaml"] = """
+                                         name: Target
+                                         properties:
+                                           - name: Parent
+                                             type: Target
+                                           - name: Name
+                                             type: String
+                                           - name: Display
+                                             type: String!
+                                             expression: coalesce(Name, =Unknown)
+                                         """
+            });
+        var targetId = ObjectId.GenerateNewId().ToString();
+        var parentId = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new()
+        {
+            ["Target"] = array ? new BsonArray { targetId } : targetId
+        });
+        _repository.Setup(repository => repository.GetAllById(new[] { targetId },
+                It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("Parent")), _ct))
+            .ReturnsAsync([new() { ["_id"] = targetId, ["Parent"] = parentId }]);
+        _repository.Setup(repository => repository.GetAllById(new[] { parentId },
+                It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("Name") &&
+                                                                !projection.ContainsKey("Display")), _ct))
+            .ReturnsAsync([new() { ["_id"] = parentId, ["Name"] = "Advisor" }]);
+        var service = CreateInstanceService(model, _repository);
+
+        for (var i = 0; i < 2; i++)
+        {
+            await service.Enrich(model.WorkflowDefinitions["Project"], [context], ["Target.Parent.Display"], _ct,
+                replaceStep: false);
+
+            if (array)
+            {
+                Assert.Equal(new[] { targetId }, Assert.IsType<string[]>(context.Get("Target")));
+                Assert.Equal(new object?[] { "Advisor" },
+                    Assert.IsType<object[]>(context.Get("Target.Parent.Display")));
+            }
+            else
+            {
+                Assert.Equal(targetId, context.Get("Target"));
+                Assert.Equal("Advisor", context.Get("Target.Parent.Display"));
+            }
+        }
+
+        _repository.Verify(repository => repository.GetAllById(It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(), _ct), Times.Exactly(2));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Enrich_MissingReferencedInstance_ReturnsNull(
+        bool missingFirstLevel)
+    {
+        var targetId = ObjectId.GenerateNewId();
+        var parentId = ObjectId.GenerateNewId();
+        var context = Context("Shared", targetId);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetId.ToString()),
+                It.IsAny<Dictionary<string, string>>(),
+                _ct))
+            .ReturnsAsync(missingFirstLevel
+                ? []
+                : [Result(targetId, ("Parent", parentId.ToString()))]);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == parentId.ToString()),
+                It.IsAny<Dictionary<string, string>>(),
+                _ct))
+            .ReturnsAsync([]);
+
+        await _service.Enrich(
+            _modelService.WorkflowDefinitions["SourceA"],
+            [context],
+            [new PropertyLookup("Shared.Parent.Name")],
+            _ct,
+            replaceStep: false);
+
+        Assert.Null(context.Get("Shared.Parent.Name"));
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Exactly(missingFirstLevel ? 1 : 2));
+    }
+
+    [Fact]
+    public async Task Enrich_AbsentNestedReference_DoesNotQueryNextLevel()
+    {
+        var targetId = ObjectId.GenerateNewId();
+        var context = Context("Shared", targetId);
+
+        _repository.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids =>
+                    ids.Length == 1 && ids[0] == targetId.ToString()),
+                It.IsAny<Dictionary<string, string>>(),
+                _ct))
+            .ReturnsAsync([Result(targetId)]);
+
+        await _service.Enrich(
+            _modelService.WorkflowDefinitions["SourceA"],
+            [context],
+            [new PropertyLookup("Shared.Parent.Name")],
+            _ct,
+            replaceStep: false);
+
+        Assert.Null(context.Get("Shared.Parent.Name"));
+
+        _repository.Verify(repository => repository.GetAllById(
+            It.IsAny<string[]>(),
+            It.IsAny<Dictionary<string, string>>(),
+            _ct), Times.Once);
+    }
+
     private static ObjectContext Context(string property, ObjectId targetId)
         => new(new Dictionary<Lookup, object?>
         {
             [property] = targetId.ToString()
         });
+
+    [Fact]
+    public async Task Enrich_ConstantComputedReferenceFieldKeepsAValidProjection()
+    {
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
+        {
+            ["Target/Entity.yaml"] =
+                "name: Target\nproperties:\n  - name: Status\n    type: String!\n    expression: =pending"
+        });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = id });
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync((string[] _, Dictionary<string, string> projection, CancellationToken _) =>
+            {
+                Assert.NotEmpty(projection);
+                return [new() { ["_id"] = id }];
+            });
+
+        await CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+            ["Target.Status"], _ct, false);
+
+        Assert.Equal("pending", context.Get("Target.Status"));
+    }
+
+    [Fact]
+    public async Task Enrich_RejectsComputedReferenceReadRequiringAnotherHop()
+    {
+        var model = DerivedPropertyTests.Parse("name: Project\nproperties:\n  - name: Target\n    type: Target", new()
+        {
+            ["Target/Entity.yaml"] = """
+                                     name: Target
+                                     properties:
+                                       - name: Parent
+                                         type: Target
+                                       - name: Name
+                                         type: String
+                                       - name: Display
+                                         type: String
+                                         expression: Parent.Name
+                                     """
+        });
+        var id = ObjectId.GenerateNewId().ToString();
+        var context = model.CreateContext("Project", new() { ["Target"] = id });
+        _repository.Setup(repository => repository.GetAllById(new[] { id },
+                It.IsAny<Dictionary<string, string>>(), _ct))
+            .ReturnsAsync([new() { ["_id"] = id, ["Parent"] = ObjectId.GenerateNewId().ToString() }]);
+
+        var error = await Assert.ThrowsAnyAsync<Exception>(() =>
+            CreateInstanceService(model, _repository).Enrich(model.WorkflowDefinitions["Project"], [context],
+                ["Target.Display"], _ct, false));
+
+        Assert.Contains("reference hop", error.Message);
+    }
 
     private static Dictionary<string, BsonValue> Result(
         ObjectId id,
@@ -135,6 +709,8 @@ public class InstanceServiceEnrichTests
                                           type: String!
                                         - name: Type
                                           type: String!
+                                        - name: Parent
+                                          type: TargetA
                                       """,
             ["TargetB/Entity.yaml"] = """
                                       name: TargetB
@@ -165,7 +741,8 @@ public class InstanceServiceEnrichTests
         Mock<IWorkflowInstanceRepository> repository)
     {
         var userService = Mock.Of<IUserService>();
-        var rightsService = new RightsService(modelService, userService, repository.Object);
+        var rightsService = new RightsService(modelService, userService, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
         var layoutResolver = new Mock<IMailLayoutResolver>();
         layoutResolver.Setup(resolver => resolver.Resolve(It.IsAny<string?>()))
             .Returns(Mock.Of<IMailLayout>());
@@ -176,6 +753,7 @@ public class InstanceServiceEnrichTests
             userService,
             rightsService,
             UnitTestsHelpers.CreateMailBuilder(layoutResolver.Object),
-            Mock.Of<IAssessmentService>());
+            new WorkflowContextEnricher(repository.Object, modelService, Mock.Of<IAssessmentService>()),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
     }
 }

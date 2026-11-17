@@ -4,3 +4,4 @@ title:
   nl: Coördinator
 actions:
   - type: ViewAdminTools
+  - type: ViewCorrespondence

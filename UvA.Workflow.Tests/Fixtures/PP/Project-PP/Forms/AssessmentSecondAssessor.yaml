@@ -1,0 +1,53 @@
+name: AssessmentSecondAssessor
+title:
+  en: Assessment Second Assessor
+  nl: Beoordeling Tweede beoordelaar
+property: AssessmentSecondAssessor
+targetForm: Assessment
+step: AssessmentSecondAssessor
+
+onSubmit:
+  - setProperty:
+      property: AssessmentCombined.ProblemStatementComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.ProblemStatementComments }}\nSecond assessor: {{ AssessmentSecondAssessor.ProblemStatementComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.TheoreticalFrameworkComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.TheoreticalFrameworkComments }}\nSecond assessor: {{ AssessmentSecondAssessor.TheoreticalFrameworkComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.MethodsComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.MethodsComments }}\nSecond assessor: {{ AssessmentSecondAssessor.MethodsComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.AnalysisEvaluationResultsComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.AnalysisEvaluationResultsComments }}\nSecond assessor: {{ AssessmentSecondAssessor.AnalysisEvaluationResultsComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.ArgumentationCreativityComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.ArgumentationCreativityComments }}\nSecond assessor: {{ AssessmentSecondAssessor.ArgumentationCreativityComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.ConclusionDiscussionComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.ConclusionDiscussionComments }}\nSecond assessor: {{ AssessmentSecondAssessor.ConclusionDiscussionComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.StructureComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.StructureComments }}\nSecond assessor: {{ AssessmentSecondAssessor.StructureComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.LayoutLanguageComments
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.LayoutLanguageComments }}\nSecond assessor: {{ AssessmentSecondAssessor.LayoutLanguageComments }}")
+
+  - setProperty:
+      property: AssessmentCombined.Motivation
+      value: |
+        template("Supervisor: {{ AssessmentSupervisor.Motivation }}\nSecond assessor: {{ AssessmentSecondAssessor.Motivation }}")

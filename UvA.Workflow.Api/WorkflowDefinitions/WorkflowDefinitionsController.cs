@@ -59,10 +59,20 @@ public class WorkflowDefinitionsController(
         var dtos = new List<WorkflowDefinitionDto>(definitions.Length);
         foreach (var definition in definitions)
         {
-            if (await authorizationFilterService.CanAccessWorkflowOverview(definition.Name, ct))
-                dtos.Add(WorkflowDefinitionDto.Create(definition));
+            if (!await authorizationFilterService.CanAccessWorkflowOverview(definition.Name, ct))
+                continue;
+
+            var groupedParent = definition.Parent;
+
+            while (groupedParent is not null &&
+                   (!groupedParent.GroupChildScreens || groupedParent.Screens.Count == 0))
+            {
+                groupedParent = groupedParent.Parent;
+            }
+
+            dtos.Add(WorkflowDefinitionDto.Create(groupedParent ?? definition));
         }
 
-        return Ok(dtos);
+        return Ok(dtos.DistinctBy(dto => dto.Name));
     }
 }

@@ -16,7 +16,7 @@ globalActions:
     forms: [AssessmentReviewer]
   - roles: [Student, Coordinator]
     type: Edit
-    propertyDefinition: SecondReader  
+    propertyDefinition: SecondAssessor
   - roles: [Student, Coordinator]
     type: Edit
     propertyDefinition: PracticalSupervisor

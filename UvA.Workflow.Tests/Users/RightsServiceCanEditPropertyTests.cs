@@ -31,6 +31,7 @@ public class RightsServiceCanEditPropertyTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext?.Object);
 
         return (rightsService, ImpersonationTestHelpers.CreateProjectInstance());
@@ -98,7 +99,7 @@ public class RightsServiceCanEditPropertyTests
         // Student has property-level edit rights explicitly on SecondReader.
         var (sut, instance) = Build(["Student"]);
 
-        var result = await sut.CanEditProperty(instance, "SecondReader");
+        var result = await sut.CanEditProperty(instance, "SecondAssessor");
 
         Assert.True(result);
     }

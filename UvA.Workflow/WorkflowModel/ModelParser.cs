@@ -45,6 +45,7 @@ public partial class ModelParser
     internal List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
     private List<StepTemplate> StepTemplates { get; }
+    private List<FormTemplate> FormTemplates { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
@@ -57,6 +58,7 @@ public partial class ModelParser
         ValueSets = Read<ValueSet>();
         NamedConditions = Read<Condition>();
         StepTemplates = Read<StepTemplate>();
+        FormTemplates = Read<FormTemplate>();
 
         var parsed = folders
             .Select(folder =>
@@ -125,8 +127,12 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
 
-            var stepTemplatesByName = StepTemplates.ToDictionary(t => t.Name);
+            var stepTemplatesByName = ReadTemplates(StepTemplates, definition.SourceFolder);
             definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
+
+            var formTemplatesByName = ReadTemplates(FormTemplates, definition.SourceFolder);
+            definition.Forms = ResolveFormTemplates(definition.Forms, formTemplatesByName,
+                definition.Name);
 
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
             definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
@@ -219,6 +225,9 @@ public partial class ModelParser
         GlobalRoles.ForEach(r => PreProcess(r));
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+        // All definitions must be prepared before checking inputs of referenced computed properties.
+        WorkflowDefinitions.Values.ForEach(ValidateComputedReads);
+        WorkflowDefinitions.Values.ForEach(ValidateImports);
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)
@@ -300,7 +309,8 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
-                PageElements = workflowDefinition.Properties.Select(v => new PageElement { Question = v.Name })
+                PageElements = workflowDefinition.Properties.Where(v => !v.IsComputed)
+                    .Select(v => new PageElement { Question = v.Name })
                     .ToArray()
             });
 
@@ -319,6 +329,7 @@ public partial class ModelParser
                 element.QuestionDefinition = workflowDefinition.Properties.GetOrDefault(element.Question!)
                                              ?? throw new Exception(
                                                  $"Form {form.Name} references unknown property {element.Question}");
+                EnsureStoredProperty(workflowDefinition, element.Question, $"Form '{form.Name}' question");
             }
 
             PreProcess(ent.Condition);
@@ -425,9 +436,12 @@ public partial class ModelParser
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
+        PreparePropertyDependencies(workflowDefinition);
+
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
         ValidateValueSetsPrefix(workflowDefinition);
+        ValidateComputedWrites(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
@@ -526,6 +540,7 @@ public partial class ModelParser
                     existing.Suppresses = ev.Suppresses;
                 if (ev.ResetParentStep)
                     existing.ResetParentStep = true;
+                existing.Label ??= ev.Label;
             }
             else
             {
@@ -671,17 +686,13 @@ public partial class ModelParser
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
 
-        foreach (var dep in propertyDefinition.Conditions
-                     .SelectMany(c => c.Part.Dependants)
-                     .SelectMany(d => d.ToString().Split('.'))
-                     .Distinct())
-            propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
-                .Add(propertyDefinition);
-
         if (propertyDefinition.LinkedTo != null &&
             propertyDefinition.ParentType.Properties.GetOrDefault(propertyDefinition.LinkedTo) == null)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' in '{propertyDefinition.ParentType.Name}' has linkedTo '{propertyDefinition.LinkedTo}', but that property does not exist.");
+
+        if (propertyDefinition.IsComputed && propertyDefinition.Default != null)
+            throw new Exception($"Computed property '{propertyDefinition.Name}' cannot define a default");
 
         if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
         {
@@ -799,7 +810,7 @@ public partial class ModelParser
                 tracked.DeclaredKeys = ReadMappingKeys(content);
             if (obj is Screen { BulkEdit: not null } screen)
                 screen.BulkEdit.DeclaredKeys = ReadMappingKeys(content, "bulkEdit");
-            if (obj is StepTemplate template)
+            if (obj is ITemplate template)
                 template.RootFile = content;
             return obj;
         }
@@ -856,6 +867,8 @@ public partial class ModelParser
         var typeName = typeof(T).Name;
         folder ??= typeName switch
         {
+            nameof(StepTemplate) => "Templates/Steps",
+            nameof(FormTemplate) => "Templates/Forms",
             nameof(TemplateMessage) => "Emails",
             nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",

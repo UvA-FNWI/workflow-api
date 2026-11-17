@@ -1,0 +1,37 @@
+name: Course
+inheritsFrom: Context
+titlePlural: Courses
+
+properties:
+  - name: Programme
+    type: Programme!
+
+  - name: Coordinator
+    type: "[User]!"
+    text:
+      en: Coordinator
+      nl: Coördinator
+    inheritRole: true
+
+  - name: Impersonator
+    type: "[User]!"
+    inheritRole: true
+
+  - name: CourseManual
+    type: String!
+
+  - name: GradingBasis
+    type: GradingBasis!
+    values:
+      - name: Decimal
+      - name: Half
+      - name: PassFail
+
+  - name: GradeGap
+    type: Check
+    
+  - name: EndDate
+    type: Date!
+    text:
+      en: End date
+      nl: Einddatum

@@ -244,6 +244,22 @@ public class PresenceAwareInheritanceTests
         Assert.Empty(page.PageElements);
     }
 
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("\nrepeatable: false", false)]
+    public void Repeatable_IsInheritedUnlessExplicitlyOverridden(string childSettings, bool expected)
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases",
+            ["Base/Forms/Edit.yaml"] = "name: Edit\nrepeatable: true",
+            ["Child/Entity.yaml"] = "name: Child\ntitlePlural: Children\ninheritsFrom: Base",
+            ["Child/Forms/Edit.yaml"] = "name: Edit" + childSettings
+        }));
+
+        Assert.Equal(expected, parser.WorkflowDefinitions["Child"].Forms.Get("Edit").Repeatable);
+    }
+
     [Fact]
     public void ApplyInheritance_ChildPageWithNewName_IsInsertedBeforeIt()
     {
@@ -258,6 +274,23 @@ public class PresenceAwareInheritanceTests
         var mergedForm = parser.WorkflowDefinitions["Merge"].Forms.Get("Edit");
 
         Assert.Equal(["P1", "P2"], mergedForm.Pages.Select(p => p.Name));
+    }
+
+    [Fact]
+    public void ApplyInheritance_MultipleInheritedPages_PreserveParentOrder()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nproperties:\n  - name: Foo\n    type: String",
+            ["Base/Forms/Edit.yaml"] =
+                "name: Edit\npages:\n  - name: First\n    elements:\n      - question: Foo\n  - name: Second\n    elements: []\n  - name: Third\n    elements: []",
+            ["Merge/Entity.yaml"] = "name: Merge\ntitlePlural: Ms\ninheritsFrom: Base",
+            ["Merge/Forms/Edit.yaml"] = "name: Edit\npages:\n  - name: Own\n    elements: []"
+        }));
+
+        var mergedForm = parser.WorkflowDefinitions["Merge"].Forms.Get("Edit");
+
+        Assert.Equal(["First", "Second", "Third", "Own"], mergedForm.Pages.Select(p => p.Name));
     }
 
     [Fact]

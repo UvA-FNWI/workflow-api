@@ -1,7 +1,6 @@
 properties:
   - name: Course
-    type: Context!
-    inheritedRoles: [Coordinator, Impersonator]
+    type: Course!
 
   - name: Title
     type: String!
@@ -43,10 +42,10 @@ properties:
       en: Reviewer
       nl: Beoordelaar
 
-  - name: SecondReader
+  - name: SecondAssessor
     type: User!
     text:
-      en: Second reader
+      en: Second assessor
       nl: Tweede beoordelaar
 
   - name: Student

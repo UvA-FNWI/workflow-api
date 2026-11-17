@@ -22,6 +22,7 @@ public class RightsService(
     ModelService modelService,
     IUserService userService,
     IWorkflowInstanceRepository workflowInstanceRepository,
+    WorkflowStateResolver stateResolver,
     IImpersonationContextService? impersonationContextService = null)
 {
     private readonly IImpersonationContextService _impersonationContextService =
@@ -46,8 +47,7 @@ public class RightsService(
 
         var definitionRoles = definition.Properties
             .Where(p => p.DataType == DataType.User)
-            .Select(p => p.Name)
-            .Concat(definition.Properties.OfType<ReferencePropertyDefinition>().SelectMany(p => p.InheritedRoles));
+            .Select(p => p.Name);
 
         return actionRoles
             .Concat(definitionRoles)
@@ -60,36 +60,39 @@ public class RightsService(
     }
 
     // View rights keep a role eligible for impersonation even after a hard deadline.
-    public WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance)
+    public async Task<WorkflowImpersonationRole[]> GetImpersonationTargetRoles(
+        WorkflowInstance instance, CancellationToken ct = default)
+        => GetImpersonationTargetRoles(instance, await stateResolver.Resolve(instance, ct));
+
+    private WorkflowImpersonationRole[] GetImpersonationTargetRoles(WorkflowInstance instance, ObjectContext context)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var activeSteps = modelService.GetActiveSteps(instance, context);
         return GetImpersonationCandidateRoles(instance.WorkflowDefinition)
-            .Where(r => definition.Roles.GetOrDefault(r.Name) is { } role
-                        && GetAllowedActions(instance, [role], RoleAction.View).Any())
+            .Where(r => definition.Roles.GetOrDefault(r.Name) is { } role &&
+                        GetAllowedActions(instance, context, activeSteps, [role], RoleAction.View).Any())
             .ToArray();
     }
 
-    public WorkflowImpersonationRole? NormalizeImpersonationTargetRole(WorkflowInstance instance, string roleName)
-        => GetImpersonationTargetRoles(instance)
+    public async Task<WorkflowImpersonationRole?> NormalizeImpersonationTargetRole(
+        WorkflowInstance instance, string roleName, CancellationToken ct = default)
+        => (await GetImpersonationTargetRoles(instance, ct))
             .FirstOrDefault(r => string.Equals(r.Name, roleName, StringComparison.OrdinalIgnoreCase));
 
-    public RoleAllowedActions[] GetAllowedActionsPerTargetRole(WorkflowInstance instance,
+    public async Task<RoleAllowedActions[]> GetAllowedActionsPerTargetRole(WorkflowInstance instance,
         params RoleAction[] actions)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.CreateContext(instance);
-        var activeSteps = modelService.GetActiveSteps(instance);
-
-        return GetImpersonationTargetRoles(instance)
+        var context = await stateResolver.Resolve(instance, CancellationToken.None);
+        var activeSteps = modelService.GetActiveSteps(instance, context);
+        return GetImpersonationTargetRoles(instance, context)
             .Select(r =>
             {
                 var roleActions = GetAllowedActions(instance, context, activeSteps,
                     [definition.Roles.GetOrDefault(r.Name)], actions);
                 return new RoleAllowedActions(r, GetAllowedActions(instance, context, roleActions));
-            })
-            .ToArray();
+            }).ToArray();
     }
-
 
     public async Task<Domain_Action[]> GetAllowedActions(string workflowDefinition, params RoleAction[] actions)
     {
@@ -113,7 +116,7 @@ public class RightsService(
         var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance, ct);
         if (!string.IsNullOrWhiteSpace(impersonatedRoleName))
         {
-            var normalized = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
+            var normalized = await NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
             return normalized != null ? [normalized.Name] : [];
         }
 
@@ -131,43 +134,13 @@ public class RightsService(
         var user = await userService.GetCurrentUser(ct);
         if (user == null) return [];
 
-        // Process inherited roles
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        var inheritedRoles = definition.Properties.OfType<ReferencePropertyDefinition>()
-            .Where(p => p.InheritedRoles.Any())
-            .SelectMany(p => p.InheritedRoles.Select(r => new
-            {
-                Role = r,
-                p.WorkflowDefinition,
-                InstanceIds = instance.GetProperty(p.Name) switch
-                {
-                    BsonArray a => a.Select(v => v.AsString).ToArray(),
-                    BsonString s => [s.AsString],
-                    _ => []
-                }
-            }))
-            .Where(r => r.WorkflowDefinition != null && r.InstanceIds.Length > 0)
-            .ToList();
-
-        var inheritedViaInstances = inheritedRoles.Any()
-            ? (await workflowInstanceRepository.GetAllById(
-                inheritedRoles.SelectMany(r => r.InstanceIds).Distinct().ToArray(),
-                inheritedRoles.Select(r => new { r.Role, Key = r.WorkflowDefinition!.GetKey(r.Role) }).Distinct()
-                    .ToDictionary(r => r.Role, r => r.Key),
-                ct
-            )).ToDictionary(r => r["_id"].ToString()!)
-            : new();
-
-        var inheritedProperties = inheritedRoles.SelectMany(r => r.InstanceIds.Select(i => new
-        {
-            Name = r.Role,
-            Value = inheritedViaInstances.GetValueOrDefault(i!)?.GetValueOrDefault(r.Role)
-        }));
+        var inheritedProperties = await GetInheritedRoles(definition, instance, ct);
 
         return definition.Properties
             .Where(p => p.DataType == DataType.User)
-            .Select(p => new { p.Name, Value = instance.GetProperty(p.Name) })
+            .Select(p => new RoleValue(p.Name, instance.GetProperty(p.Name)))
             .Concat(inheritedProperties)
             .Where(p => p.Value != null)
             .Where(p => p.Value switch
@@ -182,10 +155,93 @@ public class RightsService(
             .ToArray();
     }
 
-    private Domain_Action[] GetAllowedActions(WorkflowInstance instance, IEnumerable<Role?> roles,
+    private sealed record RoleValue(string Name, BsonValue? Value);
+
+    /// <summary>
+    /// Resolves inheritable user-role assignments from referenced instances.
+    /// Permissions remain defined by the consuming workflow.
+    /// </summary>
+    private Task<IEnumerable<RoleValue>> GetInheritedRoles(
+        WorkflowDefinition definition,
+        WorkflowInstance instance,
+        CancellationToken ct = default)
+        => ResolveInheritableRoles(
+            definition, instance, new HashSet<string>(), false, ct);
+
+    private async Task<IEnumerable<RoleValue>> ResolveInheritableRoles(
+        WorkflowDefinition definition,
+        WorkflowInstance instance,
+        HashSet<string> visited,
+        bool includeOwnRoles,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        // A reference cycle must not cause infinite role resolution.
+        if (!visited.Add(instance.Id))
+            return [];
+
+        var roles = new List<RoleValue>();
+
+        if (includeOwnRoles)
+        {
+            roles.AddRange(
+                definition.Properties.OfType<UserPropertyDefinition>()
+                    .Where(p => p.InheritRole == true)
+                    .Select(p => new RoleValue(
+                        p.Name, instance.GetProperty(p.Name))));
+        }
+
+        var references = definition.Properties.OfType<ReferencePropertyDefinition>()
+            .Where(p => p.WorkflowDefinition != null)
+            .SelectMany(p =>
+            {
+                var ids = instance.GetProperty(p.Name) switch
+                {
+                    BsonArray a => a.Select(v => v.AsString).ToArray(),
+                    BsonString s => [s.AsString],
+                    _ => Array.Empty<string>()
+                };
+
+                return ids.Select(id => (
+                    Id: id,
+                    Definition: p.WorkflowDefinition!));
+            })
+            .Distinct()
+            .ToArray();
+
+        if (references.Length == 0)
+            return roles;
+
+        var referencedInstances = await workflowInstanceRepository.GetByIds(
+            references.Select(r => r.Id).Distinct().ToArray(), ct);
+
+        foreach (var referencedInstance in referencedInstances)
+        {
+            var reference = references.FirstOrDefault(r =>
+                r.Id == referencedInstance.Id
+                && r.Definition.Name == referencedInstance.WorkflowDefinition);
+
+            // Only follow instances of the reference property's declared type.
+            if (reference.Definition == null)
+                continue;
+
+            roles.AddRange(await ResolveInheritableRoles(
+                reference.Definition,
+                referencedInstance,
+                visited,
+                true,
+                ct));
+        }
+
+        return roles;
+    }
+
+    private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
+        IEnumerable<Role?> roles,
         params RoleAction[] actions)
-        => GetAllowedActions(instance, modelService.CreateContext(instance),
-            modelService.GetActiveSteps(instance), roles, actions);
+        => GetAllowedActions(instance, context,
+            modelService.GetActiveSteps(instance, context), roles, actions);
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
         string[] activeSteps, IEnumerable<Role?> roles, params RoleAction[] actions)
@@ -203,26 +259,13 @@ public class RightsService(
             .ToArray();
     }
 
-    private async Task<Domain_Action[]> GetAllowedActionsForRealUser(WorkflowInstance instance,
-        params RoleAction[] actions)
-    {
-        return GetAllowedActions(instance, await GetRealUserRoles(instance), actions);
-    }
-
-    private async Task<Domain_Action[]> GetAllowedActionsForRequestContext(
-        WorkflowInstance instance,
-        params RoleAction[] actions)
-    {
-        return GetAllowedActions(instance, await GetRequestContextRoles(instance), actions);
-    }
-
     public async Task<Domain_Action[]> GetAllowedActionsForStep(
         WorkflowInstance instance,
         string stepName,
         params RoleAction[] actions)
     {
-        var context = modelService.CreateContext(instance);
-        var roles = await GetRequestContextRoles(instance);
+        var context = await stateResolver.Resolve(instance, CancellationToken.None);
+        var roles = await GetRequestContextRoles(instance, context);
         return GetAllowedActions(instance, context, [stepName], roles, actions);
     }
 
@@ -232,13 +275,14 @@ public class RightsService(
             .Concat(await GetInstanceRoles(instance))
             .ToArray();
 
-    private async Task<Role?[]> GetRequestContextRoles(WorkflowInstance instance)
+    private async Task<Role?[]> GetRequestContextRoles(WorkflowInstance instance, ObjectContext context)
     {
         var impersonatedRoleName = await _impersonationContextService.GetImpersonatedRole(instance);
         if (string.IsNullOrWhiteSpace(impersonatedRoleName))
             return await GetRealUserRoles(instance);
 
-        var normalizedRoleName = NormalizeImpersonationTargetRole(instance, impersonatedRoleName);
+        var normalizedRoleName = GetImpersonationTargetRoles(instance, context)
+            .FirstOrDefault(role => string.Equals(role.Name, impersonatedRoleName, StringComparison.OrdinalIgnoreCase));
         return normalizedRoleName == null
             ? []
             :
@@ -261,9 +305,12 @@ public class RightsService(
     public async Task<Domain_Action[]> GetAllowedHistoricalActions(
         WorkflowInstance currentInstance, WorkflowInstance snapshot, params RoleAction[] actions)
     {
-        var roles = await GetRequestContextRoles(currentInstance);
-        return GetAllowedActions(snapshot, modelService.CreateContext(snapshot),
-            GetAllowedActions(snapshot, roles, actions));
+        var definition = modelService.WorkflowDefinitions[currentInstance.WorkflowDefinition];
+        var currentContext = await stateResolver.Resolve(currentInstance, CancellationToken.None);
+        var roles = await GetRequestContextRoles(currentInstance, currentContext);
+        var snapshotContext = await stateResolver.Resolve(snapshot, CancellationToken.None);
+        return GetAllowedActions(snapshot, snapshotContext,
+            GetAllowedActions(snapshot, snapshotContext, roles, actions));
     }
 
     /// <summary>
@@ -275,9 +322,17 @@ public class RightsService(
         if (snapshots.Length == 0)
             return [];
 
-        var roles = await GetRequestContextRoles(currentInstance);
-        return snapshots.Distinct().ToDictionary(snapshot => snapshot,
-            snapshot => GetAllowedActions(snapshot, roles, RoleAction.View, RoleAction.ViewHidden));
+        var roles = await GetRequestContextRoles(currentInstance,
+            await stateResolver.Resolve(currentInstance, CancellationToken.None));
+        var result = new Dictionary<WorkflowInstance, Domain_Action[]>();
+        foreach (var snapshot in snapshots.Distinct())
+        {
+            var context = await stateResolver.Resolve(snapshot, CancellationToken.None);
+            result[snapshot] = GetAllowedActions(snapshot, context,
+                GetAllowedActions(snapshot, context, roles, RoleAction.View, RoleAction.ViewHidden));
+        }
+
+        return result;
     }
 
     public async Task<Domain_Action[]> GetAllowedActions(
@@ -285,19 +340,27 @@ public class RightsService(
         RightsEvaluationMode evaluationMode,
         params RoleAction[] actions)
     {
-        var roleActions = evaluationMode switch
+        var context = await stateResolver.Resolve(instance, CancellationToken.None);
+        return await GetAllowedActions(instance, context, evaluationMode, actions);
+    }
+
+    public async Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, ObjectContext context,
+        RightsEvaluationMode evaluationMode, params RoleAction[] actions)
+    {
+        var roles = evaluationMode switch
         {
-            RightsEvaluationMode.RealUser => await GetAllowedActionsForRealUser(instance, actions),
-            _ => await GetAllowedActionsForRequestContext(instance, actions)
+            RightsEvaluationMode.RealUser => await GetRealUserRoles(instance),
+            _ => await GetRequestContextRoles(instance, context)
         };
-        return GetAllowedActions(instance, modelService.CreateContext(instance), roleActions);
+        var roleActions = GetAllowedActions(instance, context, roles, actions);
+        return GetAllowedActions(instance, context, roleActions);
     }
 
     private Domain_Action[] GetAllowedActions(WorkflowInstance instance, ObjectContext context,
         Domain_Action[] actions)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var activeSteps = modelService.GetActiveSteps(instance);
+        var activeSteps = modelService.GetActiveSteps(instance, context);
         // Check deadlines after resolving persistent steps so parent deadlines also apply to completed children.
         return actions.Where(a => a.Type == RoleAction.View || a.Steps.Length == 0 || modelService
             .GetAvailableStepsForAction(instance, a, activeSteps, context)
@@ -327,9 +390,9 @@ public class RightsService(
         => Can(instance, [action], RightsEvaluationMode.RequestContext, form);
 
     public async Task<Dictionary<string, QuestionStatus>> GetQuestionStatus(WorkflowInstance instance, Form form,
-        IEnumerable<PropertyDefinition>? questions = null)
+        IEnumerable<PropertyDefinition>? questions = null, ObjectContext? context = null)
         => modelService.GetQuestionStatus(instance, form,
-            await GetAllowedActions(instance, RoleAction.ViewHidden), questions);
+            await GetAllowedActions(instance, RoleAction.ViewHidden), questions, context);
 
     public async Task<bool> Can(
         WorkflowInstance instance,

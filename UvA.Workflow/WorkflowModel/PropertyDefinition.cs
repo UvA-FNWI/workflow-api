@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -72,6 +73,21 @@ public abstract class PropertyDefinition : INamed
     public string? Default { get; set; }
 
     public Expression? DefaultExpression => ExpressionParser.Parse(Default);
+
+    /// <summary>
+    /// Expression for a read-only computed value. Computed values are not stored on the instance.
+    /// </summary>
+    public string? Expression { get; set; }
+
+    [YamlIgnore] public bool IsComputed => Expression != null;
+    [YamlIgnore] public Expression? ComputedExpression => ExpressionParser.Parse(Expression);
+
+    public void EnsureWritable()
+    {
+        if (IsComputed)
+            throw new InvalidWorkflowStateException("", "ComputedPropertyReadOnly",
+                $"Computed property '{Name}' is read-only");
+    }
 
     /// <summary>
     /// Localized extended description text for the propertyDefinition.
@@ -224,6 +240,11 @@ public class UserPropertyDefinition : PropertyDefinition
     /// Determines if the propertyDefinition allows external users
     /// </summary>
     public bool? AllowsExternalUsers { get; set; } = false;
+
+    /// <summary>
+    /// Marks this property as an inheritable role, meaning that the users in this role will be inherited by child entities.
+    /// </summary>
+    public bool? InheritRole { get; set; }
 }
 
 /// <summary>Selection from inline choices or a named value set, with optional control and rubric settings.</summary>
@@ -261,9 +282,6 @@ public class ReferencePropertyDefinition : WorkflowPropertyDefinition
 
     /// <summary>Control for reference selection; omitted to use the default control.</summary>
     public ChoiceControl? Control { get; set; }
-
-    /// <summary>Roles inherited from the referenced instance.</summary>
-    public string[] InheritedRoles { get; set; } = [];
 
     /// <summary>Condition used for filtering reference choices.</summary>
     public Condition? Filter { get; set; }

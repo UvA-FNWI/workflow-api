@@ -1,14 +1,81 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 using Moq;
 using UvA.Workflow.Jobs;
 using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
+using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests;
 
 public class EffectServiceTests : ControllerTestsBase
 {
+    [Theory]
+    [InlineData("{\"results\":[]}")]
+    [InlineData("{\"results\":[{\"id\":42},{\"id\":42}]}")]
+    [InlineData("{\"results\":{}}")]
+    public async Task ServiceCall_SelectOneWithoutOutputs_RejectsInvalidSelection(string response)
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(() => RunSelectionCall(response));
+    }
+
+    [Fact]
+    public async Task ServiceCall_SelectOneWithoutOutputs_AcceptsOneMatchWithoutPublishingOutputs()
+    {
+        var context = await RunSelectionCall("{\"results\":[{\"id\":99},{\"id\":42}]}");
+
+        Assert.Null(context.Get("Find"));
+    }
+
+    [Fact]
+    public async Task ServiceCall_WithoutSelectionOrOutputs_AcceptsAnEmptyResponse()
+    {
+        await RunSelectionCall("", selectOne: false);
+    }
+
+    private async Task<ObjectContext> RunSelectionCall(string response, bool selectOne = true)
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        await using var server = builder.Build();
+        server.MapGet("/results", () => Results.Text(response, "application/json"));
+        await server.StartAsync();
+
+        var configuration = new ConfigurationBuilder().Build();
+        _configurationMock.Setup(c => c.GetSection("Services")).Returns(configuration.GetSection("Services"));
+        _modelService.Services.Add(new Service
+        {
+            Name = "SelectionTest",
+            BaseUrl = server.Urls.Single(),
+            Operations =
+            [
+                new ServiceOperation
+                {
+                    Name = "Find",
+                    Url = "/results",
+                    SelectOne = selectOne
+                        ? new ServiceResponseSelection { CollectionPath = "results", Match = new() { ["id"] = "42" } }
+                        : null
+                }
+            ]
+        });
+        var instance = new WorkflowInstanceBuilder().With(workflowDefinition: "Project", currentStep: "Start").Build();
+        var context = _modelService.CreateContext(instance);
+        var effect = new Effect { ServiceCall = new ServiceCall { Service = "SelectionTest", Operation = "Find" } };
+
+        await _effectService.RunEffect(new Job(), instance, effect, UnitTestsHelpers.AdminUser, context, _ct);
+
+        return context;
+    }
+
     [Theory]
     [InlineData("Date", "=2027-01-08", 0)]
     [InlineData("DateTime", "=2027-01-08 17:00", 17)]
@@ -75,6 +142,49 @@ public class EffectServiceTests : ControllerTestsBase
             UnitTestsHelpers.AdminUser, _modelService.CreateContext(instance), _ct));
 
         Assert.Equal(original, instance.GetProperty("EndDate"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SetProperty_ObjectCopyPersistsOnlyStoredDescendants(bool array)
+    {
+        var type = array ? "[Party]" : "Party";
+        var model = DerivedPropertyTests.Parse(
+            $"name: Project\nproperties:\n  - name: Source\n    type: '{type}'\n  - name: Destination\n    type: '{type}'",
+            new()
+            {
+                ["Party/Entity.yaml"] =
+                    "name: Party\nisEmbedded: true\nproperties:\n  - name: Children\n    type: '[Child]'\n  - name: Total\n    type: Int\n    expression: count(Children)",
+                ["Child/Entity.yaml"] =
+                    "name: Child\nisEmbedded: true\nproperties:\n  - name: Name\n    type: String\n  - name: Display\n    type: String\n    expression: Name"
+            });
+        foreach (var definition in model.WorkflowDefinitions)
+            _modelService.WorkflowDefinitions[definition.Key] = definition.Value;
+        var stored = new BsonDocument("Children", new BsonArray { new BsonDocument("Name", "A") });
+        BsonValue source = array ? new BsonArray { stored } : stored;
+        var instance = new WorkflowInstance
+        {
+            Id = ObjectId.GenerateNewId().ToString(), WorkflowDefinition = "Project",
+            Properties = new() { ["Source"] = source }, Events = []
+        };
+        UpdateDefinition<WorkflowInstance>? update = null;
+        _workflowInstanceRepoMock.Setup(repository => repository.UpdateFields(instance.Id,
+                It.IsAny<UpdateDefinition<WorkflowInstance>>(), _ct))
+            .Callback<string, UpdateDefinition<WorkflowInstance>, CancellationToken>((_, value, _) => update = value)
+            .Returns(Task.CompletedTask);
+        var context = _modelService.CreateContext(instance);
+
+        await _effectService.RunEffect(new Job(), instance,
+            new Effect { SetProperty = new SetProperty { Property = "Destination", Value = "Source" } },
+            UnitTestsHelpers.AdminUser, context, _ct);
+
+        Assert.Equal(source, instance.Properties["Destination"]);
+        Assert.NotNull(update);
+        var saved = update.Render(new RenderArgs<WorkflowInstance>(BsonSerializer.LookupSerializer<WorkflowInstance>(),
+            BsonSerializer.SerializerRegistry));
+        Assert.Equal(source, saved["$set"]["Properties.Destination"]);
+        Assert.Equal(1, array ? Assert.IsType<object[]>(context.Get("Source.Total"))[0] : context.Get("Source.Total"));
     }
 
     [Fact]

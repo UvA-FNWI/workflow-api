@@ -155,7 +155,9 @@ public class JobService(
     private async Task<EffectResult> RunJob(Job job, WorkflowInstance instance, Effect[] effects, User user,
         CancellationToken ct, bool persistJob, OperationMetadata? operation = null)
     {
-        var context = modelService.CreateContext(instance);
+        var context = await instanceService.ResolveContext(instance, ct);
+        await instanceService.Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition], [context],
+            effects.SelectMany(effect => effect.Properties).OfType<Lookup>(), ct, replaceStep: false);
         EffectResult result = new();
 
         foreach (var step in job.Steps)

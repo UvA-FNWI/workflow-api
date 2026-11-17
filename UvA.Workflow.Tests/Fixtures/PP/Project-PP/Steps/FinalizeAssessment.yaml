@@ -16,7 +16,7 @@ icon:
 actions:
   - type: View
     roles: [Supervisor]
-    forms: [AssessmentPresentation, AssessmentSecondReader]
+    forms: [AssessmentPresentation, AssessmentSecondAssessor]
 
 children:
   - FinalGrade

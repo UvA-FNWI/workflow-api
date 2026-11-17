@@ -35,6 +35,7 @@ public class HiddenPropertyRightsTests : ControllerTestsBase
             .ReturnsAsync((WorkflowInstance instance, CancellationToken _) =>
                 ReferenceEquals(instance, current) ? role : null);
         var rights = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UnitTestsHelpers.CreateStateResolver(_modelService, _workflowInstanceRepoMock.Object),
             impersonation.Object);
 
         var actions =
@@ -61,14 +62,18 @@ public class HiddenPropertyRightsTests : ControllerTestsBase
         });
         MockCurrentUser();
         var user = InstanceUser.FromUser(UnitTestsHelpers.AdminUser).ToBsonDocument();
-        _workflowInstanceRepoMock.Setup(r => r.GetAllById(It.IsAny<string[]>(),
-                It.IsAny<Dictionary<string, string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string[] ids, Dictionary<string, string> _, CancellationToken _) => ids.Select(id =>
-                new Dictionary<string, BsonValue>
+        _workflowInstanceRepoMock.Setup(r => r.GetByIds(It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => ids.Select(id => new WorkflowInstance
+            {
+                Id = id,
+                WorkflowDefinition = "Course",
+                Properties = new Dictionary<string, BsonValue>
                 {
-                    ["_id"] = id,
                     ["Coordinator"] = (id == "current-course") == assignedNow ? new BsonArray { user } : new BsonArray()
-                }).ToList());
+                },
+                Events = []
+            }).ToList());
 
         var actions = await _rightsService.GetAllowedHistoricalActions(current, snapshot, RoleAction.ViewHidden);
         var status = _modelService.GetQuestionStatus(snapshot, _modelService.GetForm(snapshot, "Start"), actions);
@@ -102,6 +107,7 @@ public class HiddenPropertyRightsTests : ControllerTestsBase
         impersonation.Setup(s => s.GetImpersonatedRole(instance, It.IsAny<CancellationToken>()))
             .ReturnsAsync(impersonatedRole);
         var rights = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UnitTestsHelpers.CreateStateResolver(_modelService, _workflowInstanceRepoMock.Object),
             impersonation.Object);
 
         var status = await rights.GetQuestionStatus(instance, _modelService.GetForm(instance, "Start"));

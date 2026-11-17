@@ -22,7 +22,8 @@ public class PersonalControllerTests : ControllerTestsBase
         personalInstanceService = new PersonalInstanceService(
             _modelService,
             _instanceService,
-            _workflowInstanceRepoMock.Object);
+            _workflowInstanceRepoMock.Object,
+            _rightsService);
     }
 
     [Fact]
@@ -45,8 +46,8 @@ public class PersonalControllerTests : ControllerTestsBase
                     UserDocument(userId, "Current Employee"))),
                 ("Examiner", property => property.Value(
                     UserDocument(userId, "Current Employee"))),
-                ("SecondReader", property => property.Value(
-                    UserDocument(ObjectId.GenerateNewId(), "Second Reader Name"))))
+                ("SecondAssessor", property => property.Value(
+                    UserDocument(ObjectId.GenerateNewId(), "Second Assessor Name"))))
             .Build();
         project.CreatedOn = createdOn;
 
@@ -81,7 +82,7 @@ public class PersonalControllerTests : ControllerTestsBase
         var projectRow = Assert.Single(rows);
         Assert.Equal(["Supervisor", "Reviewer"], response.Roles.Select(role => role.Name));
         Assert.Equal("Begeleider", response.Roles[0].Title.Nl);
-        Assert.Equal("Beoordelaar", response.Roles[1].Title.Nl);
+        Assert.Equal("Academisch begeleider", response.Roles[1].Title.Nl);
 
         Assert.Equal(project.Id, projectRow.Id);
         Assert.Equal("Project", projectRow.WorkflowDefinition);
@@ -109,7 +110,7 @@ public class PersonalControllerTests : ControllerTestsBase
             },
             staff =>
             {
-                Assert.Equal("Second Reader Name", staff.DisplayName);
+                Assert.Equal("Second Assessor Name", staff.DisplayName);
                 Assert.Equal(
                     [("Second reader", "Tweede lezer")],
                     staff.Roles.Select(role => (role.En, role.Nl)));
@@ -168,7 +169,7 @@ public class PersonalControllerTests : ControllerTestsBase
                 It.Is<Dictionary<string, string>>(projection =>
                     projection.Count == 2 &&
                     projection["Name"] == "$Properties.Name" &&
-                    projection["Type"] == "$Properties.Type"),
+                    projection["Type"] == "$Type"),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new Dictionary<string, BsonValue>

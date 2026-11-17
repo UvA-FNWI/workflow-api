@@ -149,24 +149,20 @@ public class ImportService(
                 continue;
             }
 
-            values[bulkEditConfig.Identifier.Property] = identifier;
-
             var editActions =
                 await rightsService.GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
+            var canEdit = rightsService.CanEditProperties(instance,
+                dataMappings.Select(m => m.PropertyName).Distinct(), editActions);
 
-            if (editActions.Length == 0)
+            // Match missing rows so the preview cannot reveal inaccessible instances.
+            if (editActions.Length == 0 || dataMappings.Any(m => !canEdit.GetValueOrDefault(m.PropertyName)))
             {
-                errors.Add(ImportError.From(ImportErrorType.NotAllowed, bulkEditConfig.Identifier.Property));
+                errors.Add(ImportError.From(ImportErrorType.EntryNotFound, bulkEditConfig.Identifier.Property));
+                previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
+                continue;
             }
-            else
-            {
-                var canEdit =
-                    rightsService.CanEditProperties(instance, dataMappings.Select(m => m.PropertyName), editActions);
 
-                errors.AddRange(dataMappings
-                    .Where(m => !canEdit.GetValueOrDefault(m.PropertyName))
-                    .Select(m => ImportError.From(ImportErrorType.NotAllowed, m.PropertyName)));
-            }
+            values[bulkEditConfig.Identifier.Property] = identifier;
 
 
             foreach (var roProp in bulkEditConfig.ReadOnlyProperties ?? [])
@@ -203,6 +199,8 @@ public class ImportService(
 
             var instance = await workflowInstanceRepository.GetById(row.InstanceId, ct);
             if (instance == null) continue;
+            if (instance.WorkflowDefinition != workflowDefinition)
+                throw new ForbiddenWorkflowActionException(row.InstanceId, RoleAction.Edit, null);
 
             var instanceEditActions =
                 await rightsService.GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
@@ -218,9 +216,13 @@ public class ImportService(
 
             foreach (var propertyName in propertiesToWrite)
             {
-                if (!canEditPropertiesDictionary[propertyName])
+                if (!bulkEditConfig.EditableProperties.Contains(propertyName)
+                    || !canEditPropertiesDictionary.GetValueOrDefault(propertyName))
                     throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Edit, propertyName);
+            }
 
+            foreach (var propertyName in propertiesToWrite)
+            {
                 var prop = modelService.GetProperty(stub, propertyName.Split('.'));
                 if (prop == null)
                     throw new InvalidOperationException(

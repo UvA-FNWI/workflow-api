@@ -53,11 +53,14 @@ public class WorkflowInstancesControllerImpersonationTests
             rightsService,
             null!,
             repository,
-            null!,
+            new InstanceService(repository, modelService, userService, rightsService, null!,
+                new WorkflowContextEnricher(repository, modelService, null!),
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository)),
             null!,
             null!,
             modelService,
             impersonationService,
+            null!,
             null!,
             null!,
             null!
@@ -102,15 +105,18 @@ public class WorkflowInstancesControllerImpersonationTests
                 ["_id"] = new ObjectId(userId),
                 ["UserName"] = "admin"
             });
-        repository.Setup(r => r.GetAllById(
-                It.Is<string[]>(ids => ids.Contains(courseId)),
-                It.IsAny<Dictionary<string, string>>(),
+        repository.Setup(r => r.GetByIds(
+                It.Is<string[]>(ids => Enumerable.Contains(ids, courseId)),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new Dictionary<string, BsonValue>
+                new WorkflowInstance
                 {
-                    ["_id"] = new ObjectId(courseId),
-                    ["Impersonator"] = impersonators
+                    Id = courseId,
+                    WorkflowDefinition = "Course",
+                    Properties = new Dictionary<string, BsonValue>
+                    {
+                        ["Impersonator"] = impersonators
+                    }
                 }
             ]);
 
@@ -123,7 +129,8 @@ public class WorkflowInstancesControllerImpersonationTests
                 UserName = "admin"
             });
 
-        var rightsService = new RightsService(modelService, userService.Object, repository.Object);
+        var rightsService = new RightsService(modelService, userService.Object, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
         var impersonationService = CreateImpersonationService(userService.Object, accessor);
         var controller = CreateController(userService.Object, rightsService, repository.Object, modelService,
             impersonationService, accessor.HttpContext!);

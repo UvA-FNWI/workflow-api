@@ -78,7 +78,7 @@ public class Page : INamed
     }
 }
 
-public class Form : INamed, IDeclaredKeys
+public class Form : INamed, IDeclaredKeys, ITemplateConsumer
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 
@@ -138,6 +138,11 @@ public class Form : INamed, IDeclaredKeys
     public Effect[] OnSubmit { get; set; } = [];
 
     /// <summary>
+    /// Allows the form to be submitted again.
+    /// </summary>
+    public bool Repeatable { get; set; }
+
+    /// <summary>
     /// Whether submitting the form should emit the form-name event.
     /// </summary>
     public bool EmitFormSubmitEvent { get; set; } = true;
@@ -158,6 +163,25 @@ public class Form : INamed, IDeclaredKeys
     /// </summary>
     public FormConfirmation? Confirmation { get; set; }
 
+    /// <summary>
+    /// Name of a form template (file under Common/FormTemplates) to resolve this form from
+    /// </summary>
+    [YamlMember(Alias = "template")]
+    public string? TemplateKey { get; set; }
+
+    /// <summary>
+    /// Values for the template's parameters
+    /// </summary>
+    [YamlMember(Alias = "values")]
+    public Dictionary<string, object>? TemplateValues { get; set; }
+
+    /// <summary>
+    /// Values used to resolve the template, including defaults. Set during parsing.
+    /// </summary>
+    [YamlIgnore]
+    public Dictionary<string, object>? ResolvedTemplateValues { get; set; }
+
+
     public IEnumerable<PropertyDefinition> PropertyDefinitions =>
         Pages.SelectMany(p => p.Questions)
             .Distinct();
@@ -174,10 +198,7 @@ public class Form : INamed, IDeclaredKeys
         if (TargetForm == null)
             return context;
 
-        var values = new Dictionary<Lookup, object?>(context.Values);
-        foreach (var property in ActualForm.WorkflowDefinition.Properties)
-            values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
-        return new ObjectContext(values);
+        return context.WithPropertyValues(PropertyName!, ActualForm.WorkflowDefinition);
     }
 
     public Form Clone()

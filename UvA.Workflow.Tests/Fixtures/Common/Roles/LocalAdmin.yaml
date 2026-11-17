@@ -1,0 +1,8 @@
+name: LocalAdmin
+title:
+  en: Local admin
+  nl: Lokaal beheerdr
+actions:
+  - type: ViewAdminTools
+  - type: ViewCorrespondence
+  - type: View
