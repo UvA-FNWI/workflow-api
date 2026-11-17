@@ -11,6 +11,17 @@
       "type": "string",
       "description": "Internal name of the step"
     },
+    "import": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Displays a step owned by a referenced instance, retaining local ordering.",
+          "$ref": "#/definitions/StepImport"
+        }
+      ]
+    },
     "title": {
       "description": "Localized title of the step as shown to user",
       "oneOf": [
@@ -150,6 +161,32 @@
     }
   },
   "definitions": {
+    "StepImport": {
+      "title": "StepImport",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference",
+        "step"
+      ],
+      "properties": {
+        "reference": {
+          "type": "string",
+          "description": "Single-valued reference property pointing to the owning instance."
+        },
+        "step": {
+          "type": "string",
+          "description": "Name of the step in the referenced workflow."
+        },
+        "participants": {
+          "type": "array",
+          "description": "User properties on the referenced workflow that supply participant names.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "BilingualString": {
       "title": "BilingualString",
       "type": "object",

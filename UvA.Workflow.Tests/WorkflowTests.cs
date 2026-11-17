@@ -82,7 +82,8 @@ public class WorkflowTests
         var modelProvider = new FileSystemProvider(UnitTestsHelpers.FixturesPath);
         _parser = new ModelParser(modelProvider);
         _modelService = new ModelService(_parser);
-        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object);
+        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _instanceRepoMock.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService, _instanceRepoMock.Object));
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
         mailLayoutResolver.Setup(r => r.Resolve(It.IsAny<string?>())).Returns(new Mock<IMailLayout>().Object);
         var mailBuilder = UnitTestsHelpers.CreateMailBuilder(mailLayoutResolver.Object, _configurationMock.Object);
@@ -92,7 +93,10 @@ public class WorkflowTests
         _assessmentService = new AssessmentService(_modelService, _workflowInstanceService, _instanceRepoMock.Object);
         _instanceService =
             new InstanceService(_instanceRepoMock.Object, _modelService, _userServiceMock.Object, _rightsService,
-                mailBuilder, _assessmentService);
+                mailBuilder,
+                new WorkflowContextEnricher(_instanceRepoMock.Object, _modelService, _assessmentService),
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService,
+                    _instanceRepoMock.Object));
         _eventService =
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
         _userServiceMock.Setup(m => m.GetCurrentUser(It.IsAny<CancellationToken>()))

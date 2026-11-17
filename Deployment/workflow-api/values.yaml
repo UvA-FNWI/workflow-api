@@ -28,6 +28,10 @@ turnitin:
   url: https://uva.turnitin.com/api/v1/
   disabled: true
 
+evalytics:
+  url: ""
+  disabled: true
+
 graph:
   tenantId: tenantId
   clientId: clientId

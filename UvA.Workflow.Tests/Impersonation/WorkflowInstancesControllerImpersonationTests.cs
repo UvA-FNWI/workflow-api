@@ -53,7 +53,9 @@ public class WorkflowInstancesControllerImpersonationTests
             rightsService,
             null!,
             repository,
-            null!,
+            new InstanceService(repository, modelService, userService, rightsService, null!,
+                new WorkflowContextEnricher(repository, modelService, null!),
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository)),
             null!,
             null!,
             modelService,
@@ -127,7 +129,8 @@ public class WorkflowInstancesControllerImpersonationTests
                 UserName = "admin"
             });
 
-        var rightsService = new RightsService(modelService, userService.Object, repository.Object);
+        var rightsService = new RightsService(modelService, userService.Object, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
         var impersonationService = CreateImpersonationService(userService.Object, accessor);
         var controller = CreateController(userService.Object, rightsService, repository.Object, modelService,
             impersonationService, accessor.HttpContext!);

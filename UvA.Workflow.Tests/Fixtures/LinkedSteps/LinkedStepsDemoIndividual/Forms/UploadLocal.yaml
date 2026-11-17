@@ -1,0 +1,6 @@
+name: UploadLocal
+step: IndividualWork
+pages:
+  - name: Analysis
+    elements:
+      - question: LocalDocument

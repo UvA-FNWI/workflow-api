@@ -19,7 +19,20 @@ public class ServiceOperation : INamed
     public List<ServiceInput> Inputs { get; set; } = [];
     public List<ServiceOutput> Outputs { get; set; } = [];
 
+    /// <summary>Requires exactly one matching result, even when no outputs are declared.</summary>
+    public ServiceResponseSelection? SelectOne { get; set; }
+
     public object? Body { get; set; }
+}
+
+/// <summary>Selects exactly one object from an API result collection before extracting outputs.</summary>
+public class ServiceResponseSelection
+{
+    /// <summary>Dotted path to the result array.</summary>
+    public string CollectionPath { get; set; } = null!;
+
+    /// <summary>Dotted result fields and expected values, templated against service call inputs.</summary>
+    public Dictionary<string, string> Match { get; set; } = [];
 }
 
 public class ServiceInput

@@ -30,7 +30,7 @@ public class AnswersController(
             RoleAction.ViewAdminTools, RoleAction.Edit);
         var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
         return Ok(await submissionDtoFactory.CreateAsync(context.Instance, context.Form, context.SubmissionState,
-            await rightsService.GetQuestionStatus(context.Instance, context.Form),
+            await instanceService.GetQuestionStatus(context.Instance, context.Form, ct),
             permissions.Select(permission => permission.Type).ToArray(), history, ct));
     }
 
@@ -57,7 +57,7 @@ public class AnswersController(
             var history = await workflowInstanceService.GetInstanceHistory(context.Instance.Id, ct);
             var updatedSubmission = await submissionDtoFactory.CreateAsync(context.Instance, context.Form,
                 context.SubmissionState,
-                await rightsService.GetQuestionStatus(context.Instance, context.Form),
+                await instanceService.GetQuestionStatus(context.Instance, context.Form, ct),
                 permissions.Select(p => p.Type).ToArray(), history, ct);
             WorkflowInstanceDto? updatedInstance = null;
             if (await rightsService.Can(context.Instance, RoleAction.View))
@@ -152,7 +152,8 @@ public class AnswersController(
     {
         await EnsureAuthorizedForAction(context, RoleAction.View);
         if (context.PropertyDefinition.Visibility == PropertyVisibility.Hidden &&
-            !(await rightsService.GetQuestionStatus(context.Instance, context.Form, [context.PropertyDefinition]))
+            !(await instanceService.GetQuestionStatus(context.Instance, context.Form, default,
+                    [context.PropertyDefinition]))
                 [context.PropertyDefinition.Name].IsVisible)
             throw new ForbiddenWorkflowActionException(context.Instance.Id, RoleAction.ViewHidden, context.Form.Name);
     }
@@ -162,6 +163,7 @@ public class AnswersController(
         await EnsureAuthorizedForAction(context,
             context.Form.Repeatable || !context.SubmissionState.IsSubmitted ? RoleAction.Submit : RoleAction.Edit);
 
+        modelService.EnsureWritable(context.Instance, context.PathParts);
         if (!context.Form.ActualForm.PropertyDefinitions.Contains(context.PropertyDefinition))
             throw new EntityNotFoundException("Question", context.PropertyDefinition.Name);
     }
