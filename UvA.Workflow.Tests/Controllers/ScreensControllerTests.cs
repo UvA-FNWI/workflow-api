@@ -20,6 +20,43 @@ public class ScreensControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Screens_ComputedColumnProjectsSourcesAndRendersValue()
+    {
+        var definition = DerivedPropertyTests.Parse().WorkflowDefinitions["Project"];
+        _modelService.WorkflowDefinitions["Project"] = definition;
+        definition.Screens.Add(new Screen { Name = "Derived", Columns = [new Column { Property = "Count" }] });
+        var controller = BuildControllerWithRoles([], "Project", "Derived");
+        _workflowInstanceRepoMock.Setup(repository => repository.GetAllByType("Project",
+                It.Is<Dictionary<string, string>>(projection => projection.ContainsKey("Parties") &&
+                                                                projection["Parties"] == "$Properties.Parties" &&
+                                                                !projection.ContainsKey("Count")),
+                It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new Dictionary<string, BsonValue>(DerivedPropertyTests.Instance().Properties)
+                    { ["_id"] = ObjectId.GenerateNewId() }
+            ]);
+
+        var result = await controller.GetScreenData("Project", "Derived", _ct);
+
+        var data = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(2, Assert.Single(data.Rows).Values[Assert.Single(data.Columns).Id]);
+    }
+
+    [Fact]
+    public async Task Screens_ComputesZeroForRequestedButAbsentCollection()
+    {
+        var definition = DerivedPropertyTests.Parse().WorkflowDefinitions["Project"];
+        _modelService.WorkflowDefinitions["Project"] = definition;
+        definition.Screens.Add(new Screen { Name = "Derived", Columns = [new Column { Property = "Count" }] });
+        var controller = BuildControllerWithRoles([], "Project", "Derived",
+            [new() { ["_id"] = ObjectId.GenerateNewId() }]);
+
+        var result = await controller.GetScreenData("Project", "Derived", _ct);
+        var data = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(0, Assert.Single(data.Rows).Values[Assert.Single(data.Columns).Id]);
+    }
+
+    [Fact]
     public async Task Screens_GetScreenData_NonGroupedScreen_ReturnsFlatRows()
     {
         // Arrange
