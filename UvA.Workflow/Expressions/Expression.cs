@@ -131,7 +131,8 @@ public record Expression
         ["and"] = new Function<bool, bool, bool>((a, b) => a && b),
         ["or"] = new Function<bool, bool, bool>((a, b) => a || b),
         ["not"] = new Function<bool, bool>(a => !a),
-        ["coalesce"] = new Function<object, object, object?>((value, fallback) => value ?? fallback),
+        ["coalesce"] = new Function<object, object, object?>((value, fallback) =>
+            DataExtensions.IsEffectivelyEmpty(value) ? fallback : value),
     };
 
     /// <summary>
