@@ -38,4 +38,25 @@ public class WorkflowDefinitionDtoTests
         Assert.Equal("All subjects", screen.Description!.En);
         Assert.Equal(1, screen.Index);
     }
+
+    [Fact]
+    public void CreateForAccessibleOverview_ExcludesRelationScreens()
+    {
+        var definition = new WorkflowDefinition
+        {
+            Name = "FunctionAssignment",
+            TitlePlural = new BilingualString("Assignments", "Toewijzingen"),
+            Screens =
+            [
+                new Screen { Name = "FunctionAssignments", Columns = [] },
+                new Screen { Name = "OtherAssignments", Relation = "FunctionAssignment", Columns = [] },
+            ],
+            Steps = []
+        };
+
+        var dto = WorkflowDefinitionDto.CreateForAccessibleOverview(definition);
+
+        Assert.Single(dto.Screens);
+        Assert.Equal("FunctionAssignments", dto.Screens[0].Name);
+    }
 }

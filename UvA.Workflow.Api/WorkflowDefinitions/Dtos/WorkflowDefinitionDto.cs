@@ -18,8 +18,12 @@ public record WorkflowDefinitionDto(
 )
 {
     public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition,
-        bool canCreateInstance = false)
+        bool canCreateInstance = false,
+        Func<Screen, bool>? screenFilter = null)
     {
+        var screens = screenFilter == null
+            ? workflowDefinition.Screens
+            : workflowDefinition.Screens.Where(screenFilter);
         return new WorkflowDefinitionDto(
             workflowDefinition.Name,
             workflowDefinition.Title,
@@ -30,9 +34,13 @@ public record WorkflowDefinitionDto(
             workflowDefinition.IsAlwaysVisible,
             workflowDefinition.InheritsFrom,
             workflowDefinition.IsEmbedded,
-            workflowDefinition.Screens.Select(ScreenSummaryDto.Create).ToArray(),
+            screens.Select(ScreenSummaryDto.Create).ToArray(),
             canCreateInstance,
             workflowDefinition.Steps.Count == 0
         );
     }
+
+    /// <summary>Hub / landing: omit parent-scoped related screens (<see cref="Screen.Relation"/>).</summary>
+    public static WorkflowDefinitionDto CreateForAccessibleOverview(WorkflowDefinition workflowDefinition) =>
+        Create(workflowDefinition, screenFilter: static screen => string.IsNullOrEmpty(screen.Relation));
 }
