@@ -151,6 +151,7 @@ public partial class ModelParser
             target.EmitFormSubmitEvent = source.EmitFormSubmitEvent;
         if (!target.Declared(f => f.SubmittedWhenEvents))
             target.SubmittedWhenEvents = source.SubmittedWhenEvents;
+        if (!target.Declared(f => f.Confirmation)) target.Confirmation = source.Confirmation;
 
         if (Cleared(target, f => f.Pages))
             return;

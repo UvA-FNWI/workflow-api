@@ -656,6 +656,59 @@ public partial class ModelParser
                     col.Event = workflowDefinition.Events.FirstOrDefault(e => e.Name == col.Property[..^5]);
             }
         }
+
+        if (screen.Grouping != null)
+            ValidateScreenGrouping(screen, workflowDefinition);
+    }
+
+    /// <summary>
+    /// Validates that all steps in the screen are part of the workflow definition, and all steps are included in the screen
+    /// </summary>
+    private static void ValidateScreenGrouping(Screen screen, WorkflowDefinition workflowDefinition)
+    {
+        var context = $"Screen '{screen.Name}' in '{workflowDefinition.Name}'";
+
+        var parentByChild = new Dictionary<string, string>();
+        var reachableSteps = new HashSet<string>();
+
+        void Visit(Step step, Step? parent)
+        {
+            reachableSteps.Add(step.Name);
+            if (parent != null)
+                parentByChild[step.Name] = parent.Name;
+            foreach (var child in step.Children)
+                Visit(child, step);
+        }
+
+        foreach (var step in workflowDefinition.Steps)
+            Visit(step, null);
+
+        var mappedSteps = screen.Grouping!.Groups
+            .SelectMany(group => group.Steps)
+            .OfType<string>()
+            .ToHashSet();
+
+        var unknownSteps = mappedSteps.Where(step => !reachableSteps.Contains(step)).ToArray();
+        if (unknownSteps.Length > 0)
+            throw new Exception($"{context} maps unknown step(s): {unknownSteps.ToSeparatedString()}.");
+
+        // Mirrors ScreenDataService.BuildGroups, which walks up through parent steps when an instance's
+        // current step isn't directly mapped to a group.
+        bool IsMapped(string? stepName)
+        {
+            for (var current = stepName; current != null; current = parentByChild.GetValueOrDefault(current))
+                if (mappedSteps.Contains(current))
+                    return true;
+            return false;
+        }
+
+        var unmappedSteps = workflowDefinition.WalkSteps.Select(step => step.Name)
+            .Where(name => !IsMapped(name))
+            .ToArray();
+        if (unmappedSteps.Length > 0)
+            throw new Exception(
+                $"{context} does not map step(s) to any group: {unmappedSteps.ToSeparatedString()}. " +
+                "Instances currently on these steps would be silently excluded from the screen.");
     }
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
