@@ -84,17 +84,24 @@ public class StepProgressResolver(ModelService modelService)
 
     private static ProgressInformationDto ResolveStoppedProgress(Condition? stopWhen, ObjectContext context)
     {
-        var template = stopWhen?.MessageTemplate;
-        if (template == null && stopWhen?.Part is Logical { Operator: LogicalOperator.Or } logical)
-            template = logical.Children.FirstOrDefault(branch => branch.IsMet(context))?.MessageTemplate;
+        var matchedCondition = stopWhen switch
+        {
+            { Not: false, Part: Logical { Operator: LogicalOperator.Or } logical } =>
+                logical.Children.FirstOrDefault(branch => branch.IsMet(context)),
+            { Not: false } when stopWhen.IsMet(context) => stopWhen,
+            _ => null
+        };
+        var stopEvent = matchedCondition is { Not: false, Part: EventCondition condition } ? condition.Id : null;
+        var template = stopWhen?.MessageTemplate ?? matchedCondition?.MessageTemplate;
 
         if (template != null)
-            return new ProgressInformationDto(template.Apply(context), StatusColor.Red);
+            return new ProgressInformationDto(template.Apply(context), StatusColor.Red, stopEvent);
 
+        var progress = StoppedProgress with { StopEvent = stopEvent };
         if (GetStopEventDate(stopWhen, context) is not { } date)
-            return StoppedProgress;
+            return progress;
 
-        return StoppedProgress with { Text = StoppedProgress.Text + FormattableString.Invariant($" ({date:dd/MM})") };
+        return progress with { Text = progress.Text + FormattableString.Invariant($" ({date:dd/MM})") };
     }
 
     private static DateTime? GetStopEventDate(Condition? condition, ObjectContext context)

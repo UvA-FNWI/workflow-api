@@ -144,7 +144,7 @@ public class ScreenDataService(
                 processedValues[columnId] = value;
             }
 
-            rows.Add(new ScreenRowDto(id, processedValues));
+            rows.Add(new ScreenRowDto(id, processedValues, context.WorkflowStopped));
         }
 
         return rows.ToArray();

@@ -86,7 +86,8 @@ public record ScreenColumnDto(
 
 public record ScreenRowDto(
     string Id,
-    Dictionary<int, object?> Values);
+    Dictionary<int, object?> Values,
+    bool WorkflowStopped);
 
 public record ScreenRelatedUserDto(
     string UserName,

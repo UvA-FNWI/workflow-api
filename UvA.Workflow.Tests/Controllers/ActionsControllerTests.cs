@@ -198,22 +198,26 @@ public class ActionsControllerTests : ControllerTestsBase
         Assert.True(paused.WorkflowStopped);
         Assert.Equal("Paused", paused.StopMessage?.En);
         Assert.Equal("Gepauzeerd", paused.StopMessage?.Nl);
+        Assert.Equal("Pause", paused.StopEvent);
         await AssertForbidden("Pause");
         var cancelled = await Execute("Cancel");
         Assert.True(cancelled.WorkflowStopped);
         Assert.Equal("Cancelled", cancelled.StopMessage?.En);
+        Assert.Equal("Cancel", cancelled.StopEvent);
         await AssertForbidden("Reopen");
 
         MockCurrentUser("LocalAdmin");
         var reopened = await Execute("Reopen");
         Assert.True(reopened.WorkflowStopped);
         Assert.Equal("Paused", reopened.StopMessage?.En);
+        Assert.Equal("Pause", reopened.StopEvent);
         Assert.Equal(cancelled.CurrentStep, reopened.CurrentStep);
         Assert.False(reopen.Condition.IsMet(_modelService.CreateContext(instance)));
         MockCurrentUser("Coordinator");
         var resumed = await Execute("Resume");
         Assert.False(resumed.WorkflowStopped);
         Assert.Null(resumed.StopMessage);
+        Assert.Null(resumed.StopEvent);
 
         async Task<WorkflowInstanceDto> Execute(string name)
         {

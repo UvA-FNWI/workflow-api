@@ -129,9 +129,16 @@ public class ScreensControllerTests : ControllerTestsBase
                 Assert.Equal(english, progress.Text.En);
                 Assert.Equal(dutch, progress.Text.Nl);
                 Assert.Equal(StatusColor.Red, progress.Color);
+                Assert.Equal("RejectSubject", progress.StopEvent);
+                Assert.True(row.WorkflowStopped);
             },
-            row => Assert.Equal("Writing proposal",
-                Assert.IsType<ProgressInformationDto>(row.Values[column.Id]).Text.En));
+            row =>
+            {
+                var progress = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
+                Assert.Equal("Writing proposal", progress.Text.En);
+                Assert.Null(progress.StopEvent);
+                Assert.False(row.WorkflowStopped);
+            });
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
             It.Is<Dictionary<string, string>>(projection =>
                 projection.GetValueOrDefault("EC") == (hasStopMessage ? "$Properties.EC" : null)),
@@ -251,6 +258,7 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Equal("Stopped", progress.Text.En);
         Assert.Equal("Gestopt", progress.Text.Nl);
         Assert.Equal(StatusColor.Red, progress.Color);
+        Assert.Null(progress.StopEvent);
 
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
             It.Is<Dictionary<string, string>>(projection =>
