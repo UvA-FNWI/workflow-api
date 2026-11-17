@@ -54,3 +54,6 @@ data:
 
   Services__Turnitin__BaseUrl: "{{ .Values.turnitin.url }}"
   Services__Turnitin__IsDisabled: "{{ .Values.turnitin.disabled }}"
+
+  Services__Evalytics__BaseUrl: "{{ .Values.evalytics.url }}"
+  Services__Evalytics__IsDisabled: "{{ .Values.evalytics.disabled }}"
