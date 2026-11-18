@@ -17,7 +17,7 @@ public class FormPreviewTests
     [InlineData("{\"Score\":0}", 1, 1, 0d)]
     [InlineData("{\"Score\":2,\"ShowExtra\":true}", 1, 2, null)]
     [InlineData("{\"Score\":2,\"SecondScore\":8,\"ShowExtra\":true}", 2, 2, 5d)]
-    [InlineData("{\"Score\":2,\"SecondScore\":8,\"ShowExtra\":false}", 1, 1, 5d)]
+    [InlineData("{\"Score\":2,\"SecondScore\":8,\"ShowExtra\":false}", 1, 1, 2d)]
     [InlineData("{\"Score\":null,\"ShowExtra\":true}", 0, 2, null)]
     public async Task PreviewReportsVisibleCalculationProgressWithoutTreatingMissingAnswersAsZero(
         string input, int answered, int total, double? average)
