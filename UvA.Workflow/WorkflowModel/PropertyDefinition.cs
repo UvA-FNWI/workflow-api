@@ -149,8 +149,8 @@ public abstract class PropertyDefinition : INamed
     public string? LinkedTo { get; set; }
 
     /// <summary>
-    /// When the entity has messages.enabled, false excludes this field from field threads.
-    /// Null/true means the field is commentable.
+    /// When the entity has <c>messages.fields: true</c> (default), <c>false</c> opts this field out of field threads.
+    /// When the entity has <c>messages.fields: false</c>, <c>true</c> opts this field in.
     /// </summary>
     public bool? Messages { get; set; }
 }

@@ -132,22 +132,33 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
 
     public bool MessagesEnabled => Messages?.Enabled == true;
 
+    public bool AllowsInstanceMessages() =>
+        MessagesEnabled && (Messages?.Card ?? true);
+
+    public bool MessagesAllowClose => Messages?.Close ?? true;
+
+    public bool MessagesUseFlatLayout =>
+        string.Equals(Messages?.Layout, "flat", StringComparison.OrdinalIgnoreCase);
+
+    public bool MessagesShowCallout => Messages?.Callout == true;
+
     public bool AllowsMessages(string? questionName)
     {
         if (!MessagesEnabled)
             return false;
         if (string.IsNullOrEmpty(questionName))
-            return true;
+            return AllowsInstanceMessages();
 
         // Field threads use the instance path (Title, or AssessmentSupervisor.Consent).
         // Embedded types do not need their own messages.enabled.
+        var fieldsAllowAll = Messages?.Fields ?? true;
         var type = this;
         var parts = questionName.Split('.');
         for (var i = 0; i < parts.Length; i++)
         {
             if (string.IsNullOrEmpty(parts[i]) || !type.Properties.TryGetValue(parts[i], out var property))
                 return false;
-            if (property.Visibility == PropertyVisibility.Hidden || property.Messages == false)
+            if (!PropertyAllowsFieldMessages(property, fieldsAllowAll))
                 return false;
             if (i == parts.Length - 1)
                 return true;
@@ -157,6 +168,15 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
         }
 
         return false;
+    }
+
+    private static bool PropertyAllowsFieldMessages(PropertyDefinition property, bool fieldsAllowAll)
+    {
+        if (property.Visibility == PropertyVisibility.Hidden)
+            return false;
+        return fieldsAllowAll
+            ? property.Messages != false
+            : property.Messages == true;
     }
 
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
@@ -223,6 +243,24 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
 public class MessagesSettings
 {
     public bool Enabled { get; set; }
+
+    /// <summary>Show the instance-level messages card. Default true when messages are enabled.</summary>
+    public bool Card { get; set; } = true;
+
+    /// <summary>
+    /// When true (default), visible fields allow messages unless opted out with <c>messages: false</c> on the property.
+    /// When false, field messages are off unless opted in with <c>messages: true</c> on the property.
+    /// </summary>
+    public bool Fields { get; set; } = true;
+
+    /// <summary><c>threaded</c> (default) or <c>flat</c>.</summary>
+    public string Layout { get; set; } = "threaded";
+
+    /// <summary>When false, conversations cannot be closed or reopened.</summary>
+    public bool Close { get; set; } = true;
+
+    /// <summary>Show a privacy callout in the instance messages card.</summary>
+    public bool Callout { get; set; }
 }
 
 public class EventDefinition : INamed
