@@ -16,7 +16,8 @@ public class WorkflowStateResolver(
     public async Task<ObjectContext> Resolve(WorkflowInstance instance, CancellationToken ct)
     {
         if (!modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps)
-            return modelService.CreateContext(instance);
+            return await ContextLoader.CreateContext(modelService, repository, instance,
+                modelService.WorkflowDefinitions[instance.WorkflowDefinition].PermissionAndStepLookups, ct);
         return (await Resolve([instance], ct))[instance.Id ?? ""];
     }
 
@@ -75,7 +76,8 @@ public class WorkflowStateResolver(
         {
             var definition = modelService.WorkflowDefinitions[name];
             return new EnrichmentBatch(definition, items,
-                definition.Steps.SelectMany(step => step.Lookups).Concat(definition.ProgressLookups)
+                definition.PermissionAndStepLookups.Concat(definition.Steps.SelectMany(step => step.Lookups))
+                    .Concat(definition.ProgressLookups)
                     .Concat(definition.AllActions.SelectMany(action => action.Condition?.Properties ?? [])));
         }
     }

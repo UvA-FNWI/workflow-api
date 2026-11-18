@@ -8,7 +8,7 @@ namespace UvA.Workflow.WorkflowModel;
 /// <summary>
 /// Represents a type of object ("entity") in the workflow system
 /// </summary>
-public class WorkflowDefinition : INamed, IDeclaredKeys
+public partial class WorkflowDefinition : INamed, IDeclaredKeys
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 
@@ -60,6 +60,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     /// Dictionary of properties for this entity type
     /// </summary>
     public List<PropertyDefinition> Properties { get; set; } = new();
+
+    [YamlIgnore] public List<PropertyDefinition> ComputedProperties { get; } = [];
 
     /// <summary>
     /// Dictionary of event definitions for this entity type
@@ -137,7 +139,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public bool HasImportedSteps => AllSteps.Any(step => step.Import != null);
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
-    [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
+    [YamlIgnore] public List<NamedEmail> Emails { get; set; } = null!;
+    [YamlIgnore] public List<EmailContentBlock> EmailBlocks { get; set; } = null!;
     [YamlIgnore] public List<ConfiguredMigration> Migrations { get; set; } = [];
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 

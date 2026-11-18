@@ -7,7 +7,7 @@ using Domain_Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowInstances;
 
-public class InstanceService(
+public partial class InstanceService(
     IWorkflowInstanceRepository workflowInstanceRepository,
     ModelService modelService,
     IUserService userService,
@@ -17,30 +17,55 @@ public class InstanceService(
     WorkflowStateResolver stateResolver
 )
 {
-    public Dictionary<string, JsonElement?> GetPropertyValues(WorkflowInstance instance)
+    public async Task<Dictionary<string, JsonElement?>> GetPropertyValues(WorkflowInstance instance,
+        CancellationToken ct)
     {
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var values = new Dictionary<string, JsonElement?>();
-        Collect(modelService.WorkflowDefinitions[instance.WorkflowDefinition].Properties, []);
+        var sources = new Dictionary<string, BsonValue>(instance.Properties);
+        var computedValues = new List<(PropertyDefinition Property, string Path)>();
+        Collect(definition.Properties, [], false);
+        if (computedValues.Count == 0)
+            return values;
+
+        // Bad stored values remain editable in the admin view, but cannot be used as expression inputs.
+        var context = modelService.CreateContext(new WorkflowInstance
+        {
+            Id = instance.Id, WorkflowDefinition = instance.WorkflowDefinition, Properties = sources,
+            Events = instance.Events, CurrentStep = instance.CurrentStep, CreatedOn = instance.CreatedOn
+        });
+        await Enrich(definition, [context], computedValues.Select(value => (Lookup)value.Path), ct, false);
+        foreach (var (property, path) in computedValues)
+            values[path] = Answer.SerializeValue(property, context.Get(path));
         return values;
 
-        void Collect(IEnumerable<PropertyDefinition> properties, string[] prefix)
+        void Collect(IEnumerable<PropertyDefinition> properties, string[] prefix, bool parentComputed)
         {
             foreach (var property in properties)
             {
                 string[] parts = [.. prefix, property.Name];
+                var computed = parentComputed || property.IsComputed;
                 if (property is ObjectPropertyDefinition { IsArray: false, WorkflowDefinition: not null } embedded)
                 {
-                    Collect(embedded.WorkflowDefinition.Properties, parts);
+                    Collect(embedded.WorkflowDefinition.Properties, parts, computed);
+                    continue;
+                }
+
+                var path = string.Join('.', parts);
+                if (computed)
+                {
+                    computedValues.Add((property, path));
                     continue;
                 }
 
                 try
                 {
-                    values[string.Join('.', parts)] = Answer.GetValue(property, instance.GetProperty(parts));
+                    values[path] = Answer.GetValue(property, instance.GetProperty(parts));
                 }
                 catch
                 {
-                    values[string.Join('.', parts)] = null;
+                    values[path] = null;
+                    sources.Remove(parts[0]);
                 }
             }
         }
@@ -89,7 +114,7 @@ public class InstanceService(
         => stateResolver.Resolve(instances, ct);
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
-    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
+    public async Task<MailMessage> BuildMail(WorkflowInstance instance, Email sendMail, CancellationToken ct,
         ObjectContext? context = null)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -99,12 +124,26 @@ public class InstanceService(
         return mailBuilder.Build(instance, sendMail, modelService, context);
     }
 
+    public async Task<ObjectContext> CreateContext(WorkflowInstance instance, IEnumerable<Lookup> lookups,
+        CancellationToken ct = default)
+    {
+        var context = modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps
+            ? await stateResolver.Resolve(instance, ct)
+            : modelService.CreateContext(instance);
+        await Enrich(modelService.WorkflowDefinitions[instance.WorkflowDefinition], [context], lookups, ct,
+            replaceStep: false);
+        return context;
+    }
+
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = await stateResolver.Resolve(instance, ct);
+        var context = workflowDefinition.HasImportedSteps
+            ? await stateResolver.Resolve(instance, ct)
+            : modelService.CreateContext(instance);
         if (context.WorkflowStopped)
             return;
+
         if (!workflowDefinition.HasImportedSteps)
             await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         var targetStep = modelService.FindOpenStep(instance, context)?.Name;
@@ -193,13 +232,14 @@ public class InstanceService(
         WorkflowDefinition? WorkflowDefinition = null,
         string[]? DisplaySteps = null);
 
-    public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct)
+    public async Task<ICollection<AllowedAction>> GetAllowedActions(WorkflowInstance instance, CancellationToken ct,
+        ObjectContext? context = null)
     {
         var actions = new List<AllowedAction>();
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var allowed = await rightsService.GetAllowedActions(instance,
+        context ??= await CreateContext(instance, workflowDef.PermissionAndStepLookups, ct);
+        var allowed = await rightsService.GetAllowedActions(instance, context, RightsEvaluationMode.RequestContext,
             RoleAction.Submit, RoleAction.CreateRelatedInstance, RoleAction.Execute);
-        var context = await stateResolver.Resolve(instance, ct);
         var activeSteps = modelService.GetActiveSteps(instance, context);
 
         // Submittable forms
@@ -266,11 +306,15 @@ public class InstanceService(
         bool CanView);
 
     public async Task<IEnumerable<AllowedSubmission>> GetAllowedSubmissions(WorkflowInstance instance,
-        CancellationToken ct, bool includeResults = false)
+        CancellationToken ct, bool includeResults = false, ObjectContext? context = null)
     {
-        var allowed = await rightsService.GetAllowedActions(instance,
+        context ??= await CreateContext(instance,
+            modelService.WorkflowDefinitions[instance.WorkflowDefinition].PermissionAndStepLookups, ct);
+        var allowed = await rightsService.GetAllowedActions(instance, context, RightsEvaluationMode.RequestContext,
             includeResults ? [RoleAction.View, RoleAction.ViewResults] : [RoleAction.View]);
-        var allowedHidden = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden);
+        var allowedHidden = await rightsService.GetAllowedActions(instance, context,
+            RightsEvaluationMode.RequestContext,
+            RoleAction.ViewHidden);
 
         var forms = allowed
             .SelectMany(a => a.AllForms)
@@ -282,7 +326,7 @@ public class InstanceService(
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
-        return forms
+        var submissions = forms
             .Values
             .Distinct()
             .Where(form => !form.Repeatable)
@@ -293,10 +337,11 @@ public class InstanceService(
             })
             .Where(x => x.State.IsSubmitted)
             .OrderBy(x => workflowDef.Forms.FindIndex(f => f.Name == x.Form.Name))
-            .ThenBy(x => x.State.DateSubmitted)
-            .Select(x => new AllowedSubmission(x.State, x.Form,
-                modelService.GetQuestionStatus(instance, x.Form, allowedHidden),
-                allowed.Any(a => a.Type == RoleAction.View && a.MatchesForm(x.Form.Name))));
+            .ThenBy(x => x.State.DateSubmitted);
+        return await Task.WhenAll(submissions.Select(async x => new AllowedSubmission(x.State, x.Form,
+            modelService.GetQuestionStatus(instance, x.Form, allowedHidden,
+                context: await CreateFormContext(instance, x.Form, ct)),
+            allowed.Any(a => a.Type == RoleAction.View && a.MatchesForm(x.Form.Name)))));
     }
 
     public async Task<IEnumerable<WorkflowInstance>> GetPossibleChoices(WorkflowInstance instance,
@@ -308,7 +353,9 @@ public class InstanceService(
 
         var instances = await workflowInstanceRepository.GetByWorkflowDefinition(property.WorkflowDefinition.Name,
             FilterDefinition<WorkflowInstance>.Empty, ct);
-        var context = modelService.CreateContext(instance);
+        var context = modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps
+            ? await stateResolver.Resolve(instance, ct)
+            : modelService.CreateContext(instance);
 
         if (property.Filter != null)
             await Enrich(property.ParentType, [context], property.Filter.Properties, ct);

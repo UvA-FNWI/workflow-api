@@ -160,7 +160,7 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     public Effect[] OnSave { get; set; } = [];
 
     /// <summary>
-    /// Name of a form template (file under Common/FormTemplates) to resolve this form from
+    /// Name of a form template (Templates/Forms) to resolve this form from
     /// </summary>
     [YamlMember(Alias = "template")]
     public string? TemplateKey { get; set; }
@@ -188,10 +188,7 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
         if (TargetForm == null)
             return context;
 
-        var values = new Dictionary<Lookup, object?>(context.Values);
-        foreach (var property in ActualForm.WorkflowDefinition.Properties)
-            values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
-        return new ObjectContext(values);
+        return context.WithPropertyValues(PropertyName!, ActualForm.WorkflowDefinition);
     }
 
     public Form Clone()

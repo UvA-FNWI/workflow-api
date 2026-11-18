@@ -137,7 +137,10 @@ public class Deadline
         [.. Expression.Properties, .. TextTemplate?.Properties ?? []];
 
     public DateTimeOffset? Evaluate(ObjectContext context)
-        => Expression.Execute(context) switch
+    {
+        if (Type == DeadlineType.Hard)
+            context.EnsureInputsAvailable(Expression.Properties);
+        return Expression.Execute(context) switch
         {
             DateTimeOffset date => date,
             // DateTime's kind determines its offset; unspecified dates use the server's local timezone.
@@ -145,6 +148,7 @@ public class Deadline
             string value => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
             _ => null
         };
+    }
 
     public bool HasPassed(ObjectContext context)
         => Evaluate(context) is { } deadline && deadline <= DateTimeOffset.Now;
@@ -199,7 +203,7 @@ public class Step : INamed, IDeclaredKeys, ITemplateConsumer
     public BilingualString DisplayTitle => Title ?? Name;
 
     /// <summary>
-    /// Name of a step template (folder under Common/StepTemplates) to resolve this step from
+    /// Name of a step template (Templates/Steps) to resolve this step from
     /// </summary>
     [YamlMember(Alias = "template")]
     public string? TemplateKey { get; set; }

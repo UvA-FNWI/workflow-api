@@ -189,7 +189,8 @@ public class LinkedStepWorkflowTests
             NullLogger<JobService>.Instance, instances, Options.Create(new WorkerOptions { WorkerGroup = "test" }));
         var submissions = new SubmissionService(model, instances, Mock.Of<IInstanceJournalService>(), jobs, effects);
         var results = new AssessmentsController(workflows, users.Object, repository.Object, assessments, instances,
-            new AssessmentDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), model, assessments),
+            new AssessmentDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), model, assessments,
+                instances),
             rights);
 
         var upload = model.GetForm(source, "UploadJoint");

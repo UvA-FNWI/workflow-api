@@ -238,7 +238,7 @@ public class JobsControllerTests : ControllerTestsBase
 
         var effect = new Effect
         {
-            SendAccessMail = new SendMessage { To = "Supervisor", Subject = "Access", Body = "Welcome" }
+            SendAccessMail = new Email { To = "Supervisor", Subject = "Access", Body = "Welcome" }
         };
         workflow.AllActions.Single(a => a.Name == "CoordinatorApproved").OnAction = [effect];
         var completedRecipients = status == JobStatus.Completed

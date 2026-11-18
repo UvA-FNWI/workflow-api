@@ -187,6 +187,29 @@ public class LinkedStepResolutionTests
     }
 
     [Fact]
+    public async Task Resolve_ComputesImportedSourceConditionsAndPreservesThemInDisplayCopies()
+    {
+        var files = LinkedStepConfigurationTests.Files();
+        files["Shared/Entity.yaml"] +=
+            "\n  - name: NeedsUpload\n    type: Check\n    expression: Enabled\n  - name: Enabled\n    type: Check";
+        files["Shared/Steps/Upload.yaml"] += "\ncondition:\n  value:\n    property: NeedsUpload\n    equal: true";
+        var setup = new LinkedStepTestSetup(files);
+        setup.Source.Properties["Enabled"] = false;
+
+        var context = await setup.Resolver.Resolve(setup.Student, default);
+        var display = context.WithValues([]);
+
+        Assert.False(setup.Model.WorkflowDefinitions["Individual"].Steps[1].IsVisible(display));
+        Assert.Equal("SharedAssessment", setup.Model.GetCurrentStep(setup.Student, display)?.Name);
+        Assert.False(Assert.IsType<bool>(display.ImportedSteps["SharedUpload"]!.Context.Get("NeedsUpload")));
+        Assert.False(setup.Source.Properties.ContainsKey("NeedsUpload"));
+
+        setup.Source.Properties["Enabled"] = true;
+        var refreshed = await setup.Resolver.Resolve(setup.Student, default);
+        Assert.Equal("SharedUpload", setup.Model.GetCurrentStep(setup.Student, refreshed)?.Name);
+    }
+
+    [Fact]
     public async Task CompletionDate_UsesTheFinalSharedStepWithoutChangingLastEvent()
     {
         var files = LinkedStepConfigurationTests.Files();
