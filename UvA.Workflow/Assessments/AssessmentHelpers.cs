@@ -115,10 +115,12 @@ public static class AssessmentHelpers
         string? pageName)
     {
         var pages = form.ActualForm.Pages.ToArray();
+        context = form.GetContext(context);
 
         var totalWeight = pages
             .SelectMany(page => page.Questions)
             .OfType<WeightedPropertyDefinition>()
+            .Where(field => field.Condition.IsMet(context))
             .Sum(field => field.Calculation?.Weight ?? 0);
 
         var pageResults = pages
