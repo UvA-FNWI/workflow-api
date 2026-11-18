@@ -13,8 +13,7 @@ public record UserDto(
     Organization? Organization,
     bool IsExternal,
     bool IsSuperAdmin,
-    bool IsEmailEditable,
-    bool CanSearchPeople = false
+    bool IsEmailEditable
 )
 {
     /// <summary>
@@ -22,7 +21,7 @@ public record UserDto(
     /// <paramref name="isSuperAdmin"/> reflects whether the *current* request's user is a DataNose
     /// super admin, so it is only meaningful on the /me endpoint; it defaults to false elsewhere.
     /// </summary>
-    public static UserDto Create(User user, bool isSuperAdmin = false, bool canSearchPeople = false)
+    public static UserDto Create(User user, bool isSuperAdmin = false)
     {
         return new UserDto(
             user.Id,
@@ -34,8 +33,7 @@ public record UserDto(
             user.Organization,
             UserProviderKeys.IsExternal(user.ProviderKey),
             isSuperAdmin,
-            user.InvitationState != UserInvitationState.Completed,
-            canSearchPeople
+            user.InvitationState != UserInvitationState.Completed
         );
     }
 

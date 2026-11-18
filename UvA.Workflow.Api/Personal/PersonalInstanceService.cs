@@ -4,11 +4,10 @@ using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.Personal;
 
-public class PersonalInstanceService(
+public partial class PersonalInstanceService(
     ModelService modelService,
     InstanceService instanceService,
     IWorkflowInstanceRepository workflowInstanceRepository,
-    LinkedUserInstances linkedUserInstances,
     RightsService rightsService)
 {
     private static readonly Lookup[] PersonalOverviewLookups =
@@ -21,7 +20,7 @@ public class PersonalInstanceService(
         if (!ObjectId.TryParse(user.Id, out var userId))
             return new PersonalInstancesDto([], []);
 
-        var userFilter = LinkedUserInstances.BuildDirectAssignmentFilter(modelService.WorkflowDefinitions.Values,
+        var userFilter = BuildDirectAssignmentFilter(modelService.WorkflowDefinitions.Values,
             [userId],
             GetVisibleUserProperties);
         if (userFilter == null)
@@ -40,7 +39,7 @@ public class PersonalInstanceService(
         if (!ObjectId.TryParse(person.Id, out var personId))
             return new PersonalInstancesDto([], []);
 
-        var matches = await linkedUserInstances.FindVisibleLinks([personId], ct);
+        var matches = await FindVisibleLinks([personId], ct);
         var contexts = await instanceService.ResolveContexts(matches.Select(match => match.Instance).ToArray(), ct);
         var instanceContexts = matches.Select(match => new PersonalInstanceContext(
             match.Instance,
@@ -93,7 +92,7 @@ public class PersonalInstanceService(
     {
         var (instance, context, linkedRoles) = item;
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var usersByRole = LinkedUserInstances.GetUserProperties(definition)
+        var usersByRole = GetUserProperties(definition)
             .ToDictionary(
                 property => property.Name,
                 property => GetUsers(context.Get(property.Name)).ToArray(),
@@ -164,7 +163,7 @@ public class PersonalInstanceService(
             .SelectMany(action => action.Roles)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return LinkedUserInstances.GetUserProperties(definition)
+        return GetUserProperties(definition)
             .Where(property => rolesWithViewAccess.Contains(property.Name));
     }
 

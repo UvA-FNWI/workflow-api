@@ -48,10 +48,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WorkflowInstanceDtoFactory>();
         services.AddScoped<InstanceHistoryDtoFactory>();
 
-        services.AddScoped<LinkedUserInstances>();
         services.AddScoped<PersonalInstanceService>();
-        services.AddScoped<PeopleSearchAccess>();
-        services.AddScoped<PeopleSearchService>();
         services.AddScoped<ScreenDataService>();
         services.AddScoped<BulkActionsService>();
         services.AddScoped<InstanceAuthorizationFilterService>();

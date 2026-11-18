@@ -259,10 +259,9 @@ public class LinkedStepPresentationTests
                 It.IsAny<MongoDB.Driver.FilterDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([api.Core.Student]);
         var user = await api.Users.Object.GetCurrentUser(default);
-        var linkedUserInstances = new LinkedUserInstances(api.Core.Repository.Object, api.Core.Model, api.Rights);
 
         var dto = await new PersonalInstanceService(api.Core.Model, api.Instances, api.Core.Repository.Object,
-                linkedUserInstances, api.Rights)
+                api.Rights)
             .GetInstances(user!, default);
 
         Assert.Equal("After", Assert.Single(dto.Instances).CurrentStep);
@@ -307,9 +306,8 @@ public class LinkedStepPresentationTests
         var row = Assert.Single(Assert.Single(screen.Groups!, group => group.Rows.Length > 0).Rows);
         var screenProgress = Assert.IsType<ProgressInformationDto>(Assert.Single(row.Values).Value);
         var user = await api.Users.Object.GetCurrentUser(default);
-        var linkedUserInstances = new LinkedUserInstances(api.Core.Repository.Object, api.Core.Model, api.Rights);
         var personal = await new PersonalInstanceService(api.Core.Model, api.Instances, api.Core.Repository.Object,
-                linkedUserInstances, api.Rights)
+                api.Rights)
             .GetInstances(user!, default);
 
         Assert.Equal(canView, screenProgress.Text.En.Contains("protected-value", StringComparison.Ordinal));

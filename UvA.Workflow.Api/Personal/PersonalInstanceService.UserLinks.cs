@@ -1,16 +1,20 @@
 namespace UvA.Workflow.Api.Personal;
 
-public class LinkedUserInstances(
-    IWorkflowInstanceRepository repository,
-    ModelService modelService,
-    RightsService rightsService)
+public partial class PersonalInstanceService
 {
-    public static IEnumerable<PropertyDefinition> GetUserProperties(WorkflowDefinition definition) =>
+    internal async Task<IReadOnlySet<ObjectId>> GetVisibleUserIds(
+        IReadOnlyCollection<ObjectId> userIds, CancellationToken ct)
+    {
+        var matches = await FindVisibleLinks(userIds, ct, stopWhenAllUsersFound: true);
+        return matches.SelectMany(match => match.Users).Select(link => link.Id).ToHashSet();
+    }
+
+    private static IEnumerable<PropertyDefinition> GetUserProperties(WorkflowDefinition definition) =>
         definition.Properties
             .Where(property => property.DataType == DataType.User)
             .DistinctBy(property => property.Name, StringComparer.OrdinalIgnoreCase);
 
-    internal static FilterDefinition<WorkflowInstance>? BuildDirectAssignmentFilter(
+    private static FilterDefinition<WorkflowInstance>? BuildDirectAssignmentFilter(
         IEnumerable<WorkflowDefinition> definitions,
         IReadOnlyCollection<ObjectId> userIds,
         Func<WorkflowDefinition, IEnumerable<PropertyDefinition>>? getProperties = null)
@@ -24,7 +28,7 @@ public class LinkedUserInstances(
             .Select(property => builder.In($"Properties.{property.Name}._id", userIds)));
     }
 
-    internal async Task<IReadOnlyList<LinkedInstance>> FindVisibleLinks(
+    private async Task<IReadOnlyList<LinkedInstance>> FindVisibleLinks(
         IReadOnlyCollection<ObjectId> userIds, CancellationToken ct, bool stopWhenAllUsersFound = false)
     {
         var ids = userIds.ToHashSet();
@@ -74,7 +78,7 @@ public class LinkedUserInstances(
                 pending.Add(((instance.WorkflowDefinition, instance.Id), link));
         }
 
-        foreach (var instance in await repository.GetByFilter(filter, ct))
+        foreach (var instance in await workflowInstanceRepository.GetByFilter(filter, ct))
         {
             ct.ThrowIfCancellationRequested();
             foreach (var (link, isInheritable) in GetDirectLinks(instance, definitions[instance.WorkflowDefinition],
@@ -95,7 +99,7 @@ public class LinkedUserInstances(
                 break;
 
             pending.Clear();
-            foreach (var instance in await repository.GetByFilter(referenceFilter, ct))
+            foreach (var instance in await workflowInstanceRepository.GetByFilter(referenceFilter, ct))
             {
                 ct.ThrowIfCancellationRequested();
                 var definition = definitions[instance.WorkflowDefinition];
@@ -176,7 +180,7 @@ public class LinkedUserInstances(
         .OfType<BsonObjectId>()
         .Select(id => id.Value);
 
-    internal readonly record struct UserLink(ObjectId Id, string Role);
+    private readonly record struct UserLink(ObjectId Id, string Role);
 
-    internal sealed record LinkedInstance(WorkflowInstance Instance, IReadOnlyCollection<UserLink> Users);
+    private sealed record LinkedInstance(WorkflowInstance Instance, IReadOnlyCollection<UserLink> Users);
 }
