@@ -67,6 +67,7 @@ apiPaths:
   - /Screens
   - /Versions
   - /Submissions
+  - /FormPreviews
   - /WorkflowDefinitions
   - /Users
   - /Organizations
