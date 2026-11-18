@@ -2149,6 +2149,9 @@
       "title": "MessagesSettings",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "layout"
+      ],
       "properties": {
         "enabled": {
           "type": "boolean"
@@ -2159,11 +2162,11 @@
         },
         "fields": {
           "type": "boolean",
-          "description": "When true (default), visible fields allow messages unless opted out with messages: false on the property. When false, field messages need messages: true on the property."
+          "description": "When true (default), visible fields allow messages unless opted out with <code>messages: false</code> on the property.\n            When false, field messages are off unless opted in with <code>messages: true</code> on the property."
         },
         "layout": {
           "type": "string",
-          "enum": ["threaded", "flat"]
+          "description": "<code>threaded</code> (default) or <code>flat</code>."
         },
         "close": {
           "type": "boolean",
@@ -2172,6 +2175,34 @@
         "callout": {
           "type": "boolean",
           "description": "Show a privacy callout in the instance messages card."
+        },
+        "calloutTitle": {
+          "description": "Privacy callout heading. Falls back to product defaults when omitted.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "calloutText": {
+          "description": "Privacy callout body. Falls back to product defaults when omitted.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         }
       }
     }

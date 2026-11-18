@@ -289,6 +289,9 @@ public class ReferencePropertyDefinition : WorkflowPropertyDefinition
     /// <summary>Control for reference selection; omitted to use the default control.</summary>
     public ChoiceControl? Control { get; set; }
 
+    /// <summary>Roles inherited from the referenced instance.</summary>
+    public string[] InheritedRoles { get; set; } = [];
+
     /// <summary>Condition used for filtering reference choices.</summary>
     public Condition? Filter { get; set; }
 

@@ -7,7 +7,9 @@ public record MessagesSettingsDto(
     bool FieldsAllowAll = true,
     string Layout = "threaded",
     bool AllowClose = true,
-    bool Callout = false
+    bool Callout = false,
+    BilingualString? CalloutTitle = null,
+    BilingualString? CalloutText = null
 )
 {
     public static MessagesSettingsDto From(MessagesSettings settings) =>
@@ -16,6 +18,8 @@ public record MessagesSettingsDto(
             settings.Fields,
             string.IsNullOrWhiteSpace(settings.Layout) ? "threaded" : settings.Layout,
             settings.Close,
-            settings.Callout
+            settings.Callout,
+            settings.CalloutTitle,
+            settings.CalloutText
         );
 }

@@ -57,7 +57,7 @@ public class InstanceHistoryDtoFactory(
             edit.Change.ChangedAt,
             CreateUserDto(journalUsers.GetValueOrDefault(edit.Change.ChangedBy!), edit.Change.ChangedBy!),
             new PropertyHistoryDto(
-                QuestionDto.Create(edit.Question, totalWeight: 0),
+                QuestionDto.Create(edit.Question, totalWeight: 0, workflowDefinition, edit.Path),
                 CreateGroupDto(edit.Question, edit.Group, journalUsers)),
             null));
 

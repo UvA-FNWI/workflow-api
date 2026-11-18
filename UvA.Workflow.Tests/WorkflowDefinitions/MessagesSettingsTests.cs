@@ -13,6 +13,12 @@ public class MessagesSettingsTests
             Name = "Project",
             Messages = new MessagesSettings { Enabled = true, Card = false }
         };
+        definition.Properties.Add(new StringPropertyDefinition
+        {
+            Name = "Title",
+            Type = "String",
+            ParentType = definition
+        });
 
         Assert.False(definition.AllowsMessages(null));
         Assert.True(definition.AllowsMessages("Title"));
@@ -60,7 +66,9 @@ public class MessagesSettingsTests
                 Fields = false,
                 Layout = "flat",
                 Close = false,
-                Callout = true
+                Callout = true,
+                CalloutTitle = new BilingualString("Privacy", "Privacy"),
+                CalloutText = new BilingualString("Be careful", "Pas op")
             }
         };
 
@@ -72,5 +80,7 @@ public class MessagesSettingsTests
         Assert.Equal("flat", dto.Messages.Layout);
         Assert.False(dto.Messages.AllowClose);
         Assert.True(dto.Messages.Callout);
+        Assert.Equal("Privacy", dto.Messages.CalloutTitle?.En);
+        Assert.Equal("Be careful", dto.Messages.CalloutText?.En);
     }
 }

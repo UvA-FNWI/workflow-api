@@ -261,6 +261,12 @@ public class MessagesSettings
 
     /// <summary>Show a privacy callout in the instance messages card.</summary>
     public bool Callout { get; set; }
+
+    /// <summary>Privacy callout heading. Falls back to product defaults when omitted.</summary>
+    public BilingualString? CalloutTitle { get; set; }
+
+    /// <summary>Privacy callout body. Falls back to product defaults when omitted.</summary>
+    public BilingualString? CalloutText { get; set; }
 }
 
 public class EventDefinition : INamed

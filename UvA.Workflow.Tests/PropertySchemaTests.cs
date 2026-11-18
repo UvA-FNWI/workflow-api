@@ -126,7 +126,7 @@ public class PropertySchemaTests
         Assert.DoesNotContain("inheritedRoles", user.Properties.Keys);
         var reference = schema.Definitions[nameof(ReferencePropertyDefinition)];
         Assert.DoesNotContain("inheritRole", reference.Properties.Keys);
-        Assert.DoesNotContain("inheritedRoles", reference.Properties.Keys);
+        Assert.Contains("inheritedRoles", reference.Properties.Keys);
 
         var text = schema.Definitions[nameof(StringPropertyDefinition)];
         Assert.DoesNotContain("layout", text.Properties.Keys);
