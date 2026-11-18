@@ -11,10 +11,9 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 {
     private readonly IMongoCollection<User> _collection = database.GetCollection<User>("users");
 
-    public Task Create(User user, CancellationToken ct)
+    public async Task Create(User user, CancellationToken ct)
     {
-        user.SearchTerms = UserSearchTerms.Create(user);
-        return _collection.InsertOneAsync(user, cancellationToken: ct);
+        await _collection.InsertOneAsync(user, cancellationToken: ct);
     }
 
     public async Task<User?> GetById(string id, CancellationToken ct)
@@ -31,7 +30,6 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         if (!ObjectId.TryParse(user.Id, out var objectId))
             throw new ArgumentException("Invalid user ID", nameof(user.Id));
 
-        user.SearchTerms = UserSearchTerms.Create(user);
         var filter = Builders<User>.Filter.Eq("_id", objectId);
         var result = await _collection.ReplaceOneAsync(filter, user, cancellationToken: ct);
 
@@ -79,14 +77,18 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
 
     public async IAsyncEnumerable<User> SearchByPrefix(string query, [EnumeratorCancellation] CancellationToken ct)
     {
-        var normalized = UserSearchTerms.Normalize(query);
-        if (normalized.Length == 0)
+        var words = query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
             yield break;
 
+        var prefix = string.Join(@"\s+", words.Select(Regex.Escape));
+        var displayNamePrefix = new BsonRegularExpression(@"(*UCP)(?:^|\s)" + prefix, "i");
+        var accountPrefix = new BsonRegularExpression("(*UCP)^" + prefix, "i");
         var builder = Builders<User>.Filter;
-        var prefix = new BsonRegularExpression($"^{Regex.Escape(normalized)}");
-        // Older API versions can still write users without search terms.
-        var filter = builder.Regex(user => user.SearchTerms, prefix) | builder.Eq(user => user.SearchTerms, null);
+        var filter = builder.Or(
+            builder.Regex(user => user.DisplayName, displayNamePrefix),
+            builder.Regex(user => user.UserName, accountPrefix),
+            builder.Regex(user => user.Email, accountPrefix));
         using var users = await _collection.Find(filter)
             .SortBy(user => user.DisplayName)
             .ThenBy(user => user.UserName)
@@ -95,9 +97,7 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
         while (await users.MoveNextAsync(ct))
         {
             foreach (var user in users.Current)
-                if (user.SearchTerms != null ||
-                    UserSearchTerms.Create(user).Any(term => term.StartsWith(normalized, StringComparison.Ordinal)))
-                    yield return user;
+                yield return user;
         }
     }
 

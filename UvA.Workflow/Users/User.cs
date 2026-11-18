@@ -53,9 +53,4 @@ public class User
     [BsonElement("Picture")]
     [BsonIgnoreIfNull]
     public string? Picture { get; set; }
-
-    [BsonElement("SearchTerms")]
-    [BsonIgnoreIfNull]
-    [JsonIgnore]
-    public string[]? SearchTerms { get; set; }
 }

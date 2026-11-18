@@ -99,9 +99,7 @@ app.UseWorkflowCanvasLti(app.Configuration);
 await app.Services.GetRequiredService<WorkflowConfigLoader>().LoadBaselineAsync();
 
 using var scope = app.Services.CreateScope();
-var mongoInitializer = scope.ServiceProvider.GetRequiredService<MongoDbInitializer>();
-await mongoInitializer.EnsureIndexes();
-await mongoInitializer.BackfillUserSearchTerms();
+await scope.ServiceProvider.GetRequiredService<MongoDbIndexInitializer>().EnsureIndexes();
 await scope.ServiceProvider.GetRequiredService<InitializationService>().CreateSeedData();
 
 app.UseSwagger();
