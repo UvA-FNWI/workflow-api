@@ -1,5 +1,6 @@
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Assessments;
 
@@ -130,6 +131,7 @@ public static class AssessmentHelpers
                 var questions = page.Questions
                     .OfType<WeightedPropertyDefinition>()
                     .Where(field => field.Calculation != null)
+                    .Where(field => field.Condition.IsMet(context))
                     .Select(field =>
                     {
                         var answerKey = context.Get(
