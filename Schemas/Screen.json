@@ -495,20 +495,6 @@
             ]
           }
         },
-        "condition": {
-          "description": "Optional condition evaluated before step groups. The first matching condition wins.",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
         "order": {
           "type": [
             "integer",
@@ -522,6 +508,20 @@
             "null"
           ],
           "description": "Optional flag to enable or disable the group"
+        },
+        "condition": {
+          "description": "Optional condition evaluated before step groups. The first matching condition wins.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
         }
       }
     },
