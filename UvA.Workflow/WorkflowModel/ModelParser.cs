@@ -53,9 +53,9 @@ public partial class ModelParser
     public ModelParser(IContentProvider contentProvider)
     {
         _contentProvider = contentProvider;
-        Settings = TryParse<WorkflowSettings>("Settings.yaml");
         var folders = GetWorkflowDefinitionFolders().ToArray();
         _deserializer = CreateDeserializer(folders);
+        Settings = TryParse<WorkflowSettings>("Settings.yaml");
         GlobalRoles = Read<Role>();
         Services = Read<Service>();
         ValidateServices(Services);
