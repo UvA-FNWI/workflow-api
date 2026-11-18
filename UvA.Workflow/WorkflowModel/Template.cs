@@ -25,6 +25,29 @@ public class FormTemplate : Form, ITemplate
     [YamlIgnore] public string RootFile { get; set; } = null!;
 }
 
+public class EmailTemplate : NamedEmail, ITemplate
+{
+    [YamlMember(Alias = "params")] public List<TemplateParameter> Parameters { get; set; } = [];
+
+    [YamlIgnore] public string RootFile { get; set; } = null!;
+}
+
+public class EmailContentBlock : INamed
+{
+    public string Name { get; set; } = null!;
+    public BilingualString? Content { get; set; }
+
+    /// <summary>
+    /// If true, this block will be removed from the inherited email.
+    /// </summary>
+    public bool? Remove { get; set; }
+
+    /// <summary>
+    /// Name of another block to insert this block after.
+    /// </summary>
+    public string? After { get; set; }
+}
+
 public class TemplateParameter : INamed
 {
     public string Name { get; set; } = null!;

@@ -46,7 +46,7 @@ public partial class ModelParser
         {
             if (target.Emails.TryGetValue(sourceMessage.Name, out var targetMessage))
                 ApplyInheritance(targetMessage, sourceMessage);
-            else target.Emails.Add(sourceMessage);
+            else target.Emails.Add(sourceMessage.Clone());
         }
 
         // Reset-parent processing mutates event definitions, so inherited events cannot be shared.
@@ -177,8 +177,72 @@ public partial class ModelParser
             target.Actions = MergeActions(target.Actions, source.Actions);
     }
 
-    private void ApplyInheritance(SendMessage target, SendMessage source)
+    private void ApplyInheritance(NamedEmail target, NamedEmail source)
     {
+        if (target.Declared(e => e.Body) && source.ContentBlocks.Length > 0)
+            throw new Exception(
+                $"Email '{target.Name}' declares a body, but the email it inherits from uses content blocks");
+
+        if (!target.Declared(e => e.Subject)) target.Subject = source.Subject;
+        if (!target.Declared(e => e.Body)) target.Body = source.Body;
+        if (!target.Declared(e => e.Layout)) target.Layout = source.Layout;
+        if (!target.Declared(e => e.To)) target.To = source.To;
+        if (!target.Declared(e => e.Cc)) target.Cc = source.Cc;
+        if (!target.Declared(e => e.Bcc)) target.Bcc = source.Bcc;
+        if (!target.Declared(e => e.Buttons)) target.Buttons = source.Buttons;
+        if (!target.Declared(e => e.Attachments)) target.Attachments = source.Attachments;
+        if (!target.Declared(e => e.SendAsMail)) target.SendAsMail = source.SendAsMail;
+        if (!target.Declared(e => e.SendAutomatically)) target.SendAutomatically = source.SendAutomatically;
+        target.ResolvedTemplateValues ??= source.ResolvedTemplateValues;
+
+        if (!Cleared(target, e => e.ContentBlocks))
+            target.ContentBlocks = MergeContentBlocks(target, source);
+    }
+
+    private static EmailContentBlock[] MergeContentBlocks(NamedEmail target, NamedEmail source)
+    {
+        var result = source.ContentBlocks.ToList();
+        foreach (var block in target.ContentBlocks)
+        {
+            var index = result.FindIndex(inherited => inherited.Name == block.Name);
+
+            if (block.Remove == true)
+            {
+                if (index < 0)
+                    throw new Exception(
+                        $"Email '{target.Name}' removes content block '{block.Name}', which does not exist in the source.");
+                result.RemoveAt(index);
+                continue;
+            }
+
+            if (index >= 0)
+            {
+                // Allows moving an inherited block without repeating its contents
+                block.Content ??= result[index].Content;
+                if (block.After == null)
+                {
+                    result[index] = block;
+                    continue;
+                }
+
+                result.RemoveAt(index);
+            }
+
+            if (block.After == null)
+            {
+                result.Add(block);
+                continue;
+            }
+
+            var afterIndex = result.FindIndex(inherited => inherited.Name == block.After);
+            if (afterIndex < 0)
+                throw new Exception(
+                    $"Email '{target.Name}' places content block '{block.Name}' after '{block.After}', which does not exist");
+            block.After = null; // Prevents repeated insertion if the same block is inherited multiple times
+            result.Insert(afterIndex + 1, block);
+        }
+
+        return result.ToArray();
     }
 
     private void ApplyInheritance(Role target, Role source)
