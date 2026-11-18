@@ -341,19 +341,16 @@ internal sealed class LinkedStepApiSetup
         files["Common/Roles/Student.yaml"] = "name: Student";
         files["Individual/Actions.yaml"] = "globalActions:\n  - type: View\n    roles: [Registered, Student]";
         if (sourceAccess) files.TryAdd("Shared/Actions.yaml", files["Individual/Actions.yaml"]);
-        files["Individual/Screens/Overview.yaml"] = """
-                                                    name: Overview
-                                                    columns:
-                                                      - type: CurrentStep
-                                                    grouping:
-                                                      groups:
-                                                        - name: shared
-                                                          title: Shared
-                                                          steps: [SharedUpload, SharedAssessment]
-                                                        - name: after
-                                                          title: After
-                                                          steps: [After]
-                                                    """;
+        var groups = new List<string>
+        {
+            "      - name: before\n        title: Before\n        steps: [Before]",
+            "      - name: shared\n        title: Shared\n        steps: [SharedUpload, SharedAssessment]"
+        };
+        if (!finalImport)
+            groups.Add("      - name: after\n        title: After\n        steps: [After]");
+        files["Individual/Screens/Overview.yaml"] =
+            "name: Overview\ncolumns:\n  - type: CurrentStep\ngrouping:\n  groups:\n" +
+            string.Join("\n", groups);
         if (finalImport)
             files["Individual/Entity.yaml"] = files["Individual/Entity.yaml"].Replace(
                 "[Before, SharedUpload, SharedAssessment, After]", "[Before, SharedUpload, SharedAssessment]");

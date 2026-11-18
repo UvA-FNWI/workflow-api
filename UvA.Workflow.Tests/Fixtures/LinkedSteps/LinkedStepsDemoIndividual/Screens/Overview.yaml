@@ -19,4 +19,5 @@ grouping:
       steps: [IndividualWork, Finalise]
     - name: completed
       title: Completed
-      steps: ['null']
+      steps:
+        - null

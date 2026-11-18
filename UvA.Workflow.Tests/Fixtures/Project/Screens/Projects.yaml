@@ -62,12 +62,11 @@ grouping:
         en: Thesis in Progress
         nl: Bezig met scriptie
       steps:
-        - Proposal
         - Upload
+        - ApprovalCoordinator
         - Assessment
         - AssessmentReviewer
         - AssessmentSupervisor
-        - ApprovalCoordinator
     
     - name: completed
       title:
