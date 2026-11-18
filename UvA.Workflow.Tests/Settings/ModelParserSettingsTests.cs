@@ -1,7 +1,7 @@
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.WorkflowModel;
 
-namespace UvA.Workflow.Tests.WorkflowModel;
+namespace UvA.Workflow.Tests.Settings;
 
 public class ModelParserSettingsTests
 {
