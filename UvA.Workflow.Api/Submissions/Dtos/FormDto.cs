@@ -18,6 +18,7 @@ public record FormDto(
         var totalWeight = allPages
             .SelectMany(p => p.Questions)
             .OfType<WeightedPropertyDefinition>()
+            .Where(q => q.Condition.IsMet(context))
             .Sum(q => q.Calculation?.Weight ?? 0);
 
         // For child forms, only pages matching Sources belong to the current form. For base forms, all pages are considered part of the current form.

@@ -164,7 +164,7 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     public FormConfirmation? Confirmation { get; set; }
 
     /// <summary>
-    /// Name of a form template (file under Common/FormTemplates) to resolve this form from
+    /// Name of a form template (Templates/Forms) to resolve this form from
     /// </summary>
     [YamlMember(Alias = "template")]
     public string? TemplateKey { get; set; }
@@ -180,7 +180,6 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     /// </summary>
     [YamlIgnore]
     public Dictionary<string, object>? ResolvedTemplateValues { get; set; }
-
 
     public IEnumerable<PropertyDefinition> PropertyDefinitions =>
         Pages.SelectMany(p => p.Questions)
