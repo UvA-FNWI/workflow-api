@@ -2152,6 +2152,26 @@
       "properties": {
         "enabled": {
           "type": "boolean"
+        },
+        "card": {
+          "type": "boolean",
+          "description": "Show the instance-level messages card. Default true when messages are enabled."
+        },
+        "fields": {
+          "type": "boolean",
+          "description": "When true (default), visible fields allow messages unless opted out with messages: false on the property. When false, field messages need messages: true on the property."
+        },
+        "layout": {
+          "type": "string",
+          "enum": ["threaded", "flat"]
+        },
+        "close": {
+          "type": "boolean",
+          "description": "When false, conversations cannot be closed or reopened."
+        },
+        "callout": {
+          "type": "boolean",
+          "description": "Show a privacy callout in the instance messages card."
         }
       }
     }

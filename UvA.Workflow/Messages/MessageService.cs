@@ -78,6 +78,16 @@ public class MessageService(
         switch (input.Kind)
         {
             case ItemKind.Reopen:
+            case ItemKind.Close:
+                if (!definition.MessagesAllowClose)
+                    throw new InvalidWorkflowStateException(instance.Id, "MessagesCloseDisabled",
+                        "Closing conversations is disabled for this workflow.");
+                break;
+        }
+
+        switch (input.Kind)
+        {
+            case ItemKind.Reopen:
                 if (!existing.IsClosed)
                     throw new InvalidWorkflowStateException(instance.Id, "MessageOpen",
                         "This conversation is already open.");
