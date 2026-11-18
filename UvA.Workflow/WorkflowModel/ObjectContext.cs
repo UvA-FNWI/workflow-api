@@ -1,10 +1,12 @@
 using System.Collections;
 using UvA.Workflow.Events;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
-public class ObjectContext(
+public partial class ObjectContext(
     Dictionary<Lookup, object?> values,
     IReadOnlyDictionary<string, string[]>? valueSets = null,
     DateTime? evaluatedAt = null)
@@ -15,24 +17,44 @@ public class ObjectContext(
 
     public Dictionary<Lookup, object?> Values { get; } = values;
 
+    // Keep reference IDs available for equality and collection operations.
+    internal Dictionary<Lookup, object?> LoadedReferenceValues { get; } = new();
+    internal HashSet<string> UnresolvedReferences { get; } = new();
+    private HashSet<string> UnavailableProperties { get; } = new();
+    public Dictionary<string, ImportedStepContext?> ImportedSteps { get; } = [];
+    public DateTime? WorkflowCompletionDate { get; set; }
+
+    /// <summary>Internal step name, retained when display enrichment replaces the expression value with a title.</summary>
+    public string? CurrentStep
+    {
+        get;
+        internal set
+        {
+            field = value;
+            Values["CurrentStep"] = value;
+        }
+    } = values.GetValueOrDefault("CurrentStep") as string;
+
     /// <summary>
     ///     Choice names per value set, referenced in expressions as <c>ValueSets.Name</c>.
     ///     Kept apart from <see cref="Values" /> so value-set names cannot clash with properties or effect outputs.
     /// </summary>
     public IReadOnlyDictionary<string, string[]> ValueSets { get; } = valueSets ?? NoValueSets;
 
-    public string? Id => Values.GetValueOrDefault("Id")?.ToString();
+    public string? Id => Values.GetValueOrDefault(ContextKeys.Id)?.ToString();
 
     public object? Get(Lookup path)
     {
-        if (path == "now")
+        if (path == ContextKeys.Now)
             return Now;
-        if (path is PropertyLookup { Parts: ["ValueSets", var valueSet] })
+        if (path is PropertyLookup { Parts: [ContextKeys.ValueSets, var valueSet] })
             return ValueSets.GetValueOrDefault(valueSet);
         if (Values.TryGetValue(path, out var res))
             return res;
         var parts = path.ToString().Split('.');
-        res = Values.GetValueOrDefault(parts[0]);
+        res = parts.Length > 1 && LoadedReferenceValues.TryGetValue(parts[0], out var referenced)
+            ? referenced
+            : Values.GetValueOrDefault(parts[0]);
         foreach (var part in parts.Skip(1))
         {
             res = GetPart(res, part);
@@ -40,6 +62,8 @@ public class ObjectContext(
 
         return res;
     }
+
+    public bool WorkflowStopped => Get(ContextKeys.WorkflowStopped) is true;
 
     private static object? GetPart(object? value, string part)
         => value switch
@@ -53,19 +77,97 @@ public class ObjectContext(
             _ => value.GetType().GetProperty(part)?.GetValue(value)
         };
 
-    public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData)
+    /// <summary>Copies the context with overridden values, discarding their previous reference and availability state.</summary>
+    public ObjectContext WithValues(IEnumerable<KeyValuePair<Lookup, object?>> overrides,
+        IReadOnlyDictionary<string, string[]>? valueSets = null)
     {
-        var dict = rawData.ToDictionary(
-            Lookup (t) => new PropertyLookup(t.Key == "_id" ? "Id" : t.Key),
-            t =>
+        var entries = overrides.ToArray();
+        var overridden = entries.Select(entry => entry.Key).ToHashSet();
+        var copy = new ObjectContext(new Dictionary<Lookup, object?>(Values), valueSets ?? ValueSets, evaluatedAt);
+        foreach (var (key, value) in entries)
+            copy.Values[key] = value;
+        foreach (var (key, value) in LoadedReferenceValues.Where(entry => !overridden.Contains(entry.Key)))
+            copy.LoadedReferenceValues[key] = value;
+        copy.UnresolvedReferences.UnionWith(UnresolvedReferences.Where(name => !overridden.Contains((Lookup)name)));
+        copy.UnavailableProperties.UnionWith(UnavailableProperties.Where(name => !overridden.Contains((Lookup)name)));
+        foreach (var (name, owner) in ImportedSteps)
+            copy.ImportedSteps[name] = owner;
+        copy.WorkflowCompletionDate = WorkflowCompletionDate;
+        return copy;
+    }
+
+    /// <summary>Scopes a context to a nested object's properties and value sets, preserving unavailable inputs.</summary>
+    internal ObjectContext WithPropertyValues(string path, WorkflowDefinition definition)
+    {
+        var overrides = definition.Properties.ToDictionary(
+            property => (Lookup)property.Name, property => Get($"{path}.{property.Name}"));
+        var scoped = WithValues(overrides, GetValueSets(definition));
+        foreach (var property in definition.Properties)
+            if (IsInputUnavailable((Lookup)$"{path}.{property.Name}"))
+                scoped.UnavailableProperties.Add(property.Name);
+        return scoped;
+    }
+
+    /// <summary>Rejects inputs that depend on referenced instances that could not be loaded.</summary>
+    internal void EnsureInputsAvailable(IEnumerable<Lookup> lookups)
+    {
+        foreach (var lookup in lookups)
+            if (IsInputUnavailable(lookup))
+                throw new InvalidWorkflowStateException(Id ?? "", "UnresolvedReference",
+                    $"Input '{lookup}' is unavailable because a referenced workflow instance could not be loaded");
+    }
+
+    /// <summary>Checks whether a lookup or one of its arguments depends on an unresolved reference.</summary>
+    private bool IsInputUnavailable(Lookup lookup) => lookup switch
+    {
+        PropertyLookup property => UnavailableProperties.Contains(property.Parts[0]) ||
+                                   property.Parts.Length > 1 && UnresolvedReferences.Contains(property.Parts[0]),
+        ComplexLookup complex => complex.Arguments.SelectMany(argument => argument.Properties).Any(IsInputUnavailable),
+        _ => false
+    };
+
+    /// <summary>Replaces collection reference IDs with loaded objects so expressions can select their fields.</summary>
+    internal object? ResolveReferenceItems(object? value, IEnumerable<Lookup> sources)
+    {
+        if (value is not IEnumerable items || value is string)
+            return value;
+        var references = sources.OfType<PropertyLookup>()
+            .Select(source => LoadedReferenceValues.GetValueOrDefault(source.Parts[0]))
+            .SelectMany(loaded => loaded switch
             {
-                var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
-                return GetValue(t.Value, prop?.DataType ?? workflowDefinition.GetDataType(t.Key), prop);
-            });
+                Dictionary<Lookup, object?> reference => [reference],
+                Dictionary<Lookup, object?>[] many => many,
+                _ => Array.Empty<Dictionary<Lookup, object?>>()
+            })
+            .DistinctBy(reference => reference["Id"])
+            .ToDictionary(reference => reference["Id"]!.ToString()!);
+        return references.Count == 0
+            ? value
+            : items.Cast<object?>()
+                .Select(item => item is string id && references.TryGetValue(id, out var reference) ? reference : item)
+                .ToArray();
+    }
+
+    /// <summary>Builds a projected context and computes properties whose source values have been loaded.</summary>
+    public static ObjectContext Create(WorkflowDefinition workflowDefinition, Dictionary<string, BsonValue> rawData,
+        IEnumerable<string>? projectedProperties = null)
+    {
+        var dict = rawData.Where(entry => workflowDefinition.Properties.GetOrDefault(entry.Key)?.IsComputed != true)
+            .ToDictionary(
+                Lookup (t) => new PropertyLookup(t.Key == "_id" ? ContextKeys.Id : t.Key),
+                t =>
+                {
+                    var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
+                    return GetValue(t.Value, prop?.DataType ?? workflowDefinition.GetDataType(t.Key), prop);
+                });
+
+        foreach (var property in projectedProperties ?? [])
+            dict.TryAdd(property == "_id" ? ContextKeys.Id : property, null);
 
         // Normalize projected event data in the same way as a fully loaded workflow instance.
-        if (rawData.TryGetValue("Events", out var eventsValue) && eventsValue is BsonDocument eventsDoc)
+        if (rawData.GetValueOrDefault("Events") is BsonDocument || projectedProperties?.Contains("Events") == true)
         {
+            var eventsDoc = rawData.GetValueOrDefault("Events") as BsonDocument ?? new BsonDocument();
             var events = eventsDoc.Elements.ToDictionary(
                 element => element.Name,
                 element => new InstanceEvent
@@ -78,7 +180,7 @@ public class ObjectContext(
                 });
             var instance = new WorkflowInstance
             {
-                Id = dict.GetValueOrDefault("Id")?.ToString() ?? string.Empty,
+                Id = dict.GetValueOrDefault(ContextKeys.Id)?.ToString() ?? string.Empty,
                 WorkflowDefinition = workflowDefinition.Name,
                 Properties = [],
                 Events = events
@@ -86,32 +188,50 @@ public class ObjectContext(
 
             AddEventInformation(dict, instance, workflowDefinition);
         }
-        else if (dict.GetValueOrDefault("LastEvent") == null)
+        else if (dict.GetValueOrDefault(ContextKeys.LastEvent) == null && dict.ContainsKey(ContextKeys.CreateDate))
         {
-            dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
+            dict[ContextKeys.LastEvent] = dict.GetValueOrDefault(ContextKeys.CreateDate);
         }
 
-        return new ObjectContext(dict, GetValueSets(workflowDefinition));
+        return CreateWithWorkflowStopped(dict, workflowDefinition);
     }
 
-    public static ObjectContext Create(WorkflowInstance instance, ModelService modelService)
+    /// <summary>Builds an instance context, leaving computed values pending until their required sources are loaded.</summary>
+    public static ObjectContext Create(WorkflowInstance instance, ModelService modelService,
+        IReadOnlySet<string>? pendingProperties = null)
     {
         var dict = new Dictionary<Lookup, object?>();
         foreach (var (k, v) in instance.Properties)
         {
             // Only add property values that are present in the workflow definition
             var propertyDefinition = modelService.GetProperty(instance, k);
-            if (propertyDefinition != null) dict.Add(k, GetValue(v, propertyDefinition));
+            if (propertyDefinition is { IsComputed: false })
+            {
+                dict.Add(k, GetValue(v, propertyDefinition));
+            }
         }
 
-        dict.Add("Id", instance.Id);
-        dict.Add("CurrentStep", instance.CurrentStep);
-        dict.Add("CreateDate", instance.CreatedOn.ToLocalTime());
+        dict.Add(ContextKeys.Id, instance.Id);
+        dict.Add(ContextKeys.CurrentStep, instance.CurrentStep);
+        dict.Add(ContextKeys.CreateDate, instance.CreatedOn.ToLocalTime());
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        foreach (var property in workflowDef.Properties.Where(property =>
+                     !property.IsComputed && pendingProperties?.Contains(property.Name) != true))
+            dict.TryAdd(property.Name, null);
         AddEventInformation(dict, instance, workflowDef);
 
-        return new ObjectContext(dict, GetValueSets(workflowDef), instance.EvaluatedAt);
+        return CreateWithWorkflowStopped(dict, workflowDef, instance.EvaluatedAt);
+    }
+
+    private static ObjectContext CreateWithWorkflowStopped(Dictionary<Lookup, object?> values,
+        WorkflowDefinition definition, DateTime? evaluatedAt = null)
+    {
+        var context = new ObjectContext(values, GetValueSets(definition), evaluatedAt);
+        context.ComputeProperties(definition);
+        if (!definition.IsEmbedded)
+            values[ContextKeys.WorkflowStopped] = definition.StopWhen?.IsMet(context) == true;
+        return context;
     }
 
     /// <summary>
@@ -130,8 +250,14 @@ public class ObjectContext(
         WorkflowInstance instance,
         WorkflowDefinition workflowDefinition)
     {
-        dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
-                            ?? dict.GetValueOrDefault("CreateDate");
+        dict[ContextKeys.LastEvent] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
+                                      ?? dict.GetValueOrDefault(ContextKeys.CreateDate);
+
+        foreach (var ev in workflowDefinition.Events)
+        {
+            dict.TryAdd(ev.Name + "Event", null);
+            dict.TryAdd(ev.Name + "EventActive", false);
+        }
 
         foreach (var ev in instance.Events.Values)
         {
@@ -140,7 +266,7 @@ public class ObjectContext(
             var isActive = EventSuppressionHelper.IsEventActive(ev.Id, instance, workflowDefinition);
 
             // A projected event date may already exist. Replace it with the normalized active value.
-            dict.Remove(eventKey);
+            dict[eventKey] = null;
             dict[activeKey] = isActive;
 
             if (ev.Date != null && isActive)
@@ -154,7 +280,7 @@ public class ObjectContext(
     }
 
     // TODO: is there a better way to do this?
-    private static IEnumerable GetTypedArray(BsonArray array, DataType type)
+    private static IEnumerable GetTypedArray(BsonArray array, DataType type, PropertyDefinition? property)
     {
         return type switch
         {
@@ -163,7 +289,7 @@ public class ObjectContext(
             DataType.File => array.Select(r => GetValue(r, type) as ArtifactInfo).ToArray(),
             DataType.String or DataType.Choice or DataType.Reference => array.Select(r => GetValue(r, type) as string)
                 .ToArray(),
-            DataType.Object => array.Select(r => GetValue(r, type) as Dictionary<string, object>).ToArray(),
+            DataType.Object => array.Select(r => GetObjectValue(r, property as ObjectPropertyDefinition)).ToArray(),
             _ => array.Select(r => GetValue(r, type)).ToArray()
         };
     }
@@ -175,12 +301,12 @@ public class ObjectContext(
         return type switch
         {
             _ when question?.IsArray == true => answer.IsBsonArray
-                ? GetTypedArray(answer.AsBsonArray, type)
-                : GetTypedArray(new BsonArray { answer }, type),
+                ? GetTypedArray(answer.AsBsonArray, type, question)
+                : GetTypedArray(new BsonArray { answer }, type, question),
             DataType.User => BsonSerializer.Deserialize<InstanceUser>(answer.AsBsonDocument),
             DataType.Currency => BsonSerializer.Deserialize<CurrencyAmount>(answer.AsBsonDocument),
             DataType.File => BsonSerializer.Deserialize<ArtifactInfo>(answer.AsBsonDocument),
-            DataType.Object => answer.AsBsonDocument.ToDictionary(),
+            DataType.Object => GetObjectValue(answer, question as ObjectPropertyDefinition),
             DataType.Reference => answer.ToString(),
             DataType.Date or DataType.DateTime => answer.AsBsonDateTime.ToLocalTime(),
             DataType.String or DataType.Choice => BsonConversionTools.ConvertBasicBsonValue(answer),
@@ -189,5 +315,18 @@ public class ObjectContext(
             DataType.Check => BsonConversionTools.ConvertBasicBsonValue(answer),
             _ => throw new NotImplementedException()
         };
+    }
+
+    /// <summary>Reads an embedded object and computes its definition's derived properties without changing stored data.</summary>
+    private static Dictionary<string, object?>? GetObjectValue(BsonValue value, ObjectPropertyDefinition? property)
+    {
+        if (value.IsBsonNull) return null;
+        var definition = property?.WorkflowDefinition;
+        if (definition == null)
+            return value.AsBsonDocument.ToDictionary();
+        var data = value.AsBsonDocument.ToDictionary(entry => entry.Name, entry => entry.Value);
+        foreach (var source in definition.Properties.Where(source => !source.IsComputed))
+            data.TryAdd(source.Name, BsonNull.Value);
+        return Create(definition, data).Values.ToDictionary(entry => entry.Key.ToString()!, entry => entry.Value);
     }
 }

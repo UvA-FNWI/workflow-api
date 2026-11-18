@@ -1,6 +1,7 @@
 using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Users;
+using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
 
@@ -32,6 +33,7 @@ public class RightsServiceImpersonationTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext.Object);
         var instance = ImpersonationTestHelpers.CreateProjectInstance();
 
@@ -63,6 +65,7 @@ public class RightsServiceImpersonationTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext.Object);
         var instance = ImpersonationTestHelpers.CreateProjectInstance();
 
@@ -92,6 +95,7 @@ public class RightsServiceImpersonationTests
             modelService,
             userService.Object,
             repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object),
             impersonationContext.Object);
         var instance = ImpersonationTestHelpers.CreateProjectInstance();
 
@@ -168,16 +172,18 @@ public class RightsServiceImpersonationTests
             .ReturnsAsync(roleName);
 
         var rightsService = new RightsService(
-            modelService, userService.Object, repository.Object, impersonationContext.Object);
+            modelService, userService.Object, repository.Object,
+            UnitTestsHelpers.CreateStateResolver(modelService, repository.Object), impersonationContext.Object);
 
         // The real user's assignment is resolved exclusively through references.
         Assert.Contains(roleName, await new RightsService(
-            modelService, userService.Object, repository.Object).GetViewerRoles(instance));
+            modelService, userService.Object, repository.Object,
+            UnitTestsHelpers.CreateStateResolver(modelService, repository.Object)).GetViewerRoles(instance));
         Assert.True(await rightsService.Can(
             instance, [RoleAction.View], RightsEvaluationMode.RealUser));
 
         Assert.Contains(
-            rightsService.GetImpersonationTargetRoles(instance),
+            await rightsService.GetImpersonationTargetRoles(instance),
             role => role.Name == roleName);
         Assert.Equal(new[] { roleName }, await rightsService.GetViewerRoles(instance));
         Assert.True(await rightsService.Can(instance, RoleAction.View));
@@ -207,10 +213,11 @@ public class RightsServiceImpersonationTests
             .ReturnsAsync("Supervisor");
 
         var rightsService = new RightsService(
-            modelService, userService.Object, repository.Object, impersonationContext.Object);
+            modelService, userService.Object, repository.Object,
+            UnitTestsHelpers.CreateStateResolver(modelService, repository.Object), impersonationContext.Object);
 
         Assert.Contains(
-            rightsService.GetImpersonationTargetRoles(instance),
+            await rightsService.GetImpersonationTargetRoles(instance),
             role => role.Name == "Supervisor");
         Assert.Equal(new[] { "Supervisor" }, await rightsService.GetViewerRoles(instance));
         Assert.True(await rightsService.Can(instance, RoleAction.View));

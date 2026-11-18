@@ -481,7 +481,8 @@ public class StepHeaderStatusTests
             .ReturnsAsync(roles ?? []);
         userService.Setup(s => s.GetCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
-        var rightsService = new RightsService(modelService, userService.Object, repository.Object);
+        var rightsService = new RightsService(modelService, userService.Object, repository.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -501,8 +502,8 @@ public class StepHeaderStatusTests
             userService.Object,
             rightsService,
             mailBuilder,
-            assessmentService.Object
-        );
+            new WorkflowContextEnricher(repository.Object, modelService, assessmentService.Object),
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
         var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService, instanceService);

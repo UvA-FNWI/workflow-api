@@ -8,7 +8,8 @@ public class PersonalInstanceService(
     ModelService modelService,
     InstanceService instanceService,
     IWorkflowInstanceRepository workflowInstanceRepository,
-    LinkedUserInstances linkedUserInstances)
+    LinkedUserInstances linkedUserInstances,
+    RightsService rightsService)
 {
     private static readonly Lookup[] PersonalOverviewLookups =
     [
@@ -26,10 +27,12 @@ public class PersonalInstanceService(
         if (userFilter == null)
             return new PersonalInstancesDto([], []);
 
-        var instances = await workflowInstanceRepository.GetByFilter(userFilter, ct);
-        var contexts = instances.Select(instance => new PersonalInstanceContext(
-            instance, modelService.CreateContext(instance))).ToArray();
-        return await CreateOverview(user, contexts, ct);
+        var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
+        var contexts = await instanceService.ResolveContexts(instances, ct);
+        var instanceContexts = instances
+            .Select(instance => new PersonalInstanceContext(instance, contexts[instance.Id]))
+            .ToArray();
+        return await CreateOverview(user, instanceContexts, ct);
     }
 
     public async Task<PersonalInstancesDto> GetPersonInstances(User person, CancellationToken ct)
@@ -38,11 +41,12 @@ public class PersonalInstanceService(
             return new PersonalInstancesDto([], []);
 
         var matches = await linkedUserInstances.FindVisibleLinks([personId], ct);
-        var contexts = matches.Select(match => new PersonalInstanceContext(
+        var contexts = await instanceService.ResolveContexts(matches.Select(match => match.Instance).ToArray(), ct);
+        var instanceContexts = matches.Select(match => new PersonalInstanceContext(
             match.Instance,
-            modelService.CreateContext(match.Instance),
+            contexts[match.Instance.Id],
             match.Users.Select(link => link.Role).Distinct(StringComparer.OrdinalIgnoreCase).ToArray())).ToArray();
-        return await CreateOverview(person, contexts, ct);
+        return await CreateOverview(person, instanceContexts, ct);
     }
 
     private async Task<PersonalInstancesDto> CreateOverview(
@@ -51,9 +55,11 @@ public class PersonalInstanceService(
         CancellationToken ct)
     {
         await Enrich(instanceContexts, ct);
+        var viewableSources = await StepProgressResolver.GetViewableSources(
+            instanceContexts.Select(item => item.Context), rightsService);
 
         var instanceDtos = instanceContexts
-            .Select(item => CreateDto(item, user))
+            .Select(item => CreateDto(item, user, viewableSources))
             .Where(dto => dto.Roles.Length > 0)
             .OrderByDescending(dto => dto.CreatedOn)
             .ThenByDescending(dto => dto.Id)
@@ -80,7 +86,10 @@ public class PersonalInstanceService(
         return new PersonalInstancesDto(roles, instanceDtos);
     }
 
-    private PersonalInstanceDto CreateDto(PersonalInstanceContext item, User user)
+    private PersonalInstanceDto CreateDto(
+        PersonalInstanceContext item,
+        User user,
+        IReadOnlySet<string> viewableSources)
     {
         var (instance, context, linkedRoles) = item;
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -113,13 +122,15 @@ public class PersonalInstanceService(
             instance.WorkflowDefinition,
             definition.DisplayTitle,
             definition.InstanceTitleTemplate?.Apply(context),
-            instance.CurrentStep,
-            StepProgressResolver.ResolveProgress(definition, instance.CurrentStep, context),
+            context.CurrentStep,
+            StepProgressResolver.ResolveProgress(definition, context.CurrentStep, context,
+                viewableSources: viewableSources),
             instance.CreatedOn,
             roles.Order(StringComparer.OrdinalIgnoreCase).ToArray(),
             student,
             context.Get("Course.Name") as string,
-            employees
+            employees,
+            context.WorkflowStopped
         );
     }
 

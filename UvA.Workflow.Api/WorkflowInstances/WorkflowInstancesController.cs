@@ -75,6 +75,18 @@ public class WorkflowInstancesController(
     public async Task<ActionResult<WorkflowInstanceDto>> GetById(string id, [FromQuery] int? version = null,
         CancellationToken ct = default)
     {
+        if (version != null)
+        {
+            var current = await repository.GetById(id, ct);
+            if (current == null) return WorkflowInstanceNotFound;
+            if (modelService.WorkflowDefinitions[current.WorkflowDefinition].HasImportedSteps)
+            {
+                if (!await rightsService.Can(current, RoleAction.View)) return Forbidden();
+                return BadRequest("ImportedInstanceHistoryUnsupported",
+                    "Whole-instance history is unavailable for workflows with imported steps.");
+            }
+        }
+
         var instance = version is null
             ? await repository.GetById(id, ct)
             : await workflowInstanceService.GetAsOfVersion(id, version.Value, ct);
@@ -151,7 +163,7 @@ public class WorkflowInstancesController(
             .Select(p => QuestionDto.Create(p, totalWeight: 0))
             .ToArray();
 
-        return Ok(new InstancePropertiesDto(properties, instanceService.GetPropertyValues(instance)));
+        return Ok(new InstancePropertiesDto(properties, await instanceService.GetPropertyValues(instance, ct)));
     }
 
     /// <summary>
@@ -199,16 +211,13 @@ public class WorkflowInstancesController(
             return BadRequest("PropertyPathTooDeep",
                 $"Cannot edit '{path}': only properties nested at most one level deep can be saved.");
 
-        var property = modelService.GetProperty(instance, parts);
-        if (property == null)
+        if (modelService.GetProperty(instance, parts) == null)
             return NotFound("PropertyNotFound", $"Property '{path}' does not exist");
 
         if (!await rightsService.CanEditProperty(instance, path))
             return Forbidden();
 
-        var newValue = await answerConversionService.ConvertToValue(input.Value, property, ct);
-
-        await answerService.SavePropertyValue(instance, parts, property, newValue, shouldLog: true, ct);
+        await answerService.SaveProperty(instance, parts, input.Value, shouldLog: true, ct);
 
         return NoContent();
     }
@@ -263,7 +272,7 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
-        var roles = rightsService.GetImpersonationTargetRoles(instance)
+        var roles = (await rightsService.GetImpersonationTargetRoles(instance, ct))
             .Select(ImpersonationRoleDto.Create)
             .ToArray();
 
@@ -283,13 +292,13 @@ public class WorkflowInstancesController(
             return Forbidden();
 
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var perRole = rightsService.GetAllowedActionsPerTargetRole(instance,
+        var perRole = await rightsService.GetAllowedActionsPerTargetRole(instance,
             RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
             RoleAction.Undo, RoleAction.View);
 
-        var currentStepName = modelService.GetCurrentStep(instance)?.Name;
-        var activeSteps = modelService.GetActiveSteps(instance);
-        var context = modelService.CreateContext(instance);
+        var context = await instanceService.CreateContext(instance, definition.PermissionAndStepLookups, ct);
+        var currentStepName = modelService.GetCurrentStep(instance, context)?.Name;
+        var activeSteps = modelService.GetActiveSteps(instance, context);
         var actionSteps = perRole.SelectMany(r => r.Actions)
             .Distinct()
             .ToDictionary(a => a, a => modelService.GetAvailableStepsForAction(instance, a, activeSteps, context));
@@ -336,12 +345,31 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
-        var normalizedRoleName = rightsService.NormalizeImpersonationTargetRole(instance, input.Role);
+        var normalizedRoleName = await rightsService.NormalizeImpersonationTargetRole(instance, input.Role);
         if (normalizedRoleName == null)
             return BadRequest("InvalidImpersonationRole",
                 $"Role '{input.Role}' cannot be impersonated for workflow '{instance.WorkflowDefinition}'.");
 
-        var token = impersonationService.CreateToken(currentUser.UserName, instance.Id, normalizedRoleName.Name);
+        var importedIds = new List<string>();
+        if (modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps)
+        {
+            var context = await instanceService.ResolveContext(instance, ct);
+            foreach (var source in context.ImportedSteps.Values.OfType<ImportedStepContext>()
+                         .DistinctBy(source => source.Instance.Id))
+            {
+                if (!await rightsService.Can(source.Instance, [RoleAction.ImpersonateRoles],
+                        RightsEvaluationMode.RealUser))
+                    return Forbidden();
+                if (await rightsService.NormalizeImpersonationTargetRole(source.Instance,
+                        normalizedRoleName.Name, ct) == null)
+                    return BadRequest("InvalidImpersonationRole",
+                        $"Role '{normalizedRoleName.Name}' cannot be impersonated for imported workflow '{source.Definition.Name}'.");
+                importedIds.Add(source.Instance.Id);
+            }
+        }
+
+        var token = impersonationService.CreateToken(currentUser.UserName, instance.Id,
+            normalizedRoleName.Name, importedIds);
         return Ok(new StartImpersonationResultDto(
             instance.Id,
             normalizedRoleName,
@@ -364,15 +392,16 @@ public class WorkflowInstancesController(
 
         var res = await repository.GetAll(i => i.WorkflowDefinition == workflowDefinition, ct);
         var contexts = res.Select(modelService.CreateContext).ToList();
+        var entity = modelService.WorkflowDefinitions[workflowDefinition];
 
-        await instanceService.Enrich(modelService.WorkflowDefinitions[workflowDefinition], contexts,
+        await instanceService.Enrich(entity, contexts,
             properties.Select(p => new PropertyLookup(p)), ct);
 
         return Ok(contexts
             .OrderByDescending(i => i.Id)
             .Select(row => properties.ToDictionary(
                 JsonNamingPolicy.CamelCase.ConvertName,
-                p => row.Get(p)
+                p => GetResponseValue(entity, row, p)
             )));
     }
 
@@ -396,23 +425,37 @@ public class WorkflowInstancesController(
                 // Id maps to the always-present _id
                 .Where(p => p != "Id");
 
-        var projection = properties
+        var requestedProperties = properties
             .Append("CreatedOn")
             .Concat(titleProperties)
             .Distinct()
-            .ToDictionary(p => p, entity.GetKey);
+            .ToArray();
+        var lookups = requestedProperties.Select(property => (Lookup)property).ToArray();
+        var projection = entity.GetProjection(lookups);
 
         var res = await repository.GetAllByType(workflowDefinition, projection, ct);
+        var data = res.Select(row => (Row: row,
+            Context: modelService.CreateContext(workflowDefinition, row, projection.Keys))).ToArray();
+        await instanceService.Enrich(entity, data.Select(row => row.Context).ToArray(), lookups, ct, false);
 
-        return Ok(res
-            .OrderByDescending(i => i.GetValueOrDefault("_id"))
-            .Select(i =>
+        return Ok(data
+            .OrderByDescending(item => item.Row.GetValueOrDefault("_id"))
+            .Select(item =>
             {
-                var row = i.ToDictionary(
+                var (i, context) = item;
+                var row = i.Where(entry => entry.Key == "_id" || requestedProperties.Contains(entry.Key)).ToDictionary(
                     k => k.Key == "_id" ? "Id" : k.Key,
                     v => BsonConversionTools.ConvertBasicBsonValue(v.Value));
+                // Use the evaluated context for these fields, e.g. PartyCount = count(PartiesInvolved) has no stored value.
+                foreach (var property in requestedProperties.Where(property =>
+                             property.Contains('.') ||
+                             modelService.GetProperty(entity, property.Split('.')) is { IsComputed: true } or
+                                 { DataType: DataType.Object or DataType.Reference } ||
+                             property == "LastEvent" || entity.Events.Any(ev =>
+                                 property == ev.Name + "Event" || property == ev.Name + "EventActive")))
+                    row[property] = GetResponseValue(entity, context, property);
                 if (titleTemplate != null)
-                    row["Title"] = titleTemplate.Apply(modelService.CreateContext(workflowDefinition, i));
+                    row["Title"] = titleTemplate.Apply(context);
                 return row;
             })
             .Select(row => row.ToDictionary(
@@ -469,6 +512,7 @@ public class WorkflowInstancesController(
         if (propertyDefinition == null)
             return BadRequest("InvalidRelatedUser", $"Related user '{property}' does not exist");
 
+        modelService.EnsureWritable(instance, property.Split('.'));
         var externalUserInput = input.ExternalUser is { } eu
             ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
             : null;
@@ -575,6 +619,15 @@ public class WorkflowInstancesController(
         var history = await instanceHistoryDtoFactory.Create(instance, ct);
 
         return Ok(history);
+    }
+
+    private object? GetResponseValue(WorkflowDefinition definition, ObjectContext context, string path)
+    {
+        var value = context.Get(path);
+        return modelService.GetProperty(definition, path.Split('.')) is
+            { DataType: DataType.Reference } property
+            ? Answer.SerializeValue(property, value)
+            : value;
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)
