@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -18,6 +19,7 @@ public class InfoCard : INamed
     public RelatedUserGroup[] Groups { get; set; } = [];
     public InfoCardItem[] Items { get; set; } = [];
     public BilingualString? Content { get; set; }
+    public Condition? Condition { get; set; }
 
     [YamlIgnore]
     public IEnumerable<Lookup> Properties =>

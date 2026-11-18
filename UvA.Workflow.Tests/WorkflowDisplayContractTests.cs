@@ -56,6 +56,56 @@ public class WorkflowDisplayContractTests : ControllerTestsBase
         AssertAvailable(dto.Steps.Single(step => step.Id == "Current"), true);
     }
 
+    [Fact]
+    public async Task InfoCardAppearsOnlyWhileItsCancellationConditionMatches()
+    {
+        var model = new ModelService(new ModelParser(new DictionaryProvider(new()
+        {
+            ["Common/Conditions/Cancelled.yaml"] = "name: Cancelled\nevent: Cancel",
+            ["Lifecycle/Entity.yaml"] = """
+                                        name: Lifecycle
+                                        stopWhen:
+                                          logical:
+                                            operator: Or
+                                            children:
+                                              - event: Cancel
+                                              - event: Pause
+                                        events:
+                                          - name: Reopen
+                                            suppresses: [Cancel]
+                                        infoCards:
+                                          - name: GeneralInformation
+                                            type: Text
+                                            title: General information
+                                            content: Workflow information
+                                          - name: StopFollowUp
+                                            type: Text
+                                            title: Stop follow-up
+                                            content: Follow up with the student.
+                                            condition:
+                                              name: Cancelled
+                                        """
+        })));
+        var instance = new WorkflowInstanceBuilder().WithWorkflowDefinition("Lifecycle").WithCurrentStep("").Build();
+        var factory =
+            StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, new Mock<IWorkflowInstanceRepository>());
+        var pausedAt = new DateTime(2026, 11, 17, 10, 0, 0, DateTimeKind.Utc);
+
+        await AssertVisibleCards("GeneralInformation");
+        instance.RecordEvent("Pause", pausedAt);
+        await AssertVisibleCards("GeneralInformation");
+        instance.RecordEvent("Cancel", pausedAt.AddHours(1));
+        await AssertVisibleCards("GeneralInformation", "StopFollowUp");
+        instance.RecordEvent("Reopen", pausedAt.AddHours(2));
+        await AssertVisibleCards("GeneralInformation");
+
+        async Task AssertVisibleCards(params string[] names)
+        {
+            var dto = await factory.Create(instance, CancellationToken.None);
+            Assert.Equal(names, dto.InfoCards.Select(card => card.Name));
+        }
+    }
+
     private static void AssertAvailable(StepDto step, bool expected)
         => Assert.Equal(expected, JsonSerializer.SerializeToElement(step).GetProperty("IsAvailable").GetBoolean());
 }
