@@ -28,6 +28,7 @@ public class SettingsControllerTests
         {
             Ui = new UiSettings
             {
+                AppName = new BilingualString("Security Register", "Security Register"),
                 Overview = new OverviewUiSettings
                 {
                     Title = new BilingualString("Registers", "Registers"),
@@ -42,7 +43,8 @@ public class SettingsControllerTests
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var dto = Assert.IsType<SettingsDto>(ok.Value);
-        Assert.Equal("Registers", dto.Ui!.Overview!.Title!.En);
+        Assert.Equal("Security Register", dto.Ui!.AppName!.En);
+        Assert.Equal("Registers", dto.Ui.Overview!.Title!.En);
         Assert.Equal("No access", dto.Ui.Overview.NoAccess!.En);
     }
 }
