@@ -20,7 +20,7 @@ pages:
       - question: ArgumentationCreativityComments
       - question: ConclusionDiscussion
       - question: ConclusionDiscussionComments
-    sources: [AssessmentSupervisor, AssessmentSecondReader]
+    sources: [AssessmentSupervisor, AssessmentSecondAssessor]
 
   - name: Form
     title: Form
@@ -29,7 +29,7 @@ pages:
       - question: StructureComments
       - question: LayoutLanguage
       - question: LayoutLanguageComments
-    sources: [AssessmentSupervisor, AssessmentSecondReader]
+    sources: [AssessmentSupervisor, AssessmentSecondAssessor]
     
   - name: ContentComments
     title: Content
@@ -56,7 +56,7 @@ pages:
       - question: Process
       - question: DoctrinalAnalysis
       - question: Motivation
-    sources: [AssessmentSupervisor, AssessmentSecondReader]
+    sources: [AssessmentSupervisor, AssessmentSecondAssessor]
     
   - name: FinalDetailsConfirmation
     title: Final details

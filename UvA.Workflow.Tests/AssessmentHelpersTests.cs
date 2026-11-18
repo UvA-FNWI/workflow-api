@@ -1,4 +1,5 @@
 using MongoDB.Bson;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Tools;
 
@@ -66,10 +67,12 @@ public class AssessmentHelpersTests
         string propertyName,
         params (string pageName, (string fieldName, decimal weight, double answer)[] questions)[] pages)
     {
+        var definition = new WorkflowDefinition { Name = formName };
         var form = new Form
         {
             Name = formName,
             PropertyName = propertyName,
+            WorkflowDefinition = definition,
             Pages = pages.Select(p => new Page
             {
                 Name = p.pageName,
@@ -79,6 +82,8 @@ public class AssessmentHelpersTests
                         var propDef = new DoublePropertyDefinition
                         {
                             Name = q.fieldName,
+                            ParentType = definition,
+                            Type = "Double",
                             Calculation = new CalculationSettings { Weight = q.weight }
                         };
                         return new PageElement { Question = propDef.Name, QuestionDefinition = propDef };
@@ -367,6 +372,50 @@ public class AssessmentHelpersTests
 
         // (7.67 * 3 + 6.0 * 1) / 4 = 29.01 / 4 = 7.25
         Assert.Equal(7.25m, result.WeightedAverage);
+    }
+
+    [Fact]
+    public void CalculateSourceResult_OnlyGradesPagesAssignedToTheSource()
+    {
+        var (form, context) = CreateContext("assessor", "assessor",
+            ("Report", [("Quality", 10, 8.0)]),
+            ("Process", [("Clarity", 75, 8.0)]),
+            ("Contribution", [("Independence", 15, 0.0)]));
+        form.Pages[2].Sources = ["supervisor"];
+        var derivedForm = new Form
+        {
+            Name = form.Name,
+            PropertyName = form.PropertyName,
+            TargetForm = form
+        };
+
+        var result = AssessmentHelpers.CalculateSourceResult(derivedForm, context, pageName: null);
+
+        Assert.Equal(8m, result.WeightedAverage);
+        Assert.Equal(2, result.PageResults.Count);
+        var pageResult = Assert.Single(
+            AssessmentHelpers.CalculateSourceResult(derivedForm, context, pageName: "Report").PageResults);
+        Assert.Equal(11.76m, pageResult.Percentage);
+        var formPages = FormDto.Create(derivedForm, context).Pages;
+        Assert.Equal(pageResult.Percentage, formPages[0].Percentage);
+        Assert.Null(formPages[2].Percentage);
+    }
+
+    [Fact]
+    public void CalculateCombined_KeepsSourceOnlyPagesAndOmitsNonComparableQuestions()
+    {
+        var supervisor = Source("supervisor", ("Report", Page((85, 8))), ("Contribution", Page((15, 9))));
+        var assessor = Source("assessor", ("Report", Page((85, 8))));
+        supervisor.PageResults[0].QuestionResults[0].Name = "Holistic";
+        assessor.PageResults[0].QuestionResults[0].Name = "Detailed";
+
+        var result = AssessmentHelpers.CalculateCombined(
+            PartConfig(("supervisor", 2), ("assessor", 1)), [supervisor, assessor]);
+
+        Assert.Equal(2, result.PageResults.Count);
+        Assert.Equal(8m, result.PageResults[0].WeightedAverage);
+        Assert.Empty(result.PageResults[0].QuestionResults);
+        Assert.Equal(9m, result.PageResults[1].WeightedAverage);
     }
 
     [Fact]
