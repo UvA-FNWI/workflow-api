@@ -49,11 +49,21 @@ public class Condition
     /// </summary>
     public BilingualString? Message { get; set; }
 
+    [JsonIgnore] [YamlIgnore] public BilingualTemplate? MessageTemplate => field ??= BilingualTemplate.Create(Message);
+
     [JsonIgnore] [YamlIgnore] public Condition? NamedCondition { get; set; }
 
     public ConditionPart Part => Value ?? Logical ?? Date ?? Deadline ?? Event ?? NamedCondition?.Part!;
 
     public IEnumerable<Lookup> Properties => Part?.Properties ?? [];
+
+    [JsonIgnore]
+    [YamlIgnore]
+    public IEnumerable<Lookup> MessageLookups =>
+        MessageTemplate?.Properties ??
+        (Part is Logical { Operator: LogicalOperator.Or } logical
+            ? logical.Children.SelectMany(branch => branch.MessageTemplate?.Properties ?? [])
+            : []);
 
     public static implicit operator Condition(string name) => new() { Name = name };
 }

@@ -138,9 +138,12 @@ public partial class InstanceService(
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps
+        var context = workflowDefinition.HasImportedSteps
             ? await stateResolver.Resolve(instance, ct)
             : modelService.CreateContext(instance);
+        if (context.WorkflowStopped)
+            return;
+
         if (!workflowDefinition.HasImportedSteps)
             await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         var targetStep = modelService.FindOpenStep(instance, context)?.Name;
@@ -185,7 +188,7 @@ public partial class InstanceService(
                     t => ObjectContext.GetValue(r.GetValueOrDefault(t), entity.GetDataType(t),
                         entity.Properties.FirstOrDefault(p => p.Name == t))
                 );
-            dict["Id"] = r["_id"].ToString();
+            dict[ContextKeys.Id] = r["_id"].ToString();
             return new ObjectContext(dict, ObjectContext.GetValueSets(entity));
         });
     }

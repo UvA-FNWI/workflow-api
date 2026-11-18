@@ -83,10 +83,4 @@ public record ScreenColumnDto(
 
 public record ScreenRowDto(
     string Id,
-    Dictionary<int, object?> Values)
-{
-    public static ScreenRowDto Create(string id, Dictionary<int, object?> values)
-    {
-        return new ScreenRowDto(id, values);
-    }
-}
+    Dictionary<int, object?> Values);

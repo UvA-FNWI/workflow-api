@@ -48,6 +48,46 @@ public class DerivedPropertyTests
         Assert.DoesNotContain("Countries", instance.Properties.Keys);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Context_EvaluatesStopConditionAfterComputingLocalProperties(bool projected)
+    {
+        var model = Parse(Properties + "\nstopWhen:\n  value:\n    property: HasParties\n    equal: true");
+        var instance = Instance();
+
+        ObjectContext CreateContext() => projected
+            ? model.CreateContext("Project", instance.Properties)
+            : model.CreateContext(instance);
+
+        Assert.True(CreateContext().WorkflowStopped);
+        instance.Properties["Parties"] = new BsonArray();
+        Assert.False(CreateContext().WorkflowStopped);
+    }
+
+    [Fact]
+    public void Parser_RejectsStopConditionWithComputedReferenceInput()
+    {
+        var exception = Assert.ThrowsAny<Exception>(() => Parse("""
+                                                                name: Project
+                                                                stopWhen:
+                                                                  value:
+                                                                    property: TargetName
+                                                                    equal: Closed
+                                                                properties:
+                                                                  - name: Target
+                                                                    type: Target
+                                                                  - name: TargetName
+                                                                    type: String
+                                                                    expression: Target.Name
+                                                                """, new()
+        {
+            ["Target/Entity.yaml"] = "name: Target\nproperties:\n  - name: Name\n    type: String"
+        }));
+
+        Assert.Contains("stopWhen", exception.ToString());
+    }
+
     [Fact]
     public void RebuildingContext_UsesChangedSourcesAndIgnoresOldStoredComputedValue()
     {

@@ -41,6 +41,16 @@ public class WorkflowInstanceDtoFactory(
                 .Concat(workflowDefinition.InstanceTitleTemplate?.Properties ?? [])
                 .Concat(workflowDefinition.Fields.SelectMany(field =>
                     field.Properties.Concat(field.Condition?.Properties ?? []))), ct);
+        BilingualString? stopMessage = null;
+        if (context.WorkflowStopped)
+        {
+            var stopContext = context.WithValues([]);
+            await instanceService.Enrich(workflowDefinition, [stopContext],
+                workflowDefinition.StopWhen?.MessageLookups ?? [], ct, replaceStep: false);
+            stopMessage = StepProgressResolver.ResolveProgress(workflowDefinition, instance.CurrentStep, stopContext)
+                .Text;
+        }
+
         var actions = await instanceService.GetAllowedActions(instance, ct, context);
         var pinnedActions = actions.Where(action => action.Action.Steps.Length == 0 &&
                                                     action.Action.Type is RoleAction.Submit or RoleAction.Execute)
@@ -173,7 +183,9 @@ public class WorkflowInstanceDtoFactory(
             canUseAdminTools,
             canImpersonate,
             viewerRoles,
-            infoCards
+            infoCards,
+            context.WorkflowStopped,
+            stopMessage
         );
     }
 
@@ -188,7 +200,7 @@ public class WorkflowInstanceDtoFactory(
             var obj = GetDisplayValue(workflowDefinition, field, context);
             if (obj is object[] arr && arr.Length == 1)
                 obj = arr[0];
-            var key = field.CurrentStep ? "CurrentStep" : field.Property;
+            var key = field.CurrentStep ? ContextKeys.CurrentStep : field.Property;
             result.Add(new FieldDto(key, field.DisplayTitle, obj, field.IsHighlighted ?? false, field.Order));
         }
 
