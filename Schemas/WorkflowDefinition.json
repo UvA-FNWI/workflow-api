@@ -46,12 +46,12 @@
       "description": "Integer indicating the tab order in the instance page"
     },
     "icon": {
-      "description": "Optional icon for overview list entries (hub navigation).",
       "oneOf": [
         {
           "type": "null"
         },
         {
+          "description": "Optional icon for overview list entries (hub navigation).",
           "$ref": "#/definitions/Icon"
         }
       ]
@@ -189,6 +189,29 @@
           "type": "string"
         }
       }
+    },
+    "Icon": {
+      "title": "Icon",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/definitions/StatusColor"
+        }
+      }
+    },
+    "StatusColor": {
+      "type": "string",
+      "enum": [
+        "Red",
+        "Green"
+      ]
     },
     "EventDefinition": {
       "title": "EventDefinition",
@@ -2150,29 +2173,6 @@
         "Decimal",
         "PassFail"
       ]
-    },
-    "StatusColor": {
-      "type": "string",
-      "enum": [
-        "Red",
-        "Green"
-      ]
-    },
-    "Icon": {
-      "title": "Icon",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "type"
-      ],
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "color": {
-          "$ref": "#/definitions/StatusColor"
-        }
-      }
     }
   }
 }
