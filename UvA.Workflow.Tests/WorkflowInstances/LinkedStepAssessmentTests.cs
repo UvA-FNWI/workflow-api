@@ -326,7 +326,7 @@ internal sealed class LinkedStepAssessmentSetup
             null!, enricher, Resolver);
         Controller = new AssessmentsController(workflows, users.Object, Core.Repository.Object, Assessments,
             Instances, new AssessmentDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config),
-                Core.Model, Assessments), rights);
+                Core.Model, Assessments, Instances), rights);
         Core.Source.Properties["Grade"] = 7.46d;
         Core.Student.Properties["Grade"] = 8d;
         Core.Complete("AssessForm", 21);

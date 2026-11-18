@@ -7,7 +7,7 @@ namespace UvA.Workflow.WorkflowModel;
 /// <summary>
 /// Represents a type of object ("entity") in the workflow system
 /// </summary>
-public class WorkflowDefinition : INamed, IDeclaredKeys
+public partial class WorkflowDefinition : INamed, IDeclaredKeys
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 
@@ -59,6 +59,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     /// Dictionary of properties for this entity type
     /// </summary>
     public List<PropertyDefinition> Properties { get; set; } = new();
+
+    [YamlIgnore] public List<PropertyDefinition> ComputedProperties { get; } = [];
 
     /// <summary>
     /// Dictionary of event definitions for this entity type

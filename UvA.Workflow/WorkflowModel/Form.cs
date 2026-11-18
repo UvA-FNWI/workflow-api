@@ -188,10 +188,7 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
         if (TargetForm == null)
             return context;
 
-        var values = new Dictionary<Lookup, object?>(context.Values);
-        foreach (var property in ActualForm.WorkflowDefinition.Properties)
-            values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
-        return new ObjectContext(values);
+        return context.WithPropertyValues(PropertyName!, ActualForm.WorkflowDefinition);
     }
 
     public Form Clone()
