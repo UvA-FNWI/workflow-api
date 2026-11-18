@@ -172,7 +172,7 @@ public partial class ModelParser
             ValidateUniqueBlockNames(resolved.ContentBlocks, $"Email template '{template.Name}'");
 
             ApplyInheritance(email, resolved);
-            email.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+            email.DeclaredKeys.UnionWith(ReadMappingKeys(substituted));
         }
 
         return emails;
