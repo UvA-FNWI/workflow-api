@@ -234,6 +234,7 @@ public partial class ModelParser
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
         // All definitions must be prepared before checking inputs of referenced computed properties.
+        WorkflowDefinitions.Values.ForEach(ValidateStopWhen);
         WorkflowDefinitions.Values.ForEach(ValidateComputedReads);
         WorkflowDefinitions.Values.ForEach(ValidateImports);
     }
@@ -419,6 +420,8 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        ValidateReservedPropertyNames(workflowDefinition);
+        PreProcess(workflowDefinition.StopWhen);
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
 
@@ -450,20 +453,40 @@ public partial class ModelParser
 
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
-        ValidateValueSetsPrefix(workflowDefinition);
         ValidateComputedWrites(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
 
-    /// <summary>
-    /// Expressions reference value sets as <c>ValueSets.Name</c>, so a property called ValueSets would be unreachable
-    /// </summary>
-    private static void ValidateValueSetsPrefix(WorkflowDefinition workflowDefinition)
+    private static void ValidateStopWhen(WorkflowDefinition definition)
     {
-        if (workflowDefinition.Properties.Contains("ValueSets"))
+        if (definition.StopWhen == null)
+            return;
+
+        var lookups = definition.StopWhen.Properties.ToArray();
+        if (lookups.Any(lookup => lookup is PropertyLookup { Property: ContextKeys.WorkflowStopped }))
             throw new Exception(
-                $"Definition '{workflowDefinition.Name}': property name 'ValueSets' is reserved for value set references.");
+                $"Definition '{definition.Name}': stopWhen cannot refer to {ContextKeys.WorkflowStopped}.");
+        if (lookups.Any(lookup => lookup is ComplexLookup))
+            throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.");
+
+        try
+        {
+            definition.ValidateReadLookups(lookups, allowReference: false, allowAssessment: false);
+        }
+        catch (Exception exception)
+        {
+            throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.",
+                exception);
+        }
+    }
+
+    private static void ValidateReservedPropertyNames(WorkflowDefinition definition)
+    {
+        var reservedName = ContextKeys.Reserved.FirstOrDefault(name => definition.Properties.Contains(name));
+        if (reservedName != null)
+            throw new Exception(
+                $"Definition '{definition.Name}': property name '{reservedName}' is reserved.");
     }
 
     private static void ValidateReservedEventNames(WorkflowDefinition definition)
@@ -608,6 +631,9 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        foreach (var group in screen.Grouping?.Groups ?? [])
+            PreProcess(group.Condition);
+
         var actionNames = new HashSet<string>();
         foreach (var bulkAction in screen.BulkActions)
         {

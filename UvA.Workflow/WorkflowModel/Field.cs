@@ -28,6 +28,7 @@ public class Field
     public BilingualString DisplayTitle =>
         Title ?? PropertyDefinition?.ShortDisplayName ?? Event?.Name ?? "Field";
 
+    private string? ComputedProperty => Property;
     private Template? _valueTemplate, _linkTemplate;
     public Template? ValueTemplate => _valueTemplate ??= Template.Create(Value);
     public Template? LinkTemplate => _linkTemplate ??= Template.Create(Href);

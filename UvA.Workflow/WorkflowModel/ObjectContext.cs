@@ -2,6 +2,7 @@ using System.Collections;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Persistence;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -40,13 +41,13 @@ public partial class ObjectContext(
     /// </summary>
     public IReadOnlyDictionary<string, string[]> ValueSets { get; } = valueSets ?? NoValueSets;
 
-    public string? Id => Values.GetValueOrDefault("Id")?.ToString();
+    public string? Id => Values.GetValueOrDefault(ContextKeys.Id)?.ToString();
 
     public object? Get(Lookup path)
     {
-        if (path == "now")
+        if (path == ContextKeys.Now)
             return Now;
-        if (path is PropertyLookup { Parts: ["ValueSets", var valueSet] })
+        if (path is PropertyLookup { Parts: [ContextKeys.ValueSets, var valueSet] })
             return ValueSets.GetValueOrDefault(valueSet);
         if (Values.TryGetValue(path, out var res))
             return res;
@@ -61,6 +62,8 @@ public partial class ObjectContext(
 
         return res;
     }
+
+    public bool WorkflowStopped => Get(ContextKeys.WorkflowStopped) is true;
 
     private static object? GetPart(object? value, string part)
         => value switch
@@ -151,7 +154,7 @@ public partial class ObjectContext(
     {
         var dict = rawData.Where(entry => workflowDefinition.Properties.GetOrDefault(entry.Key)?.IsComputed != true)
             .ToDictionary(
-                Lookup (t) => new PropertyLookup(t.Key == "_id" ? "Id" : t.Key),
+                Lookup (t) => new PropertyLookup(t.Key == "_id" ? ContextKeys.Id : t.Key),
                 t =>
                 {
                     var prop = workflowDefinition.Properties.GetOrDefault(t.Key);
@@ -159,7 +162,7 @@ public partial class ObjectContext(
                 });
 
         foreach (var property in projectedProperties ?? [])
-            dict.TryAdd(property == "_id" ? "Id" : property, null);
+            dict.TryAdd(property == "_id" ? ContextKeys.Id : property, null);
 
         // Normalize projected event data in the same way as a fully loaded workflow instance.
         if (rawData.GetValueOrDefault("Events") is BsonDocument || projectedProperties?.Contains("Events") == true)
@@ -177,7 +180,7 @@ public partial class ObjectContext(
                 });
             var instance = new WorkflowInstance
             {
-                Id = dict.GetValueOrDefault("Id")?.ToString() ?? string.Empty,
+                Id = dict.GetValueOrDefault(ContextKeys.Id)?.ToString() ?? string.Empty,
                 WorkflowDefinition = workflowDefinition.Name,
                 Properties = [],
                 Events = events
@@ -185,14 +188,12 @@ public partial class ObjectContext(
 
             AddEventInformation(dict, instance, workflowDefinition);
         }
-        else if (dict.GetValueOrDefault("LastEvent") == null && dict.ContainsKey("CreateDate"))
+        else if (dict.GetValueOrDefault(ContextKeys.LastEvent) == null && dict.ContainsKey(ContextKeys.CreateDate))
         {
-            dict["LastEvent"] = dict.GetValueOrDefault("CreateDate");
+            dict[ContextKeys.LastEvent] = dict.GetValueOrDefault(ContextKeys.CreateDate);
         }
 
-        var context = new ObjectContext(dict, GetValueSets(workflowDefinition));
-        context.ComputeProperties(workflowDefinition);
-        return context;
+        return CreateWithWorkflowStopped(dict, workflowDefinition);
     }
 
     /// <summary>Builds an instance context, leaving computed values pending until their required sources are loaded.</summary>
@@ -210,9 +211,9 @@ public partial class ObjectContext(
             }
         }
 
-        dict.Add("Id", instance.Id);
-        dict.Add("CurrentStep", instance.CurrentStep);
-        dict.Add("CreateDate", instance.CreatedOn.ToLocalTime());
+        dict.Add(ContextKeys.Id, instance.Id);
+        dict.Add(ContextKeys.CurrentStep, instance.CurrentStep);
+        dict.Add(ContextKeys.CreateDate, instance.CreatedOn.ToLocalTime());
 
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         foreach (var property in workflowDef.Properties.Where(property =>
@@ -220,8 +221,16 @@ public partial class ObjectContext(
             dict.TryAdd(property.Name, null);
         AddEventInformation(dict, instance, workflowDef);
 
-        var context = new ObjectContext(dict, GetValueSets(workflowDef), instance.EvaluatedAt);
-        context.ComputeProperties(workflowDef);
+        return CreateWithWorkflowStopped(dict, workflowDef, instance.EvaluatedAt);
+    }
+
+    private static ObjectContext CreateWithWorkflowStopped(Dictionary<Lookup, object?> values,
+        WorkflowDefinition definition, DateTime? evaluatedAt = null)
+    {
+        var context = new ObjectContext(values, GetValueSets(definition), evaluatedAt);
+        context.ComputeProperties(definition);
+        if (!definition.IsEmbedded)
+            values[ContextKeys.WorkflowStopped] = definition.StopWhen?.IsMet(context) == true;
         return context;
     }
 
@@ -241,8 +250,8 @@ public partial class ObjectContext(
         WorkflowInstance instance,
         WorkflowDefinition workflowDefinition)
     {
-        dict["LastEvent"] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
-                            ?? dict.GetValueOrDefault("CreateDate");
+        dict[ContextKeys.LastEvent] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
+                                      ?? dict.GetValueOrDefault(ContextKeys.CreateDate);
 
         foreach (var ev in workflowDefinition.Events)
         {

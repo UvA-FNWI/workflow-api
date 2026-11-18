@@ -25,5 +25,6 @@ public record PersonalInstanceDto(
     string[] Roles,
     string? Student,
     string? Course,
-    ScreenRelatedUserDto[] Staff
+    ScreenRelatedUserDto[] Staff,
+    bool WorkflowStopped = false
 );

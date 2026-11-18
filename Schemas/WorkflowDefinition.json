@@ -88,6 +88,20 @@
         "$ref": "#/definitions/Action"
       }
     },
+    "stopWhen": {
+      "description": "Condition that computes WorkflowStopped from events and values on the instance.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
+    },
     "steps": {
       "type": "array",
       "description": "List of step names for this entity type",
@@ -280,6 +294,10 @@
               "$ref": "#/definitions/Condition"
             }
           ]
+        },
+        "allowWhenStopped": {
+          "type": "boolean",
+          "description": "Allows this action while the workflow is stopped. Roles and action conditions still apply."
         },
         "onAction": {
           "type": "array",

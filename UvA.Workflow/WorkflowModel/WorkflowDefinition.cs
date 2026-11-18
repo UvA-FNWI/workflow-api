@@ -1,5 +1,6 @@
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Migrations;
+using UvA.Workflow.WorkflowModel.Conditions;
 using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -75,6 +76,11 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public IEnumerable<Action> AllActions => GlobalActions.Concat(AllSteps.SelectMany(s => s.Actions));
 
     /// <summary>
+    /// Condition that computes WorkflowStopped from events and values on the instance.
+    /// </summary>
+    public Condition? StopWhen { get; set; }
+
+    /// <summary>
     /// List of roles for this entity type. Loaded from the Roles folder of the entity type definition.
     /// </summary>
     [YamlIgnore]
@@ -139,6 +145,7 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public IEnumerable<Lookup> ProgressLookups => AllSteps
         .SelectMany(step => step.Progress)
         .SelectMany(progress => progress.Lookups)
+        .Concat(StopWhen?.MessageLookups ?? [])
         .Distinct();
 
     private static IEnumerable<Step> GetWalkSteps(Step s) =>
@@ -155,7 +162,7 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
 
     public DataType GetDataType(string property)
     {
-        if (property is "LastEvent" or "CreateDate")
+        if (property is ContextKeys.LastEvent or ContextKeys.CreateDate)
             return DataType.DateTime;
         if (Properties.TryGetValue(property, out var prop))
             return prop.DataType;
@@ -166,7 +173,7 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
 
     public string GetKey(string property)
     {
-        if (property == "CreateDate")
+        if (property == ContextKeys.CreateDate)
             return "$CreatedOn";
         if (Properties.Contains(property))
             return $"$Properties.{property}";

@@ -159,7 +159,7 @@ public record Expression
     public virtual IEnumerable<Lookup> Properties => this switch
     {
         // Value sets come from the model, not from instance data, so there is nothing to load
-        Identifier(var k) when k.StartsWith("ValueSets.", StringComparison.Ordinal) => [],
+        Identifier(var k) when k.StartsWith(ContextKeys.ValueSets + ".", StringComparison.Ordinal) => [],
         Identifier(var k) => [k],
         Call(Identifier("select"), [var collection, Text(var selectedField)]) =>
             collection.Properties.Select(lookup => lookup is PropertyLookup property

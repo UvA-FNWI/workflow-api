@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -15,7 +16,7 @@ public class Screen : INamed, IDeclaredKeys
     public Column[] Columns { get; set; } = [];
 
     /// <summary>
-    /// Optional grouping configuration for grouping screen data by steps
+    /// Optional grouping configuration for screen data
     /// </summary>
     public ScreenGrouping? Grouping { get; set; }
 
@@ -64,18 +65,18 @@ public class BulkAction
 }
 
 /// <summary>
-/// Configuration for grouping screen data by workflow steps
+/// Configuration for grouping screen data by conditions or workflow steps
 /// </summary>
 public class ScreenGrouping
 {
     /// <summary>
-    /// List of step groups
+    /// List of screen groups in display order
     /// </summary>
     public StepGroup[] Groups { get; set; } = [];
 }
 
 /// <summary>
-/// Defines a group of workflow steps
+/// Defines a group of workflow instances
 /// </summary>
 public class StepGroup
 {
@@ -90,7 +91,7 @@ public class StepGroup
     public BilingualString Title { get; set; } = null!;
 
     /// <summary>
-    /// Array of step names that belong to this group
+    /// Step names that belong to this group when it has no condition
     /// </summary>
     public string?[] Steps { get; set; } = [];
 
@@ -103,6 +104,11 @@ public class StepGroup
     /// Optional flag to enable or disable the group
     /// </summary>
     public bool? Enabled { get; set; }
+
+    /// <summary>
+    /// Optional condition evaluated before step groups. The first matching condition wins.
+    /// </summary>
+    public Condition? Condition { get; set; }
 }
 
 public enum FilterType

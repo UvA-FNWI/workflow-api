@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.Screens;
 
@@ -14,7 +15,7 @@ public class ScreenDataService(
 
     /// <summary>
     /// Gets screen data for the given screen. When the screen defines a grouping configuration,
-    /// the rows are partitioned into groups by their current workflow step (and the flat row list
+    /// the rows are partitioned into groups by condition or current workflow step (and the flat row list
     /// is left empty); otherwise a flat row list is returned.
     /// </summary>
     public async Task<ScreenDataDto> GetScreenData(string screenName, string workflowDefinition, CancellationToken ct)
@@ -143,7 +144,7 @@ public class ScreenDataService(
                 processedValues[columnId] = value;
             }
 
-            rows.Add(ScreenRowDto.Create(id, processedValues));
+            rows.Add(new ScreenRowDto(id, processedValues));
         }
 
         return rows.ToArray();
@@ -203,6 +204,8 @@ public class ScreenDataService(
         });
 
         var contexts = new List<ObjectContext>();
+        var groupLookups = screen.Grouping?.Groups.SelectMany(group => group.Condition?.Properties ?? []).ToArray()
+                           ?? [];
 
         foreach (var definition in definitions)
         {
@@ -216,11 +219,12 @@ public class ScreenDataService(
                 : [];
 
             var lookups = screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups)
-                .Concat(relatedUserLookups).ToArray();
-            var projection = definition.GetProjection(lookups);
-            projection.TryAdd("CurrentStep", "$CurrentStep");
+                .Concat(relatedUserLookups).Concat(groupLookups).ToArray();
+            var projection = definition.GetProjection(lookups.Concat(definition.StopWhen?.Properties ?? []))
+                .Where(entry => !ContextKeys.IsComputed(entry.Key)).ToDictionary();
+            projection.TryAdd(ContextKeys.CurrentStep, definition.GetKey(ContextKeys.CurrentStep));
             projection.TryAdd("Events", "$Events");
-            projection.TryAdd("CreateDate", "$CreatedOn");
+            projection.TryAdd(ContextKeys.CreateDate, definition.GetKey(ContextKeys.CreateDate));
 
             var authorizationFilter =
                 await instanceAuthorizationFilterService.BuildAuthorizationFilter(
@@ -245,8 +249,9 @@ public class ScreenDataService(
             // Add related properties as needed
             await instanceService.Enrich(definition,
                 rows,
-                screen.Columns.SelectMany(c => c.Properties).Concat(progressLookups).Concat(relatedUserLookups),
-                ct, false);
+                lookups,
+                ct,
+                false);
 
             if (workflowDefinition.GroupChildScreens)
             {
@@ -261,9 +266,8 @@ public class ScreenDataService(
     }
 
     /// <summary>
-    /// Partitions the loaded instances into the screen's configured groups, keyed by their current
-    /// workflow step. All configured groups are always included (even when empty); instances whose
-    /// step does not match any group are dropped.
+    /// Partitions instances by the first matching condition, then by current workflow step.
+    /// All configured groups are included, even when empty. Unmatched instances are dropped.
     /// </summary>
     private ScreenGroupDto[] BuildGroups(
         WorkflowDefinition definition,
@@ -272,26 +276,27 @@ public class ScreenDataService(
         ScreenColumnDto[] columns,
         IReadOnlySet<string> viewableSources)
     {
-        // Build step-to-group mapping from configuration
-        var stepGroupMapping = BuildStepGroupMapping(screen.Grouping!);
+        var groups = screen.Grouping!.Groups;
+        var conditionalGroups = groups.Where(group => group.Condition != null).ToArray();
+        var stepGroupMapping = BuildStepGroupMapping(groups);
 
-        // Group raw rows by step
         var groupedContexts = new Dictionary<string, List<ObjectContext>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var context in contexts)
         {
-            var rowDefinition = definition.GroupChildScreens
-                ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
-                : definition;
-            var stepValue = context.CurrentStep ?? EmptyStepId;
-
-            // Only include rows that match a configured group
-            string? groupName;
-            while (!stepGroupMapping.TryGetValue(stepValue, out groupName))
+            var groupName = conditionalGroups.FirstOrDefault(group => group.Condition.IsMet(context))?.Name;
+            if (groupName == null)
             {
-                stepValue = rowDefinition.AllSteps.FirstOrDefault(s => s.Name == stepValue)?.ParentStep?.Name;
-                if (stepValue == null)
-                    break;
+                var rowDefinition = definition.GroupChildScreens
+                    ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
+                    : definition;
+                var stepValue = context.CurrentStep ?? EmptyStepId;
+                while (!stepGroupMapping.TryGetValue(stepValue, out groupName))
+                {
+                    stepValue = rowDefinition.AllSteps.FirstOrDefault(step => step.Name == stepValue)?.ParentStep?.Name;
+                    if (stepValue == null)
+                        break;
+                }
             }
 
             if (groupName == null)
@@ -307,7 +312,7 @@ public class ScreenDataService(
         }
 
         // Build the result with group metadata (always include all configured groups)
-        return screen.Grouping!.Groups
+        return groups
             .Where(group => group.Enabled != false)
             .Select(g => new ScreenGroupDto(
                 g.Name,
@@ -317,11 +322,11 @@ public class ScreenDataService(
             .ToArray();
     }
 
-    private static Dictionary<string, string> BuildStepGroupMapping(ScreenGrouping grouping)
+    private static Dictionary<string, string> BuildStepGroupMapping(StepGroup[] groups)
     {
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var group in grouping.Groups)
+        foreach (var group in groups.Where(group => group.Condition == null))
         {
             foreach (var step in group.Steps)
             {

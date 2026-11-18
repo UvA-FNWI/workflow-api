@@ -122,6 +122,14 @@ public class JobService(
         return result;
     }
 
+    public async Task RunNewJob(Job job, CancellationToken ct)
+    {
+        job.Status = JobStatus.Running;
+        job.ClaimedUntil = DateTime.UtcNow.Add(workerOptions.Value.JobClaimDuration);
+        await repository.Add(job, ct);
+        await RunJob(job, ct);
+    }
+
     public async Task RunJob(Job job, CancellationToken ct)
     {
         var instance = await workflowInstanceRepository.GetById(job.InstanceId, ct);
@@ -130,6 +138,17 @@ public class JobService(
             logger.LogError("Job {Job} references non-existing instance {InstanceId}", job.Id, job.InstanceId);
             throw new Exception("Instance not found");
         }
+
+        if (modelService.IsWorkflowStopped(instance))
+        {
+            job.Status = JobStatus.Pending;
+            job.ClaimedUntil = null;
+            job.DeferredUntil = DateTime.UtcNow.Add(workerOptions.Value.JobPollingInterval);
+            await repository.Update(job, ct);
+            return;
+        }
+
+        job.DeferredUntil = null;
 
         // TODO: allow jobs without a user
         var user = await userRepository.GetById(job.CreatedBy!, ct);
