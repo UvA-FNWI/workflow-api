@@ -153,11 +153,11 @@ public class UsersController(
     }
 
     [HttpGet("Find")]
-    public async Task<ActionResult<IEnumerable<UserSearchResult>>> Find(string query,
+    public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
         [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
     {
         var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
-        return Ok(searchResults);
+        return Ok(searchResults.Select(UserSearchResultDto.Create));
     }
 
     /// <summary>

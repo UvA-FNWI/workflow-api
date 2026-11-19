@@ -1,5 +1,6 @@
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
@@ -65,7 +66,8 @@ public class AnswersController(
                 updatedInstance = await workflowInstanceDtoFactory.Create(context.Instance, ct);
             }
 
-            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, updatedInstance, User: createdUser));
+            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, updatedInstance,
+                User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }
         catch (ExternalUserCreationException ex)
         {

@@ -298,7 +298,7 @@ public class AnswersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
         Assert.True(response.Success);
-        var pickerUser = Assert.IsType<UserSearchResult>(response.User);
+        var pickerUser = Assert.IsType<UserSearchResultDto>(response.User);
         Assert.Equal("external@example.org", pickerUser.UserName);
         Assert.Equal("External User", pickerUser.DisplayName);
         Assert.Equal("external@example.org", pickerUser.Email);
@@ -332,11 +332,13 @@ public class AnswersControllerTests : ControllerTestsBase
             Type = "[User]!",
             AllowsExternalUsers = true
         };
-        var existingUser = new UserSearchResult(
+        var existingUser = new UserSearchResultDto(
             "internal-user",
             "Internal User",
             "internal@example.org",
-            UserSearchSources.Repository);
+            UserSearchSources.Repository,
+            null,
+            false);
         var currentValue = JsonSerializer.SerializeToElement(
             new[] { existingUser }, AnswerConversionService.Options);
         var createdExternalUser = new UserSearchResult(
@@ -600,12 +602,13 @@ public class AnswersControllerTests : ControllerTestsBase
             "Start",
             "Reviewer",
             new SaveAnswerRequest(
-                Value: JsonSerializer.SerializeToElement(new UserSearchResult(
+                Value: JsonSerializer.SerializeToElement(new UserSearchResultDto(
                     "external@example.org",
                     "External User",
                     "external@example.org",
                     UserSearchSources.Repository,
-                    UserProviderKeys.External))),
+                    null,
+                    true))),
             _ct);
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
@@ -632,12 +635,13 @@ public class AnswersControllerTests : ControllerTestsBase
             "Start",
             "Supervisor",
             new SaveAnswerRequest(
-                Value: JsonSerializer.SerializeToElement(new UserSearchResult(
+                Value: JsonSerializer.SerializeToElement(new UserSearchResultDto(
                     "external@example.org",
                     "External User",
                     "external@example.org",
                     UserSearchSources.Repository,
-                    UserProviderKeys.External))),
+                    null,
+                    true))),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -663,11 +667,13 @@ public class AnswersControllerTests : ControllerTestsBase
             "Start",
             "Reviewer",
             new SaveAnswerRequest(
-                Value: JsonSerializer.SerializeToElement(new UserSearchResult(
+                Value: JsonSerializer.SerializeToElement(new UserSearchResultDto(
                     "internal-123",
                     "Internal User",
                     "internal@example.org",
-                    UserSearchSources.Repository))),
+                    UserSearchSources.Repository,
+                    null,
+                    false))),
             _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

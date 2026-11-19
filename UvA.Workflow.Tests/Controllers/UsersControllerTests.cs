@@ -562,7 +562,7 @@ public class UsersControllerTests : ControllerTestsBase
         var result = await controller.Find("external", true, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResult>>(okResult.Value));
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.True(user.IsExternal);
         var json = JsonSerializer.SerializeToElement(user, JsonSerializerOptions.Web);
         Assert.True(json.GetProperty("isExternal").GetBoolean());
@@ -588,7 +588,7 @@ public class UsersControllerTests : ControllerTestsBase
         var result = await controller.Find("internal", true, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResult>>(okResult.Value));
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.NotNull(user.Organization);
         Assert.Equal(organization.Id, user.Organization!.Id);
         Assert.Equal(organization.Name, user.Organization.Name);
@@ -611,7 +611,7 @@ public class UsersControllerTests : ControllerTestsBase
         var result = await controller.Find("external", true, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResult>>(okResult.Value));
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.Null(user.Organization);
         Assert.True(user.IsExternal);
     }
@@ -643,7 +643,7 @@ public class UsersControllerTests : ControllerTestsBase
         var result = await controller.Find("external", false, _ct);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResult>>(okResult.Value));
+        var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.False(user.IsExternal);
         _userServiceMock.Verify(s => s.FindUsers("external", false, _ct), Times.Once);
     }

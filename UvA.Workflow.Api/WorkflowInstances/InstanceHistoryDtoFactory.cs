@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowModel;
@@ -129,9 +130,9 @@ public class InstanceHistoryDtoFactory(
                 ? null
                 : users.GetValueOrDefault(change.ChangedBy)?.DisplayName ?? change.ChangedBy)).ToArray());
 
-    private static UserSearchResult CreateHistoryUser(User? user, string fallback)
+    private static UserSearchResultDto CreateHistoryUser(User? user, string fallback)
         => user == null
-            ? new(fallback, fallback, "", UserSearchSources.Repository)
-            : new(user.UserName, user.DisplayName, user.Email, UserSearchSources.Repository, user.ProviderKey,
-                user.Organization);
+            ? new(fallback, fallback, "", UserSearchSources.Repository, null, false)
+            : new(user.UserName, user.DisplayName, user.Email, UserSearchSources.Repository, user.Organization,
+                UserProviderKeys.IsExternal(user.ProviderKey));
 }
