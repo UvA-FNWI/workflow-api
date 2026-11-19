@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 using Moq;
 using Serilog;
 using UvA.Workflow.Assessments;
@@ -219,5 +221,30 @@ public abstract class ControllerTestsBase
                 It.IsAny<List<string>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(eventLog);
+    }
+
+    protected static BsonDocument RenderFilter(FilterDefinition<WorkflowInstance> filter)
+    {
+        var serializer = BsonSerializer.SerializerRegistry.GetSerializer<WorkflowInstance>();
+        return filter.Render(new RenderArgs<WorkflowInstance>(
+            serializer,
+            BsonSerializer.SerializerRegistry,
+            new PathRenderArgs(string.Empty, false),
+            renderDollarForm: false));
+    }
+
+    protected static IEnumerable<BsonDocument> Descendants(BsonValue value)
+    {
+        if (value is BsonDocument document)
+        {
+            yield return document;
+            foreach (var descendant in document.Values.SelectMany(Descendants))
+                yield return descendant;
+        }
+        else if (value is BsonArray array)
+        {
+            foreach (var descendant in array.SelectMany(Descendants))
+                yield return descendant;
+        }
     }
 }

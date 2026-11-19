@@ -304,8 +304,9 @@ public class AnswersControllerTests : ControllerTestsBase
         Assert.Equal("external@example.org", pickerUser.Email);
         Assert.Equal(UserSearchSources.Repository, pickerUser.SourceKey);
         Assert.Same(organization, pickerUser.Organization);
-        Assert.True(pickerUser.IsExternal);
-        Assert.DoesNotContain(pickerUser.GetType().GetProperties(), p => p.Name == "ProviderKey");
+        var wireUser = JsonSerializer.SerializeToElement(pickerUser, JsonSerializerOptions.Web);
+        Assert.True(wireUser.GetProperty("isExternal").GetBoolean());
+        Assert.False(wireUser.TryGetProperty("providerKey", out _));
 
         var answer = Assert.Single(response.Answers, a => a.QuestionName == "Supervisor");
         Assert.True(answer.Value.HasValue);
@@ -331,11 +332,13 @@ public class AnswersControllerTests : ControllerTestsBase
             Type = "[User]!",
             AllowsExternalUsers = true
         };
-        var existingUser = new UserSearchResult(
+        var existingUser = new UserSearchResultDto(
             "internal-user",
             "Internal User",
             "internal@example.org",
-            UserSearchSources.Repository);
+            UserSearchSources.Repository,
+            null,
+            false);
         var currentValue = JsonSerializer.SerializeToElement(
             new[] { existingUser }, AnswerConversionService.Options);
         var createdExternalUser = new UserSearchResult(

@@ -306,9 +306,9 @@ public class LinkedStepPresentationTests
         var row = Assert.Single(Assert.Single(screen.Groups!, group => group.Rows.Length > 0).Rows);
         var screenProgress = Assert.IsType<ProgressInformationDto>(Assert.Single(row.Values).Value);
         var user = await api.Users.Object.GetCurrentUser(default);
-        var personal =
-            await new PersonalInstanceService(api.Core.Model, api.Instances, api.Core.Repository.Object, api.Rights)
-                .GetInstances(user!, default);
+        var personal = await new PersonalInstanceService(api.Core.Model, api.Instances, api.Core.Repository.Object,
+                api.Rights)
+            .GetInstances(user!, default);
 
         Assert.Equal(canView, screenProgress.Text.En.Contains("protected-value", StringComparison.Ordinal));
         Assert.Equal(canView,

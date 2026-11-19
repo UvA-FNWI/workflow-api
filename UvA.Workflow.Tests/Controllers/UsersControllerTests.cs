@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,7 @@ using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -562,6 +564,9 @@ public class UsersControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var user = Assert.Single(Assert.IsAssignableFrom<IEnumerable<UserSearchResultDto>>(okResult.Value));
         Assert.True(user.IsExternal);
+        var json = JsonSerializer.SerializeToElement(user, JsonSerializerOptions.Web);
+        Assert.True(json.GetProperty("isExternal").GetBoolean());
+        Assert.False(json.TryGetProperty("providerKey", out _));
     }
 
     [Fact]
