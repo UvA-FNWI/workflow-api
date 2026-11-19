@@ -132,11 +132,6 @@ public static class AssessmentHelpers
             return weights.Length == 0 ? (decimal?)null : weights.Sum();
         });
 
-    public static decimal? GetPagePercentage(decimal? weight, decimal totalWeight) =>
-        weight.HasValue && totalWeight != 0
-            ? Math.Round(weight.Value / totalWeight * 100, 2, MidpointRounding.AwayFromZero)
-            : null;
-
     public static SourceResult CalculateSourceResult(Form form, ObjectContext context,
         string? pageName)
     {
@@ -179,12 +174,10 @@ public static class AssessmentHelpers
                         };
                     }).ToList();
 
-                var weight = pageWeights[page];
                 return new PageResult
                 {
                     Name = page.Name,
-                    Weight = weight,
-                    Percentage = GetPagePercentage(weight, totalWeight),
+                    Weight = pageWeights[page],
                     WeightedAverage = CalculatePageWeightedAverage(questions),
                     Sum = CalculatePageSum(questions),
                     QuestionResults = questions

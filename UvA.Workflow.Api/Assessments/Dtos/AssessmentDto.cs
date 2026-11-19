@@ -257,7 +257,6 @@ public class AssessmentDtoFactory(
             {
                 Name = pr.Name,
                 Weight = pr.Weight,
-                Percentage = pr.Percentage,
                 WeightedAverage = RoundToTwo(pr.WeightedAverage),
                 Sum = RoundToTwo(pr.Sum).Value,
                 QuestionResults = pr.QuestionResults

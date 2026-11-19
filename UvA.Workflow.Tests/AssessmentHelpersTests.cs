@@ -395,9 +395,11 @@ public class AssessmentHelpersTests
         Assert.Equal(2, result.PageResults.Count);
         var pageResult = Assert.Single(
             AssessmentHelpers.CalculateSourceResult(derivedForm, context, pageName: "Report").PageResults);
-        Assert.Equal(11.76m, pageResult.Percentage);
+        Assert.Equal("Report", pageResult.Name);
         var formPages = FormDto.Create(derivedForm, context).Pages;
-        Assert.Equal(pageResult.Percentage, formPages[0].Percentage);
+        Assert.Equal(10m, formPages[0].Percentage);
+        var question = Assert.IsAssignableFrom<WeightedQuestionDto>(Assert.Single(formPages[0].Elements).Question);
+        Assert.Equal(10m, question.Percentage);
         Assert.Null(formPages[2].Percentage);
     }
 

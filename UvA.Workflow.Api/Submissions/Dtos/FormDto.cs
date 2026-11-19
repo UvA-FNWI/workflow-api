@@ -17,7 +17,8 @@ public record FormDto(
         var allPages = form.ActualForm.Pages.ToArray();
         var currentFormPages = form.GetCurrentPages().ToArray();
         var activePages = currentFormPages.Where(p => p.Condition.IsMet(context)).ToArray();
-        var pageWeights = AssessmentHelpers.GetPageWeights(activePages, context);
+        var pageWeights =
+            AssessmentHelpers.GetPageWeights(allPages.Where(page => page.Condition.IsMet(context)), context);
         var totalWeight = pageWeights.Values.Sum() ?? 0;
 
         var questions = activePages
@@ -39,7 +40,9 @@ public record FormDto(
                     ? p.PageElements.Select(e => PageElementDto.Create(e, questions, context))
                         .OfType<PageElementDto>()
                     : [];
-                var percentage = AssessmentHelpers.GetPagePercentage(pageWeights.GetValueOrDefault(p), totalWeight);
+                decimal? percentage = isActive && totalWeight != 0 && pageWeights.GetValueOrDefault(p) is { } weight
+                    ? Math.Round(weight / totalWeight * 100, 2, MidpointRounding.AwayFromZero)
+                    : null;
                 return PageDto.Create(i, p, pageElements, isInCurrentForm, isActive, percentage);
             }).ToArray(),
             form.Layout,

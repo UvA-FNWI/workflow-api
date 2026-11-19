@@ -43,7 +43,6 @@ public class PageResult : INamed
 {
     public string Name { get; set; } = null!;
     public decimal? Weight { get; set; }
-    public decimal? Percentage { get; set; }
     public decimal? WeightedAverage { get; set; }
     public List<QuestionResult> QuestionResults { get; set; } = [];
     public decimal Sum { get; set; }
