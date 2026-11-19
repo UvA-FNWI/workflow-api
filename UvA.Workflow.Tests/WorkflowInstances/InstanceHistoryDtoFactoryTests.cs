@@ -78,7 +78,8 @@ public class InstanceHistoryDtoFactoryTests
                     Id = "known-user",
                     UserName = "known",
                     DisplayName = "Known User",
-                    Email = "known@example.org"
+                    Email = "known@example.org",
+                    ProviderKey = null!
                 }
             ]);
         MockHistory(instance, null,
@@ -125,6 +126,9 @@ public class InstanceHistoryDtoFactoryTests
                 Assert.Equal("Start form reversed", item.Title.En);
                 Assert.Equal("Startformulier teruggedraaid", item.Title.Nl);
                 Assert.Equal("unknown-user", item.User.UserName);
+                Assert.Equal("unknown-user", item.User.DisplayName);
+                Assert.Empty(item.User.Email);
+                Assert.False(item.User.IsExternal);
                 Assert.Equal("Submitted by mistake", item.UndoHistory?.Reason);
             },
             item =>
@@ -140,6 +144,7 @@ public class InstanceHistoryDtoFactoryTests
                 Assert.Equal("Archive reversed", item.Title.En);
                 Assert.Equal("Archiveren teruggedraaid", item.Title.Nl);
                 Assert.Equal("known", item.User.UserName);
+                Assert.True(item.User.IsExternal);
                 Assert.Null(item.UndoHistory?.Reason);
             },
             item =>

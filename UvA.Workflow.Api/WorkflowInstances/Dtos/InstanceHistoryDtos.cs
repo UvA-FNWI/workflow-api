@@ -1,5 +1,4 @@
 using UvA.Workflow.Api.Submissions.Dtos;
-using UvA.Workflow.Api.Users.Dtos;
 
 namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 
@@ -15,7 +14,7 @@ public record InstanceHistoryItemDto(
     InstanceHistoryType Type,
     BilingualString Title,
     DateTime Timestamp,
-    UserSearchResultDto User,
+    UserSearchResult User,
     PropertyHistoryDto? PropertyHistory,
     UndoHistoryDto? UndoHistory
 );

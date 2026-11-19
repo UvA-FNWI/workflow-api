@@ -16,7 +16,7 @@ public record SaveAnswerResponse(
     SubmissionDto Submission,
     WorkflowInstanceDto? UpdatedInstance,
     string? ErrorMessage = null,
-    UserSearchResultDto? User = null);
+    UserSearchResult? User = null);
 
 public class SaveAnswerFileRequest
 {

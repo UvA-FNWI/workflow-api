@@ -2,9 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
-using UvA.Workflow.Api.Personal;
-using UvA.Workflow.Api.Personal.Dtos;
-using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Users;
 using UvA.Workflow.Users.DataNose;
@@ -23,7 +20,6 @@ public class UsersController(
     ExternalUserEmailUpdateService externalUserEmailUpdateService,
     ILogger<UsersController> logger) : ApiControllerBase
 {
-    private const int SearchResultLimit = 50;
     private const string ValidEmailStatus = "Valid";
     private const string ManualUserInternalEmailCode = "ManualUserInternalEmail";
     private const string ManualUserEmailAlreadyExistsCode = "ManualUserEmailAlreadyExists";
@@ -102,25 +98,6 @@ public class UsersController(
         return Ok(UserDto.Create(user));
     }
 
-    [HttpGet("{id}/Instances")]
-    public async Task<ActionResult<PersonalPersonDto>> GetUserInstances(string id,
-        [FromServices] PersonalInstanceService personalInstanceService,
-        [FromServices] InstanceAuthorizationFilterService authorizationFilterService, CancellationToken ct)
-    {
-        if (!await authorizationFilterService.CanAccessAnyWorkflowOverview(ct))
-            return Forbidden();
-
-        var person = await userRepository.GetById(id, ct);
-        if (person == null)
-            return UserNotFound;
-
-        var overview = await personalInstanceService.GetPersonInstances(person, ct);
-        if (overview.Instances.Length == 0)
-            return UserNotFound;
-
-        return Ok(new PersonalPersonDto(PersonDto.Create(person), overview.Roles, overview.Instances));
-    }
-
     [HttpPut("{id}")]
     public async Task<ActionResult<UserDto>> UpdateExternalUser(
         string id,
@@ -176,35 +153,11 @@ public class UsersController(
     }
 
     [HttpGet("Find")]
-    public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
+    public async Task<ActionResult<IEnumerable<UserSearchResult>>> Find(string query,
         [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
     {
         var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
-        return Ok(searchResults.Select(UserSearchResultDto.Create));
-    }
-
-    [HttpGet("Search")]
-    public async Task<ActionResult<PeopleSearchDto>> Search(string? query,
-        [FromServices] PersonalInstanceService personalInstanceService,
-        [FromServices] InstanceAuthorizationFilterService authorizationFilterService, CancellationToken ct)
-    {
-        if (!await authorizationFilterService.CanAccessAnyWorkflowOverview(ct))
-            return Forbidden();
-
-        var term = query?.Trim();
-        if (term is not { Length: >= 2 and <= 200 })
-            return Ok(new PeopleSearchDto([], false));
-
-        var people = new List<PersonDto>();
-        await foreach (var users in userRepository.SearchByPrefix(term, ct).Chunk(SearchResultLimit)
-                           .WithCancellation(ct))
-        {
-            people.AddRange(await GetVisiblePeople(users, personalInstanceService, ct));
-            if (people.Count > SearchResultLimit)
-                break;
-        }
-
-        return Ok(new PeopleSearchDto(people.Take(SearchResultLimit).ToArray(), people.Count > SearchResultLimit));
+        return Ok(searchResults);
     }
 
     /// <summary>
@@ -234,21 +187,6 @@ public class UsersController(
         logger.LogInformation("{Admin} started impersonating {Target}", realName, target.UserName);
 
         return Ok(new UserImpersonationStartedDto(token.Value, token.ExpiresAtUtc));
-    }
-
-    private static async Task<IEnumerable<PersonDto>> GetVisiblePeople(User[] users,
-        PersonalInstanceService personalInstanceService, CancellationToken ct)
-    {
-        var candidates = new List<(User User, ObjectId Id)>();
-        foreach (var user in users)
-            if (ObjectId.TryParse(user.Id, out var id))
-                candidates.Add((user, id));
-
-        var visibleIds = await personalInstanceService.GetVisibleUserIds(
-            candidates.Select(candidate => candidate.Id).ToArray(), ct);
-        return candidates
-            .Where(candidate => visibleIds.Contains(candidate.Id))
-            .Select(candidate => PersonDto.Create(candidate.User));
     }
 
     private async Task<ObjectResult?> ValidateEmail(string email, CancellationToken ct)
