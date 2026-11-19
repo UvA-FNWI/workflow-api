@@ -30,6 +30,11 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public BilingualString DisplayTitle => Title ?? Name;
 
     /// <summary>
+    /// Localized description of the entity type
+    /// </summary>
+    public BilingualString? Description { get; set; }
+
+    /// <summary>
     /// Integer indicating the tab order in the instance page
     /// </summary>
     public int? Index { get; set; }

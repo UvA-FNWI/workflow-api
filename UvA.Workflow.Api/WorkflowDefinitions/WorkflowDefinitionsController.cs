@@ -70,9 +70,28 @@ public class WorkflowDefinitionsController(
                 groupedParent = groupedParent.Parent;
             }
 
+            if (groupedParent is not null)
+            {
+                // Add titles of all direct children of the grouped parent
+                var children = modelService.WorkflowDefinitions.Values
+                    .Where(d => d.Parent == groupedParent)
+                    .OrderBy(d => d.Index ?? int.MaxValue)
+                    .ThenBy(d => d.Name);
+                var childNames = new List<BilingualString>();
+
+                foreach (var child in children)
+                {
+                    childNames.Add(child.Title ?? child.Name);
+                }
+
+                groupedParent.Description = childNames.Aggregate((a, b) => a + (BilingualString)", " + b);
+            }
+
             dtos.Add(WorkflowDefinitionDto.Create(groupedParent ?? definition));
         }
 
-        return Ok(dtos.DistinctBy(dto => dto.Name));
+        return Ok(dtos
+            .GroupBy(dto => dto.Name)
+            .Select(group => group.FirstOrDefault(dto => dto.Description is not null) ?? group.First()));
     }
 }
