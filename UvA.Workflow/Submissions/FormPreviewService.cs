@@ -29,7 +29,7 @@ public partial class FormPreviewService(
     {
         var original = modelService.TryGetForm(instance, formName)
                        ?? throw new EntityNotFoundException("Form", formName);
-        if (!(await rightsService.GetPreviewableForms(instance, ct)).Contains(original))
+        if (!(await rightsService.GetPreviewableForms(instance, ct)).Any(preview => preview.Form == original))
             throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Preview, formName);
 
         var form = original.Clone();

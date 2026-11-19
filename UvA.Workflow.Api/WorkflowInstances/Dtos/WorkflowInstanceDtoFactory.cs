@@ -189,8 +189,9 @@ public class WorkflowInstanceDtoFactory(
         )
         {
             PreviewableForms = (await rightsService.GetPreviewableForms(instance, ct))
-                .Select(form => new PreviewableFormDto(form.Name,
-                    form.Title ?? form.ActualForm.Title ?? form.Name)).ToArray()
+                .Select(preview => new PreviewableFormDto(preview.Form.Name,
+                    preview.Form.Title ?? preview.Form.ActualForm.Title ?? preview.Form.Name,
+                    preview.Label)).ToArray()
         };
     }
 

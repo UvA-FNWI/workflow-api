@@ -104,7 +104,14 @@ globalActions:
   - roles: [SecondAssessor]
     type: Preview
     forms: [AssessmentExaminer]
+    label:
+      en: View assessment criteria
+      nl: Bekijk beoordelingscriteria
 ```
+
+The optional label changes the preview button text. A form uses the custom label
+when its matching Preview actions agree on it. A button that opens multiple forms
+uses the custom label when all those forms share it, and otherwise uses the default.
 
 Preview global actions cannot be step-scoped. They remain available before and after
 submission. The instance page still requires its normal View permission. Preview

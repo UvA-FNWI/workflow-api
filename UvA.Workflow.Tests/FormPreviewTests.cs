@@ -13,6 +13,31 @@ namespace UvA.Workflow.Tests;
 public class FormPreviewTests
 {
     [Theory]
+    [InlineData("Bekijk beoordelingscriteria", "Bekijk beoordelingscriteria")]
+    [InlineData("Bekijk formulier", null)]
+    [InlineData(null, null)]
+    public async Task PreviewOptionsUseALabelWhenMatchingGrantsAgree(string? secondLabel, string? expectedLabel)
+    {
+        var (_, instance, model) = Create();
+        var definition = model.WorkflowDefinitions["Project"];
+        definition.GlobalActions.Single().Label = new("View assessment criteria", "Bekijk beoordelingscriteria");
+        var secondGrant = new UvA.Workflow.WorkflowModel.Action
+        {
+            Type = RoleAction.Preview, Forms = ["Review"], Roles = ["Reviewer"],
+            Label = secondLabel == null ? null : new("View assessment criteria", secondLabel)
+        };
+        definition.GlobalActions.Add(secondGrant);
+        definition.Roles.Single(role => role.Name == "Reviewer").Actions.Add(secondGrant);
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model,
+            new Mock<IWorkflowInstanceRepository>(), ["Reviewer"]);
+
+        var dto = await factory.Create(instance, default);
+
+        var preview = Assert.Single(dto.PreviewableForms);
+        Assert.Equal(expectedLabel, preview.Label?.Nl);
+    }
+
+    [Theory]
     [InlineData("{}", 0, 1, null)]
     [InlineData("{\"Score\":0}", 1, 1, 0d)]
     [InlineData("{\"Score\":2,\"ShowExtra\":true}", 1, 2, null)]

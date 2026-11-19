@@ -22,7 +22,7 @@ public class FormPreviewPermissionTests
 
         var forms = await rights.GetPreviewableForms(Instance());
 
-        Assert.Equal(grant ? ["Review"] : Array.Empty<string>(), forms.Select(f => f.Name));
+        Assert.Equal(grant ? ["Review"] : Array.Empty<string>(), forms.Select(f => f.Form.Name));
         Assert.False(await rights.Can(Instance(), RoleAction.Submit, "Review"));
     }
 
@@ -38,10 +38,10 @@ public class FormPreviewPermissionTests
         var rights = new RightsService(model, users.Object, repository,
             UnitTestsHelpers.CreateStateResolver(model, repository));
 
-        Assert.Equal(["Review"], (await rights.GetPreviewableForms(Instance())).Select(f => f.Name));
+        Assert.Equal(["Review"], (await rights.GetPreviewableForms(Instance())).Select(f => f.Form.Name));
 
         definition.GlobalActions.Single().Forms = ["Review", "Other"];
-        Assert.Equal(["Review", "Other"], (await rights.GetPreviewableForms(Instance())).Select(f => f.Name));
+        Assert.Equal(["Review", "Other"], (await rights.GetPreviewableForms(Instance())).Select(f => f.Form.Name));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class FormPreviewPermissionTests
                 UnitTestsHelpers.CreateStateResolver(model, repository))
             .GetPreviewableForms(instance);
 
-        Assert.Equal(["Review"], forms.Select(form => form.Name));
+        Assert.Equal(["Review"], forms.Select(form => form.Form.Name));
     }
 
     internal static ModelService CreateModel(bool grant = true,

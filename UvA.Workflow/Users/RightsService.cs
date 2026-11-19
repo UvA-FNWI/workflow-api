@@ -317,7 +317,8 @@ public class RightsService(
     public Task<Domain_Action[]> GetAllowedActions(WorkflowInstance instance, params RoleAction[] actions)
         => GetAllowedActions(instance, RightsEvaluationMode.RequestContext, actions);
 
-    public async Task<Form[]> GetPreviewableForms(WorkflowInstance instance, CancellationToken ct = default)
+    public async Task<(Form Form, BilingualString? Label)[]> GetPreviewableForms(
+        WorkflowInstance instance, CancellationToken ct = default)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         if (!definition.GlobalActions.Any(action => action.Type == RoleAction.Preview))
@@ -326,7 +327,18 @@ public class RightsService(
             definition.PermissionAndStepLookups, ct);
         var actions = await GetAllowedActions(instance, context, RightsEvaluationMode.RequestContext,
             RoleAction.Preview);
-        return definition.Forms.Where(form => actions.Any(action => action.MatchesForm(form.Name))).ToArray();
+        var forms = new List<(Form Form, BilingualString? Label)>();
+        foreach (var form in definition.Forms)
+        {
+            var labels = actions.Where(action => action.MatchesForm(form.Name))
+                .Select(action => action.Label)
+                .DistinctBy(label => (label?.En, label?.Nl))
+                .Take(2).ToArray();
+            if (labels.Length > 0)
+                forms.Add((form, labels.Length == 1 ? labels[0] : null));
+        }
+
+        return forms.ToArray();
     }
 
     public async Task<Domain_Action[]> GetAllowedHistoricalActions(
