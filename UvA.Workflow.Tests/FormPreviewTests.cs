@@ -12,6 +12,30 @@ namespace UvA.Workflow.Tests;
 
 public class FormPreviewTests
 {
+    [Fact]
+    public async Task PreviewOptionsIdentifyTheWrapperFormAndItsFutureStep()
+    {
+        var (_, instance, model) = Create();
+        var definition = model.WorkflowDefinitions["Project"];
+        var first = new Step { Name = "Start", Ends = new() { Event = "Started" } };
+        var later = new Step { Name = "Assessment" };
+        definition.Steps = [first, later];
+        definition.AllSteps = [first, later];
+        instance.CurrentStep = first.Name;
+        var form = definition.Forms.Single(form => form.Name == "Review");
+        form.Step = later.Name;
+        form.TargetForm = new Form { Name = "Shared", Title = "Shared assessment", WorkflowDefinition = definition };
+        var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model,
+            new Mock<IWorkflowInstanceRepository>(), ["Reviewer"]);
+
+        var dto = await factory.Create(instance, default);
+
+        var preview = Assert.Single(dto.PreviewableForms);
+        Assert.Equal("Review", preview.Title.En);
+        Assert.Equal("Assessment", preview.Step);
+        Assert.False(dto.Steps.Single(step => step.Id == later.Name).IsAvailable);
+    }
+
     [Theory]
     [InlineData("Bekijk beoordelingscriteria", "Bekijk beoordelingscriteria")]
     [InlineData("Bekijk formulier", null)]

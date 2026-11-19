@@ -5,6 +5,7 @@ namespace UvA.Workflow.Submissions;
 
 public partial class FormPreviewService
 {
+    /// <summary>Copies readable project data while excluding saved answers for the preview and its sources.</summary>
     private async Task<(WorkflowInstance Snapshot, ObjectContext Context)> CreateSnapshot(
         WorkflowInstance instance, Form selected, CancellationToken ct, string? answerInstanceId = null)
     {
@@ -26,6 +27,7 @@ public partial class FormPreviewService
             var context = await ContextLoader.CreateContext(modelService, repository, real,
                 definition.Fields.SelectMany(field => field.Condition?.Properties ?? []), ct);
             var paths = new HashSet<string>(inheritedPaths);
+            // Preview has its own grant. View determines which existing project data may be copied.
             var canView = await rightsService.Can(real, RoleAction.View);
             if (canView)
             {
@@ -116,6 +118,7 @@ public partial class FormPreviewService
         }
     }
 
+    /// <summary>Omits hidden, computed and file fields when copying a whole embedded object.</summary>
     private static BsonValue FilterStoredValue(BsonValue value, PropertyDefinition property, bool explicitPath)
     {
         if (explicitPath || property is not ObjectPropertyDefinition { WorkflowDefinition: { } definition })

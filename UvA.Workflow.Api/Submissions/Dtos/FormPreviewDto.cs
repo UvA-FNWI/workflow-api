@@ -4,7 +4,7 @@ using UvA.Workflow.Submissions;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
-public record PreviewableFormDto(string Name, BilingualString Title, BilingualString? Label);
+public record PreviewableFormDto(string Name, BilingualString Title, string? Step, BilingualString? Label);
 
 public record FormPreviewRequest([Required] Dictionary<string, JsonElement?> Answers);
 

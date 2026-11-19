@@ -24,6 +24,7 @@ public partial class FormPreviewService(
     RightsService rightsService,
     IWorkflowInstanceRepository repository)
 {
+    /// <summary>Checks the form grant and evaluates temporary answers without changing the instance.</summary>
     public async Task<FormPreview> Evaluate(WorkflowInstance instance, string formName,
         IReadOnlyDictionary<string, JsonElement?> answers, CancellationToken ct)
     {
@@ -107,6 +108,7 @@ public partial class FormPreviewService(
                                                            action.PropertyDefinition == null ||
                                                            action.PropertyDefinition == question.Name);
 
+        // Evaluate filters and labels against each candidate's readable snapshot.
         async Task RefreshReferences()
         {
             foreach (var key in selectedReferences.Keys)
@@ -159,6 +161,7 @@ public partial class FormPreviewService(
             context.ComputeProperties(form.WorkflowDefinition);
         }
 
+        // Recompute derived values after changing a temporary answer.
         ObjectContext RebuildContext()
         {
             var result = modelService.CreateContext(snapshot);

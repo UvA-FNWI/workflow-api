@@ -6,6 +6,7 @@ namespace UvA.Workflow.Submissions;
 
 public partial class FormPreviewService
 {
+    /// <summary>Validates temporary input without calling the submission converter, which can write users.</summary>
     private static BsonValue ConvertInput(JsonElement? input, PropertyDefinition question, bool arrayItem = false)
     {
         if (question.IsComputed || question.DataType == DataType.File)
