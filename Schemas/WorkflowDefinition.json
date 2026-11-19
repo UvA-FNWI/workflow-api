@@ -38,6 +38,20 @@
         }
       ]
     },
+    "description": {
+      "description": "Localized description of the entity type",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
     "index": {
       "type": [
         "integer",
