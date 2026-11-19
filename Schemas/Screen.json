@@ -31,7 +31,7 @@
           "type": "null"
         },
         {
-          "description": "Optional grouping configuration for grouping screen data by steps",
+          "description": "Optional grouping configuration for screen data",
           "$ref": "#/definitions/ScreenGrouping"
         }
       ]
@@ -440,12 +440,12 @@
     "ScreenGrouping": {
       "title": "ScreenGrouping",
       "type": "object",
-      "description": "Configuration for grouping screen data by workflow steps",
+      "description": "Configuration for grouping screen data by conditions or workflow steps",
       "additionalProperties": false,
       "properties": {
         "groups": {
           "type": "array",
-          "description": "List of step groups",
+          "description": "List of screen groups in display order",
           "items": {
             "$ref": "#/definitions/StepGroup"
           }
@@ -455,7 +455,7 @@
     "StepGroup": {
       "title": "StepGroup",
       "type": "object",
-      "description": "Defines a group of workflow steps",
+      "description": "Defines a group of workflow instances",
       "additionalProperties": false,
       "required": [
         "name",
@@ -479,13 +479,27 @@
         },
         "steps": {
           "type": "array",
-          "description": "Array of step names that belong to this group",
+          "description": "Step names that belong to this group when it has no condition",
           "items": {
             "type": [
               "null",
               "string"
             ]
           }
+        },
+        "condition": {
+          "description": "Optional condition evaluated before step groups. The first matching condition wins.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
         }
       }
     },

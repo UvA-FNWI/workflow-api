@@ -3,7 +3,7 @@ step: Upload
 
 onSubmit:
   - sendMail:
-      template: FinalVersionSubmitted
+      email: FinalVersionSubmitted
       to: Student
   - serviceCall:
       service: Turnitin

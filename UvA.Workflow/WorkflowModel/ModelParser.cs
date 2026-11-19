@@ -46,6 +46,8 @@ public partial class ModelParser
     private List<Condition> NamedConditions { get; }
     private List<StepTemplate> StepTemplates { get; }
     private List<FormTemplate> FormTemplates { get; }
+    private List<EmailTemplate> EmailTemplates { get; }
+    private List<EmailContentBlock> NamedEmailBlocks { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
@@ -59,6 +61,8 @@ public partial class ModelParser
         NamedConditions = Read<Condition>();
         StepTemplates = Read<StepTemplate>();
         FormTemplates = Read<FormTemplate>();
+        EmailTemplates = Read<EmailTemplate>();
+        NamedEmailBlocks = Read<EmailContentBlock>();
 
         var parsed = folders
             .Select(folder =>
@@ -127,15 +131,19 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
 
-            var stepTemplatesByName = ReadTemplates(StepTemplates, definition.SourceFolder);
+            var stepTemplatesByName = ReadTemplates(StepTemplates, definition);
             definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
 
-            var formTemplatesByName = ReadTemplates(FormTemplates, definition.SourceFolder);
+            var formTemplatesByName = ReadTemplates(FormTemplates, definition);
             definition.Forms = ResolveFormTemplates(definition.Forms, formTemplatesByName,
                 definition.Name);
 
+            definition.Emails = Read<NamedEmail>(definition.SourceFolder);
+            definition.EmailBlocks = Read<EmailContentBlock>(definition.SourceFolder);
+            var emailTemplatesByName = ReadTemplates(EmailTemplates, definition);
+            definition.Emails = ResolveEmailTemplates(definition.Emails, emailTemplatesByName, definition.Name);
+
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
-            definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
             definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
 
@@ -226,6 +234,7 @@ public partial class ModelParser
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
         // All definitions must be prepared before checking inputs of referenced computed properties.
+        WorkflowDefinitions.Values.ForEach(ValidateStopWhen);
         WorkflowDefinitions.Values.ForEach(ValidateComputedReads);
         WorkflowDefinitions.Values.ForEach(ValidateImports);
     }
@@ -411,6 +420,8 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        ValidateReservedPropertyNames(workflowDefinition);
+        PreProcess(workflowDefinition.StopWhen);
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
 
@@ -431,6 +442,8 @@ public partial class ModelParser
             PreProcess(field, workflowDefinition);
         foreach (var card in workflowDefinition.InfoCards)
             PreProcess(card, workflowDefinition);
+        foreach (var email in workflowDefinition.Emails)
+            PreProcess(email, workflowDefinition);
         if (workflowDefinition.InfoCards.Count(card => card.Enabled && card.Type == InfoCardType.User) > 1)
             throw new Exception($"Definition '{workflowDefinition.Name}' has more than one enabled User info card.");
         foreach (var form in workflowDefinition.Forms)
@@ -440,20 +453,40 @@ public partial class ModelParser
 
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
-        ValidateValueSetsPrefix(workflowDefinition);
         ValidateComputedWrites(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
 
-    /// <summary>
-    /// Expressions reference value sets as <c>ValueSets.Name</c>, so a property called ValueSets would be unreachable
-    /// </summary>
-    private static void ValidateValueSetsPrefix(WorkflowDefinition workflowDefinition)
+    private static void ValidateStopWhen(WorkflowDefinition definition)
     {
-        if (workflowDefinition.Properties.Contains("ValueSets"))
+        if (definition.StopWhen == null)
+            return;
+
+        var lookups = definition.StopWhen.Properties.ToArray();
+        if (lookups.Any(lookup => lookup is PropertyLookup { Property: ContextKeys.WorkflowStopped }))
             throw new Exception(
-                $"Definition '{workflowDefinition.Name}': property name 'ValueSets' is reserved for value set references.");
+                $"Definition '{definition.Name}': stopWhen cannot refer to {ContextKeys.WorkflowStopped}.");
+        if (lookups.Any(lookup => lookup is ComplexLookup))
+            throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.");
+
+        try
+        {
+            definition.ValidateReadLookups(lookups, allowReference: false, allowAssessment: false);
+        }
+        catch (Exception exception)
+        {
+            throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.",
+                exception);
+        }
+    }
+
+    private static void ValidateReservedPropertyNames(WorkflowDefinition definition)
+    {
+        var reservedName = ContextKeys.Reserved.FirstOrDefault(name => definition.Properties.Contains(name));
+        if (reservedName != null)
+            throw new Exception(
+                $"Definition '{definition.Name}': property name '{reservedName}' is reserved.");
     }
 
     private static void ValidateReservedEventNames(WorkflowDefinition definition)
@@ -598,6 +631,9 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        foreach (var group in screen.Grouping?.Groups ?? [])
+            PreProcess(group.Condition);
+
         var actionNames = new HashSet<string>();
         foreach (var bulkAction in screen.BulkActions)
         {
@@ -645,6 +681,42 @@ public partial class ModelParser
                     col.Event = workflowDefinition.Events.FirstOrDefault(e => e.Name == col.Property[..^5]);
             }
         }
+    }
+
+    private void PreProcess(NamedEmail email, WorkflowDefinition workflowDefinition)
+    {
+        if (email.ContentBlocks.Length == 0) return;
+        if (email.Body != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' has both body and content blocks");
+
+        var removed = email.ContentBlocks.FirstOrDefault(b => b.Remove == true);
+        if (removed != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' removes block '{removed.Name}' but does not inherit it");
+
+        var positioned = email.ContentBlocks.FirstOrDefault(b => b.After != null);
+        if (positioned != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' places block '{positioned.Name}' " +
+                $"after '{positioned.After}' but does not inherit it");
+
+        var contents = email.ContentBlocks
+            .Select(b => b.Content ?? ResolveNamedBlock(b.Name, email, workflowDefinition)).ToList();
+        email.Body = new BilingualString(
+            string.Join("\n\n", contents.Select(c => c.En)),
+            string.Join("\n\n", contents.Select(c => c.Nl)));
+    }
+
+    private BilingualString ResolveNamedBlock(string name, NamedEmail email, WorkflowDefinition definition)
+    {
+        var block = GetInheritanceChain(definition).AsEnumerable().Reverse()
+                        .SelectMany(d => d.EmailBlocks).FirstOrDefault(b => b.Name == name)
+                    ?? NamedEmailBlocks.FirstOrDefault(b => b.Name == name)
+                    ?? throw new Exception(
+                        $"Email block '{name}' used in '{email.Name}' of '{definition.Name}' not found");
+        return block.Content ?? throw new Exception(
+            $"Email block '{name}' used in '{email.Name}' of '{definition.Name}' has no content");
     }
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
@@ -834,7 +906,9 @@ public partial class ModelParser
         {
             nameof(StepTemplate) => "Templates/Steps",
             nameof(FormTemplate) => "Templates/Forms",
-            nameof(TemplateMessage) => "Emails",
+            nameof(EmailTemplate) => "Templates/Emails",
+            nameof(EmailContentBlock) => "Templates/EmailBlocks",
+            nameof(NamedEmail) => "Emails",
             nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"
