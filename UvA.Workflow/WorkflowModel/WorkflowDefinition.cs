@@ -247,6 +247,9 @@ public class MessagesSettings
     /// <summary>Show the instance-level messages card. Default true when messages are enabled.</summary>
     public bool Card { get; set; } = true;
 
+    /// <summary>Localized instance messages card title with an optional <c>{{count}}</c> placeholder.</summary>
+    public BilingualString? CardTitle { get; set; }
+
     /// <summary>
     /// When true (default), visible fields allow messages unless opted out with <c>messages: false</c> on the property.
     /// When false, field messages are off unless opted in with <c>messages: true</c> on the property.

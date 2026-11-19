@@ -320,12 +320,22 @@ public class PresenceAwareInheritanceTests
     {
         var parser = new ModelParser(new DictionaryProvider(new()
         {
-            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nmessages:\n  enabled: true",
+            ["Base/Entity.yaml"] = """
+                                   name: Base
+                                   titlePlural: Bases
+                                   messages:
+                                     enabled: true
+                                     cardTitle:
+                                       en: "{{count}} comments"
+                                       nl: "{{count}} notities"
+                                   """,
             ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
             ["Off/Entity.yaml"] = "name: Off\ntitlePlural: Fs\ninheritsFrom: Base\nmessages:\n  enabled: false"
         }));
 
         Assert.True(parser.WorkflowDefinitions["Omit"].MessagesEnabled);
+        Assert.Equal("{{count}} comments", parser.WorkflowDefinitions["Omit"].Messages?.CardTitle?.En);
+        Assert.Equal("{{count}} notities", parser.WorkflowDefinitions["Omit"].Messages?.CardTitle?.Nl);
         Assert.False(parser.WorkflowDefinitions["Off"].MessagesEnabled);
     }
 

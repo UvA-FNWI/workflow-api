@@ -63,6 +63,7 @@ public class MessagesSettingsTests
             {
                 Enabled = true,
                 Card = true,
+                CardTitle = new BilingualString("{{count}} comments", "{{count}} notities"),
                 Fields = false,
                 Layout = "flat",
                 Close = false,
@@ -76,6 +77,8 @@ public class MessagesSettingsTests
 
         Assert.NotNull(dto.Messages);
         Assert.True(dto.Messages.Card);
+        Assert.Equal("{{count}} comments", dto.Messages.CardTitle?.En);
+        Assert.Equal("{{count}} notities", dto.Messages.CardTitle?.Nl);
         Assert.False(dto.Messages.FieldsAllowAll);
         Assert.Equal("flat", dto.Messages.Layout);
         Assert.False(dto.Messages.AllowClose);

@@ -9,7 +9,8 @@ public record MessagesSettingsDto(
     bool AllowClose = true,
     bool Callout = false,
     BilingualString? CalloutTitle = null,
-    BilingualString? CalloutText = null
+    BilingualString? CalloutText = null,
+    BilingualString? CardTitle = null
 )
 {
     public static MessagesSettingsDto From(MessagesSettings settings) =>
@@ -20,6 +21,7 @@ public record MessagesSettingsDto(
             settings.Close,
             settings.Callout,
             settings.CalloutTitle,
-            settings.CalloutText
+            settings.CalloutText,
+            settings.CardTitle
         );
 }

@@ -2160,6 +2160,20 @@
           "type": "boolean",
           "description": "Show the instance-level messages card. Default true when messages are enabled."
         },
+        "cardTitle": {
+          "description": "Localized instance messages card title with an optional <code>{{count}}</code> placeholder.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
         "fields": {
           "type": "boolean",
           "description": "When true (default), visible fields allow messages unless opted out with <code>messages: false</code> on the property.\n            When false, field messages are off unless opted in with <code>messages: true</code> on the property."
