@@ -147,7 +147,7 @@ public partial class PersonalControllerTests
 
         var result = await _controller.GetUserInstances(person.Id, _ct);
 
-        var response = Assert.IsType<PersonalPageDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var response = Assert.IsType<PersonalInstancesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
         var instance = Assert.Single(response.Instances);
         Assert.Equal(visibleProject.Id, instance.Id);
         Assert.Equal([transitive ? "LocalAdmin" : "Coordinator"], instance.Roles);

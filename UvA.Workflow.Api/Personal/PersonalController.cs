@@ -14,7 +14,7 @@ public class PersonalController(
     private const int SearchResultLimit = 50;
 
     [HttpGet("Me")]
-    public async Task<ActionResult<PersonalPageDto>> GetMyInstances(CancellationToken ct)
+    public async Task<ActionResult<PersonalInstancesDto>> GetMyInstances(CancellationToken ct)
     {
         var currentUser = await userService.GetCurrentUser(ct);
         if (currentUser == null)
@@ -46,7 +46,7 @@ public class PersonalController(
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<PersonalPageDto>> GetUserInstances(string id, CancellationToken ct)
+    public async Task<ActionResult<PersonalInstancesDto>> GetUserInstances(string id, CancellationToken ct)
     {
         if (!await authorizationFilterService.CanAccessAnyWorkflowOverview(ct))
             return Forbidden();

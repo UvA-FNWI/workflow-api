@@ -16,16 +16,16 @@ public partial class PersonalInstanceService(
         new PropertyLookup("Course.Name")
     ];
 
-    public async Task<PersonalPageDto> GetInstances(User user, CancellationToken ct)
+    public async Task<PersonalInstancesDto> GetInstances(User user, CancellationToken ct)
     {
         if (!ObjectId.TryParse(user.Id, out var userId))
-            return new PersonalPageDto(UserDto.Create(user), [], []);
+            return new PersonalInstancesDto(UserDto.Create(user), [], []);
 
         var userFilter = BuildDirectAssignmentFilter(modelService.WorkflowDefinitions.Values,
             [userId],
             GetVisibleUserProperties);
         if (userFilter == null)
-            return new PersonalPageDto(UserDto.Create(user), [], []);
+            return new PersonalInstancesDto(UserDto.Create(user), [], []);
 
         var instances = (await workflowInstanceRepository.GetByFilter(userFilter, ct)).ToArray();
         var contexts = await instanceService.ResolveContexts(instances, ct);
@@ -35,10 +35,10 @@ public partial class PersonalInstanceService(
         return await CreateOverview(user, instanceContexts, ct);
     }
 
-    public async Task<PersonalPageDto> GetPersonInstances(User person, CancellationToken ct)
+    public async Task<PersonalInstancesDto> GetPersonInstances(User person, CancellationToken ct)
     {
         if (!ObjectId.TryParse(person.Id, out var personId))
-            return new PersonalPageDto(UserDto.Create(person), [], []);
+            return new PersonalInstancesDto(UserDto.Create(person), [], []);
 
         var matches = await FindVisibleLinks([personId], ct);
         var contexts = await instanceService.ResolveContexts(matches.Select(match => match.Instance).ToArray(), ct);
@@ -49,7 +49,7 @@ public partial class PersonalInstanceService(
         return await CreateOverview(person, instanceContexts, ct);
     }
 
-    private async Task<PersonalPageDto> CreateOverview(
+    private async Task<PersonalInstancesDto> CreateOverview(
         User user,
         IReadOnlyCollection<PersonalInstanceContext> instanceContexts,
         CancellationToken ct)
@@ -83,7 +83,7 @@ public partial class PersonalInstanceService(
             .Select(role => new PersonalRoleDto(role.Name, role.DisplayTitle))
             .ToArray();
 
-        return new PersonalPageDto(UserDto.Create(user), roles, instanceDtos);
+        return new PersonalInstancesDto(UserDto.Create(user), roles, instanceDtos);
     }
 
     private PersonalInstanceDto CreateDto(

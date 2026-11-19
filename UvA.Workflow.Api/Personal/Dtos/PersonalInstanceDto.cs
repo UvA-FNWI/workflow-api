@@ -9,7 +9,7 @@ public record PersonalRoleDto(
     BilingualString Title
 );
 
-public record PersonalPageDto(
+public record PersonalInstancesDto(
     UserDto Person,
     PersonalRoleDto[] Roles,
     PersonalInstanceDto[] Instances

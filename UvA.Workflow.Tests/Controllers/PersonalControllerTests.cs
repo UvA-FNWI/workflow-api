@@ -84,7 +84,7 @@ public partial class PersonalControllerTests : ControllerTestsBase
         var result = await _controller.GetMyInstances(_ct);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<PersonalPageDto>(ok.Value);
+        var response = Assert.IsType<PersonalInstancesDto>(ok.Value);
         Assert.Equal(UserDto.Create(UnitTestsHelpers.AdminUser), response.Person);
         var rows = response.Instances;
         var projectRow = Assert.Single(rows);
@@ -355,7 +355,7 @@ public partial class PersonalControllerTests : ControllerTestsBase
 
         var result = await _controller.GetMyInstances(_ct);
 
-        var response = Assert.IsType<PersonalPageDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var response = Assert.IsType<PersonalInstancesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal(UserDto.Create(UnitTestsHelpers.AdminUser), response.Person);
         Assert.Empty(response.Roles);
         Assert.Empty(response.Instances);
@@ -412,7 +412,7 @@ public partial class PersonalControllerTests : ControllerTestsBase
             return;
         }
 
-        var response = Assert.IsType<PersonalPageDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var response = Assert.IsType<PersonalInstancesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal(UserDto.Create(person), response.Person);
         var instance = Assert.Single(response.Instances);
         Assert.Equal(visible.Id, instance.Id);
