@@ -114,7 +114,7 @@ public partial class InstanceService(
         => stateResolver.Resolve(instances, ct);
 
     /// Builds a mail message, enriching referenced recipient properties (incl. template defaults) first.
-    public async Task<MailMessage> BuildMail(WorkflowInstance instance, SendMessage sendMail, CancellationToken ct,
+    public async Task<MailMessage> BuildMail(WorkflowInstance instance, Email sendMail, CancellationToken ct,
         ObjectContext? context = null)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
@@ -138,9 +138,12 @@ public partial class InstanceService(
     public async Task UpdateCurrentStep(WorkflowInstance instance, CancellationToken ct)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var context = modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps
+        var context = workflowDefinition.HasImportedSteps
             ? await stateResolver.Resolve(instance, ct)
             : modelService.CreateContext(instance);
+        if (context.WorkflowStopped)
+            return;
+
         if (!workflowDefinition.HasImportedSteps)
             await Enrich(workflowDefinition, [context], workflowDefinition.Steps.SelectMany(s => s.Lookups), ct);
         var targetStep = modelService.FindOpenStep(instance, context)?.Name;
@@ -185,7 +188,7 @@ public partial class InstanceService(
                     t => ObjectContext.GetValue(r.GetValueOrDefault(t), entity.GetDataType(t),
                         entity.Properties.FirstOrDefault(p => p.Name == t))
                 );
-            dict["Id"] = r["_id"].ToString();
+            dict[ContextKeys.Id] = r["_id"].ToString();
             return new ObjectContext(dict, ObjectContext.GetValueSets(entity));
         });
     }

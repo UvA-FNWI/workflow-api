@@ -29,7 +29,9 @@ public record WorkflowInstanceDto(
     bool CanUseAdminTools,
     bool CanImpersonate,
     string[] ViewerRoles,
-    InfoCardDto[] InfoCards
+    InfoCardDto[] InfoCards,
+    bool WorkflowStopped = false,
+    BilingualString? StopMessage = null
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
