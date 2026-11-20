@@ -7,10 +7,7 @@ public class InfoCard : INamed
     public string Name { get; set; } = null!;
     public InfoCardType? Type { get; set; }
 
-    /// <summary>
-    /// Localized card title. Messages titles support {{count}}, {{term}}, and {{termPlural}},
-    /// including the capitalized variants {{termTitle}} and {{termPluralTitle}}.
-    /// </summary>
+    /// <summary>Localized card title. Use plain text for Messages cards.</summary>
     public BilingualString? Title { get; set; }
 
     public BilingualTemplate? TitleTemplate =>

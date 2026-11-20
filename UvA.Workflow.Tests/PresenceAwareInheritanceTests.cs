@@ -329,8 +329,8 @@ public class PresenceAwareInheritanceTests
                                      - name: Messages
                                        type: Messages
                                        title:
-                                         en: "{{count}} comments"
-                                         nl: "{{count}} notities"
+                                         en: Comments
+                                         nl: Notities
                                    """,
             ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
             ["Off/Entity.yaml"] = "name: Off\ntitlePlural: Fs\ninheritsFrom: Base\nmessages:\n  enabled: false"
@@ -339,8 +339,8 @@ public class PresenceAwareInheritanceTests
         var inherited = parser.WorkflowDefinitions["Omit"];
         Assert.True(inherited.AllowsInstanceMessages());
         var card = Assert.Single(inherited.InfoCards);
-        Assert.Equal("{{count}} comments", card.Title?.En);
-        Assert.Equal("{{count}} notities", card.Title?.Nl);
+        Assert.Equal("Comments", card.Title?.En);
+        Assert.Equal("Notities", card.Title?.Nl);
         Assert.Empty(card.Properties);
         Assert.False(parser.WorkflowDefinitions["Off"].AllowsInstanceMessages());
     }

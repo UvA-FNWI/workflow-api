@@ -1192,7 +1192,7 @@
           ]
         },
         "title": {
-          "description": "Localized card title. Messages titles support {{count}}, {{term}}, and {{termPlural}},\n            including the capitalized variants {{termTitle}} and {{termPluralTitle}}.",
+          "description": "Localized card title. Use plain text for Messages cards.",
           "oneOf": [
             {
               "type": "null"
