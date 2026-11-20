@@ -165,6 +165,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -1073,6 +1080,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -1226,6 +1240,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -1390,6 +1411,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -1579,6 +1607,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -1732,6 +1767,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -1896,6 +1938,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -2068,6 +2117,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -2235,6 +2291,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -2464,6 +2527,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -2589,6 +2659,13 @@
               "$ref": "#/definitions/ChoiceControl"
             }
           ]
+        },
+        "inheritedRoles": {
+          "type": "array",
+          "description": "Roles inherited from the referenced instance.",
+          "items": {
+            "type": "string"
+          }
         },
         "filter": {
           "description": "Condition used for filtering reference choices.",
@@ -2778,6 +2855,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },
@@ -2976,6 +3060,13 @@
             "string"
           ],
           "description": "The name of another property this property is linked to."
+        },
+        "messages": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "When the entity has <code>messages.fields: true</code> (default), <code>false</code> opts this field out of field threads.\n            When the entity has <code>messages.fields: false</code>, <code>true</code> opts this field in."
         }
       }
     },

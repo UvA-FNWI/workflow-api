@@ -75,6 +75,7 @@ apiPaths:
   - /Personal
   - /Jobs
   - /Migrations
+  - /Messages
   - /Steps
   - /Import
   - /Schemas

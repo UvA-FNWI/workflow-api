@@ -210,7 +210,7 @@ public record InfoCardFieldDto(
 
 public record InfoCardDto(
     string Name,
-    BilingualString Title,
+    BilingualString? Title,
     InfoCardType Type,
     InfoCardUserDto? User = null,
     InfoCardFieldDto[]? Fields = null,

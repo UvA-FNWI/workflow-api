@@ -9,7 +9,8 @@ public record FormDto(
     BilingualString Title,
     PageDto[] Pages,
     FormLayout Layout,
-    string? Step)
+    string? Step,
+    string? PropertyName)
 {
     public static FormDto Create(Form form, ObjectContext context)
     {
@@ -24,7 +25,11 @@ public record FormDto(
         var questions = activePages
             .SelectMany(p => p.Questions)
             .Distinct()
-            .ToDictionary(q => q, q => QuestionDto.Create(q, totalWeight));
+            .ToDictionary(q => q, q => QuestionDto.Create(
+                q,
+                totalWeight,
+                form.WorkflowDefinition,
+                form.PropertyName == null ? null : $"{form.PropertyName}.{q.Name}"));
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
         var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         var originalForm = form;
@@ -46,7 +51,8 @@ public record FormDto(
                 return PageDto.Create(i, p, pageElements, isInCurrentForm, isActive, percentage);
             }).ToArray(),
             form.Layout,
-            originalForm.Step
+            originalForm.Step,
+            originalForm.PropertyName
         );
     }
 }

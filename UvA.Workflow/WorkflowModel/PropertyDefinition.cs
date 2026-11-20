@@ -147,6 +147,12 @@ public abstract class PropertyDefinition : INamed
     /// The name of another property this property is linked to.
     /// </summary>
     public string? LinkedTo { get; set; }
+
+    /// <summary>
+    /// When the entity has <c>messages.fields: true</c> (default), <c>false</c> opts this field out of field threads.
+    /// When the entity has <c>messages.fields: false</c>, <c>true</c> opts this field in.
+    /// </summary>
+    public bool? Messages { get; set; }
 }
 
 /// <summary>Property with a numeric value that can contribute to assessment calculations.</summary>
@@ -282,6 +288,9 @@ public class ReferencePropertyDefinition : WorkflowPropertyDefinition
 
     /// <summary>Control for reference selection; omitted to use the default control.</summary>
     public ChoiceControl? Control { get; set; }
+
+    /// <summary>Roles inherited from the referenced instance.</summary>
+    public string[] InheritedRoles { get; set; } = [];
 
     /// <summary>Condition used for filtering reference choices.</summary>
     public Condition? Filter { get; set; }

@@ -34,12 +34,13 @@ public class LinkedStepWorkflowTests
         instance.Properties["LocalQuality"] = "Sufficient";
         instance.Properties["JointGrade"] = 8d;
         instance.Properties["LocalGrade"] = 7d;
+        var workflowDefinition = model.WorkflowDefinitions[definition];
         var properties = model.GetForm(instance, formName).Pages.SelectMany(page => page.Questions).ToArray();
         Assert.Equal(3, properties.Length);
         foreach (var property in properties)
         {
             var question = Assert.IsType<ChoiceQuestionDto>(
-                QuestionDto.Create(property, 3));
+                QuestionDto.Create(property, 3, workflowDefinition));
             Assert.True(question.IsRequired);
             Assert.Equal(ChoiceControl.Rubric, question.Control);
             Assert.NotNull(question.Rubric);
