@@ -192,6 +192,10 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
         .. Confirmation?.Lookups ?? []
     ];
 
+    public IEnumerable<Page> GetCurrentPages() =>
+        ActualForm.Pages.Where(page => TargetForm == null || page.Sources == null ||
+                                       (PropertyName != null && page.Sources.Contains(PropertyName)));
+
     public ObjectContext GetContext(ObjectContext context)
     {
         if (TargetForm == null)
