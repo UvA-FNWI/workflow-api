@@ -78,24 +78,27 @@ public class ModelService(ModelParser parser)
 
     public Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         IEnumerable<Action> allowedHidden,
-        IEnumerable<PropertyDefinition>? questions = null, ObjectContext? context = null)
+        IEnumerable<PropertyDefinition>? questions = null, ObjectContext? context = null,
+        bool includeSourceFields = false)
     {
         var actions = allowedHidden.Where(a => a.Type == RoleAction.ViewHidden &&
                                                (a.MatchesForm(form.Name) || a.AllForms.Length == 0 &&
                                                    a.PropertyDefinition != null)).ToArray();
         return GetQuestionStatus(instance, form,
-            q => actions.Any(a => a.PropertyDefinition == null || a.PropertyDefinition == q.Name), questions, context);
+            q => actions.Any(a => a.PropertyDefinition == null || a.PropertyDefinition == q.Name), questions, context,
+            includeSourceFields);
     }
 
     private Dictionary<string, QuestionStatus> GetQuestionStatus(WorkflowInstance instance, Form form,
         Func<PropertyDefinition, bool> canViewHidden, IEnumerable<PropertyDefinition>? questions,
-        ObjectContext? context)
+        ObjectContext? context, bool includeSourceFields = false)
     {
         context = form.GetContext(context ?? CreateContext(instance));
         return (questions ?? (form.TargetForm ?? form).PropertyDefinitions)
             .ToDictionary(q => q.Name, q => new QuestionStatus(
                 q.Condition.IsMet(context) && (q.Visibility != PropertyVisibility.Hidden || canViewHidden(q))
-                                           && (q.Sources == null || q.Sources.Contains(form.PropertyName)),
+                                           && (includeSourceFields || q.Sources == null ||
+                                               q.Sources.Contains(form.PropertyName)),
                 instance.GetProperty(form.PropertyName, q.Name) is null or BsonNull
                     ? null
                     : q.GetValidationError(context),

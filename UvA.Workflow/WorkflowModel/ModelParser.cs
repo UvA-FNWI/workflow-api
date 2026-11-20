@@ -422,6 +422,15 @@ public partial class ModelParser
     {
         ValidateReservedPropertyNames(workflowDefinition);
         PreProcess(workflowDefinition.StopWhen);
+        foreach (var action in workflowDefinition.AllActions.Where(a => a.Type == RoleAction.Preview))
+        {
+            if (!workflowDefinition.GlobalActions.Contains(action) || action.Steps.Length != 0)
+                throw new Exception("Preview actions must be global and cannot restrict steps.");
+            foreach (var form in action.AllForms.Where(form => form != Action.All))
+                if (!workflowDefinition.Forms.Contains(form))
+                    throw new Exception($"Preview form '{form}' does not exist in '{workflowDefinition.Name}'.");
+        }
+
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
 

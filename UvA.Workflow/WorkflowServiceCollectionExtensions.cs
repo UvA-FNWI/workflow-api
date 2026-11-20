@@ -42,6 +42,7 @@ public static class WorkflowServiceCollectionExtensions
         services.AddScoped<IAnswerService, AnswerService>();
         services.AddScoped<DummyAnswerGenerator>();
         services.AddScoped<SubmissionService>();
+        services.AddScoped<FormPreviewService>();
         services.AddScoped<RightsService>();
         services.AddScoped<JobService>();
         services.AddScoped<EffectService>();

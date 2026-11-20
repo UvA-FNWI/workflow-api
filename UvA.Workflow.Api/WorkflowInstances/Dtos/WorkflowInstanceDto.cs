@@ -32,7 +32,10 @@ public record WorkflowInstanceDto(
     InfoCardDto[] InfoCards,
     bool WorkflowStopped = false,
     BilingualString? StopMessage = null
-);
+)
+{
+    public PreviewableFormDto[] PreviewableForms { get; init; } = [];
+}
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
 

@@ -22,7 +22,8 @@ public enum RoleAction
     ImpersonateRoles,
     ViewResults,
     ViewCorrespondence,
-    ViewHistory
+    ViewHistory,
+    Preview
 }
 
 public class Action

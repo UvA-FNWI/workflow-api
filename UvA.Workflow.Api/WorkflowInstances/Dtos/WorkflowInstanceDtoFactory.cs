@@ -186,7 +186,12 @@ public class WorkflowInstanceDtoFactory(
             infoCards,
             context.WorkflowStopped,
             stopMessage
-        );
+        )
+        {
+            PreviewableForms = (await rightsService.GetPreviewableForms(instance, ct))
+                .Select(form => new PreviewableFormDto(form.Name,
+                    form.Title ?? form.ActualForm.Title ?? form.Name)).ToArray()
+        };
     }
 
     private static FieldDto[] CreateFields(WorkflowDefinition workflowDefinition, ObjectContext context)
