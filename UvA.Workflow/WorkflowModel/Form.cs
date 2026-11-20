@@ -183,6 +183,10 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
 
     [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
 
+    public IEnumerable<Page> GetCurrentPages() =>
+        ActualForm.Pages.Where(page => TargetForm == null || page.Sources == null ||
+                                       (PropertyName != null && page.Sources.Contains(PropertyName)));
+
     public ObjectContext GetContext(ObjectContext context)
     {
         if (TargetForm == null)
