@@ -262,6 +262,12 @@ public class MessagesSettings
 
     /// <summary>Optional callout in the message composer.</summary>
     public MessageCalloutSettings? Callout { get; set; }
+
+    /// <summary>Localized singular term for a message.</summary>
+    public BilingualString? Term { get; set; }
+
+    /// <summary>Localized plural term for messages.</summary>
+    public BilingualString? TermPlural { get; set; }
 }
 
 public class MessageCalloutSettings

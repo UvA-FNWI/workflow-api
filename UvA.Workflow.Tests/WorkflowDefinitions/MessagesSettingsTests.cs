@@ -72,7 +72,9 @@ public class MessagesSettingsTests
                     Variant = CalloutVariant.Info,
                     Title = new BilingualString("Privacy", "Privacy"),
                     Text = new BilingualString("Be careful", "Pas op")
-                }
+                },
+                Term = new BilingualString("review note", "beoordelingsnotitie"),
+                TermPlural = new BilingualString("review notes", "beoordelingsnotities")
             }
         };
 
@@ -89,5 +91,9 @@ public class MessagesSettingsTests
         Assert.Equal(CalloutVariant.Info, dto.Messages.Callout.Variant);
         Assert.Equal("Privacy", dto.Messages.Callout.Title?.En);
         Assert.Equal("Be careful", dto.Messages.Callout.Text?.En);
+        Assert.Equal("review note", dto.Messages.Term?.En);
+        Assert.Equal("beoordelingsnotitie", dto.Messages.Term?.Nl);
+        Assert.Equal("review notes", dto.Messages.TermPlural?.En);
+        Assert.Equal("beoordelingsnotities", dto.Messages.TermPlural?.Nl);
     }
 }

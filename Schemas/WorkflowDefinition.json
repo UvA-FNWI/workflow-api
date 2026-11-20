@@ -2196,6 +2196,34 @@
               "$ref": "#/definitions/MessageCalloutSettings"
             }
           ]
+        },
+        "term": {
+          "description": "Localized singular term for a message.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "termPlural": {
+          "description": "Localized plural term for messages.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         }
       }
     },
