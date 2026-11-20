@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.WorkflowModel;
 
 namespace UvA.Workflow.Api.WorkflowDefinitions.Dtos;
@@ -7,9 +8,7 @@ public record MessagesSettingsDto(
     bool FieldsAllowAll = true,
     string Layout = "threaded",
     bool AllowClose = true,
-    bool Callout = false,
-    BilingualString? CalloutTitle = null,
-    BilingualString? CalloutText = null,
+    CalloutDto? Callout = null,
     BilingualString? CardTitle = null
 )
 {
@@ -19,9 +18,7 @@ public record MessagesSettingsDto(
             settings.Fields,
             string.IsNullOrWhiteSpace(settings.Layout) ? "threaded" : settings.Layout,
             settings.Close,
-            settings.Callout,
-            settings.CalloutTitle,
-            settings.CalloutText,
+            settings.Callout is { } callout ? new CalloutDto(callout.Variant, callout.Title, callout.Text) : null,
             settings.CardTitle
         );
 }

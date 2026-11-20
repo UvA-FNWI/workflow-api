@@ -2187,11 +2187,28 @@
           "description": "When false, conversations cannot be closed or reopened."
         },
         "callout": {
-          "type": "boolean",
-          "description": "Show a privacy callout in the instance messages card."
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Optional callout in the message composer.",
+              "$ref": "#/definitions/MessageCalloutSettings"
+            }
+          ]
+        }
+      }
+    },
+    "MessageCalloutSettings": {
+      "title": "MessageCalloutSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variant": {
+          "$ref": "#/definitions/CalloutVariant"
         },
-        "calloutTitle": {
-          "description": "Privacy callout heading. Falls back to product defaults when omitted.",
+        "title": {
+          "description": "Localized callout heading.",
           "oneOf": [
             {
               "type": "null"
@@ -2204,8 +2221,8 @@
             }
           ]
         },
-        "calloutText": {
-          "description": "Privacy callout body. Falls back to product defaults when omitted.",
+        "text": {
+          "description": "Localized callout body.",
           "oneOf": [
             {
               "type": "null"
@@ -2219,6 +2236,16 @@
           ]
         }
       }
+    },
+    "CalloutVariant": {
+      "type": "string",
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Success",
+        "Note"
+      ]
     }
   }
 }

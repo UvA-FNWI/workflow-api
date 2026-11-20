@@ -67,9 +67,12 @@ public class MessagesSettingsTests
                 Fields = false,
                 Layout = "flat",
                 Close = false,
-                Callout = true,
-                CalloutTitle = new BilingualString("Privacy", "Privacy"),
-                CalloutText = new BilingualString("Be careful", "Pas op")
+                Callout = new MessageCalloutSettings
+                {
+                    Variant = CalloutVariant.Info,
+                    Title = new BilingualString("Privacy", "Privacy"),
+                    Text = new BilingualString("Be careful", "Pas op")
+                }
             }
         };
 
@@ -82,8 +85,9 @@ public class MessagesSettingsTests
         Assert.False(dto.Messages.FieldsAllowAll);
         Assert.Equal("flat", dto.Messages.Layout);
         Assert.False(dto.Messages.AllowClose);
-        Assert.True(dto.Messages.Callout);
-        Assert.Equal("Privacy", dto.Messages.CalloutTitle?.En);
-        Assert.Equal("Be careful", dto.Messages.CalloutText?.En);
+        Assert.NotNull(dto.Messages.Callout);
+        Assert.Equal(CalloutVariant.Info, dto.Messages.Callout.Variant);
+        Assert.Equal("Privacy", dto.Messages.Callout.Title?.En);
+        Assert.Equal("Be careful", dto.Messages.Callout.Text?.En);
     }
 }

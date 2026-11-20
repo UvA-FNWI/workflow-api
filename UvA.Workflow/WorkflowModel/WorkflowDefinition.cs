@@ -140,8 +140,6 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public bool MessagesUseFlatLayout =>
         string.Equals(Messages?.Layout, "flat", StringComparison.OrdinalIgnoreCase);
 
-    public bool MessagesShowCallout => Messages?.Callout == true;
-
     public bool AllowsMessages(string? questionName)
     {
         if (!MessagesEnabled)
@@ -262,14 +260,19 @@ public class MessagesSettings
     /// <summary>When false, conversations cannot be closed or reopened.</summary>
     public bool Close { get; set; } = true;
 
-    /// <summary>Show a privacy callout in the instance messages card.</summary>
-    public bool Callout { get; set; }
+    /// <summary>Optional callout in the message composer.</summary>
+    public MessageCalloutSettings? Callout { get; set; }
+}
 
-    /// <summary>Privacy callout heading. Falls back to product defaults when omitted.</summary>
-    public BilingualString? CalloutTitle { get; set; }
+public class MessageCalloutSettings
+{
+    public CalloutVariant Variant { get; set; } = CalloutVariant.Info;
 
-    /// <summary>Privacy callout body. Falls back to product defaults when omitted.</summary>
-    public BilingualString? CalloutText { get; set; }
+    /// <summary>Localized callout heading.</summary>
+    public BilingualString? Title { get; set; }
+
+    /// <summary>Localized callout body.</summary>
+    public BilingualString? Text { get; set; }
 }
 
 public class EventDefinition : INamed
