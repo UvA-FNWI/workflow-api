@@ -156,20 +156,21 @@ public class WorkflowInheritanceTests
     {
         var parser = new ModelParser(new RelatedUserTitleContentProvider());
         var workflow = parser.WorkflowDefinitions["Project"];
+        var relatedUsers = workflow.RelatedUserGroups.SelectMany(group => group.Users).ToArray();
 
-        var supervisor = workflow.RelatedUsers.Single(relatedUser => relatedUser.Property == "Supervisor");
+        var supervisor = relatedUsers.Single(relatedUser => relatedUser.Property == "Supervisor");
         Assert.Equal("Supervisor", supervisor.DisplayTitle.En);
         Assert.Equal("Begeleider", supervisor.DisplayTitle.Nl);
 
-        var coordinator = workflow.RelatedUsers.Single(relatedUser => relatedUser.Property == "Course.Coordinator");
+        var coordinator = relatedUsers.Single(relatedUser => relatedUser.Property == "Course.Coordinator");
         Assert.Equal("Coordinator", coordinator.DisplayTitle.En);
         Assert.Equal("Coordinator NL", coordinator.DisplayTitle.Nl);
 
-        var reviewer = workflow.RelatedUsers.Single(relatedUser => relatedUser.Property == "Reviewer");
+        var reviewer = relatedUsers.Single(relatedUser => relatedUser.Property == "Reviewer");
         Assert.Equal("Configured reviewer", reviewer.DisplayTitle.En);
         Assert.Equal("Geconfigureerde beoordelaar", reviewer.DisplayTitle.Nl);
 
-        var missing = workflow.RelatedUsers.Single(relatedUser => relatedUser.Property == "MissingUser");
+        var missing = relatedUsers.Single(relatedUser => relatedUser.Property == "MissingUser");
         Assert.Equal("MissingUser", missing.DisplayTitle.En);
         Assert.Equal("MissingUser", missing.DisplayTitle.Nl);
     }

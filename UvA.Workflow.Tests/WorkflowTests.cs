@@ -442,6 +442,7 @@ public class WorkflowTests
                 b => b.WithId("Start").AsCompleted(),
                 b => b.WithId("ApproveSubject").AsCompleted(),
                 b => b.WithId("Upload").AsCompleted(),
+                b => b.WithId("CoordinatorApproved").AsCompleted(),
                 b => b.WithId("AssessmentReviewer").AsCompleted(),
                 b => b.WithId("AssessmentSupervisor").AsCompleted(),
                 b => b.WithId("Publish").AsCompleted())

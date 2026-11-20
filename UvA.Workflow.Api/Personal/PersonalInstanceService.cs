@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.Personal.Dtos;
+using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.WorkflowModel;
 
@@ -110,15 +111,7 @@ public class PersonalInstanceService(
         var student = usersByRole.GetValueOrDefault("Student")
             ?.FirstOrDefault()
             ?.DisplayName;
-        var employees = usersByRole
-            .Where(entry => !string.Equals(entry.Key, "Student", StringComparison.OrdinalIgnoreCase))
-            .SelectMany(entry => entry.Value)
-            .Where(instanceUser => !string.Equals(instanceUser.Id, user.Id, StringComparison.Ordinal))
-            .Select(instanceUser => instanceUser.DisplayName)
-            .Where(displayName => !string.IsNullOrWhiteSpace(displayName))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Order(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var staff = ScreenDataService.GetRelatedUsersScreen(definition, context);
 
         return new PersonalInstanceDto(
             instance.Id,
@@ -132,7 +125,7 @@ public class PersonalInstanceService(
             roles,
             student,
             context.Get("Course.Name") as string,
-            employees,
+            staff,
             context.WorkflowStopped
         );
     }
