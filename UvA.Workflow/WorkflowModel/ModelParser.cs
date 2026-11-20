@@ -387,7 +387,7 @@ public partial class ModelParser
     {
         if (!card.Enabled)
             return;
-        if (card.Type == null || card.Title == null)
+        if (card.Type == null || (card.Type != InfoCardType.Messages && card.Title == null))
             throw new Exception($"Info card '{card.Name}' in '{workflowDefinition.Name}' requires type and title.");
 
         switch (card.Type)

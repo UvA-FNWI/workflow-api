@@ -29,10 +29,8 @@ public class WorkflowInstanceDtoFactory(
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
         var visibleCards = workflowDefinition.InfoCards
-            .Where(card => card.Enabled && card.Type != null &&
-                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
-                           (card.ExcludedSources is not { Length: > 0 } ||
-                            !card.ExcludedSources.Intersect(viewerRoles).Any()))
+            .Where(card => card.IsVisibleToRoles(viewerRoles) &&
+                           (card.Type != InfoCardType.Messages || workflowDefinition.MessagesEnabled))
             .ToArray();
         var context = await instanceService.CreateContext(instance,
             workflowDefinition.PermissionAndStepLookups
@@ -158,6 +156,8 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.EditableRelatedUsers.Select(r => r.Property),
             editActions);
         var infoCards = visibleCards
+            .Where(card =>
+                card.Type != InfoCardType.Messages || permissions.Any(action => action.Type == RoleAction.ViewMessages))
             .Select(card => CreateInfoCard(workflowDefinition, card, displayContext, canEditByProperty))
             .OfType<InfoCardDto>()
             .ToArray();
@@ -438,6 +438,9 @@ public class WorkflowInstanceDtoFactory(
         Dictionary<string, bool> canEditByProperty)
     {
         var type = card.Type!.Value;
+        if (type == InfoCardType.Messages)
+            return new InfoCardDto(card.Name, card.Title, type);
+
         if (type == InfoCardType.User)
         {
             var user = context.Get(card.User!) switch

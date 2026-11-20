@@ -133,7 +133,7 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public bool MessagesEnabled => Messages?.Enabled == true;
 
     public bool AllowsInstanceMessages() =>
-        MessagesEnabled && (Messages?.Card ?? true);
+        MessagesEnabled && InfoCards.Any(card => card.Enabled && card.Type == InfoCardType.Messages);
 
     public bool MessagesAllowClose => Messages?.Close ?? true;
 
@@ -242,12 +242,6 @@ public class MessagesSettings
 {
     public bool Enabled { get; set; }
 
-    /// <summary>Show the instance-level messages card. Default true when messages are enabled.</summary>
-    public bool Card { get; set; } = true;
-
-    /// <summary>Localized instance messages card title with an optional <c>{{count}}</c> placeholder.</summary>
-    public BilingualString? CardTitle { get; set; }
-
     /// <summary>
     /// When true (default), visible fields allow messages unless opted out with <c>messages: false</c> on the property.
     /// When false, field messages are off unless opted in with <c>messages: true</c> on the property.
@@ -263,10 +257,10 @@ public class MessagesSettings
     /// <summary>Optional callout in the message composer.</summary>
     public MessageCalloutSettings? Callout { get; set; }
 
-    /// <summary>Localized singular term for a message.</summary>
+    /// <summary>Localized singular term used by Messages cards and field comments.</summary>
     public BilingualString? Term { get; set; }
 
-    /// <summary>Localized plural term for messages.</summary>
+    /// <summary>Localized plural term used by Messages cards and field comments.</summary>
     public BilingualString? TermPlural { get; set; }
 }
 

@@ -126,6 +126,34 @@ public class MessagesControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Messages_EnforcesCardSourcesForInstanceThreadsOnly()
+    {
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var messagesCard = Assert.Single(definition.InfoCards, card => card.Type == InfoCardType.Messages);
+        messagesCard.ExcludedSources = ["SystemAdmin"];
+
+        var instanceThread = new Message { Id = "instance-thread", InstanceId = instance.Id };
+        var fieldThread = new Message { Id = "field-thread", InstanceId = instance.Id, QuestionName = "Title" };
+        _messageRepoMock.Setup(r => r.GetMessages(instance.Id, _ct)).ReturnsAsync([instanceThread, fieldThread]);
+        var controller = CreateController();
+
+        var result = await controller.GetMessages(instance.Id, _ct);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var visible = Assert.Single(Assert.IsAssignableFrom<IEnumerable<MessageDto>>(ok.Value));
+        Assert.Equal(fieldThread.Id, visible.Id);
+
+        var newError = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            controller.AddMessage(instance.Id, new AddMessageInput(null, null, Body: "Hidden"), _ct));
+        Assert.Equal("MessagesDisabled", newError.Code);
+
+        var replyError = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            controller.AddMessage(instance.Id, new AddMessageInput(null, instanceThread.Id, Body: "Hidden"), _ct));
+        Assert.Equal("MessagesDisabled", replyError.Code);
+    }
+
+    [Fact]
     public async Task AddMessage_ThrowsForbidden_WhenUserCannotAdd()
     {
         var instance = CreateInstance();

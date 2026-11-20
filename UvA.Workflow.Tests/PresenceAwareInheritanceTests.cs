@@ -325,18 +325,24 @@ public class PresenceAwareInheritanceTests
                                    titlePlural: Bases
                                    messages:
                                      enabled: true
-                                     cardTitle:
-                                       en: "{{count}} comments"
-                                       nl: "{{count}} notities"
+                                   infoCards:
+                                     - name: Messages
+                                       type: Messages
+                                       title:
+                                         en: "{{count}} comments"
+                                         nl: "{{count}} notities"
                                    """,
             ["Omit/Entity.yaml"] = "name: Omit\ntitlePlural: Os\ninheritsFrom: Base",
             ["Off/Entity.yaml"] = "name: Off\ntitlePlural: Fs\ninheritsFrom: Base\nmessages:\n  enabled: false"
         }));
 
-        Assert.True(parser.WorkflowDefinitions["Omit"].MessagesEnabled);
-        Assert.Equal("{{count}} comments", parser.WorkflowDefinitions["Omit"].Messages?.CardTitle?.En);
-        Assert.Equal("{{count}} notities", parser.WorkflowDefinitions["Omit"].Messages?.CardTitle?.Nl);
-        Assert.False(parser.WorkflowDefinitions["Off"].MessagesEnabled);
+        var inherited = parser.WorkflowDefinitions["Omit"];
+        Assert.True(inherited.AllowsInstanceMessages());
+        var card = Assert.Single(inherited.InfoCards);
+        Assert.Equal("{{count}} comments", card.Title?.En);
+        Assert.Equal("{{count}} notities", card.Title?.Nl);
+        Assert.Empty(card.Properties);
+        Assert.False(parser.WorkflowDefinitions["Off"].AllowsInstanceMessages());
     }
 
     [Fact]

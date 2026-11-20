@@ -20,7 +20,11 @@ public class MessageService(
         var instance = await GetAuthorizedInstance(instanceId, RoleAction.ViewMessages, ct);
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var messages = await repository.GetMessages(instanceId, ct) ?? [];
-        return messages.Where(m => definition.AllowsMessages(m.QuestionName)).ToList();
+        var canViewInstanceThreads = messages.Any(message => string.IsNullOrEmpty(message.QuestionName)) &&
+                                     await CanAccessInstanceThreads(instance, definition, ct);
+        return messages.Where(message => string.IsNullOrEmpty(message.QuestionName)
+            ? canViewInstanceThreads
+            : definition.AllowsMessages(message.QuestionName)).ToList();
     }
 
     public async Task<Message> AddMessage(string instanceId, AddMessageInput input, CancellationToken ct)
@@ -41,9 +45,7 @@ public class MessageService(
         if (string.IsNullOrWhiteSpace(input.Body))
             throw new ArgumentException("Message body is required.");
 
-        if (!definition.AllowsMessages(input.QuestionName))
-            throw new InvalidWorkflowStateException(instance.Id, "MessagesDisabled",
-                "Messages are not enabled for this target.");
+        await EnsureTargetEnabled(instance, definition, input.QuestionName, ct);
 
         var message = new Message
         {
@@ -71,9 +73,7 @@ public class MessageService(
                        .FirstOrDefault(m => m.Id == input.ReplyToId)
                        ?? throw new EntityNotFoundException("Message", input.ReplyToId!);
 
-        if (!definition.AllowsMessages(existing.QuestionName))
-            throw new InvalidWorkflowStateException(instance.Id, "MessagesDisabled",
-                "Messages are not enabled for this target.");
+        await EnsureTargetEnabled(instance, definition, existing.QuestionName, ct);
 
         switch (input.Kind)
         {
@@ -146,6 +146,31 @@ public class MessageService(
                        ?? throw new EntityNotFoundException("WorkflowInstance", instanceId);
         await rightsService.EnsureAuthorizedForAction(instance, action);
         return instance;
+    }
+
+    private async Task EnsureTargetEnabled(WorkflowInstance instance, WorkflowDefinition definition,
+        string? questionName, CancellationToken ct)
+    {
+        var enabled = string.IsNullOrEmpty(questionName)
+            ? await CanAccessInstanceThreads(instance, definition, ct)
+            : definition.AllowsMessages(questionName);
+        if (!enabled)
+            throw new InvalidWorkflowStateException(instance.Id, "MessagesDisabled",
+                "Messages are not enabled for this target.");
+    }
+
+    private async Task<bool> CanAccessInstanceThreads(WorkflowInstance instance, WorkflowDefinition definition,
+        CancellationToken ct)
+    {
+        if (!definition.AllowsInstanceMessages())
+            return false;
+
+        var cards = definition.InfoCards.Where(card => card.Enabled && card.Type == InfoCardType.Messages).ToArray();
+        if (cards.Any(card => card.Sources is not { Length: > 0 } && card.ExcludedSources is not { Length: > 0 }))
+            return true;
+
+        var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
+        return cards.Any(card => card.IsVisibleToRoles(viewerRoles));
     }
 
     private static MessageItem CreateItem(string authorId, AddMessageInput input) => new()

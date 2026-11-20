@@ -698,6 +698,30 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Create_ProjectsMessagesInfoCardWithUnresolvedTitleForAuthorizedViewer()
+    {
+        var instance = CreateProjectInstance();
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var configuredCard = Assert.Single(definition.InfoCards, card => card.Type == InfoCardType.Messages);
+        configuredCard.Title = "{{count}} {{termPluralTitle}}";
+        var factory = CreateFactory(Mock.Of<IStepVersionService>());
+
+        MockCurrentUser("SystemAdmin");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockNoPropertyJournal(instance);
+        MockHistoricalEventLog(instance);
+
+        var dto = await factory.Create(instance, CancellationToken.None);
+        var card = Assert.Single(dto.InfoCards, card => card.Type == InfoCardType.Messages);
+        Assert.Equal("{{count}} {{termPluralTitle}}", card.Title?.En);
+
+        MockCurrentUser("Examiner");
+        var examinerDto = await factory.Create(instance, CancellationToken.None);
+        Assert.DoesNotContain(examinerDto.InfoCards, card => card.Type == InfoCardType.Messages);
+    }
+
+    [Fact]
     public async Task Create_KeepsEditableEmptyRequiredStaff()
     {
         var instance = CreateProjectInstance();

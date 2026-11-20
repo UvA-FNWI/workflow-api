@@ -6,8 +6,16 @@ public class InfoCard : INamed
 {
     public string Name { get; set; } = null!;
     public InfoCardType? Type { get; set; }
+
+    /// <summary>
+    /// Localized card title. Messages titles support {{count}}, {{term}}, and {{termPlural}},
+    /// including the capitalized variants {{termTitle}} and {{termPluralTitle}}.
+    /// </summary>
     public BilingualString? Title { get; set; }
-    public BilingualTemplate? TitleTemplate => field ??= BilingualTemplate.Create(Title);
+
+    public BilingualTemplate? TitleTemplate =>
+        Type == InfoCardType.Messages ? null : field ??= BilingualTemplate.Create(Title);
+
     public bool Enabled { get; set; } = true;
     public string[]? Sources { get; set; }
     public string[]? ExcludedSources { get; set; }
@@ -18,6 +26,11 @@ public class InfoCard : INamed
     public RelatedUserGroup[] Groups { get; set; } = [];
     public InfoCardItem[] Items { get; set; } = [];
     public BilingualString? Content { get; set; }
+
+    public bool IsVisibleToRoles(IEnumerable<string> viewerRoles)
+        => Enabled && Type != null &&
+           (Sources is not { Length: > 0 } || Sources.Intersect(viewerRoles).Any()) &&
+           (ExcludedSources is not { Length: > 0 } || !ExcludedSources.Intersect(viewerRoles).Any());
 
     [YamlIgnore]
     public IEnumerable<Lookup> Properties =>
@@ -36,7 +49,8 @@ public enum InfoCardType
     RelatedUsers,
     Links,
     Text,
-    Progress
+    Progress,
+    Messages
 }
 
 public class InfoCardField : Field

@@ -1192,6 +1192,7 @@
           ]
         },
         "title": {
+          "description": "Localized card title. Messages titles support {{count}}, {{term}}, and {{termPlural}},\n            including the capitalized variants {{termTitle}} and {{termPluralTitle}}.",
           "oneOf": [
             {
               "type": "null"
@@ -1284,7 +1285,8 @@
         "RelatedUsers",
         "Links",
         "Text",
-        "Progress"
+        "Progress",
+        "Messages"
       ]
     },
     "InfoCardField": {
@@ -2156,24 +2158,6 @@
         "enabled": {
           "type": "boolean"
         },
-        "card": {
-          "type": "boolean",
-          "description": "Show the instance-level messages card. Default true when messages are enabled."
-        },
-        "cardTitle": {
-          "description": "Localized instance messages card title with an optional <code>{{count}}</code> placeholder.",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
         "fields": {
           "type": "boolean",
           "description": "When true (default), visible fields allow messages unless opted out with <code>messages: false</code> on the property.\n            When false, field messages are off unless opted in with <code>messages: true</code> on the property."
@@ -2198,7 +2182,7 @@
           ]
         },
         "term": {
-          "description": "Localized singular term for a message.",
+          "description": "Localized singular term used by Messages cards and field comments.",
           "oneOf": [
             {
               "type": "null"
@@ -2212,7 +2196,7 @@
           ]
         },
         "termPlural": {
-          "description": "Localized plural term for messages.",
+          "description": "Localized plural term used by Messages cards and field comments.",
           "oneOf": [
             {
               "type": "null"
