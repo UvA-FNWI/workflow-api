@@ -26,9 +26,10 @@ public record JobDto(
     bool IsSynchronous,
     string? Message,
     string WorkerGroup,
-    DateTime? ClaimedUntil)
+    DateTime? ClaimedUntil,
+    bool CanRun)
 {
-    public static JobDto Create(Job job, string? createdByDisplayName = null) =>
+    public static JobDto Create(Job job, string? createdByDisplayName, bool canRun) =>
         new(
             job.Id,
             job.InstanceId,
@@ -43,5 +44,6 @@ public record JobDto(
             job.IsSynchronous,
             job.Message,
             job.WorkerGroup,
-            job.ClaimedUntil);
+            job.ClaimedUntil,
+            canRun);
 }

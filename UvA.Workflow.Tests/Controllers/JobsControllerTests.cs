@@ -37,9 +37,64 @@ public class JobsControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobs = Assert.IsAssignableFrom<IEnumerable<JobDto>>(okResult.Value).ToList();
         Assert.Single(jobs);
+        Assert.True(jobs[0].CanRun);
         Assert.Equal(job.Id, jobs[0].Id);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobs[0].CreatedBy);
         Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, jobs[0].CreatedByDisplayName);
+    }
+
+    [Fact]
+    public async Task Jobs_LocalAdminCanOnlyViewJobsForTheirFaculty()
+    {
+        var faculty = new WorkflowInstance
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            WorkflowDefinition = "Faculty",
+            Properties = [],
+            Events = []
+        };
+        faculty.Properties["LocalAdmin"] = new BsonArray
+        {
+            new BsonDocument("_id", ObjectId.Parse(UnitTestsHelpers.AdminUser.Id))
+        };
+        var programme = new WorkflowInstance
+        {
+            Id = InstanceId,
+            WorkflowDefinition = "Programme",
+            Properties = new() { ["Faculty"] = faculty.Id },
+            Events = []
+        };
+        var otherProgramme = new WorkflowInstance
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            WorkflowDefinition = "Programme",
+            Properties = [],
+            Events = []
+        };
+        MockInstance(programme);
+        MockInstance(otherProgramme);
+        MockEmptyRelatedInstanceLookups();
+        _workflowInstanceRepoMock.Setup(r =>
+                r.GetByIds(It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { faculty.Id })),
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync([faculty]);
+        var job = CreateJob();
+        _jobRepositoryMock.Setup(r => r.GetList(InstanceId, _ct)).ReturnsAsync([job]);
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, JobId, _ct)).ReturnsAsync(job);
+        _userRepoMock.Setup(r => r.GetByIds(It.IsAny<IReadOnlyList<string>>(), _ct)).ReturnsAsync([]);
+        var controller = BuildController([]);
+
+        var list = await controller.GetList(InstanceId, _ct);
+        var jobs = Assert.IsAssignableFrom<IEnumerable<JobDto>>(Assert.IsType<OkObjectResult>(list.Result).Value);
+        Assert.False(Assert.Single(jobs).CanRun);
+        var detail = await controller.GetById(InstanceId, JobId, _ct);
+        Assert.False(Assert.IsType<JobDto>(Assert.IsType<OkObjectResult>(detail.Result).Value).CanRun);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.GetList(otherProgramme.Id, _ct));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.GetById(otherProgramme.Id, JobId, _ct));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.Run(InstanceId, JobId, _ct));
+        _jobRepositoryMock.Verify(r => r.GetList(otherProgramme.Id, _ct), Times.Never);
+        _jobRepositoryMock.Verify(r => r.GetById(otherProgramme.Id, JobId, _ct), Times.Never);
     }
 
     [Fact]
@@ -122,6 +177,7 @@ public class JobsControllerTests : ControllerTestsBase
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobDto = Assert.IsType<JobDto>(okResult.Value);
+        Assert.True(jobDto.CanRun);
         Assert.Equal(job.Id, jobDto.Id);
         Assert.Equal(job.InstanceId, jobDto.InstanceId);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobDto.CreatedBy);
@@ -361,7 +417,7 @@ public class JobsControllerTests : ControllerTestsBase
     private JobsController BuildController(string[] roles)
     {
         MockCurrentUser(roles);
-        return new JobsController(_jobService, _rightsService, _jobRepositoryMock.Object, _userRepoMock.Object,
-            _userServiceMock.Object);
+        return new JobsController(_jobService, _rightsService, _workflowInstanceRepoMock.Object,
+            _jobRepositoryMock.Object, _userRepoMock.Object, _userServiceMock.Object);
     }
 }
