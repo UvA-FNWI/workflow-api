@@ -643,6 +643,19 @@ public class UsersControllerTests : ControllerTestsBase
         _userServiceMock.Verify(s => s.FindUsers("external", false, _ct), Times.Once);
     }
 
+    [Fact]
+    public async Task Users_Find_ReturnsServiceUnavailableWhenDirectoryIsDown()
+    {
+        _userServiceMock.Setup(s => s.FindUsers("emp", true, _ct))
+            .ThrowsAsync(new DirectoryUnavailableException());
+        var controller = BuildControllerWithRoles(["Student"]);
+
+        var result = await controller.Find("emp", true, _ct);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, objectResult.StatusCode);
+    }
+
     private UsersController BuildControllerWithRoles(
         string[] roles)
     {

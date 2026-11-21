@@ -11,6 +11,7 @@ Workflow API is a service for modelling real-world processes in a generic and re
 - `UvA.Workflow.Notifications.Graph`: Microsoft Graph notification delivery.
 - `UvA.Workflow.Users.DataNose`: DataNose-backed user and role integration.
 - `UvA.Workflow.Users.EduId`: EduId-backed user and invite integration.
+- `UvA.Workflow.Users.EntraId`: Entra directory for the people picker when `UserProvider` is `entra-id`. Not registered for the default DataNose configuration. Does not sync app roles. Setup is in [docs/entra-directory.md](docs/entra-directory.md).
 - `UvA.Workflow.SchemaGenerator`: tooling for generating workflow authoring schemas.
 - `Examples`: sample workflow definitions and authoring content.
 - `Schemas`: JSON schemas used by workflow authors and tooling.
