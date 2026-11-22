@@ -104,7 +104,6 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     /// </summary>
     public FormLayout Layout { get; set; }
 
-
     /// <summary>
     /// Target reference property. Set this to use the form to update the properties of the referenced entity
     /// </summary>
@@ -160,6 +159,11 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     public Effect[] OnSave { get; set; } = [];
 
     /// <summary>
+    /// Optional confirmation dialog to show when the form is submitted
+    /// </summary>
+    public FormConfirmation? Confirmation { get; set; }
+
+    /// <summary>
     /// Name of a form template (Templates/Forms) to resolve this form from
     /// </summary>
     [YamlMember(Alias = "template")]
@@ -181,7 +185,12 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
         Pages.SelectMany(p => p.Questions)
             .Distinct();
 
-    [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. Pages.SelectMany(p => p.Lookups),
+        .. Confirmation?.Lookups ?? []
+    ];
 
     public IEnumerable<Page> GetCurrentPages() =>
         ActualForm.Pages.Where(page => TargetForm == null || page.Sources == null ||
@@ -262,4 +271,19 @@ public class PageElement
     ];
 
     public PageElement Clone() => (PageElement)MemberwiseClone();
+}
+
+public class FormConfirmation
+{
+    public required BilingualString Title { get; set; }
+    [YamlIgnore] public BilingualTemplate TitleTemplate => field ??= BilingualTemplate.Create(Title);
+    public required BilingualString Text { get; set; }
+    [YamlIgnore] public BilingualTemplate TextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. TitleTemplate.Properties,
+        .. TextTemplate.Properties
+    ];
 }

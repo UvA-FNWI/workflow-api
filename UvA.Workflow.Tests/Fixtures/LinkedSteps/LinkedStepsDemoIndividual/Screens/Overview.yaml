@@ -2,7 +2,10 @@ name: Overview
 columns:
   - property: Student.DisplayName
     link: true
-  - currentStep: true
+  - title:
+      en: Progress
+      nl: Voortgang
+    type: CurrentStep
 grouping:
   groups:
     - name: preparation
@@ -16,4 +19,5 @@ grouping:
       steps: [IndividualWork, Finalise]
     - name: completed
       title: Completed
-      steps: ['null']
+      steps:
+        - null

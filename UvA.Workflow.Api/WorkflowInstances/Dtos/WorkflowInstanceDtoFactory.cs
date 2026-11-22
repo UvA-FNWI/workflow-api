@@ -72,6 +72,14 @@ public class WorkflowInstanceDtoFactory(
         var activeSteps = modelService.GetActiveSteps(instance, context).ToHashSet();
         var displayContext = context.WithValues(new Dictionary<Lookup, object?> { ["CurrentStep"] = currentStep });
         displayContext.ComputeProperties(workflowDefinition);
+        var current = modelService.GetCurrentStep(instance, context);
+        if (current != null)
+            displayContext.Values["CurrentStep"] = current.Import != null
+                ? context.ImportedSteps.GetValueOrDefault(current.Name) is { } owner &&
+                  await rightsService.Can(owner.Instance, RoleAction.View)
+                    ? owner.Step.DisplayTitle
+                    : new BilingualString("Shared step", "Gedeelde stap")
+                : current.DisplayTitle;
 
         // Answer corrections need the full log to evaluate each edit before later undo operations.
         var answerHistory = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
@@ -160,11 +168,6 @@ public class WorkflowInstanceDtoFactory(
             .Select(card => CreateInfoCard(workflowDefinition, card, displayContext, canEditByProperty))
             .OfType<InfoCardDto>()
             .ToArray();
-        var current = modelService.GetCurrentStep(instance, context);
-        if (current?.Import != null &&
-            (context.ImportedSteps.GetValueOrDefault(current.Name) is not { } owner ||
-             !await rightsService.Can(owner.Instance, RoleAction.View)))
-            displayContext.Values["CurrentStep"] = new BilingualString("Shared step", "Gedeelde stap");
         var fields = CreateFields(workflowDefinition, displayContext);
         return new WorkflowInstanceDto(
             instance.Id,
@@ -197,11 +200,11 @@ public class WorkflowInstanceDtoFactory(
             if (!field.Condition.IsMet(context))
                 continue;
 
-            var obj = GetDisplayValue(workflowDefinition, field, context);
+            var obj = field.GetValue(context);
             if (obj is object[] arr && arr.Length == 1)
                 obj = arr[0];
-            var key = field.CurrentStep ? ContextKeys.CurrentStep : field.Property;
-            result.Add(new FieldDto(key, field.DisplayTitle, obj, field.IsHighlighted ?? false, field.Order));
+            result.Add(new FieldDto(field.Property, field.DisplayTitle, obj, field.IsHighlighted ?? false,
+                field.Order));
         }
 
         return result.ToArray();
@@ -494,19 +497,11 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardItemDto>()
             .ToArray();
 
-    private static object? GetDisplayValue(WorkflowDefinition definition, Field field, ObjectContext context)
-    {
-        var value = field.GetValue(context);
-        return field.CurrentStep && value is string stepName
-            ? (object?)context.ImportedSteps.GetValueOrDefault(stepName)?.Step.DisplayTitle ??
-              definition.AllSteps.GetOrDefault(stepName)?.DisplayTitle ?? value
-            : value;
-    }
-
     private static InfoCardFieldDto? CreateInfoCardField(WorkflowDefinition definition, InfoCardField field,
         ObjectContext context)
     {
-        var value = GetDisplayValue(definition, field, context);
+        var value = field.GetValue(context);
+        ;
         if (value is object[] values)
             value = values.Length == 1 ? values[0] : values;
         return value == null || value is string text && string.IsNullOrWhiteSpace(text) ||
