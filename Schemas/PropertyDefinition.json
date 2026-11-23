@@ -2660,13 +2660,6 @@
             }
           ]
         },
-        "inheritedRoles": {
-          "type": "array",
-          "description": "Roles inherited from the referenced instance.",
-          "items": {
-            "type": "string"
-          }
-        },
         "filter": {
           "description": "Condition used for filtering reference choices.",
           "oneOf": [
