@@ -203,8 +203,10 @@ public class UsersControllerTests : ControllerTestsBase
             "External User", "new@example.org", null, user.Id, _ct), Times.Once);
     }
 
-    [Fact]
-    public async Task Users_UpdateExternalUser_UpdatesEveryEditableUserReferenceInInstance()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Users_UpdateExternalUser_UpdatesEveryEditableUserReferenceInInstance(bool restrictUserSources)
     {
         var userId = ObjectId.GenerateNewId().ToString();
         var user = new User
@@ -236,6 +238,12 @@ public class UsersControllerTests : ControllerTestsBase
                 }))
             .WithEvent("Start", DateTime.UtcNow)
             .Build();
+        if (restrictUserSources)
+        {
+            Assert.IsType<UserPropertyDefinition>(_modelService.GetProperty(instance, "Supervisor")).UserSources = [];
+            Assert.IsType<UserPropertyDefinition>(_modelService.GetProperty(instance, "Reviewer")).UserSources = [];
+        }
+
         _userRepoMock.Setup(r => r.GetById(user.Id, _ct)).ReturnsAsync(user);
         _externalUserServiceMock
             .Setup(s => s.CreateOrUpdateExternalUser("External User", "new@example.org", null, user.Id, _ct))

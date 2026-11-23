@@ -2088,16 +2088,15 @@
           ],
           "description": "Determines if the propertyDefinition allows external users"
         },
-        "userSearchOptions": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Limits the directory search to the configured types of users.",
-              "$ref": "#/definitions/UserSearchOptions"
-            }
-          ]
+        "userSources": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Sources offered by the user picker. Omit to use the directory search.",
+          "items": {
+            "$ref": "#/definitions/UserSourceDefinition"
+          }
         },
         "inheritRole": {
           "type": [
@@ -2249,14 +2248,53 @@
         }
       }
     },
-    "UserSearchOptions": {
-      "title": "UserSearchOptions",
+    "UserSourceDefinition": {
+      "type": "object",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/DataNoseUserSource"
+        },
+        {
+          "$ref": "#/definitions/PropertyUserSource"
+        }
+      ]
+    },
+    "DataNoseUserSource": {
+      "title": "DataNoseUserSource",
+      "type": "object",
+      "description": "Searches the existing directory.",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "searchOptions": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Limits the directory search to the specified user groups.",
+              "$ref": "#/definitions/DataNoseSearchOptions"
+            }
+          ]
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "DataNose"
+          ]
+        }
+      }
+    },
+    "DataNoseSearchOptions": {
+      "title": "DataNoseSearchOptions",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "include": {
           "type": "array",
-          "description": "Types of directory users included in the search.",
+          "description": "User groups to include in the directory search.",
           "items": {
             "$ref": "#/definitions/UserSearchGroup"
           }
@@ -2269,6 +2307,28 @@
         "Employees",
         "Students"
       ]
+    },
+    "PropertyUserSource": {
+      "title": "PropertyUserSource",
+      "type": "object",
+      "description": "Offers users stored in a workflow property.",
+      "additionalProperties": false,
+      "required": [
+        "property",
+        "type"
+      ],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "Path to a User or [User] property."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Property"
+          ]
+        }
+      }
     },
     "ChoicePropertyDefinition": {
       "title": "ChoicePropertyDefinition",

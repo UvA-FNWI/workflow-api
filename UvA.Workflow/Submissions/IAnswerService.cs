@@ -24,7 +24,8 @@ public interface IAnswerService
         bool shouldLog,
         CancellationToken ct);
 
-    Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct);
+    Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct,
+        string? addedExternalUserName = null);
 
     Task ClearAnswers(SubmissionContext context, CancellationToken ct);
 
@@ -43,5 +44,6 @@ public interface IAnswerService
         PropertyDefinition propertyDefinition,
         JsonElement? value,
         ExternalUserInput? externalUser,
-        CancellationToken ct);
+        CancellationToken ct,
+        QuestionContext? context = null);
 }

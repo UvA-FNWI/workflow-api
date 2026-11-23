@@ -241,25 +241,13 @@ public class UserPropertyDefinition : PropertyDefinition
     /// </summary>
     public bool? AllowsExternalUsers { get; set; } = false;
 
-    /// <summary>Limits the directory search to the configured types of users.</summary>
-    public UserSearchOptions? UserSearchOptions { get; set; }
+    /// <summary>Sources offered by the user picker. Omit to use the directory search.</summary>
+    public UserSourceDefinition[]? UserSources { get; set; }
 
     /// <summary>
     /// Marks this property as an inheritable role, meaning that the users in this role will be inherited by child entities.
     /// </summary>
     public bool? InheritRole { get; set; }
-}
-
-public class UserSearchOptions
-{
-    /// <summary>Types of directory users included in the search.</summary>
-    public UserSearchGroup[] Include { get; set; } = [];
-}
-
-public enum UserSearchGroup
-{
-    Employees,
-    Students
 }
 
 /// <summary>Selection from inline choices or a named value set, with optional control and rubric settings.</summary>

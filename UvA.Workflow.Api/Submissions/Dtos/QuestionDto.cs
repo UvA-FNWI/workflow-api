@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 
@@ -139,13 +138,9 @@ public record UserQuestionDto : QuestionDto
     public UserQuestionDto(UserPropertyDefinition property) : base(property)
     {
         AllowsExternalUsers = property.AllowsExternalUsers == true;
-        UserSearchOptions = property.UserSearchOptions;
     }
 
     public bool AllowsExternalUsers { get; init; }
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public UserSearchOptions? UserSearchOptions { get; init; }
 }
 
 public record ChoiceQuestionDto : WeightedQuestionDto

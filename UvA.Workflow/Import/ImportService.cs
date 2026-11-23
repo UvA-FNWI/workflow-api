@@ -122,7 +122,8 @@ public class ImportService(
 
                 var prop = modelService.GetProperty(stub, mapping.PropertyName.Split('.'));
 
-                if (prop == null || string.IsNullOrWhiteSpace(rawValue) || prop.DataType == DataType.String) continue;
+                if (prop == null || string.IsNullOrWhiteSpace(rawValue) || prop.DataType == DataType.String ||
+                    prop is UserPropertyDefinition { UserSources: not null }) continue;
 
 
                 var converted = await ConvertRawValueToBson(prop, rawValue, ct);
@@ -160,6 +161,28 @@ public class ImportService(
                 errors.Add(ImportError.From(ImportErrorType.EntryNotFound, bulkEditConfig.Identifier.Property));
                 previewRows.Add(new ImportPreviewRow(string.Empty, values, errors.ToArray()));
                 continue;
+            }
+
+            foreach (var mapping in dataMappings)
+            {
+                if (!values.TryGetValue(mapping.PropertyName, out var rawValue) || string.IsNullOrWhiteSpace(rawValue))
+                    continue;
+
+                var parts = mapping.PropertyName.Split('.');
+                if (modelService.GetProperty(instance, parts) is not UserPropertyDefinition
+                    {
+                        UserSources: not null
+                    } property)
+                    continue;
+
+                try
+                {
+                    await PrepareImportValue(instance, parts, property, rawValue, ct);
+                }
+                catch (InvalidWorkflowStateException)
+                {
+                    errors.Add(ImportError.From(ImportErrorType.UserNotFound, mapping.PropertyName));
+                }
             }
 
             values[bulkEditConfig.Identifier.Property] = identifier;
@@ -221,19 +244,32 @@ public class ImportService(
                     throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.Edit, propertyName);
             }
 
+            var preparedValues = new List<(string[] Parts, PropertyDefinition Property, JsonElement? Element,
+                IReadOnlyDictionary<string, UserSearchResult> VerifiedUsers)>();
             foreach (var propertyName in propertiesToWrite)
             {
-                var prop = modelService.GetProperty(stub, propertyName.Split('.'));
+                var parts = propertyName.Split('.');
+                var prop = modelService.GetProperty(stub, parts);
                 if (prop == null)
                     throw new InvalidOperationException(
                         $"Property '{propertyName}' does not exist on workflow definition '{workflowDefinition}'.");
-                ;
 
-                var rawValue = row.Values[propertyName];
-                var bsonValue = await ConvertRawValueToBson(prop, rawValue, ct);
-                await answerService.SavePropertyValue(instance, propertyName.Split('.'), prop, bsonValue,
-                    shouldLog: true, ct);
+                var (element, verifiedUsers) =
+                    await PrepareImportValue(instance, parts, prop, row.Values[propertyName], ct);
+                preparedValues.Add((parts, prop, element, verifiedUsers));
             }
+
+            var changes = new List<(string[] Parts, PropertyDefinition Property, BsonValue Value)>();
+            foreach (var prepared in preparedValues)
+            {
+                var value = await answerConversionService.ConvertToValue(prepared.Element, prepared.Property,
+                    prepared.VerifiedUsers, ct);
+                changes.Add((prepared.Parts, prepared.Property, value));
+            }
+
+            foreach (var change in changes)
+                await answerService.SavePropertyValue(instance, change.Parts, change.Property, change.Value,
+                    shouldLog: true, ct);
         }
     }
 
@@ -258,26 +294,46 @@ public class ImportService(
         return lookup;
     }
 
+    private async Task<(JsonElement? Element, IReadOnlyDictionary<string, UserSearchResult> VerifiedUsers)>
+        PrepareImportValue(WorkflowInstance instance, string[] parts, PropertyDefinition property, string rawValue,
+            CancellationToken ct)
+    {
+        modelService.EnsureWritable(instance, parts);
+        var element = await ResolveRawValue(property, rawValue, ct);
+        if (property is UserPropertyDefinition { UserSources: not null } &&
+            !string.IsNullOrWhiteSpace(rawValue) && (element == null || element.Value.ValueKind == JsonValueKind.Null))
+            throw new InvalidWorkflowStateException(instance.Id, "UserNotFound",
+                $"No user was found for '{string.Join('.', parts)}'.");
+
+        var verifiedUsers = await answerConversionService.ValidateUserSources(element, property, instance, parts, ct);
+        return (element, verifiedUsers);
+    }
+
     private async Task<BsonValue> ConvertRawValueToBson(PropertyDefinition prop, string rawValue, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(rawValue)) return BsonNull.Value;
+        var element = await ResolveRawValue(prop, rawValue, ct);
+        return await answerConversionService.ConvertToValue(element, prop, ct);
+    }
 
-        JsonElement element = prop.DataType switch
+    private async Task<JsonElement?> ResolveRawValue(PropertyDefinition prop, string rawValue, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue)) return null;
+
+        return prop.DataType switch
         {
             DataType.Int when int.TryParse(rawValue, out var i)
                 => JsonSerializer.SerializeToElement(i),
             DataType.Double when double.TryParse(rawValue, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out var d)
                 => JsonSerializer.SerializeToElement(d),
-            DataType.User => await ResolveUserElement(rawValue, ct),
+            DataType.User => await ResolveUserElement(rawValue, prop as UserPropertyDefinition, ct),
             _
                 => JsonSerializer.SerializeToElement(rawValue)
         };
-
-        return await answerConversionService.ConvertToValue(element, prop, ct);
     }
 
-    private async Task<JsonElement> ResolveUserElement(string email, CancellationToken ct)
+    private async Task<JsonElement?> ResolveUserElement(string email, UserPropertyDefinition? property,
+        CancellationToken ct)
     {
         var trimmedEmail = email.Trim();
 
@@ -293,21 +349,19 @@ public class ImportService(
             return JsonSerializer.SerializeToElement(userInput, AnswerConversionService.Options);
         }
 
-        // User does not exist in the user repository yet, but is known in the external user database
-        var matchingExternalUser = (await userService.FindUsers(trimmedEmail, includeExternalUsers: false, ct: ct))
-            .FirstOrDefault(u => string.Equals(u.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase));
-
-        if (matchingExternalUser == null)
-            return JsonSerializer.SerializeToElement<object?>(null);
-
-        var matchingExternalUserInput = new
+        var directoryScopes = property?.UserSources?.OfType<DataNoseUserSource>()
+            .Select(source => source.SearchOptions?.ToScope()).Distinct() ?? [null];
+        foreach (var scope in directoryScopes)
         {
-            userName = matchingExternalUser.UserName,
-            displayName = matchingExternalUser.DisplayName,
-            email = matchingExternalUser.Email,
-            organization = matchingExternalUser.Organization
-        };
-        return JsonSerializer.SerializeToElement(matchingExternalUserInput, AnswerConversionService.Options);
+            var candidates = await userService.FindUsers(trimmedEmail,
+                includeExternalUsers: property is { UserSources: not null, AllowsExternalUsers: true }, scope, ct);
+            var match = candidates.FirstOrDefault(u =>
+                string.Equals(u.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+                return JsonSerializer.SerializeToElement(match, AnswerConversionService.Options);
+        }
+
+        return null;
     }
 
     private IEnumerable<Dictionary<string, string>> ParseFile(Stream fileStream, string contentType)

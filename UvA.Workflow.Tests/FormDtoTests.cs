@@ -121,8 +121,7 @@ public class FormDtoTests
             new UserPropertyDefinition
             {
                 Name = "Supervisor", Type = "User", AllowsExternalUsers = true,
-                UserSearchOptions = new UserSearchOptions
-                    { Include = [UserSearchGroup.Employees, UserSearchGroup.Students] }
+                UserSources = [new DataNoseUserSource(), new PropertyUserSource { Property = "Coordinator" }]
             },
             new ChoicePropertyDefinition
             {
@@ -172,7 +171,7 @@ public class FormDtoTests
             ["Currency"] = ["weight", "percentage"],
             ["File"] = ["allowedFileTypes", "allowedFileSize"],
             ["String"] = ["control", "minLength", "maxLength"],
-            ["User"] = ["allowsExternalUsers", "userSearchOptions"],
+            ["User"] = ["allowsExternalUsers"],
             ["Choice"] = ["weight", "percentage", "control", "choices", "rubric", "sorting"],
             ["Reference"] = ["control", "workflowDefinition"],
             ["Object"] = ["control", "workflowDefinition", "subProperties"]
@@ -187,8 +186,7 @@ public class FormDtoTests
 
         Assert.Equal("pdf", questions["File"].GetProperty("allowedFileTypes")[0].GetString());
         Assert.True(questions["User"].GetProperty("allowsExternalUsers").GetBoolean());
-        Assert.Equal(["Employees", "Students"], questions["User"].GetProperty("userSearchOptions")
-            .GetProperty("include").EnumerateArray().Select(group => group.GetString()));
+        Assert.False(questions["User"].TryGetProperty("sources", out _));
         Assert.Equal("Pass", questions["Choice"].GetProperty("choices")[0].GetProperty("name").GetString());
         Assert.Equal("RadioList", questions["Choice"].GetProperty("control").GetString());
         Assert.Equal("ComboBox", questions["Reference"].GetProperty("control").GetString());

@@ -9,6 +9,9 @@ public interface IUserService
     Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers,
         UserSearchScope? scope = null, CancellationToken ct = default);
 
+    Task<UserSearchResult?> FindSearchUser(string userName, bool includeExternalUsers,
+        UserSearchScope? scope = null, CancellationToken ct = default);
+
     /// <summary>
     /// Looks up an internal user's organisation from the external directory (DataNose) by their uid.
     /// Returns null when the directory has no organisation for them, or the lookup is unavailable.

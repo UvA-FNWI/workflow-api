@@ -63,7 +63,7 @@ public class AnswerService(
         var property = modelService.GetProperty(instance, pathParts)
                        ?? throw new EntityNotFoundException("PropertyDefinition", string.Join('.', pathParts));
         modelService.EnsureWritable(instance, pathParts);
-        var newValue = await answerConversionService.ConvertToValue(value, property, ct);
+        var newValue = await answerConversionService.ConvertToValue(value, property, instance, pathParts, ct);
         await SavePropertyValue(instance, pathParts, property, newValue, shouldLog, ct);
     }
 
@@ -123,7 +123,8 @@ public class AnswerService(
         await SavePropertyValue(instance, context.PathParts, question, newAnswer, wasSubmitted, ct);
     }
 
-    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct)
+    public async Task<Answer[]> SaveAnswer(QuestionContext context, JsonElement? value, CancellationToken ct,
+        string? addedExternalUserName = null)
     {
         var (instance, _, form, question) = context;
         modelService.EnsureWritable(instance, context.PathParts);
@@ -132,7 +133,8 @@ public class AnswerService(
         var currentAnswer = instance.GetProperty(form.PropertyName, question.Name);
 
         // Convert new answer to BsonValue
-        var newAnswer = await answerConversionService.ConvertToValue(value, question, ct);
+        var newAnswer = await answerConversionService.ConvertToValue(value, question, instance, context.PathParts, ct,
+            addedExternalUserName);
 
         // Save if value changed
         await SaveAndLogAnswer(context, currentAnswer, newAnswer, ct);
@@ -324,7 +326,8 @@ public class AnswerService(
         PropertyDefinition propertyDefinition,
         JsonElement? value,
         ExternalUserInput? externalUser,
-        CancellationToken ct)
+        CancellationToken ct,
+        QuestionContext? context = null)
     {
         propertyDefinition.EnsureWritable();
         UserSearchResult? createdUser = null;
@@ -338,6 +341,9 @@ public class AnswerService(
             if (user.AllowsExternalUsers != true)
                 throw new ExternalUserCreationException(ExternalUserCreationFailureReason.ExternalUsersNotAllowed,
                     "ExternalUsersNotAllowed");
+
+            if (context != null && user.IsArray && value is { ValueKind: JsonValueKind.Array })
+                await answerConversionService.ValidateUserSources(value, user, context.Instance, context.PathParts, ct);
 
             createdUser = await externalUserService.CreateOrUpdateExternalUser(
                 externalUser.DisplayName, externalUser.Email, externalUser.Organization, externalUser.UserId, ct);

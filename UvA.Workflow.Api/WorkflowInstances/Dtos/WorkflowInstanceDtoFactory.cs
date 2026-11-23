@@ -532,7 +532,6 @@ public class WorkflowInstanceDtoFactory(
             userProperty?.AllowsExternalUsers ?? false,
             !relatedUser.PropertyDefinition?.IsRequired ?? false,
             relatedUser.PropertyDefinition?.IsArray ?? false,
-            allowEditing && canEditByProperty.GetValueOrDefault(relatedUser.Property),
-            userProperty?.UserSearchOptions);
+            allowEditing && canEditByProperty.GetValueOrDefault(relatedUser.Property));
     }
 }

@@ -4,9 +4,11 @@ using MongoDB.Driver;
 using Moq;
 using System.Text.Json;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tests.Builders;
@@ -24,7 +26,8 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
 
     public InstancePropertiesControllerTests()
     {
-        _answerConversionService = new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object);
+        _answerConversionService = new AnswerConversionService(_userServiceMock.Object, _userRepoMock.Object,
+            new UserSourceResolver(_userServiceMock.Object, _instanceService, _modelService));
         _answerService = new AnswerService(
             _modelService,
             _instanceService,
@@ -92,6 +95,83 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         => new(JsonSerializer.SerializeToElement(value));
 
     [Fact]
+    public async Task SearchPropertyUsers_ReturnsOrderedSourcesWithDirectoryOptionsAndUniqueUsers()
+    {
+        var (controller, instance) = Build("SystemAdmin");
+        var supervisor = Assert.IsType<UserPropertyDefinition>(_modelService.GetProperty(instance, "Supervisor"));
+        supervisor.UserSources =
+        [
+            new DataNoseUserSource
+            {
+                SearchOptions = new DataNoseSearchOptions { Include = [UserSearchGroup.Students] }
+            },
+            new PropertyUserSource { Property = "PracticalSupervisor" }
+        ];
+        var colleague = new InstanceUser
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "colleague",
+            DisplayName = "Student's Colleague",
+            Email = "colleague@example.org"
+        };
+        var duplicate = new InstanceUser
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "Student",
+            DisplayName = "Student",
+            Email = "student@example.org"
+        };
+        instance.SetProperty(new BsonArray([duplicate.ToBsonDocument(), colleague.ToBsonDocument()]),
+            "PracticalSupervisor");
+        var search = new UserSourceResolver(_userServiceMock.Object, _instanceService, _modelService);
+        var scope = new UserSearchScope(IncludeEmployees: false, IncludeStudents: true);
+        _userServiceMock.Setup(service => service.FindUsers("student", true, scope, _ct))
+            .ReturnsAsync([new UserSearchResult("student", "Student", "student@example.org", "datanose")]);
+
+        var result = await controller.SearchPropertyUsers(instance.Id, "Supervisor", " student ", search, _ct);
+        var groups = Assert.IsType<UserSearchGroupDto[]>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(["DataNose", "PracticalSupervisor"], groups.Select(group => group.Label));
+        Assert.Equal("student", Assert.Single(groups[0].Users).UserName);
+        Assert.Equal("colleague", Assert.Single(groups[1].Users).UserName);
+
+        string?[] shortQueries = [null, "", "   ", " s "];
+        foreach (var query in shortQueries)
+        {
+            result = await controller.SearchPropertyUsers(instance.Id, "Supervisor", query, search, _ct);
+            groups = Assert.IsType<UserSearchGroupDto[]>(Assert.IsType<OkObjectResult>(result.Result).Value);
+            Assert.Empty(groups);
+        }
+
+        _userServiceMock.Verify(service => service.FindUsers(It.IsAny<string>(), It.IsAny<bool>(),
+            It.IsAny<UserSearchScope?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SearchPropertyUsers_UsesDirectoryWhenSourcesAreOmittedAndHonoursAnExplicitEmptyList()
+    {
+        var (controller, instance) = Build("SystemAdmin");
+        var supervisor = Assert.IsType<UserPropertyDefinition>(_modelService.GetProperty(instance, "Supervisor"));
+        var search = new UserSourceResolver(_userServiceMock.Object, _instanceService, _modelService);
+        _userServiceMock.Setup(service => service.FindUsers("student", true, null, _ct))
+            .ReturnsAsync([new UserSearchResult("student", "Student", "student@example.org", "datanose")]);
+
+        var result = await controller.SearchPropertyUsers(instance.Id, "Supervisor", "s", search, _ct);
+        var groups = Assert.IsType<UserSearchGroupDto[]>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Empty(groups);
+
+        result = await controller.SearchPropertyUsers(instance.Id, "Supervisor", "student", search, _ct);
+        groups = Assert.IsType<UserSearchGroupDto[]>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal("student", Assert.Single(Assert.Single(groups).Users).UserName);
+
+        supervisor.UserSources = [];
+        result = await controller.SearchPropertyUsers(instance.Id, "Supervisor", "student", search, _ct);
+        groups = Assert.IsType<UserSearchGroupDto[]>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Empty(groups);
+        _userServiceMock.Verify(service => service.FindUsers(It.IsAny<string>(), It.IsAny<bool>(),
+            It.IsAny<UserSearchScope?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task SavePropertyInput_ConvertsAndJournalsValueThroughOneOperation()
     {
         var (_, instance) = Build("SystemAdmin");
@@ -102,6 +182,66 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         var change = Assert.Single(_loggedChanges);
         Assert.Equal("Title", change.Path);
         Assert.Equal("My Thesis", change.OldValue?.AsString);
+    }
+
+    [Fact]
+    public async Task SaveProperties_ValidatesEveryNewArrayUserAgainstTheConfiguredSources()
+    {
+        var (controller, instance) = Build("SystemAdmin");
+        var property =
+            Assert.IsType<UserPropertyDefinition>(_modelService.GetProperty(instance, "PracticalSupervisor"));
+        property.AllowsExternalUsers = false;
+        property.UserSources =
+        [
+            new DataNoseUserSource
+            {
+                SearchOptions = new DataNoseSearchOptions { Include = [UserSearchGroup.Employees] }
+            },
+            new PropertyUserSource { Property = "Supervisor" }
+        ];
+        var existing = CreateUser("existing");
+        var sourceMember = CreateUser("0123456");
+        var employee = CreateUser("employee");
+        foreach (var user in new[] { existing, sourceMember, employee })
+            _userServiceMock.Setup(s => s.GetUser(user.UserName, _ct)).ReturnsAsync(user);
+
+        instance.SetProperty(InstanceUser.FromUser(sourceMember).ToBsonDocument(), "Supervisor");
+        var oldValue = new BsonArray([InstanceUser.FromUser(existing).ToBsonDocument()]);
+        instance.SetProperty(oldValue, "PracticalSupervisor");
+        var scope = new UserSearchScope(IncludeEmployees: true, IncludeStudents: false);
+        _userServiceMock.Setup(s => s.FindSearchUser(employee.UserName, false, scope, _ct))
+            .ReturnsAsync(new UserSearchResult(employee.UserName, employee.DisplayName, employee.Email, "datanose"));
+        var allowedUsers = new[] { existing.UserName, sourceMember.UserName, employee.UserName };
+        var update = new Dictionary<string, JsonElement>
+        {
+            ["Title"] = JsonSerializer.SerializeToElement("New title"),
+            ["PracticalSupervisor"] = JsonSerializer.SerializeToElement(
+                allowedUsers.Append("0765432").Select(userName => new { userName }))
+        };
+
+        var error = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+            controller.SaveProperties(instance.Id, update, _ct));
+        Assert.Equal("UserOutsideConfiguredSources", error.Code);
+        Assert.Equal("My Thesis", instance.GetProperty("Title")?.AsString);
+        Assert.Equal(oldValue, instance.GetProperty("PracticalSupervisor"));
+        Assert.Empty(_loggedChanges);
+
+        update["PracticalSupervisor"] = JsonSerializer.SerializeToElement(
+            allowedUsers.Select(userName => new { userName }));
+        Assert.IsType<NoContentResult>(await controller.SaveProperties(instance.Id, update, _ct));
+        Assert.Equal(allowedUsers, instance.GetProperty("PracticalSupervisor")!.AsBsonArray
+            .Select(user => user.AsBsonDocument["UserName"].AsString));
+
+        _userServiceMock.Verify(s => s.FindSearchUser(existing.UserName, false, scope, _ct), Times.Never);
+        _userServiceMock.Verify(s => s.FindSearchUser(sourceMember.UserName, false, scope, _ct), Times.Never);
+
+        static User CreateUser(string userName) => new()
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = userName,
+            DisplayName = userName,
+            Email = $"{userName}@example.org"
+        };
     }
 
     [Theory]

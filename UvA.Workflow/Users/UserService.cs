@@ -267,6 +267,19 @@ public class UserService(
         return results;
     }
 
+    public async Task<UserSearchResult?> FindSearchUser(string userName, bool includeExternalUsers,
+        UserSearchScope? scope = null, CancellationToken ct = default)
+    {
+        foreach (var source in _userSearchSources)
+        {
+            var user = await source.FindUser(userName, scope, ct);
+            if (user != null && (includeExternalUsers || !user.IsExternal))
+                return user;
+        }
+
+        return null;
+    }
+
     public async Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(uid))

@@ -39,11 +39,35 @@ public partial class ModelParser
             .WithTypeDiscriminatingNodeDeserializer(options =>
             {
                 options.AddKeyValueTypeDiscriminator<PropertyDefinition>("type", propertyTypes);
+                options.AddKeyValueTypeDiscriminator<UserSourceDefinition>("type",
+                    UserSourceDefinition.KnownTypes.ToDictionary());
                 options.AddUniqueKeyTypeDiscriminator<PropertyDefinition>(new Dictionary<string, Type>
                 {
                     ["type"] = typeof(ChoicePropertyDefinition)
                 });
             }).Build();
+    }
+
+    private void ValidateUserSources()
+    {
+        var model = new ModelService(this);
+        foreach (var definition in WorkflowDefinitions.Values)
+        foreach (var property in definition.Properties.OfType<UserPropertyDefinition>())
+        foreach (var source in property.UserSources ?? [])
+        {
+            if (source == null)
+                throw new Exception($"Empty user source on '{definition.Name}.{property.Name}'.");
+            if (source is not PropertyUserSource propertySource)
+                continue;
+
+            var path = propertySource.Property;
+            if (string.IsNullOrWhiteSpace(path) ||
+                model.GetProperty(definition, path.Split('.')) is not UserPropertyDefinition)
+                throw new Exception(
+                    $"User source '{path}' on '{definition.Name}.{property.Name}' must reference a User or [User] property.");
+
+            definition.ValidateReadLookups([new PropertyLookup(path)]);
+        }
     }
 
     private sealed class WorkflowTypeHeader

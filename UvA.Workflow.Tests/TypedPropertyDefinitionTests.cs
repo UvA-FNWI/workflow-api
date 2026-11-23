@@ -29,6 +29,8 @@ public class TypedPropertyDefinitionTests
     [InlineData("String", "maximumSize: 1000")]
     [InlineData("Date", "prefix: report_")]
     [InlineData("File", "allowsExternalUsers: true")]
+    [InlineData("User", "userSources: [{ type: Property, property: Missing }]")]
+    [InlineData("User", "userSources: [{ type: Other }]")]
     [InlineData("Date", "control: TextArea")]
     [InlineData("String", "allowAttachments: true")]
     [InlineData("String", "multiline: true")]
@@ -112,6 +114,54 @@ public class TypedPropertyDefinitionTests
         Assert.Equal(DataType.Object, embedded.DataType);
         Assert.Same(parser.WorkflowDefinitions["Assessment"], embedded.WorkflowDefinition);
         Assert.Equal(ObjectControl.Modal, embedded.Control);
+    }
+
+    [Fact]
+    public void Parser_ReadsTypedUserSources()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Project/Entity.yaml"] = """
+                                      name: Project
+                                      properties:
+                                        - name: Course
+                                          type: CourseContext
+                                        - name: Coordinator
+                                          type: User
+                                        - name: Contact
+                                          type: User
+                                          sources: [Reviewer]
+                                          userSources:
+                                            - type: DataNose
+                                              searchOptions:
+                                                include: [Students]
+                                            - type: Property
+                                              property: Coordinator
+                                            - type: Property
+                                              property: Course.Supervisors
+                                      """,
+            ["CourseContext/Entity.yaml"] = """
+                                            name: CourseContext
+                                            properties:
+                                              - name: Supervisors
+                                                type: '[User]'
+                                            """
+        }));
+
+        var property = Assert.IsType<UserPropertyDefinition>(
+            parser.WorkflowDefinitions["Project"].Properties.Get("Contact"));
+        Assert.NotNull(property.Sources);
+        Assert.Equal(["Reviewer"], property.Sources);
+        Assert.Collection(property.UserSources!,
+            source =>
+            {
+                var options = Assert.IsType<DataNoseUserSource>(source).SearchOptions;
+                Assert.NotNull(options);
+                Assert.True(options.ToScope().IncludeStudents);
+                Assert.False(options.ToScope().IncludeEmployees);
+            },
+            source => Assert.Equal("Coordinator", Assert.IsType<PropertyUserSource>(source).Property),
+            source => Assert.Equal("Course.Supervisors", Assert.IsType<PropertyUserSource>(source).Property));
     }
 
     [Fact]

@@ -51,6 +51,10 @@ public class PropertySchemaTests
     [InlineData("Int", ", \"expression\": \"count(Parties)\"")]
     [InlineData("[String]", ", \"expression\": \"unique(Names)\"")]
     [InlineData("User", ", \"allowsExternalUsers\": true")]
+    [InlineData("User", ", \"sources\": [\"Review\"]")]
+    [InlineData("String", ", \"sources\": [\"Review\"]")]
+    [InlineData("User",
+        """, "sources": ["Review"], "userSources": [{"type": "DataNose"}, {"type": "Property", "property": "Course.Supervisors"}]""")]
     [InlineData("Country", ", \"values\": [{\"name\": \"NL\"}], \"control\": \"Dropdown\"")]
     [InlineData("[Context]", ", \"control\": \"RadioList\"")]
     [InlineData("Assessment", ", \"control\": \"Modal\"")]
@@ -91,6 +95,11 @@ public class PropertySchemaTests
     [InlineData("[Context]", "\"control\": \"RadioList\", \"inheritRole\": true")]
     [InlineData("String", "\"inheritRole\": true")]
     [InlineData("User", "\"inheritRole\": [\"Coordinator\"]")]
+    [InlineData("User", "\"sources\": [{\"type\": \"DataNose\"}]")]
+    [InlineData("User",
+        "\"userSources\": [{\"type\": \"Property\", \"property\": \"Supervisor\", \"searchOptions\": {\"include\": [\"Students\"]}}]")]
+    [InlineData("User",
+        "\"userSources\": [{\"type\": \"DataNose\", \"searchOptions\": {\"courseExternalId\": \"Course.Id\"}}]")]
     [InlineData("Date", "\"calculation\": {\"weight\": 1}")]
     [InlineData("String", "\"calculation\": {\"weight\": 1}")]
     [InlineData("File", "\"calculation\": {\"weight\": 1}")]
