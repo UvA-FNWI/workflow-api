@@ -60,7 +60,6 @@ assessments:
         - name: AssessJoint
 fields:
   - property: Title
-  - currentStep: true
 infoCards:
   - name: Progress
     type: Progress

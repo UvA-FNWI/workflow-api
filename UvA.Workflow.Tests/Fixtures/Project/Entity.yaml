@@ -17,12 +17,12 @@ fields:
  - property: Student.Email
    title: Email
  - property: Title
- - currentStep: true
  - property: TurnitinId
 
 steps:
   - Subject
   - Upload
+  - ApprovalCoordinator
   - Assessment
   - Publication
     

@@ -10,7 +10,8 @@ public record FormDto(
     PageDto[] Pages,
     FormLayout Layout,
     string? Step,
-    string? PropertyName)
+    string? PropertyName,
+    FormConfirmationDto? Confirmation = null)
 {
     public static FormDto Create(Form form, ObjectContext context)
     {
@@ -52,7 +53,20 @@ public record FormDto(
             }).ToArray(),
             form.Layout,
             originalForm.Step,
-            originalForm.PropertyName
+            originalForm.PropertyName,
+            FormConfirmationDto.Create(form.Confirmation, context)
         );
     }
+}
+
+public record FormConfirmationDto(
+    BilingualString Title,
+    BilingualString Text)
+{
+    public static FormConfirmationDto? Create(FormConfirmation? confirmation, ObjectContext context)
+        => confirmation == null
+            ? null
+            : new FormConfirmationDto(
+                confirmation.TitleTemplate.Apply(context),
+                confirmation.TextTemplate.Apply(context));
 }

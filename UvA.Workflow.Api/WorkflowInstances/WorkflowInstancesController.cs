@@ -163,7 +163,16 @@ public class WorkflowInstancesController(
             .Select(p => QuestionDto.Create(p, totalWeight: 0, definition))
             .ToArray();
 
-        return Ok(new InstancePropertiesDto(properties, await instanceService.GetPropertyValues(instance, ct)));
+        var values = await instanceService.GetPropertyValues(instance, ct);
+        var writablePaths = values.Keys.Where(path =>
+        {
+            var parts = path.Split('.');
+            return parts.Length <= 2 &&
+                   definition.Properties.GetOrDefault(parts[0]) is { IsComputed: false } &&
+                   modelService.GetProperty(definition, parts) is { IsComputed: false };
+        });
+        var editablePaths = await rightsService.GetEditablePropertyPaths(instance, writablePaths);
+        return Ok(new InstancePropertiesDto(properties, values, editablePaths));
     }
 
     /// <summary>
