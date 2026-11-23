@@ -125,6 +125,65 @@ public class MessagesControllerTests : ControllerTestsBase
         Assert.Empty(Assert.IsAssignableFrom<IEnumerable<MessageDto>>(ok.Value));
     }
 
+    [Theory]
+    [InlineData("SupervisorForm", null, true)]
+    [InlineData(null, "AssessmentSupervisor.Consent", true)]
+    [InlineData("SupervisorForm", "AssessmentSupervisor.Consent", true)]
+    [InlineData("SupervisorForm", "AssessmentReviewer.Consent", false)]
+    public async Task Messages_EnforcesTargetScopedGrants(string? form, string? property, bool canAccessSupervisor)
+    {
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.Forms.Single(candidate => candidate.Name == "AssessmentSupervisor").Name = "SupervisorForm";
+        var actions = definition.Roles.Single(role => role.Name == "SystemAdmin").Actions;
+        actions.RemoveAll(action => action.Type is RoleAction.ViewMessages or RoleAction.AddMessages);
+        actions.Add(new() { Type = RoleAction.ViewMessages, Form = form, PropertyDefinition = property });
+        actions.Add(new()
+            { Type = RoleAction.AddMessages, Forms = form == null ? [] : [form], PropertyDefinition = property });
+
+        var supervisor = new Message
+        {
+            Id = "supervisor-thread", InstanceId = instance.Id, QuestionName = "AssessmentSupervisor.Consent"
+        };
+        var reviewer = new Message
+        {
+            Id = "reviewer-thread", InstanceId = instance.Id, QuestionName = "AssessmentReviewer.Consent"
+        };
+        var instanceThread = new Message { Id = "instance-thread", InstanceId = instance.Id };
+        _messageRepoMock.Setup(r => r.GetMessages(instance.Id, _ct))
+            .ReturnsAsync([supervisor, reviewer, instanceThread]);
+        _messageRepoMock.Setup(r => r.AddMessage(It.IsAny<Message>(), _ct)).Returns(Task.CompletedTask);
+        var controller = CreateController();
+
+        var result = await controller.GetMessages(instance.Id, _ct);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var visible = Assert.IsAssignableFrom<IEnumerable<MessageDto>>(ok.Value);
+        var create = new AddMessageInput(supervisor.QuestionName, null, Body: "Review note");
+        if (canAccessSupervisor)
+        {
+            Assert.Equal(supervisor.Id, Assert.Single(visible).Id);
+            var created = await controller.AddMessage(instance.Id, create, _ct);
+            Assert.IsType<OkObjectResult>(created.Result);
+        }
+        else
+        {
+            Assert.Empty(visible);
+            await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+                controller.AddMessage(instance.Id, create, _ct));
+        }
+
+        foreach (var target in new[] { reviewer.QuestionName, instanceThread.QuestionName })
+            await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+                controller.AddMessage(instance.Id, create with { QuestionName = target }, _ct));
+
+        foreach (var kind in Enum.GetValues<ItemKind>())
+            await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() =>
+                controller.AddMessage(instance.Id, create with { ReplyToId = reviewer.Id, Kind = kind }, _ct));
+        _messageRepoMock.Verify(r => r.AddMessageItem(instance.Id, reviewer.Id, It.IsAny<MessageItem>(), _ct),
+            Times.Never);
+    }
+
     [Fact]
     public async Task Messages_EnforcesCardSourcesForInstanceThreadsOnly()
     {

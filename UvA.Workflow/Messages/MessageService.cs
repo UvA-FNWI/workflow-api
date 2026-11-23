@@ -1,5 +1,6 @@
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.WorkflowModel;
+using WorkflowAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Messages;
 
@@ -17,14 +18,16 @@ public class MessageService(
     /// </summary>
     public async Task<IReadOnlyList<Message>> GetVisibleMessages(string instanceId, CancellationToken ct)
     {
-        var instance = await GetAuthorizedInstance(instanceId, RoleAction.ViewMessages, ct);
+        var (instance, actions) = await GetInstanceAndActions(instanceId, RoleAction.ViewMessages, ct);
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var messages = await repository.GetMessages(instanceId, ct) ?? [];
-        var canViewInstanceThreads = messages.Any(message => string.IsNullOrEmpty(message.QuestionName)) &&
+        var canViewInstanceThreads = HasTargetPermission(definition, actions, null) &&
+                                     messages.Any(message => string.IsNullOrEmpty(message.QuestionName)) &&
                                      await CanAccessInstanceThreads(instance, definition, ct);
         return messages.Where(message => string.IsNullOrEmpty(message.QuestionName)
             ? canViewInstanceThreads
-            : definition.AllowsMessages(message.QuestionName)).ToList();
+            : definition.AllowsMessages(message.QuestionName) &&
+              HasTargetPermission(definition, actions, message.QuestionName)).ToList();
     }
 
     public async Task<Message> AddMessage(string instanceId, AddMessageInput input, CancellationToken ct)
@@ -32,11 +35,13 @@ public class MessageService(
         var user = await userService.GetCurrentUser(ct)
                    ?? throw new UnauthorizedAccessException();
 
-        var instance = await GetAuthorizedInstance(instanceId, RoleAction.AddMessages, ct);
+        var (instance, actions) = await GetInstanceAndActions(instanceId, RoleAction.AddMessages, ct);
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
         if (input.ReplyToId != null)
-            return await AddReply(instance, definition, user, input, ct);
+            return await AddReply(instance, definition, actions, user, input, ct);
+
+        EnsureCanAddToTarget(instance, definition, actions, input.QuestionName);
 
         if (input.Kind != ItemKind.Message)
             throw new InvalidWorkflowStateException(instance.Id, "InvalidMessageKind",
@@ -66,13 +71,14 @@ public class MessageService(
         return (await userRepository.GetByIds(userIds, ct)).ToDictionary(u => u.Id);
     }
 
-    private async Task<Message> AddReply(WorkflowInstance instance, WorkflowDefinition definition, User user,
-        AddMessageInput input, CancellationToken ct)
+    private async Task<Message> AddReply(WorkflowInstance instance, WorkflowDefinition definition,
+        WorkflowAction[] actions, User user, AddMessageInput input, CancellationToken ct)
     {
         var existing = (await repository.GetMessages(instance.Id, ct))
                        .FirstOrDefault(m => m.Id == input.ReplyToId)
                        ?? throw new EntityNotFoundException("Message", input.ReplyToId!);
 
+        EnsureCanAddToTarget(instance, definition, actions, existing.QuestionName);
         await EnsureTargetEnabled(instance, definition, existing.QuestionName, ct);
 
         switch (input.Kind)
@@ -139,13 +145,42 @@ public class MessageService(
         return parentItemId;
     }
 
-    private async Task<WorkflowInstance> GetAuthorizedInstance(string instanceId, RoleAction action,
-        CancellationToken ct)
+    private async Task<(WorkflowInstance Instance, WorkflowAction[] Actions)> GetInstanceAndActions(
+        string instanceId, RoleAction action, CancellationToken ct)
     {
         var instance = await instanceRepository.GetById(instanceId, ct)
                        ?? throw new EntityNotFoundException("WorkflowInstance", instanceId);
-        await rightsService.EnsureAuthorizedForAction(instance, action);
-        return instance;
+        var actions = await rightsService.GetAllowedActions(instance, action);
+        if (actions.Length == 0)
+            throw new ForbiddenWorkflowActionException(instance.Id, action, null);
+        return (instance, actions);
+    }
+
+    private static void EnsureCanAddToTarget(WorkflowInstance instance, WorkflowDefinition definition,
+        WorkflowAction[] actions, string? questionName)
+    {
+        if (!HasTargetPermission(definition, actions, questionName))
+            throw new ForbiddenWorkflowActionException(instance.Id, RoleAction.AddMessages, null);
+    }
+
+    private static bool HasTargetPermission(WorkflowDefinition definition, WorkflowAction[] actions,
+        string? questionName)
+    {
+        if (string.IsNullOrEmpty(questionName))
+            return actions.Any(action => action.AllForms.Length == 0 && action.PropertyDefinition == null);
+
+        return actions.Any(action =>
+            (action.PropertyDefinition == null || action.PropertyDefinition == questionName) &&
+            (action.AllForms.Length == 0 || definition.Forms.Any(form =>
+                action.MatchesForm(form.Name) && FormContainsQuestion(form, questionName))));
+    }
+
+    private static bool FormContainsQuestion(Form form, string questionName)
+    {
+        var prefix = form.PropertyName == null ? "" : $"{form.PropertyName}.";
+        return form.GetCurrentPages().SelectMany(page => page.Questions)
+            .Any(question => questionName == prefix + question.Name &&
+                             (question.Sources == null || question.Sources.Contains(form.PropertyName)));
     }
 
     private async Task EnsureTargetEnabled(WorkflowInstance instance, WorkflowDefinition definition,
