@@ -294,7 +294,7 @@ public class ImportService(
         }
 
         // User does not exist in the user repository yet, but is known in the external user database
-        var matchingExternalUser = (await userService.FindUsers(trimmedEmail, includeExternalUsers: false, ct))
+        var matchingExternalUser = (await userService.FindUsers(trimmedEmail, includeExternalUsers: false, ct: ct))
             .FirstOrDefault(u => string.Equals(u.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase));
 
         if (matchingExternalUser == null)

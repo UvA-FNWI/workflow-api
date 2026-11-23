@@ -18,7 +18,7 @@ public class MockUserService(IUserRepository userRepository, IMemoryCache cache)
     public Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default) => Task.FromResult(Roles);
 
     public Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers,
-        CancellationToken cancellationToken)
+        UserSearchScope? scope = null, CancellationToken ct = default)
         => Task.FromResult(DummyUsers
             .Where(u => u.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase))
             .Select(r => new UserSearchResult(r.UserName, r.DisplayName, r.Email, UserSearchSources.Repository))

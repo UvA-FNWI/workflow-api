@@ -236,14 +236,15 @@ public class UserService(
     }
 
     public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers,
-        CancellationToken ct)
+        UserSearchScope? scope = null, CancellationToken ct = default)
     {
         var resultsBySource = await Task.WhenAll(_userSearchSources.Select(searchSource =>
-            searchSource.FindUsers(query, ct)));
+            searchSource.FindUsers(query, scope, ct)));
 
         var results = new List<UserSearchResult>();
         var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenUserNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var includeBothGroups = scope is { IncludeEmployees: true, IncludeStudents: true };
 
         foreach (var users in resultsBySource)
         {
@@ -252,7 +253,8 @@ public class UserService(
                 if (!includeExternalUsers && user.IsExternal)
                     continue;
 
-                if (!string.IsNullOrWhiteSpace(user.Email) && !seenEmails.Add(user.Email))
+                if (!string.IsNullOrWhiteSpace(user.Email) && !seenEmails.Add(user.Email) &&
+                    (!includeBothGroups || user.IsExternal))
                     continue;
 
                 if (!seenUserNames.Add(user.UserName))

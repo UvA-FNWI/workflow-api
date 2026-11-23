@@ -2088,6 +2088,17 @@
           ],
           "description": "Determines if the propertyDefinition allows external users"
         },
+        "userSearchOptions": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Limits the directory search to the configured types of users.",
+              "$ref": "#/definitions/UserSearchOptions"
+            }
+          ]
+        },
         "inheritRole": {
           "type": [
             "boolean",
@@ -2237,6 +2248,27 @@
           "description": "The name of another property this property is linked to."
         }
       }
+    },
+    "UserSearchOptions": {
+      "title": "UserSearchOptions",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "type": "array",
+          "description": "Types of directory users included in the search.",
+          "items": {
+            "$ref": "#/definitions/UserSearchGroup"
+          }
+        }
+      }
+    },
+    "UserSearchGroup": {
+      "type": "string",
+      "enum": [
+        "Employees",
+        "Students"
+      ]
     },
     "ChoicePropertyDefinition": {
       "title": "ChoicePropertyDefinition",

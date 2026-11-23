@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
@@ -174,7 +175,9 @@ public record RelatedUserRolesDto(
     bool AllowsExternalUsers,
     bool AllowsAssignment,
     bool AllowsMultipleUsers,
-    bool CanEdit
+    bool CanEdit,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    UserSearchOptions? UserSearchOptions = null
 );
 
 public record RelatedUserGroupDto(

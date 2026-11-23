@@ -377,7 +377,7 @@ public class ImportServiceTests
             .ReturnsAsync((User?)null);
 
         // ...but found externally, e.g. in DataNose.
-        userServiceMock.Setup(s => s.FindUsers(email, false, It.IsAny<CancellationToken>()))
+        userServiceMock.Setup(s => s.FindUsers(email, false, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new UserSearchResult("ext.user", "External Person", email, DataNoseDirectoryKeys.SourceKey)
             ]);
