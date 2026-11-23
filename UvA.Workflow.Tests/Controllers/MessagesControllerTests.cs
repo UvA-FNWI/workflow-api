@@ -223,10 +223,13 @@ public class MessagesControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task AddMessage_CreatesThread_WhenUserCanAdd()
+    public async Task AddMessage_CreatesThread_WhenUserCanAddWithoutViewPermission()
     {
         var instance = CreateInstance();
         MockCurrentUser("SystemAdmin");
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.Roles.Single(role => role.Name == "SystemAdmin").Actions
+            .RemoveAll(action => action.Type == RoleAction.ViewMessages);
         Message? saved = null;
         _messageRepoMock.Setup(r => r.AddMessage(It.IsAny<Message>(), _ct))
             .Callback<Message, CancellationToken>((m, _) =>
@@ -290,6 +293,40 @@ public class MessagesControllerTests : ControllerTestsBase
         await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
             CreateController().AddMessage(instance.Id, new AddMessageInput("TurnitinId", null, Body: "nope"),
                 _ct));
+    }
+
+    [Theory]
+    [InlineData(ItemKind.Message)]
+    [InlineData(ItemKind.Close)]
+    [InlineData(ItemKind.Reopen)]
+    public async Task AddMessage_RejectsThreadUpdate_WhenUserCannotViewItsTarget(ItemKind kind)
+    {
+        const string storedTarget = "AssessmentSupervisor.Consent";
+        const string readableTarget = "AssessmentReviewer.Consent";
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var actions = definition.Roles.Single(role => role.Name == "SystemAdmin").Actions;
+        actions.RemoveAll(action => action.Type is RoleAction.ViewMessages or RoleAction.AddMessages);
+        actions.Add(new() { Type = RoleAction.AddMessages, PropertyDefinition = storedTarget });
+        actions.Add(new() { Type = RoleAction.ViewMessages, PropertyDefinition = readableTarget });
+
+        var thread = new Message
+        {
+            Id = "supervisor-thread",
+            InstanceId = instance.Id,
+            QuestionName = storedTarget,
+            Items = [new MessageItem { Kind = ItemKind.Message, Body = "Existing note" }]
+        };
+        if (kind == ItemKind.Reopen)
+            thread.Items = [.. thread.Items, new MessageItem { Kind = ItemKind.Close }];
+        _messageRepoMock.Setup(r => r.GetMessages(instance.Id, _ct)).ReturnsAsync([thread]);
+
+        var error = await Assert.ThrowsAsync<ForbiddenWorkflowActionException>(() => CreateController().AddMessage(
+            instance.Id, new AddMessageInput(readableTarget, thread.Id, kind, Body: "New note"), _ct));
+        Assert.Contains(nameof(RoleAction.ViewMessages), error.Message);
+        _messageRepoMock.Verify(r => r.AddMessageItem(instance.Id, thread.Id, It.IsAny<MessageItem>(), _ct),
+            Times.Never);
     }
 
     [Fact]
