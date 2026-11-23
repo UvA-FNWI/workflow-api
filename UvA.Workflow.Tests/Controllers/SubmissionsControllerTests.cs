@@ -40,7 +40,7 @@ public class SubmissionsControllerTests : ControllerTestsBase
                 _instanceJournalServiceMock.Object, _jobService, _effectService);
         _submissionDtoFactory =
             new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService,
-                _instanceService);
+                _instanceService, _rightsService);
         _workflowInstanceDtoFactory =
             new WorkflowInstanceDtoFactory(
                 _instanceService,
@@ -75,6 +75,11 @@ public class SubmissionsControllerTests : ControllerTestsBase
         const string submissionId = "Start";
         var (controller, instance) = BuildControllerWithRoles([role],
             b => b.WithId(submissionId).AsCompleted(DateTime.Now));
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.Roles.Single(candidate => candidate.Name == "Coordinator").Actions.Add(new()
+        {
+            Type = RoleAction.ViewMessages, Form = submissionId, PropertyDefinition = "Title"
+        });
 
         // Act
         var result = await controller.GetSubmission(instance.Id, submissionId, null, _ct);
@@ -87,6 +92,10 @@ public class SubmissionsControllerTests : ControllerTestsBase
         Assert.Equal(submissionId, payload.FormName);
         Assert.NotNull(payload.Form);
         Assert.NotNull(payload.Answers);
+        var title = Assert.Single(payload.Form.Pages.SelectMany(page => page.Elements),
+            element => element.Question?.Name == "Title").Question!;
+        Assert.Equal(new QuestionMessagesDto(instance.Id, "Title", CanView: role == "Coordinator", CanAdd: false),
+            title.Messages);
     }
 
     [Fact]

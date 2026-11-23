@@ -66,9 +66,10 @@ public class AssessmentsController(
 
         var context = await workflowInstanceService.GetSubmissionContext(instanceId, submissionId, null, ct);
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
+        var actions = await rightsService.GetAllowedActions(context.Instance,
+            RoleAction.ViewHidden, RoleAction.ViewMessages, RoleAction.AddMessages);
         var dto = await assessmentDtoFactory.Create(instance, [context], assessmentConfig,
-            new Dictionary<string, DomainAction[]>
-                { [instance.Id] = await rightsService.GetAllowedActions(instance, RoleAction.ViewHidden) }, ct: ct);
+            new Dictionary<string, DomainAction[]> { [context.Instance.Id] = actions }, ct: ct);
         return Ok(dto);
     }
 
@@ -85,12 +86,12 @@ public class AssessmentsController(
                 : (Instance: instance, Part: part));
         var contexts = new List<SubmissionContext>();
         var allowedForms = new HashSet<(string InstanceId, string Form)>();
-        var allowedHidden = new Dictionary<string, DomainAction[]>();
+        var allowedActions = new Dictionary<string, DomainAction[]>();
         foreach (var group in parts?.GroupBy(part => part.Instance.Id) ?? [])
         {
             var sourceInstance = group.First().Instance;
-            allowedHidden[sourceInstance.Id] =
-                await rightsService.GetAllowedActions(sourceInstance, RoleAction.ViewHidden);
+            allowedActions[sourceInstance.Id] = await rightsService.GetAllowedActions(sourceInstance,
+                RoleAction.ViewHidden, RoleAction.ViewMessages, RoleAction.AddMessages);
             var sourceNames = group.SelectMany(part => part.Part.Sources).Select(source => source.Name).ToHashSet();
             if (sourceInstance.Id != instance.Id)
                 foreach (var name in sourceNames)
@@ -106,7 +107,7 @@ public class AssessmentsController(
             }
         }
 
-        return await assessmentDtoFactory.Create(instance, contexts, config, allowedHidden,
+        return await assessmentDtoFactory.Create(instance, contexts, config, allowedActions,
             allowedForms: allowedForms, resolvedContext: context, ct: ct);
     }
 

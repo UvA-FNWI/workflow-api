@@ -60,7 +60,7 @@ public class AssessmentDtoFactory(
         WorkflowInstance instance,
         IEnumerable<SubmissionContext> contexts,
         AssessmentConfiguration? assessmentConfig,
-        IReadOnlyDictionary<string, DomainAction[]> allowedHiddenByInstance,
+        IReadOnlyDictionary<string, DomainAction[]> allowedActionsByInstance,
         string? pageName = null,
         IReadOnlySet<(string InstanceId, string Form)>? allowedForms = null,
         ObjectContext? resolvedContext = null, CancellationToken ct = default)
@@ -88,36 +88,40 @@ public class AssessmentDtoFactory(
             foreach (var form in resultForms.Concat(definition.Forms.Where(form =>
                          form.PropertyName != null && sourceProperties.Contains(form.PropertyName))).Distinct())
                 formContexts[form] = await instanceService.CreateFormContext(owner, form, ct);
-            var allowedHidden = allowedHiddenByInstance.GetValueOrDefault(owner.Id) ?? [];
+            var allowedActions = allowedActionsByInstance.GetValueOrDefault(owner.Id) ?? [];
             decimal totalSourceWeight = partConfig.Sources.Sum(s => s.Weight);
-            var sourceResultDtos = part.SourceResults
+            var visibleSources = part.SourceResults
                 .Where(c => allowedForms == null || allowedForms.Contains((owner.Id, c.Name)))
+                .ToArray();
+            var sourceResultDtos = visibleSources
                 .Select(sourceResult =>
                 {
                     var sourceConfig = partConfig.Sources.FirstOrDefault(s => s.Name == sourceResult.Name);
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(owner, sourceResult, pageName, allowedHidden, formContexts,
+                    return MapToSourceResultDto(owner, sourceResult, pageName, allowedActions, formContexts,
                         sourcePercentage,
                         sourceConfig?.Title);
                 })
                 .ToArray();
+            var displayForm = visibleSources.Length == 1
+                ? visibleSources[0].Form
+                : part.SourceResults.FirstOrDefault()?.Form;
 
             parts.Add(new AssessmentPartDto(
                 partConfig.Name,
                 partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
                 sourceResultDtos,
                 part.SourceResults.Count > 0
-                    ? MapToSourceResultDto(owner, part.Combined, null, allowedHidden, formContexts,
+                    ? MapToSourceResultDto(owner, part.Combined, null, allowedActions, formContexts,
                         sourceForms: part.SourceResults.Select(s => s.Form))
                     : null,
                 RoundToTwo(part.PartPercentage),
                 partConfig.Warnings.Select(w => ToDto(w, sourceResultDtos)).OfType<AssessmentWarningDto>().ToArray(),
-                part.SourceResults.Count > 0
-                    ? FormDto.Create(part.SourceResults[0].Form,
-                        formContexts[part.SourceResults[0].Form])
-                    : null
+                displayForm == null
+                    ? null
+                    : FormDto.Create(displayForm, formContexts[displayForm], owner.Id, allowedActions)
             ));
         }
 

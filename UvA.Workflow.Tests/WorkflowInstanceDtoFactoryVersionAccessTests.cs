@@ -748,7 +748,7 @@ public class WorkflowInstanceDtoFactoryVersionAccessTests : ControllerTestsBase
     {
         var submissionDtoFactory =
             new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), _modelService,
-                _instanceService);
+                _instanceService, _rightsService);
 
         return new WorkflowInstanceDtoFactory(
             _instanceService,

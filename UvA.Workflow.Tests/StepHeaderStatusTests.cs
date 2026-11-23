@@ -506,7 +506,8 @@ public class StepHeaderStatusTests
             UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService, repository.Object));
 
         var artifactTokenService = new ArtifactTokenService(UnitTestsHelpers.TestS3Config);
-        var submissionDtoFactory = new SubmissionDtoFactory(artifactTokenService, modelService, instanceService);
+        var submissionDtoFactory =
+            new SubmissionDtoFactory(artifactTokenService, modelService, instanceService, rightsService);
         var journalService = new Mock<IInstanceJournalService>();
         journalService.Setup(service =>
                 service.GetInstanceJournal(It.IsAny<string>(), false, It.IsAny<CancellationToken>()))

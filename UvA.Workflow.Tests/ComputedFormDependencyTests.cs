@@ -3,6 +3,7 @@ using Moq;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.Tools;
+using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
 
 namespace UvA.Workflow.Tests;
@@ -12,7 +13,7 @@ public class ComputedFormDependencyTests
     [Fact]
     public async Task QuestionStatus_ResolvesComputedConditionsValidationAndChoices()
     {
-        var (model, service, instance, form) = Create();
+        var (model, service, instance, form, _) = Create();
 
         var status = await service.GetQuestionStatus(instance, form, true, CancellationToken.None);
 
@@ -26,7 +27,7 @@ public class ComputedFormDependencyTests
     [InlineData(true)]
     public async Task QuestionStatus_CombinesLoadedComputedConditionsWithPropertyGrants(bool granted)
     {
-        var (model, service, instance, form) = Create();
+        var (model, service, instance, form, _) = Create();
         var definition = model.WorkflowDefinitions[instance.WorkflowDefinition];
         definition.Properties.Single(p => p.Name == "Detail").Visibility = PropertyVisibility.Hidden;
         definition.Properties.Single(p => p.Name == "Validated").Visibility = PropertyVisibility.Hidden;
@@ -47,9 +48,9 @@ public class ComputedFormDependencyTests
     [InlineData(true)]
     public async Task SubmissionDto_ResolvesComputedPageConditions(bool repeatable)
     {
-        var (model, service, instance, form) = Create();
+        var (model, service, instance, form, rights) = Create();
         form.Repeatable = repeatable;
-        var factory = new SubmissionDtoFactory(null!, model, service);
+        var factory = new SubmissionDtoFactory(null!, model, service, rights);
         var submitted = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
         var state = new FormSubmissionState([form.Name], [], submitted);
 
@@ -62,7 +63,7 @@ public class ComputedFormDependencyTests
     [Fact]
     public async Task SubmitSubmission_ValidatesRequiredQuestionUsingComputedReferenceCondition()
     {
-        var (model, instanceService, instance, form) = Create();
+        var (model, instanceService, instance, form, _) = Create();
         var service = new SubmissionService(model, instanceService, null!, null!, null!);
         var state = FormSubmissionState.Resolve(instance, form, model.WorkflowDefinitions[instance.WorkflowDefinition]);
 
@@ -75,7 +76,7 @@ public class ComputedFormDependencyTests
         Assert.Empty(instance.Events);
     }
 
-    private static (ModelService, InstanceService, WorkflowInstance, Form) Create()
+    private static (ModelService, InstanceService, WorkflowInstance, Form, RightsService) Create()
     {
         var model = new ModelService(new ModelParser(new DictionaryProvider(new()
         {
@@ -159,9 +160,12 @@ public class ComputedFormDependencyTests
                     ["IncludesChoice"] = true, ["ShowsPage"] = true
                 }
             ]);
-        var service = new InstanceService(repository.Object, model, null!, null!, null!,
-            new WorkflowContextEnricher(repository.Object, model, null!),
-            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object));
+        var users = new Mock<IUserService>();
+        users.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        var stateResolver = UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(model, repository.Object);
+        var rights = new RightsService(model, users.Object, repository.Object, stateResolver);
+        var service = new InstanceService(repository.Object, model, users.Object, rights, null!,
+            new WorkflowContextEnricher(repository.Object, model, null!), stateResolver);
         var answers = new BsonDocument { ["Target"] = targetId, ["Validated"] = "Answer" };
         var instance = new WorkflowInstance
         {
@@ -169,6 +173,6 @@ public class ComputedFormDependencyTests
             WorkflowDefinition = "Assessment",
             Properties = answers.ToDictionary(element => element.Name, element => element.Value)
         };
-        return (model, service, instance, model.GetForm(instance, "Edit"));
+        return (model, service, instance, model.GetForm(instance, "Edit"), rights);
     }
 }

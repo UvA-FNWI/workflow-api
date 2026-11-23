@@ -20,10 +20,12 @@ namespace UvA.Workflow.Tests.Submissions;
 
 public class SubmissionDtoFactoryChangeTests
 {
-    private static InstanceService CreateInstanceService(ModelService modelService)
+    private static SubmissionDtoFactory CreateFactory(ModelService modelService, IUserService? userService = null)
     {
         var workflowInstanceRepoMock = new Mock<IWorkflowInstanceRepository>();
         var userServiceMock = new Mock<IUserService>();
+        userServiceMock.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         var rightsService = new RightsService(modelService, userServiceMock.Object, workflowInstanceRepoMock.Object,
             UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService,
                 workflowInstanceRepoMock.Object));
@@ -37,19 +39,20 @@ public class SubmissionDtoFactoryChangeTests
         var assessmentService =
             new AssessmentService(modelService, workflowInstanceService, workflowInstanceRepoMock.Object);
 
-        return new InstanceService(workflowInstanceRepoMock.Object, modelService, userServiceMock.Object,
+        var instanceService = new InstanceService(workflowInstanceRepoMock.Object, modelService, userServiceMock.Object,
             rightsService, mailBuilder,
             new WorkflowContextEnricher(workflowInstanceRepoMock.Object, modelService, assessmentService),
             UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService,
                 workflowInstanceRepoMock.Object));
+        return new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
+            instanceService, rightsService, userService);
     }
 
     [Fact]
     public void Create_AttachesJournalChangesGroupedByFormSubmit()
     {
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
-        var factory = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
-            CreateInstanceService(modelService));
+        var factory = CreateFactory(modelService);
         var submitted = new DateTime(2026, 3, 1, 10, 0, 0);
         var instance = new WorkflowInstanceBuilder()
             .WithWorkflowDefinition("Project")
@@ -100,8 +103,7 @@ public class SubmissionDtoFactoryChangeTests
             {
                 ["admin"] = new() { UserName = "admin", DisplayName = "Ada Admin" }
             });
-        var factory = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
-            CreateInstanceService(modelService), users.Object);
+        var factory = CreateFactory(modelService, users.Object);
         var submitted = new DateTime(2026, 3, 1, 10, 0, 0);
         var instance = new WorkflowInstanceBuilder()
             .WithWorkflowDefinition("Project")
@@ -137,8 +139,7 @@ public class SubmissionDtoFactoryChangeTests
     public void Create_OmitsChangesWhenJournalNotProvided()
     {
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
-        var factory = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
-            CreateInstanceService(modelService));
+        var factory = CreateFactory(modelService);
         var instance = new WorkflowInstanceBuilder()
             .WithWorkflowDefinition("Project")
             .WithCurrentStep("Start")
@@ -158,8 +159,7 @@ public class SubmissionDtoFactoryChangeTests
     public void Create_KeepsPostSubmitEditAfterRejectAndResubmit()
     {
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
-        var factory = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
-            CreateInstanceService(modelService));
+        var factory = CreateFactory(modelService);
         var submittedV1 = new DateTime(2026, 8, 28, 11, 8, 38, DateTimeKind.Utc);
         var coordinatorEdit = submittedV1.AddSeconds(14);
         var rejected = submittedV1.AddSeconds(21);
@@ -216,8 +216,7 @@ public class SubmissionDtoFactoryChangeTests
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
         var workflowDefinition = modelService.WorkflowDefinitions["Project"];
         workflowDefinition.Events.Add(new EventDefinition { Name = "RejectStart", Suppresses = ["Start"] });
-        var factory = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
-            CreateInstanceService(modelService));
+        var factory = CreateFactory(modelService);
         var submittedV1 = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
         var rejected = submittedV1.AddMinutes(1);
         var edited = submittedV1.AddMinutes(2);

@@ -504,26 +504,28 @@ public class MessagesControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public void AssessmentForms_AllowMessagesOnDistinctInstancePaths()
+    public void AssessmentForms_ExposeMessagesOnDistinctInstancePaths()
     {
         var project = _modelService.WorkflowDefinitions["Project"];
+        UvA.Workflow.WorkflowModel.Action[] grants =
+        [
+            new() { Type = RoleAction.ViewMessages, Form = "AssessmentReviewer" },
+            new() { Type = RoleAction.AddMessages, PropertyDefinition = "AssessmentSupervisor.Consent" }
+        ];
         var reviewer = FormDto.Create(project.Forms.Single(form => form.Name == "AssessmentReviewer"),
-            new ObjectContext([]));
+            new ObjectContext([]), "project", grants);
         var supervisor = FormDto.Create(project.Forms.Single(form => form.Name == "AssessmentSupervisor"),
-            new ObjectContext([]));
+            new ObjectContext([]), "project", grants);
 
         var reviewerConsent = Consent(reviewer);
         var supervisorConsent = Consent(supervisor);
 
-        Assert.Equal("AssessmentReviewer", reviewer.PropertyName);
-        Assert.Equal("AssessmentSupervisor", supervisor.PropertyName);
-        Assert.Equal("Consent", reviewerConsent.Name);
-        Assert.Equal("Consent", supervisorConsent.Name);
-        Assert.True(reviewerConsent.AllowMessages);
-        Assert.True(supervisorConsent.AllowMessages);
-        Assert.False(project.AllowsMessages("Consent"));
-        Assert.True(project.AllowsMessages("AssessmentReviewer.Consent"));
-        Assert.True(project.AllowsMessages("AssessmentSupervisor.Consent"));
+        Assert.Equal("Assessment_Consent", reviewerConsent.Id);
+        Assert.Equal(reviewerConsent.Id, supervisorConsent.Id);
+        Assert.Equal(new QuestionMessagesDto("project", "AssessmentReviewer.Consent", CanView: true, CanAdd: false),
+            reviewerConsent.Messages);
+        Assert.Equal(new QuestionMessagesDto("project", "AssessmentSupervisor.Consent", CanView: false, CanAdd: true),
+            supervisorConsent.Messages);
     }
 
     private static QuestionDto Consent(FormDto form)

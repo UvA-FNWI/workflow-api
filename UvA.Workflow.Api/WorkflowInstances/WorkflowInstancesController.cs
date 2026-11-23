@@ -99,7 +99,7 @@ public class WorkflowInstancesController(
         // Make sure the instance is in the right step before returning it
         await instanceService.UpdateCurrentStep(instance, ct);
 
-        var result = await workflowInstanceDtoFactory.Create(instance, ct);
+        var result = await workflowInstanceDtoFactory.Create(instance, ct, includeFieldMessages: version == null);
 
         return Ok(result);
     }
@@ -160,7 +160,7 @@ public class WorkflowInstancesController(
 
         // The admin view ignores property conditions and visibility.
         var properties = definition.Properties
-            .Select(p => QuestionDto.Create(p, totalWeight: 0, definition))
+            .Select(p => QuestionDto.Create(p, totalWeight: 0))
             .ToArray();
 
         var values = await instanceService.GetPropertyValues(instance, ct);

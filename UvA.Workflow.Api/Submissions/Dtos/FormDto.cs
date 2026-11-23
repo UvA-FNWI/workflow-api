@@ -1,6 +1,8 @@
 using UvA.Workflow.Assessments;
+using UvA.Workflow.Messages;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
+using WorkflowAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -10,10 +12,10 @@ public record FormDto(
     PageDto[] Pages,
     FormLayout Layout,
     string? Step,
-    string? PropertyName,
     FormConfirmationDto? Confirmation = null)
 {
-    public static FormDto Create(Form form, ObjectContext context)
+    public static FormDto Create(Form form, ObjectContext context, string? instanceId = null,
+        WorkflowAction[]? messageActions = null)
     {
         context = form.GetContext(context);
         var allPages = form.ActualForm.Pages.ToArray();
@@ -26,11 +28,15 @@ public record FormDto(
         var questions = activePages
             .SelectMany(p => p.Questions)
             .Distinct()
-            .ToDictionary(q => q, q => QuestionDto.Create(
-                q,
-                totalWeight,
-                form.WorkflowDefinition,
-                form.PropertyName == null ? null : $"{form.PropertyName}.{q.Name}"));
+            .ToDictionary(property => property, property =>
+            {
+                var question = QuestionDto.Create(property, totalWeight);
+                if (instanceId == null || messageActions == null)
+                    return question;
+
+                var path = form.PropertyName == null ? property.Name : $"{form.PropertyName}.{property.Name}";
+                return WithMessages(question, form.WorkflowDefinition, instanceId, path, messageActions);
+            });
         // Prefer the overriding form's own title; fall back to the target form's title, then its name.
         var title = form.Title ?? form.ActualForm.Title ?? form.ActualForm.Name;
         var originalForm = form;
@@ -53,9 +59,29 @@ public record FormDto(
             }).ToArray(),
             form.Layout,
             originalForm.Step,
-            originalForm.PropertyName,
             FormConfirmationDto.Create(form.Confirmation, context)
         );
+    }
+
+    private static QuestionDto WithMessages(QuestionDto question, WorkflowDefinition definition, string instanceId,
+        string path, WorkflowAction[] actions)
+    {
+        if (!definition.AllowsMessages(path))
+            return question;
+
+        question = question with
+        {
+            Messages = new QuestionMessagesDto(instanceId, path,
+                MessageService.HasTargetPermission(definition, actions, RoleAction.ViewMessages, path),
+                MessageService.HasTargetPermission(definition, actions, RoleAction.AddMessages, path))
+        };
+        return question is ObjectQuestionDto { SubProperties: { } children } embedded
+            ? embedded with
+            {
+                SubProperties = children.Select(child =>
+                    WithMessages(child, definition, instanceId, $"{path}.{child.Name}", actions)).ToArray()
+            }
+            : question;
     }
 }
 

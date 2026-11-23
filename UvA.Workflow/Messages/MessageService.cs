@@ -21,13 +21,13 @@ public class MessageService(
         var (instance, actions) = await GetInstanceAndActions(instanceId, ct, RoleAction.ViewMessages);
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var messages = await repository.GetMessages(instanceId, ct) ?? [];
-        var canViewInstanceThreads = HasTargetPermission(definition, actions, null) &&
+        var canViewInstanceThreads = HasTargetPermission(definition, actions, RoleAction.ViewMessages, null) &&
                                      messages.Any(message => string.IsNullOrEmpty(message.QuestionName)) &&
                                      await CanAccessInstanceThreads(instance, definition, ct);
         return messages.Where(message => string.IsNullOrEmpty(message.QuestionName)
             ? canViewInstanceThreads
             : definition.AllowsMessages(message.QuestionName) &&
-              HasTargetPermission(definition, actions, message.QuestionName)).ToList();
+              HasTargetPermission(definition, actions, RoleAction.ViewMessages, message.QuestionName)).ToList();
     }
 
     public async Task<Message> AddMessage(string instanceId, AddMessageInput input, CancellationToken ct)
@@ -166,19 +166,19 @@ public class MessageService(
     {
         foreach (var permission in requiredPermissions)
         {
-            var grants = actions.Where(action => action.Type == permission);
-            if (!HasTargetPermission(definition, grants, questionName))
+            if (!HasTargetPermission(definition, actions, permission, questionName))
                 throw new ForbiddenWorkflowActionException(instance.Id, permission, null);
         }
     }
 
-    private static bool HasTargetPermission(WorkflowDefinition definition, IEnumerable<WorkflowAction> actions,
-        string? questionName)
+    public static bool HasTargetPermission(WorkflowDefinition definition, IEnumerable<WorkflowAction> actions,
+        RoleAction permission, string? questionName)
     {
+        var grants = actions.Where(action => action.Type == permission);
         if (string.IsNullOrEmpty(questionName))
-            return actions.Any(action => action.AllForms.Length == 0 && action.PropertyDefinition == null);
+            return grants.Any(action => action.AllForms.Length == 0 && action.PropertyDefinition == null);
 
-        return actions.Any(action =>
+        return grants.Any(action =>
             (action.PropertyDefinition == null || action.PropertyDefinition == questionName) &&
             (action.AllForms.Length == 0 || definition.Forms.Any(form =>
                 action.MatchesForm(form.Name) && FormContainsQuestion(form, questionName))));
