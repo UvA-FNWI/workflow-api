@@ -661,6 +661,17 @@ public partial class ModelParser
                                     $"'{workflowDefinition.Name}': {error}");
         }
 
+        screen.Columns = screen.Columns.OrderBy(column => column.Order ?? 0).ToArray();
+
+        var duplicateColumn = screen.Columns.Where(column => column.Name != null)
+            .GroupBy(column => column.Name)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateColumn != null)
+            throw new Exception(
+                $"Screen '{screen.Name}' in '{workflowDefinition.Name}' " +
+                $"has duplicate column name '{duplicateColumn.Key}'.");
+
         if (screen.BulkEdit != null)
         {
             var unknownProps = screen.BulkEdit.EditableProperties
@@ -681,6 +692,59 @@ public partial class ModelParser
                     col.Event = workflowDefinition.Events.FirstOrDefault(e => e.Name == col.Property[..^5]);
             }
         }
+
+        if (screen.Grouping != null)
+            ValidateScreenGrouping(screen, workflowDefinition);
+    }
+
+    /// <summary>
+    /// Validates that all steps in the screen are part of the workflow definition, and all steps are included in the screen
+    /// </summary>
+    private static void ValidateScreenGrouping(Screen screen, WorkflowDefinition workflowDefinition)
+    {
+        var context = $"Screen '{screen.Name}' in '{workflowDefinition.Name}'";
+
+        var parentByChild = new Dictionary<string, string>();
+        var reachableSteps = new HashSet<string>();
+
+        void Visit(Step step, Step? parent)
+        {
+            reachableSteps.Add(step.Name);
+            if (parent != null)
+                parentByChild[step.Name] = parent.Name;
+            foreach (var child in step.Children)
+                Visit(child, step);
+        }
+
+        foreach (var step in workflowDefinition.Steps)
+            Visit(step, null);
+
+        var mappedSteps = screen.Grouping!.Groups
+            .SelectMany(group => group.Steps)
+            .OfType<string>()
+            .ToHashSet();
+
+        var unknownSteps = mappedSteps.Where(step => !reachableSteps.Contains(step)).ToArray();
+        if (unknownSteps.Length > 0)
+            throw new Exception($"{context} maps unknown step(s): {unknownSteps.ToSeparatedString()}.");
+
+        // Mirrors ScreenDataService.BuildGroups, which walks up through parent steps when an instance's
+        // current step isn't directly mapped to a group.
+        bool IsMapped(string? stepName)
+        {
+            for (var current = stepName; current != null; current = parentByChild.GetValueOrDefault(current))
+                if (mappedSteps.Contains(current))
+                    return true;
+            return false;
+        }
+
+        var unmappedSteps = workflowDefinition.WalkSteps.Select(step => step.Name)
+            .Where(name => !IsMapped(name))
+            .ToArray();
+        if (unmappedSteps.Length > 0)
+            throw new Exception(
+                $"{context} does not map step(s) to any group: {unmappedSteps.ToSeparatedString()}. " +
+                "Instances currently on these steps would be silently excluded from the screen.");
     }
 
     private void PreProcess(NamedEmail email, WorkflowDefinition workflowDefinition)
@@ -868,7 +932,9 @@ public partial class ModelParser
             Log.Debug("Parsing {File} for {Type}", file, typeof(T).Name);
             var obj = _deserializer.Deserialize<T>(content);
             if (obj is IDeclaredKeys tracked)
-                tracked.DeclaredKeys = ReadTopLevelKeys(content);
+                tracked.DeclaredKeys = ReadMappingKeys(content);
+            if (obj is Screen { BulkEdit: not null } screen)
+                screen.BulkEdit.DeclaredKeys = ReadMappingKeys(content, "bulkEdit");
             if (obj is ITemplate template)
                 template.RootFile = content;
             return obj;
@@ -880,13 +946,35 @@ public partial class ModelParser
     }
 
     // Deserialization loses the distinction between omitted keys and explicit default values.
-    private static HashSet<string> ReadTopLevelKeys(string content)
+    private static HashSet<string> ReadMappingKeys(string content, string? mappingName = null)
     {
-        var keys = new HashSet<string>();
         var parser = new Parser(new StringReader(content));
         parser.Consume<StreamStart>();
         if (!parser.TryConsume<DocumentStart>(out _) || !parser.TryConsume<MappingStart>(out _))
-            return keys;
+            return [];
+
+        if (mappingName == null)
+            return ReadMappingKeys(parser);
+
+
+        while (parser.TryConsume<Scalar>(out var key))
+        {
+            if (key.Value == mappingName)
+            {
+                parser.Consume<MappingStart>();
+                return ReadMappingKeys(parser);
+            }
+
+            parser.SkipThisAndNestedEvents();
+        }
+
+        return [];
+    }
+
+    private static HashSet<string> ReadMappingKeys(IParser parser)
+    {
+        var keys = new HashSet<string>();
+
         while (parser.TryConsume<Scalar>(out var key))
         {
             keys.Add(key.Value);

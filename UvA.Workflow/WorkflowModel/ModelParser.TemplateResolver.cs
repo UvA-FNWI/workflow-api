@@ -117,7 +117,7 @@ public partial class ModelParser
         var resolved = Instantiate(template, step, parentValues, out var substituted);
 
         ApplyInheritance(step, resolved);
-        step.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+        step.DeclaredKeys.UnionWith(ReadMappingKeys(substituted));
 
         // Consumer properties replace template properties with the same name.
         var consumerPropertyNames = step.Properties.Select(p => p.Name).ToHashSet();
@@ -148,7 +148,7 @@ public partial class ModelParser
             var resolved = Instantiate(template, form, null, out var substituted);
 
             ApplyInheritance(form, resolved);
-            form.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+            form.DeclaredKeys.UnionWith(ReadMappingKeys(substituted));
         }
 
         return forms;
@@ -172,7 +172,7 @@ public partial class ModelParser
             ValidateUniqueBlockNames(resolved.ContentBlocks, $"Email template '{template.Name}'");
 
             ApplyInheritance(email, resolved);
-            email.DeclaredKeys.UnionWith(ReadTopLevelKeys(substituted));
+            email.DeclaredKeys.UnionWith(ReadMappingKeys(substituted));
         }
 
         return emails;

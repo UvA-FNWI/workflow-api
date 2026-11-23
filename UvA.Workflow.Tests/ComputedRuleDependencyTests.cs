@@ -187,13 +187,13 @@ public class ComputedRuleDependencyTests
         definition.AllSteps.Single(step => step.Name == "Review").Title = new("Review project", "Project beoordelen");
         definition.AllSteps.Single(step => step.Name == "Next").Title = new("Next step", "Volgende stap");
         definition.InstanceTitle = "{{ StepName }}";
-        definition.Fields = [new() { CurrentStep = true }];
+        definition.Fields = [new() { Property = "CurrentStep" }];
         definition.InfoCards =
         [
             new()
             {
                 Name = "Status", Type = InfoCardType.User, User = "Student", Title = "Status",
-                Fields = [new() { CurrentStep = true }]
+                Fields = [new() { Property = "CurrentStep" }]
             }
         ];
         var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, repository);

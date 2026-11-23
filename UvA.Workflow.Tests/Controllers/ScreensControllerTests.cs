@@ -121,7 +121,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var result = await controller.GetScreenData("Project", "Projects", _ct);
 
         var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
-        var column = Assert.Single(response.Columns, column => column.IsCurrentStep);
+        var column = Assert.Single(response.Columns, column => column.ColumnType == ColumnType.CurrentStep);
         var rows = response.Groups!.Single(group => group.Name == "approve-subject").Rows;
         Assert.Collection(rows, row =>
             {
@@ -246,7 +246,7 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Equal("running", Assert.Single(groups.Single(group => group.Name == "approve-subject").Rows).Id);
         Assert.Equal(2, groups.Sum(group => group.Rows.Length));
 
-        var progressColumn = Assert.Single(response.Columns, column => column.IsCurrentStep);
+        var progressColumn = Assert.Single(response.Columns, column => column.ColumnType == ColumnType.CurrentStep);
         var progress = Assert.IsType<ProgressInformationDto>(stopped.Values[progressColumn.Id]);
         Assert.Equal("Stopped", progress.Text.En);
         Assert.Equal("Gestopt", progress.Text.Nl);
@@ -277,7 +277,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var result = await controller.GetScreenData("Project", "Projects", _ct);
 
         var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
-        var progressColumn = response.Columns.Single(column => column.IsCurrentStep);
+        var progressColumn = response.Columns.Single(column => column.ColumnType == ColumnType.CurrentStep);
         var row = Assert.Single(response.Groups!.Single(group => group.Name == "approve-subject").Rows);
         var progress = Assert.IsType<ProgressInformationDto>(row.Values[progressColumn.Id]);
         Assert.Equal("Revising proposal", progress.Text.En);
@@ -333,7 +333,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var result = await controller.GetScreenData("Project", "Projects", _ct);
 
         var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
-        var column = response.Columns.Single(column => column.IsCurrentStep);
+        var column = response.Columns.Single(column => column.ColumnType == ColumnType.CurrentStep);
         var rows = response.Groups!.Single(group => group.Name == "approve-subject").Rows;
         var revised = Assert.IsType<ProgressInformationDto>(rows[0].Values[column.Id]);
         Assert.Equal("Working (07/09) on proposal", revised.Text.En);
@@ -372,7 +372,7 @@ public class ScreensControllerTests : ControllerTestsBase
         var result = await controller.GetScreenData("Project", "Projects", _ct);
 
         var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
-        var progressColumn = response.Columns.Single(column => column.IsCurrentStep);
+        var progressColumn = response.Columns.Single(column => column.ColumnType == ColumnType.CurrentStep);
         var row = Assert.Single(response.Groups!.Single(group => group.Name == "approve-subject").Rows);
         var progress = Assert.IsType<ProgressInformationDto>(row.Values[progressColumn.Id]);
         Assert.Equal("Writing proposal", progress.Text.En);

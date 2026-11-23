@@ -57,6 +57,60 @@ public class ScreenDataService(
         return entity.Screens.GetOrDefault(screenName);
     }
 
+    private Dictionary<string, string> BuildProjection(
+        Column[] columns,
+        string workflowDefinition,
+        IEnumerable<Lookup> progressLookups)
+    {
+        if (!modelService.WorkflowDefinitions.TryGetValue(workflowDefinition, out var entity))
+            throw new ArgumentException($"Entity type '{workflowDefinition}' not found");
+
+        var projection = new Dictionary<string, string>();
+
+        foreach (var column in columns)
+        {
+            if (column.Type == ColumnType.CurrentStep)
+                projection["CurrentStep"] = "$CurrentStep";
+            if (column.Type == ColumnType.RelatedUsers)
+                foreach (var relatedUser in GetDefaultRelatedUsers(entity))
+                    AddLookupToProjection(projection, new PropertyLookup(relatedUser.Property), entity);
+            foreach (var prop in column.Properties)
+                AddLookupToProjection(projection, prop, entity);
+        }
+
+        foreach (var lookup in progressLookups)
+            AddLookupToProjection(projection, lookup, entity);
+
+        return projection;
+    }
+
+    private void AddLookupToProjection(Dictionary<string, string> projection, Lookup lookup, WorkflowDefinition entity)
+    {
+        switch (lookup)
+        {
+            case PropertyLookup propertyLookup:
+                var propertyName = propertyLookup.Property.Split('.')[0];
+                // ObjectContext computes LastEvent from Events, which LoadData always projects.
+                if (propertyName == "LastEvent")
+                    break;
+
+                var mongoPath = entity.GetKey(propertyName);
+                projection.TryAdd(propertyName, mongoPath);
+                break;
+            case ComplexLookup complexLookup:
+                // For complex lookups, we need to add properties from their arguments
+                foreach (var arg in complexLookup.Arguments)
+                {
+                    foreach (var prop in arg.Properties)
+                    {
+                        AddLookupToProjection(projection, prop, entity);
+                    }
+                }
+
+                break;
+        }
+    }
+
     private ScreenRowDto[] ProcessRows(
         WorkflowDefinition definition,
         ICollection<ObjectContext> contexts,
@@ -80,16 +134,53 @@ public class ScreenDataService(
             {
                 var column = screen.Columns[i];
                 var columnId = columns[i].Id;
-                processedValues[columnId] = columns[i].IsCurrentStep
-                    ? StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep,
-                        context, viewableSources: viewableSources)
-                    : column.GetValue(context);
+                object? value = columns[i].ColumnType switch
+                {
+                    ColumnType.CurrentStep => StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep,
+                        context, viewableSources: viewableSources),
+                    ColumnType.RelatedUsers => GetRelatedUsersScreen(definition, context),
+                    _ => column.GetValue(context)
+                };
+                processedValues[columnId] = value;
             }
 
             rows.Add(new ScreenRowDto(id, processedValues));
         }
 
         return rows.ToArray();
+    }
+
+    public static ScreenRelatedUserDto[] GetRelatedUsersScreen(WorkflowDefinition definition, ObjectContext context) =>
+        GetDefaultRelatedUsers(definition)
+            .SelectMany(relatedUser => GetUsersForRole(relatedUser, context))
+            .GroupBy(user => user.UserName)
+            .Select(group => new ScreenRelatedUserDto(
+                group.Key,
+                group.First().DisplayName,
+                group.SelectMany(user => user.Roles).ToArray(),
+                group.First().Organisation))
+            .ToArray();
+
+    private static RelatedUser[] GetDefaultRelatedUsers(WorkflowDefinition definition) => definition.RelatedUserGroups
+        .Where(group => group.Name == "default")
+        .SelectMany(group => group.Users)
+        .ToArray();
+
+    private static IEnumerable<ScreenRelatedUserDto> GetUsersForRole(RelatedUser relatedUser, ObjectContext context)
+    {
+        var value = context.Get(relatedUser.Property);
+        var users = value switch
+        {
+            InstanceUser user => [user],
+            InstanceUser[] userArray => userArray.OfType<InstanceUser>(),
+            _ => []
+        };
+
+        return users.Select(user => new ScreenRelatedUserDto(
+            user.UserName,
+            user.DisplayName,
+            [relatedUser.DisplayTitle],
+            user.Organization?.Name));
     }
 
     private async Task<List<ObjectContext>> LoadData(Screen screen, WorkflowDefinition workflowDefinition,
@@ -118,11 +209,17 @@ public class ScreenDataService(
 
         foreach (var definition in definitions)
         {
-            var progressLookups = screen.Columns.Any(column => column.CurrentStep)
+            var hasProgressColumn = screen.Columns.Any(column => column.Type == ColumnType.CurrentStep);
+            var progressLookups = hasProgressColumn
                 ? definition.ProgressLookups.ToArray()
                 : [];
-            var lookups = screen.Columns.SelectMany(column => column.Properties)
-                .Concat(progressLookups).Concat(groupLookups).ToArray();
+
+            var relatedUserLookups = screen.Columns.Any(c => c.Type == ColumnType.RelatedUsers)
+                ? GetDefaultRelatedUsers(definition).Select(u => (Lookup)new PropertyLookup(u.Property)).ToArray()
+                : [];
+
+            var lookups = screen.Columns.SelectMany(column => column.Properties).Concat(progressLookups)
+                .Concat(relatedUserLookups).Concat(groupLookups).ToArray();
             var projection = definition.GetProjection(lookups.Concat(definition.StopWhen?.Properties ?? []))
                 .Where(entry => !ContextKeys.IsComputed(entry.Key)).ToDictionary();
             projection.TryAdd(ContextKeys.CurrentStep, definition.GetKey(ContextKeys.CurrentStep));
@@ -149,7 +246,12 @@ public class ScreenDataService(
                     .ToList();
             }
 
-            await instanceService.Enrich(definition, rows, lookups, ct, replaceStep: false);
+            // Add related properties as needed
+            await instanceService.Enrich(definition,
+                rows,
+                lookups,
+                ct,
+                false);
 
             if (workflowDefinition.GroupChildScreens)
             {
@@ -211,6 +313,7 @@ public class ScreenDataService(
 
         // Build the result with group metadata (always include all configured groups)
         return groups
+            .Where(group => group.Enabled != false)
             .Select(g => new ScreenGroupDto(
                 g.Name,
                 g.Title,

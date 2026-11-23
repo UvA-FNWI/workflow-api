@@ -163,6 +163,11 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
             .AddRange(model.WorkflowDefinitions["Project"].Properties);
         var (controller, instance) = Build("SystemAdmin");
 
+        var result = await controller.GetProperties(instance.Id, _ct);
+        var dto = Assert.IsType<InstancePropertiesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Contains("Alias.Country", dto.Values.Keys);
+        Assert.DoesNotContain("Alias.Country", dto.EditablePaths);
+
         var exception = await Assert.ThrowsAsync<UvA.Workflow.Infrastructure.InvalidWorkflowStateException>(() =>
             controller.SaveProperty(instance.Id, "Alias.Country", Value(new[] { "NL" }), _ct));
 
@@ -204,6 +209,31 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
         Assert.Contains(assessment.SubProperties, p => p.Name == "Consent");
         // Nested values use dotted paths.
         Assert.True(dto.Values.ContainsKey("AssessmentReviewer.Consent"));
+        Assert.Contains("AssessmentReviewer.Consent", dto.EditablePaths);
+    }
+
+    [Fact]
+    public async Task GetProperties_IsReadOnlyForLocalAdmin()
+    {
+        var (controller, instance) = Build("LocalAdmin");
+
+        var result = await controller.GetProperties(instance.Id, _ct);
+        var dto = Assert.IsType<InstancePropertiesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal("My Thesis", dto.Values["Title"]?.GetString());
+        Assert.Empty(dto.EditablePaths);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(
+            await controller.SaveProperty(instance.Id, "Title", Value("Changed"), _ct)).StatusCode);
+    }
+
+    [Fact]
+    public async Task GetProperties_IncludesScopedEditRights()
+    {
+        var (controller, instance) = Build("Coordinator");
+
+        var result = await controller.GetProperties(instance.Id, _ct);
+        var dto = Assert.IsType<InstancePropertiesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Contains("Title", dto.EditablePaths);
+        Assert.DoesNotContain("AssessmentReviewer.Consent", dto.EditablePaths);
     }
 
     [Fact]
@@ -297,7 +327,9 @@ public class InstancePropertiesControllerTests : ControllerTestsBase
     {
         var (controller, instance) = Build("SystemAdmin", "Student");
 
-        Assert.IsType<OkObjectResult>((await controller.GetProperties(instance.Id, _ct)).Result);
+        var result = await controller.GetProperties(instance.Id, _ct);
+        var dto = Assert.IsType<InstancePropertiesDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Contains("Title", dto.EditablePaths);
         Assert.IsType<NoContentResult>(
             await controller.SaveProperty(instance.Id, "Title", Value("Corrected title"), _ct));
     }
