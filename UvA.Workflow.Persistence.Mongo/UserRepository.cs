@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace UvA.Workflow.Persistence.Mongo;
@@ -73,6 +74,32 @@ public class UserRepository(IMongoDatabase database) : IUserRepository
     public async Task<IEnumerable<User>> SearchByQueryAndProvider(string query, string providerKey,
         CancellationToken ct)
         => await SearchByQuery(query, providerKey, ct);
+
+    public async IAsyncEnumerable<User> SearchByPrefix(string query, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var words = query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+            yield break;
+
+        var prefix = string.Join(@"\s+", words.Select(Regex.Escape));
+        var displayNamePrefix = new BsonRegularExpression(@"(*UCP)(?:^|\s)" + prefix, "i");
+        var accountPrefix = new BsonRegularExpression("(*UCP)^" + prefix, "i");
+        var builder = Builders<User>.Filter;
+        var filter = builder.Or(
+            builder.Regex(user => user.DisplayName, displayNamePrefix),
+            builder.Regex(user => user.UserName, accountPrefix),
+            builder.Regex(user => user.Email, accountPrefix));
+        using var users = await _collection.Find(filter)
+            .SortBy(user => user.DisplayName)
+            .ThenBy(user => user.UserName)
+            .ThenBy(user => user.Id)
+            .ToCursorAsync(ct);
+        while (await users.MoveNextAsync(ct))
+        {
+            foreach (var user in users.Current)
+                yield return user;
+        }
+    }
 
     private async Task<IEnumerable<User>> SearchByQuery(string query, string? providerKey, CancellationToken ct)
     {

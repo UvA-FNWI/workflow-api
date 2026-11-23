@@ -68,6 +68,17 @@ public class InstanceAuthorizationFilterService(
         return rows.Count > 0;
     }
 
+    public async Task<bool> CanAccessAnyWorkflowOverview(CancellationToken ct)
+    {
+        foreach (var definition in modelService.WorkflowDefinitions.Values)
+        {
+            if (definition.Screens.Count > 0 && await CanAccessWorkflowOverview(definition.Name, ct))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Whether the current user can edit at least one instance of the given workflow definition
     /// (either unconditional edit access, or at least one instance they are authorized to edit).
