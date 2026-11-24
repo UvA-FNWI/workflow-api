@@ -17,7 +17,7 @@ columns:
     title:
       en: Second assessor
       nl: Tweede beoordelaar
-  - currentStep: true
+  - type: CurrentStep
     title:
       en: Progress
       nl: Voortgang
@@ -26,12 +26,15 @@ columns:
 
 grouping:
   groups:
-    - name: assessment-in-progress
-      title:
-        en: Assessment in Progress
-        nl: Bezig met beoordeling
+    - name: ApproveSubjects
+      enabled: false
+    - name: Proposal
+      enabled: false
+    - name: WorkingOnThesis
       steps:
-        - Assessment
+        - UploadFinalThesis
+    - name: FinalAssessment
+      steps:
         - AssessmentSecondAssessor
         - AssessmentSupervisor
         - AssessmentCombined
@@ -39,19 +42,8 @@ grouping:
         - AssessmentIndividual
         - FinalizeAssessment
         - FinalGrade
-
-    - name: thesis-in-progress
-      title:
-        en: Thesis in Progress
-        nl: Bezig met scriptie
+    - name: Completed
       steps:
-        - Proposal
-        - UploadFinalThesis
-    
-    - name: completed
-      title:
-        en: Completed
-        nl: Voltooid
-      steps:
-        - Publication
         - null
+    - name: StoppedNotStarted
+      steps: []

@@ -11,11 +11,12 @@ public record PageDto(
     PageElementDto[] Elements,
     bool HasResults,
     bool IsInCurrentForm,
-    bool IsActive
+    bool IsActive,
+    decimal? Percentage
 )
 {
-    public static PageDto Create(int index, Page page, IEnumerable<PageElementDto> elements, ObjectContext context,
-        bool isInCurrentForm, bool isActive)
+    public static PageDto Create(int index, Page page, IEnumerable<PageElementDto> elements,
+        bool isInCurrentForm, bool isActive, decimal? percentage)
         => new(
             index,
             page.Name,
@@ -24,7 +25,8 @@ public record PageDto(
             elements.ToArray(),
             page.HasResults,
             isInCurrentForm,
-            isActive
+            isActive,
+            percentage
         );
 }
 

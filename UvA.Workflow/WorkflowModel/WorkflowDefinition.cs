@@ -105,16 +105,13 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public InfoCard[] InfoCards { get; set; } = [];
 
     [YamlIgnore]
-    public RelatedUser[] RelatedUsers => InfoCards
-        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
-        .SelectMany(card => card.Groups)
-        .SelectMany(group => group.Users)
-        .ToArray();
+    public IEnumerable<RelatedUserGroup> RelatedUserGroups => InfoCards
+        .Where(card => card is { Enabled: true, Type: InfoCardType.RelatedUsers })
+        .SelectMany(card => card.Groups);
 
     [YamlIgnore]
-    public RelatedUser[] EditableRelatedUsers => InfoCards
-        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
-        .SelectMany(card => card.Groups.Where(group => group.AllowEditing))
+    public RelatedUser[] EditableRelatedUsers => RelatedUserGroups
+        .Where(group => group.AllowEditing)
         .SelectMany(group => group.Users)
         .ToArray();
 
