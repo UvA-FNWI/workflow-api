@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
+using UvA.Workflow.Messages;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
+using WorkflowAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -57,7 +59,16 @@ public abstract record QuestionDto
         };
 }
 
-public record QuestionMessagesDto(string InstanceId, string QuestionName, bool CanView, bool CanAdd);
+public record QuestionMessagesDto(string InstanceId, string QuestionName, bool CanView, bool CanAdd)
+{
+    internal static QuestionMessagesDto? Create(WorkflowDefinition definition, string instanceId, string path,
+        IEnumerable<WorkflowAction> actions)
+        => definition.AllowsMessages(path)
+            ? new QuestionMessagesDto(instanceId, path,
+                MessageService.HasTargetPermission(definition, actions, RoleAction.ViewMessages, path),
+                MessageService.HasTargetPermission(definition, actions, RoleAction.AddMessages, path))
+            : null;
+}
 
 public abstract record WeightedQuestionDto : QuestionDto
 {

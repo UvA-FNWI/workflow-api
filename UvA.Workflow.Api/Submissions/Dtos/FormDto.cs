@@ -1,5 +1,4 @@
 using UvA.Workflow.Assessments;
-using UvA.Workflow.Messages;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
 using WorkflowAction = UvA.Workflow.WorkflowModel.Action;
@@ -66,15 +65,11 @@ public record FormDto(
     private static QuestionDto WithMessages(QuestionDto question, WorkflowDefinition definition, string instanceId,
         string path, WorkflowAction[] actions)
     {
-        if (!definition.AllowsMessages(path))
+        var messages = QuestionMessagesDto.Create(definition, instanceId, path, actions);
+        if (messages == null)
             return question;
 
-        question = question with
-        {
-            Messages = new QuestionMessagesDto(instanceId, path,
-                MessageService.HasTargetPermission(definition, actions, RoleAction.ViewMessages, path),
-                MessageService.HasTargetPermission(definition, actions, RoleAction.AddMessages, path))
-        };
+        question = question with { Messages = messages };
         return question is ObjectQuestionDto { SubProperties: { } children } embedded
             ? embedded with
             {

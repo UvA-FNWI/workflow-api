@@ -228,11 +228,12 @@ public class LinkedStepAssessmentTests
 
         var response = await setup.Controller.GetAssessmentResults(setup.Core.Student.Id, default);
         var dto = Assert.IsType<AssessmentDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
-        var form = Assert.Single(dto.Parts, part => part.Id == "SharedAssessment").Form!;
-        var question = Assert.Single(Assert.Single(form.Pages).Elements).Question!;
+        var part = Assert.Single(dto.Parts, part => part.Id == "SharedAssessment");
+        var question = Assert.Single(Assert.Single(part.Form!.Pages).Elements).Question!;
+        var expected = new QuestionMessagesDto(setup.Core.Source.Id, "Grade", CanView: true, CanAdd: false);
 
-        Assert.Equal(new QuestionMessagesDto(setup.Core.Source.Id, "Grade", CanView: true, CanAdd: false),
-            question.Messages);
+        Assert.Equal(expected, question.Messages);
+        Assert.Equal(expected, Assert.Single(Assert.Single(part.SourceResults).Answers).Messages);
     }
 
     [Theory]

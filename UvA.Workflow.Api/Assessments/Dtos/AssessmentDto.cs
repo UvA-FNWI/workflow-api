@@ -160,14 +160,14 @@ public class AssessmentDtoFactory(
     }
 
     public async Task<SourceResultDto> CreateSourceResults(SubmissionContext context,
-        IEnumerable<DomainAction> allowedHidden,
+        IEnumerable<DomainAction> allowedActions,
         string? pageName = null, CancellationToken ct = default)
     {
         var objectContext = await instanceService.CreateFormContext(context.Instance, context.Form, ct);
         var sourceResult = AssessmentHelpers.CalculateSourceResult(context.Form,
             objectContext,
             pageName);
-        return MapToSourceResultDto(context.Instance, sourceResult, pageName, allowedHidden,
+        return MapToSourceResultDto(context.Instance, sourceResult, pageName, allowedActions,
             new Dictionary<Form, ObjectContext> { [context.Form] = objectContext });
     }
 
@@ -175,7 +175,7 @@ public class AssessmentDtoFactory(
         WorkflowInstance instance,
         SourceResult sourceResult,
         string? pageName,
-        IEnumerable<DomainAction> allowedHidden,
+        IEnumerable<DomainAction> allowedActions,
         IReadOnlyDictionary<Form, ObjectContext> formContexts,
         decimal? percentage = null,
         BilingualString? titleOverride = null,
@@ -184,12 +184,12 @@ public class AssessmentDtoFactory(
         var form = sourceResult.Form;
 
         var questionStatuses =
-            modelService.GetQuestionStatus(instance, form, allowedHidden, context: formContexts[form]);
+            modelService.GetQuestionStatus(instance, form, allowedActions, context: formContexts[form]);
         var sourcedAnswers = new Dictionary<string, Answer>();
         if (sourceResult.IsCombined)
         {
             var sourceStatuses = sourceForms!.Select(f =>
-                modelService.GetQuestionStatus(instance, f, allowedHidden, context: formContexts[f])).ToArray();
+                modelService.GetQuestionStatus(instance, f, allowedActions, context: formContexts[f])).ToArray();
             foreach (var question in form.ActualForm.PropertyDefinitions
                          .Where(q => q.Visibility == PropertyVisibility.Hidden))
             {
@@ -203,7 +203,7 @@ public class AssessmentDtoFactory(
                 var source = question.Results!.Source!;
                 var statuses = modelService.WorkflowDefinitions[instance.WorkflowDefinition].Forms
                     .Where(f => f.PropertyName == source)
-                    .Select(f => modelService.GetQuestionStatus(instance, f, allowedHidden, context: formContexts[f])
+                    .Select(f => modelService.GetQuestionStatus(instance, f, allowedActions, context: formContexts[f])
                         .GetValueOrDefault(question.Name))
                     .OfType<QuestionStatus>().ToArray();
                 var status = statuses.FirstOrDefault(s => s.IsVisible) ?? statuses.FirstOrDefault()
@@ -280,7 +280,18 @@ public class AssessmentDtoFactory(
             sourceResult.IsCombined ? "Combined" : form.Name,
             sourceResult.IsCombined ? new("Average", "Gemiddelde") : (titleOverride ?? form.DisplayName),
             roundedPageResults,
-            answers.Select(a => _answerDtoFactory.Create(a)).ToArray(),
+            answers.Select(answer =>
+            {
+                var dto = _answerDtoFactory.Create(answer);
+                if (sourceResult.IsCombined || !answer.IsVisible)
+                    return dto;
+
+                var path = form.PropertyName == null
+                    ? answer.QuestionName
+                    : $"{form.PropertyName}.{answer.QuestionName}";
+                var messages = QuestionMessagesDto.Create(form.WorkflowDefinition, instance.Id, path, allowedActions);
+                return messages == null ? dto : dto with { Messages = messages };
+            }).ToArray(),
             RoundToTwo(sourceResult.WeightedAverage),
             percentage != null ? RoundToTwo(percentage.Value) : null
         );

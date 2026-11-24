@@ -124,7 +124,8 @@ public class AssessmentsController(
         await rightsService.EnsureAuthorizedForAction(context.Instance, RoleAction.View, context.Form.Name);
 
         var dto = await assessmentDtoFactory.CreateSourceResults(context,
-            await rightsService.GetAllowedActions(context.Instance, RoleAction.ViewHidden), pageName, ct);
+            await rightsService.GetAllowedActions(context.Instance,
+                RoleAction.ViewHidden, RoleAction.ViewMessages, RoleAction.AddMessages), pageName, ct);
         return Ok(dto);
     }
 }
