@@ -35,13 +35,27 @@ public interface IInstanceEventService
 public class InstanceEventService(
     IInstanceEventRepository eventRepository,
     IInstanceJournalService instanceJournalService,
-    InstanceService instanceService) : IInstanceEventService
+    InstanceService instanceService,
+    ModelService modelService) : IInstanceEventService
 {
-    public async Task UpdateEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct,
+    public Task UpdateEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct,
         string? operationId = null, OperationMetadata? operationMetadata = null)
+        => RecordEvent(eventRepository, modelService, instance, eventId, user, ct, operationId, operationMetadata);
+
+    internal static Task RecordEvent(IInstanceEventRepository repository, ModelService modelService,
+        WorkflowInstance instance, string eventId, User user, CancellationToken ct,
+        string? operationId, OperationMetadata? operationMetadata)
     {
+        if (ParentStepPasses.IsMarker(eventId))
+            throw new InvalidOperationException($"'{eventId}' is a reserved event ID.");
+
+        if (modelService.WorkflowDefinitions.TryGetValue(instance.WorkflowDefinition, out var definition) &&
+            ParentStepPasses.Watches(definition, eventId))
+            return repository.RecordRestartEvent(instance, definition, eventId, user, ct, operationId,
+                operationMetadata);
+
         var newEvent = instance.RecordEvent(eventId);
-        await eventRepository.AddOrUpdateEvent(instance, newEvent, user, ct, operationId, operationMetadata);
+        return repository.AddOrUpdateEvent(instance, newEvent, user, ct, operationId, operationMetadata);
     }
 
     /// <summary>
@@ -56,7 +70,7 @@ public class InstanceEventService(
     /// </exception>
     public async Task DeleteEvent(WorkflowInstance instance, string eventId, User user, CancellationToken ct)
     {
-        if (instance.Events.TryGetValue(eventId, out InstanceEvent? instanceEvent))
+        if (!ParentStepPasses.IsMarker(eventId) && instance.Events.TryGetValue(eventId, out var instanceEvent))
         {
             await eventRepository.DeleteEvent(instance, instanceEvent, user, ct);
             instance.Events.Remove(eventId);

@@ -11,6 +11,9 @@ definitions. `WorkflowDefinition.json` and `Step.json` reference it using a rela
 The API serves these files at `/Schemas/{name}.json`. After regenerating schemas,
 rebuild the API to copy them into its output directory.
 
+Use `and:` and `or:` for lists of conditions. The lists can contain nested groups,
+individual checks, or names of reusable conditions.
+
 Text properties use `control: TextArea`, `Email`, or `Phone`. Omit `control` for
 ordinary text. Choice and reference properties
 use controls such as `control: RadioList`; embedded objects use `control: InlineEditing`

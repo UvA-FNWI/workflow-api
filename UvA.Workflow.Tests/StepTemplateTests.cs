@@ -155,30 +155,26 @@ public class StepTemplateTests
                                                   type: Submit
                                                   form: Revise
                                               ends:
-                                                logical:
-                                                  operator: Or
-                                                  children:
-                                                    - event: Approve
-                                                    - event: Revise
+                                                or:
+                                                  - event: Approve
+                                                  - event: Revise
                                               """, """
                                                    actions:
                                                      - roles: [Coordinator]
                                                        type: Submit
                                                        form: Reject
                                                    ends:
-                                                     logical:
-                                                       operator: Or
-                                                       children:
-                                                         - event: Approve
-                                                         - event: Revise
-                                                         - event: Reject
+                                                     or:
+                                                       - event: Approve
+                                                       - event: Revise
+                                                       - event: Reject
                                                    """);
         var step = workflow.AllSteps.Single(s => s.Name == "Start");
 
         Assert.Equal(["Approve", "Revise", "Reject"], step.Actions.Select(a => a.Form));
         Assert.Equal(["Approve", "Revise", "Reject"],
             workflow.Roles.Single(r => r.Name == "Coordinator").Actions.Select(a => a.Form));
-        Assert.Equal(["Approve", "Revise", "Reject"], step.Ends!.Logical!.Children.Select(c => c.Event!.Id));
+        Assert.Equal(["Approve", "Revise", "Reject"], step.Ends!.Or!.Select(c => c.Event!.Id));
     }
 
     [Theory]

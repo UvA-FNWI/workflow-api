@@ -429,15 +429,11 @@ public class DummyAnswerGeneratorTests
     {
         var condition = new Condition
         {
-            Logical = new Logical
-            {
-                Operator = LogicalOperator.Or,
-                Children =
-                [
-                    new Condition { Value = new Value { Property = "Score", GreaterThanOrEqual = "1" } },
-                    new Condition { Value = new Value { Property = "Score", LessThan = "10" } }
-                ]
-            }
+            Or =
+            [
+                new Condition { Value = new Value { Property = "Score", GreaterThanOrEqual = "1" } },
+                new Condition { Value = new Value { Property = "Score", LessThan = "10" } }
+            ]
         };
 
         var result = DummyAnswerGenerator.ExtractConstraints(condition);
@@ -446,74 +442,70 @@ public class DummyAnswerGeneratorTests
     }
 
     [Fact]
-    public void ExtractFromLogical_And_IntersectsBounds()
+    public void ExtractConstraints_And_IntersectsBounds()
     {
-        var logical = new Logical
+        var condition = new Condition
         {
-            Operator = LogicalOperator.And,
-            Children =
+            And =
             [
                 new Condition { Value = new Value { Property = "Score", GreaterThanOrEqual = "5" } },
                 new Condition { Value = new Value { Property = "Score", LessThan = "20" } }
             ]
         };
 
-        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractConstraints(condition);
 
         Assert.Equal(5.0, result.Min);
         Assert.Equal(20.0, result.Max);
     }
 
     [Fact]
-    public void ExtractFromLogical_And_TakesStrictestMin()
+    public void ExtractConstraints_And_TakesStrictestMin()
     {
-        var logical = new Logical
+        var condition = new Condition
         {
-            Operator = LogicalOperator.And,
-            Children =
+            And =
             [
                 new Condition { Value = new Value { Property = "Score", GreaterThanOrEqual = "3" } },
                 new Condition { Value = new Value { Property = "Score", GreaterThanOrEqual = "7" } }
             ]
         };
 
-        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractConstraints(condition);
 
         Assert.Equal(7.0, result.Min);
     }
 
     [Fact]
-    public void ExtractFromLogical_And_TakesStrictestMax()
+    public void ExtractConstraints_And_TakesStrictestMax()
     {
-        var logical = new Logical
+        var condition = new Condition
         {
-            Operator = LogicalOperator.And,
-            Children =
+            And =
             [
                 new Condition { Value = new Value { Property = "Score", LessThan = "50" } },
                 new Condition { Value = new Value { Property = "Score", LessThan = "20" } }
             ]
         };
 
-        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractConstraints(condition);
 
         Assert.Equal(20.0, result.Max);
     }
 
     [Fact]
-    public void ExtractFromLogical_And_MaxLength_TakesSmallest()
+    public void ExtractConstraints_And_MaxLength_TakesSmallest()
     {
-        var logical = new Logical
+        var condition = new Condition
         {
-            Operator = LogicalOperator.And,
-            Children =
+            And =
             [
                 new Condition { Value = new Value { Property = "Name", MaxLength = 100 } },
                 new Condition { Value = new Value { Property = "Name", MaxLength = 50 } }
             ]
         };
 
-        var result = DummyAnswerGenerator.ExtractFromLogical(logical);
+        var result = DummyAnswerGenerator.ExtractConstraints(condition);
 
         Assert.Equal(50, result.MaxLength);
     }

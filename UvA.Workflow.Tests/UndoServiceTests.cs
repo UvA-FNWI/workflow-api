@@ -152,15 +152,11 @@ public class UndoServiceTests : ControllerTestsBase
             Name = "First",
             Ends = new Condition
             {
-                Logical = new Logical
-                {
-                    Operator = LogicalOperator.And,
-                    Children =
-                    [
-                        new Condition { Event = "Restored" },
-                        new Condition { Event = "FirstDone" }
-                    ]
-                }
+                And =
+                [
+                    new Condition { Event = "Restored" },
+                    new Condition { Event = "FirstDone" }
+                ]
             }
         };
         var secondStep = new Step { Name = "Second", Ends = new Condition { Event = "SecondDone" } };

@@ -342,7 +342,7 @@ public class EventSuppressionTests
             ("EventA", []),
             ("EventB", [])
         );
-        var step = CreateStepWithLogicalEnds(LogicalOperator.Or, "EventA", "EventB");
+        var step = new Step { Ends = new Condition { Or = [.. EndEvents] } };
 
         var t1 = DateTime.UtcNow.AddHours(-2);
         var t2 = DateTime.UtcNow.AddHours(-1);
@@ -366,7 +366,7 @@ public class EventSuppressionTests
             ("EventA", []),
             ("EventB", [])
         );
-        var step = CreateStepWithLogicalEnds(LogicalOperator.And, "EventA", "EventB");
+        var step = new Step { Ends = new Condition { And = [.. EndEvents] } };
 
         var t1 = DateTime.UtcNow.AddHours(-2);
         var t2 = DateTime.UtcNow.AddHours(-1);
@@ -390,7 +390,7 @@ public class EventSuppressionTests
             ("EventA", ["EventB"]),
             ("EventB", ["EventA"])
         );
-        var step = CreateStepWithLogicalEnds(LogicalOperator.Or, "EventA", "EventB");
+        var step = new Step { Ends = new Condition { Or = [.. EndEvents] } };
 
         var t1 = DateTime.UtcNow.AddHours(-2);
         var t2 = DateTime.UtcNow.AddHours(-1);
@@ -414,7 +414,7 @@ public class EventSuppressionTests
             ("EventA", []),
             ("EventB", [])
         );
-        var step = CreateStepWithLogicalEnds(LogicalOperator.Or, "EventA", "EventB");
+        var step = new Step { Ends = new Condition { Or = [.. EndEvents] } };
 
         var instance = new WorkflowInstanceBuilder()
             .WithWorkflowDefinition("TestWorkflow")
@@ -453,26 +453,7 @@ public class EventSuppressionTests
         return modelService;
     }
 
-    private static Step CreateStepWithLogicalEnds(LogicalOperator @operator, params string[] eventIds)
-    {
-        return new Step
-        {
-            Name = "Subject",
-            Ends = new Condition
-            {
-                Logical = new Logical
-                {
-                    Operator = @operator,
-                    Children = eventIds
-                        .Select(id => new Condition
-                        {
-                            Event = new EventCondition { Id = id }
-                        })
-                        .ToArray()
-                }
-            }
-        };
-    }
+    private static Condition[] EndEvents => [new() { Event = "EventA" }, new() { Event = "EventB" }];
 }
 
 // Helper class for creating test data

@@ -20,7 +20,7 @@ public class ConfigChangeFeedTests
 
         Assert.True(await first.MoveNextAsync());
         Assert.True(await second.MoveNextAsync());
-        Assert.NotEqual(previous, first.Current);
+        Assert.NotEqual(previous.Data, first.Current.Data);
         Assert.Equal(first.Current, second.Current);
     }
 
@@ -33,13 +33,13 @@ public class ConfigChangeFeedTests
         await using (var browser = feed.Listen(ct.Token).GetAsyncEnumerator())
         {
             Assert.True(await browser.MoveNextAsync());
-            previous = browser.Current;
+            previous = browser.Current.Data;
         }
 
         feed.Publish();
         await using var reconnected = feed.Listen(ct.Token).GetAsyncEnumerator();
         Assert.True(await reconnected.MoveNextAsync());
-        Assert.NotEqual(previous, reconnected.Current);
+        Assert.NotEqual(previous, reconnected.Current.Data);
     }
 
     [Fact]

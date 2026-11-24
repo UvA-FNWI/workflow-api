@@ -10,19 +10,13 @@ globalActions:
       - ProposalAndEthicsReviewSupervisor
       - ProposalAndEthicsReviewReviewer
     condition:
-      logical:
-        operator: And
-        children:
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalApprovedSupervisor
-                - event: ProposalRejectedSupervisor
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalApprovedReviewer
-                - event: ProposalRejectedReviewer
+      and:
+        - or:
+            - event: ProposalApprovedSupervisor
+            - event: ProposalRejectedSupervisor
+        - or:
+            - event: ProposalApprovedReviewer
+            - event: ProposalRejectedReviewer
 
   # Supervisors can see their latest review, either approved or rejected.
   - roles: [ Supervisor ]

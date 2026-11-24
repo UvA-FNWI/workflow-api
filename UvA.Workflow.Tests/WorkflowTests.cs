@@ -98,7 +98,8 @@ public class WorkflowTests
                 UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService,
                     _instanceRepoMock.Object));
         _eventService =
-            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
+            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService,
+                _modelService);
         _userServiceMock.Setup(m => m.GetCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new User());
         _userServiceMock.Setup(m => m.GetRealUser(It.IsAny<CancellationToken>()))

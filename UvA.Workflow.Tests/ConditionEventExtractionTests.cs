@@ -12,10 +12,8 @@ public class ConditionEventExtractionTests
     public void GetAllEventIds_SubjectFeedbackStep_ExtractsBothEvents()
     {
         // Arrange: Replicate the SubjectFeedback.yaml structure
-        // ends: 
-        //   logical:
-        //     operator: Or
-        //     children: 
+        // ends:
+        //   or:
         //     - event: RejectSubject
         //     - event: ApproveSubject
 
@@ -24,15 +22,11 @@ public class ConditionEventExtractionTests
             Name = "SubjectFeedback",
             Ends = new Condition
             {
-                Logical = new Logical
-                {
-                    Operator = LogicalOperator.Or,
-                    Children = new[]
-                    {
-                        new Condition { Event = new EventCondition { Id = "RejectSubject" } },
-                        new Condition { Event = new EventCondition { Id = "ApproveSubject" } }
-                    }
-                }
+                Or =
+                [
+                    new Condition { Event = new EventCondition { Id = "RejectSubject" } },
+                    new Condition { Event = new EventCondition { Id = "ApproveSubject" } }
+                ]
             }
         };
 
@@ -145,15 +139,11 @@ public class ConditionEventExtractionTests
                     Name = "ChildWithLogicalEnd",
                     Ends = new Condition
                     {
-                        Logical = new Logical
-                        {
-                            Operator = LogicalOperator.Or,
-                            Children = new[]
-                            {
-                                new Condition { Event = new EventCondition { Id = "ChildEvent1" } },
-                                new Condition { Event = new EventCondition { Id = "ChildEvent2" } }
-                            }
-                        }
+                        Or =
+                        [
+                            new Condition { Event = new EventCondition { Id = "ChildEvent1" } },
+                            new Condition { Event = new EventCondition { Id = "ChildEvent2" } }
+                        ]
                     }
                 }
             }

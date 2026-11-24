@@ -56,9 +56,18 @@ public class WorkflowConfigLoader(
     public async Task<bool> LoadBaselineAsync()
     {
         await _baselineLock.WaitAsync();
+        var watchLocalChanges = _opts.WatchLocalChanges && !string.IsNullOrWhiteSpace(_opts.LocalPath);
         try
         {
-            return await LoadAsync(_opts.Ref, "", VersionKind.Baseline);
+            var changed = await LoadAsync(_opts.Ref, "", VersionKind.Baseline);
+            if (changed && watchLocalChanges)
+                changeFeed.Publish();
+            return changed;
+        }
+        catch when (watchLocalChanges)
+        {
+            changeFeed.Publish(reloadSucceeded: false);
+            throw;
         }
         finally
         {
@@ -123,9 +132,6 @@ public class WorkflowConfigLoader(
         }
 
         resolver.AddOrUpdate(versionKey, parser, layout, sha, kind);
-        if (kind == VersionKind.Baseline && _opts.WatchLocalChanges &&
-            !string.IsNullOrWhiteSpace(_opts.LocalPath))
-            changeFeed.Publish();
         if (sha is not null)
             _shas[versionKey] = sha;
         else

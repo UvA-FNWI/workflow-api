@@ -1,15 +1,16 @@
 using UvA.Workflow.WorkflowModel.Conditions;
+using UvA.Workflow.Events;
 
 namespace UvA.Workflow.WorkflowModel;
 
 /// <summary>
-/// Generates event-suppression rules for steps flagged with <c>resetParentStep</c>.
+/// Links <c>resetParentStep</c> events to their reset scope and pass boundary.
 /// See docs/reset-parent-step.md for the full specification.
 /// </summary>
 public partial class ModelParser
 {
     /// <summary>
-    /// Expands every reset flag in a fully-linked definition into ordinary suppression edges.
+    /// Links each reset flag to its parent and the condition that starts the next pass.
     /// A reset reopens the first child while keeping later outcomes visible; completing the
     /// first child again then suppresses those stale outcomes and starts a new pass.
     /// Runs once per definition, after inheritance, hierarchy linking, named-condition resolution
@@ -67,7 +68,13 @@ public partial class ModelParser
 
             ValidateTarget(def, p, members.Select(m => m.Declaring).ToArray(), resetEvents[0], subtree, leaves);
 
-            var restartEvents = FirstChildRestartEvents(def, p, p.Children[0], resetEvents[0]);
+            var firstChild = p.Children[0];
+            var ends = firstChild.Ends!;
+            var restartEvents = PositiveEvents(ends, $"ends of first child '{firstChild.Name}' under '{p.Name}'")
+                .ToHashSet();
+            if (restartEvents.Count == 0 || ends.IsMet(new ObjectContext([])))
+                throw Error(def, "first child ends condition must require a completion event",
+                    resetEvents[0], firstChild.Name, p.Name);
             var completionEvents = leaves
                 .SelectMany(leaf => PositiveEvents(leaf.Ends!,
                     $"ends of leaf '{leaf.Name}' under target '{p.Name}' in workflow '{def.Name}'"))
@@ -106,8 +113,14 @@ public partial class ModelParser
 
             foreach (var reset in resetEvents)
                 Accumulate(generated, reset, restartEvents.Concat(subtreeResets.Where(n => n != reset)));
+
+            var pass = new ParentStepPass(p, ends, restartEvents, resetEvents.ToHashSet(),
+                completionEvents.Concat(subtreeResets).Except(restartEvents).ToHashSet());
+            def.ParentStepPasses.Add(pass);
+
             foreach (var restart in restartEvents)
-                Accumulate(generated, restart, completionEvents.Where(c => c != restart).Concat(subtreeResets));
+                if (!def.Events.Contains(restart))
+                    def.Events.Add(new EventDefinition { Name = restart });
         }
 
         // Union with authored suppresses, drop self-edges, dedupe, order deterministically.
@@ -159,43 +172,21 @@ public partial class ModelParser
     }
 
     /// <summary>
-    /// Gets the events that start a new pass by completing the target's first child.
-    /// The first child is stricter than other leaves: its ends must be a single event
-    /// or an Or of events, never a top-level And.
-    /// </summary>
-    private static string[] FirstChildRestartEvents(WorkflowDefinition def, Step p, Step firstChild, string resetEvent)
-    {
-        if (firstChild.Ends == null)
-            throw Error(def, $"first child '{firstChild.Name}' has no ends condition",
-                resetEvent, firstChild.Name, p.Name);
-
-        var events = PositiveEvents(firstChild.Ends,
-            $"ends of first child '{firstChild.Name}' of target '{p.Name}' in workflow '{def.Name}'");
-
-        // PositiveEvents already rejected Not/non-event parts, so Part fully resolves the effective condition.
-        if (firstChild.Ends.Part is Logical { Operator: LogicalOperator.And })
-            throw Error(def, "first child ends condition must be a single event or an Or of events, not an And",
-                resetEvent, firstChild.Name, p.Name);
-
-        return events.ToArray();
-    }
-
-    /// <summary>
     /// Fail-closed: returns the positive event ids of a condition, or throws if the condition is not
     /// a pure positive-event / And / Or tree (the monotone fragment reset can drive by suppression).
-    /// Recurses into a named condition's resolved body so its own Not is honoured, unlike <c>Part</c>.
+    /// Recurses into a named condition's body so its own Not is honoured.
     /// </summary>
     private static List<string> PositiveEvents(Condition c, string where)
     {
         if (c.Not)
             throw new Exception($"resetParentStep: negated conditions cannot be reset by suppression ({where})");
-        if (c.Name != null)
-            return PositiveEvents(c.NamedCondition!, $"{where} via named condition '{c.Name}'");
+        if (c.NamedCondition is { } named)
+            return PositiveEvents(named, $"{where} via named condition '{c.Name}'");
         return c.Part switch
         {
             EventCondition e => [e.Id],
-            Logical { Operator: LogicalOperator.And or LogicalOperator.Or } l
-                => l.Children.SelectMany(ch => PositiveEvents(ch, where)).ToList(),
+            CompositeCondition composite when composite is And or Or
+                => composite.SelectMany(child => PositiveEvents(child, where)).ToList(),
             _ => throw new Exception(
                 $"resetParentStep: only positive event, And, and Or conditions can be reset ({where})")
         };

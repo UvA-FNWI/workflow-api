@@ -168,15 +168,11 @@ public class ActionsControllerTests : ControllerTestsBase
         definition.InfoCards = [];
         definition.StopWhen = new Condition
         {
-            Logical = new Logical
-            {
-                Operator = LogicalOperator.Or,
-                Children =
-                [
-                    new Condition { Event = "Cancel", Message = new BilingualString("Cancelled", "Geannuleerd") },
-                    new Condition { Event = "Pause", Message = new BilingualString("Paused", "Gepauzeerd") }
-                ]
-            }
+            Or =
+            [
+                new Condition { Event = "Cancel", Message = new BilingualString("Cancelled", "Geannuleerd") },
+                new Condition { Event = "Pause", Message = new BilingualString("Paused", "Gepauzeerd") }
+            ]
         };
         definition.Events.AddRange([
             new EventDefinition { Name = "Resume", Suppresses = ["Pause"] },

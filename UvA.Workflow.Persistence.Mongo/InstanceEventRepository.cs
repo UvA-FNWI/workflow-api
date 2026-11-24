@@ -1,3 +1,7 @@
+using MongoDB.Bson.Serialization;
+using UvA.Workflow.Infrastructure;
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Persistence.Mongo;
 
 public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRepository
@@ -43,6 +47,45 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
         // Also add the event to the event log collection
         await AddEventLogEntry(instance, newEvent, user,
             wasUpdated ? EventLogOperation.Update : EventLogOperation.Create, ct, operationId, operationMetadata);
+    }
+
+    public async Task RecordRestartEvent(WorkflowInstance instance, WorkflowDefinition definition,
+        string eventId, User user, CancellationToken ct, string? operationId = null,
+        OperationMetadata? operationMetadata = null)
+    {
+        var filters = Builders<WorkflowInstance>.Filter;
+        var instanceFilter = filters.Eq(item => item.Id, instance.Id);
+        var projection = Builders<WorkflowInstance>.Projection.Include(item => item.Events);
+        while (true)
+        {
+            var persisted = await _instanceCollection.Find(instanceFilter).Project<BsonDocument>(projection)
+                                .FirstOrDefaultAsync(ct)
+                            ?? throw new EntityNotFoundException(nameof(WorkflowInstance), instance.Id);
+            var current = BsonSerializer.Deserialize<WorkflowInstance>(persisted);
+            current.Events ??= [];
+            var operation = current.Events.ContainsKey(eventId) ? EventLogOperation.Update : EventLogOperation.Create;
+            var recorded = ParentStepPasses.RecordEvent(current, definition, eventId);
+
+            // Another writer may have completed a different prerequisite since we read the instance.
+            // Match the stored BSON so older field ordering and omitted values still compare correctly.
+            const string eventsField = nameof(WorkflowInstance.Events);
+            FilterDefinition<WorkflowInstance> unchangedEvents =
+                persisted.TryGetValue(eventsField, out var originalEvents)
+                    ? new BsonDocument(eventsField, new BsonDocument("$eq", originalEvents))
+                    : filters.Exists(item => item.Events, false);
+            var update = Builders<WorkflowInstance>.Update.Set(item => item.Events, current.Events);
+            var result = await _instanceCollection.UpdateOneAsync(instanceFilter & unchangedEvents, update,
+                cancellationToken: ct);
+            if (result.MatchedCount == 0)
+                continue;
+
+            instance.Events = current.Events;
+            var source = recorded[0];
+            // Preserve the committed order if another writer inserts its journal row first.
+            await AddEventLogEntry(instance, source, user, operation, ct, operationId,
+                operationMetadata, recorded.Length > 1 ? recorded[1..] : null, source.Date);
+            return;
+        }
     }
 
     /// <summary>
@@ -98,19 +141,25 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
     /// <summary>
     /// Adds an event log entry to the event log collection
     /// </summary>
-    public async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
+    public Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
         EventLogOperation type, CancellationToken ct, string? operationId = null,
         OperationMetadata? operationMetadata = null)
+        => AddEventLogEntry(instance, instanceEvent, user, type, ct, operationId, operationMetadata, null);
+
+    private async Task AddEventLogEntry(WorkflowInstance instance, InstanceEvent instanceEvent, User user,
+        EventLogOperation type, CancellationToken ct, string? operationId, OperationMetadata? operationMetadata,
+        InstanceEvent[]? passBoundaries, DateTime? timestamp = null)
     {
         var logEntry = new InstanceEventLogEntry
         {
-            Timestamp = DateTime.UtcNow,
+            Timestamp = timestamp ?? DateTime.UtcNow,
             WorkflowInstanceId = instance.Id,
             EventId = instanceEvent.Id,
             EventDate = instanceEvent.Date,
             Operation = type,
             ExecutedBy = user.Id,
-            OperationId = operationMetadata?.Id ?? operationId
+            OperationId = operationMetadata?.Id ?? operationId,
+            PassBoundaries = passBoundaries
         };
 
         // Store metadata once; later changes reference the same operation by ID.
@@ -130,23 +179,27 @@ public class InstanceEventRepository(IMongoDatabase database) : IInstanceEventRe
                 new CountOptions { Limit = 1 }, ct) == 0)
             return;
 
-        var effectiveEvent = EventHistory.RebuildEvents(
-            await GetEventLogEntriesForInstance(instance.Id, ct)).GetValueOrDefault(logEntry.EventId);
-        UpdateDefinition<WorkflowInstance> repair;
-        if (effectiveEvent == null)
+        var effectiveEvents = EventHistory.RebuildEvents(await GetEventLogEntriesForInstance(instance.Id, ct));
+        var updates = Builders<WorkflowInstance>.Update;
+        var repairs = new List<UpdateDefinition<WorkflowInstance>>();
+        foreach (var recorded in (passBoundaries ?? []).Prepend(instanceEvent))
         {
-            instance.Events.Remove(logEntry.EventId);
-            repair = Builders<WorkflowInstance>.Update.Unset(entry => entry.Events[logEntry.EventId]);
-        }
-        else
-        {
-            instance.Events[logEntry.EventId] = effectiveEvent;
-            repair = Builders<WorkflowInstance>.Update.Set(entry => entry.Events[logEntry.EventId], effectiveEvent);
+            var eventId = recorded.Id;
+            if (effectiveEvents.TryGetValue(eventId, out var effectiveEvent))
+            {
+                instance.Events[eventId] = effectiveEvent;
+                repairs.Add(updates.Set(entry => entry.Events[eventId], effectiveEvent));
+            }
+            else
+            {
+                instance.Events.Remove(eventId);
+                repairs.Add(updates.Unset(entry => entry.Events[eventId]));
+            }
         }
 
         await _instanceCollection.UpdateOneAsync(
             entry => entry.Id == instance.Id,
-            repair,
+            updates.Combine(repairs),
             cancellationToken: ct);
     }
 

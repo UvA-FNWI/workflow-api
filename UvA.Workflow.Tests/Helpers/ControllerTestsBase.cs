@@ -128,7 +128,8 @@ public abstract class ControllerTestsBase
                     _workflowInstanceRepoMock.Object));
 
         _eventService =
-            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
+            new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService,
+                _modelService);
 
         _effectService =
             new EffectService(_instanceService,

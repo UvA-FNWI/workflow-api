@@ -93,6 +93,10 @@ public class InstanceEventLogEntry
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? EventDate { get; set; }
 
+    /// <summary>Pass boundaries applied together with this event change.</summary>
+    [BsonIgnoreIfNull]
+    public InstanceEvent[]? PassBoundaries { get; set; }
+
     [BsonRepresentation(BsonType.String)]
     [BsonElement("Operation")]
     public EventLogOperation Operation { get; set; }

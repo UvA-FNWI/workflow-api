@@ -6,46 +6,35 @@ public static class ConditionExtensions
     {
         public bool IsMet(ObjectContext context)
         {
-            context.EnsureInputsAvailable(condition?.Properties ?? []);
-            return condition?.Not == true
-                ? !condition.Part.IsMet(context)
-                : condition?.Part.IsMet(context) != false;
+            if (condition == null)
+                return true;
+
+            context.EnsureInputsAvailable(condition.Properties);
+            var isMet = condition.LocalPart?.IsMet(context) ?? condition.NamedCondition?.IsMet(context)
+                ?? throw new InvalidOperationException("Condition has no check.");
+            return isMet != condition.Not;
         }
 
         /// <summary>
         /// Recursively extracts all event IDs from a condition tree
         /// </summary>
         public IEnumerable<string> GetAllEventIds()
-        {
-            if (condition == null)
-                return [];
-
-            var part = condition.Part;
-
-            return part switch
+            => condition?.Part switch
             {
-                EventCondition eventCond => [eventCond.Id],
-                Logical logical => logical.Children.SelectMany(c => c.GetAllEventIds()),
+                EventCondition e => [e.Id],
+                CompositeCondition composite => composite.SelectMany(child => child.GetAllEventIds()),
                 _ => []
             };
-        }
 
         /// <summary>
         /// Recursively extracts all Value parts from a condition tree
         /// </summary>
         public IEnumerable<Value> GetAllValues()
-        {
-            if (condition == null)
-                return [];
-
-            var part = condition.Part;
-
-            return part switch
+            => condition?.Part switch
             {
                 Value value => [value],
-                Logical logical => logical.Children.SelectMany(c => c.GetAllValues()),
+                CompositeCondition composite => composite.SelectMany(child => child.GetAllValues()),
                 _ => []
             };
-        }
     }
 }

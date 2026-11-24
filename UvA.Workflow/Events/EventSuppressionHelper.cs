@@ -33,27 +33,23 @@ public static class EventSuppressionHelper
         string? suppressingEventId = null;
         DateTime? latestSuppressingDate = null;
 
-        foreach (var (otherEventId, otherEvent) in instance.Events)
-        {
-            if (otherEvent.Date == null || otherEventId == eventId)
-                continue;
+        foreach (var otherEvent in workflowDef.Events.Where(e => e.Suppresses?.Contains(eventId) == true))
+            Consider(otherEvent.Name);
 
-            // Only later events can suppress
-            if (otherEvent.Date > evt.Date)
-            {
-                var otherEventDef = workflowDef.Events.FirstOrDefault(e => e.Name == otherEventId);
-                if (otherEventDef?.Suppresses?.Contains(eventId) == true)
-                {
-                    // Track the most recent suppressing event
-                    if (latestSuppressingDate == null || otherEvent.Date > latestSuppressingDate)
-                    {
-                        suppressingEventId = otherEventId;
-                        latestSuppressingDate = otherEvent.Date;
-                    }
-                }
-            }
-        }
+        foreach (var pass in workflowDef.ParentStepPasses)
+        foreach (var source in pass.SuppressingEvents(instance, eventId))
+            Consider(source);
 
         return suppressingEventId;
+
+        void Consider(string source)
+        {
+            if (source != eventId && instance.Events.GetValueOrDefault(source)?.Date is { } date &&
+                date > evt.Date && (latestSuppressingDate == null || date > latestSuppressingDate))
+            {
+                suppressingEventId = source;
+                latestSuppressingDate = date;
+            }
+        }
     }
 }

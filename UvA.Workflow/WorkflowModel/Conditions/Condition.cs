@@ -20,9 +20,32 @@ public class Condition
     public Value? Value { get; set; }
 
     /// <summary>
-    /// For and/or constructs
+    /// Require all of these conditions to be met
     /// </summary>
-    public Logical? Logical { get; set; }
+    public And? And
+    {
+        get;
+        set
+        {
+            if (value != null && Or != null)
+                throw new InvalidOperationException("A condition cannot have both 'and' and 'or'.");
+            field = value;
+        }
+    }
+
+    /// <summary>
+    /// Require at least one of these conditions to be met
+    /// </summary>
+    public Or? Or
+    {
+        get;
+        set
+        {
+            if (value != null && And != null)
+                throw new InvalidOperationException("A condition cannot have both 'and' and 'or'.");
+            field = value;
+        }
+    }
 
     /// <summary>
     /// Check if an event has occurred
@@ -53,36 +76,39 @@ public class Condition
 
     [JsonIgnore] [YamlIgnore] public Condition? NamedCondition { get; set; }
 
-    public ConditionPart Part => Value ?? Logical ?? Date ?? Deadline ?? Event ?? NamedCondition?.Part!;
+    internal CompositeCondition? Composite => And ?? (CompositeCondition?)Or;
+    internal IConditionPart? LocalPart => Value ?? Composite ?? Date ?? Deadline ?? (IConditionPart?)Event;
+    public IConditionPart? Part => LocalPart ?? NamedCondition?.Part;
 
     public IEnumerable<Lookup> Properties => Part?.Properties ?? [];
+    internal Lookup[] Dependants => Part?.Dependants ?? [];
 
     [JsonIgnore]
     [YamlIgnore]
     public IEnumerable<Lookup> MessageLookups =>
         MessageTemplate?.Properties ??
-        (Part is Logical { Operator: LogicalOperator.Or } logical
-            ? logical.Children.SelectMany(branch => branch.MessageTemplate?.Properties ?? [])
+        (Part is Or alternatives
+            ? alternatives.SelectMany(branch => branch.MessageTemplate?.Properties ?? [])
             : []);
 
     public static implicit operator Condition(string name) => new() { Name = name };
 }
 
-public abstract class ConditionPart
+public interface IConditionPart
 {
-    public virtual Lookup[] Dependants => [];
-    public abstract bool IsMet(ObjectContext context);
+    Lookup[] Dependants => [];
+    bool IsMet(ObjectContext context);
 
-    public virtual IEnumerable<Lookup> Properties => [];
+    IEnumerable<Lookup> Properties => [];
 }
 
-public class Date : ConditionPart
+public class Date : IConditionPart
 {
     public string Source { get; set; } = null!;
 
-    public override IEnumerable<Lookup> Properties => [Source];
+    public IEnumerable<Lookup> Properties => [Source];
 
-    public override bool IsMet(ObjectContext context)
+    public bool IsMet(ObjectContext context)
     {
         var date = context.Get(Source) as DateTime?;
         return date != null && date.Value.ToUniversalTime() <= context.Now.ToUniversalTime();
@@ -91,7 +117,7 @@ public class Date : ConditionPart
     public static implicit operator Date(string s) => new Date { Source = s };
 }
 
-public class DeadlineCondition : ConditionPart
+public class DeadlineCondition : IConditionPart
 {
     public string ExpressionText { get; set; } = null!;
 
@@ -115,9 +141,9 @@ public class DeadlineCondition : ConditionPart
         return new DateTimeOffset(date, serverTimezoneOffset);
     }
 
-    public override IEnumerable<Lookup> Properties => Expression.Properties;
+    public IEnumerable<Lookup> Properties => Expression.Properties;
 
-    public override bool IsMet(ObjectContext context)
+    public bool IsMet(ObjectContext context)
     {
         var deadline = Evaluate(context);
         return deadline != null && deadline.Value.UtcDateTime > context.Now.ToUniversalTime();
@@ -126,14 +152,14 @@ public class DeadlineCondition : ConditionPart
     public static implicit operator DeadlineCondition(string s) => new() { ExpressionText = s };
 }
 
-public class EventCondition : ConditionPart
+public class EventCondition : IConditionPart
 {
     /// <summary>
     /// Id of the event to check for
     /// </summary>
     public string Id { get; set; } = null!;
 
-    public override bool IsMet(ObjectContext context)
+    public bool IsMet(ObjectContext context)
     {
         // Check if event exists and is active (not suppressed)
         var isActive = context.Get(Id + "EventActive") as bool? ?? false;
@@ -150,34 +176,11 @@ public class EventCondition : ConditionPart
     public static implicit operator EventCondition(string s) => new() { Id = s };
 }
 
-public enum LogicalOperator
-{
-    And,
-    Or
-}
-
-public class Logical : ConditionPart
-{
-    public LogicalOperator Operator { get; set; }
-    public Condition[] Children { get; set; } = null!;
-
-    public override Lookup[] Dependants => Children.SelectMany(c => c.Part.Dependants).ToArray();
-    public override IEnumerable<Lookup> Properties => Children.SelectMany(c => c.Part.Properties);
-
-    public override bool IsMet(ObjectContext context)
-        => Operator switch
-        {
-            LogicalOperator.And => Children.All(c => c.IsMet(context)),
-            LogicalOperator.Or => Children.Any(c => c.IsMet(context)),
-            _ => throw new NotImplementedException()
-        };
-}
-
 /// <summary>
 /// Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value
 /// (prefix a string value with an equals sign to indicate a literal value)
 /// </summary>
-public class Value : ConditionPart
+public class Value : IConditionPart
 {
     /// <summary>
     /// Target property
@@ -243,7 +246,7 @@ public class Value : ConditionPart
     /// </summary>
     public int? MinLength { get; set; }
 
-    public override Lookup[] Dependants =>
+    public Lookup[] Dependants =>
     [
         .. PropertyExpression.Properties,
         .. EqualExpression?.Properties ?? [],
@@ -254,12 +257,12 @@ public class Value : ConditionPart
         .. InExpression?.Properties ?? []
     ];
 
-    public override IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
+    public IEnumerable<Lookup> Properties => CollectionTools.Merge(PropertyExpression.Properties,
         EqualExpression?.Properties, LessThanExpression?.Properties, LessThanOrEqualExpression?.Properties,
         GreaterThanExpression?.Properties,
         GreaterThanOrEqualExpression?.Properties, InExpression?.Properties);
 
-    public override bool IsMet(ObjectContext context)
+    public bool IsMet(ObjectContext context)
     {
         var prop = PropertyExpression.Execute(context);
         if (EqualExpression != null && prop is string[] array)

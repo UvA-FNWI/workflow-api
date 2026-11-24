@@ -239,14 +239,10 @@ public class EffectService(
         await eventService.UpdateEvent(instance, ev.Id, user, ct, operationId, operationMetadata);
     }
 
-    public async Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
+    public Task AddEvent(WorkflowInstance instance, string eventName, User user, CancellationToken ct,
         string? operationId = null, OperationMetadata? operationMetadata = null)
-    {
-        var ev = instance.Events.GetValueOrDefault(eventName);
-        ev ??= instance.Events[eventName] = new InstanceEvent { Id = eventName };
-        ev.Date = instance.NextEventDate();
-        await eventRepository.AddOrUpdateEvent(instance, ev, user, ct, operationId, operationMetadata);
-    }
+        => InstanceEventService.RecordEvent(eventRepository, modelService, instance, eventName, user, ct,
+            operationId, operationMetadata);
 
     private async Task SetProperty(WorkflowInstance instance, ObjectContext context, SetProperty setProperty,
         CancellationToken ct)

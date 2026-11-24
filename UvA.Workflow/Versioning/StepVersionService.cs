@@ -141,10 +141,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             var before = new WorkflowInstance { Events = snapshot.Events };
             // Restart detection needs independent event states on either side of this operation.
             snapshot.Events = new Dictionary<string, InstanceEvent>(snapshot.Events);
-            if (log.Operation == EventLogOperation.Delete)
-                snapshot.Events.Remove(log.EventId);
-            else
-                snapshot.Events[log.EventId] = new InstanceEvent { Id = log.EventId, Date = log.EventDate };
+            EventHistory.Apply(snapshot.Events, log);
 
             var restartedStep = rules.DetermineRestart(log, before, snapshot);
             // A rejection submission belongs to the version it ends.
@@ -224,7 +221,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
                 yield return date.ToUniversalTime();
             if (condition?.Deadline?.Evaluate(context) is { } deadline)
                 yield return deadline.UtcDateTime;
-            foreach (var child in condition?.Logical?.Children ?? [])
+            foreach (var child in condition?.Composite ?? Enumerable.Empty<Condition>())
             foreach (var boundary in ConditionDates(child, context))
                 yield return boundary;
             if (condition?.NamedCondition != null)
@@ -378,7 +375,8 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             var restartStepsByEvent = FindRestartSteps(definition);
             _stepOrder = definition.Steps.SelectMany(Subtree).ToList();
             VersionedSteps = definition.AllSteps.Where(step =>
-                step.ParentStep == null || restartStepsByEvent.Values.Contains(step)).ToArray();
+                step.ParentStep == null || restartStepsByEvent.Values.Contains(step) ||
+                definition.ParentStepPasses.Any(pass => pass.Parent == step)).ToArray();
             _restartStepsByEvent = restartStepsByEvent
                 .Where(pair => TargetsEarlierWork(pair.Key, pair.Value)).ToDictionary();
         }
@@ -390,8 +388,17 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
         public Step? DetermineRestart(
             InstanceEventLogEntry log, WorkflowInstance before, WorkflowInstance snapshot)
         {
-            if (log.Operation is not (EventLogOperation.Create or EventLogOperation.Update) ||
-                !_restartStepsByEvent.TryGetValue(log.EventId, out var restartStep))
+            if (log.Operation is not (EventLogOperation.Create or EventLogOperation.Update))
+                return null;
+
+            var pass = _definition.ParentStepPasses.FirstOrDefault(pass => pass.ResetEvents.Contains(log.EventId));
+            if (pass != null)
+                return pass.FirstChildEvents.Any(id => IsActive(id, before, _definition) &&
+                                                       !IsActive(id, snapshot, _definition))
+                    ? pass.Parent
+                    : null;
+
+            if (!_restartStepsByEvent.TryGetValue(log.EventId, out var restartStep))
                 return null;
 
             return (_definition.Events.Get(log.EventId).Suppresses ?? []).Any(id =>

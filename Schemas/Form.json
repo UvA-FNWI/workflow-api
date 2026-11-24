@@ -339,16 +339,39 @@
             }
           ]
         },
-        "logical": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "For and/or constructs",
-              "$ref": "#/definitions/Logical"
-            }
-          ]
+        "and": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Require all of these conditions to be met",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/Condition"
+              }
+            ]
+          }
+        },
+        "or": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Require at least one of these conditions to be met",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/Condition"
+              }
+            ]
+          }
         },
         "event": {
           "description": "Check if an event has occurred",
@@ -489,29 +512,6 @@
           "description": "Minimum length of a string"
         }
       }
-    },
-    "Logical": {
-      "title": "Logical",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "operator": {
-          "$ref": "#/definitions/LogicalOperator"
-        },
-        "children": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Condition"
-          }
-        }
-      }
-    },
-    "LogicalOperator": {
-      "type": "string",
-      "enum": [
-        "And",
-        "Or"
-      ]
     },
     "EventCondition": {
       "title": "EventCondition",

@@ -155,15 +155,11 @@ public class ComputedRuleDependencyTests
         var (model, repository, instance, _) = Create();
         model.WorkflowDefinitions["Project"].AllSteps.Single(step => step.Name == "Review").Condition = new()
         {
-            Logical = new Logical
-            {
-                Operator = LogicalOperator.And,
-                Children =
-                [
-                    new() { Value = new Value { Property = "Ready", Equal = "true" } },
-                    new() { Value = new Value { Property = "Target", Equal = "=target" } }
-                ]
-            }
+            And =
+            [
+                new() { Value = new Value { Property = "Ready", Equal = "true" } },
+                new() { Value = new Value { Property = "Target", Equal = "=target" } }
+            ]
         };
         var factory = StepHeaderStatusTests.CreateWorkflowInstanceDtoFactory(model, repository);
 

@@ -85,8 +85,8 @@ public class StepProgressResolver(ModelService modelService)
     private static ProgressInformationDto ResolveStoppedProgress(Condition? stopWhen, ObjectContext context)
     {
         var template = stopWhen?.MessageTemplate;
-        if (template == null && stopWhen?.Part is Logical { Operator: LogicalOperator.Or } logical)
-            template = logical.Children.FirstOrDefault(branch => branch.IsMet(context))?.MessageTemplate;
+        if (template == null && stopWhen?.Part is Or alternatives)
+            template = alternatives.FirstOrDefault(branch => branch.IsMet(context))?.MessageTemplate;
 
         if (template != null)
             return new ProgressInformationDto(template.Apply(context), StatusColor.Red);
@@ -105,7 +105,7 @@ public class StepProgressResolver(ModelService modelService)
         return condition.Part switch
         {
             EventCondition evt => context.Get(evt.Id + "Event") as DateTime?,
-            Logical logical => logical.Children.Max(child => GetStopEventDate(child, context)),
+            CompositeCondition composite => composite.Max(child => GetStopEventDate(child, context)),
             _ => null
         };
     }

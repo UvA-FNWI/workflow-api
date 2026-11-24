@@ -1,3 +1,5 @@
+using UvA.Workflow.WorkflowModel;
+
 namespace UvA.Workflow.Events;
 
 public interface IInstanceEventRepository
@@ -14,6 +16,10 @@ public interface IInstanceEventRepository
     /// <param name="operationMetadata">Metadata stored on the operation's first event change.</param>
     /// <returns>An asynchronous operation representing the add or update process.</returns>
     Task AddOrUpdateEvent(WorkflowInstance instance, InstanceEvent newEvent, User user,
+        CancellationToken ct, string? operationId = null, OperationMetadata? operationMetadata = null);
+
+    /// <summary>Records the event and any pass boundary against the current stored event state.</summary>
+    Task RecordRestartEvent(WorkflowInstance instance, WorkflowDefinition definition, string eventId, User user,
         CancellationToken ct, string? operationId = null, OperationMetadata? operationMetadata = null);
 
     /// <summary>

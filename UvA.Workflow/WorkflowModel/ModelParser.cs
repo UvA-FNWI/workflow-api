@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Serilog;
+using UvA.Workflow.Events;
 using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Core;
@@ -271,6 +272,7 @@ public partial class ModelParser
             .Union(role.InheritFrom.Select(ResolveInherited).SelectMany(r => r.Actions)).ToList();
         foreach (var act in role.Actions)
         {
+            PreProcess(act.Condition);
             PreProcess(act.OnAction);
 
             if (act.Form is not (null or Action.All) && act.WorkflowDefinition != null &&
@@ -424,6 +426,11 @@ public partial class ModelParser
         PreProcess(workflowDefinition.StopWhen);
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
+        foreach (var action in workflowDefinition.AllActions)
+        {
+            PreProcess(action.Condition);
+            PreProcess(action.OnAction);
+        }
 
         foreach (var ent in workflowDefinition.Properties)
         {
@@ -504,6 +511,10 @@ public partial class ModelParser
                 throw new Exception(
                     $"Event name '{reservedName}' is reserved in workflow '{definition.Name}'.");
         }
+
+        var passMarker = eventNames.FirstOrDefault(name => name != null && ParentStepPasses.IsMarker(name));
+        if (passMarker != null)
+            throw new Exception($"Event name '{passMarker}' is reserved in workflow '{definition.Name}'.");
     }
 
     private static void EnsureEffectEventsExist(IEnumerable<Effect> effects, WorkflowDefinition workflowDefinition)
@@ -594,6 +605,7 @@ public partial class ModelParser
 
     private void PreProcess(Field field, WorkflowDefinition workflowDefinition)
     {
+        PreProcess(field.Condition);
         if (field.Property != null)
             field.PropertyDefinition = ResolvePropertyDefinition(workflowDefinition, field.Property);
     }
@@ -809,6 +821,9 @@ public partial class ModelParser
                                               $"Invalid data type {workflow.Type} for property {workflow.Name}");
 
         PreProcess(propertyDefinition.Condition);
+        PreProcess(propertyDefinition.Validation);
+        if (propertyDefinition is ReferencePropertyDefinition reference)
+            PreProcess(reference.Filter);
         PreProcess(propertyDefinition.OnSave);
 
         if (propertyDefinition.LinkedTo != null &&
@@ -853,14 +868,24 @@ public partial class ModelParser
     private void PreProcess(Condition? condition)
     {
         if (condition == null) return;
-        if (condition.Name is not null)
-        {
-            condition.NamedCondition = NamedConditions.FirstOrDefault(c => c.Name == condition.Name);
-            if (condition.NamedCondition == null)
-                throw new Exception($"Condition {condition.Name} not found");
-        }
 
-        condition.Logical?.Children.ForEach(PreProcess);
+        var activeNames = new HashSet<string>();
+        Resolve(condition);
+
+        void Resolve(Condition current)
+        {
+            if (current.Name is { } name)
+            {
+                if (!activeNames.Add(name))
+                    throw new Exception($"Cyclic condition reference: {name}");
+                current.NamedCondition = NamedConditions.FirstOrDefault(c => c.Name == name)
+                                         ?? throw new Exception($"Condition {name} not found");
+                current.NamedCondition.Composite?.ForEach(Resolve);
+                activeNames.Remove(name);
+            }
+
+            current.Composite?.ForEach(Resolve);
+        }
     }
 
     private void PreProcess(Choice choice)

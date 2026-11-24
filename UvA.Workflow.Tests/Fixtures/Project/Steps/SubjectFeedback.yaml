@@ -38,8 +38,6 @@ progress:
       nl: Wacht {{ coalesce(formatDate(StartEvent, =dd-MM), =) }} op goedkeuring
 
 ends: 
-  logical:
-    operator: Or
-    children: 
+  or:
     - event: RejectSubject
     - event: ApproveSubject

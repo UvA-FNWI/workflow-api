@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.Events;
 using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel.Conditions;
 using Action = UvA.Workflow.WorkflowModel.Action;
@@ -140,6 +141,8 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     [YamlIgnore] public List<EmailContentBlock> EmailBlocks { get; set; } = null!;
     [YamlIgnore] public List<ConfiguredMigration> Migrations { get; set; } = [];
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
+
+    internal List<ParentStepPass> ParentStepPasses { get; } = [];
 
     [YamlIgnore]
     public IEnumerable<Lookup> ProgressLookups => AllSteps
