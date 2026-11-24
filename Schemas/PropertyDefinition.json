@@ -109,7 +109,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -123,7 +123,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -200,241 +200,6 @@
         "Hidden"
       ]
     },
-    "Condition": {
-      "title": "Condition",
-      "type": "object",
-      "description": "Represents a logical condition",
-      "additionalProperties": false,
-      "properties": {
-        "not": {
-          "type": "boolean",
-          "description": "If true, this condition is inverted"
-        },
-        "value": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Compare property values",
-              "$ref": "#/definitions/Value"
-            }
-          ]
-        },
-        "and": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "description": "Require all of these conditions to be met",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "$ref": "#/definitions/Condition"
-              }
-            ]
-          }
-        },
-        "or": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "description": "Require at least one of these conditions to be met",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "$ref": "#/definitions/Condition"
-              }
-            ]
-          }
-        },
-        "event": {
-          "description": "Check if an event has occurred",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EventCondition"
-            }
-          ]
-        },
-        "date": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Check if a date has passed",
-              "$ref": "#/definitions/Date"
-            }
-          ]
-        },
-        "deadline": {
-          "description": "Check if a deadline has not yet passed. Use a step's deadline setting for soft/hard submission deadlines.",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/DeadlineCondition"
-            }
-          ]
-        },
-        "name": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Use a named reusable condition"
-        },
-        "message": {
-          "description": "Message that is shown then the condition is not, for use in form validation",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        }
-      }
-    },
-    "Value": {
-      "title": "Value",
-      "type": "object",
-      "description": "Represents a value comparison. Use this to compare two properties, or to compare a property to a fixed literal value\n            (prefix a string value with an equals sign to indicate a literal value)",
-      "additionalProperties": false,
-      "required": [
-        "property"
-      ],
-      "properties": {
-        "property": {
-          "type": "string",
-          "description": "Target property"
-        },
-        "equal": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be equal to. If this is a literal string, it must be prefixed with an equals sign"
-        },
-        "lessThan": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be less than"
-        },
-        "lessThanOrEqual": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be less than or equal to"
-        },
-        "greaterThan": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be greater than"
-        },
-        "greaterThanOrEqual": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Value the property should be greater than or equal to"
-        },
-        "in": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Array the property should be in"
-        },
-        "isEmpty": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "If set, check whether the property is empty"
-        },
-        "maxLength": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "Maximum length of a string"
-        },
-        "minLength": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "Minimum length of a string"
-        }
-      }
-    },
-    "EventCondition": {
-      "title": "EventCondition",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Id of the event to check for"
-        }
-      }
-    },
-    "Date": {
-      "title": "Date",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "source"
-      ],
-      "properties": {
-        "source": {
-          "type": "string"
-        }
-      }
-    },
-    "DeadlineCondition": {
-      "title": "DeadlineCondition",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "expressionText"
-      ],
-      "properties": {
-        "expressionText": {
-          "type": "string"
-        }
-      }
-    },
     "Effect": {
       "title": "Effect",
       "type": "object",
@@ -457,7 +222,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1017,7 +782,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1031,7 +796,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1170,7 +935,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1184,7 +949,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1334,7 +1099,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1348,7 +1113,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1523,7 +1288,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1537,7 +1302,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1676,7 +1441,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1690,7 +1455,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1840,7 +1605,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -1854,7 +1619,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2012,7 +1777,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2026,7 +1791,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2179,7 +1944,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2193,7 +1958,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2408,7 +2173,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2422,7 +2187,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2524,7 +2289,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         }
@@ -2600,7 +2365,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2722,7 +2487,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2736,7 +2501,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2920,7 +2685,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },
@@ -2934,7 +2699,7 @@
               "type": "string"
             },
             {
-              "$ref": "#/definitions/Condition"
+              "$ref": "Condition.json"
             }
           ]
         },

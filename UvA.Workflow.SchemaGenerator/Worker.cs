@@ -1,6 +1,7 @@
 using UvA.Workflow.SchemaGenerator.Generation;
 using UvA.Workflow.Migrations;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.SchemaGenerator;
 
@@ -10,12 +11,13 @@ public class Worker(IHostApplicationLifetime lifetime) : BackgroundService
     {
         var reader = new DocumentationReader();
         await reader.Load(stoppingToken);
-        var generator = new Generator(reader, typeof(PropertyDefinition));
+        Type[] sharedTypes = [typeof(PropertyDefinition), typeof(Condition)];
+        var generator = new Generator(reader, sharedTypes);
 
         Type[] types =
         [
+            .. sharedTypes,
             typeof(WorkflowDefinition),
-            typeof(PropertyDefinition),
             typeof(Form),
             typeof(Screen),
             typeof(Role),

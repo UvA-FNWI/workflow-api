@@ -83,6 +83,16 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
                     schema.RequiredProperties.Add(property.Key);
             }
 
+            if (type == typeof(Condition))
+            {
+                schema.Not = new JsonSchema();
+                foreach (var key in new[] { "and", "or" })
+                {
+                    schema.Not.RequiredProperties.Add(key);
+                    schema.Not.Properties.Add(key, new JsonSchemaProperty { Type = JsonObjectType.Array });
+                }
+            }
+
             if (typeof(PropertyDefinition).IsAssignableFrom(type))
             {
                 var dataType = ((PropertyDefinition)Activator.CreateInstance(type)!).DataType;
