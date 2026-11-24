@@ -14,6 +14,7 @@ using UvA.Workflow.Persistence;
 using UvA.Workflow.Persistence.Mongo;
 using UvA.Workflow.Users.DataNose;
 using UvA.Workflow.Users.EduId;
+using UvA.Workflow.Users.EntraId;
 using UvA.Workflow.Jobs;
 
 string corsPolicyName = "_CorsPolicy";
@@ -57,8 +58,16 @@ builder.Services.Configure<ConfiguredMigrationOptions>(
 builder.Services.AddWorkflowAuthenticationSelector(builder.Environment, builder.Configuration);
 builder.Services.AddWorkflowMongoPersistence(builder.Configuration);
 builder.Services.AddWorkflowGraphMail(builder.Configuration);
-builder.Services.AddWorkflowDataNoseUsers(builder.Configuration);
 builder.Services.AddWorkflowEduIdUsers(builder.Configuration);
+
+var userProvider = Environment.GetEnvironmentVariable("USERPROVIDER") ?? config["UserProvider"];
+if (EntraDirectoryKeys.IsSelected(userProvider))
+{
+    builder.Services.AddWorkflowEntraIdUsers(builder.Configuration);
+}
+else
+    builder.Services.AddWorkflowDataNoseUsers(builder.Configuration);
+
 builder.Services.AddWorkflowSurfConextAuthentication(builder.Configuration);
 builder.Services.AddWorkflowCanvasLtiAuthentication(builder.Configuration);
 builder.Services.AddWorkflowImportExport();

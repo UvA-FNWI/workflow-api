@@ -156,8 +156,16 @@ public class UsersController(
     public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
         [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
     {
-        var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
-        return Ok(searchResults.Select(UserSearchResultDto.Create));
+        try
+        {
+            var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
+            return Ok(searchResults.Select(UserSearchResultDto.Create));
+        }
+        catch (DirectoryUnavailableException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new Error("DirectoryUnavailable", "The user directory is unavailable."));
+        }
     }
 
     /// <summary>

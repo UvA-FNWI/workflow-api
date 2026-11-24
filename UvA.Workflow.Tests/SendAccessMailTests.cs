@@ -26,7 +26,7 @@ public class SendAccessMailTests : ControllerTestsBase
             .Build();
         var sent = new List<MailMessage>();
 
-        _loginMethodClassifierMock.Setup(c => c.Classify("1234567")).Returns("Uva");
+        _loginMethodClassifierMock.Setup(c => c.ClassifyAsync("1234567", _ct)).ReturnsAsync("Uva");
         _externalUserServiceMock
             .Setup(s => s.PrepareAccess("external@example.org", "External user",
                 ExternalUserAccessMode.ReturnLoginSetupUrl, _ct))

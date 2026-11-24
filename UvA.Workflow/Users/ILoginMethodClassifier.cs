@@ -2,5 +2,5 @@ namespace UvA.Workflow.Users;
 
 public interface ILoginMethodClassifier
 {
-    string? Classify(string? userName);
+    Task<string?> ClassifyAsync(string? userName, CancellationToken ct = default);
 }

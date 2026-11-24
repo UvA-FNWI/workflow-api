@@ -4,6 +4,9 @@ namespace UvA.Workflow.Users.DataNose;
 
 public class DataNoseLoginMethodClassifier : ILoginMethodClassifier
 {
+    public Task<string?> ClassifyAsync(string? userName, CancellationToken ct = default)
+        => Task.FromResult(Classify(userName));
+
     // DataNose stores Provider on UserAuthentications; workflow users only have a UID, so infer from that.
     public string? Classify(string? userName)
     {
