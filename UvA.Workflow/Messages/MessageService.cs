@@ -187,9 +187,21 @@ public class MessageService(
     private static bool FormContainsQuestion(Form form, string questionName)
     {
         var prefix = form.PropertyName == null ? "" : $"{form.PropertyName}.";
-        return form.GetCurrentPages().SelectMany(page => page.Questions)
-            .Any(question => questionName == prefix + question.Name &&
-                             (question.Sources == null || question.Sources.Contains(form.PropertyName)));
+        if (!questionName.StartsWith(prefix, StringComparison.Ordinal))
+            return false;
+
+        var parts = questionName[prefix.Length..].Split('.');
+        var question = form.GetCurrentPages().SelectMany(page => page.Questions)
+            .FirstOrDefault(candidate => candidate.Name == parts[0] &&
+                                         (candidate.Sources == null || candidate.Sources.Contains(form.PropertyName)));
+        for (var index = 1; index < parts.Length; index++)
+        {
+            if (question is not ObjectPropertyDefinition { WorkflowDefinition: { } embedded } ||
+                !embedded.Properties.TryGetValue(parts[index], out question))
+                return false;
+        }
+
+        return question != null;
     }
 
     private async Task EnsureTargetEnabled(WorkflowInstance instance, WorkflowDefinition definition,

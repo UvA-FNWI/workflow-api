@@ -127,6 +127,7 @@ public class MessagesControllerTests : ControllerTestsBase
 
     [Theory]
     [InlineData("SupervisorForm", null, true)]
+    [InlineData("SupervisorObjectForm", null, true)]
     [InlineData(null, "AssessmentSupervisor.Consent", true)]
     [InlineData("SupervisorForm", "AssessmentSupervisor.Consent", true)]
     [InlineData("SupervisorForm", "AssessmentReviewer.Consent", false)]
@@ -136,6 +137,23 @@ public class MessagesControllerTests : ControllerTestsBase
         MockCurrentUser("SystemAdmin");
         var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         definition.Forms.Single(candidate => candidate.Name == "AssessmentSupervisor").Name = "SupervisorForm";
+        var objectQuestion = definition.Properties.Single(candidate => candidate.Name == "AssessmentSupervisor");
+        definition.Forms.Add(new Form
+        {
+            Name = "SupervisorObjectForm",
+            WorkflowDefinition = definition,
+            Pages =
+            [
+                new Page
+                {
+                    Name = "Questions",
+                    PageElements =
+                    [
+                        new PageElement { Question = objectQuestion.Name, QuestionDefinition = objectQuestion }
+                    ]
+                }
+            ]
+        });
         var actions = definition.Roles.Single(role => role.Name == "SystemAdmin").Actions;
         actions.RemoveAll(action => action.Type is RoleAction.ViewMessages or RoleAction.AddMessages);
         actions.Add(new() { Type = RoleAction.ViewMessages, Form = form, PropertyDefinition = property });
