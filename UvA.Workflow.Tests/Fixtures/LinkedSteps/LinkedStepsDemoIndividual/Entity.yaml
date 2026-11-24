@@ -60,7 +60,6 @@ assessments:
         - name: AssessLocal
 fields:
   - property: Student.DisplayName
-  - currentStep: true
 infoCards:
   - name: Progress
     type: Progress

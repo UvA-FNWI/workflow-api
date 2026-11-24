@@ -32,7 +32,8 @@ public partial class FormPreviewService
             if (canView)
             {
                 paths.UnionWith(definition.Fields
-                    .Where(field => !field.CurrentStep && field.ValueTemplate == null && field.Condition.IsMet(context))
+                    .Where(field => field.Property != ContextKeys.CurrentStep && field.ValueTemplate == null &&
+                                    field.Condition.IsMet(context))
                     .Select(field => field.Property).OfType<string>());
                 var roles = await rightsService.GetViewerRoles(real, ct);
                 foreach (var card in definition.InfoCards.Where(card => card.Enabled && card.Type != null &&
@@ -43,7 +44,8 @@ public partial class FormPreviewService
                 {
                     paths.UnionWith(card.Fields
                         .Where(field =>
-                            !field.CurrentStep && field.ValueTemplate == null && field.Condition.IsMet(context))
+                            field.Property != ContextKeys.CurrentStep && field.ValueTemplate == null &&
+                            field.Condition.IsMet(context))
                         .Select(field => field.Property).OfType<string>());
                     if (card.User != null)
                         paths.UnionWith(new[] { card.User + ".DisplayName", card.User + ".Picture" });

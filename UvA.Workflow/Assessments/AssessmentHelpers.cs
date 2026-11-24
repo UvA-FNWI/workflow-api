@@ -72,54 +72,73 @@ public static class AssessmentHelpers
 
     public static SourceResult CalculateCombined(AssessmentPart partConfig, ICollection<SourceResult> sourceResults)
     {
-        var totalWeight = partConfig.Sources.Sum(x => x.Weight);
+        var sources = partConfig.Sources
+            .Join(sourceResults, config => config.Name, result => result.Name,
+                (config, result) => (config.Weight, result.PageResults))
+            .ToArray();
 
         return new SourceResult
         {
             Name = SourceResult.Combined,
             WeightedAverage = CalculatePartWeightedAverage(partConfig, sourceResults),
-            PageResults = sourceResults.FirstOrDefault()?.PageResults
-                .Select(p =>
-                {
-                    var results = sourceResults
-                        .ToDictionary(s => s.Name, s => s.PageResults.FirstOrDefault(q => q.Name == p.Name)!);
-                    if (partConfig.Sources.Any(x => results.GetValueOrDefault(x.Name) == null))
-                        return null;
-                    return new PageResult
+            PageResults = sources.Length == partConfig.Sources.Count
+                ? sources.SelectMany(source => source.PageResults.Select(page => (source.Weight, Page: page)))
+                    .GroupBy(entry => entry.Page.Name)
+                    .Select(group =>
                     {
-                        Name = p.Name,
-                        WeightedAverage = results.Values.Any(v => v.WeightedAverage != null)
-                            ? partConfig.Sources.Sum(x => results[x.Name].WeightedAverage * x.Weight) / totalWeight
-                            : null,
-                        Weight = results.Values.FirstOrDefault(v => v.Weight != null)?.Weight,
-                        Sum = partConfig.Sources.Sum(x => results[x.Name].Sum * x.Weight) / totalWeight,
-                        QuestionResults = p.QuestionResults.Select(q => new QuestionResult
+                        var results = group.ToArray();
+                        var totalWeight = results.Sum(entry => entry.Weight);
+                        var firstPage = results[0].Page;
+                        return new PageResult
                         {
-                            Name = q.Name,
-                            Answer = partConfig.Sources.Sum(x =>
-                                (results[x.Name].QuestionResults.FirstOrDefault(z => z.Name == q.Name)?.Answer ?? 0) *
-                                (double)x.Weight) / (double)totalWeight,
-                            Weight = q.Weight,
-                            Percentage = q.Percentage
-                        }).ToList()
-                    };
-                })
-                .Where(p => p != null)
-                .Cast<PageResult>()
-                .ToList() ?? [],
+                            Name = group.Key,
+                            WeightedAverage = totalWeight != 0 &&
+                                              results.Any(entry => entry.Page.WeightedAverage != null)
+                                ? results.Sum(entry => entry.Page.WeightedAverage * entry.Weight) / totalWeight
+                                : null,
+                            Weight =
+                                results.Select(entry => entry.Page.Weight).FirstOrDefault(weight => weight != null),
+                            Sum = totalWeight == 0
+                                ? 0
+                                : results.Sum(entry => entry.Page.Sum * entry.Weight) / totalWeight,
+                            QuestionResults = firstPage.QuestionResults
+                                .Where(question => totalWeight != 0 && results.All(entry =>
+                                    entry.Page.QuestionResults.Any(candidate => candidate.Name == question.Name)))
+                                .Select(question => new QuestionResult
+                                {
+                                    Name = question.Name,
+                                    Answer = results.Sum(entry => entry.Page.QuestionResults
+                                                                      .First(candidate =>
+                                                                          candidate.Name == question.Name).Answer *
+                                                                  (double)entry.Weight) / (double)totalWeight,
+                                    Weight = question.Weight,
+                                    Percentage = question.Percentage
+                                }).ToList()
+                        };
+                    }).ToList()
+                : [],
             Form = sourceResults.FirstOrDefault()?.Form!
         };
     }
 
+    public static Dictionary<Page, decimal?> GetPageWeights(IEnumerable<Page> pages, ObjectContext context) =>
+        pages.ToDictionary(page => page, page =>
+        {
+            var weights = page.Questions.OfType<WeightedPropertyDefinition>()
+                .Where(field => field.Condition.IsMet(context))
+                .Select(field => field.Calculation?.Weight)
+                .OfType<decimal>()
+                .ToArray();
+            return weights.Length == 0 ? (decimal?)null : weights.Sum();
+        });
+
     public static SourceResult CalculateSourceResult(Form form, ObjectContext context,
         string? pageName)
     {
-        var pages = form.ActualForm.Pages.ToArray();
-
-        var totalWeight = pages
-            .SelectMany(page => page.Questions)
-            .OfType<WeightedPropertyDefinition>()
-            .Sum(field => field.Calculation?.Weight ?? 0);
+        var formContext = form.GetContext(context);
+        var pages = form.GetCurrentPages().Where(page => page.Condition.IsMet(formContext)).ToArray();
+        var pageWeights = GetPageWeights(pages, formContext);
+        var totalWeight = pageWeights.Values.Sum() ?? 0;
 
         var pageResults = pages
             .Where(page =>
@@ -131,7 +150,7 @@ public static class AssessmentHelpers
                 var questions = page.Questions
                     .OfType<WeightedPropertyDefinition>()
                     .Where(field => field.Calculation != null)
-                    .Where(field => field.Condition.IsMet(context))
+                    .Where(field => field.Condition.IsMet(formContext))
                     .Select(field =>
                     {
                         var answerKey = context.Get(
@@ -158,9 +177,7 @@ public static class AssessmentHelpers
                 return new PageResult
                 {
                     Name = page.Name,
-                    Weight = questions.Any(q => q.Weight != null)
-                        ? questions.Where(q => q.Weight != null).Sum(q => q.Weight)
-                        : null,
+                    Weight = pageWeights[page],
                     WeightedAverage = CalculatePageWeightedAverage(questions),
                     Sum = CalculatePageSum(questions),
                     QuestionResults = questions

@@ -4,7 +4,10 @@ columns:
     link: true
   - property: Student.DisplayName
   - property: Supervisor.DisplayName
-  - currentStep: true
+  - title:
+      en: Progress
+      nl: Voortgang
+    type: CurrentStep
 grouping:
   groups:
     - name: setup
@@ -18,4 +21,5 @@ grouping:
       steps: [Assess]
     - name: completed
       title: Completed
-      steps: ['null']
+      steps:
+        - null

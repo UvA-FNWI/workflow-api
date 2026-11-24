@@ -443,7 +443,7 @@ public class RightsService(
         return allowedActions.Any(f => form == null || f.MatchesForm(form));
     }
 
-    private async Task<bool> Can(RoleAction action)
+    public async Task<bool> Can(RoleAction action)
     {
         var globalUserRoles = (await GetGlobalUserRoles())
             .Select(gur => modelService.Roles.GetValueOrDefault(gur))
@@ -474,20 +474,29 @@ public class RightsService(
     }
 
     public async Task<bool> CanEditProperty(WorkflowInstance instance, string propertyName)
+        => (await GetEditablePropertyPaths(instance, [propertyName])).Length > 0;
+
+    public async Task<string[]> GetEditablePropertyPaths(WorkflowInstance instance, IEnumerable<string> propertyNames)
     {
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
-        var parts = propertyName.Split('.');
-        if (parts.Length > 1 && definition.Properties.GetOrDefault(parts[0])?.DataType != DataType.Object)
-            return false;
+        var paths = propertyNames.Where(path =>
+        {
+            var parts = path.Split('.', 2);
+            return parts.Length == 1 || definition.Properties.GetOrDefault(parts[0])?.DataType == DataType.Object;
+        }).ToArray();
+        if (paths.Length == 0)
+            return [];
 
         var realUserEditActions =
             await GetAllowedActions(instance, RightsEvaluationMode.RealUser, RoleAction.Edit);
         if (realUserEditActions.Any(a => a.AllForms.Length == 0 && a.PropertyDefinition == null))
-            return true;
+            return paths;
 
         var allowedEditActions =
             await GetAllowedActions(instance, RightsEvaluationMode.RequestContext, RoleAction.Edit);
-        return CanEditProperties(instance, [propertyName], allowedEditActions)[propertyName];
+        return allowedEditActions.Length == 0
+            ? []
+            : CanEditProperties(instance, paths, allowedEditActions).Where(p => p.Value).Select(p => p.Key).ToArray();
     }
 
     public Dictionary<string, bool> CanEditProperties(WorkflowInstance instance,

@@ -49,6 +49,43 @@ public class UserRepositoryTests
     }
 
     [Fact]
+    public async Task SearchByPrefix_MatchesLiteralWordsInStableOrder()
+    {
+        var collectionMock = new Mock<IMongoCollection<User>>();
+        var databaseMock = new Mock<IMongoDatabase>();
+        var asyncCursorMock = new Mock<IAsyncCursor<User>>();
+        FilterDefinition<User>? capturedFilter = null;
+        SortDefinition<User>? capturedSort = null;
+        asyncCursorMock.Setup(cursor => cursor.MoveNextAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        collectionMock.Setup(collection => collection.FindAsync(
+                It.IsAny<FilterDefinition<User>>(),
+                It.IsAny<FindOptions<User, User>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<FilterDefinition<User>, FindOptions<User, User>, CancellationToken>((filter, options, _) =>
+            {
+                capturedFilter = filter;
+                capturedSort = options.Sort;
+            })
+            .ReturnsAsync(asyncCursorMock.Object);
+        databaseMock.Setup(database => database.GetCollection<User>("users", It.IsAny<MongoCollectionSettings>()))
+            .Returns(collectionMock.Object);
+        var repository = new UserRepository(databaseMock.Object);
+
+        await repository.SearchByPrefix("  a.b+   van  ", CancellationToken.None).ToArrayAsync();
+
+        var searchConditions = RenderFilter(capturedFilter!)["$or"].AsBsonArray
+            .SelectMany(condition => condition.AsBsonDocument.Elements)
+            .ToDictionary(element => element.Name, element => element.Value.AsBsonRegularExpression);
+        var accountPrefix = new BsonRegularExpression(@"(*UCP)^a\.b\+\s+van", "i");
+        Assert.Equal(3, searchConditions.Count);
+        Assert.Equal(new BsonRegularExpression(@"(*UCP)(?:^|\s)a\.b\+\s+van", "i"), searchConditions["DisplayName"]);
+        Assert.Equal(accountPrefix, searchConditions["UserName"]);
+        Assert.Equal(accountPrefix, searchConditions["Email"]);
+        Assert.Equal(new BsonDocument { ["DisplayName"] = 1, ["UserName"] = 1, ["_id"] = 1 }, capturedSort!.Render(
+            new RenderArgs<User>(BsonSerializer.LookupSerializer<User>(), BsonSerializer.SerializerRegistry)));
+    }
+
+    [Fact]
     public async Task Update_UsesObjectIdFilter()
     {
         var collectionMock = new Mock<IMongoCollection<User>>();

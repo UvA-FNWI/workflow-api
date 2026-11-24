@@ -274,7 +274,7 @@ public class LinkedStepPresentationTests
     public async Task CurrentStepField_OnlyShowsTheSourceTitleWhenTheViewerCanAccessIt(bool canView, string title)
     {
         var api = new LinkedStepApiSetup(sourceAccess: canView);
-        api.Core.Model.WorkflowDefinitions["Individual"].Fields = [new Field { CurrentStep = true }];
+        api.Core.Model.WorkflowDefinitions["Individual"].Fields = [new Field { Property = "CurrentStep" }];
         api.Core.Complete("Uploaded", 20);
 
         var dto = await api.Factory.Create(api.Core.Student, default);
@@ -306,9 +306,9 @@ public class LinkedStepPresentationTests
         var row = Assert.Single(Assert.Single(screen.Groups!, group => group.Rows.Length > 0).Rows);
         var screenProgress = Assert.IsType<ProgressInformationDto>(Assert.Single(row.Values).Value);
         var user = await api.Users.Object.GetCurrentUser(default);
-        var personal =
-            await new PersonalInstanceService(api.Core.Model, api.Instances, api.Core.Repository.Object, api.Rights)
-                .GetInstances(user!, default);
+        var personal = await new PersonalInstanceService(api.Core.Model, api.Instances, api.Core.Repository.Object,
+                api.Rights)
+            .GetInstances(user!, default);
 
         Assert.Equal(canView, screenProgress.Text.En.Contains("protected-value", StringComparison.Ordinal));
         Assert.Equal(canView,
@@ -341,19 +341,16 @@ internal sealed class LinkedStepApiSetup
         files["Common/Roles/Student.yaml"] = "name: Student";
         files["Individual/Actions.yaml"] = "globalActions:\n  - type: View\n    roles: [Registered, Student]";
         if (sourceAccess) files.TryAdd("Shared/Actions.yaml", files["Individual/Actions.yaml"]);
-        files["Individual/Screens/Overview.yaml"] = """
-                                                    name: Overview
-                                                    columns:
-                                                      - currentStep: true
-                                                    grouping:
-                                                      groups:
-                                                        - name: shared
-                                                          title: Shared
-                                                          steps: [SharedUpload, SharedAssessment]
-                                                        - name: after
-                                                          title: After
-                                                          steps: [After]
-                                                    """;
+        var groups = new List<string>
+        {
+            "      - name: before\n        title: Before\n        steps: [Before]",
+            "      - name: shared\n        title: Shared\n        steps: [SharedUpload, SharedAssessment]"
+        };
+        if (!finalImport)
+            groups.Add("      - name: after\n        title: After\n        steps: [After]");
+        files["Individual/Screens/Overview.yaml"] =
+            "name: Overview\ncolumns:\n  - type: CurrentStep\ngrouping:\n  groups:\n" +
+            string.Join("\n", groups);
         if (finalImport)
             files["Individual/Entity.yaml"] = files["Individual/Entity.yaml"].Replace(
                 "[Before, SharedUpload, SharedAssessment, After]", "[Before, SharedUpload, SharedAssessment]");

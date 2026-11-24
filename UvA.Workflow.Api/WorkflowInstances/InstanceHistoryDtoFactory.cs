@@ -41,7 +41,7 @@ public class InstanceHistoryDtoFactory(
                     ? GetUndoTitle(workflowDefinition, log, history.EventLogs)
                     : workflowDefinition.Events.Find(e => e.Name == log.EventId)?.Label ?? log.EventId,
                 log.Timestamp,
-                CreateUserDto(eventUsers.GetValueOrDefault(log.ExecutedBy), log.ExecutedBy),
+                CreateHistoryUser(eventUsers.GetValueOrDefault(log.ExecutedBy), log.ExecutedBy),
                 null,
                 UndoHistory: log.Operation == EventLogOperation.Undo
                     ? new UndoHistoryDto(log.Reason)
@@ -55,7 +55,7 @@ public class InstanceHistoryDtoFactory(
                 $"{edit.Question.DisplayName.Nl} aangepast"
             ),
             edit.Change.ChangedAt,
-            CreateUserDto(journalUsers.GetValueOrDefault(edit.Change.ChangedBy!), edit.Change.ChangedBy!),
+            CreateHistoryUser(journalUsers.GetValueOrDefault(edit.Change.ChangedBy!), edit.Change.ChangedBy!),
             new PropertyHistoryDto(
                 QuestionDto.Create(edit.Question, totalWeight: 0),
                 CreateGroupDto(edit.Question, edit.Group, journalUsers)),
@@ -130,7 +130,7 @@ public class InstanceHistoryDtoFactory(
                 ? null
                 : users.GetValueOrDefault(change.ChangedBy)?.DisplayName ?? change.ChangedBy)).ToArray());
 
-    private static UserSearchResultDto CreateUserDto(User? user, string fallback)
+    private static UserSearchResultDto CreateHistoryUser(User? user, string fallback)
         => user == null
             ? new(fallback, fallback, "", UserSearchSources.Repository, null, false)
             : new(user.UserName, user.DisplayName, user.Email, UserSearchSources.Repository, user.Organization,
