@@ -264,8 +264,12 @@ public class WorkflowInstanceService(
         values.Add(newValue);
         instance.SetProperty(values, pathParts);
 
-        await repository.UpdateFields(instance.Id,
-            Builders<WorkflowInstance>.Update.Push($"Properties.{string.Join('.', pathParts)}", newValue), ct);
+        var propertyPath = $"Properties.{string.Join('.', pathParts)}";
+        var update = oldValue is BsonArray
+            ? Builders<WorkflowInstance>.Update.Push(propertyPath, newValue)
+            : Builders<WorkflowInstance>.Update.Set(propertyPath, values);
+
+        await repository.UpdateFields(instance.Id, update, ct);
 
         var realUser = await userService.GetRealUser(ct);
         if (realUser == null)
