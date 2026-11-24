@@ -30,6 +30,7 @@ public record WorkflowInstanceDto(
     bool CanImpersonate,
     string[] ViewerRoles,
     InfoCardDto[] InfoCards,
+    PreviewableFormDto[] PreviewableForms,
     bool WorkflowStopped = false,
     BilingualString? StopMessage = null
 );

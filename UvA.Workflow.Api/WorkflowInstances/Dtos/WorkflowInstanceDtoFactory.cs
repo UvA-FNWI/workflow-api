@@ -169,6 +169,14 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = CreateFields(workflowDefinition, displayContext);
+        var ownedStepIds = GetOwnedStepIds(steps).ToHashSet();
+        var previewableForms = (await rightsService.GetPreviewableForms(instance, ct)).Select(preview =>
+        {
+            var (form, label) = preview;
+            var step = StepVersionService.ResolveFormStep(workflowDefinition, form)?.Name;
+            return new PreviewableFormDto(form.Name, form.DisplayName,
+                step != null && ownedStepIds.Contains(step) ? step : null, label);
+        }).ToArray();
         return new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(displayContext),
@@ -187,10 +195,15 @@ public class WorkflowInstanceDtoFactory(
             canImpersonate,
             viewerRoles,
             infoCards,
+            previewableForms,
             context.WorkflowStopped,
             stopMessage
         );
     }
+
+    private static IEnumerable<string> GetOwnedStepIds(StepDto[] steps)
+        => steps.Where(step => step.ImportStatus == null)
+            .SelectMany(step => GetOwnedStepIds(step.Children ?? []).Prepend(step.Id));
 
     private static FieldDto[] CreateFields(WorkflowDefinition workflowDefinition, ObjectContext context)
     {

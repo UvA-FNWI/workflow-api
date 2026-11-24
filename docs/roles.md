@@ -63,6 +63,7 @@ Each action in the `actions` list has a `type` and optional scope:
 | Action type | Description |
 |-------------|-------------|
 | `View` | Can view form submissions |
+| `Preview` | Can explore explicitly granted forms with temporary answers, without reading saved responses or submitting |
 | `Submit` | Can submit forms |
 | `Edit` | Can edit existing submissions |
 | `Undo` | Can undo eligible form submissions or executable actions. This reverses correlated workflow events and cancels pending jobs, but does not reverse completed external effects |
@@ -91,6 +92,33 @@ actions:
 ```
 
 For `Undo`, use `form` to scope form submissions or `name` to scope executable actions; `steps` can limit either operation type.
+
+### Form previews
+
+Grant preview access with a workflow action, using the same role and form matching
+as View, Edit, Submit and Execute.
+
+```yaml
+# Project workflow Actions.yaml
+globalActions:
+  - roles: [SecondAssessor]
+    type: Preview
+    forms: [AssessmentExaminer]
+    label:
+      en: View assessment criteria
+      nl: Bekijk beoordelingscriteria
+```
+
+The optional label changes the preview button text. A form uses the custom label
+when its matching Preview actions agree on it. A button that opens multiple forms
+uses the custom label when all those forms share it, and otherwise uses the default.
+
+Preview global actions cannot be step-scoped. They remain available before and after
+submission. The instance page still requires its normal View permission. Preview
+opens each form separately and discards temporary answers on close or form switch.
+It never saves, uploads, submits, creates users, or runs effects. Saved answers for
+the selected form and its sources are excluded; already-readable project details
+may supply conditions and defaults. Add grants explicitly to enable the feature.
 
 ### Hidden answers
 

@@ -135,9 +135,9 @@ public static class AssessmentHelpers
     public static SourceResult CalculateSourceResult(Form form, ObjectContext context,
         string? pageName)
     {
-        context = form.GetContext(context);
-        var pages = form.GetCurrentPages().Where(page => page.Condition.IsMet(context)).ToArray();
-        var pageWeights = GetPageWeights(pages, context);
+        var formContext = form.GetContext(context);
+        var pages = form.GetCurrentPages().Where(page => page.Condition.IsMet(formContext)).ToArray();
+        var pageWeights = GetPageWeights(pages, formContext);
         var totalWeight = pageWeights.Values.Sum() ?? 0;
 
         var pageResults = pages
@@ -150,7 +150,7 @@ public static class AssessmentHelpers
                 var questions = page.Questions
                     .OfType<WeightedPropertyDefinition>()
                     .Where(field => field.Calculation != null)
-                    .Where(field => field.Condition.IsMet(context))
+                    .Where(field => field.Condition.IsMet(formContext))
                     .Select(field =>
                     {
                         var answerKey = context.Get(
