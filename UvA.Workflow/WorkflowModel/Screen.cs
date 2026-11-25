@@ -16,6 +16,11 @@ public class Screen : INamed, IDeclaredKeys
     public string? WorkflowDefinition { get; set; }
 
     /// <summary>
+    /// Parent-scoped related-screen marker; such screens are omitted from the register overview hub.
+    /// </summary>
+    public string? Relation { get; set; }
+
+    /// <summary>
     /// User-facing title for overview navigation and the screen page heading.
     /// </summary>
     public BilingualString? Title { get; set; }
