@@ -6,7 +6,11 @@ public interface IUserService
 {
     Task<IEnumerable<string>> GetRoles(User user, CancellationToken ct = default);
 
-    Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers, CancellationToken ct);
+    Task<IEnumerable<UserSearchResult>> FindUsers(string query, bool includeExternalUsers,
+        UserSearchScope? scope = null, CancellationToken ct = default);
+
+    Task<UserSearchResult?> FindSearchUser(string userName, bool includeExternalUsers,
+        UserSearchScope? scope = null, CancellationToken ct = default);
 
     /// <summary>
     /// Looks up an internal user's organisation from the external directory (DataNose) by their uid.

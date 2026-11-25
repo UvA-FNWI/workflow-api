@@ -5,6 +5,7 @@ using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Infrastructure;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Api.Submissions;
 
@@ -49,8 +50,8 @@ public class AnswersController(
         try
         {
             var (value, createdUser) = await answerService.ValidateAndResolveValue(
-                context.PropertyDefinition, input.Value, externalUserInput, ct);
-            var answers = await answerService.SaveAnswer(context, value, ct);
+                context.PropertyDefinition, input.Value, externalUserInput, ct, context);
+            var answers = await answerService.SaveAnswer(context, value, ct, createdUser?.UserName);
             var permissions =
                 await rightsService.GetAllowedActionsForForm(context.Instance, context.Form, RoleAction.ViewAdminTools,
                     RoleAction.Edit);
@@ -118,6 +119,31 @@ public class AnswersController(
             null,
             null))
         );
+    }
+
+    [HttpGet("{instanceId}/{submissionId}/{questionName}/UserSearch")]
+    public async Task<ActionResult<UserSearchGroupDto[]>> SearchQuestionUsers(string instanceId,
+        string submissionId, string questionName, [FromQuery] string? query,
+        [FromServices] UserSourceResolver search, CancellationToken ct)
+    {
+        var context = await answerService.GetQuestionContext(instanceId, submissionId, questionName, ct);
+        await EnsureAuthorizedToEdit(context);
+
+        if (context.PropertyDefinition is not UserPropertyDefinition property)
+            return NotFound();
+
+        var formContext = await instanceService.CreateFormContext(context.Instance, context.Form, ct, [property]);
+        var scopedContext = context.Form.GetContext(formContext);
+        if (!context.Form.GetCurrentPages().Any(page =>
+                page.Questions.Contains(property) && page.Condition.IsMet(scopedContext)))
+            return NotFound();
+
+        var statuses = await rightsService.GetQuestionStatus(context.Instance, context.Form, [property], formContext);
+        if (!statuses[property.Name].IsVisible)
+            return Forbidden();
+
+        var groups = await search.Search(context.Instance, property, query, ct, context.Form.PropertyName);
+        return Ok(groups.Select(UserSearchGroupDto.Create).ToArray());
     }
 
     [HttpGet("{instanceId}/{submissionId}/{questionName}/CurrentChoices")]

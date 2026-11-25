@@ -241,6 +241,9 @@ public class UserPropertyDefinition : PropertyDefinition
     /// </summary>
     public bool? AllowsExternalUsers { get; set; } = false;
 
+    /// <summary>Sources offered by the user picker. Omit to use the directory search.</summary>
+    public UserSourceDefinition[]? UserSources { get; set; }
+
     /// <summary>
     /// Marks this property as an inheritable role, meaning that the users in this role will be inherited by child entities.
     /// </summary>

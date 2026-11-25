@@ -52,7 +52,8 @@ public class AnswersControllerTests : ControllerTestsBase
 
         _answerConversionService = new AnswerConversionService(
             _userServiceMock.Object,
-            _userRepoMock.Object);
+            _userRepoMock.Object,
+            new UserSourceResolver(_userServiceMock.Object, _instanceService, _modelService));
         _answerService = new AnswerService(
             _modelService,
             _instanceService,
@@ -109,6 +110,96 @@ public class AnswersControllerTests : ControllerTestsBase
         var response = Assert.IsType<SaveAnswerResponse>(okResult.Value);
         Assert.Null(response.UpdatedInstance);
         Assert.Equal("Updated subject", instance.Properties["Subject"].AsString);
+    }
+
+    [Fact]
+    public async Task Answers_UserSearch_ReadsTheConfiguredPropertyAndFiltersExternalUsers()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var reviewer = Assert.IsType<UserPropertyDefinition>(_modelService.GetProperty(instance, "Reviewer"));
+        reviewer.UserSources = [new PropertyUserSource { Property = "Supervisor" }];
+        var supervisor = new InstanceUser
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "supervisor",
+            DisplayName = "Supervisor",
+            Email = "supervisor@example.org",
+            IsExternal = true
+        };
+        instance.SetProperty(supervisor.ToBsonDocument(), "Supervisor");
+        var search = new UserSourceResolver(_userServiceMock.Object, _instanceService, _modelService);
+
+        var result = await controller.SearchQuestionUsers(instance.Id, "Start", "Reviewer", "su", search, _ct);
+        var group = Assert.Single(
+            Assert.IsType<UserSearchGroupDto[]>(Assert.IsType<OkObjectResult>(result.Result).Value));
+        Assert.Equal("Supervisor", group.Label);
+        Assert.Empty(group.Users);
+
+        reviewer.AllowsExternalUsers = true;
+        result = await controller.SearchQuestionUsers(instance.Id, "Start", "Reviewer", "su", search, _ct);
+        group = Assert.Single(Assert.IsType<UserSearchGroupDto[]>(Assert.IsType<OkObjectResult>(result.Result).Value));
+        var selected = Assert.Single(group.Users);
+        Assert.Equal(supervisor.UserName, selected.UserName);
+        Assert.True(selected.IsExternal);
+    }
+
+    [Theory]
+    [InlineData("0123456", false)]
+    [InlineData("employee", true)]
+    public async Task Answers_SaveAnswer_EnforcesEmployeeSource(string userName, bool eligible)
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        var reviewer = Assert.IsType<UserPropertyDefinition>(_modelService.GetProperty(instance, "Reviewer"));
+        reviewer.UserSources =
+        [
+            new DataNoseUserSource
+            {
+                SearchOptions = new DataNoseSearchOptions { Include = [UserSearchGroup.Employees] }
+            }
+        ];
+        var scope = new UserSearchScope(IncludeEmployees: true, IncludeStudents: false);
+        var employee = new User
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            UserName = "employee",
+            DisplayName = "Directory Name",
+            Email = "directory@example.org"
+        };
+        _userServiceMock.Setup(s => s.FindSearchUser(userName, false, scope, _ct))
+            .ReturnsAsync(eligible
+                ? new UserSearchResult(employee.UserName, employee.DisplayName, employee.Email, "datanose")
+                : null);
+        _userServiceMock.Setup(s => s.AddOrUpdateUser(employee.UserName, employee.DisplayName, employee.Email,
+                UserProviderKeys.Internal, null, null, _ct))
+            .ReturnsAsync(employee);
+        var request = new SaveAnswerRequest(JsonSerializer.SerializeToElement(new
+        {
+            userName,
+            displayName = "Submitted Name",
+            email = "submitted@example.org"
+        }));
+
+        if (eligible)
+        {
+            var result = await controller.SaveAnswer(instance.Id, "Start", "Reviewer", request, _ct);
+            Assert.IsType<OkObjectResult>(result.Result);
+            Assert.Equal(employee.UserName, instance.GetProperty("Reviewer", "UserName")?.AsString);
+            Assert.Equal(employee.Email, instance.GetProperty("Reviewer", "Email")?.AsString);
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+                controller.SaveAnswer(instance.Id, "Start", "Reviewer", request, _ct));
+            Assert.Equal("UserOutsideConfiguredSources", error.Code);
+            Assert.Null(instance.GetProperty("Reviewer"));
+            _userServiceMock.Verify(s => s.AddOrUpdateUser(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<Organization?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            _workflowInstanceRepoMock.Verify(r => r.UpdateFields(It.IsAny<string>(),
+                It.IsAny<UpdateDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        _userServiceMock.Verify(s => s.FindSearchUser(userName, false, scope, _ct), Times.Once);
     }
 
     [Theory]

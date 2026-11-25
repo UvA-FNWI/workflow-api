@@ -66,7 +66,7 @@ public class UserServiceEduIdTests
         var userRepositoryMock = new Mock<IUserRepository>();
         var organizationServiceMock = new Mock<IOrganizationService>();
 
-        dataNoseApiClientMock.Setup(c => c.SearchPeople("query", CancellationToken.None))
+        dataNoseApiClientMock.Setup(c => c.SearchPeople("query", null, CancellationToken.None))
             .ReturnsAsync([
                 new UserSearchResult("internal-1", "Internal One", "duplicate@example.org",
                     DataNoseDirectoryKeys.SourceKey),
@@ -99,7 +99,7 @@ public class UserServiceEduIdTests
             ]);
 
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
-        var results = (await service.FindUsers("query", true, CancellationToken.None)).ToArray();
+        var results = (await service.FindUsers("query", true, ct: CancellationToken.None)).ToArray();
 
         Assert.Collection(results,
             result =>
@@ -126,13 +126,30 @@ public class UserServiceEduIdTests
     }
 
     [Fact]
+    public async Task FindUsers_IncludingStudentsAndEmployees_KeepsDistinctLoginsWithSameEmail()
+    {
+        var client = new Mock<IDataNoseApiClient>();
+        var scope = new UserSearchScope(IncludeEmployees: true, IncludeStudents: true);
+        client.Setup(c => c.SearchPeople("dual", scope, CancellationToken.None))
+            .ReturnsAsync([
+                new UserSearchResult("employee-login", "Dual Identity", "dual@uva.nl", DataNoseDirectoryKeys.SourceKey),
+                new UserSearchResult("student-login", "Dual Identity", "dual@uva.nl", DataNoseDirectoryKeys.SourceKey)
+            ]);
+        var service = CreateService(client, new Mock<IUserRepository>(), new Mock<IOrganizationService>());
+
+        var users = await service.FindUsers("dual", false, scope, CancellationToken.None);
+
+        Assert.Equal(["employee-login", "student-login"], users.Select(user => user.UserName));
+    }
+
+    [Fact]
     public async Task FindUsers_PassesQueryThroughToRepositorySearch()
     {
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
         var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "Doctor";
-        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
+        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, null, CancellationToken.None))
             .ReturnsAsync([]);
         userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
             .ReturnsAsync([
@@ -146,7 +163,7 @@ public class UserServiceEduIdTests
             ]);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
-        var result = Assert.Single(await service.FindUsers(query, true, CancellationToken.None));
+        var result = Assert.Single(await service.FindUsers(query, true, ct: CancellationToken.None));
 
         Assert.Equal("doctor@amsterdamumc.nl", result.Email);
         userRepositoryMock.Verify(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None), Times.Once);
@@ -159,13 +176,13 @@ public class UserServiceEduIdTests
         var userRepositoryMock = new Mock<IUserRepository>();
         var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "student@uv";
-        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
+        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, null, CancellationToken.None))
             .ReturnsAsync([]);
         userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
             .ReturnsAsync([]);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
-        Assert.Empty(await service.FindUsers(query, true, CancellationToken.None));
+        Assert.Empty(await service.FindUsers(query, true, ct: CancellationToken.None));
 
         userRepositoryMock.Verify(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None), Times.Once);
     }
@@ -177,7 +194,7 @@ public class UserServiceEduIdTests
         var userRepositoryMock = new Mock<IUserRepository>();
         var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "uva.nl";
-        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
+        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, null, CancellationToken.None))
             .ReturnsAsync([
                 new UserSearchResult("student-123",
                     "Student Name",
@@ -188,7 +205,7 @@ public class UserServiceEduIdTests
             .ReturnsAsync([]);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
-        var result = Assert.Single(await service.FindUsers(query, true, CancellationToken.None));
+        var result = Assert.Single(await service.FindUsers(query, true, ct: CancellationToken.None));
 
         Assert.Equal(DataNoseDirectoryKeys.SourceKey, result.SourceKey);
     }
@@ -199,7 +216,7 @@ public class UserServiceEduIdTests
         var dataNoseApiClientMock = new Mock<IDataNoseApiClient>();
         var userRepositoryMock = new Mock<IUserRepository>();
         var organizationServiceMock = new Mock<IOrganizationService>();
-        dataNoseApiClientMock.Setup(c => c.SearchPeople("query", CancellationToken.None))
+        dataNoseApiClientMock.Setup(c => c.SearchPeople("query", null, CancellationToken.None))
             .ReturnsAsync([
                 new UserSearchResult("internal-1", "Internal One", "duplicate@example.org",
                     DataNoseDirectoryKeys.SourceKey),
@@ -225,7 +242,7 @@ public class UserServiceEduIdTests
             ]);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
-        var results = (await service.FindUsers("query", false, CancellationToken.None)).ToArray();
+        var results = (await service.FindUsers("query", false, ct: CancellationToken.None)).ToArray();
 
         Assert.Collection(results,
             result => Assert.Equal("internal-1", result.UserName),
@@ -239,13 +256,13 @@ public class UserServiceEduIdTests
         var userRepositoryMock = new Mock<IUserRepository>();
         var organizationServiceMock = new Mock<IOrganizationService>();
         var query = "student@uv";
-        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, CancellationToken.None))
+        dataNoseApiClientMock.Setup(c => c.SearchPeople(query, null, CancellationToken.None))
             .ReturnsAsync([]);
         userRepositoryMock.Setup(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None))
             .ReturnsAsync([]);
         var service = CreateService(dataNoseApiClientMock, userRepositoryMock, organizationServiceMock);
 
-        Assert.Empty(await service.FindUsers(query, true, CancellationToken.None));
+        Assert.Empty(await service.FindUsers(query, true, ct: CancellationToken.None));
 
         userRepositoryMock.Verify(r => r.SearchByQueryAndProvider(query, "eduid", CancellationToken.None), Times.Once);
     }

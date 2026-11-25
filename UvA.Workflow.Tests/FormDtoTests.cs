@@ -118,7 +118,11 @@ public class FormDtoTests
             new CurrencyPropertyDefinition { Name = "Amount", Type = "Currency" },
             new FilePropertyDefinition { Name = "Report", Type = "File" },
             new StringPropertyDefinition { Name = "Title", Type = "String" },
-            new UserPropertyDefinition { Name = "Supervisor", Type = "User", AllowsExternalUsers = true },
+            new UserPropertyDefinition
+            {
+                Name = "Supervisor", Type = "User", AllowsExternalUsers = true,
+                UserSources = [new DataNoseUserSource(), new PropertyUserSource { Property = "Coordinator" }]
+            },
             new ChoicePropertyDefinition
             {
                 Name = "Grade", Type = "Grade", Values = [new Choice { Name = "Pass" }],
@@ -182,6 +186,7 @@ public class FormDtoTests
 
         Assert.Equal("pdf", questions["File"].GetProperty("allowedFileTypes")[0].GetString());
         Assert.True(questions["User"].GetProperty("allowsExternalUsers").GetBoolean());
+        Assert.False(questions["User"].TryGetProperty("sources", out _));
         Assert.Equal("Pass", questions["Choice"].GetProperty("choices")[0].GetProperty("name").GetString());
         Assert.Equal("RadioList", questions["Choice"].GetProperty("control").GetString());
         Assert.Equal("ComboBox", questions["Reference"].GetProperty("control").GetString());

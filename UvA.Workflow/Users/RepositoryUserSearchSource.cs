@@ -4,7 +4,8 @@ public class RepositoryUserSearchSource(IUserRepository userRepository) : IUserS
 {
     private const string EduIdProviderKey = "eduid";
 
-    public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, CancellationToken ct = default)
+    public async Task<IEnumerable<UserSearchResult>> FindUsers(string query, UserSearchScope? scope = null,
+        CancellationToken ct = default)
         => (await userRepository.SearchByQueryAndProvider(query, EduIdProviderKey, ct))
             .Select(CreateSearchResult)
             .ToArray();

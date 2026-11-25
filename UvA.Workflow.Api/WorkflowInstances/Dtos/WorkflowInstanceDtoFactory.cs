@@ -524,11 +524,12 @@ public class WorkflowInstanceDtoFactory(
             var dto = UserDto.CreateFromInstanceUser(instanceUser);
             return string.IsNullOrWhiteSpace(genericEmail) ? dto : dto with { Email = genericEmail };
         }).ToArray();
+        var userProperty = relatedUser.PropertyDefinition as UserPropertyDefinition;
         return new RelatedUserRolesDto(
             relatedUser.Property,
             relatedUser.DisplayTitle,
             usersDto,
-            (relatedUser.PropertyDefinition as UserPropertyDefinition)?.AllowsExternalUsers ?? false,
+            userProperty?.AllowsExternalUsers ?? false,
             !relatedUser.PropertyDefinition?.IsRequired ?? false,
             relatedUser.PropertyDefinition?.IsArray ?? false,
             allowEditing && canEditByProperty.GetValueOrDefault(relatedUser.Property));

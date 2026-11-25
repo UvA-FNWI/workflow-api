@@ -154,9 +154,14 @@ public class UsersController(
 
     [HttpGet("Find")]
     public async Task<ActionResult<IEnumerable<UserSearchResultDto>>> Find(string query,
-        [FromQuery] bool includeExternalUsers = true, CancellationToken ct = default)
+        [FromQuery] bool includeExternalUsers = true,
+        [FromQuery] bool? includeEmployees = null, [FromQuery] bool? includeStudents = null,
+        CancellationToken ct = default)
     {
-        var searchResults = await userService.FindUsers(query, includeExternalUsers, ct);
+        var scope = includeEmployees.HasValue || includeStudents.HasValue
+            ? new UserSearchScope(includeEmployees ?? true, includeStudents ?? false)
+            : null;
+        var searchResults = await userService.FindUsers(query, includeExternalUsers, scope, ct);
         return Ok(searchResults.Select(UserSearchResultDto.Create));
     }
 

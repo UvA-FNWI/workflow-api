@@ -231,12 +231,16 @@ public partial class ModelParser
         }
 
         GlobalRoles.ForEach(r => PreProcess(r));
+
         ValueSets.ForEach(PreProcess);
+
         WorkflowDefinitions.Values.ForEach(PreProcess);
         // All definitions must be prepared before checking inputs of referenced computed properties.
         WorkflowDefinitions.Values.ForEach(ValidateStopWhen);
         WorkflowDefinitions.Values.ForEach(ValidateComputedReads);
         WorkflowDefinitions.Values.ForEach(ValidateImports);
+
+        ValidateUserSources();
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)

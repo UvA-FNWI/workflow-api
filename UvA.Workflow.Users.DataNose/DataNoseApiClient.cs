@@ -39,16 +39,22 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         return dto.Roles.Select(r => r.Name).Distinct();
     }
 
-    public async Task<IEnumerable<UserSearchResult>> SearchPeople(string query, CancellationToken ct = default)
+    public async Task<IEnumerable<UserSearchResult>> SearchPeople(string query, UserSearchScope? scope = null,
+        CancellationToken ct = default)
     {
+        var includeEmployees = scope?.IncludeEmployees ?? true;
+        var includeStudents = scope?.IncludeStudents ?? false;
+        if (!includeEmployees && !includeStudents)
+            return [];
+
         var url = QueryHelpers.AddQueryString(
             "api/Common/Search/SearchPeople",
             new Dictionary<string, string?>
             {
                 ["SearchTerm"] = query.Trim(),
-                ["IncludeEmployees"] = "true",
-                ["IncludeStudents"] = "false",
-                ["IncludeAMC"] = "true"
+                ["IncludeEmployees"] = includeEmployees ? "true" : "false",
+                ["IncludeStudents"] = includeStudents ? "true" : "false",
+                ["IncludeAMC"] = includeEmployees ? "true" : "false"
             });
         var http = httpFactory.CreateClient(Name);
         var response = await http.GetAsync(url, ct);
@@ -63,15 +69,26 @@ public class DataNoseApiClient(IHttpClientFactory httpFactory) : IDataNoseApiCli
         if (peopleEntries is null)
             throw new Exception($"Failed to deserialize response for SearchPeople: {response.Content}");
 
-        return peopleEntries.Where(p =>
-                (!string.IsNullOrEmpty(p.EmployeeUvAnetId) || !string.IsNullOrEmpty(p.StudentId)) &&
-                !string.IsNullOrEmpty(p.Email))
-            .Select(p => new UserSearchResult((p.EmployeeUvAnetId ?? p.StudentId)!,
-                p.FullName,
-                p.Email!,
-                DataNoseDirectoryKeys.SourceKey,
-                Organization: CreateOrganization(p.Department)));
+        var results = new List<UserSearchResult>();
+        foreach (var person in peopleEntries.Where(p => !string.IsNullOrWhiteSpace(p.Email)))
+        {
+            var employeeId = scope == null ? person.EmployeeUvAnetId ?? person.StudentId : person.EmployeeUvAnetId;
+            var matchesEmployeeSearch = scope == null || person.IsActiveEmployee ||
+                                        string.Equals(person.Department, "AMC", StringComparison.OrdinalIgnoreCase);
+            if (includeEmployees && matchesEmployeeSearch && !string.IsNullOrWhiteSpace(employeeId))
+                results.Add(CreateSearchResult(person, employeeId));
+
+            // Match the username format used by the UvA SIS import.
+            if (includeStudents && person.IsActiveStudent && !string.IsNullOrWhiteSpace(person.StudentId))
+                results.Add(CreateSearchResult(person, person.StudentId.PadLeft(7, '0')));
+        }
+
+        return results;
     }
+
+    private static UserSearchResult CreateSearchResult(PeopleIndexEntry person, string userName) =>
+        new(userName, person.FullName, person.Email!, DataNoseDirectoryKeys.SourceKey,
+            Organization: CreateOrganization(person.Department));
 
     public async Task<Organization?> GetOrganizationForUser(string uid, CancellationToken ct = default)
     {

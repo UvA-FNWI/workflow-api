@@ -43,6 +43,25 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
             foreach (var propertyType in PropertyTypes)
                 schema.AnyOf.Add(new JsonSchema { Reference = Get(propertyType) });
         }
+        else if (type == typeof(UserSourceDefinition))
+        {
+            schema = new JsonSchema { Type = JsonObjectType.Object };
+            _schemas.Add(type, schema);
+            foreach (var (name, serviceType) in ServiceUserSource.KnownServices)
+            {
+                var source = Get(serviceType);
+                source.Properties["type"].Enumeration.Add(ServiceUserSource.TypeName);
+                source.Properties["name"].Enumeration.Add(name);
+                schema.OneOf.Add(new JsonSchema { Reference = source });
+            }
+
+            foreach (var (name, sourceType) in UserSourceDefinition.KnownTypes)
+            {
+                var source = Get(sourceType);
+                source.Properties["type"].Enumeration.Add(name);
+                schema.OneOf.Add(new JsonSchema { Reference = source });
+            }
+        }
         else if (type.IsEnum)
         {
             schema = new JsonSchema

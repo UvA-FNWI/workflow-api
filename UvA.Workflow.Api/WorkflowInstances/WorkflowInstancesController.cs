@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Events;
 using UvA.Workflow.Infrastructure;
@@ -41,18 +42,30 @@ public class WorkflowInstancesController(
         if (actions.Length == 0)
             return Forbid();
 
-        var initial = input.InitialProperties?.ToDictionary(k => k.Key, BsonValue (_) => BsonNull.Value);
-        if (initial != null)
+        Dictionary<string, BsonValue>? initial = null;
+        if (input.InitialProperties != null)
         {
-            foreach (var entry in input.InitialProperties ?? [])
+            var changes = new List<(string[] Parts, PropertyDefinition Property, JsonElement Value)>();
+            foreach (var entry in input.InitialProperties)
             {
                 var property = modelService.WorkflowDefinitions[input.WorkflowDefinition].Properties
                     .GetOrDefault(entry.Key);
                 if (property == null)
                     return BadRequest($"Property {entry.Key} does not exist");
-                initial[entry.Key] = await answerConversionService.ConvertToValue(
-                    entry.Value, property, ct);
+                changes.Add(([entry.Key], property, entry.Value));
             }
+
+            var draft = new WorkflowInstance
+            {
+                WorkflowDefinition = input.WorkflowDefinition,
+                ParentId = input.ParentId,
+                CreatedOn = DateTime.Now,
+                Properties = [],
+                Events = []
+            };
+            var converted = await ConvertPropertyChanges(draft, changes, ct);
+            initial = changes.Select((change, index) => (Name: change.Parts[0], Value: converted[index]))
+                .ToDictionary(change => change.Name, change => change.Value);
         }
 
         var instance = await workflowInstanceService.Create(
@@ -204,6 +217,26 @@ public class WorkflowInstancesController(
             null)));
     }
 
+    [HttpGet("{id}/Properties/{path}/UserSearch")]
+    public async Task<ActionResult<UserSearchGroupDto[]>> SearchPropertyUsers(string id, string path,
+        [FromQuery] string? query, [FromServices] UserSourceResolver search, CancellationToken ct)
+    {
+        var instance = await repository.GetById(id, ct);
+        if (instance == null)
+            return WorkflowInstanceNotFound;
+
+        if (!await rightsService.CanEditProperty(instance, path))
+            return Forbidden();
+
+        var parts = path.Split('.');
+        if (modelService.GetProperty(instance, parts) is not UserPropertyDefinition property)
+            return NotFound();
+
+        modelService.EnsureWritable(instance, parts);
+        var groups = await search.Search(instance, property, query, ct, parts.Length > 1 ? parts[0] : null);
+        return Ok(groups.Select(UserSearchGroupDto.Create).ToArray());
+    }
+
     /// <summary>
     /// Overrides a single property. Always recorded in the instance journal.
     /// </summary>
@@ -240,7 +273,7 @@ public class WorkflowInstancesController(
         if (instance == null)
             return WorkflowInstanceNotFound;
 
-        var changes = new List<(string[] Parts, PropertyDefinition Property, BsonValue Value)>();
+        var changes = new List<(string[] Parts, PropertyDefinition Property, JsonElement Value)>();
 
         foreach (var (path, value) in input)
         {
@@ -256,18 +289,41 @@ public class WorkflowInstancesController(
             if (!await rightsService.CanEditProperty(instance, path))
                 return Forbidden();
 
-            var newValue = await answerConversionService.ConvertToValue(value, property, ct);
-
-            changes.Add((parts, property, newValue));
+            changes.Add((parts, property, value));
         }
 
-        foreach (var change in changes)
+        var converted = await ConvertPropertyChanges(instance, changes, ct);
+        for (var index = 0; index < changes.Count; index++)
         {
-            await answerService.SavePropertyValue(instance, change.Parts, change.Property, change.Value,
+            var change = changes[index];
+            await answerService.SavePropertyValue(instance, change.Parts, change.Property, converted[index],
                 shouldLog: true, ct);
         }
 
         return NoContent();
+    }
+
+    private async Task<BsonValue[]> ConvertPropertyChanges(WorkflowInstance instance,
+        IReadOnlyList<(string[] Parts, PropertyDefinition Property, JsonElement Value)> changes, CancellationToken ct)
+    {
+        var verifiedUsers = new IReadOnlyDictionary<string, UserSearchResult>[changes.Count];
+        for (var index = 0; index < changes.Count; index++)
+        {
+            var change = changes[index];
+            modelService.EnsureWritable(instance, change.Parts);
+            verifiedUsers[index] = await answerConversionService.ValidateUserSources(
+                change.Value, change.Property, instance, change.Parts, ct);
+        }
+
+        var converted = new BsonValue[changes.Count];
+        for (var index = 0; index < changes.Count; index++)
+        {
+            var change = changes[index];
+            converted[index] = await answerConversionService.ConvertToValue(
+                change.Value, change.Property, verifiedUsers[index], ct);
+        }
+
+        return converted;
     }
 
     [HttpGet("{id}/Impersonation/Roles")]
@@ -521,7 +577,13 @@ public class WorkflowInstancesController(
         if (propertyDefinition == null)
             return BadRequest("InvalidRelatedUser", $"Related user '{property}' does not exist");
 
-        modelService.EnsureWritable(instance, property.Split('.'));
+        var pathParts = property.Split('.');
+        modelService.EnsureWritable(instance, pathParts);
+        if (propertyDefinition.IsArray && (input.User is { ValueKind: JsonValueKind.Array } ||
+                                           input.ExternalUser == null && input.User is not
+                                               { ValueKind: JsonValueKind.Object }))
+            return BadRequest("InvalidRelatedUser", "Provide a single user to assign.");
+
         var externalUserInput = input.ExternalUser is { } eu
             ? new ExternalUserInput(eu.DisplayName, eu.Email, eu.Organization)
             : null;
@@ -531,8 +593,8 @@ public class WorkflowInstancesController(
             var (value, createdUser) = await answerService.ValidateAndResolveValue(
                 propertyDefinition, input.User, externalUserInput, ct);
 
-            var newValue = await answerConversionService.ConvertToValue(value, propertyDefinition, ct);
-            var pathParts = property.Split('.');
+            var newValue = await answerConversionService.ConvertToValue(value, propertyDefinition, instance, pathParts,
+                ct, createdUser?.UserName);
             if (propertyDefinition.IsArray)
                 await workflowInstanceService.AppendPropertyValue(instance, pathParts, newValue, ct);
             else
