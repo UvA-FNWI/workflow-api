@@ -121,15 +121,16 @@ internal static class DraftYaml
             var available = indices.Where(index => !sameSlot.Contains(index))
                 .GroupBy(index => ElementKey(previous.Children[index]))
                 .ToDictionary(group => group.Key, group => new Queue<int>(group));
-            var order = indices.Select(index => sameSlot.Contains(index)
-                    ? index
-                    :
-                    available.TryGetValue(ElementKey(next.Children[index]), out var sources) &&
-                    sources.TryDequeue(out var source) && previous.Children[source].Equals(next.Children[index])
-                        ?
-                        source
-                        : -1)
-                .ToArray();
+            var order = indices.Select(index =>
+            {
+                if (sameSlot.Contains(index))
+                    return index;
+
+                return available.TryGetValue(ElementKey(next.Children[index]), out var sources) &&
+                       sources.TryDequeue(out var source) && previous.Children[source].Equals(next.Children[index])
+                    ? source
+                    : -1;
+            }).ToArray();
 
             var moves = indices.Where(index => order[index] >= 0 && order[index] != index).ToArray();
             if (moves.Length == 0)
