@@ -15,7 +15,7 @@ public class VersionsController(
     ILogger<VersionsController> logger)
     : ApiControllerBase
 {
-    /// Local development stream for the installed revision and latest reload outcome.
+    /// Local development stream; sends the current revision and subsequent successful baseline installs.
     [HttpGet("Events")]
     public IResult Events(CancellationToken ct)
     {
@@ -24,7 +24,7 @@ public class VersionsController(
 
         Response.Headers.CacheControl = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
-        return TypedResults.ServerSentEvents(changeFeed.Listen(ct));
+        return TypedResults.ServerSentEvents(changeFeed.Listen(ct), eventType: "config-changed");
     }
 
     /// Reload the default version from the configured source.

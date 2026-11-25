@@ -58,19 +58,13 @@ public static class EventHistory
     {
         var events = new Dictionary<string, InstanceEvent>();
         foreach (var log in Project(eventLogs, at))
-            Apply(events, log);
+        {
+            if (log.Operation == EventLogOperation.Delete)
+                events.Remove(log.EventId);
+            else
+                events[log.EventId] = new InstanceEvent { Id = log.EventId, Date = log.EventDate };
+        }
 
         return events;
-    }
-
-    internal static void Apply(Dictionary<string, InstanceEvent> events, InstanceEventLogEntry log)
-    {
-        if (log.Operation == EventLogOperation.Delete)
-            events.Remove(log.EventId);
-        else
-            events[log.EventId] = new InstanceEvent { Id = log.EventId, Date = log.EventDate };
-
-        foreach (var boundary in log.PassBoundaries ?? [])
-            events[boundary.Id] = new InstanceEvent { Id = boundary.Id, Date = boundary.Date };
     }
 }

@@ -342,7 +342,7 @@ public class EventSuppressionTests
             ("EventA", []),
             ("EventB", [])
         );
-        var step = new Step { Ends = new Condition { Or = [.. EndEvents] } };
+        var step = new Step { Name = "Subject", Ends = new Condition { Or = [.. EndEvents] } };
 
         var t1 = DateTime.UtcNow.AddHours(-2);
         var t2 = DateTime.UtcNow.AddHours(-1);
@@ -366,7 +366,7 @@ public class EventSuppressionTests
             ("EventA", []),
             ("EventB", [])
         );
-        var step = new Step { Ends = new Condition { And = [.. EndEvents] } };
+        var step = new Step { Name = "Subject", Ends = new Condition { And = [.. EndEvents] } };
 
         var t1 = DateTime.UtcNow.AddHours(-2);
         var t2 = DateTime.UtcNow.AddHours(-1);
@@ -390,7 +390,7 @@ public class EventSuppressionTests
             ("EventA", ["EventB"]),
             ("EventB", ["EventA"])
         );
-        var step = new Step { Ends = new Condition { Or = [.. EndEvents] } };
+        var step = new Step { Name = "Subject", Ends = new Condition { Or = [.. EndEvents] } };
 
         var t1 = DateTime.UtcNow.AddHours(-2);
         var t2 = DateTime.UtcNow.AddHours(-1);
@@ -414,7 +414,7 @@ public class EventSuppressionTests
             ("EventA", []),
             ("EventB", [])
         );
-        var step = new Step { Ends = new Condition { Or = [.. EndEvents] } };
+        var step = new Step { Name = "Subject", Ends = new Condition { Or = [.. EndEvents] } };
 
         var instance = new WorkflowInstanceBuilder()
             .WithWorkflowDefinition("TestWorkflow")

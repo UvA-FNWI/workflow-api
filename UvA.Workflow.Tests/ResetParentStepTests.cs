@@ -72,16 +72,11 @@ public class ResetParentStepTests
         Assert.Equal(["DraftSubmitted"], Suppresses("RequestRevision"));
         Assert.Equal(["ProposalSubmitted", "RequestRevision"], Suppresses("RejectProposal"));
 
-        // A pass boundary invalidates later completions and reset markers in its own subtree.
-        var writingPass = _def.ParentStepPasses.Single(pass => pass.Parent.Name == "Writing");
-        var thesisPass = _def.ParentStepPasses.Single(pass => pass.Parent.Name == "Thesis");
-        Assert.Equal(["ExaminerApproved", "RequestRevision", "SupervisorApproved"],
-            writingPass.Suppresses.OrderBy(id => id, StringComparer.Ordinal));
+        // Restart -> (completion events + nested resets) edges, scoped to each target.
+        Assert.Equal(["ExaminerApproved", "RequestRevision", "SupervisorApproved"], Suppresses("DraftSubmitted"));
         Assert.Equal(
             ["DraftSubmitted", "ExaminerApproved", "RejectProposal", "RequestRevision", "SupervisorApproved"],
-            thesisPass.Suppresses.OrderBy(id => id, StringComparer.Ordinal));
-        Assert.Empty(Suppresses("DraftSubmitted"));
-        Assert.Empty(Suppresses("ProposalSubmitted"));
+            Suppresses("ProposalSubmitted"));
 
         // The fixture authors no suppressions; the whole graph is generated.
         Assert.Empty(Suppresses("SupervisorApproved"));
@@ -158,7 +153,7 @@ public class ResetParentStepTests
     }
 
     [Fact]
-    public void HistoricalDraftResubmissionWithoutPassBoundary_StillInvalidatesPreviousReviews()
+    public void DraftResubmissionWithoutRevisionRequest_StillInvalidatesPreviousReviews()
     {
         var i = CompletedInstance();
 

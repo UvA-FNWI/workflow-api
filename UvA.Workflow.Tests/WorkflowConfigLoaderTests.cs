@@ -53,7 +53,7 @@ public class WorkflowConfigLoaderTests
         => new() { RepoUrl = "https://github.com/owner/repo", Ref = "main" };
 
     [Fact]
-    public async Task LocalBaseline_ReportsInvalidYamlAndRecoversOnSuccessfulInstall()
+    public async Task LocalBaseline_NotifiesOnlyAfterSuccessfulInstallAndRecoversAfterInvalidYaml()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var project = Path.Combine(root, "Projects", "Project");
@@ -76,28 +76,21 @@ public class WorkflowConfigLoaderTests
 
             await loader.LoadBaselineAsync();
             Assert.True(await browser.MoveNextAsync());
-            Assert.NotEqual(initial.Data, browser.Current.Data);
-            Assert.Equal("config-changed", browser.Current.EventType);
+            Assert.NotEqual(initial, browser.Current);
             Assert.True(resolver.Contains(""));
             var previousModel = resolver.Resolve().ModelService.WorkflowDefinitions;
             var previous = browser.Current;
 
+            var pending = browser.MoveNextAsync().AsTask();
             await File.WriteAllTextAsync(entity, "invalid: [");
             await Assert.ThrowsAnyAsync<Exception>(() => loader.LoadBaselineAsync());
-            Assert.True(await browser.MoveNextAsync());
-            Assert.Equal("config-reload-failed", browser.Current.EventType);
-            Assert.Equal(previous.Data, browser.Current.Data);
+            Assert.False(pending.IsCompleted);
             Assert.Same(previousModel, resolver.Resolve().ModelService.WorkflowDefinitions);
-
-            await using var reconnected = feed.Listen(ct.Token).GetAsyncEnumerator();
-            Assert.True(await reconnected.MoveNextAsync());
-            Assert.Equal(browser.Current, reconnected.Current);
 
             await File.WriteAllTextAsync(entity, validYaml);
             await loader.LoadBaselineAsync();
-            Assert.True(await browser.MoveNextAsync());
-            Assert.Equal("config-changed", browser.Current.EventType);
-            Assert.NotEqual(previous.Data, browser.Current.Data);
+            Assert.True(await pending);
+            Assert.NotEqual(previous, browser.Current);
         }
         finally
         {

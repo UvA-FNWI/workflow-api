@@ -141,7 +141,10 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             var before = new WorkflowInstance { Events = snapshot.Events };
             // Restart detection needs independent event states on either side of this operation.
             snapshot.Events = new Dictionary<string, InstanceEvent>(snapshot.Events);
-            EventHistory.Apply(snapshot.Events, log);
+            if (log.Operation == EventLogOperation.Delete)
+                snapshot.Events.Remove(log.EventId);
+            else
+                snapshot.Events[log.EventId] = new InstanceEvent { Id = log.EventId, Date = log.EventDate };
 
             var restartedStep = rules.DetermineRestart(log, before, snapshot);
             // A rejection submission belongs to the version it ends.
@@ -375,8 +378,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
             var restartStepsByEvent = FindRestartSteps(definition);
             _stepOrder = definition.Steps.SelectMany(Subtree).ToList();
             VersionedSteps = definition.AllSteps.Where(step =>
-                step.ParentStep == null || restartStepsByEvent.Values.Contains(step) ||
-                definition.ParentStepPasses.Any(pass => pass.Parent == step)).ToArray();
+                step.ParentStep == null || restartStepsByEvent.Values.Contains(step)).ToArray();
             _restartStepsByEvent = restartStepsByEvent
                 .Where(pair => TargetsEarlierWork(pair.Key, pair.Value)).ToDictionary();
         }
@@ -388,17 +390,8 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
         public Step? DetermineRestart(
             InstanceEventLogEntry log, WorkflowInstance before, WorkflowInstance snapshot)
         {
-            if (log.Operation is not (EventLogOperation.Create or EventLogOperation.Update))
-                return null;
-
-            var pass = _definition.ParentStepPasses.FirstOrDefault(pass => pass.ResetEvents.Contains(log.EventId));
-            if (pass != null)
-                return pass.FirstChildEvents.Any(id => IsActive(id, before, _definition) &&
-                                                       !IsActive(id, snapshot, _definition))
-                    ? pass.Parent
-                    : null;
-
-            if (!_restartStepsByEvent.TryGetValue(log.EventId, out var restartStep))
+            if (log.Operation is not (EventLogOperation.Create or EventLogOperation.Update) ||
+                !_restartStepsByEvent.TryGetValue(log.EventId, out var restartStep))
                 return null;
 
             return (_definition.Events.Get(log.EventId).Suppresses ?? []).Any(id =>

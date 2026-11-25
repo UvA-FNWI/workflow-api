@@ -49,15 +49,17 @@ public class UndoService(
         if (!isCandidate)
             throw new UndoCandidateChangedException();
 
+        var affectedEventIds = eventLogs
+            .Where(log => log.OperationId == operationId && log.Operation != EventLogOperation.Undo)
+            .Select(log => log.EventId)
+            .Distinct()
+            .ToArray();
+
         await eventRepository.AddUndoEntry(instance.Id, operationId, realUser, trimmedReason, ct);
 
         await jobRepository.CancelPendingForOperation(instance.Id, operationId, ct);
 
         var updatedLogs = await eventRepository.GetEventLogEntriesForInstance(instance.Id, ct);
-        var affectedEventIds = updatedLogs
-            .Where(log => log.OperationId == operationId && log.Operation != EventLogOperation.Undo)
-            .SelectMany(log => (log.PassBoundaries ?? []).Select(boundary => boundary.Id).Prepend(log.EventId))
-            .Distinct();
         var effectiveEvents = EventHistory.RebuildEvents(updatedLogs);
         var updates = new List<UpdateDefinition<WorkflowInstance>>();
         foreach (var eventId in affectedEventIds)

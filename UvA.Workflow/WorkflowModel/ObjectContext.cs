@@ -250,8 +250,7 @@ public partial class ObjectContext(
         WorkflowInstance instance,
         WorkflowDefinition workflowDefinition)
     {
-        var events = instance.Events.Values.Where(ev => !ParentStepPasses.IsMarker(ev.Id)).ToArray();
-        dict[ContextKeys.LastEvent] = events.Select(ev => ev.Date).Max()?.ToLocalTime()
+        dict[ContextKeys.LastEvent] = instance.Events.Values.Select(ev => ev.Date).Max()?.ToLocalTime()
                                       ?? dict.GetValueOrDefault(ContextKeys.CreateDate);
 
         foreach (var ev in workflowDefinition.Events)
@@ -260,7 +259,7 @@ public partial class ObjectContext(
             dict.TryAdd(ev.Name + "EventActive", false);
         }
 
-        foreach (var ev in events)
+        foreach (var ev in instance.Events.Values)
         {
             var eventKey = ev.Id + "Event";
             var activeKey = ev.Id + "EventActive";

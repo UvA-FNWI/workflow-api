@@ -5,9 +5,9 @@
     <File Path="Schemas/PropertyDefinition.json" />
     <File Path="Schemas/Condition.json" />
     <File Path="Schemas/Form.json" />
+    <File Path="Schemas/README.md" />
     <File Path="Schemas/Role.json" />
     <File Path="Schemas/Screen.json" />
-    <File Path="Schemas/README.md" />
   </Folder>
   <Folder Name="/SolutionItems/">
     <File Path=".dockerignore" />

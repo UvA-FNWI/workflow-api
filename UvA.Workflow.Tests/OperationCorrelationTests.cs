@@ -82,7 +82,7 @@ public class OperationCorrelationTests : ControllerTestsBase
 
         var eventRepository = new InstanceEventRepository(database.Object);
         var eventService = new InstanceEventService(eventRepository, _instanceJournalServiceMock.Object,
-            _instanceService, _modelService);
+            _instanceService);
         var effectService = new EffectService(_instanceService, eventService, _modelService, _mailServiceMock.Object,
             _externalUserServiceMock.Object, _artifactServiceMock.Object, _mailLogRepositoryMock.Object,
             _configurationMock.Object, eventRepository, _loggerFactory.CreateLogger<EffectService>());
