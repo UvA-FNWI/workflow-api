@@ -91,13 +91,13 @@ public class StepProgressResolver(ModelService modelService)
             { Not: false } when stopWhen.IsMet(context) => stopWhen,
             _ => null
         };
-        var stopEvent = matchedCondition is { Not: false, Part: EventCondition condition } ? condition.Id : null;
+        var eventId = matchedCondition is { Not: false, Part: EventCondition condition } ? condition.Id : null;
         var template = stopWhen?.MessageTemplate ?? matchedCondition?.MessageTemplate;
 
         if (template != null)
-            return new ProgressInformationDto(template.Apply(context), StatusColor.Red, stopEvent);
+            return new ProgressInformationDto(template.Apply(context), StatusColor.Red, eventId);
 
-        var progress = StoppedProgress with { StopEvent = stopEvent };
+        var progress = StoppedProgress with { EventId = eventId };
         if (GetStopEventDate(stopWhen, context) is not { } date)
             return progress;
 

@@ -54,7 +54,7 @@ public record StepHeaderStatusDto(
 public record ProgressInformationDto(
     BilingualString Text,
     StatusColor? Color,
-    string? StopEvent = null);
+    string? EventId = null);
 
 public record UndoCandidateDto(
     OperationType Type,

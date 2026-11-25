@@ -129,14 +129,14 @@ public class ScreensControllerTests : ControllerTestsBase
                 Assert.Equal(english, progress.Text.En);
                 Assert.Equal(dutch, progress.Text.Nl);
                 Assert.Equal(StatusColor.Red, progress.Color);
-                Assert.Equal("RejectSubject", progress.StopEvent);
+                Assert.Equal("RejectSubject", progress.EventId);
                 Assert.True(row.WorkflowStopped);
             },
             row =>
             {
                 var progress = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
                 Assert.Equal("Writing proposal", progress.Text.En);
-                Assert.Null(progress.StopEvent);
+                Assert.Null(progress.EventId);
                 Assert.False(row.WorkflowStopped);
             });
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
@@ -258,7 +258,7 @@ public class ScreensControllerTests : ControllerTestsBase
         Assert.Equal("Stopped", progress.Text.En);
         Assert.Equal("Gestopt", progress.Text.Nl);
         Assert.Equal(StatusColor.Red, progress.Color);
-        Assert.Null(progress.StopEvent);
+        Assert.Null(progress.EventId);
 
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
             It.Is<Dictionary<string, string>>(projection =>

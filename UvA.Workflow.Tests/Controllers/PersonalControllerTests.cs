@@ -237,7 +237,7 @@ public partial class PersonalControllerTests : ControllerTestsBase
         project.Events["Cancel"] = new InstanceEvent { Id = "Cancel", Date = pausedAt.AddDays(-1) };
         await AssertStoppedProgress("Cancel", "Cancelled (26/07)", "Geannuleerd (26/07)");
 
-        async Task AssertStoppedProgress(string stopEvent, string english, string dutch)
+        async Task AssertStoppedProgress(string eventId, string english, string dutch)
         {
             var stopped = Assert.Single(
                 (await _personalInstanceService.GetInstances(UnitTestsHelpers.AdminUser, _ct)).Instances);
@@ -245,7 +245,7 @@ public partial class PersonalControllerTests : ControllerTestsBase
             Assert.Equal(english, stopped.Progress.Text.En);
             Assert.Equal(dutch, stopped.Progress.Text.Nl);
             Assert.Equal(StatusColor.Red, stopped.Progress.Color);
-            Assert.Equal(stopEvent, stopped.Progress.StopEvent);
+            Assert.Equal(eventId, stopped.Progress.EventId);
         }
     }
 

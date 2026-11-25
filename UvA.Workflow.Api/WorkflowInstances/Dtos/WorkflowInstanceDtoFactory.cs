@@ -51,7 +51,8 @@ public class WorkflowInstanceDtoFactory(
             var stopContext = context.WithValues([]);
             await instanceService.Enrich(workflowDefinition, [stopContext],
                 workflowDefinition.StopWhen?.MessageLookups ?? [], ct, replaceStep: false);
-            stoppedProgress = StepProgressResolver.ResolveProgress(workflowDefinition, instance.CurrentStep, stopContext);
+            stoppedProgress =
+                StepProgressResolver.ResolveProgress(workflowDefinition, instance.CurrentStep, stopContext);
         }
 
         var actions = await instanceService.GetAllowedActions(instance, ct, context);
@@ -192,7 +193,7 @@ public class WorkflowInstanceDtoFactory(
             infoCards,
             context.WorkflowStopped,
             stoppedProgress?.Text,
-            stoppedProgress?.StopEvent
+            stoppedProgress?.EventId
         );
     }
 
