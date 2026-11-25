@@ -12,64 +12,52 @@ submittedWhenEvents: [ ProposalApprovedSupervisor, ProposalRejectedSupervisor ]
 
 onSubmit:
   - condition:
-      logical:
-        operator: And
-        children:
-          - value:
-              property: SupervisorProposalAndEthicsReview.ProposalSufficient
-              equal: =Pass
-          - value:
-              property: SupervisorProposalAndEthicsReview.EthicsSufficient
-              equal: =Pass
+      and:
+        - value:
+            property: SupervisorProposalAndEthicsReview.ProposalSufficient
+            equal: =Pass
+        - value:
+            property: SupervisorProposalAndEthicsReview.EthicsSufficient
+            equal: =Pass
     event: ProposalApprovedSupervisor
   - condition:
-      logical:
-        operator: Or
-        children:
-          - value:
-              property: SupervisorProposalAndEthicsReview.ProposalSufficient
-              equal: =Fail
-          - value:
-              property: SupervisorProposalAndEthicsReview.EthicsSufficient
-              equal: =Fail
+      or:
+        - value:
+            property: SupervisorProposalAndEthicsReview.ProposalSufficient
+            equal: =Fail
+        - value:
+            property: SupervisorProposalAndEthicsReview.EthicsSufficient
+            equal: =Fail
     event: ProposalRejectedSupervisor
 
   # If both assessments passed, notify the student.
   - condition:
-      logical:
-        operator: And
-        children:
-          - event: ProposalApprovedReviewer
-          - value:
-              property: SupervisorProposalAndEthicsReview.ProposalSufficient
-              equal: =Pass
-          - value:
-              property: SupervisorProposalAndEthicsReview.EthicsSufficient
-              equal: =Pass
+      and:
+        - event: ProposalApprovedReviewer
+        - value:
+            property: SupervisorProposalAndEthicsReview.ProposalSufficient
+            equal: =Pass
+        - value:
+            property: SupervisorProposalAndEthicsReview.EthicsSufficient
+            equal: =Pass
     sendMail:
       email: ProposalApprovedStudent
       to: Student
     
     # If both assessments are done and either one has a rejection, create the ProposalReturnedForRevision event.
   - condition:
-      logical:
-        operator: And
-        children:
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalApprovedReviewer
-                - event: ProposalRejectedReviewer
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalRejectedReviewer
-                - value:
-                    property: SupervisorProposalAndEthicsReview.ProposalSufficient
-                    equal: =Fail
-                - value:
-                    property: SupervisorProposalAndEthicsReview.EthicsSufficient
-                    equal: =Fail
+      and:
+        - or:
+            - event: ProposalApprovedReviewer
+            - event: ProposalRejectedReviewer
+        - or:
+            - event: ProposalRejectedReviewer
+            - value:
+                property: SupervisorProposalAndEthicsReview.ProposalSufficient
+                equal: =Fail
+            - value:
+                property: SupervisorProposalAndEthicsReview.EthicsSufficient
+                equal: =Fail
     event: ProposalReturnedForRevision
     sendMail:
       email: ProposalRejectedStudent
@@ -77,24 +65,18 @@ onSubmit:
 
   # Rejection mail to Coordinator
   - condition:
-      logical:
-        operator: And
-        children:
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalApprovedReviewer
-                - event: ProposalRejectedReviewer
-          - logical:
-              operator: Or
-              children:
-                - event: ProposalRejectedReviewer
-                - value:
-                    property: SupervisorProposalAndEthicsReview.ProposalSufficient
-                    equal: =Fail
-                - value:
-                    property: SupervisorProposalAndEthicsReview.EthicsSufficient
-                    equal: =Fail
+      and:
+        - or:
+            - event: ProposalApprovedReviewer
+            - event: ProposalRejectedReviewer
+        - or:
+            - event: ProposalRejectedReviewer
+            - value:
+                property: SupervisorProposalAndEthicsReview.ProposalSufficient
+                equal: =Fail
+            - value:
+                property: SupervisorProposalAndEthicsReview.EthicsSufficient
+                equal: =Fail
     sendMail:
       email: ProposalRejectedCoordinator
       to: Course.Coordinator

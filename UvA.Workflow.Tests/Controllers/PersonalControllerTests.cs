@@ -153,11 +153,7 @@ public partial class PersonalControllerTests : ControllerTestsBase
         var definition = _modelService.WorkflowDefinitions["Project"];
         definition.StopWhen = new Condition
         {
-            Logical = new Logical
-            {
-                Operator = LogicalOperator.Or,
-                Children = [new Condition { Event = "Stop" }, new Condition { Event = "Cancel" }]
-            }
+            Or = [new Condition { Event = "Stop" }, new Condition { Event = "Cancel" }]
         };
         definition.Events.Add(new EventDefinition { Name = "Continue", Suppresses = ["Stop"] });
 
@@ -197,27 +193,23 @@ public partial class PersonalControllerTests : ControllerTestsBase
     {
         _modelService.WorkflowDefinitions["Project"].StopWhen = new Condition
         {
-            Logical = new Logical
-            {
-                Operator = LogicalOperator.Or,
-                Children =
-                [
-                    new Condition
-                    {
-                        Event = "Cancel",
-                        Message = new BilingualString(
-                            "Cancelled ({{ dateShort(CancelEvent) }})",
-                            "Geannuleerd ({{ dateShort(CancelEvent) }})")
-                    },
-                    new Condition
-                    {
-                        Event = "Pause",
-                        Message = new BilingualString(
-                            "Paused ({{ dateShort(PauseEvent) }})",
-                            "Gepauzeerd ({{ dateShort(PauseEvent) }})")
-                    }
-                ]
-            }
+            Or =
+            [
+                new Condition
+                {
+                    Event = "Cancel",
+                    Message = new BilingualString(
+                        "Cancelled ({{ dateShort(CancelEvent) }})",
+                        "Geannuleerd ({{ dateShort(CancelEvent) }})")
+                },
+                new Condition
+                {
+                    Event = "Pause",
+                    Message = new BilingualString(
+                        "Paused ({{ dateShort(PauseEvent) }})",
+                        "Gepauzeerd ({{ dateShort(PauseEvent) }})")
+                }
+            ]
         };
         var userId = ObjectId.Parse(UnitTestsHelpers.AdminUser.Id);
         var pausedAt = new DateTime(2026, 7, 27, 12, 0, 0, DateTimeKind.Utc);

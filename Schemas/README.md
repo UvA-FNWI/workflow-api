@@ -4,12 +4,16 @@ This folder contains JSON schemas for the various YAML files. Generate them by r
 `dotnet run` in `UvA.Workflow.SchemaGenerator`. The generator exits with code 1 when it
 updates schemas and code 0 when they are already current.
 
-`PropertyDefinition.json` contains the property type variants and their supporting
-definitions. `WorkflowDefinition.json` and `Step.json` reference it using a relative
-`$ref`, so keep these schema files together when serving or copying them.
+`PropertyDefinition.json` defines property types, and `Condition.json` defines
+conditions, including standalone YAML files in `Conditions/`. Other schemas use
+relative `$ref`s to share these definitions. Keep the schema files together when
+serving or copying them.
 
 The API serves these files at `/Schemas/{name}.json`. After regenerating schemas,
 rebuild the API to copy them into its output directory.
+
+Use `and:` and `or:` for lists of conditions. Each group uses one operator and
+can contain nested groups, individual checks, or names of reusable conditions.
 
 Text properties use `control: TextArea`, `Email`, or `Phone`. Omit `control` for
 ordinary text. Choice and reference properties

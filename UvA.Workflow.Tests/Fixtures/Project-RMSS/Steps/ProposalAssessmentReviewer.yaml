@@ -16,8 +16,6 @@ properties:
     type: ProposalAndEthicsReview!
 
 ends:
-  logical:
-    operator: Or
-    children:
-      - event: ProposalApprovedReviewer
-      - event: ProposalRejectedReviewer
+  or:
+    - event: ProposalApprovedReviewer
+    - event: ProposalRejectedReviewer

@@ -3,6 +3,7 @@
   <Folder Name="/Schemas/">
     <File Path="Schemas/WorkflowDefinition.json" />
     <File Path="Schemas/PropertyDefinition.json" />
+    <File Path="Schemas/Condition.json" />
     <File Path="Schemas/Form.json" />
     <File Path="Schemas/README.md" />
     <File Path="Schemas/Role.json" />

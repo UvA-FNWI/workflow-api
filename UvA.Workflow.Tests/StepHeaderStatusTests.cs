@@ -318,15 +318,11 @@ public class StepHeaderStatusTests
             {
                 Condition = new Condition
                 {
-                    Logical = new Logical
-                    {
-                        Operator = LogicalOperator.Or,
-                        Children =
-                        [
-                            new Condition { Event = new EventCondition { Id = "ProposalApprovedSupervisor" } },
-                            new Condition { Event = new EventCondition { Id = "ProposalApprovedReviewer" } }
-                        ]
-                    }
+                    Or =
+                    [
+                        new Condition { Event = new EventCondition { Id = "ProposalApprovedSupervisor" } },
+                        new Condition { Event = new EventCondition { Id = "ProposalApprovedReviewer" } }
+                    ]
                 },
                 Header = new ProgressHeader
                 {

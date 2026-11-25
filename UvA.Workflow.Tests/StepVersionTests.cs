@@ -22,15 +22,11 @@ public class StepVersionTests
         [
             new Condition
             {
-                Logical = new Logical
-                {
-                    Operator = LogicalOperator.Or,
-                    Children =
-                    [
-                        new Condition { Event = new EventCondition { Id = "ApproveSubject" } },
-                        new Condition { Event = new EventCondition { Id = "RejectSubject" } }
-                    ]
-                }
+                Or =
+                [
+                    new Condition { Event = new EventCondition { Id = "ApproveSubject" } },
+                    new Condition { Event = new EventCondition { Id = "RejectSubject" } }
+                ]
             },
             new[] { "ApproveSubject", "RejectSubject" }
         ];
@@ -38,16 +34,12 @@ public class StepVersionTests
         [
             new Condition
             {
-                Logical = new Logical
-                {
-                    Operator = LogicalOperator.Or,
-                    Children =
-                    [
-                        new Condition { Event = new EventCondition { Id = "SubmitForm" } },
-                        new Condition { Date = new Date { Source = "Deadline" } },
-                        new Condition { Event = new EventCondition { Id = "Approve" } }
-                    ]
-                }
+                Or =
+                [
+                    new Condition { Event = new EventCondition { Id = "SubmitForm" } },
+                    new Condition { Date = new Date { Source = "Deadline" } },
+                    new Condition { Event = new EventCondition { Id = "Approve" } }
+                ]
             },
             new[] { "SubmitForm", "Approve" }
         ];
@@ -386,18 +378,15 @@ public class StepVersionTests
             ev.Suppresses = [];
         proposal.Ends = new Condition
         {
-            Logical = new Logical
-            {
-                Operator = LogicalOperator.And, Children =
-                [
-                    new Condition { Event = new EventCondition { Id = "ProposalSubmitted" } },
-                    new Condition
-                    {
-                        Not = true,
-                        Deadline = new DeadlineCondition { ExpressionText = "addDays(ProposalSubmittedEvent, 1)" }
-                    }
-                ]
-            }
+            And =
+            [
+                new Condition { Event = new EventCondition { Id = "ProposalSubmitted" } },
+                new Condition
+                {
+                    Not = true,
+                    Deadline = new DeadlineCondition { ExpressionText = "addDays(ProposalSubmittedEvent, 1)" }
+                }
+            ]
         };
         var versions = new StepVersionService(model).GetStepVersions(instance, history);
         Assert.Equal(At(1).AddDays(1), versions["Proposal"].Current!.CompletionTimestamp);

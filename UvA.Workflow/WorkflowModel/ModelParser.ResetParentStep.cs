@@ -173,7 +173,7 @@ public partial class ModelParser
             $"ends of first child '{firstChild.Name}' of target '{p.Name}' in workflow '{def.Name}'");
 
         // PositiveEvents already rejected Not/non-event parts, so Part fully resolves the effective condition.
-        if (firstChild.Ends.Part is Logical { Operator: LogicalOperator.And })
+        if (firstChild.Ends.Part is And)
             throw Error(def, "first child ends condition must be a single event or an Or of events, not an And",
                 resetEvent, firstChild.Name, p.Name);
 
@@ -194,8 +194,7 @@ public partial class ModelParser
         return c.Part switch
         {
             EventCondition e => [e.Id],
-            Logical { Operator: LogicalOperator.And or LogicalOperator.Or } l
-                => l.Children.SelectMany(ch => PositiveEvents(ch, where)).ToList(),
+            CompositeCondition composite => composite.SelectMany(child => PositiveEvents(child, where)).ToList(),
             _ => throw new Exception(
                 $"resetParentStep: only positive event, And, and Or conditions can be reset ({where})")
         };

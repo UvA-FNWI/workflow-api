@@ -3,6 +3,7 @@ using System.Reflection;
 using NJsonSchema;
 using NJsonSchema.References;
 using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 using YamlDotNet.Serialization;
 
 namespace UvA.Workflow.SchemaGenerator.Generation;
@@ -82,6 +83,16 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
                     schema.RequiredProperties.Add(property.Key);
             }
 
+            if (type == typeof(Condition))
+            {
+                schema.Not = new JsonSchema();
+                foreach (var key in new[] { "and", "or" })
+                {
+                    schema.Not.RequiredProperties.Add(key);
+                    schema.Not.Properties.Add(key, new JsonSchemaProperty { Type = JsonObjectType.Array });
+                }
+            }
+
             if (typeof(PropertyDefinition).IsAssignableFrom(type))
             {
                 var dataType = ((PropertyDefinition)Activator.CreateInstance(type)!).DataType;
@@ -157,6 +168,10 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
         if (TypeMapping.TryGetValue(type, out var jsonType))
             return new JsonSchema { Type = isNullable ? jsonType | JsonObjectType.Null : jsonType };
 
+        if (type == typeof(Condition))
+            return CreateOneOf(isNullable ? Null : null, new JsonSchema { Type = JsonObjectType.String },
+                CreateReference(type));
+
         var reference = CreateReference(type);
         return isNullable ? CreateOneOf(Null, reference) : reference;
     }
@@ -212,6 +227,11 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
                 new JsonSchema { Type = JsonObjectType.String },
                 new JsonSchema { Type = JsonObjectType.Array, Item = GetReference(typeof(string)) }
             ),
+            _ when typeof(CompositeCondition).IsAssignableFrom(targetType) => new JsonSchemaProperty
+            {
+                Type = JsonObjectType.Array,
+                Item = GetReference(typeof(Condition))
+            },
             { IsArray: true } or { Name: "List`1" } => new JsonSchemaProperty
             {
                 Type = JsonObjectType.Array,

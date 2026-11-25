@@ -99,11 +99,7 @@ public class ScreensControllerTests : ControllerTestsBase
         definition.StopWhen = messageOnBranch
             ? new Condition
             {
-                Logical = new Logical
-                {
-                    Operator = LogicalOperator.Or,
-                    Children = [new Condition { Event = "Start" }, stopCondition]
-                }
+                Or = [new Condition { Event = "Start" }, stopCondition]
             }
             : stopCondition;
         var rejectedAt = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);

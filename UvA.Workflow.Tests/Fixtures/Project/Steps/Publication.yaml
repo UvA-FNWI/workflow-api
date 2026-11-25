@@ -7,13 +7,11 @@ icon:
   type: sparkles-line
   
 condition:
-  logical:
-    operator: And
-    children:
-      - event: Upload
-      - value:
-          property: CanBePublished
-          equal: true
+  and:
+    - event: Upload
+    - value:
+        property: CanBePublished
+        equal: true
 
 actions:
   - roles: [Supervisor]

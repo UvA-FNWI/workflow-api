@@ -853,14 +853,24 @@ public partial class ModelParser
     private void PreProcess(Condition? condition)
     {
         if (condition == null) return;
-        if (condition.Name is not null)
-        {
-            condition.NamedCondition = NamedConditions.FirstOrDefault(c => c.Name == condition.Name);
-            if (condition.NamedCondition == null)
-                throw new Exception($"Condition {condition.Name} not found");
-        }
 
-        condition.Logical?.Children.ForEach(PreProcess);
+        var activeNames = new HashSet<string>();
+        Resolve(condition);
+
+        void Resolve(Condition current)
+        {
+            if (current.Name is { } name)
+            {
+                if (!activeNames.Add(name))
+                    throw new Exception($"Cyclic condition reference: {name}");
+                current.NamedCondition = NamedConditions.FirstOrDefault(c => c.Name == name)
+                                         ?? throw new Exception($"Condition {name} not found");
+                current.NamedCondition.Composite?.ForEach(Resolve);
+                activeNames.Remove(name);
+            }
+
+            current.Composite?.ForEach(Resolve);
+        }
     }
 
     private void PreProcess(Choice choice)

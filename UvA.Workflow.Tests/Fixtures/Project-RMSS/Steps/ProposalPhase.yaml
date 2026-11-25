@@ -14,11 +14,9 @@ children:
 progress:
   # Approved only once both the supervisor and the proposal reviewer have approved.
   - condition:
-      logical:
-        operator: And
-        children:
-          - event: ProposalApprovedSupervisor
-          - event: ProposalApprovedReviewer
+      and:
+        - event: ProposalApprovedSupervisor
+        - event: ProposalApprovedReviewer
     header:
       type: Success
       label:

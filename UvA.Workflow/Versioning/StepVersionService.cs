@@ -224,7 +224,7 @@ public class StepVersionService(ModelService modelService) : IStepVersionService
                 yield return date.ToUniversalTime();
             if (condition?.Deadline?.Evaluate(context) is { } deadline)
                 yield return deadline.UtcDateTime;
-            foreach (var child in condition?.Logical?.Children ?? [])
+            foreach (var child in condition?.Composite ?? Enumerable.Empty<Condition>())
             foreach (var boundary in ConditionDates(child, context))
                 yield return boundary;
             if (condition?.NamedCondition != null)

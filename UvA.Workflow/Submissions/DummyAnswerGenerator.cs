@@ -99,7 +99,7 @@ public class DummyAnswerGenerator
         return validation.Part switch
         {
             Value v when !validation.Not => ExtractFromValue(v),
-            Logical { Operator: LogicalOperator.And } l => ExtractFromLogical(l),
+            And all => ExtractFromAnd(all),
             _ => ValidationConstraints.None
         };
     }
@@ -117,12 +117,12 @@ public class DummyAnswerGenerator
         return new ValidationConstraints(min, max, v.MaxLength, v.MinLength);
     }
 
-    internal static ValidationConstraints ExtractFromLogical(Logical logical)
+    private static ValidationConstraints ExtractFromAnd(And all)
     {
         double? min = null, max = null;
         int? maxLen = null;
         int? minLen = null;
-        foreach (var child in logical.Children)
+        foreach (var child in all)
         {
             var c = ExtractConstraints(child);
             if (c.Min.HasValue) min = min == null ? c.Min : Math.Max(min.Value, c.Min.Value);

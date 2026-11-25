@@ -307,10 +307,9 @@ public class Step : INamed, IDeclaredKeys, ITemplateConsumer
             return context?.ImportedSteps.GetValueOrDefault(Name) is { } owner
                 ? owner.Step.GetEndDate(owner.Instance, owner.Definition, owner.Context)
                 : null;
-        if (Ends?.Logical != null && Ends?.Logical?.Children.Length > 0 &&
-            Ends.Logical.Children.All(c => c.Event != null))
+        if (Ends?.Composite is { Count: > 0 } conditions && conditions.All(c => c.Event != null))
         {
-            var dates = Ends.Logical.Children
+            var dates = conditions
                 .Select(c => instance.Events.GetValueOrDefault(c.Event!.Id))
                 .Where(evt => evt?.Date != null && EventSuppressionHelper.IsEventActive(evt.Id, instance, workflowDef))
                 .Select(evt => evt!.Date!.Value)
@@ -318,12 +317,12 @@ public class Step : INamed, IDeclaredKeys, ITemplateConsumer
 
             if (dates.Length == 0) return null;
 
-            if (Ends.Logical.Operator == LogicalOperator.And)
-                return dates.Max();
-            if (Ends.Logical.Operator == LogicalOperator.Or)
-                return dates.Min();
-
-            return null;
+            return conditions switch
+            {
+                And => dates.Max(),
+                Or => dates.Min(),
+                _ => null
+            };
         }
 
         if (Ends?.Event != null)
