@@ -191,9 +191,7 @@ public class WorkflowInstanceDtoFactory(
             canImpersonate,
             viewerRoles,
             infoCards,
-            context.WorkflowStopped,
-            stoppedProgress?.Text,
-            stoppedProgress?.EventId
+            stoppedProgress
         );
     }
 

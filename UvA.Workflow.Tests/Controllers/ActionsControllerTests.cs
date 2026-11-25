@@ -195,29 +195,27 @@ public class ActionsControllerTests : ControllerTestsBase
         definition.Roles.Single(role => role.Name == "LocalAdmin").Actions.Add(reopen);
 
         var paused = await Execute("Pause");
-        Assert.True(paused.WorkflowStopped);
-        Assert.Equal("Paused", paused.StopMessage?.En);
-        Assert.Equal("Gepauzeerd", paused.StopMessage?.Nl);
-        Assert.Equal("Pause", paused.StopEvent);
+        var pausedProgress = Assert.IsType<ProgressInformationDto>(paused.StoppedProgress);
+        Assert.Equal("Paused", pausedProgress.Text.En);
+        Assert.Equal("Gepauzeerd", pausedProgress.Text.Nl);
+        Assert.Equal("Pause", pausedProgress.EventId);
         await AssertForbidden("Pause");
         var cancelled = await Execute("Cancel");
-        Assert.True(cancelled.WorkflowStopped);
-        Assert.Equal("Cancelled", cancelled.StopMessage?.En);
-        Assert.Equal("Cancel", cancelled.StopEvent);
+        var cancelledProgress = Assert.IsType<ProgressInformationDto>(cancelled.StoppedProgress);
+        Assert.Equal("Cancelled", cancelledProgress.Text.En);
+        Assert.Equal("Cancel", cancelledProgress.EventId);
         await AssertForbidden("Reopen");
 
         MockCurrentUser("LocalAdmin");
         var reopened = await Execute("Reopen");
-        Assert.True(reopened.WorkflowStopped);
-        Assert.Equal("Paused", reopened.StopMessage?.En);
-        Assert.Equal("Pause", reopened.StopEvent);
+        var reopenedProgress = Assert.IsType<ProgressInformationDto>(reopened.StoppedProgress);
+        Assert.Equal("Paused", reopenedProgress.Text.En);
+        Assert.Equal("Pause", reopenedProgress.EventId);
         Assert.Equal(cancelled.CurrentStep, reopened.CurrentStep);
         Assert.False(reopen.Condition.IsMet(_modelService.CreateContext(instance)));
         MockCurrentUser("Coordinator");
         var resumed = await Execute("Resume");
-        Assert.False(resumed.WorkflowStopped);
-        Assert.Null(resumed.StopMessage);
-        Assert.Null(resumed.StopEvent);
+        Assert.Null(resumed.StoppedProgress);
 
         async Task<WorkflowInstanceDto> Execute(string name)
         {
