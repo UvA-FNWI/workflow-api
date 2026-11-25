@@ -68,6 +68,7 @@ apiPaths:
   - /Versions
   - /Submissions
   - /WorkflowDefinitions
+  - /WorkflowDrafts
   - /Users
   - /Organizations
   - /WorkflowInstances
