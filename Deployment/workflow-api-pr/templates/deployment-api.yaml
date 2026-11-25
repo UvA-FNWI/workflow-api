@@ -30,6 +30,9 @@ spec:
                 name: workflow-api-config
             - secretRef:
                 name: workflow-api-secret
+            - secretRef:
+                name: workflow-authoring-poc
+                optional: true
           {{- if .Values.azure }}
           volumeMounts:
             - name: secrets-store-inline

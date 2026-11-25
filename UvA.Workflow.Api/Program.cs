@@ -9,6 +9,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.ImportExport;
 using UvA.Workflow.Api.Users;
+using UvA.Workflow.Api.WorkflowAuthoring;
 using UvA.Workflow.Notifications.Graph;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Persistence.Mongo;
@@ -51,6 +52,7 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 builder.Services.Configure<WorkflowSourceOptions>(builder.Configuration.GetSection("WorkflowSource"));
+builder.Services.Configure<WorkflowAuthoringOptions>(builder.Configuration.GetSection("WorkflowAuthoring"));
 builder.Services.Configure<ConfiguredMigrationOptions>(
     builder.Configuration.GetSection(ConfiguredMigrationOptions.SectionName));
 

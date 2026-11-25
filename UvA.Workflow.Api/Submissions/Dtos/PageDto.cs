@@ -46,7 +46,8 @@ public record PageElementDto(
     public static PageElementDto? Create(
         PageElement element,
         Dictionary<PropertyDefinition, QuestionDto> questions,
-        ObjectContext context)
+        ObjectContext context,
+        bool preview = false)
     {
         if (element.Question != null)
         {
@@ -57,7 +58,7 @@ public record PageElementDto(
         }
 
         if (element.Callout != null)
-            return element.Callout.Condition.IsMet(context)
+            return preview || element.Callout.Condition.IsMet(context)
                 ? new PageElementDto(PageElementKind.Callout, null, CalloutDto.Create(element.Callout, context), null)
                 : null;
 

@@ -12,14 +12,16 @@ public record FormDto(
     string? Step,
     FormConfirmationDto? Confirmation = null)
 {
-    public static FormDto Create(Form form, ObjectContext context)
+    public static FormDto Create(Form form, ObjectContext context, bool preview = false)
     {
         context = form.GetContext(context);
         var allPages = form.ActualForm.Pages.ToArray();
         var currentFormPages = form.GetCurrentPages().ToArray();
-        var activePages = currentFormPages.Where(p => p.Condition.IsMet(context)).ToArray();
+        var activePages =
+            preview ? currentFormPages : currentFormPages.Where(p => p.Condition.IsMet(context)).ToArray();
+        var weightedPages = preview ? allPages : allPages.Where(page => page.Condition.IsMet(context));
         var pageWeights =
-            AssessmentHelpers.GetPageWeights(allPages.Where(page => page.Condition.IsMet(context)), context);
+            AssessmentHelpers.GetPageWeights(weightedPages, context, includeConditionalQuestions: preview);
         var totalWeight = pageWeights.Values.Sum() ?? 0;
 
         var questions = activePages
@@ -38,7 +40,7 @@ public record FormDto(
                 var isInCurrentForm = currentFormPages.Any(page => page.Name == p.Name);
                 var isActive = activePages.Any(page => page.Name == p.Name);
                 var pageElements = isActive
-                    ? p.PageElements.Select(e => PageElementDto.Create(e, questions, context))
+                    ? p.PageElements.Select(e => PageElementDto.Create(e, questions, context, preview))
                         .OfType<PageElementDto>()
                     : [];
                 decimal? percentage = isActive && totalWeight != 0 && pageWeights.GetValueOrDefault(p) is { } weight
@@ -48,7 +50,7 @@ public record FormDto(
             }).ToArray(),
             form.Layout,
             originalForm.Step,
-            FormConfirmationDto.Create(form.Confirmation, context)
+            preview ? null : FormConfirmationDto.Create(form.Confirmation, context)
         );
     }
 }

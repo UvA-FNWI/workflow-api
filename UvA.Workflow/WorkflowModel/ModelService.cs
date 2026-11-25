@@ -2,13 +2,19 @@ using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
-public class ModelService(ModelParser parser)
+public class ModelService(Func<ModelParser> resolveParser)
 {
-    public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => parser.WorkflowDefinitions;
+    public ModelService(ModelParser parser) : this(() => parser)
+    {
+    }
 
-    public Dictionary<string, Role> Roles => parser.GlobalRoles.ToDictionary(r => r.Name, r => r);
+    private ModelParser Parser => resolveParser();
 
-    public List<Service> Services => parser.Services;
+    public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => Parser.WorkflowDefinitions;
+
+    public Dictionary<string, Role> Roles => Parser.GlobalRoles.ToDictionary(r => r.Name, r => r);
+
+    public List<Service> Services => Parser.Services;
 
     public Form GetForm(WorkflowInstance instance, string formName)
     {

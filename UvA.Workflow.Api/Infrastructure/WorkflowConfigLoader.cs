@@ -201,12 +201,13 @@ public class WorkflowConfigLoader(
 
     // Read the yaml files and the mail layout out of a codeload tarball into memory, keyed by their path
     // relative to the single top-level folder codeload wraps everything in.
-    private static async Task<Dictionary<string, string>> ReadTarballAsync(Stream tarGz)
+    internal static async Task<Dictionary<string, string>> ReadTarballAsync(Stream tarGz,
+        CancellationToken ct = default)
     {
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         await using var gzip = new GZipStream(tarGz, CompressionMode.Decompress);
         await using var reader = new TarReader(gzip);
-        while (await reader.GetNextEntryAsync() is { } entry)
+        while (await reader.GetNextEntryAsync(cancellationToken: ct) is { } entry)
         {
             if (entry.DataStream is null)
                 continue;
@@ -217,7 +218,7 @@ public class WorkflowConfigLoader(
             if (!path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) && path != LayoutPath)
                 continue;
             using var text = new StreamReader(entry.DataStream);
-            files[path] = await text.ReadToEndAsync();
+            files[path] = await text.ReadToEndAsync(ct);
         }
 
         return files;
