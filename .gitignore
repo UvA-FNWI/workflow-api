@@ -9,6 +9,13 @@
 # Optional link to a local milestones-config checkout
 /milestones-config
 
+# Local Milestones database refresh files
+/prd.json
+/acc.json
+/Deployment/scripts/*.json
+/Deployment/scripts/*.archive.gz
+/Deployment/scripts/.refresh-*/
+
 # User-specific files
 *.rsuser
 *.suo

@@ -1,0 +1,3 @@
+{
+  "uri": "mongodb://PRODUCTION_USERNAME:YOUR_PASSWORD@production.example.com:27017/PRODUCTION_DATABASE?tls=true&authSource=AUTH_DATABASE"
+}
