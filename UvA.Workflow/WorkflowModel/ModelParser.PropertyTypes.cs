@@ -41,6 +41,8 @@ public partial class ModelParser
                 options.AddKeyValueTypeDiscriminator<PropertyDefinition>("type", propertyTypes);
                 options.AddKeyValueTypeDiscriminator<UserSourceDefinition>("type",
                     UserSourceDefinition.KnownTypes.ToDictionary());
+                options.AddKeyValueTypeDiscriminator<UserSourceDefinition>("name",
+                    ServiceUserSource.KnownServices.ToDictionary());
                 options.AddUniqueKeyTypeDiscriminator<PropertyDefinition>(new Dictionary<string, Type>
                 {
                     ["type"] = typeof(ChoicePropertyDefinition)
@@ -57,6 +59,9 @@ public partial class ModelParser
         {
             if (source == null)
                 throw new Exception($"Empty user source on '{definition.Name}.{property.Name}'.");
+            if (source is ServiceUserSource service && service.Type != ServiceUserSource.TypeName)
+                throw new Exception(
+                    $"User source '{service.Name}' on '{definition.Name}.{property.Name}' must have type '{ServiceUserSource.TypeName}'.");
             if (source is not PropertyUserSource propertySource)
                 continue;
 

@@ -6,15 +6,27 @@ public abstract class UserSourceDefinition
 {
     public static IReadOnlyDictionary<string, Type> KnownTypes { get; } = new Dictionary<string, Type>
     {
-        ["DataNose"] = typeof(DataNoseUserSource),
         ["Property"] = typeof(PropertyUserSource)
     };
 
     public string Type { get; set; } = null!;
 }
 
+public abstract class ServiceUserSource : UserSourceDefinition
+{
+    public const string TypeName = "Service";
+
+    public static IReadOnlyDictionary<string, Type> KnownServices { get; } = new Dictionary<string, Type>
+    {
+        ["DataNose"] = typeof(DataNoseUserSource)
+    };
+
+    /// <summary>The service to search for users.</summary>
+    public string Name { get; set; } = null!;
+}
+
 /// <summary>Searches the existing directory.</summary>
-public sealed class DataNoseUserSource : UserSourceDefinition
+public sealed class DataNoseUserSource : ServiceUserSource
 {
     /// <summary>Limits the directory search to the specified user groups.</summary>
     public DataNoseSearchOptions? SearchOptions { get; set; }

@@ -54,7 +54,9 @@ public class PropertySchemaTests
     [InlineData("User", ", \"sources\": [\"Review\"]")]
     [InlineData("String", ", \"sources\": [\"Review\"]")]
     [InlineData("User",
-        """, "sources": ["Review"], "userSources": [{"type": "DataNose"}, {"type": "Property", "property": "Course.Supervisors"}]""")]
+        """, "sources": ["Review"], "userSources": [{"type": "Service", "name": "DataNose"}, {"type": "Property", "property": "Course.Supervisors"}]""")]
+    [InlineData("User",
+        """, "userSources": [{"type": "Service", "name": "DataNose", "searchOptions": {"include": ["Students"]}}]""")]
     [InlineData("Country", ", \"values\": [{\"name\": \"NL\"}], \"control\": \"Dropdown\"")]
     [InlineData("[Context]", ", \"control\": \"RadioList\"")]
     [InlineData("Assessment", ", \"control\": \"Modal\"")]
@@ -95,11 +97,14 @@ public class PropertySchemaTests
     [InlineData("[Context]", "\"control\": \"RadioList\", \"inheritRole\": true")]
     [InlineData("String", "\"inheritRole\": true")]
     [InlineData("User", "\"inheritRole\": [\"Coordinator\"]")]
-    [InlineData("User", "\"sources\": [{\"type\": \"DataNose\"}]")]
+    [InlineData("User", "\"sources\": [{\"type\": \"Service\", \"name\": \"DataNose\"}]")]
+    [InlineData("User", "\"userSources\": [{\"type\": \"DataNose\"}]")]
+    [InlineData("User", "\"userSources\": [{\"type\": \"Service\"}]")]
+    [InlineData("User", "\"userSources\": [{\"type\": \"Service\", \"name\": \"Other\"}]")]
     [InlineData("User",
         "\"userSources\": [{\"type\": \"Property\", \"property\": \"Supervisor\", \"searchOptions\": {\"include\": [\"Students\"]}}]")]
     [InlineData("User",
-        "\"userSources\": [{\"type\": \"DataNose\", \"searchOptions\": {\"courseExternalId\": \"Course.Id\"}}]")]
+        "\"userSources\": [{\"type\": \"Service\", \"name\": \"DataNose\", \"searchOptions\": {\"courseExternalId\": \"Course.Id\"}}]")]
     [InlineData("Date", "\"calculation\": {\"weight\": 1}")]
     [InlineData("String", "\"calculation\": {\"weight\": 1}")]
     [InlineData("File", "\"calculation\": {\"weight\": 1}")]

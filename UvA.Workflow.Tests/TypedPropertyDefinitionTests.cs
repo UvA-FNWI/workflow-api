@@ -31,6 +31,10 @@ public class TypedPropertyDefinitionTests
     [InlineData("File", "allowsExternalUsers: true")]
     [InlineData("User", "userSources: [{ type: Property, property: Missing }]")]
     [InlineData("User", "userSources: [{ type: Other }]")]
+    [InlineData("User", "userSources: [{ type: Service }]")]
+    [InlineData("User", "userSources: [{ type: Service, name: Other }]")]
+    [InlineData("User", "userSources: [{ name: DataNose }]")]
+    [InlineData("User", "userSources: [{ type: DataNose, name: DataNose }]")]
     [InlineData("Date", "control: TextArea")]
     [InlineData("String", "allowAttachments: true")]
     [InlineData("String", "multiline: true")]
@@ -132,7 +136,8 @@ public class TypedPropertyDefinitionTests
                                           type: User
                                           sources: [Reviewer]
                                           userSources:
-                                            - type: DataNose
+                                            - type: Service
+                                              name: DataNose
                                               searchOptions:
                                                 include: [Students]
                                             - type: Property
@@ -155,7 +160,10 @@ public class TypedPropertyDefinitionTests
         Assert.Collection(property.UserSources!,
             source =>
             {
-                var options = Assert.IsType<DataNoseUserSource>(source).SearchOptions;
+                var service = Assert.IsType<DataNoseUserSource>(source);
+                Assert.Equal("Service", service.Type);
+                Assert.Equal("DataNose", service.Name);
+                var options = service.SearchOptions;
                 Assert.NotNull(options);
                 Assert.True(options.ToScope().IncludeStudents);
                 Assert.False(options.ToScope().IncludeEmployees);

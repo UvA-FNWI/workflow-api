@@ -2265,6 +2265,7 @@
       "description": "Searches the existing directory.",
       "additionalProperties": false,
       "required": [
+        "name",
         "type"
       ],
       "properties": {
@@ -2279,10 +2280,17 @@
             }
           ]
         },
+        "name": {
+          "type": "string",
+          "description": "The service to search for users.",
+          "enum": [
+            "DataNose"
+          ]
+        },
         "type": {
           "type": "string",
           "enum": [
-            "DataNose"
+            "Service"
           ]
         }
       }
