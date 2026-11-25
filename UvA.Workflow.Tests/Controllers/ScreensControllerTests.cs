@@ -130,19 +130,75 @@ public class ScreensControllerTests : ControllerTestsBase
                 Assert.Equal(dutch, progress.Text.Nl);
                 Assert.Equal(StatusColor.Red, progress.Color);
                 Assert.Equal("RejectSubject", progress.EventId);
-                Assert.True(row.WorkflowStopped);
+                Assert.Same(progress, row.StoppedProgress);
             },
             row =>
             {
                 var progress = Assert.IsType<ProgressInformationDto>(row.Values[column.Id]);
                 Assert.Equal("Writing proposal", progress.Text.En);
                 Assert.Null(progress.EventId);
-                Assert.False(row.WorkflowStopped);
+                Assert.Null(row.StoppedProgress);
             });
         _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
             It.Is<Dictionary<string, string>>(projection =>
                 projection.GetValueOrDefault("EC") == (hasStopMessage ? "$Properties.EC" : null)),
             It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Screens_GetScreenData_ReturnsStoppedProgressWithoutCurrentStepColumn()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.Screens.Add(new Screen { Name = "Titles", Columns = [new Column { Property = "Title" }] });
+        definition.StopWhen = new Condition
+        {
+            Logical = new Logical
+            {
+                Operator = LogicalOperator.Or,
+                Children =
+                [
+                    new Condition { Event = "Cancel", Message = "Stopped in {{ Course.Name }}" },
+                    new Condition { Event = "Pause", Message = "Paused in {{ Course.Name }}" }
+                ]
+            }
+        };
+        var courseId = ObjectId.GenerateNewId();
+        var eventDate = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
+        var controller = BuildControllerWithRoles(["Student"], "Project", "Titles",
+            [StoppedRow("Pause"), StoppedRow("Cancel"), new() { ["_id"] = "running" }]);
+        _workflowInstanceRepoMock.Setup(repository => repository.GetAllById(
+                It.Is<string[]>(ids => ids.SequenceEqual(new[] { courseId.ToString() })),
+                It.Is<Dictionary<string, string>>(projection =>
+                    projection.GetValueOrDefault("Name") == "$Properties.Name"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new() { ["_id"] = courseId, ["Name"] = "Software Engineering" }]);
+
+        var result = await controller.GetScreenData("Project", "Titles", _ct);
+
+        var response = Assert.IsType<ScreenDataDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal("Title", Assert.Single(response.Columns).Property);
+        Assert.Collection(response.Rows,
+            row => AssertStoppedProgress(row, "Pause", "Paused in Software Engineering"),
+            row => AssertStoppedProgress(row, "Cancel", "Stopped in Software Engineering"),
+            row => Assert.Null(row.StoppedProgress));
+        _workflowInstanceRepoMock.Verify(repository => repository.GetAllByType("Project",
+            It.Is<Dictionary<string, string>>(projection =>
+                projection.GetValueOrDefault("Course") == "$Properties.Course"),
+            It.IsAny<BsonDocument?>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        Dictionary<string, BsonValue> StoppedRow(string eventId) => new()
+        {
+            ["_id"] = eventId,
+            ["Course"] = courseId.ToString(),
+            ["Events"] = new BsonDocument(eventId, new BsonDocument("Date", eventDate))
+        };
+
+        static void AssertStoppedProgress(ScreenRowDto row, string eventId, string text)
+        {
+            var progress = Assert.IsType<ProgressInformationDto>(row.StoppedProgress);
+            Assert.Equal(eventId, progress.EventId);
+            Assert.Equal(text, progress.Text.En);
+        }
     }
 
     [Fact]

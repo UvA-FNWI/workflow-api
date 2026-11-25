@@ -127,6 +127,9 @@ public class ScreenDataService(
                 ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
                 : definition;
             var id = context.Id!;
+            var stoppedProgress = context.WorkflowStopped
+                ? StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep, context)
+                : null;
             var processedValues = new Dictionary<int, object?>();
 
             // Process each column and use its ID as the key
@@ -136,15 +139,15 @@ public class ScreenDataService(
                 var columnId = columns[i].Id;
                 object? value = columns[i].ColumnType switch
                 {
-                    ColumnType.CurrentStep => StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep,
-                        context, viewableSources: viewableSources),
+                    ColumnType.CurrentStep => stoppedProgress ?? StepProgressResolver.ResolveProgress(rowDefinition,
+                        context.CurrentStep, context, viewableSources: viewableSources),
                     ColumnType.RelatedUsers => GetRelatedUsersScreen(definition, context),
                     _ => column.GetValue(context)
                 };
                 processedValues[columnId] = value;
             }
 
-            rows.Add(new ScreenRowDto(id, processedValues, context.WorkflowStopped));
+            rows.Add(new ScreenRowDto(id, processedValues, stoppedProgress));
         }
 
         return rows.ToArray();
@@ -211,8 +214,8 @@ public class ScreenDataService(
         {
             var hasProgressColumn = screen.Columns.Any(column => column.Type == ColumnType.CurrentStep);
             var progressLookups = hasProgressColumn
-                ? definition.ProgressLookups.ToArray()
-                : [];
+                ? definition.ProgressLookups
+                : definition.StopWhen?.MessageLookups ?? [];
 
             var relatedUserLookups = screen.Columns.Any(c => c.Type == ColumnType.RelatedUsers)
                 ? GetDefaultRelatedUsers(definition).Select(u => (Lookup)new PropertyLookup(u.Property)).ToArray()

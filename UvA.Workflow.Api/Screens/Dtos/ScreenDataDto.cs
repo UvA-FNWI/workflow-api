@@ -1,4 +1,5 @@
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using SortDirection = UvA.Workflow.WorkflowModel.SortDirection;
 
 namespace UvA.Workflow.Api.Screens.Dtos;
@@ -87,7 +88,7 @@ public record ScreenColumnDto(
 public record ScreenRowDto(
     string Id,
     Dictionary<int, object?> Values,
-    bool WorkflowStopped);
+    ProgressInformationDto? StoppedProgress);
 
 public record ScreenRelatedUserDto(
     string UserName,
