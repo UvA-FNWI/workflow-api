@@ -6,6 +6,7 @@ using UvA.Workflow.Api.Personal;
 using UvA.Workflow.Api.Screens;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users;
+using UvA.Workflow.Api.WorkflowAuthoring;
 using UvA.Workflow.Api.WorkflowInstances;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Import;
@@ -37,6 +38,17 @@ public static class ServiceCollectionExtensions
             if (!string.IsNullOrWhiteSpace(opts.Token))
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", opts.Token);
         });
+        services.AddHttpClient(GitHubAppToken.ClientName, client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com/");
+            client.Timeout = TimeSpan.FromSeconds(20);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("workflow-api");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+        });
+        services.AddSingleton<GitHubAppToken>();
+        services.AddScoped<GitHubWorkflowDrafts>();
+        services.AddScoped<WorkflowDraftService>();
         services.AddHostedService<WorkflowConfigPoller>();
         services.AddHostedService<WorkflowConfigWatcher>();
 

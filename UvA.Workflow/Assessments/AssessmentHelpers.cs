@@ -121,11 +121,12 @@ public static class AssessmentHelpers
         };
     }
 
-    public static Dictionary<Page, decimal?> GetPageWeights(IEnumerable<Page> pages, ObjectContext context) =>
+    public static Dictionary<Page, decimal?> GetPageWeights(IEnumerable<Page> pages, ObjectContext context,
+        bool includeConditionalQuestions = false) =>
         pages.ToDictionary(page => page, page =>
         {
             var weights = page.Questions.OfType<WeightedPropertyDefinition>()
-                .Where(field => field.Condition.IsMet(context))
+                .Where(field => includeConditionalQuestions || field.Condition.IsMet(context))
                 .Select(field => field.Calculation?.Weight)
                 .OfType<decimal>()
                 .ToArray();

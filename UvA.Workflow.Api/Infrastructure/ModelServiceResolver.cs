@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using UvA.Workflow.Api.WorkflowAuthoring;
 
 namespace UvA.Workflow.Api.Infrastructure;
 
@@ -20,6 +21,10 @@ public record ResolvedWorkflowConfig(ModelService ModelService, string DefaultMa
 public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 {
     public const string VersionHeader = "Workflow-Version";
+    private static readonly object DraftPreviewKey = new();
+
+    internal static void UseDraftPreview(HttpContext context, ModelParser parser)
+        => context.Items[DraftPreviewKey] = parser;
 
     private record Entry(
         ModelParser Parser,
@@ -39,7 +44,14 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
     public ResolvedWorkflowConfig Resolve()
     {
         var entry = ResolveEntry();
-        return new ResolvedWorkflowConfig(new ModelService(entry.Parser), entry.DefaultMailLayout);
+        var context = httpContextAccessor.HttpContext;
+        var isDraftPreview = context?.Request.Headers[VersionHeader].FirstOrDefault()
+            ?.StartsWith(WorkflowPreviewSnapshot.Prefix, StringComparison.Ordinal) == true;
+        // Authentication can resolve ModelService before the filter authorizes the preview.
+        var model = isDraftPreview
+            ? new ModelService(() => GetDraftPreview(context) ?? entry.Parser)
+            : new ModelService(entry.Parser);
+        return new ResolvedWorkflowConfig(model, entry.DefaultMailLayout);
     }
 
     /// The raw files behind the resolved version: yaml from the content provider, plus the mail layout,
@@ -54,9 +66,16 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
 
     private Entry ResolveEntry()
     {
-        var version = httpContextAccessor.HttpContext?.Request.Headers["Workflow-Version"].FirstOrDefault() ?? "";
+        var context = httpContextAccessor.HttpContext;
+        if (GetDraftPreview(context) is { } preview)
+            return _entries[""] with { Parser = preview };
+
+        var version = context?.Request.Headers[VersionHeader].FirstOrDefault() ?? "";
         return _entries.GetValueOrDefault(version) ?? _entries[""];
     }
+
+    private static ModelParser? GetDraftPreview(HttpContext? context)
+        => context?.Items.TryGetValue(DraftPreviewKey, out var value) == true ? value as ModelParser : null;
 
     public IReadOnlyCollection<VersionInfo> GetVersions()
         => _entries.Select(kv => new VersionInfo(kv.Key, kv.Value.Commit, kv.Value.LoadedAt, kv.Value.Kind)).ToArray();
