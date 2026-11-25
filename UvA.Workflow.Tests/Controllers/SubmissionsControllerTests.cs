@@ -814,6 +814,92 @@ public class SubmissionsControllerTests : ControllerTestsBase
         _instanceJournalServiceMock.Verify(service => service.IncrementVersion(instance.Id, _ct), Times.Once);
     }
 
+    [Fact]
+    public async Task RepeatableForm_KeepsAnswersEditableAndRunsEffectsOnEachSubmission()
+    {
+        const string formName = "Start";
+        var firstDeadline = new DateTime(2058, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+        var secondDeadline = firstDeadline.AddDays(2);
+        var (controller, instance) = BuildControllerWithRoles(["Student"], formName, "Start",
+            ("Deadline", _ => firstDeadline), ("Title", _ => "First reason"), ("Subject", _ => "Explanation"));
+        ConfigurePinnedSubmit();
+
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var form = definition.Forms.Single(form => form.Name == formName);
+        form.Repeatable = true;
+        form.Step = null;
+        form.Pages.Add(new Page
+        {
+            Name = formName,
+            PageElements = new[] { "Deadline", "Title", "Subject" }.Select(name => new PageElement
+            {
+                Question = name, QuestionDefinition = definition.Properties.Single(property => property.Name == name)
+            }).ToArray()
+        });
+        form.OnSubmit = [new Effect { SetProperty = new SetProperty { Property = "EndDate", Value = "Deadline" } }];
+        var answers = new AnswersController(_answerService, _rightsService, _submissionDtoFactory,
+            _instanceService, _modelService, _workflowInstanceRepoMock.Object, _workflowInstanceService,
+            _workflowInstanceDtoFactory);
+
+        var firstResult = await controller.SubmitSubmission(instance.Id, formName, _ct);
+        var first = Assert.IsType<SubmitSubmissionResult>(Assert.IsType<OkObjectResult>(firstResult.Result).Value);
+        Assert.True(first.Success);
+        Assert.Equal(formName, Assert.Single(first.UpdatedInstance!.PinnedActions).Form);
+        Assert.Equal(firstDeadline, instance.GetProperty("EndDate")!.ToUniversalTime());
+
+        var reopened = await controller.GetSubmission(instance.Id, formName, null, _ct);
+        var draft = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(reopened.Result).Value);
+        Assert.Null(draft.DateSubmitted);
+        Assert.Equal(firstDeadline,
+            draft.Answers.Single(a => a.QuestionName == "Deadline").Value?.GetDateTime().ToUniversalTime());
+        Assert.Equal("First reason", draft.Answers.Single(a => a.QuestionName == "Title").Value?.GetString());
+        Assert.Equal("Explanation", draft.Answers.Single(a => a.QuestionName == "Subject").Value?.GetString());
+
+        var savedDate = await answers.SaveAnswer(instance.Id, formName, "Deadline",
+            new SaveAnswerRequest(JsonSerializer.SerializeToElement(secondDeadline)), _ct);
+        Assert.IsType<OkObjectResult>(savedDate.Result);
+        var savedReason = await answers.SaveAnswer(instance.Id, formName, "Title",
+            new SaveAnswerRequest(JsonSerializer.SerializeToElement("Second reason")), _ct);
+        Assert.IsType<OkObjectResult>(savedReason.Result);
+
+        var secondResult = await controller.SubmitSubmission(instance.Id, formName, _ct);
+        var second = Assert.IsType<SubmitSubmissionResult>(Assert.IsType<OkObjectResult>(secondResult.Result).Value);
+        Assert.True(second.Success);
+        Assert.Equal(formName, Assert.Single(second.UpdatedInstance!.PinnedActions).Form);
+        Assert.Equal(secondDeadline, instance.GetProperty("EndDate")!.ToUniversalTime());
+        Assert.Equal(secondDeadline, instance.GetProperty("Deadline")!.ToUniversalTime());
+        Assert.Equal("Second reason", instance.GetProperty("Title")?.AsString);
+        Assert.Equal("Explanation", instance.GetProperty("Subject")?.AsString);
+        _instanceJournalServiceMock.Verify(service => service.IncrementVersion(instance.Id, _ct), Times.Exactly(2));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RepeatableForm_ReopenedDeadlineValidatesOnlyWhenAnswered(bool hasAnswer)
+    {
+        const string formName = "Start";
+        var deadline = new BsonDateTime(new DateTime(2058, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+        var (controller, instance) = BuildControllerWithRoles(["Student"],
+            builder => builder.WithId(formName).AsCompleted(), "Start",
+            ("Deadline", _ => hasAnswer ? deadline : BsonNull.Value), ("EndDate", _ => deadline));
+        var form = _modelService.GetForm(instance, formName);
+        form.Repeatable = true;
+        form.Step = null;
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Roles.Single(role => role.Name == "Student")
+            .Actions = [new() { Type = RoleAction.Submit, Form = formName }];
+        var question = form.PropertyDefinitions.Single(property => property.Name == "Deadline");
+        question.Type = "Date";
+        question.Validation = new Condition { Value = new Value { Property = "Deadline", GreaterThan = "EndDate" } };
+
+        var result = await controller.GetSubmission(instance.Id, formName, null, _ct);
+
+        var submission = Assert.IsType<SubmissionDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var answer = submission.Answers.Single(answer => answer.QuestionName == question.Name);
+        Assert.Equal(hasAnswer, answer.Value.HasValue);
+        Assert.Equal(hasAnswer, answer.ValidationError is not null);
+    }
+
     [Theory]
     [InlineData("read")]
     [InlineData("save")]

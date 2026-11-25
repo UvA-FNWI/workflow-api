@@ -1,0 +1,8 @@
+name: Setup
+step: Setup
+title: Configure demo
+pages:
+  - name: Participants
+    elements:
+      - question: Student
+      - question: SharedThesis

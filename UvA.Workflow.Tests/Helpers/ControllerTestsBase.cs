@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 using Moq;
 using Serilog;
 using UvA.Workflow.Assessments;
@@ -97,7 +99,9 @@ public abstract class ControllerTestsBase
 
         // Services
         _modelService = new ModelService(_modelParser);
-        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object);
+        _rightsService = new RightsService(_modelService, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService,
+                _workflowInstanceRepoMock.Object));
 
 
         var mailLayoutResolver = new Mock<IMailLayoutResolver>();
@@ -119,7 +123,9 @@ public abstract class ControllerTestsBase
             new InstanceService(_workflowInstanceRepoMock.Object, _modelService, _userServiceMock.Object,
                 _rightsService,
                 mailBuilder,
-                _assessmentService);
+                new WorkflowContextEnricher(_workflowInstanceRepoMock.Object, _modelService, _assessmentService),
+                UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(_modelService,
+                    _workflowInstanceRepoMock.Object));
 
         _eventService =
             new InstanceEventService(_eventRepoMock.Object, _instanceJournalServiceMock.Object, _instanceService);
@@ -215,5 +221,30 @@ public abstract class ControllerTestsBase
                 It.IsAny<List<string>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(eventLog);
+    }
+
+    protected static BsonDocument RenderFilter(FilterDefinition<WorkflowInstance> filter)
+    {
+        var serializer = BsonSerializer.SerializerRegistry.GetSerializer<WorkflowInstance>();
+        return filter.Render(new RenderArgs<WorkflowInstance>(
+            serializer,
+            BsonSerializer.SerializerRegistry,
+            new PathRenderArgs(string.Empty, false),
+            renderDollarForm: false));
+    }
+
+    protected static IEnumerable<BsonDocument> Descendants(BsonValue value)
+    {
+        if (value is BsonDocument document)
+        {
+            yield return document;
+            foreach (var descendant in document.Values.SelectMany(Descendants))
+                yield return descendant;
+        }
+        else if (value is BsonArray array)
+        {
+            foreach (var descendant in array.SelectMany(Descendants))
+                yield return descendant;
+        }
     }
 }

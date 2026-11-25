@@ -88,6 +88,20 @@
         "$ref": "#/definitions/Action"
       }
     },
+    "stopWhen": {
+      "description": "Condition that computes WorkflowStopped from events and values on the instance.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
+    },
     "steps": {
       "type": "array",
       "description": "List of step names for this entity type",
@@ -162,6 +176,20 @@
         "name": {
           "type": "string",
           "description": "Name of the event"
+        },
+        "label": {
+          "description": "Localized label describing the event",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
         },
         "suppresses": {
           "type": [
@@ -267,6 +295,10 @@
             }
           ]
         },
+        "allowWhenStopped": {
+          "type": "boolean",
+          "description": "Allows this action while the workflow is stopped. Roles and action conditions still apply."
+        },
         "onAction": {
           "type": "array",
           "description": "List of effects to run for an Execute action",
@@ -340,7 +372,8 @@
         "CreateRelatedInstance",
         "ImpersonateRoles",
         "ViewResults",
-        "ViewCorrespondence"
+        "ViewCorrespondence",
+        "ViewHistory"
       ]
     },
     "Condition": {
@@ -611,7 +644,7 @@
             },
             {
               "description": "Send an email",
-              "$ref": "#/definitions/SendMessage"
+              "$ref": "#/definitions/Email"
             }
           ]
         },
@@ -622,7 +655,7 @@
             },
             {
               "description": "Prepare login access and send one personalized email per recipient",
-              "$ref": "#/definitions/SendMessage"
+              "$ref": "#/definitions/Email"
             }
           ]
         },
@@ -722,8 +755,8 @@
         }
       }
     },
-    "SendMessage": {
-      "title": "SendMessage",
+    "Email": {
+      "title": "Email",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -804,7 +837,13 @@
             }
           ]
         },
-        "template": {
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EmailContentBlock"
+          }
+        },
+        "email": {
           "type": [
             "null",
             "string"
@@ -833,6 +872,46 @@
           "items": {
             "$ref": "#/definitions/Attachment"
           }
+        }
+      }
+    },
+    "EmailContentBlock": {
+      "title": "EmailContentBlock",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "content": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "remove": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "If true, this block will be removed from the inherited email."
+        },
+        "after": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Name of another block to insert this block after."
         }
       }
     },
@@ -1073,10 +1152,6 @@
             "string"
           ],
           "description": "Target step the field should show the end date of"
-        },
-        "currentStep": {
-          "type": "boolean",
-          "description": "If true, display the current step in this field"
         }
       }
     },
@@ -1769,10 +1844,6 @@
             "string"
           ],
           "description": "Target step the field should show the end date of"
-        },
-        "currentStep": {
-          "type": "boolean",
-          "description": "If true, display the current step in this field"
         }
       }
     },
@@ -1943,7 +2014,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Internal name of the assessment part"
+          "description": "Internal name of the assessment part. Use an imported step's local name to resolve its source assessment."
         },
         "title": {
           "description": "Localized title of the assessment part",

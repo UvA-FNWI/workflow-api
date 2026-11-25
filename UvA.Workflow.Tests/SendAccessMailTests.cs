@@ -47,7 +47,7 @@ public class SendAccessMailTests : ControllerTestsBase
 
         var effect = new Effect
         {
-            SendAccessMail = new SendMessage
+            SendAccessMail = new Email
             {
                 To = "Supervisor",
                 Subject = "Access for {{ AccessRecipient.DisplayName }}",
@@ -113,7 +113,7 @@ public class SendAccessMailTests : ControllerTestsBase
             });
         var effect = new Effect
         {
-            SendAccessMail = new SendMessage
+            SendAccessMail = new Email
                 { To = "Supervisor", Subject = "Access", Body = "{{ Access.InvitationUrl }}" }
         };
         var job = JobFor(effect);
@@ -144,11 +144,11 @@ public class SendAccessMailTests : ControllerTestsBase
             .Build()
             .Deserialize<Effect>("""
                                  sendAccessMail:
-                                   template: SupervisorWelcome
+                                   email: SupervisorWelcome
                                    to: Supervisor
                                  """);
 
-        Assert.Equal("SupervisorWelcome", effect.SendAccessMail!.TemplateKey);
+        Assert.Equal("SupervisorWelcome", effect.SendAccessMail!.EmailKey);
         Assert.Equal("Supervisor", Assert.Single(effect.SendAccessMail.To!));
     }
 

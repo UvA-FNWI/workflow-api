@@ -1,13 +1,17 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using Moq;
 using UvA.Workflow.Api.Jobs;
 using UvA.Workflow.Api.Jobs.Dtos;
 using UvA.Workflow.Jobs;
+using UvA.Workflow.Notifications;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
 using UvA.Workflow.Users;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -33,9 +37,64 @@ public class JobsControllerTests : ControllerTestsBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobs = Assert.IsAssignableFrom<IEnumerable<JobDto>>(okResult.Value).ToList();
         Assert.Single(jobs);
+        Assert.True(jobs[0].CanRun);
         Assert.Equal(job.Id, jobs[0].Id);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobs[0].CreatedBy);
         Assert.Equal(UnitTestsHelpers.AdminUser.DisplayName, jobs[0].CreatedByDisplayName);
+    }
+
+    [Fact]
+    public async Task Jobs_LocalAdminCanOnlyViewJobsForTheirFaculty()
+    {
+        var faculty = new WorkflowInstance
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            WorkflowDefinition = "Faculty",
+            Properties = [],
+            Events = []
+        };
+        faculty.Properties["LocalAdmin"] = new BsonArray
+        {
+            new BsonDocument("_id", ObjectId.Parse(UnitTestsHelpers.AdminUser.Id))
+        };
+        var programme = new WorkflowInstance
+        {
+            Id = InstanceId,
+            WorkflowDefinition = "Programme",
+            Properties = new() { ["Faculty"] = faculty.Id },
+            Events = []
+        };
+        var otherProgramme = new WorkflowInstance
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            WorkflowDefinition = "Programme",
+            Properties = [],
+            Events = []
+        };
+        MockInstance(programme);
+        MockInstance(otherProgramme);
+        MockEmptyRelatedInstanceLookups();
+        _workflowInstanceRepoMock.Setup(r =>
+                r.GetByIds(It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { faculty.Id })),
+                    It.IsAny<CancellationToken>()))
+            .ReturnsAsync([faculty]);
+        var job = CreateJob();
+        _jobRepositoryMock.Setup(r => r.GetList(InstanceId, _ct)).ReturnsAsync([job]);
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, JobId, _ct)).ReturnsAsync(job);
+        _userRepoMock.Setup(r => r.GetByIds(It.IsAny<IReadOnlyList<string>>(), _ct)).ReturnsAsync([]);
+        var controller = BuildController([]);
+
+        var list = await controller.GetList(InstanceId, _ct);
+        var jobs = Assert.IsAssignableFrom<IEnumerable<JobDto>>(Assert.IsType<OkObjectResult>(list.Result).Value);
+        Assert.False(Assert.Single(jobs).CanRun);
+        var detail = await controller.GetById(InstanceId, JobId, _ct);
+        Assert.False(Assert.IsType<JobDto>(Assert.IsType<OkObjectResult>(detail.Result).Value).CanRun);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.GetList(otherProgramme.Id, _ct));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.GetById(otherProgramme.Id, JobId, _ct));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.Run(InstanceId, JobId, _ct));
+        _jobRepositoryMock.Verify(r => r.GetList(otherProgramme.Id, _ct), Times.Never);
+        _jobRepositoryMock.Verify(r => r.GetById(otherProgramme.Id, JobId, _ct), Times.Never);
     }
 
     [Fact]
@@ -118,6 +177,7 @@ public class JobsControllerTests : ControllerTestsBase
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var jobDto = Assert.IsType<JobDto>(okResult.Value);
+        Assert.True(jobDto.CanRun);
         Assert.Equal(job.Id, jobDto.Id);
         Assert.Equal(job.InstanceId, jobDto.InstanceId);
         Assert.Equal(UnitTestsHelpers.AdminUser.Id, jobDto.CreatedBy);
@@ -200,6 +260,134 @@ public class JobsControllerTests : ControllerTestsBase
                 It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData(JobStatus.Completed, new[] { "first@example.nl", "second@example.nl" })]
+    [InlineData(JobStatus.Failed, new[] { "second@example.nl" })]
+    public async Task Jobs_Run_ResendsAccessMailForCompletedJobsAndResumesFailedJobs(
+        JobStatus status, string[] expectedRecipients)
+    {
+        var workflow = _modelService.WorkflowDefinitions["Project"];
+        workflow.Properties.Single(p => p.Name == "Supervisor").Type = "[User]!";
+        var recipients = new[]
+        {
+            new InstanceUser
+            {
+                Id = ObjectId.GenerateNewId().ToString(), Email = "first@example.nl",
+                UserName = "1234567", DisplayName = "First"
+            },
+            new InstanceUser
+            {
+                Id = ObjectId.GenerateNewId().ToString(), Email = "second@example.nl",
+                UserName = "1234568", DisplayName = "Second"
+            }
+        };
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "ApprovalCoordinator", id: InstanceId)
+            .WithProperties(("Supervisor", p => p.Array(recipients.Select(r => r.ToBsonDocument()).ToArray())))
+            .Build();
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+        MockEmptyEventLog(instance);
+        _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        _loginMethodClassifierMock.Setup(c => c.Classify(It.IsAny<string>())).Returns("Uva");
+
+        var effect = new Effect
+        {
+            SendAccessMail = new Email { To = "Supervisor", Subject = "Access", Body = "Welcome" }
+        };
+        workflow.AllActions.Single(a => a.Name == "CoordinatorApproved").OnAction = [effect];
+        var completedRecipients = status == JobStatus.Completed
+            ? new[] { "first@example.nl", "second@example.nl" }
+            : new[] { "first@example.nl" };
+        var job = CreateJob();
+        job.Status = status;
+        job.Steps =
+        [
+            new JobStep
+            {
+                Identifier = effect.Identifier,
+                Status = status,
+                Outputs = new Dictionary<string, object> { ["CompletedRecipients"] = completedRecipients }
+            }
+        ];
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, _ct)).ReturnsAsync(job);
+        _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), _ct))
+            .Callback<Job, CancellationToken>((copy, _) => copy.Id = ObjectId.GenerateNewId().ToString())
+            .Returns(Task.CompletedTask);
+
+        var sent = new List<MailMessage>();
+        _mailServiceMock.Setup(m => m.Send(It.IsAny<MailMessage>(), _ct))
+            .Callback<MailMessage, CancellationToken>((mail, _) => sent.Add(mail))
+            .ReturnsAsync((MailMessage mail, CancellationToken _) => new MailDispatchResult(mail.To, [], []));
+        var logged = new List<MailLogEntry>();
+        _mailLogRepositoryMock.Setup(r => r.Log(It.IsAny<MailLogEntry>(), _ct))
+            .Callback<MailLogEntry, CancellationToken>((entry, _) => logged.Add(entry))
+            .Returns(Task.CompletedTask);
+
+        var result = await BuildController(["Api"]).Run(InstanceId, job.Id, _ct);
+
+        var rerun = Assert.IsType<JobDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(JobStatus.Completed, rerun.Status);
+        Assert.Equal(expectedRecipients, sent.Select(mail => Assert.Single(mail.To).MailAddress));
+        Assert.Equal(expectedRecipients, logged.Select(entry => Assert.Single(entry.To).MailAddress));
+        Assert.All(logged, entry => Assert.Equal(rerun.Id, entry.JobId));
+        Assert.NotEqual(job.Id, rerun.Id);
+        Assert.Equal(status, job.Status);
+        Assert.Equal(completedRecipients, Assert.IsType<string[]>(job.Steps[0].Outputs!["CompletedRecipients"]));
+    }
+
+    [Fact]
+    public async Task Jobs_RunWhileStopped_DefersEffectsUntilWorkflowReopens()
+    {
+        var instance = new WorkflowInstanceBuilder()
+            .With(workflowDefinition: "Project", currentStep: "ApprovalCoordinator", id: InstanceId)
+            .Build();
+        instance.RecordEvent("Pause");
+        MockInstance(instance);
+        MockEmptyRelatedInstanceLookups();
+
+        var definition = _modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        definition.StopWhen = new Condition { Event = "Pause" };
+        var job = CreateJob();
+        var action = definition.AllActions.Single(action => action.Name == job.SourceName);
+        const string eventId = "DelayedEffect";
+        var effect = new Effect { Event = eventId };
+        action.OnAction = [effect];
+        job.Steps = [new JobStep { Identifier = effect.Identifier }];
+        _jobRepositoryMock.Setup(r => r.GetById(InstanceId, job.Id, _ct)).ReturnsAsync(job);
+        _userRepoMock.Setup(r => r.GetById(UnitTestsHelpers.AdminUser.Id, _ct))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+
+        Job copy = null!;
+        DateTime startOn = default;
+        _jobRepositoryMock.Setup(r => r.Add(It.IsAny<Job>(), _ct))
+            .Callback<Job, CancellationToken>((value, _) =>
+            {
+                Assert.Equal(JobStatus.Running, value.Status);
+                Assert.True(value.ClaimedUntil > DateTime.UtcNow);
+                copy = value;
+                startOn = value.StartOn;
+            })
+            .Returns(Task.CompletedTask);
+
+        var controller = BuildController(["Api"]);
+        await controller.Run(InstanceId, job.Id, _ct);
+
+        Assert.Equal(JobStatus.Pending, copy.Status);
+        Assert.Null(copy.ClaimedUntil);
+        Assert.True(copy.DeferredUntil > DateTime.UtcNow);
+        Assert.Equal(startOn, copy.StartOn);
+        Assert.DoesNotContain(eventId, instance.Events.Keys);
+
+        instance.Events.Remove("Pause");
+        await _jobService.RunJob(copy, _ct);
+
+        Assert.Equal(JobStatus.Completed, copy.Status);
+        Assert.Null(copy.DeferredUntil);
+        Assert.Contains(eventId, instance.Events.Keys);
+    }
+
     [Fact]
     public async Task Jobs_Run_ReturnsNotFound_WhenJobDoesNotExist()
     {
@@ -229,7 +417,7 @@ public class JobsControllerTests : ControllerTestsBase
     private JobsController BuildController(string[] roles)
     {
         MockCurrentUser(roles);
-        return new JobsController(_jobService, _rightsService, _jobRepositoryMock.Object, _userRepoMock.Object,
-            _userServiceMock.Object);
+        return new JobsController(_jobService, _rightsService, _workflowInstanceRepoMock.Object,
+            _jobRepositoryMock.Object, _userRepoMock.Object, _userServiceMock.Object);
     }
 }

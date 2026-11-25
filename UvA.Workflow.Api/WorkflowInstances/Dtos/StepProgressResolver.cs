@@ -17,6 +17,9 @@ public class StepProgressResolver(ModelService modelService)
     public static readonly BilingualTemplate CompletedText = BilingualTemplate.Create(new BilingualString(
         "Completed ({{ dateShort(LastEvent) }})", "Afgerond ({{ dateShort(LastEvent) }})"))!;
 
+    private static readonly ProgressInformationDto StoppedProgress =
+        new(new BilingualString("Stopped", "Gestopt"), StatusColor.Red);
+
     public StepHeaderStatusDto? ResolveHeader(Step step, WorkflowInstance instance)
         => ResolveHeader(step, ObjectContext.Create(instance, modelService));
 
@@ -37,12 +40,36 @@ public class StepProgressResolver(ModelService modelService)
     public static ProgressInformationDto ResolveProgress(
         WorkflowDefinition workflowDefinition,
         string? internalName,
-        ObjectContext context)
+        ObjectContext context, DateTime? completionDate = null, IReadOnlySet<string>? viewableSources = null)
     {
+        if (context.WorkflowStopped)
+            return ResolveStoppedProgress(workflowDefinition.StopWhen, context);
+
         var currentStep = workflowDefinition.AllSteps.Find(step => step.Name == internalName);
 
+        if (currentStep?.Import != null)
+        {
+            if (context.ImportedSteps.GetValueOrDefault(currentStep.Name) is not { } owner)
+                return new ProgressInformationDto(
+                    new BilingualString("Shared work unavailable", "Gedeeld werk niet beschikbaar"),
+                    StatusColor.Red);
+            return viewableSources?.Contains(owner.Instance.Id) == true
+                ? ResolveProgress(owner.Definition, owner.Step.Name, owner.Context)
+                : new ProgressInformationDto(new BilingualString("Shared work", "Gedeeld werk"), null);
+        }
+
+        if (currentStep == null && workflowDefinition.HasImportedSteps)
+        {
+            var date = completionDate ?? context.WorkflowCompletionDate;
+            return date == null
+                ? Completed
+                : new ProgressInformationDto(
+                    CompletedText.Apply(new ObjectContext(new() { ["LastEvent"] = date.Value.ToLocalTime() })),
+                    StatusColor.Green);
+        }
+
         if (currentStep == null)
-            return context.Get("LastEvent") is DateTime
+            return context.Get(ContextKeys.LastEvent) is DateTime
                 ? new ProgressInformationDto(CompletedText.Apply(context), StatusColor.Green)
                 : Completed;
 
@@ -53,6 +80,46 @@ public class StepProgressResolver(ModelService modelService)
         var displayText = progress?.ProgressTextTemplate?.Apply(context)
                           ?? currentStep.DisplayTitle;
         return new ProgressInformationDto(displayText, progress?.Color);
+    }
+
+    private static ProgressInformationDto ResolveStoppedProgress(Condition? stopWhen, ObjectContext context)
+    {
+        var template = stopWhen?.MessageTemplate;
+        if (template == null && stopWhen?.Part is Logical { Operator: LogicalOperator.Or } logical)
+            template = logical.Children.FirstOrDefault(branch => branch.IsMet(context))?.MessageTemplate;
+
+        if (template != null)
+            return new ProgressInformationDto(template.Apply(context), StatusColor.Red);
+
+        if (GetStopEventDate(stopWhen, context) is not { } date)
+            return StoppedProgress;
+
+        return StoppedProgress with { Text = StoppedProgress.Text + FormattableString.Invariant($" ({date:dd/MM})") };
+    }
+
+    private static DateTime? GetStopEventDate(Condition? condition, ObjectContext context)
+    {
+        if (condition == null || condition.Not || !condition.IsMet(context))
+            return null;
+
+        return condition.Part switch
+        {
+            EventCondition evt => context.Get(evt.Id + "Event") as DateTime?,
+            Logical logical => logical.Children.Max(child => GetStopEventDate(child, context)),
+            _ => null
+        };
+    }
+
+    public static async Task<IReadOnlySet<string>> GetViewableSources(
+        IEnumerable<ObjectContext> contexts, RightsService rightsService)
+    {
+        var allowed = new HashSet<string>(StringComparer.Ordinal);
+        var sources = contexts.SelectMany(context => context.ImportedSteps.Values)
+            .OfType<ImportedStepContext>().Select(owner => owner.Instance).DistinctBy(instance => instance.Id);
+        foreach (var source in sources)
+            if (await rightsService.Can(source, RoleAction.View))
+                allowed.Add(source.Id);
+        return allowed;
     }
 
     public static ProgressInformation? ResolveMatchedProgress(Step step, ObjectContext context,

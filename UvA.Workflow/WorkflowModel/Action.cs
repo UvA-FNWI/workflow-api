@@ -21,7 +21,8 @@ public enum RoleAction
     CreateRelatedInstance,
     ImpersonateRoles,
     ViewResults,
-    ViewCorrespondence
+    ViewCorrespondence,
+    ViewHistory
 }
 
 public class Action
@@ -78,6 +79,11 @@ public class Action
     /// Condition that determines whether the action is permitted
     /// </summary>
     public Condition? Condition { get; set; }
+
+    /// <summary>
+    /// Allows this action while the workflow is stopped. Roles and action conditions still apply.
+    /// </summary>
+    public bool AllowWhenStopped { get; set; }
 
     /// <summary>
     /// List of effects to run for an Execute action

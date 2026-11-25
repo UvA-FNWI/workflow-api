@@ -104,7 +104,6 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     /// </summary>
     public FormLayout Layout { get; set; }
 
-
     /// <summary>
     /// Target reference property. Set this to use the form to update the properties of the referenced entity
     /// </summary>
@@ -139,6 +138,11 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     public Effect[] OnSubmit { get; set; } = [];
 
     /// <summary>
+    /// Allows the form to be submitted again.
+    /// </summary>
+    public bool Repeatable { get; set; }
+
+    /// <summary>
     /// Whether submitting the form should emit the form-name event.
     /// </summary>
     public bool EmitFormSubmitEvent { get; set; } = true;
@@ -155,7 +159,12 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
     public Effect[] OnSave { get; set; } = [];
 
     /// <summary>
-    /// Name of a form template (file under Common/FormTemplates) to resolve this form from
+    /// Optional confirmation dialog to show when the form is submitted
+    /// </summary>
+    public FormConfirmation? Confirmation { get; set; }
+
+    /// <summary>
+    /// Name of a form template (Templates/Forms) to resolve this form from
     /// </summary>
     [YamlMember(Alias = "template")]
     public string? TemplateKey { get; set; }
@@ -176,17 +185,23 @@ public class Form : INamed, IDeclaredKeys, ITemplateConsumer
         Pages.SelectMany(p => p.Questions)
             .Distinct();
 
-    [YamlIgnore] public IEnumerable<Lookup> Lookups => Pages.SelectMany(p => p.Lookups);
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. Pages.SelectMany(p => p.Lookups),
+        .. Confirmation?.Lookups ?? []
+    ];
+
+    public IEnumerable<Page> GetCurrentPages() =>
+        ActualForm.Pages.Where(page => TargetForm == null || page.Sources == null ||
+                                       (PropertyName != null && page.Sources.Contains(PropertyName)));
 
     public ObjectContext GetContext(ObjectContext context)
     {
         if (TargetForm == null)
             return context;
 
-        var values = new Dictionary<Lookup, object?>(context.Values);
-        foreach (var property in ActualForm.WorkflowDefinition.Properties)
-            values[property.Name] = context.Get($"{PropertyName}.{property.Name}");
-        return new ObjectContext(values);
+        return context.WithPropertyValues(PropertyName!, ActualForm.WorkflowDefinition);
     }
 
     public Form Clone()
@@ -256,4 +271,19 @@ public class PageElement
     ];
 
     public PageElement Clone() => (PageElement)MemberwiseClone();
+}
+
+public class FormConfirmation
+{
+    public required BilingualString Title { get; set; }
+    [YamlIgnore] public BilingualTemplate TitleTemplate => field ??= BilingualTemplate.Create(Title);
+    public required BilingualString Text { get; set; }
+    [YamlIgnore] public BilingualTemplate TextTemplate => field ??= BilingualTemplate.Create(Text);
+
+    [YamlIgnore]
+    public IEnumerable<Lookup> Lookups =>
+    [
+        .. TitleTemplate.Properties,
+        .. TextTemplate.Properties
+    ];
 }

@@ -1,0 +1,5 @@
+name: SharedAssessment
+import:
+  reference: SharedThesis
+  step: Assess
+  participants: [Student]

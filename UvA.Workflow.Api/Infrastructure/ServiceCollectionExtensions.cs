@@ -46,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AssessmentDtoFactory>();
         services.AddScoped<StepProgressResolver>();
         services.AddScoped<WorkflowInstanceDtoFactory>();
+        services.AddScoped<InstanceHistoryDtoFactory>();
 
         services.AddScoped<PersonalInstanceService>();
         services.AddScoped<ScreenDataService>();

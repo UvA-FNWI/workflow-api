@@ -46,6 +46,8 @@ public partial class ModelParser
     private List<Condition> NamedConditions { get; }
     private List<StepTemplate> StepTemplates { get; }
     private List<FormTemplate> FormTemplates { get; }
+    private List<EmailTemplate> EmailTemplates { get; }
+    private List<EmailContentBlock> NamedEmailBlocks { get; }
 
     public ModelParser(IContentProvider contentProvider)
     {
@@ -59,6 +61,8 @@ public partial class ModelParser
         NamedConditions = Read<Condition>();
         StepTemplates = Read<StepTemplate>();
         FormTemplates = Read<FormTemplate>();
+        EmailTemplates = Read<EmailTemplate>();
+        NamedEmailBlocks = Read<EmailContentBlock>();
 
         var parsed = folders
             .Select(folder =>
@@ -127,15 +131,19 @@ public partial class ModelParser
             definition.Screens = Read<Screen>(definition.SourceFolder);
             definition.AllSteps = Read<Step>(definition.SourceFolder);
 
-            var stepTemplatesByName = ReadTemplates(StepTemplates, definition.SourceFolder);
+            var stepTemplatesByName = ReadTemplates(StepTemplates, definition);
             definition.AllSteps = ResolveStepTemplates(definition.AllSteps, stepTemplatesByName, definition.Name);
 
-            var formTemplatesByName = ReadTemplates(FormTemplates, definition.SourceFolder);
+            var formTemplatesByName = ReadTemplates(FormTemplates, definition);
             definition.Forms = ResolveFormTemplates(definition.Forms, formTemplatesByName,
                 definition.Name);
 
+            definition.Emails = Read<NamedEmail>(definition.SourceFolder);
+            definition.EmailBlocks = Read<EmailContentBlock>(definition.SourceFolder);
+            var emailTemplatesByName = ReadTemplates(EmailTemplates, definition);
+            definition.Emails = ResolveEmailTemplates(definition.Emails, emailTemplatesByName, definition.Name);
+
             var declaredStepNames = definition.AllSteps.Select(s => s.Name).ToHashSet();
-            definition.Emails = Read<TemplateMessage>(definition.SourceFolder);
             definition.ValueSets = Read<ValueSet>(definition.SourceFolder);
             definition.Migrations = Read<ConfiguredMigration>(definition.SourceFolder);
 
@@ -225,6 +233,10 @@ public partial class ModelParser
         GlobalRoles.ForEach(r => PreProcess(r));
         ValueSets.ForEach(PreProcess);
         WorkflowDefinitions.Values.ForEach(PreProcess);
+        // All definitions must be prepared before checking inputs of referenced computed properties.
+        WorkflowDefinitions.Values.ForEach(ValidateStopWhen);
+        WorkflowDefinitions.Values.ForEach(ValidateComputedReads);
+        WorkflowDefinitions.Values.ForEach(ValidateImports);
     }
 
     private IEnumerable<string> GetWorkflowDefinitionFolders(string? root = null)
@@ -306,7 +318,8 @@ public partial class ModelParser
         if (!form.Pages.Any() && form.TargetFormName == null)
             form.Pages.Add(new Page
             {
-                PageElements = workflowDefinition.Properties.Select(v => new PageElement { Question = v.Name })
+                PageElements = workflowDefinition.Properties.Where(v => !v.IsComputed)
+                    .Select(v => new PageElement { Question = v.Name })
                     .ToArray()
             });
 
@@ -325,6 +338,7 @@ public partial class ModelParser
                 element.QuestionDefinition = workflowDefinition.Properties.GetOrDefault(element.Question!)
                                              ?? throw new Exception(
                                                  $"Form {form.Name} references unknown property {element.Question}");
+                EnsureStoredProperty(workflowDefinition, element.Question, $"Form '{form.Name}' question");
             }
 
             PreProcess(ent.Condition);
@@ -406,6 +420,8 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        ValidateReservedPropertyNames(workflowDefinition);
+        PreProcess(workflowDefinition.StopWhen);
         foreach (var role in workflowDefinition.Roles)
             PreProcess(role, workflowDefinition);
 
@@ -426,26 +442,51 @@ public partial class ModelParser
             PreProcess(field, workflowDefinition);
         foreach (var card in workflowDefinition.InfoCards)
             PreProcess(card, workflowDefinition);
+        foreach (var email in workflowDefinition.Emails)
+            PreProcess(email, workflowDefinition);
         if (workflowDefinition.InfoCards.Count(card => card.Enabled && card.Type == InfoCardType.User) > 1)
             throw new Exception($"Definition '{workflowDefinition.Name}' has more than one enabled User info card.");
         foreach (var form in workflowDefinition.Forms)
             ValidateSubmittedWhenEvents(form, workflowDefinition);
 
+        PreparePropertyDependencies(workflowDefinition);
+
         ExpandResetParentSteps(workflowDefinition);
         ValidateReservedEventNames(workflowDefinition);
-        ValidateValueSetsPrefix(workflowDefinition);
+        ValidateComputedWrites(workflowDefinition);
 
         workflowDefinition.ModelParser = this;
     }
 
-    /// <summary>
-    /// Expressions reference value sets as <c>ValueSets.Name</c>, so a property called ValueSets would be unreachable
-    /// </summary>
-    private static void ValidateValueSetsPrefix(WorkflowDefinition workflowDefinition)
+    private static void ValidateStopWhen(WorkflowDefinition definition)
     {
-        if (workflowDefinition.Properties.Contains("ValueSets"))
+        if (definition.StopWhen == null)
+            return;
+
+        var lookups = definition.StopWhen.Properties.ToArray();
+        if (lookups.Any(lookup => lookup is PropertyLookup { Property: ContextKeys.WorkflowStopped }))
             throw new Exception(
-                $"Definition '{workflowDefinition.Name}': property name 'ValueSets' is reserved for value set references.");
+                $"Definition '{definition.Name}': stopWhen cannot refer to {ContextKeys.WorkflowStopped}.");
+        if (lookups.Any(lookup => lookup is ComplexLookup))
+            throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.");
+
+        try
+        {
+            definition.ValidateReadLookups(lookups, allowReference: false, allowAssessment: false);
+        }
+        catch (Exception exception)
+        {
+            throw new Exception($"Definition '{definition.Name}': stopWhen can only read values on this instance.",
+                exception);
+        }
+    }
+
+    private static void ValidateReservedPropertyNames(WorkflowDefinition definition)
+    {
+        var reservedName = ContextKeys.Reserved.FirstOrDefault(name => definition.Properties.Contains(name));
+        if (reservedName != null)
+            throw new Exception(
+                $"Definition '{definition.Name}': property name '{reservedName}' is reserved.");
     }
 
     private static void ValidateReservedEventNames(WorkflowDefinition definition)
@@ -532,6 +573,7 @@ public partial class ModelParser
                     existing.Suppresses = ev.Suppresses;
                 if (ev.ResetParentStep)
                     existing.ResetParentStep = true;
+                existing.Label ??= ev.Label;
             }
             else
             {
@@ -589,6 +631,9 @@ public partial class ModelParser
 
     private void PreProcess(Screen screen, WorkflowDefinition workflowDefinition)
     {
+        foreach (var group in screen.Grouping?.Groups ?? [])
+            PreProcess(group.Condition);
+
         var actionNames = new HashSet<string>();
         foreach (var bulkAction in screen.BulkActions)
         {
@@ -616,6 +661,17 @@ public partial class ModelParser
                                     $"'{workflowDefinition.Name}': {error}");
         }
 
+        screen.Columns = screen.Columns.OrderBy(column => column.Order ?? 0).ToArray();
+
+        var duplicateColumn = screen.Columns.Where(column => column.Name != null)
+            .GroupBy(column => column.Name)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateColumn != null)
+            throw new Exception(
+                $"Screen '{screen.Name}' in '{workflowDefinition.Name}' " +
+                $"has duplicate column name '{duplicateColumn.Key}'.");
+
         if (screen.BulkEdit != null)
         {
             var unknownProps = screen.BulkEdit.EditableProperties
@@ -636,6 +692,95 @@ public partial class ModelParser
                     col.Event = workflowDefinition.Events.FirstOrDefault(e => e.Name == col.Property[..^5]);
             }
         }
+
+        if (screen.Grouping != null)
+            ValidateScreenGrouping(screen, workflowDefinition);
+    }
+
+    /// <summary>
+    /// Validates that all steps in the screen are part of the workflow definition, and all steps are included in the screen
+    /// </summary>
+    private static void ValidateScreenGrouping(Screen screen, WorkflowDefinition workflowDefinition)
+    {
+        var context = $"Screen '{screen.Name}' in '{workflowDefinition.Name}'";
+
+        var parentByChild = new Dictionary<string, string>();
+        var reachableSteps = new HashSet<string>();
+
+        void Visit(Step step, Step? parent)
+        {
+            reachableSteps.Add(step.Name);
+            if (parent != null)
+                parentByChild[step.Name] = parent.Name;
+            foreach (var child in step.Children)
+                Visit(child, step);
+        }
+
+        foreach (var step in workflowDefinition.Steps)
+            Visit(step, null);
+
+        var mappedSteps = screen.Grouping!.Groups
+            .SelectMany(group => group.Steps)
+            .OfType<string>()
+            .ToHashSet();
+
+        var unknownSteps = mappedSteps.Where(step => !reachableSteps.Contains(step)).ToArray();
+        if (unknownSteps.Length > 0)
+            throw new Exception($"{context} maps unknown step(s): {unknownSteps.ToSeparatedString()}.");
+
+        // Mirrors ScreenDataService.BuildGroups, which walks up through parent steps when an instance's
+        // current step isn't directly mapped to a group.
+        bool IsMapped(string? stepName)
+        {
+            for (var current = stepName; current != null; current = parentByChild.GetValueOrDefault(current))
+                if (mappedSteps.Contains(current))
+                    return true;
+            return false;
+        }
+
+        var unmappedSteps = workflowDefinition.WalkSteps.Select(step => step.Name)
+            .Where(name => !IsMapped(name))
+            .ToArray();
+        if (unmappedSteps.Length > 0)
+            throw new Exception(
+                $"{context} does not map step(s) to any group: {unmappedSteps.ToSeparatedString()}. " +
+                "Instances currently on these steps would be silently excluded from the screen.");
+    }
+
+    private void PreProcess(NamedEmail email, WorkflowDefinition workflowDefinition)
+    {
+        if (email.ContentBlocks.Length == 0) return;
+        if (email.Body != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' has both body and content blocks");
+
+        var removed = email.ContentBlocks.FirstOrDefault(b => b.Remove == true);
+        if (removed != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' removes block '{removed.Name}' but does not inherit it");
+
+        var positioned = email.ContentBlocks.FirstOrDefault(b => b.After != null);
+        if (positioned != null)
+            throw new Exception(
+                $"Email '{email.Name}' in '{workflowDefinition.Name}' places block '{positioned.Name}' " +
+                $"after '{positioned.After}' but does not inherit it");
+
+        var contents = email.ContentBlocks
+            .Select(b => b.Content ?? ResolveNamedBlock(b.Name, email, workflowDefinition)).ToList();
+        email.Body = new BilingualString(
+            string.Join("\n\n", contents.Select(c => c.En)),
+            string.Join("\n\n", contents.Select(c => c.Nl)));
+    }
+
+    private BilingualString ResolveNamedBlock(string name, NamedEmail email, WorkflowDefinition definition)
+    {
+        var block = GetInheritanceChain(definition).AsEnumerable().Reverse()
+                        .SelectMany(d => d.EmailBlocks).FirstOrDefault(b => b.Name == name)
+                    ?? NamedEmailBlocks.FirstOrDefault(b => b.Name == name)
+                    ?? throw new Exception(
+                        $"Email block '{name}' used in '{email.Name}' of '{definition.Name}' not found");
+        return block.Content ?? throw new Exception(
+            $"Email block '{name}' used in '{email.Name}' of '{definition.Name}' has no content");
     }
 
     private PropertyDefinition PreProcess(PropertyDefinition propertyDefinition)
@@ -666,17 +811,13 @@ public partial class ModelParser
         PreProcess(propertyDefinition.Condition);
         PreProcess(propertyDefinition.OnSave);
 
-        foreach (var dep in propertyDefinition.Conditions
-                     .SelectMany(c => c.Part.Dependants)
-                     .SelectMany(d => d.ToString().Split('.'))
-                     .Distinct())
-            propertyDefinition.ParentType.Properties.GetOrDefault(dep)?.DependentQuestions
-                .Add(propertyDefinition);
-
         if (propertyDefinition.LinkedTo != null &&
             propertyDefinition.ParentType.Properties.GetOrDefault(propertyDefinition.LinkedTo) == null)
             throw new Exception(
                 $"Property '{propertyDefinition.Name}' in '{propertyDefinition.ParentType.Name}' has linkedTo '{propertyDefinition.LinkedTo}', but that property does not exist.");
+
+        if (propertyDefinition.IsComputed && propertyDefinition.Default != null)
+            throw new Exception($"Computed property '{propertyDefinition.Name}' cannot define a default");
 
         if (string.IsNullOrWhiteSpace(propertyDefinition.Default))
         {
@@ -791,7 +932,9 @@ public partial class ModelParser
             Log.Debug("Parsing {File} for {Type}", file, typeof(T).Name);
             var obj = _deserializer.Deserialize<T>(content);
             if (obj is IDeclaredKeys tracked)
-                tracked.DeclaredKeys = ReadTopLevelKeys(content);
+                tracked.DeclaredKeys = ReadMappingKeys(content);
+            if (obj is Screen { BulkEdit: not null } screen)
+                screen.BulkEdit.DeclaredKeys = ReadMappingKeys(content, "bulkEdit");
             if (obj is ITemplate template)
                 template.RootFile = content;
             return obj;
@@ -803,13 +946,35 @@ public partial class ModelParser
     }
 
     // Deserialization loses the distinction between omitted keys and explicit default values.
-    private static HashSet<string> ReadTopLevelKeys(string content)
+    private static HashSet<string> ReadMappingKeys(string content, string? mappingName = null)
     {
-        var keys = new HashSet<string>();
         var parser = new Parser(new StringReader(content));
         parser.Consume<StreamStart>();
         if (!parser.TryConsume<DocumentStart>(out _) || !parser.TryConsume<MappingStart>(out _))
-            return keys;
+            return [];
+
+        if (mappingName == null)
+            return ReadMappingKeys(parser);
+
+
+        while (parser.TryConsume<Scalar>(out var key))
+        {
+            if (key.Value == mappingName)
+            {
+                parser.Consume<MappingStart>();
+                return ReadMappingKeys(parser);
+            }
+
+            parser.SkipThisAndNestedEvents();
+        }
+
+        return [];
+    }
+
+    private static HashSet<string> ReadMappingKeys(IParser parser)
+    {
+        var keys = new HashSet<string>();
+
         while (parser.TryConsume<Scalar>(out var key))
         {
             keys.Add(key.Value);
@@ -829,7 +994,9 @@ public partial class ModelParser
         {
             nameof(StepTemplate) => "Templates/Steps",
             nameof(FormTemplate) => "Templates/Forms",
-            nameof(TemplateMessage) => "Emails",
+            nameof(EmailTemplate) => "Templates/Emails",
+            nameof(EmailContentBlock) => "Templates/EmailBlocks",
+            nameof(NamedEmail) => "Emails",
             nameof(ConfiguredMigration) => "Migrations",
             _ when typeName.StartsWith("Variant") => typeName.Replace("Variant", "") + "s",
             _ => typeName + "s"

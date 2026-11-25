@@ -1,5 +1,6 @@
 using UvA.Workflow.Expressions;
 using UvA.Workflow.Migrations;
+using UvA.Workflow.WorkflowModel.Conditions;
 using Action = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.WorkflowModel;
@@ -7,7 +8,7 @@ namespace UvA.Workflow.WorkflowModel;
 /// <summary>
 /// Represents a type of object ("entity") in the workflow system
 /// </summary>
-public class WorkflowDefinition : INamed, IDeclaredKeys
+public partial class WorkflowDefinition : INamed, IDeclaredKeys
 {
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 
@@ -60,6 +61,8 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     /// </summary>
     public List<PropertyDefinition> Properties { get; set; } = new();
 
+    [YamlIgnore] public List<PropertyDefinition> ComputedProperties { get; } = [];
+
     /// <summary>
     /// Dictionary of event definitions for this entity type
     /// </summary>
@@ -71,6 +74,11 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public List<Action> GlobalActions { get; set; } = [];
 
     public IEnumerable<Action> AllActions => GlobalActions.Concat(AllSteps.SelectMany(s => s.Actions));
+
+    /// <summary>
+    /// Condition that computes WorkflowStopped from events and values on the instance.
+    /// </summary>
+    public Condition? StopWhen { get; set; }
 
     /// <summary>
     /// List of roles for this entity type. Loaded from the Roles folder of the entity type definition.
@@ -92,16 +100,13 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public InfoCard[] InfoCards { get; set; } = [];
 
     [YamlIgnore]
-    public RelatedUser[] RelatedUsers => InfoCards
-        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
-        .SelectMany(card => card.Groups)
-        .SelectMany(group => group.Users)
-        .ToArray();
+    public IEnumerable<RelatedUserGroup> RelatedUserGroups => InfoCards
+        .Where(card => card is { Enabled: true, Type: InfoCardType.RelatedUsers })
+        .SelectMany(card => card.Groups);
 
     [YamlIgnore]
-    public RelatedUser[] EditableRelatedUsers => InfoCards
-        .Where(card => card.Enabled && card.Type == InfoCardType.RelatedUsers)
-        .SelectMany(card => card.Groups.Where(group => group.AllowEditing))
+    public RelatedUser[] EditableRelatedUsers => RelatedUserGroups
+        .Where(group => group.AllowEditing)
         .SelectMany(group => group.Users)
         .ToArray();
 
@@ -128,9 +133,11 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     [YamlIgnore] public List<Form> Forms { get; set; } = null!;
     [YamlIgnore] public List<Step> AllSteps { get; set; } = null!;
+    [YamlIgnore] public bool HasImportedSteps => AllSteps.Any(step => step.Import != null);
     [YamlIgnore] public List<Screen> Screens { get; set; } = null!;
     [YamlIgnore] public List<Step> Steps { get; set; } = [];
-    [YamlIgnore] public List<TemplateMessage> Emails { get; set; } = null!;
+    [YamlIgnore] public List<NamedEmail> Emails { get; set; } = null!;
+    [YamlIgnore] public List<EmailContentBlock> EmailBlocks { get; set; } = null!;
     [YamlIgnore] public List<ConfiguredMigration> Migrations { get; set; } = [];
     [YamlIgnore] public WorkflowDefinition? Parent { get; set; }
 
@@ -138,6 +145,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
     public IEnumerable<Lookup> ProgressLookups => AllSteps
         .SelectMany(step => step.Progress)
         .SelectMany(progress => progress.Lookups)
+        .Concat(StopWhen?.MessageLookups ?? [])
         .Distinct();
 
     private static IEnumerable<Step> GetWalkSteps(Step s) =>
@@ -154,7 +162,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     public DataType GetDataType(string property)
     {
-        if (property is "LastEvent" or "CreateDate")
+        if (property is ContextKeys.LastEvent or ContextKeys.CreateDate)
             return DataType.DateTime;
         if (Properties.TryGetValue(property, out var prop))
             return prop.DataType;
@@ -165,7 +173,7 @@ public class WorkflowDefinition : INamed, IDeclaredKeys
 
     public string GetKey(string property)
     {
-        if (property == "CreateDate")
+        if (property == ContextKeys.CreateDate)
             return "$CreatedOn";
         if (Properties.Contains(property))
             return $"$Properties.{property}";
@@ -183,6 +191,11 @@ public class EventDefinition : INamed
     public string Name { get; set; } = null!;
 
     /// <summary>
+    /// Localized label describing the event
+    /// </summary>
+    public BilingualString? Label { get; set; }
+
+    /// <summary>
     /// List of event names that are suppressed when this event occurs. Only the most recent event will be suppressed.
     /// </summary>
     public List<string>? Suppresses { get; set; }
@@ -195,6 +208,7 @@ public class EventDefinition : INamed
     public EventDefinition Clone() => new()
     {
         Name = Name,
+        Label = Label,
         Suppresses = Suppresses == null ? null : [.. Suppresses],
         ResetParentStep = ResetParentStep
     };

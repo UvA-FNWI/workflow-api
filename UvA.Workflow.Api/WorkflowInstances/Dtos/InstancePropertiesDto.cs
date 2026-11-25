@@ -12,6 +12,7 @@ namespace UvA.Workflow.Api.WorkflowInstances.Dtos;
 /// </remarks>
 public record InstancePropertiesDto(
     QuestionDto[] Properties,
-    Dictionary<string, JsonElement?> Values);
+    Dictionary<string, JsonElement?> Values,
+    string[] EditablePaths);
 
 public record SaveInstancePropertyRequest(JsonElement? Value);

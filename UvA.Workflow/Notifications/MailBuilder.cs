@@ -15,7 +15,7 @@ public class MailBuilder(
 {
     public MailMessage Build(
         WorkflowInstance instance,
-        SendMessage sendMail,
+        Email sendMail,
         ModelService modelService,
         ObjectContext context)
     {
@@ -112,33 +112,33 @@ public class MailBuilder(
 
     /// Recipient lookups after applying template defaults, so callers can enrich referenced properties.
     public static IEnumerable<Lookup> ResolveRecipientLookups(WorkflowDefinition workflowDefinition,
-        SendMessage sendMail)
+        Email sendMail)
         => ResolveMessageContents(workflowDefinition, sendMail).RecipientLookups;
 
-    private static SendMessage ResolveMessageContents(WorkflowDefinition workflowDefinition, SendMessage sendMail)
+    private static Email ResolveMessageContents(WorkflowDefinition workflowDefinition, Email sendMail)
     {
-        if (string.IsNullOrWhiteSpace(sendMail.TemplateKey))
+        if (string.IsNullOrWhiteSpace(sendMail.EmailKey))
             return sendMail;
 
         var template = workflowDefinition.Emails
-            .FirstOrDefault(e => string.Equals(e.Name, sendMail.TemplateKey, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(e => string.Equals(e.Name, sendMail.EmailKey, StringComparison.OrdinalIgnoreCase));
 
         if (template == null)
         {
             var known = string.Join(", ", workflowDefinition.Emails.Select(m => m.Name).OrderBy(n => n));
             throw new InvalidOperationException(
-                $"Mail template '{sendMail.TemplateKey}' not found in '{workflowDefinition.Name}'. Known templates: {known}");
+                $"Mail template '{sendMail.EmailKey}' not found in '{workflowDefinition.Name}'. Known templates: {known}");
         }
 
         return Merge(template, sendMail);
     }
 
     /// Inline values override template defaults.
-    private static SendMessage Merge(SendMessage template, SendMessage inline)
+    private static Email Merge(Email template, Email inline)
     {
-        return new SendMessage
+        return new Email
         {
-            TemplateKey = inline.TemplateKey ?? template.TemplateKey,
+            EmailKey = inline.EmailKey ?? template.EmailKey,
 
             To = inline.To ?? template.To,
             Cc = inline.Cc ?? template.Cc,
