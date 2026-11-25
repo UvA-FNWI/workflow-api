@@ -1210,20 +1210,6 @@
             "type": "string"
           }
         },
-        "condition": {
-          "description": "Condition that determines when the info card is visible.",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
         "user": {
           "type": [
             "null",
@@ -1271,6 +1257,19 @@
             },
             {
               "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
             }
           ]
         }
