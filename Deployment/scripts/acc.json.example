@@ -1,0 +1,3 @@
+{
+  "uri": "mongodb://ACCEPTANCE_USERNAME:YOUR_PASSWORD@acceptance.example.com:27017/ACCEPTANCE_DATABASE?tls=true&authSource=AUTH_DATABASE"
+}
