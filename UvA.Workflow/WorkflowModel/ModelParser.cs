@@ -1003,7 +1003,7 @@ public partial class ModelParser
         };
         var result = new List<T>();
         var nameProperty = typeof(T).GetProperty("Name");
-        foreach (var filePath in _contentProvider.GetFiles($"{root}/{folder}"))
+        foreach (var filePath in GetFilesRecursively($"{root}/{folder}"))
         {
             var obj = Parse<T>(filePath);
             if (obj == null)
@@ -1017,5 +1017,15 @@ public partial class ModelParser
         }
 
         return result;
+    }
+
+    private IEnumerable<string> GetFilesRecursively(string path)
+    {
+        foreach (var file in _contentProvider.GetFiles(path))
+            yield return file;
+
+        foreach (var subfolder in _contentProvider.GetFolders(path))
+        foreach (var file in GetFilesRecursively(subfolder))
+            yield return file;
     }
 }
