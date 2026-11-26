@@ -1,3 +1,5 @@
+using UvA.Workflow.Api.Screens.Dtos;
+
 namespace UvA.Workflow.Tests;
 
 public class ScreenGroupingConfigurationTests
@@ -16,6 +18,62 @@ public class ScreenGroupingConfigurationTests
 
         var groups = model.WorkflowDefinitions["Project"].Screens.Single().Grouping!.Groups;
         Assert.Equal(["subject", "upload"], groups.Select(g => g.Name));
+    }
+
+    [Fact]
+    public void ExposesConfiguredColumnGroups()
+    {
+        var model = Parse(Screen("""
+                                 - name: subject
+                                   title: Subject
+                                   steps: [Subject]
+                                 - name: upload
+                                   title: Upload
+                                   steps: [Upload]
+                                   enabled: false
+                                 """, """
+                                      - type: CurrentStep
+                                      - name: SingleGroup
+                                        value: Subject
+                                        groups: [subject]
+                                      - name: MultipleGroups
+                                        value: Subject and Upload
+                                        groups: [subject, upload]
+                                      - name: AllGroups
+                                        value: All
+                                        groups: []
+                                      """));
+
+        var columns = model.WorkflowDefinitions["Project"].Screens.Single().Columns.Select(ScreenColumnDto.Create);
+        Assert.Collection(columns,
+            column => Assert.Empty(column.Groups),
+            column => Assert.Equal(["subject"], column.Groups),
+            column => Assert.Equal(["subject", "upload"], column.Groups),
+            column => Assert.Empty(column.Groups));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RejectsUnknownColumnGroup(bool grouped)
+    {
+        const string columns = """
+                               - name: Progress
+                                 type: CurrentStep
+                                 groups: [missing]
+                               """;
+        var screen = grouped
+            ? Screen("""
+                     - name: active
+                       title: Active
+                       steps: [Subject, Upload]
+                     """, columns)
+            : $"name: Projects\ncolumns:\n{Indent(columns, "  ")}";
+
+        var error = Assert.Throws<Exception>(() => Parse(screen));
+
+        Assert.Contains("Screen 'Projects' in 'Project' column 'Progress' references unknown group(s): missing",
+            error.Message);
     }
 
     [Fact]
@@ -124,11 +182,11 @@ public class ScreenGroupingConfigurationTests
         return new ModelParser(new DictionaryProvider(files));
     }
 
-    private static string Screen(string groups) =>
+    private static string Screen(string groups, string columns = "- type: CurrentStep") =>
         $"""
          name: Projects
          columns:
-           - type: CurrentStep
+         {Indent(columns, "  ")}
          grouping:
            groups:
          {Indent(groups, "    ")}
