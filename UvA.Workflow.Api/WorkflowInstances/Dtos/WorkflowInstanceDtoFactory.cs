@@ -489,7 +489,8 @@ public class WorkflowInstanceDtoFactory(
 
         if (type == InfoCardType.Text)
         {
-            return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Content: card.Content);
+            return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type,
+                Content: card.ContentTemplate?.Apply(context));
         }
 
         return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type);
