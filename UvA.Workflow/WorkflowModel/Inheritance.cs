@@ -380,7 +380,8 @@ public partial class ModelParser
                 Title = targetGroup?.Title ?? sourceGroup.Title,
                 Steps = targetGroup == null ? [] : [.. targetGroup.Steps],
                 Order = targetGroup?.Order ?? sourceGroup.Order,
-                Enabled = targetGroup?.Enabled ?? sourceGroup.Enabled
+                Enabled = targetGroup?.Enabled ?? sourceGroup.Enabled,
+                Condition = targetGroup?.Condition ?? sourceGroup.Condition
             });
         }
 
@@ -399,7 +400,8 @@ public partial class ModelParser
                 Title = targetGroup.Title,
                 Steps = [.. targetGroup.Steps],
                 Order = targetGroup.Order,
-                Enabled = targetGroup.Enabled
+                Enabled = targetGroup.Enabled,
+                Condition = targetGroup.Condition
             });
         }
 

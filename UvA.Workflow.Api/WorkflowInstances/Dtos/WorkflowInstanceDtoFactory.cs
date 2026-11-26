@@ -28,7 +28,7 @@ public class WorkflowInstanceDtoFactory(
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
-        var visibleCards = workflowDefinition.InfoCards
+        var allowedCards = workflowDefinition.InfoCards
             .Where(card => card.Enabled && card.Type != null &&
                            (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
                            (card.ExcludedSources is not { Length: > 0 } ||
@@ -37,18 +37,22 @@ public class WorkflowInstanceDtoFactory(
         var context = await instanceService.CreateContext(instance,
             workflowDefinition.PermissionAndStepLookups
                 .Concat(workflowDefinition.Steps.SelectMany(step => step.Lookups))
-                .Concat(visibleCards.SelectMany(card => card.Properties))
+                .Concat(allowedCards.SelectMany(card => card.Condition?.Properties ?? []))
                 .Concat(workflowDefinition.InstanceTitleTemplate?.Properties ?? [])
                 .Concat(workflowDefinition.Fields.SelectMany(field =>
                     field.Properties.Concat(field.Condition?.Properties ?? []))), ct);
-        BilingualString? stopMessage = null;
+        var visibleCards = allowedCards.Where(card => card.Condition.IsMet(context)).ToArray();
+        await instanceService.Enrich(workflowDefinition, [context], visibleCards.SelectMany(card => card.Properties),
+            ct, replaceStep: false);
+
+        ProgressInformationDto? stoppedProgress = null;
         if (context.WorkflowStopped)
         {
             var stopContext = context.WithValues([]);
             await instanceService.Enrich(workflowDefinition, [stopContext],
                 workflowDefinition.StopWhen?.MessageLookups ?? [], ct, replaceStep: false);
-            stopMessage = StepProgressResolver.ResolveProgress(workflowDefinition, instance.CurrentStep, stopContext)
-                .Text;
+            stoppedProgress =
+                StepProgressResolver.ResolveProgress(workflowDefinition, instance.CurrentStep, stopContext);
         }
 
         var actions = await instanceService.GetAllowedActions(instance, ct, context);
@@ -187,8 +191,7 @@ public class WorkflowInstanceDtoFactory(
             canImpersonate,
             viewerRoles,
             infoCards,
-            context.WorkflowStopped,
-            stopMessage
+            stoppedProgress
         );
     }
 
@@ -486,7 +489,8 @@ public class WorkflowInstanceDtoFactory(
 
         if (type == InfoCardType.Text)
         {
-            return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type, Content: card.Content);
+            return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type,
+                Content: card.ContentTemplate?.Apply(context));
         }
 
         return new InfoCardDto(card.Name, card.TitleTemplate!.Apply(context), type);

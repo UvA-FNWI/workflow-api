@@ -36,6 +36,43 @@ public class ScreenGroupingConfigurationTests
     }
 
     [Fact]
+    public void PreservesScreenGroupConditionsDuringInheritance()
+    {
+        var files = Files();
+        files["Project/Screens/Projects.yaml"] = Screen("""
+                                                        - name: active
+                                                          title: Active
+                                                          steps: [Subject, Upload]
+                                                        - name: stopped
+                                                          title: Stopped
+                                                          condition:
+                                                            event: Archive
+                                                        """);
+        files["Inherited/Entity.yaml"] = "name: Inherited\ninheritsFrom: Project";
+        files["Child/Entity.yaml"] = "name: Child\ninheritsFrom: Project";
+        files["Child/Screens/Projects.yaml"] = Screen("""
+                                                      - name: active
+                                                        steps: [Subject, Upload]
+                                                      - name: stopped
+                                                        condition:
+                                                          event: Cancel
+                                                      - name: paused
+                                                        title: Paused
+                                                        condition:
+                                                          event: Pause
+                                                      """);
+
+        var model = new ModelParser(new DictionaryProvider(files));
+
+        Assert.Equal("Cancel", EventId("Child", "stopped"));
+        Assert.Equal("Pause", EventId("Child", "paused"));
+        Assert.Equal("Archive", EventId("Inherited", "stopped"));
+
+        string? EventId(string workflow, string group) => model.WorkflowDefinitions[workflow].Screens.Single()
+            .Grouping!.Groups.Single(candidate => candidate.Name == group).Condition?.Event?.Id;
+    }
+
+    [Fact]
     public void RejectsGroupStepThatDoesNotExist()
     {
         var error = Assert.Throws<Exception>(() => Parse(Screen("""

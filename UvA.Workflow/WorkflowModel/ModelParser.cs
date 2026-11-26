@@ -390,6 +390,7 @@ public partial class ModelParser
         if (card.Type == null || card.Title == null)
             throw new Exception($"Info card '{card.Name}' in '{workflowDefinition.Name}' requires type and title.");
 
+        PreProcess(card.Condition);
         switch (card.Type)
         {
             case InfoCardType.User:

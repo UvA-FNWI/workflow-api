@@ -30,8 +30,7 @@ public record WorkflowInstanceDto(
     bool CanImpersonate,
     string[] ViewerRoles,
     InfoCardDto[] InfoCards,
-    bool WorkflowStopped = false,
-    BilingualString? StopMessage = null
+    ProgressInformationDto? StoppedProgress = null
 );
 
 public record FieldDto(string? Key, BilingualString Title, object? Value, bool IsHighlighted, int? Order);
@@ -52,7 +51,8 @@ public record StepHeaderStatusDto(
 
 public record ProgressInformationDto(
     BilingualString Text,
-    StatusColor? Color);
+    StatusColor? Color,
+    string? EventId = null);
 
 public record UndoCandidateDto(
     OperationType Type,

@@ -1259,6 +1259,19 @@
               "$ref": "#/definitions/BilingualString"
             }
           ]
+        },
+        "condition": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
         }
       }
     },

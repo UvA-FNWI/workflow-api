@@ -46,7 +46,8 @@ public class Screen : INamed, IDeclaredKeys
                     Title = group.Title,
                     Steps = [.. group.Steps],
                     Order = group.Order,
-                    Enabled = group.Enabled
+                    Enabled = group.Enabled,
+                    Condition = group.Condition
                 }).ToArray()
             },
         BulkEdit = BulkEdit?.Clone(),

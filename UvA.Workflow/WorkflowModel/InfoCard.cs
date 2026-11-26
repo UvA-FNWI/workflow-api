@@ -1,4 +1,5 @@
 using UvA.Workflow.Expressions;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
@@ -7,7 +8,7 @@ public class InfoCard : INamed
     public string Name { get; set; } = null!;
     public InfoCardType? Type { get; set; }
     public BilingualString? Title { get; set; }
-    public BilingualTemplate? TitleTemplate => field ??= BilingualTemplate.Create(Title);
+    [YamlIgnore] public BilingualTemplate? TitleTemplate => field ??= BilingualTemplate.Create(Title);
     public bool Enabled { get; set; } = true;
     public string[]? Sources { get; set; }
     public string[]? ExcludedSources { get; set; }
@@ -18,6 +19,8 @@ public class InfoCard : INamed
     public RelatedUserGroup[] Groups { get; set; } = [];
     public InfoCardItem[] Items { get; set; } = [];
     public BilingualString? Content { get; set; }
+    [YamlIgnore] public BilingualTemplate? ContentTemplate => field ??= BilingualTemplate.Create(Content);
+    public Condition? Condition { get; set; }
 
     [YamlIgnore]
     public IEnumerable<Lookup> Properties =>
@@ -26,7 +29,8 @@ public class InfoCard : INamed
         .. Fields.SelectMany(configuredField => configuredField.Properties),
         .. Groups.SelectMany(group => group.Users).Select(user => (Lookup)new PropertyLookup(user.Property)),
         .. Items.SelectMany(item => item.UrlTemplate?.Properties ?? []),
-        .. TitleTemplate?.Properties ?? []
+        .. TitleTemplate?.Properties ?? [],
+        .. (Type == InfoCardType.Text ? ContentTemplate?.Properties ?? [] : [])
     ];
 }
 
