@@ -42,7 +42,8 @@ public record ScreenColumnDto(
     SortDirection? DefaultSort,
     bool Link,
     ColumnType ColumnType,
-    DataType DataType)
+    DataType DataType,
+    string[] Groups)
 {
     public static ScreenColumnDto Create(Column column, int id)
     {
@@ -56,7 +57,8 @@ public record ScreenColumnDto(
             column.DefaultSort,
             column.Link,
             column.Type,
-            dataType);
+            dataType,
+            column.Groups ?? []);
     }
 
     private static DataType GetDataType(Column column)

@@ -683,8 +683,17 @@ public partial class ModelParser
                     $"{unknownProps.ToSeparatedString()}");
         }
 
+        var groupNames = (screen.Grouping?.Groups ?? []).Select(group => group.Name).ToHashSet();
+
         foreach (var col in screen.Columns)
         {
+            var unknownGroups = (col.Groups ?? []).Where(group => !groupNames.Contains(group)).ToArray();
+            if (unknownGroups.Length > 0)
+                throw new Exception(
+                    $"Screen '{screen.Name}' in '{workflowDefinition.Name}' column " +
+                    $"'{col.Name ?? col.Property ?? col.Type.ToString()}' references unknown group(s): " +
+                    $"{unknownGroups.ToSeparatedString()}.");
+
             if (col.Property != null)
             {
                 col.PropertyDefinition = workflowDefinition.Properties.GetOrDefault(col.Property.Split('.')[0]);

@@ -73,6 +73,16 @@
           "description": "Determines whether this column is visible in the user interface or only in the export",
           "$ref": "#/definitions/DisplayType"
         },
+        "groups": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Screen group names where this column is displayed. Omit or leave empty to display it in all groups.",
+          "items": {
+            "type": "string"
+          }
+        },
         "defaultSort": {
           "oneOf": [
             {

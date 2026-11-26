@@ -159,6 +159,11 @@ public class Column : Field
     public DisplayType DisplayType { get; set; }
 
     /// <summary>
+    /// Screen group names where this column is displayed. Omit or leave empty to display it in all groups.
+    /// </summary>
+    public string[]? Groups { get; set; }
+
+    /// <summary>
     /// Sets a default sort direction for this column
     /// </summary>
     public SortDirection? DefaultSort { get; set; }
@@ -171,6 +176,7 @@ public class Column : Field
     public Column Clone()
     {
         var clone = (Column)MemberwiseClone();
+        clone.Groups = Groups?.ToArray();
         clone.PropertyDefinition = null;
         clone.Event = null;
         return clone;
