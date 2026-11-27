@@ -234,4 +234,32 @@ public class WorkflowInheritanceTests
             _ => ""
         };
     }
+
+    [Fact]
+    public void ModelParser_InheritsHubMetadataFromAncestor()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Project-Base/Entity.yaml"] = """
+                                           name: Project-Base
+                                           titlePlural: Projects
+                                           icon:
+                                             type: graduate-cap-solid
+                                           description:
+                                             en: Base description
+                                             nl: Basistekst
+                                           index: 1
+                                           """,
+            ["Child/Entity.yaml"] = """
+                                    name: Child
+                                    titlePlural: Children
+                                    inheritsFrom: Project-Base
+                                    """,
+        }));
+
+        var child = parser.WorkflowDefinitions["Child"];
+        Assert.Equal("graduate-cap-solid", child.Icon!.Type);
+        Assert.Equal("Base description", child.Description!.En);
+        Assert.Equal(1, child.Index);
+    }
 }
