@@ -22,7 +22,9 @@ public enum RoleAction
     ImpersonateRoles,
     ViewResults,
     ViewCorrespondence,
-    ViewHistory
+    ViewHistory,
+    AccessGlobalAdminTools,
+    ImpersonateUsers
 }
 
 public class Action

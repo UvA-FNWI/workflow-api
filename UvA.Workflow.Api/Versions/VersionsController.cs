@@ -29,9 +29,10 @@ public class VersionsController(
 
     /// Reload the default version from the configured source.
     [HttpPost("Reload")]
-    public async Task<ActionResult> Reload()
+    public async Task<ActionResult> Reload(CancellationToken ct = default)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        if (!await rightsService.Can(RoleAction.AccessGlobalAdminTools, ct))
+            return Forbidden();
         try
         {
             await configLoader.LoadBaselineAsync();
@@ -47,9 +48,10 @@ public class VersionsController(
 
     /// Load a branch as a named preview version; send it back in the Workflow-Version header to view it.
     [HttpPost("Branch")]
-    public async Task<ActionResult<string>> LoadBranch([FromQuery] string @ref)
+    public async Task<ActionResult<string>> LoadBranch([FromQuery] string @ref, CancellationToken ct = default)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        if (!await rightsService.Can(RoleAction.AccessGlobalAdminTools, ct))
+            return Forbidden();
         if (string.IsNullOrWhiteSpace(@ref))
             return BadRequest("ref is required");
         try
@@ -67,9 +69,11 @@ public class VersionsController(
 
     /// Upload checkout-relative yaml files and Layouts/default.html as a named preview version.
     [HttpPost("{version}")]
-    public async Task<ActionResult> CreateVersion(string version, [FromBody] Dictionary<string, string> files)
+    public async Task<ActionResult> CreateVersion(string version, [FromBody] Dictionary<string, string> files,
+        CancellationToken ct = default)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        if (!await rightsService.Can(RoleAction.AccessGlobalAdminTools, ct))
+            return Forbidden();
         try
         {
             var normalizedFiles = files.ToDictionary(
@@ -107,9 +111,10 @@ public class VersionsController(
     /// Every config file for the version selected by the Workflow-Version header, keyed by
     /// repo-root-relative path. Feed the result straight back to POST /Versions/{version} to preview an edit.
     [HttpGet("Files")]
-    public async Task<ActionResult<Dictionary<string, string>>> GetFiles()
+    public async Task<ActionResult<Dictionary<string, string>>> GetFiles(CancellationToken ct = default)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        if (!await rightsService.Can(RoleAction.AccessGlobalAdminTools, ct))
+            return Forbidden();
         return Ok(modelServiceResolver.ResolveFiles());
     }
 

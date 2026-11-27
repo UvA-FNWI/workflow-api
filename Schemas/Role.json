@@ -236,7 +236,9 @@
         "ImpersonateRoles",
         "ViewResults",
         "ViewCorrespondence",
-        "ViewHistory"
+        "ViewHistory",
+        "AccessGlobalAdminTools",
+        "ImpersonateUsers"
       ]
     },
     "Condition": {

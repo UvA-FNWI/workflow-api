@@ -271,6 +271,14 @@ public partial class ModelParser
             .Union(role.InheritFrom.Select(ResolveInherited).SelectMany(r => r.Actions)).ToList();
         foreach (var act in role.Actions)
         {
+            if (act.Type is RoleAction.AccessGlobalAdminTools or RoleAction.ImpersonateUsers &&
+                act is { Condition: not null } or { WorkflowDefinition: not null } or
+                    { Form: not null } or { Forms.Length: > 0 } or { Steps.Length: > 0 } or
+                    { Roles.Length: > 0 } or { Collections.Length: > 0 } or { PropertyDefinition: not null } or
+                    { Property: not null } or { UserProperty: not null } or { Limit: not null })
+                throw new InvalidOperationException(
+                    $"{role.Name}: {act.Type} is an unconditional global grant and cannot have conditions or scope");
+
             PreProcess(act.OnAction);
 
             if (act.Form is not (null or Action.All) && act.WorkflowDefinition != null &&

@@ -52,6 +52,24 @@ public class WorkflowConfigLoaderTests
     private static WorkflowSourceOptions RepoOptions()
         => new() { RepoUrl = "https://github.com/owner/repo", Ref = "main" };
 
+    [Theory]
+    [InlineData("AccessGlobalAdminTools", "condition: { name: Restricted }")]
+    [InlineData("ImpersonateUsers", "workflowDefinition: Project")]
+    [InlineData("ImpersonateUsers", "steps: [Start]")]
+    [InlineData("AccessGlobalAdminTools", "form: Example")]
+    public void GlobalAdminActions_RejectConditionsAndScope(string action, string restriction)
+    {
+        var provider = new DictionaryProvider(new Dictionary<string, string>
+        {
+            ["Common/Roles/Admin.yaml"] = $"name: Admin\nactions:\n  - type: {action}\n    {restriction}\n"
+        });
+
+        var error = Assert.Throws<InvalidOperationException>(() => new ModelParser(provider));
+
+        Assert.Contains(action, error.Message);
+        Assert.Contains("unconditional", error.Message);
+    }
+
     [Fact]
     public async Task LocalBaseline_NotifiesOnlyAfterSuccessfulInstallAndRecoversAfterInvalidYaml()
     {
@@ -500,6 +518,30 @@ public class WorkflowConfigLoaderTests
         Assert.DoesNotContain(resolver.GetVersions(), version => version.Name == "upload");
     }
 
+    [Theory]
+    [InlineData("Coordinator")]
+    [InlineData("LocalAdmin")]
+    public async Task ConfigurationTools_WorkflowAdmin_CannotReadOrChangeConfiguration(string role)
+    {
+        var context = Request("preview");
+        var resolver = CreateResolver(new HttpContextAccessor { HttpContext = context });
+        var preview = new ModelParser(new DictionaryProvider(new Dictionary<string, string>
+        {
+            [$"Common/Roles/{role}.yaml"] = $"name: {role}\nactions:\n  - type: AccessGlobalAdminTools\n"
+        }));
+        resolver.AddOrUpdate("preview", preview, "preview layout");
+        var controller = CreateVersionsController(resolver, role: role);
+
+        var upload = await controller.CreateVersion("upload", UploadFiles());
+        var read = await controller.GetFiles();
+        var reload = await controller.Reload();
+        var branch = await controller.LoadBranch("feature/x");
+
+        Assert.All(new[] { upload, read.Result, reload, branch.Result }, result =>
+            Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode));
+        Assert.False(resolver.Contains("upload"));
+    }
+
     [Fact]
     public async Task UnchangedPreview_SkipsDownloadAndPreservesLoadedAt()
     {
@@ -704,18 +746,31 @@ public class WorkflowConfigLoaderTests
     }
 
     private static VersionsController CreateVersionsController(ModelServiceResolver resolver,
-        WorkflowSourceOptions? options = null)
+        WorkflowSourceOptions? options = null, string role = "SystemAdmin")
     {
         var userService = new Mock<IUserService>();
         userService.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(["SystemAdmin"]);
-        var rightsService = new RightsService(new ModelService(UnitTestsHelpers.CreateModelParser()),
-            userService.Object, Mock.Of<IWorkflowInstanceRepository>(),
-            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(
-                new ModelService(UnitTestsHelpers.CreateModelParser()), Mock.Of<IWorkflowInstanceRepository>()));
+            .ReturnsAsync([role]);
+        userService.Setup(service => service.GetRealUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        userService.Setup(service => service.GetRoles(UnitTestsHelpers.AdminUser, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([role]);
+        if (!resolver.Contains(""))
+        {
+            var parser = UnitTestsHelpers.CreateModelParser();
+            parser.GlobalRoles.Single(item => item.Name == "SystemAdmin").Actions
+                .Add(new() { Type = RoleAction.AccessGlobalAdminTools });
+            resolver.AddOrUpdate("", parser, "baseline layout", kind: VersionKind.Baseline);
+        }
+
+        var model = resolver.Resolve().ModelService;
+        var repository = Mock.Of<IWorkflowInstanceRepository>();
+        var rightsService = new RightsService(model, userService.Object, repository,
+            UnitTestsHelpers.CreateStateResolver(model, repository));
         return new VersionsController(resolver,
             CreateLoader(resolver, new WorkflowSourceOptions { LocalPath = FixturesRoot }),
-            rightsService, Options.Create(options ?? new WorkflowSourceOptions { LocalPath = FixturesRoot }),
+            rightsService,
+            Options.Create(options ?? new WorkflowSourceOptions { LocalPath = FixturesRoot }),
             new ConfigChangeFeed(), NullLogger<VersionsController>.Instance);
     }
 

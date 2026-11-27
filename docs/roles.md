@@ -67,7 +67,8 @@ Each action in the `actions` list has a `type` and optional scope:
 | `Edit` | Can edit existing submissions |
 | `Undo` | Can undo eligible form submissions or executable actions. This reverses correlated workflow events and cancels pending jobs, but does not reverse completed external effects |
 | `Execute` | Can trigger executable actions |
-| `ViewAdminTools` | Can access admin tools in the UI |
+| `ViewAdminTools` | Can use workflow and instance admin tools, including operations such as recalculating steps |
+| `AccessGlobalAdminTools` | Can open Develop, manage configuration, and view migration history |
 | `ViewHidden` | Can view hidden properties |
 | `ViewUsers` | Can view user information |
 | `ViewStates` | Can view workflow state details |
@@ -77,7 +78,11 @@ Each action in the `actions` list has a `type` and optional scope:
 | `AssignMessages` | Can assign messages |
 | `CreateInstance` | Can create new workflow instances |
 | `CreateRelatedInstance` | Can create related instances |
-| `ImpersonateRoles` | Can impersonate workflow roles |
+| `ImpersonateRoles` | Can act as a workflow role within an instance |
+| `ImpersonateUsers` | Can act as another user |
+
+`AccessGlobalAdminTools` and `ImpersonateUsers` come from `Common/Roles/` in the default configuration, even in previews.
+The validator rejects fields such as `condition`, `workflowDefinition`, `form`, and `steps` on both actions.
 
 Actions can be scoped to specific forms or steps:
 

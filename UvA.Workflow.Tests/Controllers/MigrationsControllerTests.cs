@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Migrations;
 using UvA.Workflow.Migrations;
 using UvA.Workflow.Tests.Helpers;
@@ -62,13 +63,17 @@ public class MigrationsControllerTests
         Assert.Equal("migration-request", body.GetProperty("traceId").GetString());
     }
 
-    [Fact]
-    public async Task Get_WithoutAdminRights_DoesNotReadMigrations()
+    [Theory]
+    [InlineData("Coordinator")]
+    [InlineData("LocalAdmin")]
+    public async Task Get_WorkflowAdmin_DoesNotReadMigrations(string role)
     {
         var repository = new Mock<IMigrationRepository>();
-        var controller = CreateController(repository, []);
+        var controller = CreateController(repository, [role]);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.Get(CancellationToken.None));
+        var result = await controller.Get(CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result.Result).StatusCode);
 
         repository.Verify(value => value.GetAll(It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -76,16 +81,23 @@ public class MigrationsControllerTests
     private static MigrationsController CreateController(Mock<IMigrationRepository> repository, string[]? roles = null)
     {
         var parser = UnitTestsHelpers.CreateModelParser();
-        var modelService = new ModelService(parser);
-        var migrationService = new MigrationService(modelService, repository.Object);
         var userService = new Mock<IUserService>();
         userService.Setup(service => service.GetRolesOfCurrentUser(It.IsAny<CancellationToken>()))
             .ReturnsAsync(roles ?? ["SystemAdmin"]);
-        var rightsService = new RightsService(modelService, userService.Object,
-            Mock.Of<IWorkflowInstanceRepository>(),
-            UvA.Workflow.Tests.Helpers.UnitTestsHelpers.CreateStateResolver(modelService,
-                Mock.Of<IWorkflowInstanceRepository>()));
-        return new MigrationsController(migrationService, rightsService, NullLogger<MigrationsController>.Instance)
+        userService.Setup(service => service.GetRealUser(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitTestsHelpers.AdminUser);
+        userService.Setup(service => service.GetRoles(UnitTestsHelpers.AdminUser, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(roles ?? ["SystemAdmin"]);
+        parser.GlobalRoles.Single(role => role.Name == "SystemAdmin").Actions
+            .Add(new() { Type = RoleAction.AccessGlobalAdminTools });
+        var resolver = new ModelServiceResolver(new HttpContextAccessor());
+        resolver.AddOrUpdate("", parser, "", kind: VersionKind.Baseline);
+        var model = resolver.Resolve().ModelService;
+        var instanceRepository = Mock.Of<IWorkflowInstanceRepository>();
+        var rightsService = new RightsService(model, userService.Object, instanceRepository,
+            UnitTestsHelpers.CreateStateResolver(model, instanceRepository));
+        return new MigrationsController(new MigrationService(model, repository.Object), rightsService,
+            NullLogger<MigrationsController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
