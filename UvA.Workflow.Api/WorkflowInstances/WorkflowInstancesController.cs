@@ -157,10 +157,12 @@ public class WorkflowInstancesController(
             return Forbidden();
 
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var localization = new WorkflowLocalization(definition);
 
         // The admin view ignores property conditions and visibility.
         var properties = definition.Properties
             .Select(p => QuestionDto.Create(p, totalWeight: 0))
+            .Select(localization.Apply)
             .ToArray();
 
         var values = await instanceService.GetPropertyValues(instance, ct);
@@ -281,8 +283,9 @@ public class WorkflowInstancesController(
         if (!await rightsService.Can(instance, [RoleAction.ImpersonateRoles], RightsEvaluationMode.RealUser))
             return Forbidden();
 
+        var localization = new WorkflowLocalization(modelService.WorkflowDefinitions[instance.WorkflowDefinition]);
         var roles = (await rightsService.GetImpersonationTargetRoles(instance, ct))
-            .Select(ImpersonationRoleDto.Create)
+            .Select(role => ImpersonationRoleDto.Create(role) with { Title = localization.Resolve(role.Title) })
             .ToArray();
 
         return Ok(roles);
@@ -301,6 +304,7 @@ public class WorkflowInstancesController(
             return Forbidden();
 
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var localization = new WorkflowLocalization(definition);
         var perRole = await rightsService.GetAllowedActionsPerTargetRole(instance,
             RoleAction.Submit, RoleAction.Edit, RoleAction.Execute, RoleAction.CreateRelatedInstance,
             RoleAction.Undo, RoleAction.View);
@@ -322,7 +326,7 @@ public class WorkflowInstancesController(
             .OrderByDescending(s => s.Name == currentStepName)
             .Select(s => new ActiveStepDto(
                 s.Name,
-                s.DisplayTitle,
+                localization.Resolve(s.DisplayTitle),
                 s.Name == currentStepName,
                 RolesFor(s.Name)))
             .ToArray();
@@ -331,10 +335,11 @@ public class WorkflowInstancesController(
 
         ActiveStepRoleDto[] RolesFor(string stepName)
             => perRole
-                .Select(r => new ActiveStepRoleDto(r.Role.Name, r.Role.Title,
+                .Select(r => new ActiveStepRoleDto(r.Role.Name, localization.Resolve(r.Role.Title),
                     r.Actions.Where(a => (a.Type != RoleAction.View || a.Persistent) &&
                                          actionSteps[a].Contains(stepName))
-                        .Select(AllowedActionDto.Create).ToArray()))
+                        .Select(a => AllowedActionDto.Create(a) with { Label = localization.Resolve(a.Label) })
+                        .ToArray()))
                 .Where(r => r.Actions.Length > 0)
                 .ToArray();
     }
@@ -360,7 +365,8 @@ public class WorkflowInstancesController(
                 $"Role '{input.Role}' cannot be impersonated for workflow '{instance.WorkflowDefinition}'.");
 
         var importedIds = new List<string>();
-        if (modelService.WorkflowDefinitions[instance.WorkflowDefinition].HasImportedSteps)
+        var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        if (definition.HasImportedSteps)
         {
             var context = await instanceService.ResolveContext(instance, ct);
             foreach (var source in context.ImportedSteps.Values.OfType<ImportedStepContext>()
@@ -379,9 +385,10 @@ public class WorkflowInstancesController(
 
         var token = impersonationService.CreateToken(currentUser.UserName, instance.Id,
             normalizedRoleName.Name, importedIds);
+        var localization = new WorkflowLocalization(definition);
         return Ok(new StartImpersonationResultDto(
             instance.Id,
-            normalizedRoleName,
+            normalizedRoleName with { Title = localization.Resolve(normalizedRoleName.Title) },
             token.Value,
             token.ExpiresAtUtc
         ));
@@ -402,6 +409,7 @@ public class WorkflowInstancesController(
         var res = await repository.GetAll(i => i.WorkflowDefinition == workflowDefinition, ct);
         var contexts = res.Select(modelService.CreateContext).ToList();
         var entity = modelService.WorkflowDefinitions[workflowDefinition];
+        var localization = new WorkflowLocalization(entity);
 
         await instanceService.Enrich(entity, contexts,
             properties.Select(p => new PropertyLookup(p)), ct);
@@ -410,7 +418,7 @@ public class WorkflowInstancesController(
             .OrderByDescending(i => i.Id)
             .Select(row => properties.ToDictionary(
                 JsonNamingPolicy.CamelCase.ConvertName,
-                p => GetResponseValue(entity, row, p)
+                p => GetResponseValue(entity, localization, row, p)
             )));
     }
 
@@ -423,6 +431,7 @@ public class WorkflowInstancesController(
             return Forbidden();
 
         var entity = modelService.WorkflowDefinitions[workflowDefinition];
+        var localization = new WorkflowLocalization(entity);
 
         // Title is rendered from a per-definition template, so it's opt-in
         var titleTemplate = includeTitle ? entity.InstanceTitleTemplate : null;
@@ -462,7 +471,7 @@ public class WorkflowInstancesController(
                                  { DataType: DataType.Object or DataType.Reference } ||
                              property == "LastEvent" || entity.Events.Any(ev =>
                                  property == ev.Name + "Event" || property == ev.Name + "EventActive")))
-                    row[property] = GetResponseValue(entity, context, property);
+                    row[property] = GetResponseValue(entity, localization, context, property);
                 if (titleTemplate != null)
                     row["Title"] = titleTemplate.Apply(context);
                 return row;
@@ -630,13 +639,14 @@ public class WorkflowInstancesController(
         return Ok(history);
     }
 
-    private object? GetResponseValue(WorkflowDefinition definition, ObjectContext context, string path)
+    private object? GetResponseValue(WorkflowDefinition definition, WorkflowLocalization localization,
+        ObjectContext context, string path)
     {
         var value = context.Get(path);
         return modelService.GetProperty(definition, path.Split('.')) is
             { DataType: DataType.Reference } property
             ? Answer.SerializeValue(property, value)
-            : value;
+            : localization.ResolveValue(value);
     }
 
     private PropertyDefinition? GetRelatedUserProperty(WorkflowInstance instance, string property)

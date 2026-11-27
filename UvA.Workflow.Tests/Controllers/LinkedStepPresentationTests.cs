@@ -140,6 +140,68 @@ public class LinkedStepPresentationTests
     }
 
     [Fact]
+    public async Task Instance_LocalizesLinkedStepAndInheritedDisplayTextUsingTheConsumingWorkflow()
+    {
+        var files = LinkedStepConfigurationTests.Files();
+        files["Shared/Entity.yaml"] += "\n  - name: Caption\n    type: String\nlanguages: [en]";
+        files["Shared/Steps/Upload.yaml"] = """
+                                            name: Upload
+                                            title:
+                                              en: Joint upload
+                                              nl: Gezamenlijke upload
+                                            ends:
+                                              event: Uploaded
+                                            progress:
+                                              - text:
+                                                  en: Waiting for {{ Caption }}
+                                                  nl: Wachten op {{ Caption }}
+                                                header:
+                                                  type: Info
+                                            """;
+        files["Individual/Entity.yaml"] += "\ninheritsFrom: Display\nlanguages: [nl]";
+        files["Display/Entity.yaml"] = """
+                                       name: Display
+                                       fields:
+                                         - property: CurrentStep
+                                           title:
+                                             en: Current step
+                                             nl: Huidige stap
+                                       infoCards:
+                                         - name: Help
+                                           type: Text
+                                           title:
+                                             en: Help
+                                             nl: Hulp
+                                           content:
+                                             en: Upload a document
+                                             nl: Upload een document
+                                       """;
+        var api = new LinkedStepApiSetup(files: files);
+        api.Core.Source.Properties["Caption"] = "PDF";
+
+        var instance = await api.Factory.Create(api.Core.Student, default);
+
+        var step = Assert.Single(instance.Steps, step => step.Id == "SharedUpload");
+        AssertDutch("Gezamenlijke upload", step.Title);
+        AssertDutch("Wachten op PDF", step.HeaderStatus?.Label);
+        var field = Assert.Single(instance.Fields);
+        AssertDutch("Huidige stap", field.Title);
+        AssertDutch("Gezamenlijke upload", Assert.IsType<BilingualString>(field.Value));
+        var card = Assert.Single(instance.InfoCards);
+        AssertDutch("Hulp", card.Title);
+        AssertDutch("Upload een document", card.Content);
+        Assert.Equal("Joint upload", api.Core.Model.WorkflowDefinitions["Shared"].Steps[0].Title!.En);
+        Assert.Equal("Help", Assert.Single(api.Core.Model.WorkflowDefinitions["Display"].InfoCards).Title!.En);
+
+        static void AssertDutch(string expected, BilingualString? text)
+        {
+            Assert.NotNull(text);
+            Assert.Equal(expected, text.En);
+            Assert.Equal(expected, text.Nl);
+        }
+    }
+
+    [Fact]
     public async Task Instance_CombinesConfiguredParticipantRolesAndDeduplicatesByUserId()
     {
         var api = new LinkedStepApiSetup(participants: ["Members", "Supervisor"]);

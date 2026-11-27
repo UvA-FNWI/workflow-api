@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using UvA.Workflow.Api.Submissions.Dtos;
+using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
@@ -12,6 +13,31 @@ internal sealed class WorkflowLocalization(WorkflowDefinition workflowDefinition
 
     [return: NotNullIfNotNull(nameof(text))]
     public BilingualString? Resolve(BilingualString? text) => BilingualString.Resolve(text, _languages);
+
+    public static BilingualString WithFallback(BilingualString text) =>
+        BilingualString.Resolve(text, WorkflowDefinition.SupportedLanguages);
+
+    [return: NotNullIfNotNull(nameof(value))]
+    public object? ResolveValue(object? value) => value switch
+    {
+        BilingualString text => Resolve(text),
+        BilingualString[] texts => texts.Select(Resolve).ToArray(),
+        object[] items when items.GetType() == typeof(object[]) => items.Select(ResolveValue).ToArray(),
+        _ => value
+    };
+
+    public WorkflowInstanceDto Apply(WorkflowInstanceDto instance) => instance with
+    {
+        Actions = instance.Actions.Select(Apply).ToArray(),
+        PinnedActions = instance.PinnedActions.Select(Apply).ToArray(),
+        Fields = instance.Fields.Select(field => field with
+        {
+            Title = Resolve(field.Title), Value = ResolveValue(field.Value)
+        }).ToArray(),
+        Steps = instance.Steps.Select(Apply).ToArray(),
+        InfoCards = instance.InfoCards.Select(Apply).ToArray(),
+        StopMessage = Resolve(instance.StopMessage)
+    };
 
     public FormDto Apply(FormDto form) => form with
     {
@@ -40,6 +66,36 @@ internal sealed class WorkflowLocalization(WorkflowDefinition workflowDefinition
             Error = result.Error is { } error ? error with { Message = Resolve(error.Message) } : null
         };
 
+    private ActionDto Apply(ActionDto action) => action with { Title = Resolve(action.Title) };
+
+    private StepDto Apply(StepDto step) => step with
+    {
+        Title = Resolve(step.Title),
+        Children = step.Children?.Select(Apply).ToArray(),
+        HeaderStatus = step.HeaderStatus is { } header ? header with { Label = Resolve(header.Label) } : null,
+        Deadline = step.Deadline is { } deadline ? deadline with { Message = Resolve(deadline.Message) } : null,
+        UndoCandidate = step.UndoCandidate is { } undo
+            ? undo with { StepTitle = Resolve(undo.StepTitle), SourceTitle = Resolve(undo.SourceTitle) }
+            : null
+    };
+
+    private InfoCardDto Apply(InfoCardDto card) => card with
+    {
+        Title = Resolve(card.Title),
+        EmptyText = Resolve(card.EmptyText),
+        Content = Resolve(card.Content),
+        Fields = card.Fields?.Select(field => field with
+        {
+            Title = Resolve(field.Title), Value = ResolveValue(field.Value)
+        }).ToArray(),
+        Groups = card.Groups?.Select(group => group with
+        {
+            Title = Resolve(group.Title),
+            UserRoles = group.UserRoles.Select(role => role with { Title = Resolve(role.Title) }).ToArray()
+        }).ToArray(),
+        Items = card.Items?.Select(item => item with { Text = Resolve(item.Text), Url = Resolve(item.Url) }).ToArray()
+    };
+
     private PageDto Apply(PageDto page) => page with
     {
         Title = Resolve(page.Title),
@@ -55,7 +111,7 @@ internal sealed class WorkflowLocalization(WorkflowDefinition workflowDefinition
         Text = Resolve(element.Text)
     };
 
-    private QuestionDto Apply(QuestionDto question)
+    public QuestionDto Apply(QuestionDto question)
     {
         var localized = question with
         {

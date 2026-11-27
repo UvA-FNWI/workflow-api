@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
@@ -169,7 +170,7 @@ public class WorkflowInstanceDtoFactory(
             .OfType<InfoCardDto>()
             .ToArray();
         var fields = CreateFields(workflowDefinition, displayContext);
-        return new WorkflowInstanceDto(
+        var dto = new WorkflowInstanceDto(
             instance.Id,
             workflowDefinition.InstanceTitleTemplate?.Apply(displayContext),
             WorkflowDefinitionDto.Create(modelService.WorkflowDefinitions[instance.WorkflowDefinition]),
@@ -190,6 +191,7 @@ public class WorkflowInstanceDtoFactory(
             context.WorkflowStopped,
             stopMessage
         );
+        return new WorkflowLocalization(workflowDefinition).Apply(dto);
     }
 
     private static FieldDto[] CreateFields(WorkflowDefinition workflowDefinition, ObjectContext context)
