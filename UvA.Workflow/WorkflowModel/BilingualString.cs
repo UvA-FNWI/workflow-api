@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace UvA.Workflow.WorkflowModel;
 
 public class BilingualString
@@ -20,6 +22,23 @@ public class BilingualString
 
     public string ForLanguage(string? language)
         => IsDutch(language) && !string.IsNullOrWhiteSpace(Nl) ? Nl : En;
+
+    [return: NotNullIfNotNull(nameof(text))]
+    public static BilingualString? Resolve(BilingualString? text, IReadOnlyList<string> languages)
+    {
+        if (text == null)
+            return null;
+
+        var resolved = text.WithFallback();
+        return languages.Count == 1 ? (BilingualString)resolved.ForLanguage(languages[0]) : resolved;
+    }
+
+    internal BilingualString WithFallback()
+    {
+        var en = string.IsNullOrWhiteSpace(En) ? null : En;
+        var nl = string.IsNullOrWhiteSpace(Nl) ? null : Nl;
+        return new BilingualString(en ?? nl ?? "", nl ?? en ?? "");
+    }
 
     public static implicit operator BilingualString(string text) => new() { En = text, Nl = text };
 

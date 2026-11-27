@@ -12,23 +12,26 @@ public record WorkflowDefinitionDto(
     bool IsEmbedded,
     string[] Screens,
     bool CanCreateInstance,
-    bool IsPropertyOnly
+    bool IsPropertyOnly,
+    IReadOnlyList<string> Languages
 )
 {
     public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition,
         bool canCreateInstance = false)
     {
+        var languages = workflowDefinition.EffectiveLanguages;
         return new WorkflowDefinitionDto(
             workflowDefinition.Name,
-            workflowDefinition.Title,
-            workflowDefinition.TitlePlural,
+            BilingualString.Resolve(workflowDefinition.Title, languages),
+            BilingualString.Resolve(workflowDefinition.TitlePlural, languages),
             workflowDefinition.Index,
             workflowDefinition.IsAlwaysVisible,
             workflowDefinition.InheritsFrom,
             workflowDefinition.IsEmbedded,
             workflowDefinition.Screens.Select(s => s.Name).ToArray(),
             canCreateInstance,
-            workflowDefinition.Steps.Count == 0
+            workflowDefinition.Steps.Count == 0,
+            languages
         );
     }
 }

@@ -201,7 +201,8 @@ public partial class ModelParser
                     ? (BilingualString)text
                     : _deserializer.Deserialize<BilingualString>(new SerializerBuilder().Build().Serialize(value));
 
-        substituted = SubstituteTemplateValues(template.RootFile, template.Name, values);
+        substituted = SubstituteTemplateValues(template.RootFile, template.Name, values,
+            useBidirectionalFallback: template is not EmailTemplate);
         consumer.ResolvedTemplateValues = values;
 
         try
@@ -271,8 +272,9 @@ public partial class ModelParser
     /// <param name="rawYaml"></param>
     /// <param name="templateName"></param>
     /// <param name="values"></param>
+    /// <param name="useBidirectionalFallback">Whether to fill a missing translation from either language.</param>
     private static string SubstituteTemplateValues(string rawYaml, string templateName,
-        IReadOnlyDictionary<string, object> values)
+        IReadOnlyDictionary<string, object> values, bool useBidirectionalFallback)
     {
         if (string.IsNullOrWhiteSpace(rawYaml))
             throw new ArgumentException(
@@ -283,6 +285,8 @@ public partial class ModelParser
         {
             if (value is BilingualString localized)
             {
+                if (useBidirectionalFallback)
+                    localized = localized.WithFallback();
                 replacements[$"{name}.en"] = localized.ForLanguage("en");
                 replacements[$"{name}.nl"] = localized.ForLanguage("nl");
                 replacements[name] = localized;

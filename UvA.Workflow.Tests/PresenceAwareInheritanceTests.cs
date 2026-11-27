@@ -1,4 +1,7 @@
+using System.Text.Json;
+using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
 using UvA.Workflow.Events;
+using UvA.Workflow.SchemaGenerator.Generation;
 using UvA.Workflow.Tools;
 using UvA.Workflow.WorkflowInstances;
 
@@ -7,6 +10,120 @@ namespace UvA.Workflow.Tests;
 public class PresenceAwareInheritanceTests
 {
     private static Step Step(WorkflowDefinition def, string name) => def.AllSteps.Single(s => s.Name == name);
+
+    [Theory]
+    [InlineData("Base", new[] { "en", "nl" }, "Application", "Aanvraag")]
+    [InlineData("Dutch", new[] { "nl" }, "Aanvraag", "Aanvraag")]
+    [InlineData("Inherited", new[] { "nl" }, "Aanvraag", "Aanvraag")]
+    [InlineData("English", new[] { "en" }, "Verzoek", "Verzoek")]
+    [InlineData("Bilingual", new[] { "en", "nl" }, "Application", "Aanvraag")]
+    public void WorkflowDefinitionDto_ResolvesTitlesUsingEffectiveLanguages(
+        string name, string[] languages, string en, string nl)
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = """
+                                   name: Base
+                                   title:
+                                     en: Application
+                                     nl: Aanvraag
+                                   titlePlural:
+                                     en: Applications
+                                     nl: ' '
+                                   """,
+            ["Dutch/Entity.yaml"] = "name: Dutch\ninheritsFrom: Base\nlanguages: [nl]",
+            ["Inherited/Entity.yaml"] = "name: Inherited\ninheritsFrom: Dutch",
+            ["English/Entity.yaml"] = """
+                                      name: English
+                                      inheritsFrom: Dutch
+                                      languages: [en]
+                                      title:
+                                        nl: Verzoek
+                                      """,
+            ["Bilingual/Entity.yaml"] = "name: Bilingual\ninheritsFrom: Inherited\nlanguages: [en, nl]"
+        }));
+
+        var definition = parser.WorkflowDefinitions[name];
+        var dto = JsonSerializer.SerializeToElement(WorkflowDefinitionDto.Create(definition),
+            JsonSerializerOptions.Web);
+        var title = dto.GetProperty("title");
+        var titlePlural = dto.GetProperty("titlePlural");
+
+        Assert.Equal(languages, definition.EffectiveLanguages);
+        Assert.Equal(languages, dto.GetProperty("languages").EnumerateArray().Select(language => language.GetString()));
+        Assert.Equal(en, title.GetProperty("en").GetString());
+        Assert.Equal(nl, title.GetProperty("nl").GetString());
+        Assert.Equal("Applications", titlePlural.GetProperty("en").GetString());
+        Assert.Equal("Applications", titlePlural.GetProperty("nl").GetString());
+        Assert.Equal("Application", parser.WorkflowDefinitions["Base"].Title!.En);
+        Assert.Equal("Aanvraag", parser.WorkflowDefinitions["Base"].Title!.Nl);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("[en, en]")]
+    [InlineData("[en, fr]")]
+    [InlineData("[NL]")]
+    public void WorkflowLanguages_RejectInvalidExplicitValues(string languages)
+    {
+        var exception = Assert.ThrowsAny<Exception>(() => new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nlanguages: [nl]",
+            ["Child/Entity.yaml"] = $"name: Child\ninheritsFrom: Base\nlanguages: {languages}"
+        })));
+
+        Assert.Contains("languages", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task WorkflowLanguageSchema_ValidatesExplicitValuesAndAllowsOmission()
+    {
+        var documentation = new DocumentationReader();
+        await documentation.Load(CancellationToken.None);
+        var schema = new Generator(documentation, typeof(PropertyDefinition)).Generate(typeof(WorkflowDefinition));
+        var languages = schema.Properties["languages"];
+
+        Assert.DoesNotContain("languages", schema.RequiredProperties);
+        Assert.Empty(languages.Validate("""["en"]"""));
+        Assert.Empty(languages.Validate("""["nl"]"""));
+        Assert.Empty(languages.Validate("""["en", "nl"]"""));
+        Assert.NotEmpty(languages.Validate("[]"));
+        Assert.NotEmpty(languages.Validate("null"));
+        Assert.NotEmpty(languages.Validate("""["en", "en"]"""));
+        Assert.NotEmpty(languages.Validate("""["fr"]"""));
+    }
+
+    [Fact]
+    public void InheritedTemplatedTitle_FillsMissingParameterTranslationBeforeSubstitution()
+    {
+        var parser = new ModelParser(new DictionaryProvider(new()
+        {
+            ["Base/Entity.yaml"] = "name: Base\ntitlePlural: Bases\nsteps: [Start]",
+            ["Base/Steps/Start.yaml"] = """
+                                        name: Start
+                                        template: Review
+                                        values:
+                                          caption:
+                                            nl: Voorstel
+                                        """,
+            ["Common/Templates/Steps/Review.yaml"] = """
+                                                     name: Review
+                                                     params:
+                                                       - name: caption
+                                                         type: LocalString!
+                                                     title:
+                                                       en: Working on ${caption.en}
+                                                       nl: Werkt aan ${caption}
+                                                     """,
+            ["Child/Entity.yaml"] = "name: Child\ninheritsFrom: Base\nlanguages: [en]"
+        }));
+
+        var title = Step(parser.WorkflowDefinitions["Child"], "Start").Title;
+
+        Assert.Equal("Working on Voorstel", title!.En);
+        Assert.Equal("Werkt aan Voorstel", title.Nl);
+    }
 
     [Theory]
     [InlineData(StepMode.Normal, false, false)]

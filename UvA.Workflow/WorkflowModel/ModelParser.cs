@@ -70,6 +70,7 @@ public partial class ModelParser
                 var definition = Parse<WorkflowDefinition>(Path.Combine(folder, "Entity.yaml"));
                 if (definition == null)
                     throw new Exception($"No valid Entity.yaml in folder {folder}");
+                ValidateLanguages(definition);
                 definition.SourceFolder = folder;
                 return definition;
             })
@@ -922,6 +923,16 @@ public partial class ModelParser
                 throw new Exception(
                     $"ServiceOutput '{output.Name}' in '{service.Name}.{operation.Name}' requires either 'path' or 'template'.");
         }
+    }
+
+    private static void ValidateLanguages(WorkflowDefinition definition)
+    {
+        if (definition.Declared(d => d.Languages) &&
+            (definition.Languages is not { Length: > 0 } languages ||
+             languages.Any(language => !WorkflowDefinition.SupportedLanguages.Contains(language)) ||
+             languages.Distinct().Count() != languages.Length))
+            throw new ArgumentException(
+                $"Workflow '{definition.Name}' has invalid languages in Entity.yaml. Use [en], [nl], or both without duplicates.");
     }
 
     private T Parse<T>(string file)
