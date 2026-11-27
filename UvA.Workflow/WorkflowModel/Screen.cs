@@ -11,6 +11,36 @@ public class Screen : INamed, IDeclaredKeys
     public string Name { get; set; } = null!;
 
     /// <summary>
+    /// Workflow definition whose instances this screen lists. Defaults to the owning definition.
+    /// </summary>
+    public string? WorkflowDefinition { get; set; }
+
+    /// <summary>
+    /// Parent-scoped related-screen marker; such screens are omitted from the register overview hub.
+    /// </summary>
+    public string? Relation { get; set; }
+
+    /// <summary>
+    /// User-facing title for overview navigation and the screen page heading.
+    /// </summary>
+    public BilingualString? Title { get; set; }
+
+    /// <summary>
+    /// Optional subtitle shown on the overview list.
+    /// </summary>
+    public BilingualString? Description { get; set; }
+
+    /// <summary>
+    /// Sort order when multiple screens from the same workflow appear on the overview.
+    /// </summary>
+    public int? Index { get; set; }
+
+    /// <summary>
+    /// Optional condition for showing this screen in overview navigation.
+    /// </summary>
+    public Condition? Condition { get; set; }
+
+    /// <summary>
     /// List of columns to display on this screen
     /// </summary>
     public Column[] Columns { get; set; } = [];

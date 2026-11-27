@@ -70,7 +70,7 @@ public class WorkflowDefinitionsController(
                 groupedParent = groupedParent.Parent;
             }
 
-            dtos.Add(WorkflowDefinitionDto.Create(groupedParent ?? definition));
+            dtos.Add(WorkflowDefinitionDto.CreateForAccessibleOverview(groupedParent ?? definition));
         }
 
         return Ok(dtos.DistinctBy(dto => dto.Name));

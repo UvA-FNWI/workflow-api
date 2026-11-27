@@ -45,6 +45,31 @@
       ],
       "description": "Integer indicating the tab order in the instance page"
     },
+    "icon": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Optional icon for overview list entries (hub navigation).",
+          "$ref": "#/definitions/Icon"
+        }
+      ]
+    },
+    "description": {
+      "description": "Optional short description shown under the title in overview list entries.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
     "isAlwaysVisible": {
       "type": "boolean",
       "description": "Always show this entity type to the user, even if the user has no rights"
@@ -164,6 +189,29 @@
           "type": "string"
         }
       }
+    },
+    "Icon": {
+      "title": "Icon",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/definitions/StatusColor"
+        }
+      }
+    },
+    "StatusColor": {
+      "type": "string",
+      "enum": [
+        "Red",
+        "Green"
+      ]
     },
     "EventDefinition": {
       "title": "EventDefinition",

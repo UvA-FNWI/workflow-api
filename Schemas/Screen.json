@@ -11,6 +11,69 @@
       "type": "string",
       "description": "Internal name of the screen"
     },
+    "workflowDefinition": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Workflow definition whose instances this screen lists. Defaults to the owning definition."
+    },
+    "relation": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Parent-scoped related-screen marker; such screens are omitted from the register overview hub."
+    },
+    "title": {
+      "description": "User-facing title for overview navigation and the screen page heading.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
+    "description": {
+      "description": "Optional subtitle shown on the overview list.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/BilingualString"
+        }
+      ]
+    },
+    "index": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Sort order when multiple screens from the same workflow appear on the overview."
+    },
+    "condition": {
+      "description": "Optional condition for showing this screen in overview navigation.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
+    },
     "columns": {
       "type": "array",
       "description": "List of columns to display on this screen",
@@ -49,150 +112,6 @@
     }
   },
   "definitions": {
-    "Column": {
-      "title": "Column",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Internal name of the column, used for inheritance"
-        },
-        "type": {
-          "description": "Type of the column",
-          "$ref": "#/definitions/ColumnType"
-        },
-        "filterType": {
-          "description": "Determines whether this column can be used for filtering",
-          "$ref": "#/definitions/FilterType"
-        },
-        "displayType": {
-          "description": "Determines whether this column is visible in the user interface or only in the export",
-          "$ref": "#/definitions/DisplayType"
-        },
-        "defaultSort": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "description": "Sets a default sort direction for this column",
-              "$ref": "#/definitions/SortDirection"
-            }
-          ]
-        },
-        "link": {
-          "type": "boolean",
-          "description": "If true, this column becomes a link to the instance"
-        },
-        "property": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Property this field refers to"
-        },
-        "value": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Custom value template"
-        },
-        "href": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Url the field should refer to"
-        },
-        "default": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Default value to use if the target is empty"
-        },
-        "title": {
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/BilingualString"
-            }
-          ]
-        },
-        "isHighlighted": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "condition": {
-          "description": "Conditions that determines if the field is included in the DTO",
-          "oneOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/Condition"
-            }
-          ]
-        },
-        "order": {
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "endDate": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Target step the field should show the end date of"
-        }
-      }
-    },
-    "ColumnType": {
-      "type": "string",
-      "enum": [
-        "Normal",
-        "CurrentStep",
-        "RelatedUsers"
-      ]
-    },
-    "FilterType": {
-      "type": "string",
-      "enum": [
-        "None",
-        "Pick"
-      ]
-    },
-    "DisplayType": {
-      "type": "string",
-      "enum": [
-        "Normal",
-        "ExportOnly"
-      ]
-    },
-    "SortDirection": {
-      "type": "string",
-      "enum": [
-        "Ascending",
-        "Descending"
-      ]
-    },
     "BilingualString": {
       "title": "BilingualString",
       "type": "object",
@@ -444,6 +363,150 @@
           "type": "string"
         }
       }
+    },
+    "Column": {
+      "title": "Column",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Internal name of the column, used for inheritance"
+        },
+        "type": {
+          "description": "Type of the column",
+          "$ref": "#/definitions/ColumnType"
+        },
+        "filterType": {
+          "description": "Determines whether this column can be used for filtering",
+          "$ref": "#/definitions/FilterType"
+        },
+        "displayType": {
+          "description": "Determines whether this column is visible in the user interface or only in the export",
+          "$ref": "#/definitions/DisplayType"
+        },
+        "defaultSort": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Sets a default sort direction for this column",
+              "$ref": "#/definitions/SortDirection"
+            }
+          ]
+        },
+        "link": {
+          "type": "boolean",
+          "description": "If true, this column becomes a link to the instance"
+        },
+        "property": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Property this field refers to"
+        },
+        "value": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Custom value template"
+        },
+        "href": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Url the field should refer to"
+        },
+        "default": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Default value to use if the target is empty"
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "isHighlighted": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "condition": {
+          "description": "Conditions that determines if the field is included in the DTO",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Condition"
+            }
+          ]
+        },
+        "order": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "endDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Target step the field should show the end date of"
+        }
+      }
+    },
+    "ColumnType": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "CurrentStep",
+        "RelatedUsers"
+      ]
+    },
+    "FilterType": {
+      "type": "string",
+      "enum": [
+        "None",
+        "Pick"
+      ]
+    },
+    "DisplayType": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "ExportOnly"
+      ]
+    },
+    "SortDirection": {
+      "type": "string",
+      "enum": [
+        "Ascending",
+        "Descending"
+      ]
     },
     "ScreenGrouping": {
       "title": "ScreenGrouping",

@@ -42,6 +42,7 @@ public partial class ModelParser
 
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions { get; } = new();
 
+    public WorkflowSettings? Settings { get; }
     internal List<ValueSet> ValueSets { get; }
     private List<Condition> NamedConditions { get; }
     private List<StepTemplate> StepTemplates { get; }
@@ -54,6 +55,7 @@ public partial class ModelParser
         _contentProvider = contentProvider;
         var folders = GetWorkflowDefinitionFolders().ToArray();
         _deserializer = CreateDeserializer(folders);
+        Settings = TryParse<WorkflowSettings>("Settings.yaml");
         GlobalRoles = Read<Role>();
         Services = Read<Service>();
         ValidateServices(Services);
@@ -634,6 +636,9 @@ public partial class ModelParser
         foreach (var group in screen.Grouping?.Groups ?? [])
             PreProcess(group.Condition);
 
+        PreProcess(screen.Condition);
+        screen.WorkflowDefinition ??= workflowDefinition.Name;
+
         var actionNames = new HashSet<string>();
         foreach (var bulkAction in screen.BulkActions)
         {
@@ -921,6 +926,18 @@ public partial class ModelParser
             if (output.Path == null && output.Template == null)
                 throw new Exception(
                     $"ServiceOutput '{output.Name}' in '{service.Name}.{operation.Name}' requires either 'path' or 'template'.");
+        }
+    }
+
+    private T? TryParse<T>(string file) where T : class
+    {
+        try
+        {
+            return Parse<T>(file);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or KeyNotFoundException)
+        {
+            return null;
         }
     }
 

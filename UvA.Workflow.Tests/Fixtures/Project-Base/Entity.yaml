@@ -1,4 +1,6 @@
 name: Project-Base
+icon:
+  type: graduate-cap-solid
 title: Project (base)
 titlePlural: Projects
 instanceTitle: '{{ Title }}'

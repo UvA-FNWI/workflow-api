@@ -185,7 +185,7 @@ public class WorkflowDefinitionsControllerTests : ControllerTestsBase
 
         var dtos = GetDtos(await controller.GetAccessible(_ct));
 
-        Assert.Contains(dtos, d => d.Name == "Context" && d.Screens.Length == 1 && d.Screens[0] == "Default");
+        Assert.Contains(dtos, d => d.Name == "Context" && d.Screens.Length == 1 && d.Screens[0].Name == "Default");
         Assert.Contains(dtos, d => d.Name == "Project");
         Assert.DoesNotContain(dtos, d =>
             d.Name is "Course" or "Programme" or "Faculty" or "Specialisation");
