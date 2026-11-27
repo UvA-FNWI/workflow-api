@@ -223,14 +223,17 @@ public class SubmissionsControllerTests : ControllerTestsBase
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData(false)]
-    public async Task Submissions_SubmitSubmission_RejectsUncheckedRequiredCheck(bool? value)
+    [InlineData(null, false)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task Submissions_SubmitSubmission_RejectsUncheckedRequiredCheck(bool? value, bool dutchOnly)
     {
         IncludeCheckInStartForm();
         const string submissionId = "Start";
         var (controller, instance) = BuildControllerWithRoles(["Student"], submissionId, "Start",
             RequiredStartProperties());
+        if (dutchOnly)
+            _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Languages = ["nl"];
         instance.Properties["CanBePublished"] = value.HasValue ? new BsonBoolean(value.Value) : BsonNull.Value;
 
         var result = await controller.SubmitSubmission(instance.Id, submissionId, _ct);
@@ -241,7 +244,8 @@ public class SubmissionsControllerTests : ControllerTestsBase
         Assert.False(payload.Success);
         var error = Assert.Single(payload.ValidationErrors!);
         Assert.Equal("CanBePublished", error.QuestionName);
-        Assert.Equal("Required field", error.ValidationMessage.En);
+        Assert.Equal(dutchOnly ? "Verplicht veld" : "Required field", error.ValidationMessage.En);
+        Assert.Equal("Verplicht veld", error.ValidationMessage.Nl);
         Assert.Null(payload.Submission.DateSubmitted);
         _instanceJournalServiceMock.Verify(service => service.IncrementVersion(instance.Id, _ct), Times.Never);
     }

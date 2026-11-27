@@ -45,6 +45,83 @@ public class SubmissionDtoFactoryChangeTests
     }
 
     [Fact]
+    public void Create_LocalizesTargetFormAndAnswersUsingTheConsumingWorkflow()
+    {
+        var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());
+        var factory = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config), modelService,
+            CreateInstanceService(modelService));
+        var consumer = modelService.WorkflowDefinitions["Project-PP"];
+        var target = modelService.WorkflowDefinitions["Assessment-PP"];
+        consumer.Languages = ["nl"];
+        target.Languages = ["en"];
+        const string questionName = "ProblemStatement";
+        var instance = new WorkflowInstanceBuilder().With("Project-PP", "AssessmentSupervisor")
+            .WithProperties(("AssessmentSupervisor", _ => new BsonDocument
+            {
+                [questionName] = "8",
+                ["ProblemStatementComments"] = "Voorbeeld"
+            })).Build();
+        var form = modelService.GetForm(instance, "AssessmentSupervisor");
+        var targetPage = form.ActualForm.Pages[0];
+        targetPage.Title = new("Content", "Inhoud");
+        targetPage.PageElements =
+        [
+            .. targetPage.PageElements,
+            new PageElement
+            {
+                Callout = new Callout
+                {
+                    Title = new("Note", "Opmerking"),
+                    Text = new("Review {{ ProblemStatementComments }}", "Controleer {{ ProblemStatementComments }}")
+                }
+            }
+        ];
+        var property = Assert.IsType<ChoicePropertyDefinition>(target.Properties.Single(p => p.Name == questionName));
+        property.Text = new("Problem statement", "Probleemstelling");
+        property.Description = new("Describe the problem", "Beschrijf het probleem");
+        var rubric = property.Rubric![0];
+        rubric.Description = new("Good work", "Goed werk");
+        var choice = property.Values!.Single(value => value.Name == rubric.Grades[0]);
+        choice.Text = new("Excellent", "Uitstekend");
+        choice.Description = new("Highest grade", "Hoogste cijfer");
+        var validation = new BilingualString("Invalid grade", "Ongeldig cijfer");
+        var statuses = new Dictionary<string, QuestionStatus> { [questionName] = new(true, validation, [choice.Name]) };
+
+        var dto = factory.Create(instance, form, FormSubmissionState.Resolve(instance, form, consumer), statuses);
+
+        AssertDutch("Beoordeling Supervisor", dto.Form.Title);
+        var page = Assert.Single(dto.Form.Pages, page => page.Name == targetPage.Name);
+        AssertDutch("Inhoud", page.Title);
+        var callout = Assert.Single(page.Elements, element => element.Callout != null).Callout!;
+        AssertDutch("Opmerking", callout.Title);
+        AssertDutch("Controleer Voorbeeld", callout.Text);
+        var question = Assert.IsType<ChoiceQuestionDto>(page.Elements.Single(e => e.Question?.Name == questionName)
+            .Question);
+        AssertDutch("Probleemstelling", question.Text);
+        AssertDutch("Beschrijf het probleem", question.Description);
+        var selectedChoice = Assert.Single(question.Choices, value => value.Name == choice.Name);
+        AssertDutch("Uitstekend", selectedChoice.Text);
+        AssertDutch("Hoogste cijfer", selectedChoice.Description);
+        var rubricDto = Assert.Single(question.Rubric!, entry => entry.Name == rubric.Name);
+        AssertDutch("Goed werk", rubricDto.Description);
+        AssertDutch("Uitstekend", Assert.Single(rubricDto.Grades, grade => grade.Name == choice.Name).Text);
+        var answer = Assert.Single(dto.Answers);
+        Assert.Equal(target.Name, answer.WorkflowDefinition);
+        Assert.Equal("8", answer.Value?.GetString());
+        AssertDutch("Ongeldig cijfer", answer.ValidationError);
+        Assert.Equal("Problem statement", property.Text.En);
+        Assert.Equal("Excellent", choice.Text.En);
+        Assert.Equal("Invalid grade", validation.En);
+
+        static void AssertDutch(string expected, BilingualString? text)
+        {
+            Assert.NotNull(text);
+            Assert.Equal(expected, text.En);
+            Assert.Equal(expected, text.Nl);
+        }
+    }
+
+    [Fact]
     public void Create_AttachesJournalChangesGroupedByFormSubmit()
     {
         var modelService = new ModelService(UnitTestsHelpers.CreateModelParser());

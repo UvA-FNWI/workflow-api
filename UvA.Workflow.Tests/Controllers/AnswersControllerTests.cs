@@ -21,6 +21,7 @@ using UvA.Workflow.Tools;
 using UvA.Workflow.Users;
 using UvA.Workflow.Versioning;
 using UvA.Workflow.WorkflowInstances;
+using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.Tests.Controllers;
 
@@ -91,6 +92,29 @@ public class AnswersControllerTests : ControllerTestsBase
         var savedAnswer = Assert.Single(response.Submission.Answers, a => a.QuestionName == "Subject");
         Assert.Equal(!hidden, savedAnswer.IsVisible);
         Assert.Equal(hidden ? null : "Updated subject", savedAnswer.Value?.GetString());
+    }
+
+    [Fact]
+    public async Task Answers_SaveAnswer_LocalizesValidationInRawAnswerUpdates()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Student"], "Start");
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Languages = ["nl"];
+        var subject = _modelService.GetProperty(instance, "Subject")!;
+        subject.Validation = new Condition
+        {
+            Value = new Value { Property = "Subject", MinLength = 8 },
+            Message = new("Too short", "Te kort")
+        };
+
+        var result = await controller.SaveAnswer(instance.Id, "Start", "Subject",
+            new SaveAnswerRequest(JsonSerializer.SerializeToElement("Test")), _ct);
+
+        var response = Assert.IsType<SaveAnswerResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var answer = Assert.Single(response.Answers, answer => answer.QuestionName == "Subject");
+        Assert.Equal("Test", answer.Value?.GetString());
+        Assert.NotNull(answer.ValidationError);
+        Assert.Equal("Te kort", answer.ValidationError.En);
+        Assert.Equal("Te kort", answer.ValidationError.Nl);
     }
 
     [Fact]

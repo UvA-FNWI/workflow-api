@@ -213,6 +213,29 @@ public class LinkedStepAssessmentTests
         Assert.Equal(8m, Assert.Single(dto.Parts[1].SourceResults).WeightedAverage);
     }
 
+    [Fact]
+    public async Task Results_LocalizesEachAssessmentPartUsingItsOwnerWorkflow()
+    {
+        var setup = new LinkedStepAssessmentSetup();
+        var shared = setup.Core.Model.WorkflowDefinitions["Shared"];
+        var individual = setup.Core.Model.WorkflowDefinitions["Individual"];
+        shared.Languages = ["nl"];
+        individual.Languages = ["en"];
+        shared.Forms.Single(form => form.Name == "AssessForm").Title = new("Group review", "Groepsbeoordeling");
+        individual.Forms.Single(form => form.Name == "AssessForm").Title =
+            new("Individual review", "Individuele beoordeling");
+
+        var response = await setup.Controller.GetAssessmentResults(setup.Core.Student.Id, default);
+
+        var dto = Assert.IsType<AssessmentDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        var sharedPart = Assert.Single(dto.Parts, part => part.Id == "SharedAssessment");
+        var individualPart = Assert.Single(dto.Parts, part => part.Id == "IndividualAssessment");
+        Assert.Equal("Gemiddelde", sharedPart.Combined!.Title.En);
+        Assert.Equal("Average", individualPart.Combined!.Title.Nl);
+        Assert.Equal("Groepsbeoordeling", sharedPart.Form!.Title.En);
+        Assert.Equal("Individual review", individualPart.Form!.Title.Nl);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
