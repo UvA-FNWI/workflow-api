@@ -419,13 +419,40 @@ public class RightsService(
         return allowedActions.Any(f => form == null || f.MatchesForm(form));
     }
 
-    public async Task<bool> Can(RoleAction action)
+    public async Task<bool> Can(RoleAction action, CancellationToken ct = default)
     {
+        if (action is RoleAction.AccessGlobalAdminTools or RoleAction.ImpersonateUsers)
+        {
+            var actions = GetBaselineGlobalActions(await userService.GetRolesOfCurrentUser(ct));
+            return action == RoleAction.AccessGlobalAdminTools
+                ? await CanAccessGlobalAdminTools(actions, ct)
+                : actions.Contains(action);
+        }
+
         var globalUserRoles = (await GetGlobalUserRoles())
-            .Select(gur => modelService.Roles.GetValueOrDefault(gur))
-            .ToArray();
-        return globalUserRoles.Any(r => r != null && r.Actions.Any(a => a.Type == action));
+            .Select(role => modelService.Roles.GetValueOrDefault(role)).OfType<Role>();
+        return GetRoleActionTypes(globalUserRoles).Contains(action);
     }
+
+    public async Task<bool> CanAccessGlobalAdminTools(IReadOnlySet<RoleAction> effectiveActions, CancellationToken ct)
+    {
+        if (!effectiveActions.Contains(RoleAction.AccessGlobalAdminTools))
+            return false;
+
+        var realUser = await userService.GetRealUser(ct);
+        return realUser != null && GetBaselineGlobalActions(await userService.GetRoles(realUser, ct))
+            .Contains(RoleAction.AccessGlobalAdminTools);
+    }
+
+    public IReadOnlySet<RoleAction> GetBaselineGlobalActions(IEnumerable<string> roles)
+    {
+        var assignedRoles = roles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return GetRoleActionTypes(modelService.BaselineGlobalRoles.Where(role => assignedRoles.Contains(role.Name)))
+            .ToHashSet();
+    }
+
+    private static IEnumerable<RoleAction> GetRoleActionTypes(IEnumerable<Role> roles) =>
+        roles.SelectMany(role => role.Actions).Select(action => action.Type);
 
     public Task EnsureAuthorizedForAction(WorkflowInstance instance, RoleAction action, string? form = null)
         => EnsureAuthorizedForAction(instance, [action], RightsEvaluationMode.RequestContext, form);

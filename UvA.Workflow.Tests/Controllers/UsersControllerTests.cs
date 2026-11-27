@@ -72,7 +72,7 @@ public class UsersControllerTests : ControllerTestsBase
     [InlineData("Coordinator", false)]
     [InlineData("Student", false)]
     [InlineData("RandomPerson", false)]
-    public async Task Users_GetLoggedInUser_SetsIsSuperAdmin_ForSystemAdminRole(string role, bool expectedIsSuperAdmin)
+    public async Task Users_GetLoggedInUser_ReturnsGlobalAdminToolsGrant(string role, bool expectedIsSuperAdmin)
     {
         // Arrange
         var controller = BuildControllerWithRoles([role]);
@@ -652,6 +652,8 @@ public class UsersControllerTests : ControllerTestsBase
         string[] roles)
     {
         MockCurrentUser(roles);
+        _userServiceMock.Setup(s => s.GetRoles(UnitTestsHelpers.AdminUser, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(roles);
         _eduIdUserServiceMock.Setup(s => s.IsInternalEmailAddress(It.IsAny<string>()))
             .Returns((string email) => IsConfiguredInternalEmail(email));
         _workflowInstanceRepoMock.Setup(r => r.GetById(InstanceId, _ct))
@@ -680,10 +682,18 @@ public class UsersControllerTests : ControllerTestsBase
                 InvitationState = UserInvitationState.Required
             });
 
+        var resolver = new ModelServiceResolver(new HttpContextAccessor());
+        var parser = UnitTestsHelpers.CreateModelParser();
+        parser.GlobalRoles.Single(role => role.Name == "SystemAdmin").Actions
+            .Add(new() { Type = RoleAction.AccessGlobalAdminTools });
+        resolver.AddOrUpdate("", parser, "", kind: VersionKind.Baseline);
+        var model = resolver.Resolve().ModelService;
+        var rightsService = new RightsService(model, _userServiceMock.Object, _workflowInstanceRepoMock.Object,
+            UnitTestsHelpers.CreateStateResolver(model, _workflowInstanceRepoMock.Object));
         return new UsersController(_userServiceMock.Object,
             _userRepoMock.Object,
             _workflowInstanceRepoMock.Object,
-            _rightsService,
+            rightsService,
             _eduIdUserServiceMock.Object,
             _externalUserServiceMock.Object,
             null!,

@@ -2,11 +2,18 @@ using UvA.Workflow.WorkflowModel.Conditions;
 
 namespace UvA.Workflow.WorkflowModel;
 
-public class ModelService(ModelParser parser)
+public class ModelService(ModelParser parser, IReadOnlyList<Role>? baselineGlobalRoles = null)
 {
     public Dictionary<string, WorkflowDefinition> WorkflowDefinitions => parser.WorkflowDefinitions;
 
     public Dictionary<string, Role> Roles => parser.GlobalRoles.ToDictionary(r => r.Name, r => r);
+
+    /// <summary>
+    /// Global roles from the active default configuration. Loading a preview with a role's actions
+    /// changed lets users test workflow permissions. Global admin tools and user impersonation
+    /// use the baseline grants while the preview is active.
+    /// </summary>
+    public IReadOnlyList<Role> BaselineGlobalRoles { get; } = baselineGlobalRoles ?? [];
 
     public List<Service> Services => parser.Services;
 

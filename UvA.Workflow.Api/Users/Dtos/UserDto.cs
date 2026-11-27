@@ -16,10 +16,12 @@ public record UserDto(
     bool IsEmailEditable
 )
 {
+    public bool CanImpersonateUsers { get; init; }
+
     /// <summary>
     /// Creates a UserDto from a User domain entity.
-    /// <paramref name="isSuperAdmin"/> reflects whether the *current* request's user is a DataNose
-    /// super admin, so it is only meaningful on the /me endpoint; it defaults to false elsewhere.
+    /// <paramref name="isSuperAdmin"/> indicates whether the current user can access global admin tools.
+    /// It is only meaningful on the /me endpoint and defaults to false elsewhere.
     /// </summary>
     public static UserDto Create(User user, bool isSuperAdmin = false)
     {

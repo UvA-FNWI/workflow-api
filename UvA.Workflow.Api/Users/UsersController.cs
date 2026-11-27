@@ -4,7 +4,6 @@ using UvA.Workflow.Api.Authentication;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Users;
-using UvA.Workflow.Users.DataNose;
 
 namespace UvA.Workflow.Api.Users;
 
@@ -44,11 +43,12 @@ public class UsersController(
         if (user == null)
             return UserNotFound;
 
-        // Developer tooling is restricted to DataNose super admins (the SystemAdmin role). The role
-        // name arrives from DataNose via GetRolesForUser; see DataNoseDirectoryKeys.
-        var roles = await userService.GetRolesOfCurrentUser(ct);
-        var isSuperAdmin = roles.Contains(DataNoseDirectoryKeys.SuperAdminRoleName, StringComparer.OrdinalIgnoreCase);
-        return Ok(UserDto.Create(user, isSuperAdmin));
+        var actions = rightsService.GetBaselineGlobalActions(await userService.GetRoles(user, ct));
+        var canAccessGlobalAdminTools = await rightsService.CanAccessGlobalAdminTools(actions, ct);
+        return Ok(UserDto.Create(user, canAccessGlobalAdminTools) with
+        {
+            CanImpersonateUsers = actions.Contains(RoleAction.ImpersonateUsers)
+        });
     }
 
     [HttpPost]
@@ -176,7 +176,7 @@ public class UsersController(
 
         var realUser = await userService.GetUser(realName, ct);
         var roles = realUser is null ? [] : await userService.GetRoles(realUser, ct);
-        if (!roles.Contains(DataNoseDirectoryKeys.SuperAdminRoleName, StringComparer.OrdinalIgnoreCase))
+        if (!rightsService.GetBaselineGlobalActions(roles).Contains(RoleAction.ImpersonateUsers))
             return Forbidden();
 
         var target = await userService.GetUser(dto.UserName, ct);

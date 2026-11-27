@@ -39,7 +39,9 @@ public class ModelServiceResolver(IHttpContextAccessor httpContextAccessor)
     public ResolvedWorkflowConfig Resolve()
     {
         var entry = ResolveEntry();
-        return new ResolvedWorkflowConfig(new ModelService(entry.Parser), entry.DefaultMailLayout);
+        var baseline = entry.Kind == VersionKind.Baseline ? entry : _entries.GetValueOrDefault("");
+        var baselineGlobalRoles = baseline is { Kind: VersionKind.Baseline } ? baseline.Parser.GlobalRoles : null;
+        return new ResolvedWorkflowConfig(new ModelService(entry.Parser, baselineGlobalRoles), entry.DefaultMailLayout);
     }
 
     /// The raw files behind the resolved version: yaml from the content provider, plus the mail layout,

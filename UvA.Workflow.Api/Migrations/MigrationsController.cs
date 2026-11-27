@@ -14,7 +14,8 @@ public class MigrationsController(
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<MigrationDto>>> Get(CancellationToken ct)
     {
-        await rightsService.EnsureAuthorizedForAction(RoleAction.ViewAdminTools);
+        if (!await rightsService.Can(RoleAction.AccessGlobalAdminTools, ct))
+            return Forbidden();
         try
         {
             return Ok((await migrationService.GetAll(ct)).Select(MigrationDto.Create).ToArray());
