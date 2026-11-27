@@ -444,6 +444,61 @@ public class MessagesControllerTests : ControllerTestsBase
         Assert.Equal(ItemKind.Message, captured.Kind);
     }
 
+    [Theory]
+    [InlineData(null, "third", true)]
+    [InlineData(0, null, false)]
+    [InlineData(1, null, true)]
+    [InlineData(1, "legacy-3", false)]
+    [InlineData(2, "legacy-3", true)]
+    [InlineData(2, "third", false)]
+    [InlineData(4, "third", true)]
+    public async Task AddMessage_EnforcesConfiguredReplyDepth(int? maxReplyDepth, string? parentItemId, bool allowed)
+    {
+        var instance = CreateInstance();
+        MockCurrentUser("SystemAdmin");
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Messages!.MaxReplyDepth = maxReplyDepth;
+        var authorId = UnitTestsHelpers.AdminUser.Id;
+        var thread = new Message
+        {
+            Id = ObjectId.GenerateNewId().ToString(),
+            InstanceId = instance.Id,
+            Items =
+            [
+                new MessageItem { AuthorId = authorId, Body = "Opening message" },
+                new MessageItem { AuthorId = authorId, Kind = ItemKind.Close },
+                new MessageItem { AuthorId = authorId, Kind = ItemKind.Reopen },
+                new MessageItem { AuthorId = authorId, Body = "Legacy direct reply" },
+                new MessageItem
+                    { AuthorId = authorId, Id = "second", ParentItemId = "legacy-3", Body = "Second level" },
+                new MessageItem { AuthorId = authorId, Id = "third", ParentItemId = "second", Body = "Third level" }
+            ]
+        };
+        _messageRepoMock.Setup(r => r.GetMessages(instance.Id, _ct)).ReturnsAsync([thread]);
+        _messageRepoMock.Setup(r => r.AddMessageItem(instance.Id, thread.Id, It.IsAny<MessageItem>(), _ct))
+            .ReturnsAsync((string _, string _, MessageItem item, CancellationToken _) =>
+            {
+                thread.Items = [.. thread.Items, item];
+                return thread;
+            });
+        var input = new AddMessageInput(null, thread.Id, Body: "Reply", ParentItemId: parentItemId);
+        var controller = CreateController();
+
+        if (allowed)
+        {
+            var result = await controller.AddMessage(instance.Id, input, _ct);
+            var dto = Assert.IsType<MessageDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+            Assert.Equal(parentItemId ?? "legacy-0", dto.Items[^1].ParentItemId);
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<InvalidWorkflowStateException>(() =>
+                controller.AddMessage(instance.Id, input, _ct));
+            Assert.Equal("MessageReplyDepthExceeded", error.Code);
+            _messageRepoMock.Verify(r => r.AddMessageItem(instance.Id, thread.Id, It.IsAny<MessageItem>(), _ct),
+                Times.Never);
+        }
+    }
+
     [Fact]
     public async Task AddMessage_ReturnsNotFound_WhenInstanceMissing()
     {

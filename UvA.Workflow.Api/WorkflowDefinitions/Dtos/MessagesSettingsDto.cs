@@ -9,7 +9,8 @@ public record MessagesSettingsDto(
     bool AllowClose = true,
     CalloutDto? Callout = null,
     BilingualString? Term = null,
-    BilingualString? TermPlural = null
+    BilingualString? TermPlural = null,
+    int? MaxReplyDepth = null
 )
 {
     public static MessagesSettingsDto From(MessagesSettings settings) =>
@@ -19,6 +20,7 @@ public record MessagesSettingsDto(
             settings.Close,
             settings.Callout is { } callout ? new CalloutDto(callout.Variant, callout.Title, callout.Text) : null,
             settings.Term,
-            settings.TermPlural
+            settings.TermPlural,
+            settings.MaxReplyDepth
         );
 }

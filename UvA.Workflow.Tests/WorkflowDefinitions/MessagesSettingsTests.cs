@@ -72,6 +72,7 @@ public class MessagesSettingsTests
                 Fields = false,
                 Layout = "flat",
                 Close = false,
+                MaxReplyDepth = 4,
                 Callout = new MessageCalloutSettings
                 {
                     Variant = CalloutVariant.Info,
@@ -89,11 +90,31 @@ public class MessagesSettingsTests
         Assert.False(dto.Messages.FieldsAllowAll);
         Assert.Equal("flat", dto.Messages.Layout);
         Assert.False(dto.Messages.AllowClose);
+        Assert.Equal(4, dto.Messages.MaxReplyDepth);
         Assert.NotNull(dto.Messages.Callout);
         Assert.Equal(CalloutVariant.Info, dto.Messages.Callout.Variant);
         Assert.Equal("Privacy", dto.Messages.Callout.Title?.En);
         Assert.Equal("Be careful", dto.Messages.Callout.Text?.En);
         Assert.Equal("note", dto.Messages.Term?.En);
         Assert.Equal("notities", dto.Messages.TermPlural?.Nl);
+    }
+
+    [Fact]
+    public void ModelParser_RejectsNegativeMaximumReplyDepth()
+    {
+        var source = new DictionaryProvider(new()
+        {
+            ["Project/Entity.yaml"] = """
+                                      name: Project
+                                      titlePlural: Projects
+                                      messages:
+                                        enabled: true
+                                        maxReplyDepth: -1
+                                      """
+        });
+
+        var error = Assert.Throws<Exception>(() => new ModelParser(source));
+
+        Assert.Contains("messages.maxReplyDepth", error.Message);
     }
 }

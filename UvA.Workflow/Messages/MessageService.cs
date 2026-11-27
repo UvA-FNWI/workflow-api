@@ -119,31 +119,58 @@ public class MessageService(
         }
 
         var itemInput = input.Kind == ItemKind.Message
-            ? input with { ParentItemId = ResolveParentItemId(existing, input.ParentItemId) }
+            ? input with
+            {
+                ParentItemId = ResolveParentItemId(existing, input.ParentItemId, definition.Messages?.MaxReplyDepth)
+            }
             : input with { ParentItemId = null, Body = null };
 
         var updated = await repository.AddMessageItem(instance.Id, existing.Id, CreateItem(user.Id, itemInput), ct);
         return updated ?? throw new EntityNotFoundException("Message", existing.Id);
     }
 
-    private static string ResolveParentItemId(Message thread, string? parentItemId)
+    private static string ResolveParentItemId(Message thread, string? parentItemId, int? maxReplyDepth)
     {
-        var root = thread.Items.FirstOrDefault(i => i.Kind == ItemKind.Message)
-                   ?? throw new InvalidWorkflowStateException(thread.InstanceId, "InvalidMessageThread",
-                       "Conversation has no opening message.");
+        var rootIndex = Array.FindIndex(thread.Items, item => item.Kind == ItemKind.Message);
+        if (rootIndex < 0)
+            throw new InvalidWorkflowStateException(thread.InstanceId, "InvalidMessageThread",
+                "Conversation has no opening message.");
 
-        var rootId = MessageItemIds.EnsureItemId(root, 0);
-        if (string.IsNullOrEmpty(parentItemId) || parentItemId == rootId)
-            return rootId;
+        var rootId = MessageItemIds.EnsureItemId(thread.Items[rootIndex], rootIndex);
+        parentItemId = string.IsNullOrEmpty(parentItemId) ? rootId : parentItemId;
 
-        var knownIds = thread.Items
-            .Where(i => i.Kind == ItemKind.Message)
-            .Select((item, index) => MessageItemIds.EnsureItemId(item, index))
-            .ToHashSet(StringComparer.Ordinal);
+        var replyDepth = 1;
+        if (parentItemId != rootId)
+        {
+            var itemsById = thread.Items
+                .Select((item, index) => (Item: item, Index: index))
+                .Where(entry => entry.Item.Kind == ItemKind.Message)
+                .ToDictionary(entry => MessageItemIds.EnsureItemId(entry.Item, entry.Index), entry => entry.Item,
+                    StringComparer.Ordinal);
 
-        if (!knownIds.Contains(parentItemId))
-            throw new InvalidWorkflowStateException(thread.InstanceId, "InvalidParentItem",
-                "Parent message was not found in this conversation.");
+            if (!itemsById.ContainsKey(parentItemId))
+                throw new InvalidWorkflowStateException(thread.InstanceId, "InvalidParentItem",
+                    "Parent message was not found in this conversation.");
+
+            if (maxReplyDepth.HasValue)
+            {
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                var ancestorId = parentItemId;
+                while (ancestorId != rootId && itemsById.TryGetValue(ancestorId, out var ancestor))
+                {
+                    if (!visited.Add(ancestorId))
+                        throw new InvalidWorkflowStateException(thread.InstanceId, "InvalidMessageThread",
+                            "Conversation contains a circular reply chain.");
+
+                    replyDepth++;
+                    ancestorId = ancestor.ParentItemId ?? rootId;
+                }
+            }
+        }
+
+        if (maxReplyDepth is { } limit && replyDepth > limit)
+            throw new InvalidWorkflowStateException(thread.InstanceId, "MessageReplyDepthExceeded",
+                $"This reply exceeds the maximum depth of {limit} for this workflow.");
 
         return parentItemId;
     }

@@ -251,6 +251,9 @@ public class MessagesSettings
     /// <summary>When false, conversations cannot be closed or reopened.</summary>
     public bool Close { get; set; } = true;
 
+    /// <summary>Nonnegative maximum reply depth. Direct replies have depth 1. Null means unlimited.</summary>
+    public int? MaxReplyDepth { get; set; }
+
     /// <summary>Optional callout in the message composer.</summary>
     public MessageCalloutSettings? Callout { get; set; }
 
