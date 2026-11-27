@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Personal.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.Screens;
@@ -66,22 +67,27 @@ public partial class PersonalInstanceService(
             .ThenByDescending(dto => dto.Id)
             .ToArray();
 
-        var roleLookup = instanceDtos
+        var roles = instanceDtos
             .SelectMany(dto => dto.Roles.Select(name => (dto.WorkflowDefinition, name)))
             .GroupBy(x => x.name, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Select(x => modelService.WorkflowDefinitions[x.WorkflowDefinition].Roles.GetOrDefault(x.name))
-                    .FirstOrDefault(r => r != null) ?? new Role { Name = g.Key },
-                StringComparer.OrdinalIgnoreCase);
+            .Select(group =>
+            {
+                foreach (var (workflowDefinition, name) in group)
+                {
+                    var definition = modelService.WorkflowDefinitions[workflowDefinition];
+                    if (definition.Roles.GetOrDefault(name) is { } role)
+                    {
+                        var localization = new WorkflowLocalization(definition);
+                        return (role.Name, role.Order, Title: localization.Resolve(role.DisplayTitle));
+                    }
+                }
 
-        var roles = instanceDtos
-            .SelectMany(instance => instance.Roles)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(name => roleLookup[name])
+                var fallback = new Role { Name = group.Key };
+                return (fallback.Name, fallback.Order, Title: fallback.DisplayTitle);
+            })
             .OrderBy(role => role.Order)
             .ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(role => new PersonalRoleDto(role.Name, role.DisplayTitle))
+            .Select(role => new PersonalRoleDto(role.Name, role.Title))
             .ToArray();
 
         return new PersonalInstancesDto(UserDto.Create(user), roles, instanceDtos);
@@ -94,6 +100,7 @@ public partial class PersonalInstanceService(
     {
         var (instance, context, linkedRoles) = item;
         var definition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var localization = new WorkflowLocalization(definition);
         var usersByRole = GetUserProperties(definition)
             .ToDictionary(
                 property => property.Name,
@@ -113,11 +120,11 @@ public partial class PersonalInstanceService(
         return new PersonalInstanceDto(
             instance.Id,
             instance.WorkflowDefinition,
-            definition.DisplayTitle,
+            localization.Resolve(definition.DisplayTitle),
             definition.InstanceTitleTemplate?.Apply(context),
             context.CurrentStep,
-            StepProgressResolver.ResolveProgress(definition, context.CurrentStep, context,
-                viewableSources: viewableSources),
+            localization.Apply(StepProgressResolver.ResolveProgress(definition, context.CurrentStep, context,
+                viewableSources: viewableSources)),
             instance.CreatedOn,
             roles.Order(StringComparer.OrdinalIgnoreCase).ToArray(),
             student,

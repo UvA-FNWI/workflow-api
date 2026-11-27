@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
 using UvA.Workflow.WorkflowModel.Conditions;
@@ -25,6 +26,7 @@ public class ScreenDataService(
         if (screen == null)
             throw new ArgumentException($"Screen '{screenName}' not found for entity type '{workflowDefinition}'");
         var definition = modelService.WorkflowDefinitions[workflowDefinition];
+        var localization = new WorkflowLocalization(definition);
 
         var canCreateInstance = await rightsService.CanAny(workflowDefinition, RoleAction.CreateInstance);
 
@@ -41,12 +43,13 @@ public class ScreenDataService(
         if (screen.Grouping != null)
         {
             var groups = BuildGroups(definition, contexts, screen, columns, viewableSources);
-            return ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups, canCreateInstance);
+            return localization.Apply(
+                ScreenDataDto.Create(screen, definition, columns, [], canBulkEdit, groups, canCreateInstance));
         }
 
         var rows = ProcessRows(definition, contexts, screen, columns, viewableSources);
-        return ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit,
-            canCreateInstance: canCreateInstance);
+        return localization.Apply(ScreenDataDto.Create(screen, definition, columns, rows, canBulkEdit,
+            canCreateInstance: canCreateInstance));
     }
 
     private Screen? GetScreen(string screenName, string workflowDefinition)
@@ -126,6 +129,7 @@ public class ScreenDataService(
             var rowDefinition = definition.GroupChildScreens
                 ? modelService.WorkflowDefinitions[(string)context.Get("Type")!]
                 : definition;
+            var localization = new WorkflowLocalization(rowDefinition);
             var id = context.Id!;
             var processedValues = new Dictionary<int, object?>();
 
@@ -136,10 +140,10 @@ public class ScreenDataService(
                 var columnId = columns[i].Id;
                 object? value = columns[i].ColumnType switch
                 {
-                    ColumnType.CurrentStep => StepProgressResolver.ResolveProgress(rowDefinition, context.CurrentStep,
-                        context, viewableSources: viewableSources),
+                    ColumnType.CurrentStep => localization.Apply(StepProgressResolver.ResolveProgress(rowDefinition,
+                        context.CurrentStep, context, viewableSources: viewableSources)),
                     ColumnType.RelatedUsers => GetRelatedUsersScreen(definition, context),
-                    _ => column.GetValue(context)
+                    _ => localization.ResolveValue(column.GetValue(context))
                 };
                 processedValues[columnId] = value;
             }
@@ -150,16 +154,19 @@ public class ScreenDataService(
         return rows.ToArray();
     }
 
-    public static ScreenRelatedUserDto[] GetRelatedUsersScreen(WorkflowDefinition definition, ObjectContext context) =>
-        GetDefaultRelatedUsers(definition)
+    public static ScreenRelatedUserDto[] GetRelatedUsersScreen(WorkflowDefinition definition, ObjectContext context)
+    {
+        var localization = new WorkflowLocalization(definition);
+        return GetDefaultRelatedUsers(definition)
             .SelectMany(relatedUser => GetUsersForRole(relatedUser, context))
             .GroupBy(user => user.UserName)
             .Select(group => new ScreenRelatedUserDto(
                 group.Key,
                 group.First().DisplayName,
-                group.SelectMany(user => user.Roles).ToArray(),
+                group.SelectMany(user => user.Roles).Select(role => localization.Resolve(role)).ToArray(),
                 group.First().Organisation))
             .ToArray();
+    }
 
     private static RelatedUser[] GetDefaultRelatedUsers(WorkflowDefinition definition) => definition.RelatedUserGroups
         .Where(group => group.Name == "default")

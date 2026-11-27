@@ -44,12 +44,18 @@ public class ScreenDataServiceRelatedUsersTests : ControllerTestsBase
             _rightsService);
     }
 
-    [Fact]
-    public async Task GetScreenData_SingleAndArrayUsers_MergesRolesByDisplayName()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetScreenData_SingleAndArrayUsers_MergesRolesByDisplayName(bool dutchOnly)
     {
+        if (dutchOnly)
+            _definition.Languages = ["nl"];
         var supervisorTitle = new BilingualString("Supervisor", "Begeleider");
         var practicalTitle = new BilingualString(
             "Practical supervisor", "Praktijkbegeleider");
+        var expectedSupervisor = (En: dutchOnly ? supervisorTitle.Nl : supervisorTitle.En, supervisorTitle.Nl);
+        var expectedPractical = (En: dutchOnly ? practicalTitle.Nl : practicalTitle.En, practicalTitle.Nl);
 
         ConfigureGroups(DefaultGroup(
             new RelatedUser { Property = "Supervisor", Text = supervisorTitle },
@@ -76,14 +82,15 @@ public class ScreenDataServiceRelatedUsersTests : ControllerTestsBase
                 Assert.Equal("Alice", user.DisplayName);
                 Assert.Equal("First organisation", user.Organisation);
                 Assert.Equal(
-                    new[] { supervisorTitle, practicalTitle },
-                    user.Roles);
+                    new[] { expectedSupervisor, expectedPractical },
+                    user.Roles.Select(role => (role.En, role.Nl)));
             },
             user =>
             {
                 Assert.Equal("Bob", user.DisplayName);
                 Assert.Null(user.Organisation);
-                Assert.Equal(practicalTitle, Assert.Single(user.Roles));
+                var role = Assert.Single(user.Roles);
+                Assert.Equal(expectedPractical, (role.En, role.Nl));
             });
     }
 

@@ -44,16 +44,17 @@ public class ImportController(
         if (screen.BulkEdit is null)
             return BadRequest("BulkEditNotEnabled", $"Screen '{screenName}' does not support bulk edit.");
 
+        var localization = new WorkflowLocalization(definition);
         var editableProperties =
             await importService.GetEditableImportableProperties(workflowDefinition, screen.BulkEdit.EditableProperties);
         var columns = editableProperties
-            .Select(p => new ImportablePropertyDto(p.Name, p.DisplayName, p.DataType))
+            .Select(p => new ImportablePropertyDto(p.Name, localization.Resolve(p.DisplayName), p.DataType))
             .ToArray();
 
         var identifierProperty = screen.BulkEdit.Identifier;
         var identifier = new ImportablePropertyDto(
             identifierProperty.Property,
-            identifierProperty.Title ?? identifierProperty.Property,
+            localization.Resolve(identifierProperty.Title ?? identifierProperty.Property),
             DataType.String);
 
         return Ok(new GetColumnNamesResponse(identifier, columns));
@@ -78,7 +79,8 @@ public class ImportController(
             request.Mappings,
             ct);
 
-        return Ok(preview);
+        var localization = new WorkflowLocalization(modelService.WorkflowDefinitions[workflowDefinition]);
+        return Ok(localization.Apply(preview));
     }
 
     [HttpPost("{workflowDefinition}/{screenName}/Confirm")]

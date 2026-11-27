@@ -270,14 +270,22 @@ public class LinkedStepPresentationTests
     }
 
     [Fact]
-    public async Task ParentOverview_UsesTheChildDefinitionsImportedProgress()
+    public async Task ParentOverview_LocalizesScreenLabelsAndChildProgressUsingTheirWorkflows()
     {
         var api = new LinkedStepApiSetup();
         var child = api.Core.Model.WorkflowDefinitions["Individual"];
+        child.Languages = ["nl"];
+        var source = api.Core.Model.WorkflowDefinitions["Shared"];
+        source.Languages = ["en"];
+        source.Steps[0].Progress = [new ProgressInformation { Text = new("Joint upload", "Samen uploaden") }];
+        var overview = Assert.Single(child.Screens);
+        Assert.Single(overview.Columns).Title = new("Progress", "Voortgang");
+        overview.Grouping!.Groups.Single(group => group.Name == "shared").Title = new("Shared", "Gedeeld");
+        overview.BulkActions = [new BulkAction { Action = "Print", Label = new("Print", "Afdrukken") }];
         var parent = new WorkflowDefinition
         {
             Name = "Parent", GroupChildScreens = true, Screens = child.Screens, Roles = child.Roles,
-            AllSteps = []
+            AllSteps = [], Languages = ["en"]
         };
         child.Parent = parent;
         api.Core.Model.WorkflowDefinitions.Add(parent.Name, parent);
@@ -290,9 +298,15 @@ public class LinkedStepPresentationTests
 
         var data = await screens.GetScreenData("Overview", "Parent", default);
 
-        var row = Assert.Single(Assert.Single(data.Groups!, group => group.Rows.Length > 0).Rows);
+        Assert.Equal("Progress", Assert.Single(data.Columns).Title.Nl);
+        Assert.Equal("Print", Assert.Single(data.BulkActions!).Label.Nl);
+        Assert.Equal("Afdrukken", Assert.Single(overview.BulkActions).Label.Nl);
+        var group = Assert.Single(data.Groups!, group => group.Rows.Length > 0);
+        Assert.Equal("Shared", group.Title.Nl);
+        var row = Assert.Single(group.Rows);
         var progress = Assert.IsType<ProgressInformationDto>(Assert.Single(row.Values).Value);
-        Assert.Equal("Joint upload", progress.Text.En);
+        Assert.Equal("Samen uploaden", progress.Text.En);
+        Assert.Equal("Samen uploaden", progress.Text.Nl);
         Assert.Equal("Before", api.Core.Student.CurrentStep);
     }
 
@@ -328,6 +342,53 @@ public class LinkedStepPresentationTests
 
         Assert.Equal("After", Assert.Single(dto.Instances).CurrentStep);
         Assert.Equal("Before", api.Core.Student.CurrentStep);
+    }
+
+    [Fact]
+    public async Task PersonalOverview_LocalizesEachRowAndUsesTheFirstMatchingWorkflowForTheRoleFilter()
+    {
+        var api = new LinkedStepApiSetup();
+        var shared = api.Core.Model.WorkflowDefinitions["Shared"];
+        shared.Languages = ["en"];
+        shared.Title = new("Shared project", "Gedeeld project");
+        shared.Steps[0].Progress = [new ProgressInformation { Text = new("Joint upload", "Samen uploaden") }];
+        var individual = api.Core.Model.WorkflowDefinitions["Individual"];
+        individual.Languages = ["nl"];
+        individual.Title = new("Individual project", "Individueel project");
+        individual.Roles.Single(role => role.Name == "Student").Title = new("Individual student", "Eigen student");
+        individual.InfoCards =
+        [
+            new InfoCard
+            {
+                Type = InfoCardType.RelatedUsers,
+                Groups =
+                [
+                    new RelatedUserGroup
+                    {
+                        Name = "default",
+                        Users = [new RelatedUser { Property = "Student", Text = new("Student", "Deelnemer") }]
+                    }
+                ]
+            }
+        ];
+        api.Core.Source.CurrentStep = "Upload";
+        api.Core.Student.CreatedOn = api.Core.Source.CreatedOn.AddDays(1);
+        api.Core.Repository.Setup(repo => repo.GetByFilter(
+                It.IsAny<MongoDB.Driver.FilterDefinition<WorkflowInstance>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([api.Core.Source, api.Core.Student]);
+        var user = await api.Users.Object.GetCurrentUser(default);
+
+        var data = await new PersonalInstanceService(api.Core.Model, api.Instances, api.Core.Repository.Object,
+            api.Rights).GetInstances(user!, default);
+
+        var sharedRow = Assert.Single(data.Instances, row => row.WorkflowDefinition == "Shared");
+        Assert.Equal("Shared project", sharedRow.WorkflowDefinitionTitle.Nl);
+        Assert.Equal("Joint upload", sharedRow.Progress.Text.Nl);
+        var individualRow = Assert.Single(data.Instances, row => row.WorkflowDefinition == "Individual");
+        Assert.Equal("Individueel project", individualRow.WorkflowDefinitionTitle.En);
+        Assert.Equal("Samen uploaden", individualRow.Progress.Text.En);
+        Assert.Equal("Deelnemer", Assert.Single(Assert.Single(individualRow.Staff).Roles).En);
+        Assert.Equal("Eigen student", Assert.Single(data.Roles).Title.En);
     }
 
     [Theory]

@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using UvA.Workflow.Api.Screens.Dtos;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.WorkflowInstances.Dtos;
+using UvA.Workflow.Import;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowInstances;
 using UvA.Workflow.WorkflowModel;
@@ -39,6 +41,26 @@ internal sealed class WorkflowLocalization(WorkflowDefinition workflowDefinition
         StopMessage = Resolve(instance.StopMessage)
     };
 
+    public ScreenDataDto Apply(ScreenDataDto screen) => screen with
+    {
+        Columns = screen.Columns.Select(column => column with { Title = Resolve(column.Title) }).ToArray(),
+        Groups = screen.Groups?.Select(group => group with { Title = Resolve(group.Title) }).ToArray(),
+        BulkActions = screen.BulkActions?.Select(Apply).ToArray()
+    };
+
+    public ProgressInformationDto Apply(ProgressInformationDto progress) =>
+        progress with { Text = Resolve(progress.Text) };
+
+    public ImportPreview Apply(ImportPreview preview) => preview with
+    {
+        Columns = preview.Columns.Select(column => column with { Title = Resolve(column.Title) }).ToArray(),
+        Rows = preview.Rows.Select(row => row with
+        {
+            ValidationErrors = row.ValidationErrors.Select(error => error with { Message = Resolve(error.Message) })
+                .ToArray()
+        }).ToList()
+    };
+
     public FormDto Apply(FormDto form) => form with
     {
         Title = Resolve(form.Title),
@@ -67,6 +89,13 @@ internal sealed class WorkflowLocalization(WorkflowDefinition workflowDefinition
         };
 
     private ActionDto Apply(ActionDto action) => action with { Title = Resolve(action.Title) };
+
+    private BulkAction Apply(BulkAction action)
+    {
+        var localized = action.Clone();
+        localized.Label = Resolve(action.Label);
+        return localized;
+    }
 
     private StepDto Apply(StepDto step) => step with
     {
