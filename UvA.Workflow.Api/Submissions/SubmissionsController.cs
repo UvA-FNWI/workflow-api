@@ -80,13 +80,15 @@ public class SubmissionsController(
             await instanceService.GetQuestionStatus(instance, form, ct), permissions.Select(p => p.Type).ToArray(),
             history, ct);
 
+        var localization = new WorkflowLocalization(modelService.WorkflowDefinitions[instance.WorkflowDefinition]);
         if (!result.Success)
-            return UnprocessableEntity(new SubmitSubmissionResult(submissionDto, null, result.Errors, false));
+            return UnprocessableEntity(new SubmitSubmissionResult(submissionDto, null,
+                result.Errors.Select(localization.Apply).ToArray(), false));
 
         var updatedInstanceDto = await workflowInstanceDtoFactory.Create(instance, ct);
 
         return Ok(new SubmitSubmissionResult(submissionDto, updatedInstanceDto,
-            EffectResult: result.EffectResult));
+            EffectResult: localization.Apply(result.EffectResult)));
     }
 
     [HttpPost("{instanceId}/{submissionId}/DummyData")]

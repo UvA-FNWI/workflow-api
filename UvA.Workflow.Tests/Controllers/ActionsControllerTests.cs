@@ -160,6 +160,28 @@ public class ActionsControllerTests : ControllerTestsBase
     }
 
     [Fact]
+    public async Task Actions_ExecuteAction_LocalizesRenderedToast()
+    {
+        var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "ApprovalCoordinator");
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Languages = ["nl"];
+        const string actionName = "CoordinatorApproved";
+        var action = (await _instanceService.GetAllowedActions(instance, _ct))
+            .Single(candidate => candidate.Action is { Type: RoleAction.Execute, Name: actionName }).Action;
+        var toast = new Toast { Type = ToastType.Success, Message = new("Approved {{ Id }}", "Goedgekeurd {{ Id }}") };
+        action.OnAction = [new Effect { Toast = toast }];
+
+        var result = await controller.ExecuteAction(new ExecuteActionInputDto(ActionType.Execute, instance.Id,
+            actionName), _ct);
+
+        var payload = Assert.IsType<ExecuteActionPayloadDto>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        var message = Assert.IsType<ToastResult>(payload.Result.Toast);
+        Assert.Equal(ToastType.Success, message.Type);
+        Assert.Equal($"Goedgekeurd {instance.Id}", message.Message.En);
+        Assert.Equal($"Goedgekeurd {instance.Id}", message.Message.Nl);
+        Assert.Equal("Approved {{ Id }}", toast.Message.En);
+    }
+
+    [Fact]
     public async Task Actions_StoppedWorkflow_OnlyAllowsConfiguredRecovery()
     {
         var (controller, instance) = BuildControllerWithRoles(["Coordinator"], "Subject");
@@ -376,7 +398,7 @@ public class ActionsControllerTests : ControllerTestsBase
         var controller =
             new ActionsController(_workflowInstanceRepoMock.Object, _userServiceMock.Object, _rightsService,
                 new ActionExecutionService(_effectService, _jobService, _instanceService, _modelService),
-                _workflowInstanceDtoFactory);
+                _workflowInstanceDtoFactory, _modelService);
 
         return (controller, instance);
     }

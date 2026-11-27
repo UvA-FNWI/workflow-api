@@ -10,6 +10,8 @@ namespace UvA.Workflow.WorkflowModel;
 /// </summary>
 public partial class WorkflowDefinition : INamed, IDeclaredKeys
 {
+    public static IReadOnlyList<string> SupportedLanguages { get; } = Array.AsReadOnly<string>(["en", "nl"]);
+
     [YamlIgnore] public HashSet<string> DeclaredKeys { get; set; } = new();
 
     /// <summary>
@@ -28,6 +30,14 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
     public BilingualString TitlePlural { get; set; } = null!;
 
     public BilingualString DisplayTitle => Title ?? Name;
+
+    /// <summary>
+    /// Languages for workflow text. Omit to inherit from the parent or default to English and Dutch.
+    /// </summary>
+    public string[]? Languages { get; set; }
+
+    [YamlIgnore]
+    public IReadOnlyList<string> EffectiveLanguages => Languages ?? Parent?.EffectiveLanguages ?? SupportedLanguages;
 
     /// <summary>
     /// Integer indicating the tab order in the instance page

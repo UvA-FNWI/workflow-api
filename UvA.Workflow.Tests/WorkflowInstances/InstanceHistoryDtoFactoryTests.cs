@@ -156,6 +156,50 @@ public class InstanceHistoryDtoFactoryTests
     }
 
     [Fact]
+    public async Task Create_LocalizesHistoryTitlesAndFallsBackBeforeComposingThem()
+    {
+        var definition = _modelService.WorkflowDefinitions["Project"];
+        definition.Languages = ["nl"];
+        definition.Forms.Single(form => form.Name == "Start").Title = new BilingualString("Start form", " ");
+        definition.Properties.Single(question => question.Name == "EC").Text = new BilingualString("Credits", "");
+        definition.Events.Add(new EventDefinition
+        {
+            Name = "KnownEvent",
+            Label = new BilingualString("Known event", "Bekende gebeurtenis")
+        });
+
+        var instance = CreateInstance(12);
+        var start = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+        MockHistory(instance,
+            new InstanceJournalEntry { PropertyChanges = [Change("EC", 6, "editor", start.AddMinutes(2))] },
+            [
+                EventLog("submission", EventLogOperation.Create, start, eventId: "Start",
+                    operationMetadata: new OperationMetadata
+                    {
+                        Id = "submission",
+                        Type = OperationType.FormSubmission,
+                        Source = "Start",
+                        Step = "Subject"
+                    }),
+                EventLog("known-event", EventLogOperation.Create, start.AddMinutes(1), eventId: "KnownEvent"),
+                EventLog("undo", EventLogOperation.Undo, start.AddMinutes(3), operationId: "submission")
+            ]);
+
+        var result = await _factory.Create(instance, CancellationToken.None);
+
+        var eventTitle = Assert.Single(result, item => item.Id == "known-event").Title;
+        Assert.Equal("Bekende gebeurtenis", eventTitle.En);
+        Assert.Equal(eventTitle.En, eventTitle.Nl);
+        var undoTitle = Assert.Single(result, item => item.Id == "undo").Title;
+        Assert.Equal("Start form teruggedraaid", undoTitle.En);
+        Assert.Equal(undoTitle.En, undoTitle.Nl);
+        var property = Assert.Single(result, item => item.Type == InstanceHistoryType.Property);
+        Assert.Equal("Credits aangepast", property.Title.En);
+        Assert.Equal(property.Title.En, property.Title.Nl);
+        Assert.Equal("Credits", property.PropertyHistory!.Question.Text.Nl);
+    }
+
+    [Fact]
     public async Task Create_OrdersEventAndPropertyEntriesTogether()
     {
         var instance = CreateInstance(12);

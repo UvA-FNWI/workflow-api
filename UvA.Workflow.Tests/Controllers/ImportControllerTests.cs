@@ -14,7 +14,13 @@ namespace UvA.Workflow.Tests.Controllers;
 public class ImportControllerTests : ControllerTestsBase
 {
     private readonly Mock<IImportService> _importServiceMock = new();
-    private readonly ImportPreview _fakePreview = new([], []);
+
+    private readonly ImportPreview _fakePreview = new(
+        [new("Student.UserName", new("Student Number", "Studentnummer"), DataType.String)],
+        [
+            new("", new() { ["Student.UserName"] = "1234" },
+                [ImportError.From(ImportErrorType.EntryNotFound, "Student.UserName")])
+        ]);
 
     private ImportController BuildController(params string[] roles)
     {
@@ -97,21 +103,27 @@ public class ImportControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task GetColumnNames_ReturnsOk_WithServiceResult()
+    public async Task GetColumnNames_LocalizesIdentifierAndPropertyLabels()
     {
-        var fakeProperties = new PropertyDefinition[]
-        {
-            /* minimal stub */
-        };
+        var definition = _modelService.WorkflowDefinitions[WorkflowDefinition];
+        definition.Languages = ["nl"];
+        var property = definition.Properties.Single(p => p.Name == "Title");
         _importServiceMock
             .Setup(s => s.GetEditableImportableProperties(WorkflowDefinition, It.IsAny<string[]>()))
-            .ReturnsAsync(fakeProperties);
+            .ReturnsAsync([property]);
         var controller = BuildController("Coordinator");
 
         var result = await controller.GetColumnNames(WorkflowDefinition, ScreenName, _ct);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.IsType<GetColumnNamesResponse>(ok.Value);
+        var response = Assert.IsType<GetColumnNamesResponse>(ok.Value);
+        Assert.Equal("Studentnummer", response.Identifier.Title.En);
+        Assert.Equal("Studentnummer", response.Identifier.Title.Nl);
+        var column = Assert.Single(response.Columns);
+        Assert.Equal(property.Name, column.Name);
+        Assert.Equal("Werktitel", column.Title.En);
+        Assert.Equal("Werktitel", column.Title.Nl);
+        Assert.Equal("Working title", property.DisplayName.En);
     }
 
 
@@ -131,20 +143,31 @@ public class ImportControllerTests : ControllerTestsBase
     }
 
     [Fact]
-    public async Task Preview_ReturnsOk_WithServiceResult()
+    public async Task Preview_LocalizesColumnLabelsAndValidationMessages()
     {
         var controller = BuildController("Coordinator");
+        _modelService.WorkflowDefinitions[WorkflowDefinition].Languages = ["nl"];
 
         var result = await controller.Preview(
             new ImportPreviewRequest
             {
-                File = MakeCsvFile("StudentNumber\n"),
+                File = MakeCsvFile("StudentNumber\n1234\n"),
                 ColumnMapping = MappingJson(("StudentNumber", "Student.UserName"))
             },
             WorkflowDefinition, ScreenName, _ct);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.Same(_fakePreview, ok.Value);
+        var preview = Assert.IsType<ImportPreview>(ok.Value);
+        var column = Assert.Single(preview.Columns);
+        Assert.Equal("Studentnummer", column.Title.En);
+        Assert.Equal("Studentnummer", column.Title.Nl);
+        var row = Assert.Single(preview.Rows);
+        Assert.Equal("1234", row.Values["Student.UserName"]);
+        var error = Assert.Single(row.ValidationErrors);
+        Assert.Equal("EntryNotFound", error.Code);
+        Assert.Equal("Rij niet gevonden", error.Message.En);
+        Assert.Equal("Rij niet gevonden", error.Message.Nl);
+        Assert.Equal("Row not found", Assert.Single(_fakePreview.Rows[0].ValidationErrors).Message.En);
     }
 
     [Fact]

@@ -238,6 +238,17 @@ public class Generator(DocumentationReader documentationReader, params Type[] sh
         basicProp.Description = documentationReader.GetSummary(property);
         basicProp.Default = property.GetCustomAttribute<DefaultValueAttribute>()?.Value;
 
+        if (property.DeclaringType == typeof(WorkflowDefinition) &&
+            property.Name == nameof(WorkflowDefinition.Languages))
+        {
+            basicProp.MinItems = 1;
+            basicProp.MaxItems = WorkflowDefinition.SupportedLanguages.Count;
+            basicProp.UniqueItems = true;
+            foreach (var language in WorkflowDefinition.SupportedLanguages)
+                basicProp.Item!.Enumeration.Add(language);
+            return basicProp;
+        }
+
         if (!isNullable || basicProp.OneOf.Any())
             return basicProp;
 

@@ -45,6 +45,7 @@ public class SubmissionDtoFactory(
     {
         context ??= modelService.CreateContext(inst);
 
+        var localization = new WorkflowLocalization(modelService.WorkflowDefinitions[inst.WorkflowDefinition]);
         var answers = questionStatuses == null ? [] : Answer.Create(inst, form, questionStatuses);
         return new(form.Name,
             form.Name,
@@ -52,9 +53,10 @@ public class SubmissionDtoFactory(
             answers.Select(a =>
                     _answerDtoFactory.Create(a,
                         a.IsVisible ? CreateChanges(inst, form, a, history, displayNames) : null))
+                .Select(localization.Apply)
                 .ToArray(),
             submissionState.DateSubmitted,
-            FormDto.Create(form, context),
+            localization.Apply(FormDto.Create(form, context)),
             permissions ?? []
         );
     }

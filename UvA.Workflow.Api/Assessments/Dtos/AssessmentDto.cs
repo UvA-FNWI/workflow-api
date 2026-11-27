@@ -68,9 +68,10 @@ public class AssessmentDtoFactory(
         var contextList = contexts.ToList();
         var parts = new List<AssessmentPartDto>();
         var context = resolvedContext ?? modelService.CreateContext(instance);
+        var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
 
         var result = assessmentService.GetAssessmentResult(
-            modelService.WorkflowDefinitions[instance.WorkflowDefinition],
+            workflowDefinition,
             context,
             assessmentConfig,
             contextList.Where(c => c.Instance.Id == instance.Id).Select(c => c.Form.Name).ToList(),
@@ -81,6 +82,7 @@ public class AssessmentDtoFactory(
             var partConfig = part.PartConfig;
             var owner = part.Owner?.Instance ?? instance;
             var definition = modelService.WorkflowDefinitions[owner.WorkflowDefinition];
+            var localization = new WorkflowLocalization(definition);
             var resultForms = part.AllResults.Select(source => source.Form).OfType<Form>().Distinct().ToArray();
             var sourceProperties = resultForms.SelectMany(form => form.ActualForm.PropertyDefinitions)
                 .Select(question => question.Results?.Source).OfType<string>().ToHashSet();
@@ -98,25 +100,25 @@ public class AssessmentDtoFactory(
                     decimal sourcePercentage = totalSourceWeight > 0 && sourceConfig != null
                         ? sourceConfig.Weight / totalSourceWeight * 100
                         : 0;
-                    return MapToSourceResultDto(owner, sourceResult, pageName, allowedHidden, formContexts,
-                        sourcePercentage,
-                        sourceConfig?.Title);
+                    return MapToSourceResultDto(owner, localization, sourceResult, pageName, allowedHidden,
+                        formContexts, sourcePercentage, sourceConfig?.Title);
                 })
                 .ToArray();
 
             parts.Add(new AssessmentPartDto(
                 partConfig.Name,
-                partConfig.Title ?? partConfig.Name, // BilingualString: use configured title or fall back to name
+                localization.Resolve(partConfig.Title ?? partConfig.Name),
                 sourceResultDtos,
                 part.SourceResults.Count > 0
-                    ? MapToSourceResultDto(owner, part.Combined, null, allowedHidden, formContexts,
+                    ? MapToSourceResultDto(owner, localization, part.Combined, null, allowedHidden, formContexts,
                         sourceForms: part.SourceResults.Select(s => s.Form))
                     : null,
                 RoundToTwo(part.PartPercentage),
-                partConfig.Warnings.Select(w => ToDto(w, sourceResultDtos)).OfType<AssessmentWarningDto>().ToArray(),
+                partConfig.Warnings.Select(w => ToDto(w, sourceResultDtos, localization)).OfType<AssessmentWarningDto>()
+                    .ToArray(),
                 part.SourceResults.Count > 0
-                    ? FormDto.Create(part.SourceResults[0].Form,
-                        formContexts[part.SourceResults[0].Form])
+                    ? localization.Apply(FormDto.Create(part.SourceResults[0].Form,
+                        formContexts[part.SourceResults[0].Form]))
                     : null
             ));
         }
@@ -138,10 +140,11 @@ public class AssessmentDtoFactory(
 
         return new AssessmentDto(instance.Id, parts.ToArray(), new FinalGrade(result.FinalGradeUnrounded,
             finalGradeLabel == null ? result.FinalGradeRounded : null,
-            finalGradeLabel));
+            new WorkflowLocalization(workflowDefinition).Resolve(finalGradeLabel)));
     }
 
-    private static AssessmentWarningDto? ToDto(AssessmentWarning warning, SourceResultDto[] results)
+    private static AssessmentWarningDto? ToDto(AssessmentWarning warning, SourceResultDto[] results,
+        WorkflowLocalization localization)
     {
         var show = warning.MaximumDiscrepancy > 0 && results.Any(s1 => s1.WeightedAverage != null
                                                                        && results.Any(s2 =>
@@ -152,7 +155,7 @@ public class AssessmentDtoFactory(
         show = show || (warning.InflectionPoint != 0
                         && results.Any(s1 => s1.WeightedAverage < warning.InflectionPoint)
                         && results.Any(s1 => s1.WeightedAverage > warning.InflectionPoint));
-        return show ? new AssessmentWarningDto(warning.Label) : null;
+        return show ? new AssessmentWarningDto(localization.Resolve(warning.Label)) : null;
     }
 
     public async Task<SourceResultDto> CreateSourceResults(SubmissionContext context,
@@ -163,12 +166,15 @@ public class AssessmentDtoFactory(
         var sourceResult = AssessmentHelpers.CalculateSourceResult(context.Form,
             objectContext,
             pageName);
-        return MapToSourceResultDto(context.Instance, sourceResult, pageName, allowedHidden,
+        var definition = modelService.WorkflowDefinitions[context.Instance.WorkflowDefinition];
+        var localization = new WorkflowLocalization(definition);
+        return MapToSourceResultDto(context.Instance, localization, sourceResult, pageName, allowedHidden,
             new Dictionary<Form, ObjectContext> { [context.Form] = objectContext });
     }
 
     private SourceResultDto MapToSourceResultDto(
         WorkflowInstance instance,
+        WorkflowLocalization localization,
         SourceResult sourceResult,
         string? pageName,
         IEnumerable<DomainAction> allowedHidden,
@@ -272,11 +278,14 @@ public class AssessmentDtoFactory(
             })
             .ToArray();
 
+        var title = sourceResult.IsCombined
+            ? new BilingualString("Average", "Gemiddelde")
+            : titleOverride ?? form.DisplayName;
         return new(
             sourceResult.IsCombined ? "Combined" : form.Name,
-            sourceResult.IsCombined ? new("Average", "Gemiddelde") : (titleOverride ?? form.DisplayName),
+            localization.Resolve(title),
             roundedPageResults,
-            answers.Select(a => _answerDtoFactory.Create(a)).ToArray(),
+            answers.Select(a => localization.Apply(_answerDtoFactory.Create(a))).ToArray(),
             RoundToTwo(sourceResult.WeightedAverage),
             percentage != null ? RoundToTwo(percentage.Value) : null
         );

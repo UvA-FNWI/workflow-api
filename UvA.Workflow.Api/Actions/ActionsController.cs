@@ -10,7 +10,8 @@ public class ActionsController(
     IUserService userService,
     RightsService rightsService,
     ActionExecutionService actionExecutionService,
-    WorkflowInstanceDtoFactory workflowInstanceDtoFactory
+    WorkflowInstanceDtoFactory workflowInstanceDtoFactory,
+    ModelService modelService
 ) : ApiControllerBase
 {
     [HttpPost]
@@ -52,10 +53,11 @@ public class ActionsController(
                 break;
         }
 
+        var localization = new WorkflowLocalization(modelService.WorkflowDefinitions[instance.WorkflowDefinition]);
         return Ok(new ExecuteActionPayloadDto(
             input.Type,
             input.Type == ActionType.DeleteInstance ? null : await workflowInstanceDtoFactory.Create(instance, ct),
-            result
+            localization.Apply(result)
         ));
     }
 }

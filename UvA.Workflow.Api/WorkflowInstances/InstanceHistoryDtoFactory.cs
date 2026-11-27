@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Events;
@@ -18,6 +19,7 @@ public class InstanceHistoryDtoFactory(
     {
         var history = await workflowInstanceService.GetInstanceHistory(instance.Id, ct);
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
+        var localization = new WorkflowLocalization(workflowDefinition);
 
         var eventUsers = (await userRepository.GetByIds(
                 history.EventLogs.Select(log => log.ExecutedBy).Distinct().ToList(), ct))
@@ -37,9 +39,9 @@ public class InstanceHistoryDtoFactory(
             .Select(log => new InstanceHistoryItemDto(
                 log.Id,
                 log.Operation == EventLogOperation.Undo ? InstanceHistoryType.Undo : InstanceHistoryType.Event,
-                log.Operation == EventLogOperation.Undo
+                localization.Resolve(log.Operation == EventLogOperation.Undo
                     ? GetUndoTitle(workflowDefinition, log, history.EventLogs)
-                    : workflowDefinition.Events.Find(e => e.Name == log.EventId)?.Label ?? log.EventId,
+                    : workflowDefinition.Events.Find(e => e.Name == log.EventId)?.Label ?? log.EventId),
                 log.Timestamp,
                 CreateHistoryUser(eventUsers.GetValueOrDefault(log.ExecutedBy), log.ExecutedBy),
                 null,
@@ -47,19 +49,20 @@ public class InstanceHistoryDtoFactory(
                     ? new UndoHistoryDto(log.Reason)
                     : null));
 
-        var propertyEntries = propertyEdits.Select(edit => new InstanceHistoryItemDto(
-            $"{edit.Path}:{edit.Change.ChangedAt.Ticks}",
-            InstanceHistoryType.Property,
-            new BilingualString(
-                $"{edit.Question.DisplayName.En} changed",
-                $"{edit.Question.DisplayName.Nl} aangepast"
-            ),
-            edit.Change.ChangedAt,
-            CreateHistoryUser(journalUsers.GetValueOrDefault(edit.Change.ChangedBy!), edit.Change.ChangedBy!),
-            new PropertyHistoryDto(
-                QuestionDto.Create(edit.Question, totalWeight: 0),
-                CreateGroupDto(edit.Question, edit.Group, journalUsers)),
-            null));
+        var propertyEntries = propertyEdits.Select(edit =>
+        {
+            var label = WorkflowLocalization.WithFallback(edit.Question.DisplayName);
+            return new InstanceHistoryItemDto(
+                $"{edit.Path}:{edit.Change.ChangedAt.Ticks}",
+                InstanceHistoryType.Property,
+                localization.Resolve(new BilingualString($"{label.En} changed", $"{label.Nl} aangepast")),
+                edit.Change.ChangedAt,
+                CreateHistoryUser(journalUsers.GetValueOrDefault(edit.Change.ChangedBy!), edit.Change.ChangedBy!),
+                new PropertyHistoryDto(
+                    localization.Apply(QuestionDto.Create(edit.Question, totalWeight: 0)),
+                    CreateGroupDto(edit.Question, edit.Group, journalUsers)),
+                null);
+        });
 
         return eventEntries.Concat(propertyEntries)
             .OrderBy(entry => entry.Timestamp)
@@ -115,10 +118,8 @@ public class InstanceHistoryDtoFactory(
             _ => undo.OperationId ?? undo.Id
         };
 
-        return new BilingualString(
-            $"{label.En} reversed",
-            $"{label.Nl} teruggedraaid"
-        );
+        var translated = WorkflowLocalization.WithFallback(label);
+        return new BilingualString($"{translated.En} reversed", $"{translated.Nl} teruggedraaid");
     }
 
     private static AnswerChangeGroupDto CreateGroupDto(PropertyDefinition question, AnswerChangeGroup group,

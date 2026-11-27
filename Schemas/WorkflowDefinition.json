@@ -38,6 +38,20 @@
         }
       ]
     },
+    "languages": {
+      "type": "array",
+      "description": "Languages for workflow text. Omit to inherit from the parent or default to English and Dutch.",
+      "maxItems": 2,
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "en",
+          "nl"
+        ]
+      }
+    },
     "index": {
       "type": [
         "integer",

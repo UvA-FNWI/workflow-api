@@ -1,3 +1,4 @@
+using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Api.Users.Dtos;
 using UvA.Workflow.Api.WorkflowDefinitions.Dtos;
@@ -149,8 +150,11 @@ public record ActionDto(
         };
     }
 
-    private static BilingualString Add(BilingualString target) =>
-        new($"Add {target.En.ToLower()}", $"{target.Nl} toevoegen");
+    private static BilingualString Add(BilingualString target)
+    {
+        var title = WorkflowLocalization.WithFallback(target);
+        return new BilingualString($"Add {title.En.ToLower()}", $"{title.Nl} toevoegen");
+    }
 }
 
 public record InstanceEventDto(

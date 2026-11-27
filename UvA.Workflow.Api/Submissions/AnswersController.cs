@@ -66,7 +66,10 @@ public class AnswersController(
                 updatedInstance = await workflowInstanceDtoFactory.Create(context.Instance, ct);
             }
 
-            return Ok(new SaveAnswerResponse(true, answers, updatedSubmission, updatedInstance,
+            var definition = modelService.WorkflowDefinitions[context.Instance.WorkflowDefinition];
+            var localization = new WorkflowLocalization(definition);
+            return Ok(new SaveAnswerResponse(true, answers.Select(localization.Apply).ToArray(),
+                updatedSubmission, updatedInstance,
                 User: createdUser != null ? UserSearchResultDto.Create(createdUser) : null));
         }
         catch (ExternalUserCreationException ex)
