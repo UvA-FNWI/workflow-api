@@ -7,6 +7,7 @@ using Moq;
 using UvA.Workflow.Api.Assessments;
 using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Assessments;
 using UvA.Workflow.Events;
 using UvA.Workflow.Journaling;
@@ -211,6 +212,28 @@ public class LinkedStepAssessmentTests
         Assert.Equal(7.46m, Assert.Single(dto.Parts[0].SourceResults).WeightedAverage);
         Assert.Equal(7.46d, Assert.Single(dto.Parts[0].SourceResults[0].Answers).Value!.Value.GetDouble());
         Assert.Equal(8m, Assert.Single(dto.Parts[1].SourceResults).WeightedAverage);
+    }
+
+    [Fact]
+    public async Task Results_SharedMessagePermissionsUseTheSourceInstance()
+    {
+        var setup = new LinkedStepAssessmentSetup();
+        var shared = setup.Core.Model.WorkflowDefinitions["Shared"];
+        shared.Messages = new MessagesSettings { Enabled = true };
+        var sharedActions = shared.Roles.Single(role => role.Name == "Registered").Actions;
+        sharedActions.Add(new() { Type = RoleAction.ViewMessages, Form = "AssessForm" });
+        sharedActions.Add(new() { Type = RoleAction.AddMessages, PropertyDefinition = "Student" });
+        setup.Core.Model.WorkflowDefinitions["Individual"].Roles.Single(role => role.Name == "Registered").Actions
+            .Add(new() { Type = RoleAction.AddMessages, PropertyDefinition = "Grade" });
+
+        var response = await setup.Controller.GetAssessmentResults(setup.Core.Student.Id, default);
+        var dto = Assert.IsType<AssessmentDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        var part = Assert.Single(dto.Parts, part => part.Id == "SharedAssessment");
+        var question = Assert.Single(Assert.Single(part.Form!.Pages).Elements).Question!;
+        var expected = new QuestionMessagesDto(setup.Core.Source.Id, "Grade", CanView: true, CanAdd: false);
+
+        Assert.Equal(expected, question.Messages);
+        Assert.Equal(expected, Assert.Single(Assert.Single(part.SourceResults).Answers).Messages);
     }
 
     [Theory]

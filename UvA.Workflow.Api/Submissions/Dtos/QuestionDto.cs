@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+using UvA.Workflow.Messages;
 using UvA.Workflow.WorkflowModel;
 using UvA.Workflow.WorkflowModel.Conditions;
+using WorkflowAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -34,6 +37,9 @@ public abstract record QuestionDto
     public bool HideInResults { get; init; }
     public string? LinkedTo { get; init; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public QuestionMessagesDto? Messages { get; init; }
+
     public static QuestionDto Create(PropertyDefinition property, decimal totalWeight)
         => property switch
         {
@@ -51,6 +57,17 @@ public abstract record QuestionDto
             ObjectPropertyDefinition embedded => new ObjectQuestionDto(embedded, totalWeight),
             _ => throw new ArgumentException($"Unsupported property type: {property.GetType().Name}")
         };
+}
+
+public record QuestionMessagesDto(string InstanceId, string QuestionName, bool CanView, bool CanAdd)
+{
+    internal static QuestionMessagesDto? Create(WorkflowDefinition definition, string instanceId, string path,
+        IEnumerable<WorkflowAction> actions)
+        => definition.AllowsMessages(path)
+            ? new QuestionMessagesDto(instanceId, path,
+                MessageService.HasTargetPermission(definition, actions, RoleAction.ViewMessages, path),
+                MessageService.HasTargetPermission(definition, actions, RoleAction.AddMessages, path))
+            : null;
 }
 
 public abstract record WeightedQuestionDto : QuestionDto

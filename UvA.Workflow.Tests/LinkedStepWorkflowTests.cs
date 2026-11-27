@@ -38,8 +38,7 @@ public class LinkedStepWorkflowTests
         Assert.Equal(3, properties.Length);
         foreach (var property in properties)
         {
-            var question = Assert.IsType<ChoiceQuestionDto>(
-                QuestionDto.Create(property, 3));
+            var question = Assert.IsType<ChoiceQuestionDto>(QuestionDto.Create(property, 3));
             Assert.True(question.IsRequired);
             Assert.Equal(ChoiceControl.Rubric, question.Control);
             Assert.NotNull(question.Rubric);

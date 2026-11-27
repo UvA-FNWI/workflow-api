@@ -2,6 +2,7 @@ using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Journaling;
 using UvA.Workflow.Submissions;
 using UvA.Workflow.WorkflowInstances;
+using WorkflowAction = UvA.Workflow.WorkflowModel.Action;
 
 namespace UvA.Workflow.Api.Submissions.Dtos;
 
@@ -18,6 +19,7 @@ public class SubmissionDtoFactory(
     ArtifactTokenService artifactTokenService,
     ModelService modelService,
     InstanceService instanceService,
+    RightsService rightsService,
     IUserService? userService = null)
 {
     private readonly AnswerDtoFactory _answerDtoFactory = new(artifactTokenService);
@@ -33,15 +35,19 @@ public class SubmissionDtoFactory(
         var displayNames = await ResolveDisplayNames(history?.Journal, ct);
         var context = await instanceService.CreateFormContext(inst, form, ct);
         questionStatuses ??= modelService.GetQuestionStatus(inst, form, true, context: context);
+        var messageActions = form.WorkflowDefinition.MessagesEnabled
+            ? await rightsService.GetAllowedActions(inst, RoleAction.ViewMessages, RoleAction.AddMessages)
+            : null;
 
-        var dto = Create(inst, form, submissionState, questionStatuses, permissions, history, displayNames, context);
+        var dto = Create(inst, form, submissionState, questionStatuses, permissions, history, displayNames, context,
+            messageActions);
         return form.Repeatable ? dto with { DateSubmitted = null } : dto;
     }
 
     public SubmissionDto Create(WorkflowInstance inst, Form form, FormSubmissionState submissionState,
         Dictionary<string, QuestionStatus>? questionStatuses = null, RoleAction[]? permissions = null,
         WorkflowInstanceHistory? history = null, IReadOnlyDictionary<string, string>? displayNames = null,
-        ObjectContext? context = null)
+        ObjectContext? context = null, WorkflowAction[]? messageActions = null)
     {
         context ??= modelService.CreateContext(inst);
 
@@ -54,7 +60,7 @@ public class SubmissionDtoFactory(
                         a.IsVisible ? CreateChanges(inst, form, a, history, displayNames) : null))
                 .ToArray(),
             submissionState.DateSubmitted,
-            FormDto.Create(form, context),
+            FormDto.Create(form, context, inst.Id, messageActions),
             permissions ?? []
         );
     }

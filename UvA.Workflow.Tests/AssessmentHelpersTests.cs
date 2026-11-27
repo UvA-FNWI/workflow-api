@@ -386,6 +386,7 @@ public class AssessmentHelpersTests
         {
             Name = form.Name,
             PropertyName = form.PropertyName,
+            WorkflowDefinition = form.WorkflowDefinition,
             TargetForm = form
         };
 

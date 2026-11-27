@@ -18,6 +18,7 @@ public class FormDtoTests
         var form = new Form
         {
             Name = "Review",
+            WorkflowDefinition = definition,
             Pages =
             [
                 new Page
@@ -76,6 +77,140 @@ public class FormDtoTests
         Assert.Equal(["pdf"], defaultedDto.AllowedFileTypes);
         Assert.Equal(25_000_000, configuredDto.AllowedFileSize);
         Assert.Equal(10_000_000, defaultedDto.AllowedFileSize);
+    }
+
+    [Fact]
+    public void Create_SetsMessagesOnlyForEnabledFields()
+    {
+        var definition = new WorkflowDefinition
+        {
+            Name = "Application",
+            Messages = new MessagesSettings { Enabled = true }
+        };
+        var name = new StringPropertyDefinition { Name = "Name", Type = "String", ParentType = definition };
+        var hidden = new StringPropertyDefinition
+        {
+            Name = "Internal",
+            Type = "String",
+            ParentType = definition,
+            Visibility = PropertyVisibility.Hidden
+        };
+        var excluded = new StringPropertyDefinition
+        {
+            Name = "StatusBadge",
+            Type = "String",
+            ParentType = definition,
+            Messages = false
+        };
+        definition.Properties = [name, hidden, excluded];
+
+        var form = FormWithQuestions(definition, name, hidden, excluded);
+        var questions = FormDto.Create(form, new ObjectContext([]), "instance", []).Pages[0].Elements
+            .Select(element => element.Question!)
+            .ToDictionary(question => question.Name);
+
+        Assert.Equal(new QuestionMessagesDto("instance", "Name", CanView: false, CanAdd: false),
+            questions["Name"].Messages);
+        Assert.Null(questions["Internal"].Messages);
+        Assert.Null(questions["StatusBadge"].Messages);
+        Assert.Null(FormDto.Create(form, new ObjectContext([])).Pages[0].Elements[0].Question!.Messages);
+    }
+
+    [Fact]
+    public void Create_KeepsInheritedQuestionIdAndUsesFormDefinitionForMessages()
+    {
+        var parent = new WorkflowDefinition { Name = "Thesis-Base" };
+        var title = new StringPropertyDefinition { Name = "Title", Type = "String", ParentType = parent };
+        parent.Properties = [title];
+
+        var child = new WorkflowDefinition
+        {
+            Name = "Project-Playground",
+            Messages = new MessagesSettings { Enabled = true }
+        };
+        var subject = new StringPropertyDefinition { Name = "Subject", Type = "String", ParentType = child };
+        child.Properties = [title, subject];
+        var form = FormWithQuestions(child, title, subject);
+
+        var result = FormDto.Create(form, new ObjectContext([]), "instance",
+        [
+            new() { Type = RoleAction.ViewMessages },
+            new() { Type = RoleAction.AddMessages, PropertyDefinition = "Subject" }
+        ]);
+        var questions = result.Pages[0].Elements
+            .Select(element => element.Question!)
+            .ToDictionary(question => question.Name);
+
+        Assert.Equal("Thesis-Base_Title", questions["Title"].Id);
+        Assert.Equal(new QuestionMessagesDto("instance", "Title", CanView: true, CanAdd: false),
+            questions["Title"].Messages);
+        Assert.Equal(new QuestionMessagesDto("instance", "Subject", CanView: true, CanAdd: true),
+            questions["Subject"].Messages);
+
+        var json = JsonSerializer.SerializeToElement(result, CreateJsonOptions());
+        var titleQuestion = json.GetProperty("pages")[0].GetProperty("elements")[0].GetProperty("question");
+        var messages = titleQuestion.GetProperty("messages");
+        Assert.Equal("instance", messages.GetProperty("instanceId").GetString());
+        Assert.Equal("Title", messages.GetProperty("questionName").GetString());
+        Assert.True(messages.GetProperty("canView").GetBoolean());
+        Assert.False(messages.GetProperty("canAdd").GetBoolean());
+    }
+
+    [Fact]
+    public void Create_KeepsNestedQuestionIdAndUsesFullMessagePath()
+    {
+        var assessment = new WorkflowDefinition { Name = "Assessment", IsEmbedded = true };
+        var consent = new StringPropertyDefinition { Name = "Consent", Type = "String", ParentType = assessment };
+        var hiddenNote = new StringPropertyDefinition
+        {
+            Name = "HiddenNote",
+            Type = "String",
+            ParentType = assessment,
+            Visibility = PropertyVisibility.Hidden
+        };
+        assessment.Properties = [consent, hiddenNote];
+
+        var project = new WorkflowDefinition
+        {
+            Name = "Project",
+            Messages = new MessagesSettings { Enabled = true }
+        };
+        var supervisorProperty = new ObjectPropertyDefinition
+        {
+            Name = "AssessmentSupervisor",
+            Type = "Assessment",
+            ParentType = project,
+            WorkflowDefinition = assessment
+        };
+        var courseType = new WorkflowDefinition { Name = "Context" };
+        courseType.Properties.Add(new StringPropertyDefinition
+        {
+            Name = "Name", Type = "String", ParentType = courseType
+        });
+        var course = new ReferencePropertyDefinition
+        {
+            Name = "Course",
+            Type = "Context",
+            ParentType = project,
+            WorkflowDefinition = courseType
+        };
+        project.Properties = [supervisorProperty, course];
+
+        var form = FormWithQuestions(project, supervisorProperty);
+        var result = FormDto.Create(form, new ObjectContext([]), "instance",
+        [
+            new() { Type = RoleAction.ViewMessages, PropertyDefinition = "AssessmentSupervisor.Consent" }
+        ]);
+        var nested = Assert.IsType<ObjectQuestionDto>(Assert.Single(result.Pages[0].Elements).Question);
+        var nestedConsent = Assert.Single(nested.SubProperties!, question => question.Name == "Consent");
+        var nestedNote = Assert.Single(nested.SubProperties!, question => question.Name == "HiddenNote");
+
+        Assert.Equal("Assessment_Consent", nestedConsent.Id);
+        Assert.Equal(new QuestionMessagesDto("instance", "AssessmentSupervisor.Consent", CanView: true, CanAdd: false),
+            nestedConsent.Messages);
+        Assert.Null(nestedNote.Messages);
+        Assert.False(project.AllowsMessages("Consent"));
+        Assert.False(project.AllowsMessages("Course.Name"));
     }
 
     [Fact]
@@ -176,6 +311,7 @@ public class FormDtoTests
         foreach (var (type, question) in questions)
         {
             Assert.False(question.TryGetProperty("$type", out _));
+            Assert.False(question.TryGetProperty("messages", out _));
             foreach (var setting in settings.Values.SelectMany(fields => fields).Distinct())
                 Assert.Equal(settings[type].Contains(setting), question.TryGetProperty(setting, out _));
         }
@@ -195,6 +331,24 @@ public class FormDtoTests
         Assert.False(child.TryGetProperty("weight", out _));
         Assert.False(child.TryGetProperty("percentage", out _));
     }
+
+    private static Form FormWithQuestions(WorkflowDefinition definition, params PropertyDefinition[] properties)
+        => new()
+        {
+            Name = "Edit",
+            WorkflowDefinition = definition,
+            Pages =
+            [
+                new Page
+                {
+                    Name = "Questions",
+                    PageElements = properties.Select(property => new PageElement
+                    {
+                        Question = property.Name, QuestionDefinition = property
+                    }).ToArray()
+                }
+            ]
+        };
 
     private static JsonSerializerOptions CreateJsonOptions() => new(JsonSerializerDefaults.Web)
     {

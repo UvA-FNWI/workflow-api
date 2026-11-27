@@ -12,7 +12,9 @@ public record WorkflowDefinitionDto(
     bool IsEmbedded,
     string[] Screens,
     bool CanCreateInstance,
-    bool IsPropertyOnly
+    bool IsPropertyOnly,
+    bool MessagesEnabled,
+    MessagesSettingsDto? Messages = null
 )
 {
     public static WorkflowDefinitionDto Create(WorkflowDefinition workflowDefinition,
@@ -28,7 +30,11 @@ public record WorkflowDefinitionDto(
             workflowDefinition.IsEmbedded,
             workflowDefinition.Screens.Select(s => s.Name).ToArray(),
             canCreateInstance,
-            workflowDefinition.Steps.Count == 0
+            workflowDefinition.Steps.Count == 0,
+            workflowDefinition.MessagesEnabled,
+            workflowDefinition.Messages is { Enabled: true } settings
+                ? MessagesSettingsDto.From(settings)
+                : null
         );
     }
 }

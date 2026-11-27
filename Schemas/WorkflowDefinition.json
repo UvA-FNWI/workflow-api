@@ -145,6 +145,17 @@
           "$ref": "#/definitions/AssessmentConfiguration"
         }
       ]
+    },
+    "messages": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "description": "Optional instance/field discussion threads. Omitted or Enabled=false means off.",
+          "$ref": "#/definitions/MessagesSettings"
+        }
+      ]
     }
   },
   "definitions": {
@@ -365,8 +376,8 @@
         "ViewUsers",
         "ViewStates",
         "Delete",
-        "AddInstanceMessage",
-        "ViewAnswerMessages",
+        "AddMessages",
+        "ViewMessages",
         "AssignMessages",
         "CreateInstance",
         "CreateRelatedInstance",
@@ -1177,6 +1188,7 @@
           ]
         },
         "title": {
+          "description": "Localized card title. Use plain text for Messages cards.",
           "oneOf": [
             {
               "type": "null"
@@ -1269,7 +1281,8 @@
         "RelatedUsers",
         "Links",
         "Text",
-        "Progress"
+        "Progress",
+        "Messages"
       ]
     },
     "InfoCardField": {
@@ -2124,6 +2137,125 @@
         "Half",
         "Decimal",
         "PassFail"
+      ]
+    },
+    "MessagesSettings": {
+      "title": "MessagesSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layout"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "fields": {
+          "type": "boolean",
+          "description": "When true (default), visible fields allow messages unless opted out with <code>messages: false</code> on the property.\n            When false, field messages are off unless opted in with <code>messages: true</code> on the property."
+        },
+        "layout": {
+          "type": "string",
+          "description": "<code>threaded</code> (default) or <code>flat</code>."
+        },
+        "close": {
+          "type": "boolean",
+          "description": "When false, conversations cannot be closed or reopened."
+        },
+        "maxReplyDepth": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Nonnegative maximum reply depth. Direct replies have depth 1. Null means unlimited."
+        },
+        "callout": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "description": "Optional callout in the message composer.",
+              "$ref": "#/definitions/MessageCalloutSettings"
+            }
+          ]
+        },
+        "term": {
+          "description": "Localized singular term used by Messages cards and field comments.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "termPlural": {
+          "description": "Localized plural term used by Messages cards and field comments.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "MessageCalloutSettings": {
+      "title": "MessageCalloutSettings",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variant": {
+          "$ref": "#/definitions/CalloutVariant"
+        },
+        "title": {
+          "description": "Localized callout heading.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        },
+        "text": {
+          "description": "Localized callout body.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/BilingualString"
+            }
+          ]
+        }
+      }
+    },
+    "CalloutVariant": {
+      "type": "string",
+      "enum": [
+        "Info",
+        "Warning",
+        "Error",
+        "Success",
+        "Note"
       ]
     }
   }

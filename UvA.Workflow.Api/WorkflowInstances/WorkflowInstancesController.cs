@@ -99,7 +99,7 @@ public class WorkflowInstancesController(
         // Make sure the instance is in the right step before returning it
         await instanceService.UpdateCurrentStep(instance, ct);
 
-        var result = await workflowInstanceDtoFactory.Create(instance, ct);
+        var result = await workflowInstanceDtoFactory.Create(instance, ct, includeFieldMessages: version == null);
 
         return Ok(result);
     }

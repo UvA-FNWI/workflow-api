@@ -387,7 +387,7 @@ public partial class ModelParser
     {
         if (!card.Enabled)
             return;
-        if (card.Type == null || card.Title == null)
+        if (card.Type == null || (card.Type != InfoCardType.Messages && card.Title == null))
             throw new Exception($"Info card '{card.Name}' in '{workflowDefinition.Name}' requires type and title.");
 
         switch (card.Type)
@@ -420,6 +420,10 @@ public partial class ModelParser
 
     private void PreProcess(WorkflowDefinition workflowDefinition)
     {
+        if (workflowDefinition.Messages?.MaxReplyDepth is < 0)
+            throw new Exception(
+                $"Definition '{workflowDefinition.Name}' contains an invalid messages.maxReplyDepth. Use a nonnegative integer.");
+
         ValidateReservedPropertyNames(workflowDefinition);
         PreProcess(workflowDefinition.StopWhen);
         foreach (var role in workflowDefinition.Roles)

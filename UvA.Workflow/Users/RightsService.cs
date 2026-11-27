@@ -33,7 +33,7 @@ public class RightsService(
         RoleAction.ViewStates,
         RoleAction.ViewResults,
         RoleAction.ViewCorrespondence,
-        RoleAction.ViewAnswerMessages,
+        RoleAction.ViewMessages,
         RoleAction.ViewAdminTools,
         RoleAction.ImpersonateRoles
     ];

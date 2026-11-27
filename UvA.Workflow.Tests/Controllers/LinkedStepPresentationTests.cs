@@ -375,7 +375,7 @@ internal sealed class LinkedStepApiSetup
         var workflows = new WorkflowInstanceService(Core.Model, Core.Repository.Object,
             Mock.Of<IInstanceJournalService>(), events.Object, Users.Object, Mock.Of<IUserRepository>());
         var submissions = new SubmissionDtoFactory(new ArtifactTokenService(UnitTestsHelpers.TestS3Config),
-            Core.Model, Instances);
+            Core.Model, Instances, Rights);
         var undo = new UndoService(events.Object, Mock.Of<IJobRepository>(), Core.Repository.Object,
             Instances, Rights, Core.Model);
         Factory = new WorkflowInstanceDtoFactory(Instances, Core.Model, submissions, Rights,

@@ -122,6 +122,58 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
 
     [YamlMember(Alias = "assessments")] public AssessmentConfiguration? AssessmentConfiguration { get; set; }
 
+    /// <summary>
+    /// Optional instance/field discussion threads. Omitted or Enabled=false means off.
+    /// </summary>
+    public MessagesSettings? Messages { get; set; }
+
+    public bool MessagesEnabled => Messages?.Enabled == true;
+
+    public bool AllowsInstanceMessages() =>
+        MessagesEnabled && InfoCards.Any(card => card.Enabled && card.Type == InfoCardType.Messages);
+
+    public bool MessagesAllowClose => Messages?.Close ?? true;
+
+    public bool MessagesUseFlatLayout =>
+        string.Equals(Messages?.Layout, "flat", StringComparison.OrdinalIgnoreCase);
+
+    public bool AllowsMessages(string? questionName)
+    {
+        if (!MessagesEnabled)
+            return false;
+        if (string.IsNullOrEmpty(questionName))
+            return AllowsInstanceMessages();
+
+        // Field threads use the instance path (Title, or AssessmentSupervisor.Consent).
+        // Embedded types do not need their own messages.enabled.
+        var fieldsAllowAll = Messages?.Fields ?? true;
+        var type = this;
+        var parts = questionName.Split('.');
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (string.IsNullOrEmpty(parts[i]) || !type.Properties.TryGetValue(parts[i], out var property))
+                return false;
+            if (!PropertyAllowsFieldMessages(property, fieldsAllowAll))
+                return false;
+            if (i == parts.Length - 1)
+                return true;
+            if (property is not ObjectPropertyDefinition embedded || embedded.WorkflowDefinition == null)
+                return false;
+            type = embedded.WorkflowDefinition;
+        }
+
+        return false;
+    }
+
+    private static bool PropertyAllowsFieldMessages(PropertyDefinition property, bool fieldsAllowAll)
+    {
+        if (property.Visibility == PropertyVisibility.Hidden)
+            return false;
+        return fieldsAllowAll
+            ? property.Messages != false
+            : property.Messages == true;
+    }
+
     [YamlIgnore] public ModelParser ModelParser { get; set; } = null!;
     [YamlIgnore] public string SourceFolder { get; set; } = null!;
 
@@ -181,6 +233,46 @@ public partial class WorkflowDefinition : INamed, IDeclaredKeys
             return $"$Events.{property[..^5]}.Date";
         return "$" + property;
     }
+}
+
+public class MessagesSettings
+{
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// When true (default), visible fields allow messages unless opted out with <c>messages: false</c> on the property.
+    /// When false, field messages are off unless opted in with <c>messages: true</c> on the property.
+    /// </summary>
+    public bool Fields { get; set; } = true;
+
+    /// <summary><c>threaded</c> (default) or <c>flat</c>.</summary>
+    public string Layout { get; set; } = "threaded";
+
+    /// <summary>When false, conversations cannot be closed or reopened.</summary>
+    public bool Close { get; set; } = true;
+
+    /// <summary>Nonnegative maximum reply depth. Direct replies have depth 1. Null means unlimited.</summary>
+    public int? MaxReplyDepth { get; set; }
+
+    /// <summary>Optional callout in the message composer.</summary>
+    public MessageCalloutSettings? Callout { get; set; }
+
+    /// <summary>Localized singular term used by Messages cards and field comments.</summary>
+    public BilingualString? Term { get; set; }
+
+    /// <summary>Localized plural term used by Messages cards and field comments.</summary>
+    public BilingualString? TermPlural { get; set; }
+}
+
+public class MessageCalloutSettings
+{
+    public CalloutVariant Variant { get; set; } = CalloutVariant.Info;
+
+    /// <summary>Localized callout heading.</summary>
+    public BilingualString? Title { get; set; }
+
+    /// <summary>Localized callout body.</summary>
+    public BilingualString? Text { get; set; }
 }
 
 public class EventDefinition : INamed

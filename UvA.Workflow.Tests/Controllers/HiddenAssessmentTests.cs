@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using UvA.Workflow.Api.Assessments;
 using UvA.Workflow.Api.Assessments.Dtos;
 using UvA.Workflow.Api.Infrastructure;
+using UvA.Workflow.Api.Submissions.Dtos;
 using UvA.Workflow.Persistence;
 using UvA.Workflow.Tests.Controllers.Helpers;
 using UvA.Workflow.Tests.Helpers;
@@ -68,6 +69,32 @@ public class HiddenAssessmentTests : ControllerTestsBase
         }
 
         Assert.Equal("8", instance.Properties["AssessmentSupervisor"]["ProblemStatement"].AsString);
+    }
+
+    [Fact]
+    public async Task CombinedResults_ReturnMessageDetailsForEachSourceAnswer()
+    {
+        const string supervisor = "AssessmentSupervisor";
+        const string secondAssessor = "AssessmentSecondAssessor";
+        const string question = "Methods";
+        var (controller, instance, viewer) = Build(false, false);
+        _modelService.WorkflowDefinitions[instance.WorkflowDefinition].Messages = new() { Enabled = true };
+        viewer.Actions.Add(new() { Type = RoleAction.ViewMessages, Forms = [supervisor, secondAssessor] });
+        viewer.Actions.Add(new()
+            { Type = RoleAction.AddMessages, PropertyDefinition = $"{secondAssessor}.{question}" });
+
+        var response = await controller.GetSubmissionResults(instance.Id, "AssessmentThesis", _ct, combine: true);
+        var dto = Assert.IsType<AssessmentDto>(Assert.IsType<OkObjectResult>(response.Result).Value);
+        var part = Assert.Single(dto.Parts);
+
+        Assert.Collection(part.SourceResults,
+            source => Assert.Equal(
+                new QuestionMessagesDto(instance.Id, $"{supervisor}.{question}", CanView: true, CanAdd: false),
+                Assert.Single(source.Answers, answer => answer.QuestionName == question).Messages),
+            source => Assert.Equal(
+                new QuestionMessagesDto(instance.Id, $"{secondAssessor}.{question}", CanView: true, CanAdd: true),
+                Assert.Single(source.Answers, answer => answer.QuestionName == question).Messages));
+        Assert.All(part.Combined!.Answers, answer => Assert.Null(answer.Messages));
     }
 
     [Theory]

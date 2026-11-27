@@ -24,15 +24,14 @@ public class WorkflowInstanceDtoFactory(
     /// <summary>
     /// Creates a WorkflowInstanceDto from a WorkflowInstance domain entity
     /// </summary>
-    public async Task<WorkflowInstanceDto> Create(WorkflowInstance instance, CancellationToken ct)
+    public async Task<WorkflowInstanceDto> Create(WorkflowInstance instance, CancellationToken ct,
+        bool includeFieldMessages = true)
     {
         var workflowDefinition = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var viewerRoles = await rightsService.GetViewerRoles(instance, ct);
         var visibleCards = workflowDefinition.InfoCards
-            .Where(card => card.Enabled && card.Type != null &&
-                           (card.Sources is not { Length: > 0 } || card.Sources.Intersect(viewerRoles).Any()) &&
-                           (card.ExcludedSources is not { Length: > 0 } ||
-                            !card.ExcludedSources.Intersect(viewerRoles).Any()))
+            .Where(card => card.IsVisibleToRoles(viewerRoles) &&
+                           (card.Type != InfoCardType.Messages || workflowDefinition.MessagesEnabled))
             .ToArray();
         var context = await instanceService.CreateContext(instance,
             workflowDefinition.PermissionAndStepLookups
@@ -57,7 +56,9 @@ public class WorkflowInstanceDtoFactory(
             .ToArray();
         var submissions = (await instanceService.GetAllowedSubmissions(instance, ct, context: context)).ToArray();
         var permissions = await rightsService.GetAllowedActions(instance, context, RightsEvaluationMode.RequestContext,
-            RoleAction.ViewAdminTools, RoleAction.Edit, RoleAction.ViewCorrespondence, RoleAction.ViewHistory);
+            RoleAction.ViewAdminTools, RoleAction.Edit, RoleAction.ViewCorrespondence, RoleAction.ViewHistory,
+            RoleAction.AddMessages, RoleAction.ViewMessages);
+        var messageActions = includeFieldMessages && workflowDefinition.MessagesEnabled ? permissions : null;
         // Both admin-tool and impersonation visibility are evaluated against the real user (ignoring any
         // active impersonation); resolve them in a single pass over the instance's roles.
         var realUserActions = await rightsService.GetAllowedActions(
@@ -136,7 +137,7 @@ public class WorkflowInstanceDtoFactory(
         {
             var dto = submissionDtoFactory.Create(instance, s.Form, s.SubmissionState, s.QuestionStatus,
                 permissions.Where(p => p.MatchesForm(s.Form.Name)).Select(p => p.Type).ToArray(),
-                answerHistory, displayNames, submissionContext);
+                answerHistory, displayNames, submissionContext, messageActions);
             return dto with
             {
                 Form = dto.Form with { Step = StepVersionService.ResolveFormStep(workflowDefinition, s.Form)?.Name }
@@ -149,7 +150,7 @@ public class WorkflowInstanceDtoFactory(
                     ? null
                     : CreateStepVersionDto(versions.Current, versionContexts[versions.Current].Snapshot,
                         versionContexts[versions.Current].Context, answerHistory, displayNames,
-                        versionPermissions[versionContexts[versions.Current].Snapshot]),
+                        versionPermissions[versionContexts[versions.Current].Snapshot], messageActions),
                 versions.History.Select(version =>
                     CreateStepVersionDto(version, versionContexts[version].Snapshot, versionContexts[version].Context,
                         answerHistory, displayNames, versionPermissions[versionContexts[version].Snapshot])).ToList());
@@ -165,6 +166,8 @@ public class WorkflowInstanceDtoFactory(
             workflowDefinition.EditableRelatedUsers.Select(r => r.Property),
             editActions);
         var infoCards = visibleCards
+            .Where(card =>
+                card.Type != InfoCardType.Messages || permissions.Any(action => action.Type == RoleAction.ViewMessages))
             .Select(card => CreateInfoCard(workflowDefinition, card, displayContext, canEditByProperty))
             .OfType<InfoCardDto>()
             .ToArray();
@@ -407,7 +410,8 @@ public class WorkflowInstanceDtoFactory(
         ObjectContext context,
         WorkflowInstanceHistory answerHistory,
         IReadOnlyDictionary<string, string> displayNames,
-        WorkflowAction[] permissions)
+        WorkflowAction[] permissions,
+        WorkflowAction[]? messageActions = null)
     {
         var historical = stepVersion.FrozenAt != null;
         var editActions = historical ? [] : permissions.Where(action => action.Type == RoleAction.Edit).ToArray();
@@ -424,7 +428,7 @@ public class WorkflowInstanceDtoFactory(
             var dto = submissionDtoFactory.Create(snapshot, form, submissionState,
                 modelService.GetQuestionStatus(snapshot, form, permissions, context: context),
                 editActions.Where(a => a.MatchesForm(form.Name)).Select(a => a.Type).ToArray(),
-                historical ? null : answerHistory, displayNames, context);
+                historical ? null : answerHistory, displayNames, context, historical ? null : messageActions);
             submissions.Add(dto with { Form = dto.Form with { Step = member.Step } });
         }
 
@@ -440,6 +444,9 @@ public class WorkflowInstanceDtoFactory(
         Dictionary<string, bool> canEditByProperty)
     {
         var type = card.Type!.Value;
+        if (type == InfoCardType.Messages)
+            return new InfoCardDto(card.Name, card.Title, type);
+
         if (type == InfoCardType.User)
         {
             var user = context.Get(card.User!) switch

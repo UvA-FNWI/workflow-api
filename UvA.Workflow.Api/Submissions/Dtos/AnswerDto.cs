@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using UvA.Workflow.Api.Infrastructure;
 using UvA.Workflow.Submissions;
 
@@ -22,7 +23,11 @@ public record AnswerDto(
     ArtifactReference[]? Files = null,
     string[]? VisibleChoices = null,
     AnswerChangeGroupDto[]? Changes = null
-);
+)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public QuestionMessagesDto? Messages { get; init; }
+}
 
 public class AnswerDtoFactory(ArtifactTokenService artifactTokenService)
 {

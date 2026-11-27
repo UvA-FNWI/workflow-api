@@ -2,6 +2,8 @@ name: Project
 inheritsFrom: Project-Base
 titlePlural: Projects
 instanceTitle: '{{ Title }}'
+messages:
+  enabled: true
 
 fields:
  - property: Course.Name
@@ -25,6 +27,8 @@ steps:
   - Publication
     
 infoCards:
+  - name: Messages
+    type: Messages
   - name: Staff
     type: RelatedUsers
     title: Staff
