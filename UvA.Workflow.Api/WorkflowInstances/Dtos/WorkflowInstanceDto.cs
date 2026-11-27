@@ -97,6 +97,7 @@ public record StepDto(
     UndoCandidateDto? UndoCandidate = null,
     List<SubmissionDto>? Submissions = null,
     bool IsAvailable = false,
+    bool IsActive = false,
     ImportedStepSourceDto? ImportedFrom = null,
     StepImportStatus? ImportStatus = null);
 

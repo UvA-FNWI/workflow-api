@@ -74,7 +74,9 @@ public class DeadlineTests
         Assert.Single(soft.Actions);
         Assert.Empty(hard.Actions);
         Assert.Equal(["Step"], modelService.GetActiveSteps(Instance("Hard")));
-        Assert.True(Assert.Single(hard.Steps).Deadline!.IsPassed);
+        var hardStep = Assert.Single(hard.Steps);
+        Assert.True(hardStep.IsActive);
+        Assert.True(hardStep.Deadline!.IsPassed);
     }
 
     [Theory]

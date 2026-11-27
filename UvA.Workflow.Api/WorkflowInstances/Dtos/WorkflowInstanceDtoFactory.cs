@@ -224,8 +224,9 @@ public class WorkflowInstanceDtoFactory(
         HashSet<string> actionSteps,
         CancellationToken ct)
     {
+        var isActive = activeSteps.Contains(step.Name);
         if (step.Import != null)
-            return await CreateImportedStepDto(step, instance, context, ct);
+            return await CreateImportedStepDto(step, instance, context, isActive, ct);
         var workflowDef = modelService.WorkflowDefinitions[instance.WorkflowDefinition];
         var deadline = GetDeadline(step, context, activeSteps);
         var headerStatus = HasPassedDeadline(step, context, activeSteps)
@@ -263,7 +264,7 @@ public class WorkflowInstanceDtoFactory(
                                 submissionEventIds.Contains(log.EventId) &&
                                 log.Operation is EventLogOperation.Create or EventLogOperation.Update);
         // Hard deadlines end the submission expectation, including inherited deadlines.
-        var expectsSubmission = activeSteps.Contains(step.Name) && !step.HasPassedHardDeadline(context) && step.Actions
+        var expectsSubmission = isActive && !step.HasPassedHardDeadline(context) && step.Actions
             .Where(action => action.Type == RoleAction.Submit && action.Condition.IsMet(context))
             .SelectMany(action => action.AllForms)
             .Distinct()
@@ -294,7 +295,7 @@ public class WorkflowInstanceDtoFactory(
         }
 
         var isAvailable =
-            activeSteps.Contains(step.Name) || step.HasEnded(context) ||
+            isActive || step.HasEnded(context) ||
             // Reached attempts remain inspectable while progression temporarily makes the step inactive.
             versionDtos?.Current != null || versionDtos?.History.Count > 0 ||
             // Submission history can exist even when this viewer cannot see its answers.
@@ -321,12 +322,13 @@ public class WorkflowInstanceDtoFactory(
             versionDtos,
             undoCandidate,
             displayedSubmissions,
-            isAvailable
+            IsAvailable: isAvailable,
+            IsActive: isActive
         );
     }
 
     private async Task<StepDto> CreateImportedStepDto(Step step, WorkflowInstance instance,
-        ObjectContext context, CancellationToken ct)
+        ObjectContext context, bool isActive, CancellationToken ct)
     {
         var owner = context.ImportedSteps.GetValueOrDefault(step.Name);
         var canView = owner != null && await rightsService.Can(owner.Instance, RoleAction.View);
@@ -334,6 +336,7 @@ public class WorkflowInstanceDtoFactory(
             return new StepDto(step.Name, new BilingualString("Shared step", "Gedeelde stap"), null, null,
                 step.GetEndDate(instance, modelService.WorkflowDefinitions[instance.WorkflowDefinition], context),
                 null, null, null, StepResultsType.Normal, false, false,
+                IsActive: isActive,
                 ImportStatus: owner == null ? StepImportStatus.Unavailable : StepImportStatus.Restricted);
 
         var source = owner!;
@@ -374,6 +377,7 @@ public class WorkflowInstanceDtoFactory(
                 : stepProgressResolver.ResolveHeader(source.Step, source.Context),
             source.Step.ResultsType, expectsSubmission, hasSubmission,
             IsAvailable: true,
+            IsActive: isActive,
             ImportedFrom: new ImportedStepSourceDto(source.Instance.Id, source.Step.Name, users),
             ImportStatus: StepImportStatus.Available);
     }
